@@ -203,6 +203,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
     // 남은 턴이 0이면 계가 진행되므로, 그 순간부터 클릭 불가 (빠르게 눌러서 추가 착수되는 버그 방지)
     const isBoardDisabledDueToTurnLimit = useMemo(() => {
         if (gameStatus !== 'playing' && gameStatus !== 'hidden_placing') return false;
+        if (session.settings?.pairGame) return false;
         const moveHistory = session.moveHistory ?? [];
         // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
         const turnCount = moveHistory.length;
@@ -237,7 +238,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         }
 
         return false;
-    }, [gameStatus, session.isSinglePlayer, session.gameCategory, session.stageId, session.moveHistory, session.totalTurns, settings.scoringTurnLimit, mode]);
+    }, [gameStatus, session.isSinglePlayer, session.gameCategory, session.stageId, session.moveHistory, session.totalTurns, session.settings?.pairGame, settings.scoringTurnLimit, mode]);
 
     const isAdventureBoardLayout = session.gameCategory === 'adventure';
 

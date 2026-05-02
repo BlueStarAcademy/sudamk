@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { LiveGameSession, ServerAction, User } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import Avatar from './Avatar.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants.js';
-import { getPairPetDefinition } from '../shared/constants/petLobby.js';
+import { getPairPetDefinition, getPairPetDisplayName } from '../shared/constants/petLobby.js';
+import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
+import { resolvePairPetMetaFromInventoryRow } from '../shared/utils/pairPetRoll.js';
 
 function pairTurnOrderPetPortrait(session: LiveGameSession, participantId: string): string | null {
     if (!participantId.startsWith('pet-ai-')) return null;
@@ -13,6 +15,18 @@ function pairTurnOrderPetPortrait(session: LiveGameSession, participantId: strin
     const tid = u?.equippedPairPetTemplateId;
     if (!tid) return null;
     return getPairPetDefinition(tid)?.image ?? null;
+}
+
+function pairTurnOrderPetDisplayName(session: LiveGameSession, participantId: string, fallbackName: string): string {
+    if (!participantId.startsWith('pet-ai-')) return fallbackName;
+    const uid = participantId.slice('pet-ai-'.length);
+    const u = session.player1.id === uid ? session.player1 : session.player2.id === uid ? session.player2 : null;
+    if (!u) return fallbackName;
+    const row = getEquippedPairPetInventoryRow(u);
+    if (!row) return fallbackName;
+    const meta = resolvePairPetMetaFromInventoryRow(row);
+    const level = Math.max(1, Math.floor(meta.level) || 1);
+    return `Lv.${level} ${getPairPetDisplayName(row)}`;
 }
 
 interface PairTurnOrderModalProps {
@@ -39,7 +53,6 @@ const PairTurnOrderModal: React.FC<PairTurnOrderModalProps> = ({ session, curren
     const hasConfirmed = Boolean(confirmations[currentUser.id]);
     const [rouletteIndex, setRouletteIndex] = useState(0);
     const [rouletteDone, setRouletteDone] = useState(false);
-    const autoConfirmSentRef = useRef(false);
     const usersById = useMemo(() => new Map([session.player1, session.player2, currentUser].map((u) => [u.id, u])), [session.player1, session.player2, currentUser]);
     const displayedSeats = useMemo(() => {
         if (rouletteDone || seats.length === 0) return seats;
@@ -48,7 +61,6 @@ const PairTurnOrderModal: React.FC<PairTurnOrderModalProps> = ({ session, curren
 
     useEffect(() => {
         if (!seats.length) return;
-        autoConfirmSentRef.current = false;
         setRouletteDone(false);
         setRouletteIndex(0);
         const interval = window.setInterval(() => {
@@ -64,12 +76,6 @@ const PairTurnOrderModal: React.FC<PairTurnOrderModalProps> = ({ session, curren
             window.clearTimeout(timeout);
         };
     }, [seats.length, session.id]);
-
-    useEffect(() => {
-        if (!rouletteDone || !isHumanSeat || hasConfirmed || autoConfirmSentRef.current) return;
-        autoConfirmSentRef.current = true;
-        void Promise.resolve(onAction({ type: 'CONFIRM_COLOR_START' as any, payload: { gameId: session.id } }));
-    }, [rouletteDone, isHumanSeat, hasConfirmed, onAction, session.id]);
 
     return (
         <DraggableWindow title="페어 순서 결정" initialWidth={520} shrinkHeightToContent windowId="pair-turn-order" transparentModalBackdrop>
@@ -92,6 +98,10 @@ const PairTurnOrderModal: React.FC<PairTurnOrderModalProps> = ({ session, curren
                         const avatarUrl = user ? AVATAR_POOL.find((a) => a.id === user.avatarId)?.url : null;
                         const borderUrl = user ? BORDER_POOL.find((b) => b.id === user.borderId)?.url : null;
                         const petPortrait = !user && seat.kind === 'pet' ? pairTurnOrderPetPortrait(session, seat.participantId) : null;
+                        const seatDisplayName =
+                            !user && seat.kind === 'pet'
+                                ? pairTurnOrderPetDisplayName(session, seat.participantId, seat.name)
+                                : seat.name;
                         const highlighted = !rouletteDone;
                         return (
                             <div
@@ -107,7 +117,7 @@ const PairTurnOrderModal: React.FC<PairTurnOrderModalProps> = ({ session, curren
                                 <div className="mb-2 flex justify-center">
                                     <Avatar
                                         userId={seat.participantId}
-                                        userName={seat.name}
+                                        userName={seatDisplayName}
                                         avatarUrl={avatarUrl || petPortrait || (seat.kind === 'pet' ? '/images/pets/pet1.webp' : null)}
                                         borderUrl={borderUrl}
                                         size={44}
@@ -116,8 +126,8 @@ const PairTurnOrderModal: React.FC<PairTurnOrderModalProps> = ({ session, curren
                                 <div className={`text-xs font-black tracking-widest ${highlighted ? 'text-amber-100' : isBlack ? 'text-slate-300' : 'text-slate-600'}`}>
                                     {seatLabel[slotSeat.seatId] ?? slotSeat.seatId}
                                 </div>
-                                <div className="mt-2 truncate text-sm font-black" title={seat.name}>
-                                    {seat.name}
+                                <div className="mt-2 truncate text-sm font-black" title={seatDisplayName}>
+                                    {seatDisplayName}
                                 </div>
                                 <div className={`mt-1 text-[11px] font-semibold ${highlighted ? 'text-amber-100/90' : isBlack ? 'text-fuchsia-200/80' : 'text-fuchsia-800/80'}`}>
                                     {seat.kind === 'user' ? '대국자' : seat.kind === 'pet' ? '펫 AI' : 'AI'}

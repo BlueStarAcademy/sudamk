@@ -287,12 +287,12 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                             colorScheme="none"
                             className={`shrink-0 font-bold text-white transition-all duration-200 ${
                                 nativeNarrow
-                                    ? '!w-auto !py-1 !px-1.5 !text-[9px] bg-gradient-to-r from-green-600/90 via-emerald-600/90 to-green-600/90 hover:from-green-500 hover:via-emerald-500 hover:to-green-500 rounded-md border border-green-400/30 shadow-sm'
+                                    ? '!w-auto !py-1 !px-1.5 !text-[0.65rem] sm:!text-xs bg-gradient-to-r from-green-600/90 via-emerald-600/90 to-green-600/90 hover:from-green-500 hover:via-emerald-500 hover:to-green-500 rounded-md border border-green-400/30 shadow-sm'
                                     : '!flex-shrink-0 !py-2 !px-3 !text-xs bg-gradient-to-r from-green-600/90 via-emerald-600/90 to-green-600/90 hover:from-green-500 hover:via-emerald-500 hover:to-green-500 rounded-lg shadow-[0_2px_12px_rgba(34,197,94,0.4)] hover:shadow-[0_4px_16px_rgba(34,197,94,0.5)] border border-green-400/30 hover:border-green-300/50'
                             }`}
                         >
                             <span className={`flex items-center justify-center gap-0.5 ${nativeNarrow ? '' : 'gap-1.5'}`}>
-                                <span className={nativeNarrow ? 'text-[10px]' : ''}>⚔️</span>
+                                <span className={nativeNarrow ? 'text-[0.65rem] sm:text-xs' : ''}>⚔️</span>
                                 <span>{nativeNarrow ? '시작' : '랭킹전 시작'}</span>
                             </span>
                         </Button>
@@ -302,7 +302,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                             colorScheme="none"
                             className={`shrink-0 font-bold text-white transition-all duration-200 ${
                                 nativeNarrow
-                                    ? '!w-auto !py-1 !px-1.5 !text-[9px] bg-gradient-to-r from-red-600/90 via-rose-600/90 to-red-600/90 hover:from-red-500 hover:via-rose-500 hover:to-red-500 rounded-md border border-red-400/30 shadow-sm'
+                                    ? '!w-auto !py-1 !px-1.5 !text-[0.65rem] sm:!text-xs bg-gradient-to-r from-red-600/90 via-rose-600/90 to-red-600/90 hover:from-red-500 hover:via-rose-500 hover:to-red-500 rounded-md border border-red-400/30 shadow-sm'
                                     : '!flex-shrink-0 !py-2 !px-3 !text-xs bg-gradient-to-r from-red-600/90 via-rose-600/90 to-red-600/90 hover:from-red-500 hover:via-rose-500 hover:to-red-500 rounded-lg shadow-[0_2px_12px_rgba(220,38,38,0.4)] hover:shadow-[0_4px_16px_rgba(220,38,38,0.5)] border border-red-400/30 hover:border-red-300/50'
                             }`}
                         >

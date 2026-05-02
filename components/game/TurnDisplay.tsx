@@ -100,10 +100,10 @@ const getGameStatusText = (session: LiveGameSession): string => {
     // 싱글플레이어 게임에서는 통과 기능이 없으므로 통과 텍스트를 표시하지 않음
     const isSinglePlayer = session.isSinglePlayer || session.gameCategory === 'singleplayer';
     
-    if (pairGame?.turnOrder?.length) {
+    if (pairGame) {
         const passCountPair = pairGame.passSeatIds?.length ?? 0;
         if (gameStatus === 'scoring') {
-            return '4명 모두 통과하여 계가를 진행합니다.';
+            return passCountPair >= 4 ? '4명 모두 통과하여 계가를 진행합니다.' : '계가를 진행합니다.';
         }
         if (gameStatus !== 'ended' && passCountPair > 0 && lastMoveInHistory?.x === -1) {
             return `통과 ${passCountPair}/4`;
@@ -159,8 +159,9 @@ const getGameStatusText = (session: LiveGameSession): string => {
         case 'hidden_final_reveal':
             return "모든 히든돌을 공개하고 계가를 시작합니다.";
         case 'scoring': {
-            if (pairGame?.turnOrder?.length) {
-                return '4명 모두 통과하여 계가를 진행합니다.';
+            if (pairGame) {
+                const passCountPair = pairGame.passSeatIds?.length ?? 0;
+                return passCountPair >= 4 ? '4명 모두 통과하여 계가를 진행합니다.' : '계가를 진행합니다.';
             }
             const limit = (settings as any)?.scoringTurnLimit ?? (settings as any)?.autoScoringTurns;
             const isOnlineStrategic =

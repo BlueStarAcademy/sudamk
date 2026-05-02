@@ -302,6 +302,128 @@ function shouldSkipDelayedAiSnapshotApply(
     return false;
 }
 
+function getLastPlacedPointForStaleCheck(g: LiveGameSession | undefined): { x: number; y: number } | null {
+    const history = g?.moveHistory;
+    if (!Array.isArray(history) || history.length === 0) return null;
+    for (let i = history.length - 1; i >= 0; i--) {
+        const m = history[i] as { x?: unknown; y?: unknown } | undefined;
+        const x = m?.x;
+        const y = m?.y;
+        if (
+            typeof x === 'number' &&
+            typeof y === 'number' &&
+            Number.isFinite(x) &&
+            Number.isFinite(y) &&
+            x >= 0 &&
+            y >= 0
+        ) {
+            return { x, y };
+        }
+    }
+    return null;
+}
+
+function shouldDropStaleStrategicGameUpdate(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined
+): boolean {
+    if (!existing) return false;
+    const isPlayful =
+        incoming.mode === GameMode.Dice ||
+        incoming.mode === GameMode.Thief ||
+        incoming.mode === GameMode.Alkkagi ||
+        incoming.mode === GameMode.Curling ||
+        incoming.mode === GameMode.Omok ||
+        incoming.mode === GameMode.Ttamok;
+    const isStrategicAi = (incoming.isAiGame || incoming.gameCategory === 'guildwar') && !isPlayful;
+    if (!isStrategicAi) return false;
+
+    // State transitions must win even if the payload is slim.
+    if (
+        incoming.gameStatus === 'scoring' ||
+        incoming.gameStatus === 'hidden_final_reveal' ||
+        incoming.gameStatus === 'ended' ||
+        incoming.gameStatus === 'no_contest' ||
+        incoming.gameStatus === 'missile_animating' ||
+        incoming.gameStatus === 'scanning' ||
+        incoming.gameStatus === 'scanning_animating' ||
+        incoming.gameStatus === 'hidden_reveal_animating'
+    ) {
+        return false;
+    }
+
+    const incomingRevision = incoming.serverRevision ?? 0;
+    const existingRevision = existing.serverRevision ?? 0;
+    if (incomingRevision > 0 && existingRevision > 0 && incomingRevision < existingRevision) {
+        return true;
+    }
+
+    const incomingMoves = Array.isArray(incoming.moveHistory) ? incoming.moveHistory.length : 0;
+    const existingMoves = Array.isArray(existing.moveHistory) ? existing.moveHistory.length : 0;
+    if (incomingMoves < existingMoves) {
+        return true;
+    }
+
+    if (incomingMoves > 0 && incomingMoves === existingMoves) {
+        const incomingLast = getLastPlacedPointForStaleCheck(incoming);
+        const existingLast = getLastPlacedPointForStaleCheck(existing);
+        if (
+            incomingLast &&
+            existingLast &&
+            (incomingLast.x !== existingLast.x || incomingLast.y !== existingLast.y) &&
+            incomingRevision <= existingRevision
+        ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function mergeHiddenMovesByStableHistory(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined
+): LiveGameSession['hiddenMoves'] {
+    const sanitizeAgainst = (
+        source: LiveGameSession['hiddenMoves'] | undefined,
+        history: LiveGameSession['moveHistory'] | undefined
+    ): LiveGameSession['hiddenMoves'] => {
+        if (!source || !history) return source;
+        const out: NonNullable<LiveGameSession['hiddenMoves']> = {};
+        for (const [key, value] of Object.entries(source)) {
+            if (!value) continue;
+            const index = Number.parseInt(key, 10);
+            const move = Number.isInteger(index) ? history[index] : undefined;
+            if (move && move.x >= 0 && move.y >= 0) out[index] = true;
+        }
+        return Object.keys(out).length > 0 ? out : undefined;
+    };
+
+    const incomingHidden = sanitizeAgainst(incoming.hiddenMoves, incoming.moveHistory);
+    if (incomingHidden && Object.keys(incomingHidden).length > 0) return incomingHidden;
+
+    const existingHidden = sanitizeAgainst(existing?.hiddenMoves, existing?.moveHistory);
+    if (!existingHidden || !incoming.moveHistory || !existing?.moveHistory) return incoming.hiddenMoves ?? existingHidden;
+
+    const out: NonNullable<LiveGameSession['hiddenMoves']> = {};
+    for (const [key, value] of Object.entries(existingHidden)) {
+        if (!value) continue;
+        const index = Number.parseInt(key, 10);
+        const incomingMove = Number.isInteger(index) ? incoming.moveHistory[index] : undefined;
+        const existingMove = existing.moveHistory[index];
+        if (
+            incomingMove &&
+            existingMove &&
+            incomingMove.x === existingMove.x &&
+            incomingMove.y === existingMove.y &&
+            incomingMove.player === existingMove.player
+        ) {
+            out[index] = true;
+        }
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+}
+
 /** WebSocket INITIAL_STATE에서 boardState를 떼어내므로, 격자가 없으면 F5 후에도 /api/game/rejoin으로 전체 판·수순을 받아야 한다. */
 function hasHydratedBoardGridForRejoin(game: LiveGameSession | undefined): boolean {
     const b = game?.boardState;
@@ -6571,6 +6693,9 @@ export const useApp = () => {
                                     setSinglePlayerGames(currentGames => {
                                         // 성능 최적화: 게임 상태가 변경되지 않았으면 early return
                                         const existingGame = currentGames[gameId];
+                                        if (shouldDropStaleStrategicGameUpdate(game, existingGame)) {
+                                            return currentGames;
+                                        }
                                         
                                         // 중요한 필드만 비교하여 빠른 early return (stableStringify 호출 전에)
                                         if (existingGame) {
@@ -6739,10 +6864,7 @@ export const useApp = () => {
                                                 const mergedPendingCapture = game.pendingCapture ?? existingGame?.pendingCapture ?? null;
                                                 const mergedRevealAnimationEndTime = game.revealAnimationEndTime ?? existingGame?.revealAnimationEndTime;
                                                 const mergedAnimation = game.animation ?? existingGame?.animation ?? null;
-                                                const mergedHiddenMoves =
-                                                    (game.hiddenMoves && Object.keys(game.hiddenMoves).length > 0)
-                                                        ? game.hiddenMoves
-                                                        : (existingGame?.hiddenMoves ?? game.hiddenMoves);
+                                                const mergedHiddenMoves = mergeHiddenMovesByStableHistory(game, existingGame);
                                                 const mergedAiInitialHiddenStone =
                                                     (game as any).aiInitialHiddenStone ?? (existingGame as any)?.aiInitialHiddenStone;
                                                 const mergedAiInitialHiddenStoneIsPrePlaced =
@@ -6783,9 +6905,7 @@ export const useApp = () => {
                                                     if (!mergedRevealed.some((r: Point) => r.x === p.x && r.y === p.y))
                                                         mergedRevealed.push(p);
                                                 }
-                                                const hiddenMoves = (existingGame.moveHistory?.length === game.moveHistory?.length && existingGame.hiddenMoves)
-                                                    ? existingGame.hiddenMoves
-                                                    : (game.hiddenMoves ?? existingGame.hiddenMoves ?? {});
+                                                const hiddenMoves = mergeHiddenMovesByStableHistory(game, existingGame) ?? {};
                                                 updatedGames[gameId] = {
                                                     ...game,
                                                     boardState,
@@ -6941,10 +7061,7 @@ export const useApp = () => {
                                                     if (!mergedRevealed.some((r: Point) => r.x === p.x && r.y === p.y))
                                                         mergedRevealed.push(p);
                                                 }
-                                                const mergedHiddenMovesGeneral =
-                                                    (game.hiddenMoves && Object.keys(game.hiddenMoves).length > 0)
-                                                        ? game.hiddenMoves
-                                                        : (existingGame?.hiddenMoves ?? game.hiddenMoves);
+                                                const mergedHiddenMovesGeneral = mergeHiddenMovesByStableHistory(game, existingGame);
                                                 const mergedAiInitialHiddenStoneGeneral =
                                                     (game as any).aiInitialHiddenStone ?? (existingGame as any)?.aiInitialHiddenStone;
                                                 const mergedAiInitialHiddenStoneIsPrePlacedGeneral =
@@ -7024,6 +7141,9 @@ export const useApp = () => {
                                 } else if (gameCategory === 'tower') {
                                     setTowerGames(currentGames => {
                                         const existingGame = currentGames[gameId];
+                                        if (shouldDropStaleStrategicGameUpdate(game, existingGame)) {
+                                            return currentGames;
+                                        }
                                         
                                         // 타워 게임은 클라이언트에서만 실행되므로, 
                                         // 클라이언트의 로컬 상태가 더 최신이면 서버 상태를 무시
@@ -7326,6 +7446,9 @@ export const useApp = () => {
                                 } else {
                                     setLiveGames(currentGames => {
                                         const existingGame = currentGames[gameId];
+                                        if (shouldDropStaleStrategicGameUpdate(game, existingGame)) {
+                                            return currentGames;
+                                        }
                                         // 주사위/도둑: 소켓 패킷이 HTTP보다 늦거나 순서가 뒤바뀌면 낡은 상태로 덮어쓰지 않음
                                         if (shouldIgnoreOutdatedPlayfulUpdate(game, existingGame, { source: 'ws_game_update' })) {
                                             return currentGames;

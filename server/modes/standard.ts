@@ -681,7 +681,8 @@ const handleStandardAction = async (
 const handleStandardActionCore = async (volatileState: types.VolatileState, game: types.LiveGameSession, action: types.ServerAction, user: types.User): Promise<types.HandleActionResult | null> => {
     const { type, payload } = action as any;
     const now = Date.now();
-    const pairCurrentSeat = isPairClassicGame(game.settings, game.mode) ? getCurrentPairTurnSeat(game.settings) : null;
+    const pairClassicGame = isPairClassicGame(game.settings, game.mode);
+    const pairCurrentSeat = pairClassicGame ? getCurrentPairTurnSeat(game.settings) : null;
     const myPlayerEnum = pairCurrentSeat
         ? user.id === pairCurrentSeat.participantId
             ? pairCurrentSeat.player
@@ -697,6 +698,10 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
     const resolveFixedScoringTurnState = async () => {
         let fixedScoringTurnLimit: number | undefined;
         let countPassAsTurn = false;
+        if (pairClassicGame) {
+            // 페어바둑은 정해진 수순 없이 4좌석 모두 PASS할 때만 계가한다.
+            return { fixedScoringTurnLimit, countPassAsTurn, currentTurnCount: 0 };
+        }
         if ((game as any).gameCategory === 'guildwar') {
             fixedScoringTurnLimit = (game.settings as any)?.autoScoringTurns;
         } else if (game.gameCategory === GameCategory.Tower) {
@@ -743,6 +748,10 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
 
             // triggerAutoScoring 플래그가 있으면 계가를 트리거
             if (payload.triggerAutoScoring) {
+                if (pairClassicGame) {
+                    console.warn(`[handleStandardAction] Ignored triggerAutoScoring for pair game ${game.id}; pair scoring requires all 4 seats to pass.`);
+                    return {};
+                }
                 // 온라인 전략바둑/PVP/AI 대국에서는 항상 서버의 게임 상태를 기준으로 계가해야 함
                 // (클라이언트가 새로고침 후 잘못된 boardState를 보내면 오계가 발생할 수 있음)
                 const isClientAuthoritative =
@@ -1599,7 +1608,8 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 (game.settings as any)?.autoScoringTurns != null &&
                 (game.settings as any)?.autoScoringTurns > 0;
             const isAutoScoringMode =
-                ((game.isSinglePlayer || game.gameCategory === GameCategory.Tower) && game.stageId) || guildWarAutoScoring;
+                !pairClassicGame &&
+                (((game.isSinglePlayer || game.gameCategory === GameCategory.Tower) && game.stageId) || guildWarAutoScoring);
             if (isAutoScoringMode) {
                 let autoScoringTurns: number | undefined;
                 if (guildWarAutoScoring) {
@@ -1726,7 +1736,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 const gc = (game as any).gameCategory;
                 const isAiLobbyGame =
                     game.isAiGame &&
-                    !pairCurrentSeat &&
+                    !pairClassicGame &&
                     !game.isSinglePlayer &&
                     gc !== 'tower' &&
                     gc !== 'singleplayer' &&
@@ -1768,7 +1778,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 }
             }
 
-            if (pairAllPassed || (!pairCurrentSeat && game.passCount >= 2)) {
+            if (pairAllPassed || (!pairClassicGame && game.passCount >= 2)) {
                 const isHiddenMode = game.mode === types.GameMode.Hidden || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
 
                 if (isHiddenMode) {

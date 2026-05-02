@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import Button from '../Button.js';
-import PairPetDetailCardBody from './PairPetDetailCardBody.js';
 import PairPetGradeUpgradeModal from './PairPetGradeUpgradeModal.js';
+import PairPetDetailCardBody from './PairPetDetailCardBody.js';
 import type { InventoryItem, ServerAction, User } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
 import { resolvePairPetMetaFromInventoryRow } from '../../shared/utils/pairPetRoll.js';
@@ -14,6 +14,10 @@ import {
     pairPetMinLevelForNextGrade,
 } from '../../shared/constants/pairPetGrade.js';
 import { isPairSoulStoneItem } from '../../shared/constants/petLobby.js';
+
+/** `PairPetLobbyPanel` 정보 탭 본문 스크롤 — 가방과 동일한 얇은 스크롤바 */
+const PET_INFO_DETAIL_SCROLLBAR_CLASS =
+    '[scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.28)_transparent] [&::-webkit-scrollbar]:w-[2px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-500/40 hover:[&::-webkit-scrollbar-thumb]:bg-slate-400/55';
 
 export interface PairPetLobbyInfoPetViewerProps {
     currentUser: User;
@@ -40,15 +44,12 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
     const tid = item.templateId ?? null;
     const eqRowId = currentUser.equippedPairPetInventoryItemId ?? null;
     const isRepresentative = Boolean(
-        tid &&
-            equippedTemplateId === tid &&
-            (!eqRowId || eqRowId === item.id),
+        tid && equippedTemplateId === tid && (!eqRowId || eqRowId === item.id),
     );
     const [gradeModalOpen, setGradeModalOpen] = useState(false);
 
     const meta = useMemo(() => resolvePairPetMetaFromInventoryRow(item), [item]);
     const levelSafe = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(meta.level) || 1));
-    /** 저장 등급 — 강화 조건·재료 매칭은 서버와 동일하게 인벤 `grade` 기준 */
     const storedPetGrade = item.grade ?? ItemGrade.Normal;
     const needLv = pairPetMinLevelForNextGrade(storedPetGrade);
     const soulTid = pairPetGradeUpgradeSoulTemplateId(storedPetGrade);
@@ -82,15 +83,21 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
     };
 
     return (
-        <div className="space-y-3">
-            <PairPetDetailCardBody
-                currentUser={currentUser}
-                item={item}
-                statsGridVariant="panel"
-                showRepresentativeBadge={isRepresentative}
-            />
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <div
+                className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-1.5 pb-1.5 pt-1.5 [-webkit-overflow-scrolling:touch] sm:px-2 sm:pb-2 sm:pt-2 ${PET_INFO_DETAIL_SCROLLBAR_CLASS}`}
+            >
+                <div className="min-w-0 rounded-lg border border-white/10 bg-black/20 p-1.5 ring-1 ring-white/[0.04] sm:p-2">
+                    <PairPetDetailCardBody
+                        currentUser={currentUser}
+                        item={item}
+                        statsGridVariant="modal"
+                        showRepresentativeBadge={isRepresentative}
+                    />
+                </div>
+            </div>
 
-            <div className="flex min-w-0 flex-nowrap gap-1.5 sm:gap-2">
+            <div className="flex min-w-0 shrink-0 flex-nowrap gap-1.5 border-t border-white/10 bg-black/45 px-1.5 py-2 backdrop-blur-sm supports-[backdrop-filter]:bg-black/35 sm:gap-2 sm:px-2 sm:pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
                 {isRepresentative ? (
                     <Button
                         type="button"

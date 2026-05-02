@@ -10,9 +10,18 @@ interface GameListProps {
     panelExtraClassName?: string;
     /** PC 홈형 패널 안에 넣을 때: 외곽 카드와 이중 테두리 방지 */
     embedInHomeLobbyPanel?: boolean;
+    /** 네이티브 전략·놀이 대기실: 페어 경기장 모바일과 유사한 본문 글자 크기 */
+    pairAlignedNativeCompact?: boolean;
 }
 
-const GameList: React.FC<GameListProps> = ({ games, onAction, currentUser, panelExtraClassName = '', embedInHomeLobbyPanel = false }) => {
+const GameList: React.FC<GameListProps> = ({
+    games,
+    onAction,
+    currentUser,
+    panelExtraClassName = '',
+    embedInHomeLobbyPanel = false,
+    pairAlignedNativeCompact = false,
+}) => {
     const [spectateRoomNumber, setSpectateRoomNumber] = useState('');
     const [adminMenuGameId, setAdminMenuGameId] = useState<string | null>(null);
     const [adminSearchQuery, setAdminSearchQuery] = useState('');
@@ -96,16 +105,22 @@ const GameList: React.FC<GameListProps> = ({ games, onAction, currentUser, panel
     };
 
     const rootShell = embedInHomeLobbyPanel
-        ? 'rounded-xl border border-white/[0.08] bg-black/28 text-on-panel shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] p-3 sm:p-4 flex flex-col min-h-0 h-full'
-        : 'bg-panel border border-color text-on-panel rounded-lg shadow-lg p-4 flex flex-col min-h-0 h-full';
+        ? `rounded-xl border border-white/[0.08] bg-black/28 text-on-panel shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] flex flex-col min-h-0 h-full ${
+              pairAlignedNativeCompact ? 'p-2 sm:p-3' : 'p-3 sm:p-4'
+          }`
+        : `bg-panel border border-color text-on-panel rounded-lg shadow-lg flex flex-col min-h-0 h-full ${
+              pairAlignedNativeCompact ? 'p-2 sm:p-3' : 'p-4'
+          }`;
 
     return (
       <div
         className={[rootShell, embedInHomeLobbyPanel ? '' : panelExtraClassName].filter(Boolean).join(' ').trim()}
       >
-        <div className="flex justify-between items-center mb-3 border-b border-color pb-2 flex-shrink-0">
-            <h2 className="text-xl font-semibold">진행중인 대국</h2>
-            <div className="flex items-center gap-2">
+        <div
+            className={`flex flex-shrink-0 items-center justify-between border-b border-color ${pairAlignedNativeCompact ? 'mb-2 pb-1.5' : 'mb-3 pb-2'}`}
+        >
+            <h2 className={`font-semibold ${pairAlignedNativeCompact ? 'text-sm sm:text-base' : 'text-xl'}`}>진행중인 대국</h2>
+            <div className="flex items-center gap-1.5 sm:gap-2">
                 <input 
                     type="number"
                     min="1"
@@ -118,9 +133,16 @@ const GameList: React.FC<GameListProps> = ({ games, onAction, currentUser, panel
                         }
                     }}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleSpectateByNumber(); }}
-                    className="w-24 bg-tertiary border border-color rounded-md p-2 focus:ring-accent focus:border-accent text-sm text-center"
+                    className={`w-[5.5rem] bg-tertiary border border-color rounded-md text-center focus:ring-accent focus:border-accent sm:w-24 ${
+                        pairAlignedNativeCompact ? 'p-1.5 text-[0.65rem] sm:text-xs' : 'p-2 text-sm'
+                    }`}
                 />
-                <button onClick={handleSpectateByNumber} className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg text-sm transition-colors shrink-0">
+                <button
+                    onClick={handleSpectateByNumber}
+                    className={`shrink-0 rounded-lg bg-purple-600 px-2 py-1.5 font-bold text-white transition-colors hover:bg-purple-500 sm:px-4 sm:py-2 ${
+                        pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs' : 'text-sm'
+                    }`}
+                >
                     입장
                 </button>
             </div>
@@ -132,9 +154,16 @@ const GameList: React.FC<GameListProps> = ({ games, onAction, currentUser, panel
                     value={adminSearchQuery}
                     onChange={(e) => setAdminSearchQuery(e.target.value)}
                     placeholder="관리자 검색: 닉네임/모드/게임ID"
-                    className="flex-1 min-w-[220px] bg-tertiary border border-color rounded-md p-2 text-sm"
+                    className={`flex-1 min-w-[220px] bg-tertiary border border-color rounded-md ${
+                        pairAlignedNativeCompact ? 'p-1.5 text-[0.65rem] sm:text-xs' : 'p-2 text-sm'
+                    }`}
                 />
-                <button onClick={handleBatchDelete} className="px-3 py-2 bg-red-700 hover:bg-red-600 text-white text-xs font-bold rounded-md transition-colors">
+                <button
+                    onClick={handleBatchDelete}
+                    className={`rounded-md bg-red-700 px-3 py-2 font-bold text-white transition-colors hover:bg-red-600 ${
+                        pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs' : 'text-xs'
+                    }`}
+                >
                     선택 강제 종료 ({selectedGameIds.length})
                 </button>
             </div>
@@ -167,12 +196,24 @@ const GameList: React.FC<GameListProps> = ({ games, onAction, currentUser, panel
                     <div className="flex items-center gap-2 overflow-hidden">
                       <div className="text-center truncate">
                         <Avatar userId={game.player1.id} userName={game.player1.nickname} size={36} className="border-2 border-color mx-auto" />
-                        <span className="text-xs font-semibold block truncate">{game.player1.nickname}</span>
+                        <span
+                            className={`block truncate font-semibold ${
+                                pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs' : 'text-xs'
+                            }`}
+                        >
+                            {game.player1.nickname}
+                        </span>
                       </div>
                       <span className="text-tertiary font-bold">vs</span>
                       <div className="text-center truncate">
                         <Avatar userId={game.player2.id} userName={game.player2.nickname} size={36} className="border-2 border-color mx-auto" />
-                        <span className="text-xs font-semibold block truncate">{game.player2.nickname}</span>
+                        <span
+                            className={`block truncate font-semibold ${
+                                pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs' : 'text-xs'
+                            }`}
+                        >
+                            {game.player2.nickname}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -182,7 +223,12 @@ const GameList: React.FC<GameListProps> = ({ games, onAction, currentUser, panel
                             {game.description}
                         </div>
                     )}
-                    <button onClick={() => onAction({ type: 'SPECTATE_GAME', payload: { gameId: game.id } })} className="ml-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg text-sm transition-colors shrink-0">
+                    <button
+                        onClick={() => onAction({ type: 'SPECTATE_GAME', payload: { gameId: game.id } })}
+                        className={`ml-2 shrink-0 rounded-lg bg-purple-600 px-2 py-1 font-bold text-white transition-colors hover:bg-purple-500 sm:px-3 sm:py-1.5 ${
+                            pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs' : 'text-sm'
+                        }`}
+                    >
                       관전하기
                     </button>
                     {currentUser.isAdmin && (

@@ -1166,6 +1166,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     // 전략바둑 로비(대국실) 턴 표시: 제한 없음 → N수, 제한 있음 → N/N에서 0/N으로 줄어드는 계가 카운트다운
     const isStrategicMode = SPECIAL_GAME_MODES.some(m => m.mode === mode);
     const strategicLobbyTurnInfoRaw = useMemo(() => {
+        if (session.settings?.pairGame) return null;
         if (!isStrategicMode || isSinglePlayer || session.gameCategory === 'tower') return null;
         // 모험 스테이지는 stageId가 있어도 상단 수순 박스를 표시(도감 스테이지 id와 전략 로비 수순 표시가 겹치지 않음)
         if (session.stageId && session.gameCategory !== 'adventure') return null;
@@ -1204,6 +1205,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         settings.scoringTurnLimit,
         session.moveHistory,
         session.totalTurns,
+        session.settings?.pairGame,
         mode,
         session.settings,
     ]);

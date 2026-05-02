@@ -937,7 +937,9 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     item={it}
                     selected={selectedLobbyItemId === it.id}
                     disabled={isBusy}
-                    onClick={() => setSelectedLobbyItemId(it.id)}
+                    onClick={() => {
+                        setSelectedLobbyItemId(it.id);
+                    }}
                     showRepresentativeBadge={representativeThumb}
                 />
             );
@@ -1016,12 +1018,14 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
         const padTime2 = (n: number) => String(n).padStart(2, '0');
 
-        /** 수련 탭 전역 글자 크기 통일 (text-sm) */
-        const trLbl = 'whitespace-nowrap text-sm font-extrabold leading-none tracking-wide';
-        const trAmt = 'text-center text-sm font-bold tabular-nums leading-tight';
-        const trSlotTitle = 'line-clamp-2 text-center text-sm font-extrabold leading-snug text-violet-100';
-        const trSlotHint = 'text-center text-sm font-semibold leading-tight';
-        const trMono = 'text-sm font-bold tabular-nums font-mono leading-none';
+        /** 수련 탭: 모바일 한 화면 정보 밀도 */
+        const trLbl =
+            'whitespace-nowrap text-xs font-extrabold leading-none tracking-wide sm:text-sm';
+        const trAmt = 'text-center text-xs font-bold tabular-nums leading-tight sm:text-sm';
+        const trSlotTitle =
+            'line-clamp-2 text-center text-xs font-extrabold leading-snug text-violet-100 sm:text-sm';
+        const trSlotHint = 'text-center text-xs font-semibold leading-tight sm:text-sm';
+        const trMono = 'text-xs font-bold tabular-nums font-mono leading-none sm:text-sm';
 
         return (
             <div className="space-y-2">
@@ -1216,47 +1220,47 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     const infoDetailPanel =
         aiTab === 'info' ? (
             !selectedItem ? null : isPairPetMaterial(selectedItem) && selectedItem.templateId ? (
-                    <div className="space-y-2">
-                        <PairPetLobbyInfoPetViewer
-                            currentUser={currentUser}
-                            item={selectedItem}
-                            isBusy={isBusy}
-                            equippedTemplateId={equippedTid}
-                            onSetRepresentative={(templateId, inventoryItemId) =>
-                                void equipPet(templateId, inventoryItemId)
-                            }
-                            onClearRepresentative={() => void clearEquip()}
-                            onSoulConvert={(item) => setSoulConvertItem(item)}
-                            applyPetAction={applyPetAction}
-                        />
-                    </div>
-                ) : isPairSoulStoneItem(selectedItem) ? (
-                    <div className="space-y-2">
-                        <PairPetLobbySoulStoneViewer
-                            item={selectedItem}
-                            isBusy={isBusy}
-                            primaryStackId={selectedSoulPrimaryStackId}
-                            primaryStackQty={selectedSoulPrimaryStackQty}
-                            onSellOne={() => {
-                                if (selectedSoulPrimaryStackId) void sellItem(selectedSoulPrimaryStackId, 1);
-                            }}
-                            onSellAll={() => {
-                                if (selectedSoulPrimaryStackId) void sellItem(selectedSoulPrimaryStackId, selectedSoulPrimaryStackQty);
-                            }}
-                        />
-                    </div>
-                ) : (
-                    <p className="text-sm text-slate-400">이 카테고리에서 지원하지 않는 아이템입니다.</p>
-                )
+                <PairPetLobbyInfoPetViewer
+                    currentUser={currentUser}
+                    item={selectedItem}
+                    isBusy={isBusy}
+                    equippedTemplateId={equippedTid}
+                    onSetRepresentative={(templateId, inventoryItemId) => void equipPet(templateId, inventoryItemId)}
+                    onClearRepresentative={() => void clearEquip()}
+                    onSoulConvert={(item) => setSoulConvertItem(item)}
+                    applyPetAction={applyPetAction}
+                />
+            ) : isPairSoulStoneItem(selectedItem) ? (
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2">
+                    <PairPetLobbySoulStoneViewer
+                        item={selectedItem}
+                        isBusy={isBusy}
+                        primaryStackId={selectedSoulPrimaryStackId}
+                        primaryStackQty={selectedSoulPrimaryStackQty}
+                        onSellOne={() => {
+                            if (selectedSoulPrimaryStackId) void sellItem(selectedSoulPrimaryStackId, 1);
+                        }}
+                        onSellAll={() => {
+                            if (selectedSoulPrimaryStackId) void sellItem(selectedSoulPrimaryStackId, selectedSoulPrimaryStackQty);
+                        }}
+                    />
+                </div>
+            ) : (
+                <div
+                    className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-1.5 sm:p-2 ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS}`}
+                >
+                    <p className="text-xs text-slate-400 sm:text-sm">이 카테고리에서 지원하지 않는 아이템입니다.</p>
+                </div>
+            )
         ) : null;
 
     const tabContent = (
         <>
             {aiTab === 'shop' && (
-                <div className="space-y-2">
+                <div className="space-y-1.5 sm:space-y-2">
                     <div>
-                        <p className="font-semibold text-amber-100">펫 상점</p>
-                        <p className="mt-0.5 text-xs leading-relaxed text-slate-400">
+                        <p className="text-sm font-semibold text-amber-100 sm:text-base">펫 상점</p>
+                        <p className="mt-0.5 text-[0.7rem] leading-relaxed text-slate-400 sm:text-xs">
                             알·영혼석을 한 목록에서 구매합니다. 일일 한도는 KST 자정 기준으로 초기화됩니다.
                         </p>
                     </div>
@@ -1280,7 +1284,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     );
 
     return (
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden sm:gap-2">
             <PairPetProfilePanel
                 currentUser={currentUser}
                 currentUserId={currentUserId}
@@ -1288,32 +1292,32 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                 onOpenEquippedPetDetail={openEquippedPetDetail}
             />
 
-            <div className="grid shrink-0 grid-cols-4 gap-1 rounded-lg border border-white/10 bg-black/30 p-1">
+            <div className="grid shrink-0 grid-cols-4 gap-0.5 rounded-lg border border-white/10 bg-black/30 p-0.5 sm:gap-1 sm:p-1">
                 <button
                     type="button"
                     onClick={() => setAiTab('info')}
-                    className={`rounded-md px-1 py-1.5 text-sm font-bold ${aiTab === 'info' ? 'bg-sky-500 text-sky-950' : 'text-sky-100 hover:bg-sky-950/45'}`}
+                    className={`rounded-md px-0.5 py-1 text-[0.7rem] font-bold leading-tight sm:px-1 sm:py-1.5 sm:text-sm ${aiTab === 'info' ? 'bg-sky-500 text-sky-950' : 'text-sky-100 hover:bg-sky-950/45'}`}
                 >
                     정보
                 </button>
                 <button
                     type="button"
                     onClick={() => setAiTab('training')}
-                    className={`rounded-md px-1 py-1.5 text-sm font-bold ${aiTab === 'training' ? 'bg-violet-500 text-violet-950' : 'text-violet-100 hover:bg-violet-950/45'}`}
+                    className={`rounded-md px-0.5 py-1 text-[0.7rem] font-bold leading-tight sm:px-1 sm:py-1.5 sm:text-sm ${aiTab === 'training' ? 'bg-violet-500 text-violet-950' : 'text-violet-100 hover:bg-violet-950/45'}`}
                 >
                     수련
                 </button>
                 <button
                     type="button"
                     onClick={() => setAiTab('hatchery')}
-                    className={`rounded-md px-1 py-1.5 text-sm font-bold ${aiTab === 'hatchery' ? 'bg-fuchsia-600 text-fuchsia-50' : 'text-fuchsia-100 hover:bg-fuchsia-950/45'}`}
+                    className={`rounded-md px-0.5 py-1 text-[0.7rem] font-bold leading-tight sm:px-1 sm:py-1.5 sm:text-sm ${aiTab === 'hatchery' ? 'bg-fuchsia-600 text-fuchsia-50' : 'text-fuchsia-100 hover:bg-fuchsia-950/45'}`}
                 >
                     부화장
                 </button>
                 <button
                     type="button"
                     onClick={() => setAiTab('shop')}
-                    className={`rounded-md px-1 py-1.5 text-sm font-bold ${aiTab === 'shop' ? 'bg-amber-500 text-amber-950' : 'text-amber-100 hover:bg-amber-950/45'}`}
+                    className={`rounded-md px-0.5 py-1 text-[0.7rem] font-bold leading-tight sm:px-1 sm:py-1.5 sm:text-sm ${aiTab === 'shop' ? 'bg-amber-500 text-amber-950' : 'text-amber-100 hover:bg-amber-950/45'}`}
                 >
                     펫 상점
                 </button>
@@ -1324,10 +1328,12 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     <>
                         <div className="flex min-h-0 min-w-0 flex-1 basis-0 flex-col overflow-hidden">
                             <div
-                                className={`min-h-0 flex-1 rounded-lg border border-white/10 bg-black/25 p-2 text-xs text-slate-200 ${
+                                className={`min-h-0 flex-1 rounded-lg border border-white/10 bg-black/25 text-[0.7rem] text-slate-200 sm:text-xs ${
                                     aiTab === 'hatchery'
-                                        ? 'flex flex-col overflow-hidden'
-                                        : `overflow-y-auto overscroll-y-contain ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS}`
+                                        ? 'flex flex-col overflow-hidden p-1.5 sm:p-2'
+                                        : aiTab === 'info'
+                                          ? `flex min-h-0 flex-col overflow-hidden p-0 sm:p-0`
+                                          : `overflow-y-auto overscroll-y-contain p-1.5 sm:p-2 ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS}`
                                 }`}
                             >
                                 {aiTab === 'info' ? infoDetailPanel : null}
@@ -1337,7 +1343,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         </div>
                         {aiTab !== 'hatchery' ? (
                         <div className="flex min-h-0 min-w-0 shrink-0 grow-0 basis-[30%] flex-col overflow-hidden rounded-lg border border-white/10 bg-gray-900/40">
-                            <div className="mb-1.5 shrink-0 rounded-md bg-gray-900/50 p-1.5">
+                            <div className="mb-1 shrink-0 rounded-md bg-gray-900/50 p-1 sm:mb-1.5 sm:p-1.5">
                                 <div className="flex min-w-0 flex-nowrap items-center gap-2">
                                     <div className="grid shrink-0 grid-cols-2 gap-1 rounded-lg border border-white/10 bg-black/40 p-1">
                                         {(
@@ -1359,7 +1365,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                         setExpandTarget(null);
                                                     }}
                                                     title={soulLocked ? '수련에서는 펫 인벤만 사용합니다.' : undefined}
-                                                    className={`rounded-md px-2 py-2 text-xs font-extrabold sm:text-sm ${
+                                                    className={`rounded-md px-1.5 py-1.5 text-[0.65rem] font-extrabold sm:px-2 sm:py-2 sm:text-sm ${
                                                         invStripTabHighlight === id
                                                             ? 'bg-cyan-600 text-white shadow-sm shadow-cyan-900/40'
                                                             : 'text-slate-300 hover:bg-white/10 hover:text-slate-100'
@@ -1370,13 +1376,13 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             );
                                         })}
                                     </div>
-                                    <label className="flex shrink-0 items-center gap-1.5 text-xs font-bold text-slate-400">
+                                    <label className="flex shrink-0 items-center gap-1 text-[0.65rem] font-bold text-slate-400 sm:gap-1.5 sm:text-xs">
                                         <span className="sr-only">정렬</span>
                                         <select
                                             value={invSort}
                                             onChange={(e) => setInvSort(e.target.value as InvSortMode)}
                                             disabled={isBusy || effectiveInvFilter === 'soul'}
-                                            className={`max-w-[9.5rem] rounded-md border border-white/15 bg-black/50 py-1.5 pl-2 pr-7 text-sm font-bold text-slate-100 shadow-inner shadow-black/30 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/35 disabled:cursor-not-allowed disabled:opacity-45 ${
+                                            className={`max-w-[8.5rem] rounded-md border border-white/15 bg-black/50 py-1 pl-1.5 pr-6 text-[0.7rem] font-bold text-slate-100 shadow-inner shadow-black/30 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/35 disabled:cursor-not-allowed disabled:opacity-45 sm:max-w-[9.5rem] sm:py-1.5 sm:pl-2 sm:pr-7 sm:text-sm ${
                                                 effectiveInvFilter === 'pet' ? 'cursor-pointer' : ''
                                             }`}
                                         >
@@ -1394,7 +1400,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                         }
                                     >
                                         <div
-                                            className={`text-base font-extrabold tracking-tight text-slate-100 sm:text-lg ${
+                                            className={`text-sm font-extrabold tracking-tight text-slate-100 sm:text-lg ${
                                                 effectiveInvFilter === 'soul' ? 'invisible' : ''
                                             }`}
                                         >
@@ -1408,7 +1414,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 style={{ WebkitOverflowScrolling: 'touch' }}
                             >
                                 {effectiveInvFilter === 'soul' ? (
-                                    <div className="grid grid-cols-5 gap-2">
+                                    <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
                                         {PAIR_SOULSTONE_TEMPLATE_IDS.map((tid, idx) => {
                                             const name = PAIR_SOULSTONE_NAMES[idx]!;
                                             const meta = MATERIAL_ITEMS[name as keyof typeof MATERIAL_ITEMS];
@@ -1430,7 +1436,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                         })}
                                     </div>
                                 ) : (
-                                    <div className="grid grid-cols-6 gap-2">
+                                    <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
                                         {Array.from({ length: slotCount }, (_, i) => renderLobbyGridSlot(sortedFilteredInv[i], i))}
                                         {canExpandSlots ? (
                                             <button

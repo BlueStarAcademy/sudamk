@@ -10,8 +10,8 @@ import { computePairPetBadukTotalPower } from './PairPetCoreStatsGrid.js';
 import { gradeStyles, EQUIPMENT_GRADE_LABEL_KO } from '../../shared/constants/items.js';
 
 /** 한 줄 안에 들어가도록 줄이는 최소·최대 글자 크기(px) */
-const PET_PROFILE_LINE_FONT_MIN = 6.75;
-const PET_PROFILE_LINE_FONT_MAX = 15;
+const PET_PROFILE_LINE_FONT_MIN = 6.5;
+const PET_PROFILE_LINE_FONT_MAX = 13.5;
 
 export interface PairPetProfilePanelProps {
     currentUser: User;
@@ -52,7 +52,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
         );
     }, [currentUser, petMeta, petGrade, equippedItem]);
 
-    const petAvatarUrl = equippedDef?.image ?? '/images/pets/pet1.webp';
+    const petAvatarUrl = equippedDef?.image ?? null;
     const emptyTitle = '장착된 펫 없음';
     const displayName = equippedItem ? getPairPetDisplayName(equippedItem) : (equippedDef?.displayName ?? emptyTitle);
     const levelSafe =
@@ -84,15 +84,25 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
     }, [displayName, levelSafe, badukTotal, equippedItem, gradeKo]);
 
     return (
-        <div className="shrink-0 rounded-lg border border-violet-400/25 bg-gradient-to-br from-violet-950/40 via-black/35 to-fuchsia-950/25 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-            <div className="flex min-h-0 min-w-0 flex-nowrap items-center gap-2 sm:gap-2.5">
-                <Avatar
-                    userId={`pet-ai-${currentUserId}`}
-                    userName={displayName}
-                    size={44}
-                    avatarUrl={petAvatarUrl}
-                    className="shrink-0 ring-2 ring-violet-400/40"
-                />
+        <div className="shrink-0 rounded-lg border border-violet-400/25 bg-gradient-to-br from-violet-950/40 via-black/35 to-fuchsia-950/25 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-2.5">
+            <div className="flex min-h-0 min-w-0 flex-nowrap items-center gap-1.5 sm:gap-2.5">
+                {equippedItem && petAvatarUrl ? (
+                    <Avatar
+                        userId={`pet-ai-${currentUserId}`}
+                        userName={displayName}
+                        size={40}
+                        avatarUrl={petAvatarUrl}
+                        className="shrink-0 ring-2 ring-violet-400/40"
+                    />
+                ) : (
+                    <div
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-violet-300/45 bg-black/35 shadow-inner ring-2 ring-violet-400/25"
+                        title={emptyTitle}
+                        aria-label={emptyTitle}
+                    >
+                        <div className="h-6 w-6 rounded-md border border-violet-200/45 bg-violet-950/35" />
+                    </div>
+                )}
                 <div
                     ref={lineOuterRef}
                     className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -113,7 +123,13 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                             {levelSafe != null ? (
                                 <span className="font-black tabular-nums text-amber-200">Lv.{levelSafe}</span>
                             ) : null}
-                            <span className="font-semibold text-violet-100/95">{displayName}</span>
+                            {equippedItem ? (
+                                <span className="font-semibold text-violet-100/95">{displayName}</span>
+                            ) : (
+                                <span className="inline-flex shrink-0 rounded-md border border-violet-300/35 bg-violet-950/50 px-[0.55em] py-[0.18em] font-black tracking-tight text-violet-100">
+                                    대표펫
+                                </span>
+                            )}
                         </span>
                         {badukTotal != null ? (
                             <span
@@ -143,7 +159,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                         type="button"
                         disabled={isBusy}
                         onClick={() => onOpenEquippedPetDetail()}
-                        className="ml-auto shrink-0 rounded-md border border-cyan-400/40 bg-cyan-950/45 px-2 py-1 text-xs font-bold text-cyan-50 hover:bg-cyan-900/55 disabled:opacity-40 sm:px-2.5 sm:text-sm"
+                        className="ml-auto shrink-0 rounded-md border border-cyan-400/40 bg-cyan-950/45 px-1.5 py-0.5 text-[0.65rem] font-bold text-cyan-50 hover:bg-cyan-900/55 disabled:opacity-40 sm:px-2.5 sm:py-1 sm:text-sm"
                     >
                         상세정보
                     </button>

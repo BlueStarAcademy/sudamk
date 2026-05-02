@@ -77,6 +77,7 @@ function shouldCountPassAsTurnForScoring(game: types.LiveGameSession): boolean {
     const gc = String((game as any).gameCategory ?? '');
     return (
         scoringLimit > 0 &&
+        !isPairClassicGame(game.settings, game.mode) &&
         !game.isSinglePlayer &&
         !game.isAiGame &&
         gc !== 'tower' &&
@@ -98,6 +99,7 @@ async function runDeferredPveAutoScoring(gameId: string): Promise<void> {
         }
         (g as any).pendingAutoScoringKickoffAt = undefined;
         if (g.gameStatus !== 'playing' && (g.gameStatus as string) !== 'hidden_placing') return;
+        if (isPairClassicGame(g.settings, g.mode)) return;
 
         const scoringLimit = (g.settings as any)?.scoringTurnLimit;
         const useScoringLimitAsAuto =
@@ -1550,7 +1552,8 @@ export async function makeGoAiBotMove(
         return;
     }
     
-    const pairCurrentSeat = isPairClassicGame(game.settings, game.mode) ? getCurrentPairTurnSeat(game.settings) : null;
+    const pairClassicGame = isPairClassicGame(game.settings, game.mode);
+    const pairCurrentSeat = pairClassicGame ? getCurrentPairTurnSeat(game.settings) : null;
     const aiPlayerEnum = pairCurrentSeat?.player ?? game.currentPlayer;
     const opponentPlayerEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
     const now = Date.now();
@@ -1671,7 +1674,7 @@ export async function makeGoAiBotMove(
     const currentAiTurnIndex = getCurrentAiTurnIndex(game, aiPlayerEnum);
     const recordedAiHiddenMoves = countRecordedAiHiddenMoves(game, aiPlayerEnum);
     if (
-        game.isSinglePlayer &&
+        !game.isSinglePlayer &&
         isHiddenMode &&
         usedAiHiddenItems > recordedAiHiddenMoves &&
         !shouldApplyHiddenOnThisMove
@@ -1775,7 +1778,7 @@ export async function makeGoAiBotMove(
     const pairKataAllowPass = Boolean(pairCurrentSeat && pairKataStats && pairKataPhase === 'endgame');
     if (process.env.NODE_ENV === 'development') {
         console.log(
-            `[makeGoAiBotMove] game=${game.id} category=${(game as any).gameCategory ?? 'normal'} stage=${(game as any).stageId ?? '-'} floor=${(game as any).towerFloor ?? '-'} profileStep=${goAiProfileLevel} configuredKata=${configuredKataLevel ?? 'none'} resolvedKata=${resolvedKataLevel}`
+            `[makeGoAiBotMove] game=${game.id} category=${(game as any).gameCategory ?? 'normal'} stage=${(game as any).stageId ?? '-'} floor=${(game as any).towerFloor ?? '-'} profileStep=${goAiProfileLevel} configuredKata=${configuredKataLevel ?? 'none'} resolvedKata=${resolvedKataLevel} pairSeat=${pairCurrentSeat?.participantId ?? 'none'} pairPhase=${pairKataPhase ?? 'none'} pairPly=${pairCurrentSeat ? pairValidPlyForNextMove : 'none'} pairFixed=${Number.isFinite(pairFixedKataLevel) ? Number(pairFixedKataLevel) : 'none'}`
         );
     }
 
@@ -1835,7 +1838,8 @@ export async function makeGoAiBotMove(
         scoringTurnLimit > 0 &&
         game.mode !== types.GameMode.Capture &&
         !game.isSinglePlayer &&
-        (game as any).gameCategory !== 'tower'
+        (game as any).gameCategory !== 'tower' &&
+        !pairClassicGame
     ) {
         // 모험/AI 계열은 PASS를 허용하지 않으므로 유효 착수 수만 기준으로 삼는다.
         const totalTurnsSoFar = (game.moveHistory || []).filter((m) => m && m.x !== -1 && m.y !== -1).length;
@@ -2377,7 +2381,7 @@ export async function makeGoAiBotMove(
     if (!isItemMode) {
         const scoringLimit = (game.settings as any)?.scoringTurnLimit;
         const useScoringLimitAsAuto =
-            game.mode !== types.GameMode.Capture && scoringLimit != null && scoringLimit > 0;
+            !pairClassicGame && game.mode !== types.GameMode.Capture && scoringLimit != null && scoringLimit > 0;
         const autoScoringTurns = game.isSinglePlayer && game.stageId
             ? (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId)?.autoScoringTurns
             : (game as any).gameCategory === 'tower'

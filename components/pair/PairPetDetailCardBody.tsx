@@ -68,8 +68,10 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
             ? 0
             : Math.min(100, ((meta.xp ?? 0) / maxXp) * 100);
 
+    const isModal = statsGridVariant === 'modal';
+
     return (
-        <div className="flex w-full min-w-0 flex-col gap-4">
+        <div className={`flex w-full min-w-0 flex-col ${isModal ? 'gap-2.5 sm:gap-4' : 'gap-4'}`}>
             <div className="relative overflow-hidden rounded-2xl p-[1px] shadow-[0_16px_44px_-12px_rgba(0,0,0,0.7)] ring-1 ring-fuchsia-400/35">
                 <img
                     src={heroBg}
@@ -77,9 +79,19 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                     className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.38]"
                     aria-hidden
                 />
-                <div className="relative flex flex-col gap-4 rounded-[15px] bg-zinc-950/90 p-4 ring-1 ring-inset ring-white/[0.08] sm:flex-row sm:items-center sm:gap-5">
+                <div
+                    className={`relative flex rounded-[15px] bg-zinc-950/90 ring-1 ring-inset ring-white/[0.08] ${
+                        isModal
+                            ? 'flex-row items-center gap-2.5 p-2.5 sm:gap-5 sm:p-4'
+                            : 'flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-5'
+                    }`}
+                >
                     <div
-                        className={`relative mx-auto h-[7.25rem] w-[7.25rem] shrink-0 overflow-hidden rounded-2xl border border-white/20 bg-black/50 shadow-inner sm:mx-0 sm:h-[8.25rem] sm:w-[8.25rem] ${petGrade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''}`}
+                        className={`relative shrink-0 overflow-hidden rounded-2xl border border-white/20 bg-black/50 shadow-inner ${
+                            isModal
+                                ? `mx-0 h-[5.75rem] w-[5.75rem] sm:h-[8.25rem] sm:w-[8.25rem] ${petGrade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''}`
+                                : `mx-auto h-[7.25rem] w-[7.25rem] sm:mx-0 sm:h-[8.25rem] sm:w-[8.25rem] ${petGrade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''}`
+                        }`}
                     >
                         <img
                             src={heroBg}
@@ -94,8 +106,12 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                             loading="lazy"
                         />
                     </div>
-                    <div className="min-w-0 flex-1 text-center sm:text-left">
-                        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 sm:justify-start">
+                    <div className={`min-w-0 flex-1 ${isModal ? 'text-left' : 'text-center sm:text-left'}`}>
+                        <div
+                            className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${
+                                isModal ? 'justify-start' : 'justify-center sm:justify-start'
+                            }`}
+                        >
                             <span
                                 className={`shrink-0 rounded-md border border-white/15 px-2 py-0.5 text-[0.65rem] font-extrabold ${gradeStyle.color} bg-black/45`}
                             >
@@ -107,18 +123,38 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                                 </span>
                             ) : null}
                         </div>
-                        <div className="mt-1.5 flex flex-wrap items-baseline justify-center gap-x-2.5 gap-y-1 sm:justify-start">
-                            <h3 className="max-w-full truncate text-lg font-black leading-tight tracking-tight text-fuchsia-50 sm:text-xl">
-                                {displayName}
-                            </h3>
-                            <span className="shrink-0 text-base font-bold tabular-nums text-amber-200 sm:text-lg">
+                        <div
+                            className={`mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 ${
+                                isModal ? 'justify-start' : 'justify-center sm:justify-start'
+                            }`}
+                        >
+                            <span
+                                className={`shrink-0 font-bold tabular-nums text-amber-200 ${
+                                    isModal ? 'text-sm sm:text-lg' : 'text-base sm:text-lg'
+                                }`}
+                            >
                                 Lv.{levelSafe}
                             </span>
+                            <h3
+                                className={`max-w-full min-w-0 truncate font-black leading-tight tracking-tight text-fuchsia-50 ${
+                                    isModal ? 'text-base sm:text-xl' : 'text-lg sm:text-xl'
+                                }`}
+                            >
+                                {displayName}
+                            </h3>
                         </div>
-                        <div className="mt-3 space-y-2">
-                            <div className="flex flex-wrap items-center justify-center gap-x-2 text-xs font-medium text-slate-400 sm:justify-start sm:text-sm">
+                        <div className={isModal ? 'mt-1.5 space-y-1' : 'mt-3 space-y-2'}>
+                            <div
+                                className={`flex flex-wrap items-center gap-x-2 text-xs font-medium text-slate-400 ${
+                                    isModal ? 'justify-start sm:text-sm' : 'justify-center sm:justify-start sm:text-sm'
+                                }`}
+                            >
                                 {xpBlocked ? (
-                                    <span className="text-center font-semibold leading-snug text-amber-200/95 sm:text-left">
+                                    <span
+                                        className={`font-semibold leading-snug text-amber-200/95 ${
+                                            isModal ? 'text-left' : 'text-center sm:text-left'
+                                        }`}
+                                    >
                                         등급 강화 전까지 경험치를 더 받을 수 없습니다.
                                     </span>
                                 ) : (
@@ -129,7 +165,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                                 )}
                             </div>
                             <div
-                                className={`h-2.5 w-full max-w-md rounded-full border sm:max-w-none ${
+                                className={`${isModal ? 'h-2' : 'h-2.5'} w-full max-w-md rounded-full border sm:max-w-none ${
                                     xpBlocked
                                         ? 'border-amber-900/50 bg-amber-950/40'
                                         : 'border-zinc-800/90 bg-zinc-900/90'
@@ -149,16 +185,40 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-950/35 to-zinc-950/80 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                    <p className="text-[0.65rem] font-bold uppercase tracking-wider text-fuchsia-200/85">성향</p>
-                    <p className="mt-1.5 text-sm font-semibold leading-snug text-fuchsia-50/95 sm:text-[0.95rem]">
+            <div
+                className={`grid min-w-0 ${
+                    isModal ? 'grid-cols-2 gap-2 sm:gap-3' : 'grid-cols-1 gap-3 sm:grid-cols-2'
+                }`}
+            >
+                <div
+                    className={`rounded-xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-950/35 to-zinc-950/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${
+                        isModal ? 'min-w-0 px-2.5 py-2 sm:px-4 sm:py-3' : 'px-4 py-3'
+                    }`}
+                >
+                    <p className="text-[0.6rem] font-bold uppercase tracking-wider text-fuchsia-200/85 sm:text-[0.65rem]">
+                        성향
+                    </p>
+                    <p
+                        className={`mt-1 font-semibold leading-snug text-fuchsia-50/95 ${
+                            isModal ? 'text-[0.7rem] sm:text-[0.95rem]' : 'mt-1.5 text-sm sm:text-[0.95rem]'
+                        }`}
+                    >
                         {dispositionLabel(meta.disposition)}
                     </p>
                 </div>
-                <div className="rounded-xl border border-amber-500/25 bg-gradient-to-br from-amber-950/25 to-zinc-950/80 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                    <p className="text-[0.65rem] font-bold uppercase tracking-wider text-amber-200/85">특화</p>
-                    <p className="mt-1.5 text-sm font-semibold leading-snug text-amber-50/95 sm:text-[0.95rem]">
+                <div
+                    className={`rounded-xl border border-amber-500/25 bg-gradient-to-br from-amber-950/25 to-zinc-950/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
+                        isModal ? 'min-w-0 px-2.5 py-2 sm:px-4 sm:py-3' : 'px-4 py-3'
+                    }`}
+                >
+                    <p className="text-[0.6rem] font-bold uppercase tracking-wider text-amber-200/85 sm:text-[0.65rem]">
+                        특화
+                    </p>
+                    <p
+                        className={`mt-1 font-semibold leading-snug text-amber-50/95 ${
+                            isModal ? 'text-[0.7rem] sm:text-[0.95rem]' : 'mt-1.5 text-sm sm:text-[0.95rem]'
+                        }`}
+                    >
                         {specializationLabel(meta.specialization)}
                     </p>
                 </div>

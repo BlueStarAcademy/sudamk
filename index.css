@@ -427,6 +427,17 @@ html {
   }
 }
 
+/*
+ * 작은 PC 모니터에서는 1920×1080 설계 캔버스가 0.7배 안팎으로 축소되어
+ * 텍스트가 쉽게 뭉개져 보인다. 마우스 기반 데스크톱에서만 rem 기준을 올려
+ * 콘텐츠의 최소 가독성을 확보한다.
+ */
+@media (pointer: fine) and (min-width: 641px) and (max-width: 1440px), (pointer: fine) and (min-width: 641px) and (max-height: 820px) {
+  html {
+    font-size: 18px;
+  }
+}
+
 @media (pointer: coarse) {
   html {
     font-size: 16px;

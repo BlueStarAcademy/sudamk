@@ -1220,7 +1220,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                 </div>
 
                 {!isNativeMobile ? (
-                    <div className="pointer-events-none absolute bottom-1.5 left-1.5 top-1.5 z-30 flex w-max max-w-[min(96vw,32rem)] flex-col sm:bottom-2 sm:left-2 sm:top-2">
+                    <div className="pointer-events-none absolute bottom-1.5 left-1.5 top-1.5 z-30 flex w-max max-w-[min(96vw,36rem)] flex-col sm:bottom-2 sm:left-2 sm:top-2">
                         <div className="pointer-events-auto flex min-h-0 flex-1 flex-col items-start gap-2">
                             <div className="flex min-h-0 shrink-0 items-stretch gap-2">
                                 <aside
@@ -1245,9 +1245,16 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                             </div>
                             <aside
                                 className={`flex min-h-0 min-w-0 max-w-full flex-1 flex-col self-start overflow-hidden rounded-xl border border-amber-500/30 bg-zinc-950/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-sm ${
-                                    desktopRewardWidthPx == null ? 'max-w-[18.5rem]' : ''
+                                    desktopRewardWidthPx == null ? 'w-[min(92vw,22rem)] max-w-[22rem]' : ''
                                 }`}
-                                style={desktopRewardWidthPx != null ? { width: desktopRewardWidthPx, maxWidth: '100%' } : undefined}
+                                style={
+                                    desktopRewardWidthPx != null
+                                        ? {
+                                              width: `min(36rem, max(21.5rem, ${desktopRewardWidthPx}px))`,
+                                              maxWidth: '100%',
+                                          }
+                                        : undefined
+                                }
                                 aria-label="챕터 몬스터 목록"
                             >
                                 <div className="flex shrink-0 items-center justify-center border-b border-white/10 px-2 py-1.5 sm:px-2.5 sm:py-2">

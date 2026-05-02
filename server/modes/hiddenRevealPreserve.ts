@@ -49,19 +49,11 @@ export const applyPreserveDiscovererTurnIfPending = async (
     const prev = mh.length > 0 ? mh[mh.length - 1] : null;
     game.lastMove =
         prev && prev.x != null && prev.y != null && prev.x >= 0 && prev.y >= 0 ? { x: prev.x, y: prev.y } : null;
-    for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
-        const m = game.moveHistory![i];
-        if (m && m.x === cap.move.x && m.y === cap.move.y && m.player === opponentPlayerEnum) {
-            if (!game.hiddenMoves) game.hiddenMoves = {};
-            delete game.hiddenMoves[i];
-            break;
-        }
-    }
     if (!game.newlyRevealed) game.newlyRevealed = [];
     game.newlyRevealed.push(
         ...(cap.hiddenContributors || []).map((p: types.Point) => ({
             point: p,
-            player: myPlayerEnum,
+            player: opponentPlayerEnum,
         }))
     );
     game.justCaptured = [];

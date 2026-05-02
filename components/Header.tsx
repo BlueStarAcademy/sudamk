@@ -219,7 +219,7 @@ function useGuildWarTicketsRemaining(
             }
         };
         void fetchWar(true);
-        const onEv = () => void fetchWar(false);
+        const onEv = () => void fetchWar(true);
         if (typeof window !== 'undefined') window.addEventListener('sudamr:guild-war-update', onEv);
         return () => {
             cancelled = true;

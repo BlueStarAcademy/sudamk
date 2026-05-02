@@ -92,7 +92,6 @@ import {
     pairPetXpGainBlockedByGrade,
     pairPetStatMultiplierFromGrade,
 } from '../../shared/constants/pairPetGrade.js';
-import type { PairPetCoreStatsSix } from '../../shared/constants/pairArena.js';
 
 const soulTemplateIdFromMaterialName = (materialName: string): string =>
     pairSoulTemplateIdFromTier(pairSoulTierFromMaterialName(materialName));
@@ -740,7 +739,6 @@ const makePairPetAiDuelSettings = (room: types.PairRoomState): types.GameSetting
         const kataLevel = KATA_SERVER_LEVEL_BY_PROFILE_STEP[step] ?? -31;
         settings.pairGame.pairKataFixedLevelByParticipantId = {
             'pair-opponent-ai': kataLevel,
-            'pair-opponent-pet': kataLevel,
         };
     }
     return settings;
@@ -776,7 +774,6 @@ const makeDuoPairAiDuelSettings = (room: types.PairRoomState): types.GameSetting
         const kataLevel = KATA_SERVER_LEVEL_BY_PROFILE_STEP[step] ?? -31;
         settings.pairGame.pairKataFixedLevelByParticipantId = {
             'pair-opponent-ai': kataLevel,
-            'pair-opponent-pet': kataLevel,
         };
     }
     return settings;
@@ -823,6 +820,8 @@ function configurePairClassicGameStart(
     petStatUsers: User[] = [ownerUser],
 ): void {
     if (!PAIR_GO_GAME_MODES.includes(game.mode) || !game.settings?.pairGame) return;
+    game.settings.scoringTurnLimit = 0;
+    delete (game.settings as any).autoScoringTurns;
     const pairGame = game.settings.pairGame;
     const turnOrder = buildTeamPreservingPairTurnOrder(pairGame);
     pairGame.turnOrder = turnOrder;

@@ -2151,8 +2151,8 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             {/* Row 1: Manner Actions - PVP 모드에서만 표시 */}
             {!isSinglePlayer && !session.isAiGame && !isMobilePairGame ? (
                 <div
-                    className={`flex w-full min-w-0 flex-row items-center ${arenaGameRoomControlsInnerPanelClass} ${
-                        isMobile ? 'gap-2' : 'gap-3 min-[1025px]:gap-2'
+                    className={`flex w-full min-w-0 min-h-[3.25rem] flex-row items-center py-1 ${arenaGameRoomControlsInnerPanelClass} ${
+                        isMobile ? 'gap-2 sm:min-h-[3.5rem]' : 'gap-3 min-[1025px]:gap-2 min-[1025px]:min-h-[2.85rem]'
                     }`}
                 >
                     <h3 className={`shrink-0 font-bold whitespace-nowrap text-slate-400 ${isMobile ? 'text-[9px]' : 'text-xs min-[1025px]:text-[11px]'}`}>

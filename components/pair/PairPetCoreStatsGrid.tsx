@@ -78,11 +78,17 @@ const PairPetCoreStatsGrid: React.FC<PairPetCoreStatsGridProps> = ({
 
     const cell =
         variant === 'modal'
-            ? 'rounded-lg border border-white/[0.1] bg-zinc-950/80 px-2 py-1.5 ring-1 ring-inset ring-white/[0.04]'
+            ? 'rounded-md border border-white/[0.1] bg-zinc-950/80 px-1.5 py-1 ring-1 ring-inset ring-white/[0.04] sm:rounded-lg sm:px-2 sm:py-1.5'
             : 'rounded-md border border-white/10 bg-black/30 px-2 py-1.5';
 
     return (
-        <div className={`grid grid-cols-3 gap-x-2 gap-y-1.5 text-[0.8125rem] leading-tight sm:gap-x-3 sm:gap-y-2 sm:text-sm ${className}`.trim()}>
+        <div
+            className={`grid grid-cols-3 leading-tight ${
+                variant === 'modal'
+                    ? 'gap-x-1.5 gap-y-1 text-[0.72rem] sm:gap-x-3 sm:gap-y-2 sm:text-sm'
+                    : 'gap-x-2 gap-y-1.5 text-[0.8125rem] sm:gap-x-3 sm:gap-y-2 sm:text-sm'
+            } ${className}`.trim()}
+        >
             {CORE_LIST.map((stat) => {
                 const lvlAdd = levelUpCoreBonuses?.[stat] ?? 0;
                 const rawBaseNoLvl = Math.round(PET_BASE_STAT * gradeMult);
@@ -100,7 +106,9 @@ const PairPetCoreStatsGrid: React.FC<PairPetCoreStatsGridProps> = ({
                     >
                         <span className="min-w-0 shrink truncate font-semibold text-slate-400">{statLabel}</span>
                         <span
-                            className={`shrink-0 whitespace-nowrap font-mono text-[0.78rem] font-bold tabular-nums sm:text-sm ${corrected ? 'text-rose-300' : 'text-slate-100'}`}
+                            className={`shrink-0 whitespace-nowrap font-mono font-bold tabular-nums ${
+                                variant === 'modal' ? 'text-[0.68rem] sm:text-sm' : 'text-[0.78rem] sm:text-sm'
+                            } ${corrected ? 'text-rose-300' : 'text-slate-100'}`}
                         >
                             {shown}
                             {bonus > 0 ? (

@@ -37,6 +37,8 @@ import { VIP_PLAY_REWARD_SLOT_PREVIEW_IMAGE } from '../shared/constants/vipPlayR
 import { useResilientImgSrc } from '../hooks/useResilientImgSrc.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
 import { GoStoneIcon } from './game/arenaRoundEndShared.js';
+import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
+import { getPairPetDefinition } from '../shared/constants/petLobby.js';
 
 interface GameSummaryModalProps {
     session: LiveGameSession;
@@ -1157,12 +1159,109 @@ const MatchPlayersRoster: React.FC<{
     const winnerEnum = session && (session.winner === Player.Black || session.winner === Player.White) ? session.winner : null;
     const showWinLoseBadge = !!session && PLAYFUL_GAME_MODES.some((m) => m.mode === session.mode) && winnerEnum != null;
 
+    const pairTeams = useMemo(() => {
+        const pairGame = session?.settings?.pairGame;
+        const order = pairGame?.turnOrder ?? [];
+        if (!session || !pairGame || order.length === 0) return null;
+        const userById = new Map<string, User>([
+            [session.player1.id, session.player1],
+            [session.player2.id, session.player2],
+        ]);
+        const avatarForParticipant = (participantId: string, kind: string): { src: string | null; user?: User } => {
+            const directUser = userById.get(participantId);
+            if (directUser) {
+                return {
+                    src: AVATAR_POOL.find((a: AvatarInfo) => a.id === directUser.avatarId)?.url ?? null,
+                    user: directUser,
+                };
+            }
+            if (participantId.startsWith('pet-ai-')) {
+                const owner = userById.get(participantId.slice('pet-ai-'.length));
+                if (owner) {
+                    const row = getEquippedPairPetInventoryRow(owner);
+                    const tid = row?.templateId ?? owner.equippedPairPetTemplateId ?? undefined;
+                    return {
+                        src: row?.image ?? (tid ? getPairPetDefinition(tid)?.image ?? null : null),
+                        user: owner,
+                    };
+                }
+            }
+            if (kind === 'pet') {
+                const fallbackIndex = participantId === 'pair-opponent-pet' ? 1 : 0;
+                return { src: getPairPetDefinition(`pair-pet-${fallbackIndex + 1}`)?.image ?? '/images/pets/pet1.webp' };
+            }
+            return { src: null };
+        };
+        const toTeam = (player: Player.Black | Player.White) =>
+            order
+                .filter((seat) => seat.player === player)
+                .sort((a, b) => a.order - b.order)
+                .map((seat) => ({ ...seat, avatar: avatarForParticipant(seat.participantId, seat.kind) }));
+        return {
+            black: toTeam(Player.Black),
+            white: toTeam(Player.White),
+        };
+    }, [session]);
+
     const blackMonsterFrame = isPlayful
         ? 'border-sky-400/45 bg-gradient-to-br from-sky-800/50 via-violet-950/88 to-black/85 ring-1 ring-inset ring-sky-400/22'
         : 'border-emerald-400/45 bg-gradient-to-br from-emerald-800/50 via-emerald-950/88 to-black/85 ring-1 ring-inset ring-emerald-400/22';
     const whiteMonsterFrame = isPlayful
         ? 'border-indigo-400/40 bg-gradient-to-br from-indigo-900/48 via-violet-900/65 to-black/85 ring-1 ring-inset ring-indigo-400/18'
         : 'border-teal-400/38 bg-gradient-to-br from-teal-900/48 via-slate-900/82 to-black/85 ring-1 ring-inset ring-teal-400/18';
+
+    if (pairTeams) {
+        const teamAvatarSize = mobileCompactRoster ? Math.round(34 * mobileImageScale) : avatarPx;
+        const renderTeam = (label: '흑팀' | '백팀', team: NonNullable<typeof pairTeams>['black'], dark: boolean) => (
+            <div
+                className={`relative overflow-hidden rounded-xl border px-2 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${
+                    dark
+                        ? 'border-stone-600/35 bg-gradient-to-br from-zinc-950 via-[#141016] to-black ring-1 ring-stone-500/15'
+                        : 'border-slate-400/25 bg-gradient-to-br from-slate-900/98 via-[#17161f] to-[#0b0a10] ring-1 ring-slate-400/18'
+                }`}
+            >
+                <div className={`text-xs font-black tracking-[0.2em] ${dark ? 'text-stone-200' : 'text-slate-100'}`}>
+                    {label}
+                </div>
+                <div className="mt-2 flex justify-center -space-x-2">
+                    {team.map((seat) => (
+                        <div key={seat.seatId} className="rounded-full ring-2 ring-black/70">
+                            {seat.avatar.user ? (
+                                <Avatar
+                                    userId={seat.participantId}
+                                    userName={seat.name}
+                                    size={teamAvatarSize}
+                                    avatarUrl={seat.avatar.src ?? undefined}
+                                    borderUrl={
+                                        seat.avatar.user
+                                            ? BORDER_POOL.find((b: BorderInfo) => b.id === seat.avatar.user?.borderId)?.url
+                                            : undefined
+                                    }
+                                />
+                            ) : (
+                                <div
+                                    className="flex items-center justify-center overflow-hidden rounded-full border border-white/20 bg-black/45"
+                                    style={{ width: teamAvatarSize, height: teamAvatarSize }}
+                                >
+                                    {seat.avatar.src ? (
+                                        <img src={seat.avatar.src} alt="" className="h-full w-full object-contain p-0.5" loading="lazy" />
+                                    ) : (
+                                        <span className="text-xs font-black text-slate-400">AI</span>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+        return (
+            <div className={`${mobileCompactRoster ? 'mb-1.5 gap-1.5' : 'mb-2 gap-2 sm:gap-2.5'} grid w-full grid-cols-2`}>
+                {renderTeam('흑팀', pairTeams.black, true)}
+                {renderTeam('백팀', pairTeams.white, false)}
+            </div>
+        );
+    }
 
     if (mobileCompactRoster) {
         const nickRowHuman = (nickname: string, stone: '흑' | '백', lv: number) => (
@@ -2209,6 +2308,26 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                 </div>
                                             </div>
                                         )}
+                                        {mySummary?.pairPetLevel && mySummary?.pairPetXp ? (
+                                            <div className="flex min-h-[2.4rem] flex-shrink-0 flex-col justify-center rounded-lg border border-fuchsia-400/20 bg-fuchsia-950/20 px-1.5 py-1">
+                                                <p
+                                                    className="mb-1 text-center text-[0.65rem] font-black tracking-tight text-fuchsia-200"
+                                                    style={{ fontSize: `${8 * mobileTextScale}px` }}
+                                                >
+                                                    대표펫 성장
+                                                </p>
+                                                <XpBar
+                                                    initial={mySummary.pairPetLevel.progress.initial}
+                                                    final={mySummary.pairPetLevel.progress.final}
+                                                    max={Math.max(1, mySummary.pairPetLevel.progress.max)}
+                                                    levelUp={mySummary.pairPetLevel.initial < mySummary.pairPetLevel.final}
+                                                    xpGain={mySummary.pairPetXp.change}
+                                                    finalLevel={mySummary.pairPetLevel.final}
+                                                    isMobile={isMobile}
+                                                    mobileTextScale={mobileTextScale}
+                                                />
+                                            </div>
+                                        ) : null}
                                         {isAdventureGame && mySummary?.adventureCodexDelta ? (
                                             <AdventureResultCodexCard
                                                 codexDelta={mySummary.adventureCodexDelta}
@@ -2422,6 +2541,28 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                         </div>
                                     </div>
                                 </div>
+                                {mySummary?.pairPetLevel && mySummary?.pairPetXp ? (
+                                    <div className="flex-shrink-0 rounded-lg border border-fuchsia-400/20 bg-fuchsia-950/20 p-1.5 ring-1 ring-inset ring-fuchsia-400/10 sm:p-2">
+                                        <div className="flex min-w-0 items-center gap-2">
+                                            <div className="w-14 shrink-0 text-right text-[0.65rem] font-black leading-tight text-fuchsia-200 min-[1024px]:text-xs">
+                                                대표펫
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <XpBar
+                                                    initial={mySummary.pairPetLevel.progress.initial}
+                                                    final={mySummary.pairPetLevel.progress.final}
+                                                    max={Math.max(1, mySummary.pairPetLevel.progress.max)}
+                                                    levelUp={mySummary.pairPetLevel.initial < mySummary.pairPetLevel.final}
+                                                    xpGain={mySummary.pairPetXp.change}
+                                                    finalLevel={mySummary.pairPetLevel.final}
+                                                    isMobile={false}
+                                                    mobileTextScale={mobileTextScale}
+                                                    compact
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : null}
                                 {isAdventureGame && mySummary?.adventureCodexDelta ? (
                                     <AdventureResultCodexCard
                                         codexDelta={mySummary.adventureCodexDelta}

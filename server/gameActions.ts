@@ -944,6 +944,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 waitUntilAiProcessingReleased,
                 syncAiSession,
                 cancelAiProcessing,
+                isAiProcessing,
             } = await import('./aiSessionManager.js');
             const beforeMoveLen = game.moveHistory?.length ?? 0;
             const beforePlayer = game.currentPlayer;
@@ -960,6 +961,17 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             };
             // 세션/락 꼬임으로 shouldProcessAiTurn이 영구 false가 되는 경우를 복구
             await waitUntilAiProcessingReleased(game.id, 3000);
+            if (isAiProcessing(game.id)) {
+                // 이미 메인 루프/큐가 같은 턴의 Kata 요청을 처리 중이면 절대 잠금을 강제로 풀지 않는다.
+                // 여기서 cancel 후 재호출하면 같은 수순으로 /move가 두 번 나가고, 늦은 GAME_UPDATE가 보드를 되돌릴 수 있다.
+                return {
+                    clientResponse: {
+                        serverAiMoveDone: false,
+                        skippedReason: 'AI_MOVE_ALREADY_PROCESSING',
+                        game,
+                    },
+                };
+            }
             // AI 차례에서는 allowAdvanceOnAiTurn을 쓰면 lastProcessedMoveCount가 현재 수순으로 고정되어
             // shouldProcessAiTurn이 false가 될 수 있다. 기본 동기화로 "한 수 전" 복구를 허용한다.
             syncAiSession(game, aiUserId);
@@ -987,6 +999,15 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 game.currentPlayer === beforePlayer && currentSeatNeedsServerAi();
             if (afterMoveLen <= beforeMoveLen && aiStillToMove) {
                 // 1회 더 강제 복구 시도 (락 유실/세션 꼬임 잔존 케이스)
+                if (isAiProcessing(game.id)) {
+                    return {
+                        clientResponse: {
+                            serverAiMoveDone: false,
+                            skippedReason: 'AI_MOVE_ALREADY_PROCESSING',
+                            game,
+                        },
+                    };
+                }
                 cancelAiProcessing(game.id);
                 syncAiSession(game, aiUserId);
                 try {
@@ -1686,6 +1707,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         }
     }
     
+    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'SAVE_EXCHANGE_STATE', 'PURCHASE_EXCHANGE_LISTING', 'CLAIM_EXCHANGE_SETTLEMENT', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS', 'SAVE_GAME_RECORD', 'DELETE_GAME_RECORD', 'RECORD_ADVENTURE_MONSTER_DEFEAT', 'START_ADVENTURE_MONSTER_BATTLE', 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST', 'CONFIRM_ADVENTURE_MAP_TREASURE_CHEST', 'ABANDON_ADVENTURE_MAP_TREASURE_PICK', 'REROLL_ADVENTURE_REGIONAL_BUFF', 'ENHANCE_ADVENTURE_REGIONAL_BUFF', 'ADVANCE_ONBOARDING_TUTORIAL', 'BEGIN_ONBOARDING_ON_FIRST_HOME', 'SKIP_ONBOARDING_TUTORIAL', 'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD', 'CLAIM_ONBOARDING_INTRO1_FAN', 'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL', 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ', 'ADMIN_SET_VIP_TEST_FLAGS'].includes(type)) return handleUserAction(volatileState, action, userData);
     if (type.startsWith('CLAIM_') || type.startsWith('DELETE_MAIL') || type === 'DELETE_ALL_CLAIMED_MAIL' || type === 'MARK_MAIL_AS_READ') return handleRewardAction(volatileState, action, userData);
     if (type.startsWith('BUY_') || type === 'PURCHASE_ACTION_POINTS' || type === 'EXPAND_INVENTORY' || type === 'BUY_TOWER_ITEM' || type === 'CLAIM_SHOP_AD_REWARD') return handleShopAction(volatileState, action, userData);
     if (type.startsWith('TOURNAMENT') || 
@@ -1709,7 +1731,6 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         return handleTournamentAction(volatileState, action, userData);
     }
     if (['TOGGLE_EQUIP_ITEM', 'UNBIND_EQUIPMENT', 'MARK_ITEM_EXCHANGE_LISTED', 'UNMARK_ITEM_EXCHANGE_LISTED', 'SELL_ITEM', 'ENHANCE_ITEM', 'DISASSEMBLE_ITEM', 'USE_ITEM', 'USE_ALL_ITEMS_OF_TYPE', 'CRAFT_MATERIAL', 'COMBINE_ITEMS', 'REFINE_EQUIPMENT'].includes(type)) return handleInventoryAction(volatileState, action, userData);
-    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'SAVE_EXCHANGE_STATE', 'PURCHASE_EXCHANGE_LISTING', 'CLAIM_EXCHANGE_SETTLEMENT', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS', 'SAVE_GAME_RECORD', 'DELETE_GAME_RECORD', 'RECORD_ADVENTURE_MONSTER_DEFEAT', 'START_ADVENTURE_MONSTER_BATTLE', 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST', 'CONFIRM_ADVENTURE_MAP_TREASURE_CHEST', 'ABANDON_ADVENTURE_MAP_TREASURE_PICK', 'REROLL_ADVENTURE_REGIONAL_BUFF', 'ENHANCE_ADVENTURE_REGIONAL_BUFF', 'ADVANCE_ONBOARDING_TUTORIAL', 'BEGIN_ONBOARDING_ON_FIRST_HOME', 'SKIP_ONBOARDING_TUTORIAL', 'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD', 'CLAIM_ONBOARDING_INTRO1_FAN', 'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL', 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ', 'ADMIN_SET_VIP_TEST_FLAGS'].includes(type)) return handleUserAction(volatileState, action, userData);
     if (type.includes('SINGLE_PLAYER')) return handleSinglePlayerAction(volatileState, action, userData);
     if (type === 'MANNER_ACTION') return mannerService.handleMannerAction(volatileState, action, userData);
     // Guild actions are now handled above (before game actions)

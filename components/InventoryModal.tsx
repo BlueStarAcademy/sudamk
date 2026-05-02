@@ -1101,11 +1101,19 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         };
     }, []);
     
-    // PC 가방: 12열 그리드 기준 최소 3줄 슬롯이 안정적으로 보이도록 설계 높이·상한 확대
-    const calculatedWidth = useMemo(() => 1120, []);
+    // PC 가방: 작은 모니터에서는 설계 프레임 자체를 줄여 전체 축소율이 과해지지 않게 한다.
+    const calculatedWidth = useMemo(() => {
+        if (windowWidth < 980) return 960;
+        if (windowWidth < 1180) return 1000;
+        if (windowWidth < 1360) return 1060;
+        return 1120;
+    }, [windowWidth]);
     
-    // 화면 비율에 따라 높이를 미세 조정하여 인벤토리 가시 줄 수를 안정적으로 확보
+    // 화면 비율에 따라 높이를 조정하되, 세로가 짧은 모니터에서는 통째 축소보다 내부 스크롤을 우선한다.
     const calculatedHeight = useMemo(() => {
+        if (windowHeight < 760) return 760;
+        if (windowHeight < 860) return 820;
+        if (windowHeight < 940) return 900;
         const viewportRatio = windowWidth / Math.max(1, windowHeight);
         const ratioDelta = (16 / 9) - viewportRatio;
         const adjusted = 980 + Math.round(ratioDelta * 90);
@@ -1119,6 +1127,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     const effectiveIsCompactViewport = modalLayerUsesDesignPixels ? false : isCompactViewport;
     /** 실제 창 너비 기준. 스케일 캔버스 안 모바일에서도 좁은 레이아웃(50/50·8열)에 사용 */
     const narrowInventoryLayout = isCompactViewport;
+    const useViewportSizedBagModal = modalLayerUsesDesignPixels && (windowWidth < 1280 || windowHeight < 860);
     const onboardingPhase = currentUser.onboardingTutorialPhase ?? -1;
     const onboardingPhase9 = onboardingPhase === 9;
     const [bagTutorialStep, setBagTutorialStepState] = useState(() =>
@@ -1545,11 +1554,15 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
             variant="store"
             bodyScrollable={false}
             uniformPcScale
-            mobileViewportFit={narrowInventoryLayout}
-            mobileViewportMaxHeightVh={92}
+            mobileViewportFit={narrowInventoryLayout || useViewportSizedBagModal}
+            mobileLockViewportHeight={useViewportSizedBagModal}
+            mobileViewportMaxHeightVh={useViewportSizedBagModal ? 98 : 92}
+            mobileViewportMaxHeightCss={useViewportSizedBagModal ? 'calc(100dvh - 12px)' : undefined}
+            mobileViewportDvhBottomGapPx={useViewportSizedBagModal ? 12 : undefined}
             bodyPaddingClassName={narrowInventoryLayout ? 'p-2 sm:p-3' : undefined}
             pcViewportMaxHeightCss="min(98vh, 1240px)"
             closeButtonDataOnboardingTarget={inventoryOnboardingCloseTarget}
+            viewportPortal={useViewportSizedBagModal}
         >
             <div 
                 className="flex min-h-0 h-full w-full flex-col overflow-hidden"

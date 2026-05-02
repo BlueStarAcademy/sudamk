@@ -23,6 +23,8 @@ import {
   waitingLobbyPcCenterColumnClass,
   waitingLobbyPcPanelShellClass,
   waitingLobbyPcPanelTopHairlineClassFor,
+  waitingLobbyPairAlignedMobileScreenTitleClass,
+  waitingLobbyPairAlignedMobileTabButtonClass,
 } from './waitingLobbyHomePanelStyles.js';
 
 
@@ -129,7 +131,9 @@ const AnnouncementBoard: React.FC<{ mode: GameMode | 'strategic' | 'playful'; }>
                 }`}
                 style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.14)' }}
             >
-                <span className="font-bold text-yellow-300 animate-pulse text-center">{globalOverrideAnnouncement.message}</span>
+                <span className="text-center text-[0.65rem] font-bold text-yellow-300 animate-pulse sm:text-sm">
+                    {globalOverrideAnnouncement.message}
+                </span>
             </div>
         );
     }
@@ -140,7 +144,9 @@ const AnnouncementBoard: React.FC<{ mode: GameMode | 'strategic' | 'playful'; }>
                 className={`rounded-2xl p-2 flex items-center justify-center flex-shrink-0 h-10 text-on-panel ${glassCls}`}
                 style={{ background: 'linear-gradient(110deg, rgba(24,24,27,0.9), rgba(63,63,70,0.75), rgba(24,24,27,0.9))', boxShadow: '0 12px 30px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.09)' }}
             >
-                <span className="font-bold text-tertiary text-center">[현재 등록된 공지사항이 없습니다.]</span>
+                <span className="text-center text-[0.65rem] font-bold text-tertiary sm:text-sm">
+                    [현재 등록된 공지사항이 없습니다.]
+                </span>
             </div>
         );
     }
@@ -166,7 +172,7 @@ const AnnouncementBoard: React.FC<{ mode: GameMode | 'strategic' | 'playful'; }>
                             ref={textRef}
                             key={`${currentAnnouncement.id}-${currentIndex}`}
                             onAnimationEnd={handleMarqueeEnd}
-                            className="inline-flex items-center whitespace-nowrap px-2 font-bold will-change-transform"
+                            className="inline-flex items-center whitespace-nowrap px-2 text-[0.65rem] font-bold will-change-transform sm:text-sm"
                             style={
                                 {
                                     animation: `waitingLobbyAnnouncementMarquee ${travelDurationSec}s linear 1 forwards`,
@@ -192,7 +198,12 @@ const AnnouncementBoard: React.FC<{ mode: GameMode | 'strategic' | 'playful'; }>
     );
 };
 
-const AiChallengePanel: React.FC<{ mode: GameMode | 'strategic' | 'playful'; onOpenModal: () => void }> = ({ mode, onOpenModal }) => {
+const AiChallengePanel: React.FC<{
+    mode: GameMode | 'strategic' | 'playful';
+    onOpenModal: () => void;
+    /** 네이티브 전략·놀이 대기실: 페어 경기장 모바일과 동일한 글자 크기 */
+    pairAlignedTypography?: boolean;
+}> = ({ mode, onOpenModal, pairAlignedTypography = false }) => {
   const isStrategic = mode === 'strategic' || SPECIAL_GAME_MODES.some((m) => m.mode === mode);
   const isPlayful = mode === 'playful' || PLAYFUL_GAME_MODES.some((m) => m.mode === mode);
 
@@ -201,16 +212,45 @@ const AiChallengePanel: React.FC<{ mode: GameMode | 'strategic' | 'playful'; onO
   const botName = mode === 'strategic' ? '전략바둑 AI' : '놀이바둑 AI';
 
   return (
-    <div className="rounded-xl border border-fuchsia-400/45 bg-gradient-to-r from-fuchsia-950/55 via-purple-950/55 to-indigo-950/55 p-3 shadow-[0_14px_32px_rgba(192,38,211,0.3)] ring-1 ring-fuchsia-300/20">
-      <div className="flex min-h-[58px] items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <Avatar userId={aiUserId} userName="AI" size={40} className="border-2 border-fuchsia-400/80 shadow-[0_0_14px_rgba(217,70,239,0.5)]" />
+    <div
+        className={`rounded-xl border border-fuchsia-400/45 bg-gradient-to-r from-fuchsia-950/55 via-purple-950/55 to-indigo-950/55 shadow-[0_14px_32px_rgba(192,38,211,0.3)] ring-1 ring-fuchsia-300/20 ${
+            pairAlignedTypography ? 'p-2' : 'p-3'
+        }`}
+    >
+      <div className={`flex items-center justify-between gap-2 sm:gap-3 ${pairAlignedTypography ? 'min-h-[52px]' : 'min-h-[58px]'}`}>
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <Avatar
+            userId={aiUserId}
+            userName="AI"
+            size={pairAlignedTypography ? 32 : 40}
+            className="border-2 border-fuchsia-400/80 shadow-[0_0_14px_rgba(217,70,239,0.5)]"
+          />
           <div className="min-w-0">
-            <h3 className="truncate text-base font-extrabold tracking-tight text-fuchsia-100 drop-shadow-[0_0_10px_rgba(217,70,239,0.35)]">AI와 대결하기</h3>
-            <p className="truncate text-xs font-medium text-fuchsia-200/90">{botName}와 즉시 대국 시작</p>
+            <h3
+                className={`truncate font-extrabold tracking-tight text-fuchsia-100 drop-shadow-[0_0_10px_rgba(217,70,239,0.35)] ${
+                    pairAlignedTypography ? 'text-sm sm:text-base' : 'text-base'
+                }`}
+            >
+                AI와 대결하기
+            </h3>
+            <p
+                className={`truncate font-medium text-fuchsia-200/90 ${
+                    pairAlignedTypography ? 'text-[0.65rem] sm:text-xs' : 'text-xs'
+                }`}
+            >
+                {botName}와 즉시 대국 시작
+            </p>
           </div>
         </div>
-        <Button onClick={onOpenModal} colorScheme="purple" className="!px-3.5 !py-2 !text-sm !font-bold shadow-[0_6px_16px_rgba(139,92,246,0.45)]">
+        <Button
+            onClick={onOpenModal}
+            colorScheme="purple"
+            className={
+                pairAlignedTypography
+                    ? '!px-2.5 !py-1.5 !text-[0.65rem] !font-bold shadow-[0_6px_16px_rgba(139,92,246,0.45)] sm:!text-xs'
+                    : '!px-3.5 !py-2 !text-sm !font-bold shadow-[0_6px_16px_rgba(139,92,246,0.45)]'
+            }
+        >
           설정 및 시작
         </Button>
       </div>
@@ -410,11 +450,11 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
 
   const waitingUserScopeTabs =
     mode === 'strategic' || mode === 'playful' ? (
-      <div className="grid shrink-0 grid-cols-3 gap-1 border-b border-white/10 bg-black/25 p-1">
+      <div className="grid shrink-0 grid-cols-3 gap-0.5 border-b border-white/10 bg-black/25 p-0.5 sm:gap-1 sm:p-1">
         <button
           type="button"
           onClick={() => setWaitingUserListScope('all')}
-          className={`rounded-lg px-2 py-1 text-xs font-bold ${
+          className={`${waitingLobbyPairAlignedMobileTabButtonClass} ${
             waitingUserListScope === 'all'
               ? mode === 'strategic'
                 ? 'bg-cyan-500 text-cyan-950'
@@ -429,7 +469,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         <button
           type="button"
           onClick={() => setWaitingUserListScope('friends')}
-          className={`rounded-lg px-2 py-1 text-xs font-bold ${
+          className={`${waitingLobbyPairAlignedMobileTabButtonClass} ${
             waitingUserListScope === 'friends'
               ? mode === 'strategic'
                 ? 'bg-violet-500 text-violet-950'
@@ -444,7 +484,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         <button
           type="button"
           onClick={() => setWaitingUserListScope('guild')}
-          className={`rounded-lg px-2 py-1 text-xs font-bold ${
+          className={`${waitingLobbyPairAlignedMobileTabButtonClass} ${
             waitingUserListScope === 'guild'
               ? mode === 'strategic'
                 ? 'bg-amber-500 text-amber-950'
@@ -515,7 +555,9 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         type="button"
         onClick={() => navigateToWaitingLobby('strategic')}
         aria-pressed={mode === 'strategic'}
-        className={`rounded-lg px-2 font-black transition-all duration-200 ${compact ? 'text-[11px]' : 'text-sm'} ${
+        className={`rounded-lg px-2 font-extrabold transition-all duration-200 ${
+          compact ? 'text-[0.65rem] sm:text-xs' : 'text-sm'
+        } ${
           mode === 'strategic'
             ? 'bg-gradient-to-b from-cyan-400 to-cyan-600 text-white ring-2 ring-cyan-200/90 shadow-[0_0_18px_rgba(34,211,238,0.55),inset_0_1px_0_rgba(255,255,255,0.35)] scale-[1.02]'
             : 'text-cyan-100/95 bg-cyan-900/25 hover:bg-cyan-700/35 hover:text-cyan-50'
@@ -527,7 +569,9 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         type="button"
         onClick={() => navigateToWaitingLobby('playful')}
         aria-pressed={mode === 'playful'}
-        className={`rounded-lg px-2 font-black transition-all duration-200 ${compact ? 'text-[11px]' : 'text-sm'} ${
+        className={`rounded-lg px-2 font-extrabold transition-all duration-200 ${
+          compact ? 'text-[0.65rem] sm:text-xs' : 'text-sm'
+        } ${
           mode === 'playful'
             ? 'bg-gradient-to-b from-amber-400 to-amber-600 text-white ring-2 ring-amber-200/90 shadow-[0_0_18px_rgba(251,191,36,0.5),inset_0_1px_0_rgba(255,255,255,0.35)] scale-[1.02]'
             : 'text-amber-100/95 bg-amber-900/20 hover:bg-amber-700/35 hover:text-amber-50'
@@ -564,7 +608,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
               <div className="w-10 shrink-0" aria-hidden />
               <div className="mx-auto flex min-w-0 max-w-[min(100%,18rem)] items-center justify-center gap-1.5">
                 <h1
-                  className={`truncate text-center text-sm font-bold ${
+                  className={`${waitingLobbyPairAlignedMobileScreenTitleClass} text-center ${
                     mode === 'strategic'
                       ? 'bg-gradient-to-r from-cyan-100 to-cyan-200 bg-clip-text text-transparent'
                       : 'text-amber-50'
@@ -628,7 +672,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     role="tab"
                     aria-selected={nativeWaitingTab === id}
                     onClick={() => setNativeWaitingTab(id)}
-                    className={`min-h-0 min-w-0 flex-1 rounded-lg px-1 py-2 text-[10px] font-bold transition-all sm:px-1.5 sm:text-[11px] ${
+                    className={`min-h-0 min-w-0 flex-1 ${waitingLobbyPairAlignedMobileTabButtonClass} transition-all ${
                       nativeWaitingTab === id
                         ? 'border border-amber-400/55 bg-gradient-to-b from-amber-800/40 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]'
                         : 'border border-transparent text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200'
@@ -644,7 +688,11 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     <div
                       className={`shrink-0 rounded-lg border border-color bg-panel p-2 shadow-lg ${waitingLobbyGlass}`}
                     >
-                      <AiChallengePanel mode={mode} onOpenModal={() => setIsAiChallengeModalOpen(true)} />
+                      <AiChallengePanel
+                        mode={mode}
+                        onOpenModal={() => setIsAiChallengeModalOpen(true)}
+                        pairAlignedTypography
+                      />
                     </div>
                     <div
                       className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
@@ -660,6 +708,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                           onViewUser={handlers.openViewingUser}
                           lobbyType={isStrategic ? 'strategic' : 'playful'}
                           userCount={playersForListPanel.length}
+                          pairAlignedNativeCompact
                         />
                       </div>
                     </div>
@@ -674,6 +723,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                       onAction={handlers.handleAction}
                       currentUser={currentUserWithStatus}
                       panelExtraClassName={waitingLobbyGlass}
+                      pairAlignedNativeCompact
                     />
                   </div>
                 )}
@@ -687,6 +737,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                       onAction={handlers.handleAction}
                       isMatching={isRankedMatching}
                       matchingStartTime={rankedMatchingStartTime}
+                      variant="nativeNarrow"
                       onMatchingStateChange={(isMatching, startTime) => {
                         setIsRankedMatching(isMatching);
                         setRankedMatchingStartTime(startTime);
@@ -709,6 +760,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                       onShowTierInfo={() => setIsTierInfoModalOpen(true)}
                       onShowPastRankings={handlers.openPastRankings}
                       lobbyType={isStrategic ? 'strategic' : 'playful'}
+                      pairAlignedNativeCompact
                     />
                   </div>
                 )}

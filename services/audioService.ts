@@ -133,6 +133,7 @@ class AudioService {
             el.preload = 'auto';
             el.setAttribute('playsinline', 'true');
             el.setAttribute('webkit-playsinline', 'true');
+            el.disableRemotePlayback = true;
             this.ensureAudioElementInDom(el);
             el.muted = true;
             el.volume = 0;
@@ -227,6 +228,7 @@ class AudioService {
             probe.volume = 0;
             probe.setAttribute('playsinline', 'true');
             probe.setAttribute('webkit-playsinline', 'true');
+            probe.disableRemotePlayback = true;
             this.ensureAudioElementInDom(probe);
             // 매우 짧은 무음 wav (data URI)로 autoplay gate 해제 시도
             probe.src = SILENT_WAV_DATA_URI;
@@ -343,17 +345,13 @@ class AudioService {
         return null;
     }
 
-    /** 터치·모바일: WebAudio 는 useEffect 등 비제스처 타이밍에서 재생이 막히는 경우가 많아 HTML5 를 우선한다. */
-    private prefersTouchOrHtml5Sfx(): boolean {
-        if (typeof navigator === 'undefined') return false;
-        if (navigator.maxTouchPoints > 0) return true;
-        if (/Android|iPhone|iPad|iPod|Mobile|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-            return true;
-        }
+    /** 긴 HTML5 재생 정지 후 OS 미디어 컨트롤 잔상 완화(가능한 브라우저만). */
+    private clearMediaSessionPlaybackState(): void {
+        if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
         try {
-            return !!window.matchMedia?.('(pointer: coarse)')?.matches;
+            navigator.mediaSession.playbackState = 'none';
         } catch {
-            return false;
+            /* ignore */
         }
     }
 
@@ -416,6 +414,7 @@ class AudioService {
             el.preload = 'auto';
             el.setAttribute('playsinline', 'true');
             el.setAttribute('webkit-playsinline', 'true');
+            el.disableRemotePlayback = true;
             this.ensureAudioElementInDom(el);
             el.src = url;
             el.volume = Math.max(0, Math.min(1, effectiveVolume));
@@ -500,6 +499,10 @@ class AudioService {
         return this.playSoundIfRunning(buffer, volume, loop);
     }
     
+    /**
+     * 디코드된 버퍼가 있으면 터치 기기에서도 Web Audio를 먼저 시도해 HTML5(미디어 세션·OS 컨트롤) 노출을 줄인다.
+     * 버퍼가 없거나 컨텍스트가 재생 불가면 HTML5로 즉시 재생하고 백그라운드에서 로드한다.
+     */
     private async play(soundName: string, category: keyof SoundSettings['categoryMuted'], volume: number, loop = false): Promise<AudioBufferSourceNode | null> {
         if (this.settings.masterMuted || this.settings.categoryMuted[category]) return null;
         // 일부 모바일 브라우저에서 초기 unlock이 누락돼도, 실제 재생 시도 순간에 다시 열어준다.
@@ -507,12 +510,6 @@ class AudioService {
         this.unlockFromUserGesture({ warmHtml5Pool: false });
         const effectiveVolume = volume * this.settings.masterVolume;
         const url = this.getSoundUrl(soundName);
-
-        if (this.prefersTouchOrHtml5Sfx()) {
-            this.playHtml5Fallback(soundName, category, effectiveVolume, loop);
-            void this.loadSoundByName(soundName).catch(() => {});
-            return null;
-        }
 
         const cached = this.audioBuffers.get(url);
         if (cached) {
@@ -562,6 +559,7 @@ class AudioService {
             }
             this.scanBgmHtml5 = null;
         }
+        this.clearMediaSessionPlaybackState();
     }
     public scanSuccess() { this.play('find', 'item', 0.7).catch(() => {}); }
     public stoneCollision() { this.play('hit', 'stone', 0.4).catch(() => {}); }
@@ -598,6 +596,7 @@ class AudioService {
             }
             this.timerWarningHtml5 = null;
         }
+        this.clearMediaSessionPlaybackState();
     }
 
     public timeoutFoul() { this.play('bip', 'notification', 0.8).catch(() => {}); }

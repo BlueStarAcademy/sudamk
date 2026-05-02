@@ -337,6 +337,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
     const [buyGradeFilter, setBuyGradeFilter] = useState<BuyGradeFilter>('all');
     const [buyCurrencyFilter, setBuyCurrencyFilter] = useState<BuyCurrencyFilter>('all');
     const [marketListingsRemote, setMarketListingsRemote] = useState<ExchangeListing[]>([]);
+    const [marketListingsLoaded, setMarketListingsLoaded] = useState(false);
     const [isRefreshingBuyListings, setIsRefreshingBuyListings] = useState(false);
     const [inventorySortKey, setInventorySortKey] = useState<InventorySortKey>('createdAt');
     const [nowMs, setNowMs] = useState<number>(Date.now());
@@ -434,6 +435,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
             if (!response.ok) return;
             const data = (await response.json()) as { listings?: ExchangeListing[] };
             setMarketListingsRemote(Array.isArray(data?.listings) ? data.listings : []);
+            setMarketListingsLoaded(true);
         } catch {
             // noop: keep previous data on fetch failure
         } finally {
@@ -443,17 +445,25 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
     React.useEffect(() => {
         if (activeTab !== 'buy') return;
         void refreshMarketListings();
+        const timer = window.setInterval(() => {
+            void refreshMarketListings();
+        }, 5000);
+        return () => window.clearInterval(timer);
     }, [activeTab, refreshMarketListings]);
     const marketListings = useMemo(() => {
         const merged = new Map<string, ExchangeListing>();
+        const remoteIds = new Set<string>();
         marketListingsRemote.forEach((entry) => {
             if (!entry || !entry.id) return;
+            remoteIds.add(entry.id);
             merged.set(entry.id, entry);
         });
         Object.values(allUsers ?? {}).forEach((user) => {
             const userListings = (user.exchangeState?.listings as ExchangeListing[] | undefined) ?? [];
             userListings.forEach((entry) => {
                 if (!entry || !entry.id) return;
+                if (marketListingsLoaded && !remoteIds.has(entry.id)) return;
+                if (marketListingsLoaded && merged.has(entry.id)) return;
                 const existing = merged.get(entry.id);
                 if (!existing || (entry.createdAt ?? 0) >= (existing.createdAt ?? 0)) {
                     merged.set(entry.id, entry);
@@ -463,10 +473,11 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
         // 내 로컬 상태를 우선 반영해 저장 지연/수신 지연 중에도 구매 탭 표시를 유지
         listings.forEach((entry) => {
             if (!entry || !entry.id) return;
+            if (marketListingsLoaded && !remoteIds.has(entry.id)) return;
             merged.set(entry.id, entry);
         });
         return Array.from(merged.values());
-    }, [allUsers, listings, marketListingsRemote]);
+    }, [allUsers, listings, marketListingsLoaded, marketListingsRemote]);
     const sellSlots = isAdminUser
         ? myActiveListings
         : Array.from({ length: MAX_SELL_SLOTS }, (_, idx) => myActiveListings[idx] ?? null);

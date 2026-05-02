@@ -20,6 +20,7 @@ import {
     isAiInitialHiddenSoftFoundByAnyPlayer,
     isHiddenMoveIndexSoftRevealedByAnyPlayer,
 } from './modes/hiddenScanShared.js';
+import { getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame } from '../shared/utils/pairGameTurn.js';
 
 // 정확한 계가 결과는 1회만 표시한다는 전제 하에,
 // (특히 히든돌 최종 공개 애니메이션 동안) KataGo 분석을 백그라운드로 미리 시작해
@@ -1509,11 +1510,14 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             }
 
             // 게임 상태 업데이트 후 AI 턴 처리 (애니메이션 완료로 턴이 전환되었을 수 있음)
+            const pairSeatForAi =
+                isPairClassicGame(game.settings, game.mode) ? getCurrentPairTurnSeat(game.settings) : null;
+            const isPairAiTurn = Boolean(pairSeatForAi && isPairAiSeat(pairSeatForAi));
             const currentPlayerIdForAi = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
             const isAiPlayerTurn = currentPlayerIdForAi === aiUserId ||
                 (currentPlayerIdForAi && String(currentPlayerIdForAi).startsWith('dungeon-bot-'));
-            const isAiTurn = (game.isAiGame || isAiPlayerTurn) && !isManuallyPaused && game.currentPlayer !== types.Player.None &&
-                isAiPlayerTurn;
+            const isAiTurn = !isManuallyPaused && game.currentPlayer !== types.Player.None &&
+                (isPairAiTurn || ((game.isAiGame || isAiPlayerTurn) && isAiPlayerTurn));
 
             // 알까기: 배치→공격 전환 직후에는 즉시 공격하지 않고 딜레이 예약만 건다.
             const didAlkkagiTriggerAiAttack = (game as any).alkkagiTriggerAiAttack === true &&

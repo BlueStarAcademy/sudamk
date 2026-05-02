@@ -587,18 +587,23 @@ const PairWaitingLobby: React.FC = () => {
 
     const viewerEquippedPairPetInfo = useMemo(() => {
         const u = currentUserWithStatus;
-        if (!u?.equippedPairPetTemplateId) return { name: null as string | null, level: null as number | null };
+        if (!u?.equippedPairPetTemplateId) return { name: null as string | null, level: null as number | null, displayName: null as string | null };
         const row = getEquippedPairPetInventoryRow(u);
         if (!row) {
+            const name = getPairPetDefinition(u.equippedPairPetTemplateId)?.displayName ?? '내 펫';
             return {
-                name: getPairPetDefinition(u.equippedPairPetTemplateId)?.displayName ?? '내 펫',
+                name,
                 level: null,
+                displayName: name,
             };
         }
         const meta = resolvePairPetMetaFromInventoryRow(row);
+        const level = Math.max(1, Math.floor(meta.level) || 1);
+        const name = getPairPetDisplayName(row);
         return {
-            name: getPairPetDisplayName(row),
-            level: Math.max(1, Math.floor(meta.level) || 1),
+            name,
+            level,
+            displayName: `Lv.${level} ${name}`,
         };
     }, [currentUserWithStatus]);
 
@@ -655,8 +660,8 @@ const PairWaitingLobby: React.FC = () => {
             ready: m.ready,
             ...(m.id === `pet-ai-${currentUserId}` && viewerEquippedPairPetInfo.name
                 ? {
-                      name: viewerEquippedPairPetInfo.name,
-                      subLabel: viewerEquippedPairPetInfo.level ? `Lv.${viewerEquippedPairPetInfo.level}` : '장착 펫',
+                      name: viewerEquippedPairPetInfo.displayName ?? viewerEquippedPairPetInfo.name,
+                      subLabel: '장착 펫',
                       portraitSrc: viewerEquippedPairPetPortraitSrc,
                   }
                 : {}),
@@ -712,11 +717,169 @@ const PairWaitingLobby: React.FC = () => {
         </>
     );
 
+    /** 방 입장 후에도 하단 액션(매칭·방 나가기)이 잘리지 않도록, 목록+퀵조인은 스크롤 영역에 두고 액션 바는 고정 */
+    const pairLobbyRoomListBlock = (
+        <div
+            className={`flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-2 ${
+                myRoom ? 'min-h-0 shrink-0' : 'min-h-0 flex-1'
+            }`}
+        >
+            <div
+                className={`rounded-xl border border-dashed border-white/15 bg-black/20 p-2 ${
+                    myRoom
+                        ? 'max-h-[min(38dvh,240px)] overflow-y-auto sm:max-h-[min(44dvh,320px)]'
+                        : 'min-h-0 flex-1 overflow-y-auto'
+                }`}
+            >
+                <div className="flex flex-wrap justify-center gap-3">
+                    {sortedRoomsForPublicList.map((room) => {
+                        const listRoomKind =
+                            normalizePairListRoomKind(room) ??
+                            (pairListIsFriendlyFour(room) ? ('friendly_4p' as RoomKind) : room.roomKind);
+                        const roomInMatch =
+                            (room.phase ?? 'waiting') === 'in_game' || room.phase === 'match_pending';
+                        const aiDuelJoinable =
+                            listRoomKind === 'ai_duel' &&
+                            room.ownerId !== currentUserId &&
+                            !myRoom &&
+                            !roomInMatch &&
+                            hasUsablePairPetForJoin &&
+                            countHumanUsersInPairRoom(room) < 2;
+                        const joinable =
+                            aiDuelJoinable ||
+                            (!room.partnerId &&
+                                room.ownerId !== currentUserId &&
+                                !myRoom &&
+                                listRoomKind !== 'ai_duel' &&
+                                !roomInMatch);
+                        const occupiedHumans = friendlyFourOccupiedHumans(room);
+                        const showFriendlySlots = pairListIsFriendlyFour(room);
+                        const visibilityBadge =
+                            room.visibility === 'private'
+                                ? 'border-violet-400/40 bg-violet-950/55 text-violet-100'
+                                : 'border-emerald-400/35 bg-emerald-950/40 text-emerald-100';
+                        return (
+                            <div
+                                key={room.id}
+                                className="flex w-[14.25rem] shrink-0 flex-col gap-2 rounded-xl border border-white/12 bg-black/35 p-2.5 text-xs shadow-sm sm:w-[15rem] sm:gap-2.5 sm:p-3"
+                            >
+                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                    <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-2 sm:gap-y-0.5">
+                                        <span className="shrink-0 font-mono text-xs font-extrabold tabular-nums text-amber-200">
+                                            #{room.code}
+                                        </span>
+                                        <span className="min-w-0 w-full whitespace-normal break-words text-[13px] font-extrabold leading-snug text-white sm:text-sm">
+                                            {room.title}
+                                        </span>
+                                    </div>
+                                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                                        {roomInMatch ? (
+                                            <span className="rounded-md border border-cyan-400/40 bg-cyan-950/70 px-1.5 py-0.5 text-[10px] font-extrabold text-cyan-100">
+                                                경기중
+                                            </span>
+                                        ) : null}
+                                        <span
+                                            className={`rounded-md border px-1.5 py-0.5 text-[10px] font-extrabold ${visibilityBadge}`}
+                                        >
+                                            {room.visibility === 'private' ? '비공개' : '공개'}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="text-[11px] leading-snug text-slate-300">
+                                    <span className="font-bold text-violet-200/95">{roomKindLabel(listRoomKind)}</span>
+                                    <span className="mx-1 text-slate-600">·</span>
+                                    <span className="text-slate-400">방장</span>{' '}
+                                    <span className="font-bold text-slate-100">{room.ownerName}</span>
+                                </div>
+                                {showFriendlySlots ? (
+                                    <div
+                                        className="flex w-full select-none items-center justify-center gap-1.5 rounded-lg border border-white/25 bg-black/55 px-1 py-2 shadow-inner ring-1 ring-white/10"
+                                        role="img"
+                                        aria-label={`유저 착석 ${occupiedHumans}명, 빈 자리 ${4 - occupiedHumans}`}
+                                    >
+                                        {[0, 1, 2, 3].map((i) =>
+                                            i < occupiedHumans ? (
+                                                <div
+                                                    key={i}
+                                                    className="h-6 w-6 shrink-0 rounded border-2 border-emerald-400/90 bg-emerald-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] sm:h-7 sm:w-7"
+                                                    aria-hidden
+                                                />
+                                            ) : (
+                                                <div
+                                                    key={i}
+                                                    className="h-6 w-6 shrink-0 rounded border-2 border-zinc-400 bg-transparent shadow-none sm:h-7 sm:w-7"
+                                                    aria-hidden
+                                                />
+                                            ),
+                                        )}
+                                    </div>
+                                ) : null}
+                                <button
+                                    type="button"
+                                    disabled={!joinable || isBusy}
+                                    onClick={() => quickJoin(room.id)}
+                                    className={`mt-auto rounded-lg border px-2 py-1.5 text-[11px] font-extrabold sm:text-xs ${joinable ? 'border-cyan-300/55 bg-cyan-900/45 text-cyan-100' : 'border-zinc-700 bg-zinc-900/60 text-zinc-500'}`}
+                                >
+                                    입장
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+            <div className="mt-2 shrink-0 border-t border-white/[0.08] pt-2">
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5">
+                    <Button
+                        bare
+                        type="button"
+                        disabled={isBusy || Boolean(myRoom)}
+                        onClick={openCreateRoomModal}
+                        className="min-w-0 shrink-0 rounded-md border border-emerald-400/30 bg-gradient-to-b from-emerald-800/40 via-emerald-950/70 to-black/80 px-4 py-2 text-[11px] font-semibold tracking-wide text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_8px_24px_-8px_rgba(16,185,129,0.35)] ring-1 ring-emerald-500/15 transition hover:border-emerald-300/45 hover:from-emerald-700/45 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_28px_-6px_rgba(52,211,153,0.28)] disabled:pointer-events-none disabled:opacity-45 sm:px-5 sm:text-xs"
+                    >
+                        방만들기
+                    </Button>
+                    <Button
+                        bare
+                        type="button"
+                        disabled={isBusy || Boolean(myRoom)}
+                        onClick={() => void quickParticipate()}
+                        className="min-w-0 shrink-0 rounded-md border border-cyan-400/28 bg-gradient-to-b from-cyan-900/35 via-slate-950/80 to-black/80 px-4 py-2 text-[11px] font-semibold tracking-wide text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_24px_-8px_rgba(34,211,238,0.28)] ring-1 ring-cyan-400/12 transition hover:border-cyan-300/42 hover:from-cyan-800/40 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_28px_-6px_rgba(34,211,238,0.22)] disabled:pointer-events-none disabled:opacity-45 sm:px-5 sm:text-xs"
+                    >
+                        빠른참가
+                    </Button>
+                    <div className="flex min-w-0 max-w-full items-stretch gap-1 rounded-md border border-amber-400/25 bg-black/40 py-0.5 pl-2 pr-0.5 shadow-inner ring-1 ring-amber-500/10">
+                        <input
+                            value={joinRoomNumber}
+                            onChange={(e) => setJoinRoomNumber(normalizeRoomNumberInput(e.target.value))}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !isBusy && !myRoom) joinByRoomNumber();
+                            }}
+                            placeholder="방 번호"
+                            maxLength={12}
+                            disabled={Boolean(myRoom)}
+                            className="w-[6.5rem] shrink-0 border-0 bg-transparent py-1.5 text-center text-[11px] font-mono font-semibold tracking-wider text-amber-100 outline-none placeholder:text-amber-200/35 sm:w-[7.5rem] sm:text-xs"
+                        />
+                        <button
+                            type="button"
+                            disabled={isBusy || Boolean(myRoom)}
+                            onClick={() => joinByRoomNumber()}
+                            className="shrink-0 rounded border border-amber-400/40 bg-gradient-to-b from-amber-900/50 to-amber-950/80 px-2.5 py-1 text-[11px] font-bold text-amber-50 transition hover:border-amber-300/55 disabled:pointer-events-none disabled:opacity-45 sm:px-3 sm:text-xs"
+                        >
+                            입장
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
     const renderPairLobbyCenterColumn = () => (
                 <div className={waitingLobbyPcCenterColumnClass(lobbyTone)}>
                     <div className={waitingLobbyPcPanelTopHairlineClassFor(lobbyTone)} aria-hidden />
                     {myRoom ? (
-                        <div className={`flex min-h-0 shrink-0 flex-col gap-3 ${PAIR_ROOM_INTERIOR_SHELL}`}>
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
+                                <div className={`flex shrink-0 flex-col gap-3 ${PAIR_ROOM_INTERIOR_SHELL}`}>
                             <div className={`flex flex-col gap-2 ${PAIR_ROOM_INTERIOR_HEADER_RULE}`}>
                                 <div
                                     className={`flex w-full flex-nowrap items-center justify-between gap-x-2 ${
@@ -888,203 +1051,69 @@ const PairWaitingLobby: React.FC = () => {
                                 />
                             </div>
                         </div>
-                    ) : (
-                        <div className="relative flex min-h-[2.25rem] shrink-0 items-center overflow-hidden rounded-2xl border border-cyan-300/25 bg-gradient-to-r from-slate-950 via-cyan-950/45 to-slate-950 px-3 py-1.5">
-                            <div className="relative w-full text-center text-xs font-extrabold leading-snug text-cyan-50 sm:text-sm">방만들기에서 종류를 고르면 그에 맞는 페어 방이 열립니다.</div>
-                        </div>
-                    )}
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-2">
-                        <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-dashed border-white/15 bg-black/20 p-2">
-                            <div className="flex flex-wrap justify-center gap-3">
-                                {sortedRoomsForPublicList.map((room) => {
-                                    const listRoomKind =
-                                        normalizePairListRoomKind(room) ??
-                                        (pairListIsFriendlyFour(room) ? ('friendly_4p' as RoomKind) : room.roomKind);
-                                    const roomInMatch =
-                                        (room.phase ?? 'waiting') === 'in_game' || room.phase === 'match_pending';
-                                    const aiDuelJoinable =
-                                        listRoomKind === 'ai_duel' &&
-                                        room.ownerId !== currentUserId &&
-                                        !myRoom &&
-                                        !roomInMatch &&
-                                        hasUsablePairPetForJoin &&
-                                        countHumanUsersInPairRoom(room) < 2;
-                                    const joinable =
-                                        aiDuelJoinable ||
-                                        (!room.partnerId &&
-                                            room.ownerId !== currentUserId &&
-                                            !myRoom &&
-                                            listRoomKind !== 'ai_duel' &&
-                                            !roomInMatch);
-                                    const occupiedHumans = friendlyFourOccupiedHumans(room);
-                                    const showFriendlySlots = pairListIsFriendlyFour(room);
-                                    const visibilityBadge =
-                                        room.visibility === 'private'
-                                            ? 'border-violet-400/40 bg-violet-950/55 text-violet-100'
-                                            : 'border-emerald-400/35 bg-emerald-950/40 text-emerald-100';
-                                    return (
-                                        <div
-                                            key={room.id}
-                                            className="flex w-[14.25rem] shrink-0 flex-col gap-2 rounded-xl border border-white/12 bg-black/35 p-2.5 text-xs shadow-sm sm:w-[15rem] sm:gap-2.5 sm:p-3"
-                                        >
-                                            <div className="flex flex-wrap items-start justify-between gap-2">
-                                                <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-2 sm:gap-y-0.5">
-                                                    <span className="shrink-0 font-mono text-xs font-extrabold tabular-nums text-amber-200">
-                                                        #{room.code}
-                                                    </span>
-                                                    <span className="min-w-0 w-full whitespace-normal break-words text-[13px] font-extrabold leading-snug text-white sm:text-sm">
-                                                        {room.title}
-                                                    </span>
-                                                </div>
-                                                <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-                                                    {roomInMatch ? (
-                                                        <span className="rounded-md border border-cyan-400/40 bg-cyan-950/70 px-1.5 py-0.5 text-[10px] font-extrabold text-cyan-100">
-                                                            경기중
-                                                        </span>
-                                                    ) : null}
-                                                    <span
-                                                        className={`rounded-md border px-1.5 py-0.5 text-[10px] font-extrabold ${visibilityBadge}`}
-                                                    >
-                                                        {room.visibility === 'private' ? '비공개' : '공개'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="text-[11px] leading-snug text-slate-300">
-                                                <span className="font-bold text-violet-200/95">{roomKindLabel(listRoomKind)}</span>
-                                                <span className="mx-1 text-slate-600">·</span>
-                                                <span className="text-slate-400">방장</span>{' '}
-                                                <span className="font-bold text-slate-100">{room.ownerName}</span>
-                                            </div>
-                                            {showFriendlySlots ? (
-                                                <div
-                                                    className="flex w-full select-none items-center justify-center gap-1.5 rounded-lg border border-white/25 bg-black/55 px-1 py-2 shadow-inner ring-1 ring-white/10"
-                                                    role="img"
-                                                    aria-label={`유저 착석 ${occupiedHumans}명, 빈 자리 ${4 - occupiedHumans}`}
-                                                >
-                                                    {[0, 1, 2, 3].map((i) =>
-                                                        i < occupiedHumans ? (
-                                                            <div
-                                                                key={i}
-                                                                className="h-6 w-6 shrink-0 rounded border-2 border-emerald-400/90 bg-emerald-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] sm:h-7 sm:w-7"
-                                                                aria-hidden
-                                                            />
-                                                        ) : (
-                                                            <div
-                                                                key={i}
-                                                                className="h-6 w-6 shrink-0 rounded border-2 border-zinc-400 bg-transparent shadow-none sm:h-7 sm:w-7"
-                                                                aria-hidden
-                                                            />
-                                                        ),
-                                                    )}
-                                                </div>
-                                            ) : null}
-                                            <button
-                                                type="button"
-                                                disabled={!joinable || isBusy}
-                                                onClick={() => quickJoin(room.id)}
-                                                className={`mt-auto rounded-lg border px-2 py-1.5 text-[11px] font-extrabold sm:text-xs ${joinable ? 'border-cyan-300/55 bg-cyan-900/45 text-cyan-100' : 'border-zinc-700 bg-zinc-900/60 text-zinc-500'}`}
-                                            >
-                                                입장
-                                            </button>
-                                        </div>
-                                    );
-                                })}
+                                {pairLobbyRoomListBlock}
                             </div>
-                        </div>
-                        <div className="mt-2 shrink-0 border-t border-white/[0.08] pt-2">
-                            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5">
-                                <Button
-                                    bare
-                                    type="button"
-                                    disabled={isBusy || Boolean(myRoom)}
-                                    onClick={openCreateRoomModal}
-                                    className="min-w-0 shrink-0 rounded-md border border-emerald-400/30 bg-gradient-to-b from-emerald-800/40 via-emerald-950/70 to-black/80 px-4 py-2 text-[11px] font-semibold tracking-wide text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_8px_24px_-8px_rgba(16,185,129,0.35)] ring-1 ring-emerald-500/15 transition hover:border-emerald-300/45 hover:from-emerald-700/45 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_28px_-6px_rgba(52,211,153,0.28)] disabled:pointer-events-none disabled:opacity-45 sm:px-5 sm:text-xs"
-                                >
-                                    방만들기
-                                </Button>
-                                <Button
-                                    bare
-                                    type="button"
-                                    disabled={isBusy || Boolean(myRoom)}
-                                    onClick={() => void quickParticipate()}
-                                    className="min-w-0 shrink-0 rounded-md border border-cyan-400/28 bg-gradient-to-b from-cyan-900/35 via-slate-950/80 to-black/80 px-4 py-2 text-[11px] font-semibold tracking-wide text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_24px_-8px_rgba(34,211,238,0.28)] ring-1 ring-cyan-400/12 transition hover:border-cyan-300/42 hover:from-cyan-800/40 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_28px_-6px_rgba(34,211,238,0.22)] disabled:pointer-events-none disabled:opacity-45 sm:px-5 sm:text-xs"
-                                >
-                                    빠른참가
-                                </Button>
-                                <div className="flex min-w-0 max-w-full items-stretch gap-1 rounded-md border border-amber-400/25 bg-black/40 py-0.5 pl-2 pr-0.5 shadow-inner ring-1 ring-amber-500/10">
-                                    <input
-                                        value={joinRoomNumber}
-                                        onChange={(e) => setJoinRoomNumber(normalizeRoomNumberInput(e.target.value))}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && !isBusy && !myRoom) joinByRoomNumber();
-                                        }}
-                                        placeholder="방 번호"
-                                        maxLength={12}
-                                        disabled={Boolean(myRoom)}
-                                        className="w-[6.5rem] shrink-0 border-0 bg-transparent py-1.5 text-center text-[11px] font-mono font-semibold tracking-wider text-amber-100 outline-none placeholder:text-amber-200/35 sm:w-[7.5rem] sm:text-xs"
-                                    />
+                            <div
+                                className={`${PAIR_ROOM_INTERIOR_ACTION_BAR} shrink-0 ${roomActionGridClass} mt-2 pb-[max(0px,env(safe-area-inset-bottom))]`}
+                            >
+                                {showReadyButton && (
                                     <button
                                         type="button"
-                                        disabled={isBusy || Boolean(myRoom)}
-                                        onClick={() => joinByRoomNumber()}
-                                        className="shrink-0 rounded border border-amber-400/40 bg-gradient-to-b from-amber-900/50 to-amber-950/80 px-2.5 py-1 text-[11px] font-bold text-amber-50 transition hover:border-amber-300/55 disabled:pointer-events-none disabled:opacity-45 sm:px-3 sm:text-xs"
+                                        disabled={isBusy}
+                                        onClick={() => setReady(!currentUserPairReady)}
+                                        className="rounded-xl border border-emerald-400/50 bg-emerald-950/55 px-3 py-2 text-sm font-extrabold text-emerald-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-emerald-300/55 hover:bg-emerald-900/50 disabled:pointer-events-none disabled:opacity-45"
                                     >
-                                        입장
+                                        준비
                                     </button>
-                                </div>
+                                )}
+                                {isPairPetRoom && isPairRoomMatching && isOwner ? (
+                                    <button
+                                        type="button"
+                                        disabled={isBusy}
+                                        onClick={() => void cancelPairPetMatching()}
+                                        className="rounded-xl border border-rose-400/50 bg-rose-950/55 px-3 py-2 text-sm font-extrabold text-rose-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-rose-300/55 hover:bg-rose-900/50 disabled:pointer-events-none disabled:opacity-45"
+                                    >
+                                        매칭 취소
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        disabled={isBusy || !canStart}
+                                        onClick={startMatch}
+                                        className="rounded-xl border border-indigo-400/50 bg-indigo-950/55 px-3 py-2 text-sm font-extrabold text-indigo-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-indigo-300/55 hover:bg-indigo-900/50 disabled:pointer-events-none disabled:opacity-45"
+                                    >
+                                        매칭 시작
+                                    </button>
+                                )}
+                                {(isPairPetRoom || isDuoPairRoom) && (
+                                    <button
+                                        type="button"
+                                        disabled={isBusy || !canStartAiMatch}
+                                        onClick={openPairAiMatchSettings}
+                                        className="rounded-xl border border-fuchsia-400/50 bg-fuchsia-950/55 px-3 py-2 text-sm font-extrabold text-fuchsia-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-fuchsia-300/55 hover:bg-fuchsia-900/50 disabled:pointer-events-none disabled:opacity-45"
+                                    >
+                                        AI 대전
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    disabled={isBusy}
+                                    onClick={leaveRoom}
+                                    className="rounded-xl border border-rose-400/50 bg-rose-950/45 px-3 py-2 text-sm font-extrabold text-rose-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-rose-300/50 hover:bg-rose-900/45 disabled:pointer-events-none disabled:opacity-45"
+                                >
+                                    방 나가기
+                                </button>
                             </div>
                         </div>
-                    </div>
-                    {myRoom && (
-                        <div className={`${PAIR_ROOM_INTERIOR_ACTION_BAR} ${roomActionGridClass}`}>
-                            {showReadyButton && (
-                                <button
-                                    type="button"
-                                    disabled={isBusy}
-                                    onClick={() => setReady(!currentUserPairReady)}
-                                    className="rounded-xl border border-emerald-400/50 bg-emerald-950/55 px-3 py-2 text-sm font-extrabold text-emerald-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-emerald-300/55 hover:bg-emerald-900/50 disabled:pointer-events-none disabled:opacity-45"
-                                >
-                                    준비
-                                </button>
-                            )}
-                            {isPairPetRoom && isPairRoomMatching && isOwner ? (
-                                <button
-                                    type="button"
-                                    disabled={isBusy}
-                                    onClick={() => void cancelPairPetMatching()}
-                                    className="rounded-xl border border-rose-400/50 bg-rose-950/55 px-3 py-2 text-sm font-extrabold text-rose-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-rose-300/55 hover:bg-rose-900/50 disabled:pointer-events-none disabled:opacity-45"
-                                >
-                                    매칭 취소
-                                </button>
-                            ) : (
-                                <button
-                                    type="button"
-                                    disabled={isBusy || !canStart}
-                                    onClick={startMatch}
-                                    className="rounded-xl border border-indigo-400/50 bg-indigo-950/55 px-3 py-2 text-sm font-extrabold text-indigo-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-indigo-300/55 hover:bg-indigo-900/50 disabled:pointer-events-none disabled:opacity-45"
-                                >
-                                    매칭 시작
-                                </button>
-                            )}
-                            {(isPairPetRoom || isDuoPairRoom) && (
-                                <button
-                                    type="button"
-                                    disabled={isBusy || !canStartAiMatch}
-                                    onClick={openPairAiMatchSettings}
-                                    className="rounded-xl border border-fuchsia-400/50 bg-fuchsia-950/55 px-3 py-2 text-sm font-extrabold text-fuchsia-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-fuchsia-300/55 hover:bg-fuchsia-900/50 disabled:pointer-events-none disabled:opacity-45"
-                                >
-                                    AI 대전
-                                </button>
-                            )}
-                            <button
-                                type="button"
-                                disabled={isBusy}
-                                onClick={leaveRoom}
-                                className="rounded-xl border border-rose-400/50 bg-rose-950/45 px-3 py-2 text-sm font-extrabold text-rose-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-rose-300/50 hover:bg-rose-900/45 disabled:pointer-events-none disabled:opacity-45"
-                            >
-                                방 나가기
-                            </button>
-                        </div>
+                    ) : (
+                        <>
+                            <div className="relative flex min-h-[2.25rem] shrink-0 items-center overflow-hidden rounded-2xl border border-cyan-300/25 bg-gradient-to-r from-slate-950 via-cyan-950/45 to-slate-950 px-3 py-1.5">
+                                <div className="relative w-full text-center text-xs font-extrabold leading-snug text-cyan-50 sm:text-sm">
+                                    방만들기에서 종류를 고르면 그에 맞는 페어 방이 열립니다.
+                                </div>
+                            </div>
+                            {pairLobbyRoomListBlock}
+                        </>
                     )}
                 </div>
     );
@@ -1093,7 +1122,7 @@ const PairWaitingLobby: React.FC = () => {
         <div
             className={`bg-lobby-shell-strategic text-primary flex h-full min-h-0 w-full flex-1 flex-col ${
                 isHandheld
-                    ? 'min-h-0 gap-2 overflow-hidden px-2 pb-2 pt-2'
+                    ? 'min-h-0 gap-2 overflow-hidden px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2'
                     : isNativeMobile
                       ? 'gap-2 overflow-y-auto px-2 pb-2 pt-2'
                       : 'px-3 pb-3 pt-3'
@@ -1361,15 +1390,15 @@ const PairWaitingLobby: React.FC = () => {
                         >
                             <img src="/images/button/back.png" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
                         </button>
-                        <h1 className="relative z-[1] min-w-0 flex-1 truncate text-left text-base font-bold sm:text-lg lg:text-xl bg-gradient-to-r from-cyan-100 via-sky-100 to-cyan-200 bg-clip-text text-transparent drop-shadow-[0_0_18px_rgba(34,211,238,0.22)]">
+                        <h1 className="relative z-[1] min-w-0 flex-1 truncate text-left text-sm font-bold sm:text-lg lg:text-xl bg-gradient-to-r from-cyan-100 via-sky-100 to-cyan-200 bg-clip-text text-transparent drop-shadow-[0_0_18px_rgba(34,211,238,0.22)]">
                             페어 경기장
                         </h1>
                     </div>
-                    <div className="grid shrink-0 grid-cols-3 gap-1 rounded-xl border border-white/10 bg-black/30 p-1">
+                    <div className="grid shrink-0 grid-cols-3 gap-0.5 rounded-xl border border-white/10 bg-black/30 p-0.5 sm:gap-1 sm:p-1">
                         <button
                             type="button"
                             onClick={() => setPairLobbyMobileTab('pet')}
-                            className={`rounded-lg px-2 py-2 text-xs font-extrabold ${
+                            className={`rounded-lg px-1.5 py-1.5 text-[0.65rem] font-extrabold leading-tight sm:px-2 sm:py-2 sm:text-xs ${
                                 pairLobbyMobileTab === 'pet'
                                     ? 'bg-cyan-500 text-cyan-950'
                                     : 'text-cyan-100 hover:bg-cyan-950/45'
@@ -1380,7 +1409,7 @@ const PairWaitingLobby: React.FC = () => {
                         <button
                             type="button"
                             onClick={() => setPairLobbyMobileTab('rooms')}
-                            className={`rounded-lg px-2 py-2 text-xs font-extrabold ${
+                            className={`rounded-lg px-1.5 py-1.5 text-[0.65rem] font-extrabold leading-tight sm:px-2 sm:py-2 sm:text-xs ${
                                 pairLobbyMobileTab === 'rooms'
                                     ? 'bg-violet-500 text-violet-950'
                                     : 'text-violet-100 hover:bg-violet-950/45'
@@ -1391,7 +1420,7 @@ const PairWaitingLobby: React.FC = () => {
                         <button
                             type="button"
                             onClick={() => setPairLobbyMobileTab('users')}
-                            className={`rounded-lg px-2 py-2 text-xs font-extrabold ${
+                            className={`rounded-lg px-1.5 py-1.5 text-[0.65rem] font-extrabold leading-tight sm:px-2 sm:py-2 sm:text-xs ${
                                 pairLobbyMobileTab === 'users'
                                     ? 'bg-amber-500 text-amber-950'
                                     : 'text-amber-100 hover:bg-amber-950/45'
@@ -1403,7 +1432,7 @@ const PairWaitingLobby: React.FC = () => {
                     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
                         {pairLobbyMobileTab === 'pet' ? (
                             <div
-                                className={`${waitingLobbyPcPanelShellClass('playful')} mx-0 flex min-h-0 flex-1 flex-col overflow-hidden p-2`}
+                                className={`${waitingLobbyPcPanelShellClass('playful')} mx-0 flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2`}
                             >
                                 <PairPetLobbyPanel
                                     currentUser={currentUserWithStatus}

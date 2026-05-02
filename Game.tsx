@@ -48,7 +48,7 @@ import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
 import { replaceAppHash } from './utils/appUtils.js';
 import { getAdventureMapWebpPath } from './constants/adventureConstants.js';
 import { InGameModalLayoutProvider } from './contexts/InGameModalLayoutContext.js';
-import { getCurrentPairTurnSeat, PAIR_TURN_SEAT_IDS } from './shared/utils/pairGameTurn.js';
+import { getCurrentPairTurnSeat, isPairAiSeat, PAIR_TURN_SEAT_IDS } from './shared/utils/pairGameTurn.js';
 import { getPairPetDefinition } from './shared/constants/petLobby.js';
 import { getEquippedPairPetInventoryRow } from './shared/utils/pairEquippedPet.js';
 import { resolvePairPetMetaFromInventoryRow } from './shared/utils/pairPetRoll.js';
@@ -669,6 +669,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             ((session.settings as { hiddenStoneCount?: number })?.hiddenStoneCount ?? 0) > 0);
     // 전략바둑 AI/PVP 수순 제한: 새로고침 후 totalTurns·moveHistory 복원/저장에 포함
     const hasStrategicTurnLimit =
+        !session.settings?.pairGame &&
         mode !== GameMode.Capture &&
         ((session.settings?.scoringTurnLimit ?? 0) > 0 || ((session.settings as any)?.autoScoringTurns ?? 0) > 0);
     /** 모험 포함: 새로고침 시 sessionStorage와 병합해 남은 턴·경과 시간이 초기화되지 않게 함 */
@@ -3006,9 +3007,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
         if (currentPlayer === Player.None) return;
 
+        const pairCurrentSeatForAiWatch = getCurrentPairTurnSeat(session.settings);
+        const isPairAiTurnForWatch = Boolean(pairCurrentSeatForAiWatch && isPairAiSeat(pairCurrentSeatForAiWatch));
         const currentPlayerId =
-            currentPlayer === Player.Black ? session.blackPlayerId : session.whitePlayerId;
+            pairCurrentSeatForAiWatch?.participantId ??
+            (currentPlayer === Player.Black ? session.blackPlayerId : session.whitePlayerId);
         const isAiBotTurn =
+            isPairAiTurnForWatch ||
             currentPlayerId === AI_USER_ID ||
             (session.isAiGame && currentPlayerId === 'ai-player-01') ||
             (!!currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-'));
@@ -3171,9 +3176,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         // 게임 ID가 유효한지 확인 (재도전 시 게임 ID가 변경될 수 있음)
         if (!session.id || typeof session.id !== 'string') return;
 
-        const aiPlayerId = currentPlayer === Player.Black ? session.blackPlayerId : session.whitePlayerId;
+        const pairCurrentSeatForAiEffect = getCurrentPairTurnSeat(session.settings);
+        const isPairAiTurnForAiEffect = Boolean(pairCurrentSeatForAiEffect && isPairAiSeat(pairCurrentSeatForAiEffect));
+        const aiPlayerId =
+            pairCurrentSeatForAiEffect?.participantId ??
+            (currentPlayer === Player.Black ? session.blackPlayerId : session.whitePlayerId);
         // 놀이바둑 AI 게임도 클라이언트에서 처리
-        const isAiTurn = aiPlayerId === AI_USER_ID || (session.isAiGame && aiPlayerId === 'ai-player-01');
+        const isAiTurn =
+            isPairAiTurnForAiEffect ||
+            aiPlayerId === AI_USER_ID ||
+            (session.isAiGame && aiPlayerId === 'ai-player-01');
 
         // Safety: ai_thinking이 "실제 진행 중"일 때만 AI 전송 차단 (stale ai_thinking 잔존으로 영구 정지 방지)
         const aiThinkingAnim = session.animation as { type?: string; startTime?: number } | undefined;
@@ -3356,6 +3368,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 session.gameCategory === 'guildwar' ||
                 session.gameCategory === 'singleplayer' ||
                 session.gameCategory === 'adventure' ||
+                isPairAiTurnForAiEffect ||
                 session.isSinglePlayer
             ) {
                 const currentGameId = session.id;
@@ -3434,6 +3447,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             const responseAnimType = String(((responseGame as any)?.animation as { type?: string } | undefined)?.type ?? '');
                             const isServerWaitingState =
                                 skippedReason === 'SERVER_AI_WAITING_STATE' ||
+                                skippedReason === 'AI_MOVE_ALREADY_PROCESSING' ||
                                 skippedReason === 'AI_MOVE_STALLED_REQUEUED' ||
                                 skippedReason === 'AI_MOVE_FAILED_RETRYING' ||
                                 responseStatus === 'missile_animating' ||
@@ -3538,36 +3552,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (!session.analysisResult?.['system']) {
             setShowFinalTerritory(false);
         }
-        // 도전의 탑·싱글플레이·모험·(전략/놀이 대기실에서 시작한) AI 대국:
-        // "확인"은 모달만 닫고 경기장에 머물고, "나가기"에서만 퇴장 후 대기실로 이동
-        const isTowerSingleOrAdventure =
-            session.gameCategory === 'tower' || session.isSinglePlayer || session.gameCategory === 'adventure';
-        const isLobbyAiGame =
-            session.isAiGame &&
-            (SPECIAL_GAME_MODES.some(m => m.mode === session.mode) || PLAYFUL_GAME_MODES.some(m => m.mode === session.mode));
-        if (isTowerSingleOrAdventure || isLobbyAiGame) return;
-        // 그 외(PVP 등): 경기 종료 후 결과 모달 "확인" 시 퇴장 + 해당 대기실로 이동
-        if ((gameStatus === 'ended' || gameStatus === 'no_contest') && gameId) {
-            if (session.settings?.pairGame) {
-                sessionStorage.setItem('postGameRedirect', '#/pair');
-            } else {
-                const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const : 'playful' as const;
-                sessionStorage.setItem('postGameRedirect', `#/waiting/${waitingRoomMode}`);
-            }
-            const actionType = session.isAiGame ? 'LEAVE_AI_GAME' : 'LEAVE_GAME_ROOM';
-            handlers.handleAction({ type: actionType, payload: { gameId } });
-        }
-    }, [
-        session.analysisResult,
-        session.gameCategory,
-        session.isSinglePlayer,
-        session.mode,
-        session.settings?.pairGame,
-        gameStatus,
-        gameId,
-        session.isAiGame,
-        handlers.handleAction,
-    ]);
+        // 경기 결과 "확인"은 모달만 닫고 대국실에 머무름. 대기실·페어장 이동은 사이드바 등 「나가기」에서만 처리한다.
+    }, [session.analysisResult]);
 
     // 싱글플레이 게임 설명창 표시 여부
     // 결과 모달과 겹치지 않게: 계가/종료 직후 일시적으로 pending이 섞이는 경우에도 설명창이 위를 덮지 않도록 함

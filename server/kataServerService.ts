@@ -137,11 +137,26 @@ export interface GenerateKataServerMoveParams {
     allowPass?: boolean;
 }
 
+const inFlightKataServerMoveRequests = new Map<string, Promise<Point[]>>();
+
+function buildKataServerMoveRequestKey(params: GenerateKataServerMoveParams): string {
+    return JSON.stringify({
+        gameId: params.gameId ?? '',
+        kataSessionTag: params.kataSessionTag ?? '',
+        boardSize: params.boardSize,
+        player: params.player,
+        level: params.level,
+        komi: params.komi ?? 6.5,
+        allowPass: params.allowPass === true,
+        moveHistory: params.moveHistory.map((m) => [m.player, m.x, m.y]),
+    });
+}
+
 /**
  * Kata 한 번 호출로 후보 좌표 목록 반환 (move → bestMove 순, PASS 제외).
  * PASS·빈 응답이면 빈 배열을 반환하고, 호출 측 폴백(합법수 탐색/종료 판단)으로 넘긴다.
  */
-export async function generateKataServerMoveCandidates(params: GenerateKataServerMoveParams): Promise<Point[]> {
+async function generateKataServerMoveCandidatesUncached(params: GenerateKataServerMoveParams): Promise<Point[]> {
     if (!KATA_SERVER_URL) {
         throw new Error('KATA_SERVER_URL is not set');
     }
@@ -248,6 +263,23 @@ export async function generateKataServerMoveCandidates(params: GenerateKataServe
     } finally {
         clearTimeout(timeoutId);
     }
+}
+
+export async function generateKataServerMoveCandidates(params: GenerateKataServerMoveParams): Promise<Point[]> {
+    const key = buildKataServerMoveRequestKey(params);
+    const existing = inFlightKataServerMoveRequests.get(key);
+    if (existing) {
+        console.warn(
+            `[KataServer] Duplicate in-flight move request joined: gameId=${params.gameId ?? 'n/a'} moves=${params.moveHistory.length} player=${params.player} level=${params.level}`,
+        );
+        return existing;
+    }
+
+    const request = generateKataServerMoveCandidatesUncached(params).finally(() => {
+        inFlightKataServerMoveRequests.delete(key);
+    });
+    inFlightKataServerMoveRequests.set(key, request);
+    return request;
 }
 
 /**

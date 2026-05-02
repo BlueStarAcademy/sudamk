@@ -985,7 +985,7 @@ function getPairGoHumanParticipantIds(game: LiveGameSession): string[] {
     return [...ids];
 }
 
-function applyPairPetRewardXp(user: User, rawGain: number): StatChange | undefined {
+function applyPairPetRewardXp(user: User, rawGain: number): { xp: StatChange; level: NonNullable<GameSummary['pairPetLevel']> } | undefined {
     const row = getEquippedPairPetInventoryRow(user);
     if (!row) return undefined;
     const idx = user.inventory.findIndex((it) => it.id === row.id);
@@ -1037,7 +1037,21 @@ function applyPairPetRewardXp(user: User, rawGain: number): StatChange | undefin
     }
 
     user.inventory[idx] = { ...user.inventory[idx]!, pairPetMeta: meta };
-    return { initial: initialXp, change: rawGain, final: meta.xp ?? 0 };
+    const finalXp = meta.xp ?? 0;
+    const finalLevel = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(meta.level) || 1));
+    const maxXpForInitialLevel = getXpRequirementForLevel(oldLevel);
+    return {
+        xp: { initial: initialXp, change: rawGain, final: finalXp },
+        level: {
+            initial: oldLevel,
+            final: finalLevel,
+            progress: {
+                initial: initialXp,
+                final: finalXp,
+                max: Number.isFinite(maxXpForInitialLevel) && maxXpForInitialLevel > 0 ? maxXpForInitialLevel : 0,
+            },
+        },
+    };
 }
 
 // Playful Gold Map
@@ -2047,6 +2061,7 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         const initialManner = user.mannerScore;
         if (!user.stats) user.stats = {};
         const modeStats = user.stats[game.mode] ?? { wins: 0, losses: 0, rankingScore: RANKED_ELO_BASE_SCORE };
+        const pairStats = user.stats['pair'] ?? { wins: 0, losses: 0, rankingScore: RANKED_ELO_BASE_SCORE };
         const initialRating = initialRatingByUserId[userId] ?? modeStats.rankingScore ?? RANKED_ELO_BASE_SCORE;
         const rankedOpponentId = game.isRankedGame ? humanIds.find((id) => id !== userId) : undefined;
         const opponentRating = rankedOpponentId ? initialRatingByUserId[rankedOpponentId] ?? RANKED_ELO_BASE_SCORE : RANKED_ELO_BASE_SCORE;
@@ -2071,7 +2086,7 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         user.strategyLevel = currentLevel;
         user.strategyXp = currentXp;
 
-        const pairPetXpSummary = petXpGain > 0 ? applyPairPetRewardXp(user, petXpGain) : undefined;
+        const pairPetGrowthSummary = petXpGain > 0 ? applyPairPetRewardXp(user, petXpGain) : undefined;
 
         let ratingChange = 0;
         if (game.isRankedGame && !game.isAiGame && !isNoContest && rankedOpponentId) {
@@ -2082,8 +2097,11 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         if (!isNoContest && !isDraw) {
             if (isWinner) modeStats.wins += 1;
             else modeStats.losses += 1;
+            if (isWinner) pairStats.wins += 1;
+            else pairStats.losses += 1;
         }
         user.stats[game.mode] = modeStats;
+        user.stats['pair'] = pairStats;
 
         updateQuestProgress(user, 'participate', game.mode, 1, { gameCategory: 'pair' });
         if (isWinner) updateQuestProgress(user, 'win', game.mode, 1, { gameCategory: 'pair' });
@@ -2109,12 +2127,12 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
                     max: requiredXpForInitialLevel,
                 },
             },
-            ...(pairPetXpSummary ? { pairPetXp: pairPetXpSummary } : {}),
+            ...(pairPetGrowthSummary ? { pairPetXp: pairPetGrowthSummary.xp, pairPetLevel: pairPetGrowthSummary.level } : {}),
         };
 
         await db.updateUser(user);
         const fields = ['gold', 'strategyXp', 'strategyLevel', 'stats', 'quests'];
-        if (pairPetXpSummary) fields.push('inventory', 'equippedPairPetTemplateId', 'equippedPairPetInventoryItemId');
+        if (pairPetGrowthSummary) fields.push('inventory', 'equippedPairPetTemplateId', 'equippedPairPetInventoryItemId');
         broadcastUserUpdate(user, fields);
     }
 

@@ -18,7 +18,7 @@ export function pveIngameFooterReservedHeightClass(isMobile: boolean): string {
  * `gameStatus` 전후로 하단 블록 높이가 달라져도 바둑판 영역이 밀리지 않도록 **충분한 min-height**를 둔다.
  */
 export function onlineGameControlsCompactFooterMinHeightClass(isMobile: boolean): string {
-    return isMobile ? 'min-h-[17rem]' : 'min-h-[12.25rem]';
+    return isMobile ? 'min-h-[18.25rem]' : 'min-h-[13.25rem]';
 }
 
 /** 인게임 하단 조작 바 외곽 — PC/모바일 공통 불투명 딥 네이비 슬레이트 */
@@ -180,8 +180,8 @@ const MANNER_CHIP_BASE =
 
 export function arenaGameRoomMannerChipClass(isMobile: boolean, type: 'manner' | 'other'): string {
     const sizing = isMobile
-        ? 'text-[0.62rem] leading-tight px-2 py-1'
-        : 'text-[clamp(0.5rem,1.8vmin,0.75rem)] px-[clamp(0.35rem,1.5vmin,0.55rem)] py-[clamp(0.2rem,1vmin,0.3rem)]';
+        ? 'text-[0.68rem] leading-snug px-2.5 py-1.5 min-h-[2.25rem]'
+        : 'text-[clamp(0.55rem,1.9vmin,0.8rem)] px-[clamp(0.45rem,1.6vmin,0.65rem)] py-[clamp(0.35rem,1.1vmin,0.45rem)] min-h-[2rem]';
     const tone =
         type === 'manner'
             ? 'border-emerald-600/40 bg-gradient-to-b from-emerald-800/88 to-emerald-950/95 text-emerald-50'

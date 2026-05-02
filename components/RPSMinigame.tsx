@@ -203,7 +203,7 @@ const RPSMinigame: React.FC<RPSMinigameProps> = (props) => {
     };
 
     return (
-        <DraggableWindow title={getTitle()} windowId="rps-minigame">
+        <DraggableWindow title={getTitle()} windowId="rps-minigame" hideFooter skipSavedPosition headerShowTitle>
             {renderContent()}
         </DraggableWindow>
     );

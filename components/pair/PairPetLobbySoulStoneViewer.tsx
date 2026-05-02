@@ -107,7 +107,7 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
 
     return (
         <div
-            className={`relative overflow-hidden rounded-2xl border border-violet-500/25 bg-gradient-to-br from-[#1a1025]/95 via-[#0f0a14]/98 to-[#060508] p-3 shadow-[0_24px_56px_-28px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-fuchsia-500/10 sm:p-4 ${
+            className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-violet-500/25 bg-gradient-to-br from-[#1a1025]/95 via-[#0f0a14]/98 to-[#060508] shadow-[0_24px_56px_-28px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-fuchsia-500/10 ${
                 isTranscendent ? 'transcendent-grade-slot' : ''
             }`}
         >
@@ -121,6 +121,7 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
             />
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-300/35 to-transparent" aria-hidden />
 
+            <div className="relative z-[1] min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 pb-2 pt-3 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] sm:px-4 sm:pb-2 sm:pt-4">
             <div className="relative flex flex-col gap-2.5">
                 <div className="flex flex-row items-start gap-3 sm:gap-4">
                     <div className="shrink-0">
@@ -220,8 +221,10 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
                     </div>
                 </div>
             </div>
+            </div>
 
-            <div className="relative mt-3 flex flex-col flex-wrap items-center justify-center gap-2.5 border-t border-white/[0.06] pt-3 sm:flex-row">
+            <div className="relative z-[1] shrink-0 border-t border-white/[0.12] bg-[#0a080c]/95 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2 backdrop-blur-sm sm:px-4">
+            <div className="flex flex-col flex-wrap items-center justify-center gap-2 sm:flex-row">
                 <Button
                     type="button"
                     disabled={isBusy || !primaryStackId || qty < 1}
@@ -242,6 +245,7 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
                         일괄 판매 ({primaryStackQty.toLocaleString()})
                     </Button>
                 ) : null}
+            </div>
             </div>
         </div>
     );

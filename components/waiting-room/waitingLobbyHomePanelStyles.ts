@@ -32,3 +32,16 @@ export function waitingLobbyPcPanelTopHairlineClassFor(lobby: 'strategic' | 'pla
     const via = lobby === 'strategic' ? 'via-cyan-300/38' : 'via-amber-300/42';
     return `pointer-events-none absolute left-3 right-3 top-2 z-[1] h-px bg-gradient-to-r from-transparent ${via} to-transparent sm:left-4 sm:right-4`;
 }
+
+/**
+ * 페어 경기장 모바일(핸드헬드) 상단 탭과 동일한 글자·패딩.
+ * 전략·놀이 네이티브 대기실: 상단 4탭, 유저목록의 전체/친구/길드 탭에 사용.
+ */
+export const waitingLobbyPairAlignedMobileTabButtonClass =
+    'rounded-lg px-1.5 py-1.5 text-[0.65rem] font-extrabold leading-tight sm:px-2 sm:py-2 sm:text-xs';
+
+/**
+ * 페어 경기장 모바일 헤더 제목(`PairWaitingLobby` h1)과 동일한 반응형 크기.
+ */
+export const waitingLobbyPairAlignedMobileScreenTitleClass =
+    'truncate text-sm font-bold sm:text-lg lg:text-xl';

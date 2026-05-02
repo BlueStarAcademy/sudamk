@@ -161,8 +161,8 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
                             className="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-left transition hover:border-amber-400/35 hover:bg-black/45 active:scale-[0.99] sm:gap-2 sm:px-3 sm:py-2.5"
                             onClick={() => onPickRow(row.codexId)}
                         >
-                            <span className="min-w-0 flex-1 whitespace-nowrap text-[10.5px] font-bold text-amber-50 sm:text-[11px]">
-                                <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+                            <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-[10.5px] font-bold text-amber-50 sm:text-[11px]">
+                                <span className="flex min-w-0 max-w-full items-center gap-1 overflow-hidden">
                                     {mapMonster ? (
                                         <span
                                             className="shrink-0 font-mono text-[11px] font-black tabular-nums text-emerald-200 sm:text-xs"
@@ -171,7 +171,7 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
                                             Lv.{mapMonster.level}
                                         </span>
                                     ) : null}
-                                    <span className="min-w-0 whitespace-nowrap">{row.name}</span>
+                                    <span className="min-w-0 truncate whitespace-nowrap">{row.name}</span>
                                     <span
                                         className="shrink-0 whitespace-nowrap rounded bg-violet-950/90 px-1 py-px text-[9px] font-bold leading-none text-fuchsia-100 shadow-sm sm:text-[10px]"
                                         title={ADVENTURE_MONSTER_MODE_LABELS[displayMode]}

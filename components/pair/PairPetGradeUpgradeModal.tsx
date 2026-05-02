@@ -110,9 +110,9 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                             </div>
                             <div className="min-w-0 flex-1">
                                 <p className={`truncate text-base font-black tracking-tight ${mainSt.color}`}>
+                                    <span className="mr-1.5 font-black tabular-nums text-amber-200">Lv.{levelSafe}</span>
                                     {getPairPetDisplayName(mainItem)}
                                 </p>
-                                <p className="mt-0.5 text-xs font-medium text-slate-400">Lv.{levelSafe}</p>
                                 {levelSafe < needLv ? (
                                     <p className="mt-1 text-[11px] font-semibold text-amber-300/95">등급 강화까지 Lv.{needLv}</p>
                                 ) : null}

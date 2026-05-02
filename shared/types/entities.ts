@@ -1058,6 +1058,16 @@ export type GameSummary = {
   matchGold?: number;
   /** 페어바둑 장착 펫 경험치 변화 */
   pairPetXp?: StatChange;
+  /** 페어바둑 장착 펫 레벨·경험치 진행 변화 */
+  pairPetLevel?: {
+      initial: number;
+      final: number;
+      progress: {
+          initial: number;
+          final: number;
+          max: number;
+      };
+  };
   /** VIP 슬롯에서 추가 지급된 골드 */
   vipGoldBonus?: number;
   diamonds?: number;

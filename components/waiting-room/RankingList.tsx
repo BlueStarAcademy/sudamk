@@ -13,6 +13,8 @@ interface RankingListProps {
     onShowTierInfo: () => void;
     onShowPastRankings: (info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'playful' }) => void;
     lobbyType: 'strategic' | 'playful';
+    /** 네이티브 전략·놀이 대기실: 페어 경기장 모바일과 유사한 글자 크기 */
+    pairAlignedNativeCompact?: boolean;
 }
 
 const getTier = (score: number, rank: number, totalGames: number) => {
@@ -37,7 +39,15 @@ const getCurrentSeasonName = () => {
 };
 
 
-const RankingList: React.FC<RankingListProps> = ({ currentUser, mode, onViewUser, onShowTierInfo, onShowPastRankings, lobbyType }) => {
+const RankingList: React.FC<RankingListProps> = ({
+    currentUser,
+    mode,
+    onViewUser,
+    onShowTierInfo,
+    onShowPastRankings,
+    lobbyType,
+    pairAlignedNativeCompact = false,
+}) => {
     const rankingType = lobbyType === 'strategic' ? 'strategic' : 'playful';
     // 대기실에서는 시즌별 티어 랭킹 점수 사용 (매 시즌 시작일에 1200점 부여, 랭킹전을 통해 얻거나 잃은 점수)
     const { rankings, loading, error, total } = useRanking(rankingType, undefined, undefined, true);
@@ -221,11 +231,19 @@ const RankingList: React.FC<RankingListProps> = ({ currentUser, mode, onViewUser
                     className="relative z-10 transition-transform duration-300 group-hover:scale-105"
                 />
                 <div className="flex-grow overflow-hidden relative z-10">
-                    <p className={`font-bold text-xs lg:text-sm truncate ${isTopThree || isMyRankDisplay ? 'text-white' : 'text-gray-200'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}>
+                    <p
+                        className={`truncate font-bold ${isTopThree || isMyRankDisplay ? 'text-white' : 'text-gray-200'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] ${
+                            pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs lg:text-sm' : 'text-xs lg:text-sm'
+                        }`}
+                    >
                         {user.nickname}
                     </p>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                        <p className={`text-[10px] lg:text-xs font-mono font-semibold ${isTopThree || isMyRankDisplay ? 'text-yellow-300' : 'text-yellow-400'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}>
+                        <p
+                            className={`font-mono font-semibold ${isTopThree || isMyRankDisplay ? 'text-yellow-300' : 'text-yellow-400'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] ${
+                                pairAlignedNativeCompact ? 'text-[0.62rem] sm:text-xs lg:text-xs' : 'text-[10px] lg:text-xs'
+                            }`}
+                        >
                             {Math.round(score)}점
                         </p>
                         {(isTopThree || isMyRankDisplay) && (
@@ -235,7 +253,11 @@ const RankingList: React.FC<RankingListProps> = ({ currentUser, mode, onViewUser
                         )}
                     </div>
                 </div>
-                <div className={`text-right text-[9px] lg:text-[10px] flex-shrink-0 w-18 relative z-10 ${isTopThree || isMyRankDisplay ? 'text-gray-200' : 'text-gray-400'}`}>
+                <div
+                    className={`relative z-10 w-18 flex-shrink-0 text-right ${
+                        pairAlignedNativeCompact ? 'text-[0.62rem] sm:text-[10px] lg:text-xs' : 'text-[9px] lg:text-[10px]'
+                    } ${isTopThree || isMyRankDisplay ? 'text-gray-200' : 'text-gray-400'}`}
+                >
                     <p className="font-medium">{wins}승 {losses}패</p>
                     <p className={`font-bold ${winRate >= 60 ? 'text-green-400' : winRate >= 50 ? 'text-yellow-400' : 'text-gray-400'}`}>
                         {winRate}%
@@ -243,39 +265,67 @@ const RankingList: React.FC<RankingListProps> = ({ currentUser, mode, onViewUser
                 </div>
             </li>
         );
-    }, [lobbyType, currentUser.id, getTierForUser, onViewUser]);
+    }, [lobbyType, currentUser.id, getTierForUser, onViewUser, pairAlignedNativeCompact]);
 
     const rankingTitle = lobbyType === 'strategic' ? '전략바둑 랭킹' : lobbyType === 'playful' ? '놀이바둑 랭킹' : `${mode} 랭킹`;
 
     return (
-        <div className="p-4 lg:p-5 flex flex-col h-full text-on-panel min-h-0 relative">
+        <div
+            className={`relative flex h-full min-h-0 flex-col text-on-panel ${
+                pairAlignedNativeCompact ? 'p-2 sm:p-3 lg:p-4' : 'p-4 lg:p-5'
+            }`}
+        >
             {/* 배경 그라데이션 효과 */}
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/10 via-purple-900/5 to-blue-900/10 pointer-events-none rounded-lg"></div>
             
-            <div className="relative z-10 flex justify-between items-center mb-4 border-b-2 border-gradient-to-r from-transparent via-indigo-500/30 to-transparent pb-3 flex-shrink-0 flex-wrap gap-3">
-                <div className="flex items-center gap-3">
-                    <div className="w-1 h-8 bg-gradient-to-b from-yellow-400 via-amber-500 to-yellow-400 rounded-full shadow-[0_0_8px_rgba(234,179,8,0.5)]"></div>
-                    <div>
-                        <h2 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-white via-yellow-200 to-white bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+            <div
+                className={`relative z-10 flex flex-shrink-0 flex-wrap items-center justify-between gap-2 border-b-2 border-gradient-to-r from-transparent via-indigo-500/30 to-transparent sm:gap-3 ${
+                    pairAlignedNativeCompact ? 'mb-2 pb-2' : 'mb-4 pb-3'
+                }`}
+            >
+                <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                    <div
+                        className={`w-1 shrink-0 rounded-full bg-gradient-to-b from-yellow-400 via-amber-500 to-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.5)] ${
+                            pairAlignedNativeCompact ? 'h-6' : 'h-8'
+                        }`}
+                    />
+                    <div className="min-w-0">
+                        <h2
+                            className={`font-bold bg-gradient-to-r from-white via-yellow-200 to-white bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] ${
+                                pairAlignedNativeCompact ? 'text-sm sm:text-lg lg:text-xl' : 'text-xl lg:text-2xl'
+                            }`}
+                        >
                             {rankingTitle}
                         </h2>
-                        <p className="text-xs lg:text-sm text-gray-400 font-medium mt-0.5">
+                        <p
+                            className={`mt-0.5 font-medium text-gray-400 ${
+                                pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs lg:text-sm' : 'text-xs lg:text-sm'
+                            }`}
+                        >
                             {getCurrentSeasonName()}
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                     <Button 
                         onClick={() => onShowPastRankings({ user: currentUser, mode })}
                         colorScheme="none"
-                        className="!text-xs !py-1.5 !px-3 bg-gradient-to-r from-purple-600/90 via-indigo-600/90 to-purple-600/90 hover:from-purple-500 hover:via-indigo-500 hover:to-purple-500 text-white font-bold rounded-lg shadow-[0_4px_12px_rgba(99,102,241,0.4)] hover:shadow-[0_6px_16px_rgba(99,102,241,0.5)] transition-all duration-200 border border-purple-400/30 hover:border-purple-300/50"
+                        className={`!rounded-lg border border-purple-400/30 bg-gradient-to-r from-purple-600/90 via-indigo-600/90 to-purple-600/90 font-bold text-white shadow-[0_4px_12px_rgba(99,102,241,0.4)] transition-all duration-200 hover:border-purple-300/50 hover:from-purple-500 hover:via-indigo-500 hover:to-purple-500 hover:shadow-[0_6px_16px_rgba(99,102,241,0.5)] ${
+                            pairAlignedNativeCompact
+                                ? '!px-2 !py-1 !text-[0.65rem] sm:!px-2.5 sm:!py-1.5 sm:!text-xs'
+                                : '!px-3 !py-1.5 !text-xs'
+                        }`}
                     >
                         지난 랭킹
                     </Button>
                     <Button 
                         onClick={onShowTierInfo}
                         colorScheme="none"
-                        className="!text-xs !py-1.5 !px-3 bg-gradient-to-r from-purple-600/90 via-indigo-600/90 to-purple-600/90 hover:from-purple-500 hover:via-indigo-500 hover:to-purple-500 text-white font-bold rounded-lg shadow-[0_4px_12px_rgba(99,102,241,0.4)] hover:shadow-[0_6px_16px_rgba(99,102,241,0.5)] transition-all duration-200 border border-purple-400/30 hover:border-purple-300/50"
+                        className={`!rounded-lg border border-purple-400/30 bg-gradient-to-r from-purple-600/90 via-indigo-600/90 to-purple-600/90 font-bold text-white shadow-[0_4px_12px_rgba(99,102,241,0.4)] transition-all duration-200 hover:border-purple-300/50 hover:from-purple-500 hover:via-indigo-500 hover:to-purple-500 hover:shadow-[0_6px_16px_rgba(99,102,241,0.5)] ${
+                            pairAlignedNativeCompact
+                                ? '!px-2 !py-1 !text-[0.65rem] sm:!px-2.5 sm:!py-1.5 sm:!text-xs'
+                                : '!px-3 !py-1.5 !text-xs'
+                        }`}
                     >
                         티어 안내
                     </Button>
@@ -285,7 +335,13 @@ const RankingList: React.FC<RankingListProps> = ({ currentUser, mode, onViewUser
             {myRankData && (
                 <div className="relative z-10 flex-shrink-0 mb-2.5">
                     <div className="mb-1.5 px-1">
-                        <span className="text-xs font-semibold text-yellow-400/80 uppercase tracking-wider">내 랭킹</span>
+                        <span
+                            className={`font-semibold uppercase tracking-wider text-yellow-400/80 ${
+                                pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs' : 'text-xs'
+                            }`}
+                        >
+                            내 랭킹
+                        </span>
                     </div>
                     {renderRankItem(myRankData.user, myRankData.rank, true)}
                 </div>
@@ -294,7 +350,13 @@ const RankingList: React.FC<RankingListProps> = ({ currentUser, mode, onViewUser
             <div className="relative z-10 flex-1 min-h-0 flex flex-col">
                 {myRankData && (
                     <div className="mb-1.5 px-1 flex-shrink-0">
-                        <span className="text-xs font-semibold text-gray-400/80 uppercase tracking-wider">전체 랭킹</span>
+                        <span
+                            className={`font-semibold uppercase tracking-wider text-gray-400/80 ${
+                                pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs' : 'text-xs'
+                            }`}
+                        >
+                            전체 랭킹
+                        </span>
                     </div>
                 )}
                 <ul className="space-y-1.5 overflow-y-auto pr-2 flex-1 min-h-0">

@@ -516,8 +516,12 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                             tone="filled"
                             label="내 펫"
                             userId={petAiId}
-                            userName={viewerEquippedPairPetName || partnerName || '내 펫'}
-                            subLabel={viewerEquippedPairPetLevel ? `Lv.${viewerEquippedPairPetLevel}` : '장착 펫'}
+                            userName={
+                                viewerEquippedPairPetLevel
+                                    ? `Lv.${viewerEquippedPairPetLevel} ${viewerEquippedPairPetName || partnerName || '내 펫'}`
+                                    : viewerEquippedPairPetName || partnerName || '내 펫'
+                            }
+                            subLabel="장착 펫"
                             portraitSrc={isOwnerViewer ? viewerEquippedPairPetPortraitSrc : undefined}
                             accent="ally"
                             showReady={partnerReady}

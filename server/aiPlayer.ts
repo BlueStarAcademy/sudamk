@@ -1260,31 +1260,29 @@ export const makeAiMove = async (game: LiveGameSession) => {
 
         // ========== 놀이바둑 전용 AI (전략바둑/goAiBot과 완전 분리) ==========
         // 알까기·컬링·주사위·오목·따목·도둑은 여기서만 처리. 전략바둑 AI(goAiBot) 수정 시 이 블록은 건드리지 말 것.
-        // isAiGame인 경우에도 알까기/컬링 등은 서버 AI가 동작해야 하므로 포함
-        if (!game.isSinglePlayer || game.isAiGame) {
-            switch (game.mode) {
-                case types.GameMode.Alkkagi:
-                    await makeAlkkagiAiMove(game);
-                    moveExecuted = true;
-                    break;
-                case types.GameMode.Curling:
-                    await makeCurlingAiMove(game);
-                    moveExecuted = true;
-                    break;
-                case types.GameMode.Dice:
-                    await makeDiceGoAiMove(game);
-                    moveExecuted = true;
-                    break;
-                case types.GameMode.Omok:
-                case types.GameMode.Ttamok:
-                    makeOmokAiMove(game);
-                    moveExecuted = true;
-                    break;
-                case types.GameMode.Thief:
-                    await makeThiefAiMove(game);
-                    moveExecuted = true;
-                    break;
-            }
+        // `makeAiMove`는 이미 AI 턴일 때만 호출되므로 isSinglePlayer/isAiGame으로 막지 않는다(놀이 AI 연습 등에서 봇이 안 두는 버그 방지).
+        switch (game.mode) {
+            case types.GameMode.Alkkagi:
+                await makeAlkkagiAiMove(game);
+                moveExecuted = true;
+                break;
+            case types.GameMode.Curling:
+                await makeCurlingAiMove(game);
+                moveExecuted = true;
+                break;
+            case types.GameMode.Dice:
+                await makeDiceGoAiMove(game);
+                moveExecuted = true;
+                break;
+            case types.GameMode.Omok:
+            case types.GameMode.Ttamok:
+                makeOmokAiMove(game);
+                moveExecuted = true;
+                break;
+            case types.GameMode.Thief:
+                await makeThiefAiMove(game);
+                moveExecuted = true;
+                break;
         }
 
         // ========== 전략바둑/도전의탑 AI (goAiBot → KataServer만) ==========

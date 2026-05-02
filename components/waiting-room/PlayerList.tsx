@@ -79,6 +79,8 @@ interface PlayerListProps {
     onViewUser: (userId: string) => void;
     lobbyType: 'strategic' | 'playful';
     userCount?: number;
+    /** 네이티브 전략·놀이 대기실: 페어 경기장 모바일과 유사한 목록 글자 크기 */
+    pairAlignedNativeCompact?: boolean;
     /** 페어 파트너 초대 모달 등: 대국 신청 대신 초대 UI */
     pairInvite?: {
         listTab: PairInviteListTab;
@@ -102,6 +104,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
     onViewUser,
     lobbyType,
     userCount,
+    pairAlignedNativeCompact = false,
     pairInvite,
     inviteCooldownTicker = 0,
     disableStatusSelect = false,
@@ -159,7 +162,14 @@ const PlayerList: React.FC<PlayerListProps> = ({
                     onClick={() => !isCurrentUser && onViewUser(user.id)}
                     title={!isCurrentUser ? `${user.nickname} 프로필 보기` : ''}
                 >
-                    <Avatar userId={user.id} userName={user.nickname} size={36} className="border-2 border-color" avatarUrl={avatarUrl} borderUrl={borderUrl} />
+                    <Avatar
+                        userId={user.id}
+                        userName={user.nickname}
+                        size={pairAlignedNativeCompact ? 32 : 36}
+                        className="border-2 border-color"
+                        avatarUrl={avatarUrl}
+                        borderUrl={borderUrl}
+                    />
                     {isDiceGo && <div className="w-5 h-5 rounded-full bg-black border border-gray-300 flex-shrink-0" />}
                     <div className="min-w-0 flex-1 overflow-hidden">
                         <div
@@ -177,22 +187,44 @@ const PlayerList: React.FC<PlayerListProps> = ({
                                     staffNicknameDisplayEligibility: user.staffNicknameDisplayEligibility,
                                 }}
                                 as="span"
-                                className="min-w-0 flex-1 truncate font-bold text-sm lg:text-base"
+                                className={`min-w-0 flex-1 truncate font-bold ${
+                                    pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-sm lg:text-base' : 'text-sm lg:text-base'
+                                }`}
                             />
                             {listStats && (
-                                <span className="shrink-0 text-right font-semibold tabular-nums text-xs text-amber-200 lg:text-sm">
+                                <span
+                                    className={`shrink-0 text-right font-semibold tabular-nums text-amber-200 ${
+                                        pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs lg:text-sm' : 'text-xs lg:text-sm'
+                                    }`}
+                                >
                                     {listStats.score.toLocaleString()}점
                                 </span>
                             )}
                         </div>
                         <div className="mt-0.5 flex min-w-0 w-full items-center justify-between gap-2">
-                            <span className={`shrink-0 text-xs ${statusInfo.color}`}>● {statusInfo.text}</span>
+                            <span
+                                className={`shrink-0 ${statusInfo.color} ${
+                                    pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs' : 'text-xs'
+                                }`}
+                            >
+                                ● {statusInfo.text}
+                            </span>
                             {listStats ? (
-                                <span className="shrink-0 text-right font-semibold tabular-nums text-[10px] text-secondary lg:text-[11px]">
+                                <span
+                                    className={`shrink-0 text-right font-semibold tabular-nums text-secondary ${
+                                        pairAlignedNativeCompact ? 'text-[0.62rem] sm:text-[11px] lg:text-xs' : 'text-[10px] lg:text-[11px]'
+                                    }`}
+                                >
                                     {listStats.wins}승{listStats.losses}패({listStats.winRate}%)
                                 </span>
                             ) : (
-                                <span className="shrink-0 text-right text-[10px] text-tertiary lg:text-[11px]">통계 없음</span>
+                                <span
+                                    className={`shrink-0 text-right text-tertiary ${
+                                        pairAlignedNativeCompact ? 'text-[0.62rem] sm:text-[11px] lg:text-xs' : 'text-[10px] lg:text-[11px]'
+                                    }`}
+                                >
+                                    통계 없음
+                                </span>
                             )}
                         </div>
                     </div>
@@ -203,7 +235,9 @@ const PlayerList: React.FC<PlayerListProps> = ({
                             <Button
                                 onClick={() => handlers.openGameRecordList()}
                                 colorScheme="none"
-                                className="!text-[10px] !py-0.5 !px-1.5 lg:!text-xs bg-gradient-to-r from-amber-500/90 to-orange-500/90 text-white font-bold rounded-md shadow-sm whitespace-nowrap"
+                                className={`!py-0.5 !px-1.5 lg:!text-xs bg-gradient-to-r from-amber-500/90 to-orange-500/90 text-white font-bold rounded-md shadow-sm whitespace-nowrap ${
+                                    pairAlignedNativeCompact ? '!text-[0.65rem] sm:!text-xs' : '!text-[10px]'
+                                }`}
                             >
                                 기보
                             </Button>
@@ -212,7 +246,11 @@ const PlayerList: React.FC<PlayerListProps> = ({
                             value={currentUser.status}
                             onChange={(e) => onAction({ type: 'SET_USER_STATUS', payload: { status: e.target.value } })}
                             disabled={disableStatusSelect || !['waiting', 'resting'].includes(currentUser.status)}
-                            className="px-2 py-1 lg:px-3 lg:py-1.5 bg-secondary border border-color rounded-lg text-xs lg:text-sm transition-colors w-20 lg:w-24 text-center focus:ring-accent focus:border-accent disabled:opacity-50"
+                            className={`bg-secondary border border-color rounded-lg text-center transition-colors focus:ring-accent focus:border-accent disabled:opacity-50 ${
+                                pairAlignedNativeCompact
+                                    ? 'w-[4.5rem] px-1 py-0.5 text-[0.65rem] sm:w-20 sm:px-2 sm:py-1 sm:text-xs lg:px-3 lg:py-1.5 lg:text-sm lg:w-24'
+                                    : 'w-20 px-2 py-1 text-xs lg:px-3 lg:py-1.5 lg:text-sm lg:w-24'
+                            }`}
                             title={disableStatusSelect ? '페어 방에 있을 때는 상태를 바꿀 수 없습니다.' : undefined}
                         >
                             <option value="waiting">대기 중</option>
@@ -232,7 +270,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
                                     }
                                 }}
                                 colorScheme="red"
-                                className="!text-xs !py-1 !px-2"
+                                className={`!py-1 !px-2 ${pairAlignedNativeCompact ? '!text-[0.65rem] sm:!text-xs' : '!text-xs'}`}
                             >
                                 강제 퇴장
                             </Button>
@@ -256,7 +294,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
                              <Button
                                 onClick={() => onAction({ type: 'DECLINE_NEGOTIATION', payload: { negotiationId: sentNegotiation.id } })}
                                 colorScheme="red"
-                                className="!text-xs !py-1 !px-2"
+                                className={`!py-1 !px-2 ${pairAlignedNativeCompact ? '!text-[0.65rem] sm:!text-xs' : '!text-xs'}`}
                             >
                                 신청 취소
                             </Button>
@@ -267,7 +305,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
                                     setIsChallengeSelectionModalOpen(true);
                                 }}
                                 disabled={!isChallengeable}
-                                className="!text-xs !py-1 !px-2"
+                                className={`!py-1 !px-2 ${pairAlignedNativeCompact ? '!text-[0.65rem] sm:!text-xs' : '!text-xs'}`}
                             >
                                 대국 신청
                             </Button>
@@ -281,20 +319,36 @@ const PlayerList: React.FC<PlayerListProps> = ({
     const hideListHeading = Boolean(pairInvite?.modalLayout);
 
     return (
-        <div className={`${hideListHeading ? 'p-2 flex-1 min-h-0' : 'p-3'} flex flex-col min-h-0 text-on-panel`}>
+        <div
+            className={`flex min-h-0 flex-col text-on-panel ${
+                hideListHeading ? 'min-h-0 flex-1 p-2' : pairAlignedNativeCompact ? 'p-2' : 'p-3'
+            }`}
+        >
             {!hideListHeading && (
-             <h2 className="text-xl font-semibold mb-2 border-b border-color pb-2 flex-shrink-0 flex justify-between items-center">
-                <span className="flex items-center gap-2">
+             <h2
+                className={`mb-2 flex flex-shrink-0 items-center justify-between border-b border-color pb-2 font-semibold ${
+                    pairAlignedNativeCompact ? 'text-sm sm:text-base' : 'text-xl'
+                }`}
+            >
+                <span className="flex items-center gap-1.5 sm:gap-2">
                     유저 목록
                     {userCount !== undefined && (
-                        <span className="text-sm text-secondary font-normal">({userCount}명 접속 중)</span>
+                        <span
+                            className={`font-normal text-secondary ${
+                                pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs' : 'text-sm'
+                            }`}
+                        >
+                            ({userCount}명 접속 중)
+                        </span>
                     )}
                 </span>
                 {!isPairArenaList && (
                     <Button
                         onClick={() => setIsRejectionSettingsModalOpen(true)}
                         colorScheme="none"
-                        className="!text-xs !py-1 !px-2 bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 text-white font-bold rounded-lg shadow-lg transition-all duration-200"
+                        className={`!py-1 !px-2 bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 text-white font-bold rounded-lg shadow-lg transition-all duration-200 ${
+                            pairAlignedNativeCompact ? '!text-[0.65rem] sm:!text-xs' : '!text-xs'
+                        }`}
                     >
                         대국 신청 거부
                     </Button>

@@ -131,9 +131,46 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 settlements?: unknown[];
                 history?: unknown[];
             };
+            const currentExchange = user.exchangeState ?? { listings: [], settlements: [], history: [] };
+            const incomingListings = Array.isArray(listings) ? (listings as any[]) : [];
+            const currentSoldListings = new Map<string, any>();
+            (Array.isArray(currentExchange.listings) ? currentExchange.listings : []).forEach((row: any) => {
+                if (row && typeof row.id === 'string' && row.status === 'sold') {
+                    currentSoldListings.set(row.id, row);
+                }
+            });
+            const nextListings = incomingListings.map((row: any) => {
+                const id = row && typeof row.id === 'string' ? row.id : '';
+                return id && currentSoldListings.has(id) ? currentSoldListings.get(id) : row;
+            });
+            for (const [id, row] of currentSoldListings) {
+                if (!nextListings.some((entry: any) => entry && entry.id === id)) {
+                    nextListings.push(row);
+                }
+            }
+
+            const incomingSettlements = Array.isArray(settlements) ? (settlements as any[]) : [];
+            const currentSettlements = Array.isArray(currentExchange.settlements) ? currentExchange.settlements : [];
+            const currentSettlementsByListingId = new Map<string, any>();
+            currentSettlements.forEach((row: any) => {
+                if (row && typeof row.listingId === 'string') {
+                    currentSettlementsByListingId.set(row.listingId, row);
+                }
+            });
+            const nextSettlements = incomingSettlements.map((row: any) => {
+                const listingId = row && typeof row.listingId === 'string' ? row.listingId : '';
+                const current = listingId ? currentSettlementsByListingId.get(listingId) : undefined;
+                return current?.claimed === true ? { ...row, claimed: true } : row;
+            });
+            currentSettlements.forEach((row: any) => {
+                const listingId = row && typeof row.listingId === 'string' ? row.listingId : '';
+                if (listingId && !nextSettlements.some((entry: any) => entry && entry.listingId === listingId)) {
+                    nextSettlements.push(row);
+                }
+            });
             user.exchangeState = {
-                listings: Array.isArray(listings) ? (listings as any[]) : [],
-                settlements: Array.isArray(settlements) ? (settlements as any[]) : [],
+                listings: nextListings,
+                settlements: nextSettlements,
                 history: Array.isArray(history) ? history.filter((row): row is string => typeof row === 'string').slice(0, 200) : [],
             };
             const updatedUser = getSelectiveUserUpdate(user, 'SAVE_EXCHANGE_STATE');
@@ -1288,7 +1325,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             }
 
             const exchange = seller.exchangeState ?? { listings: [], settlements: [], history: [] };
-            const listings = Array.isArray(exchange.listings) ? [...exchange.listings] : [];
+            const listings: Array<Record<string, any>> = Array.isArray(exchange.listings) ? [...(exchange.listings as Array<Record<string, any>>)] : [];
             const li = listings.findIndex((l: any) => l && typeof l === 'object' && l.id === listingId);
             if (li === -1) {
                 return { error: '거래 목록에서 해당 물품을 찾을 수 없습니다.' };
@@ -1389,7 +1426,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             const history = Array.isArray(exchange.history) ? [...exchange.history] : [];
             const histLine = `[${new Date(now).toLocaleString('ko-KR')}] 판매 완료: ${purchased.name} / ${price.toLocaleString()}${currency === 'gold' ? '골드' : '다이아'} (정산 대기)`;
             seller.exchangeState = {
-                listings: nextListings,
+                listings: nextListings as any,
                 settlements,
                 history: [histLine, ...history].filter((h): h is string => typeof h === 'string').slice(0, 200),
             };
