@@ -15,6 +15,7 @@ import { calculateTotalStats } from '../services/statService.js';
 import DungeonStageSummaryModal, { type DungeonStageSummaryModalProps } from './DungeonStageSummaryModal.js';
 import { resolvePublicUrl } from '../utils/publicAssetUrl.js';
 import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
+import { formatGoldAmountKoG } from '../shared/utils/walletAmountDisplay.js';
 
 // 순위보상 itemId(재료 상자1~6, 장비 상자1~6) → CONSUMABLE_ITEMS name(재료 상자 I~VI, 장비 상자 I~VI) 매핑
 const REWARD_ITEM_ID_TO_NAME: Record<string, string> = {
@@ -2678,7 +2679,7 @@ const FinalRewardPanel: React.FC<{
                         <div key={idx} className="relative w-11 h-11 rounded-lg border-2 border-yellow-600/70 bg-yellow-900/40 flex items-center justify-center overflow-hidden" title={`경기 ${idx + 1} 보상`}>
                             <img src="/images/icon/Gold.png" alt="골드" className="w-7 h-7 object-contain" loading="lazy" decoding="async" />
                             <span className="absolute -bottom-0.5 -right-0.5 text-[11px] font-bold text-yellow-100 bg-black/80 px-1 rounded-tl leading-tight shadow-sm">
-                                {goldAmount.toLocaleString()}
+                                {formatGoldAmountKoG(goldAmount)}
                             </span>
                         </div>
                     ))}

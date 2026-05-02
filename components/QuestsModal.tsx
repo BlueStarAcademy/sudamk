@@ -8,6 +8,7 @@ import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { getAdventureUnderstandingTierFromXp } from '../constants/adventureConstants.js';
 import { getAdventureCodexCompletionBreakdown } from '../utils/adventureCodexCompletion.js';
+import { formatGoldAmountKoG } from '../shared/utils/walletAmountDisplay.js';
 
 interface QuestsModalProps {
     currentUser: UserWithStatus;
@@ -343,7 +344,7 @@ const QuestRewardPill: React.FC<{ quest: Quest; isMobile: boolean }> = ({ quest,
                     {hasGold ? (
                         <span className="inline-flex min-w-0 items-center gap-0.5 text-amber-100">
                             <img src="/images/icon/Gold.png" alt="" className="h-3 w-3 shrink-0 opacity-95" />
-                            <span className="truncate tabular-nums">{quest.reward.gold!.toLocaleString()}</span>
+                            <span className="truncate tabular-nums">{formatGoldAmountKoG(quest.reward.gold!)}</span>
                         </span>
                     ) : null}
                     {hasActivity ? (
@@ -402,7 +403,7 @@ const QuestDetailBubble: React.FC<{
                 {gold != null && gold > 0 ? (
                     <span className="font-medium tracking-tight">
                         <img src="/images/icon/Gold.png" alt="" className="mb-px mr-0.5 inline h-3 w-3 align-middle opacity-95" />
-                        골드 +{gold.toLocaleString()}
+                        골드 +{formatGoldAmountKoG(gold)}
                     </span>
                 ) : null}
             </div>

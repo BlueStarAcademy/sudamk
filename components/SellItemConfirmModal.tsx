@@ -9,6 +9,7 @@ import {
     gradeBackgrounds,
     gradeStyles,
 } from '../constants/items.js';
+import { formatGoldAmountKoG } from '../shared/utils/walletAmountDisplay.js';
 
 interface SellItemConfirmModalProps {
     item: InventoryItem;
@@ -137,7 +138,7 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({ item, onClo
                                 isDeleteOnly ? 'text-slate-500' : 'text-amber-200 [text-shadow:0_0_20px_rgba(251,191,36,0.3)]'
                             }`}
                         >
-                            {isDeleteOnly ? '0' : sellPrice.toLocaleString()}
+                            {isDeleteOnly ? '0' : formatGoldAmountKoG(sellPrice)}
                         </p>
                     </div>
                     {isDeleteOnly && (

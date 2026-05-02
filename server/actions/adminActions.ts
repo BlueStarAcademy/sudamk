@@ -38,6 +38,8 @@ import {
     patchVolatileSinglePlayerStageIds,
 } from '../singlePlayerStageIdMigration.js';
 import { DEFAULT_SINGLE_PLAYER_STAGES } from '../../shared/constants/singlePlayerConstants.js';
+import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
+import { MAX_PLAYER_DIAMONDS, MAX_PLAYER_GOLD } from '../../shared/constants/numericLimits.js';
 import type { KataServerRuntimeOverrides } from '../../shared/types/kataServerRuntime.js';
 import { resetKataServerRuntimeOverrides, saveKataServerRuntimePatch } from '../kataServerRuntimeStore.js';
 
@@ -860,8 +862,8 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             targetUser.strategyXp = Number(updatedDetails.strategyXp) || 0;
             targetUser.playfulLevel = Number(updatedDetails.playfulLevel) || 1;
             targetUser.playfulXp = Number(updatedDetails.playfulXp) || 0;
-            targetUser.gold = Number(updatedDetails.gold) || 0;
-            targetUser.diamonds = Number(updatedDetails.diamonds) || 0;
+            targetUser.gold = clampGameInt(Number(updatedDetails.gold) || 0, { max: MAX_PLAYER_GOLD });
+            targetUser.diamonds = clampGameInt(Number(updatedDetails.diamonds) || 0, { max: MAX_PLAYER_DIAMONDS });
             targetUser.mannerScore = Number(updatedDetails.mannerScore) || 200;
             
             // 챔피언십 점수 업데이트 (editedUser 전체를 보내므로 값이 있어야 함)

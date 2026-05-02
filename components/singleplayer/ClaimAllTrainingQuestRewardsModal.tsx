@@ -5,6 +5,7 @@ import { SINGLE_PLAYER_MISSIONS } from '../../constants/singlePlayerConstants.js
 import { PREMIUM_QUEST_BTN } from './trainingQuestPremiumButtons.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
+import { formatGoldAmountKoG, formatWalletDiamonds } from '../../shared/utils/walletAmountDisplay.js';
 
 interface ClaimAllTrainingQuestRewardsModalProps {
     rewards: Array<{
@@ -64,7 +65,7 @@ function ClaimAllTotalsBox({
                         <div className={iconWrap}>
                             <img src="/images/icon/Gold.png" alt="골드" className={`${iconClass} shrink-0 object-contain`} />
                         </div>
-                        <span className={numClass}>+{totalGold.toLocaleString()}</span>
+                        <span className={numClass}>+{formatGoldAmountKoG(totalGold)}</span>
                     </div>
                 )}
                 {totalDiamonds > 0 && (
@@ -72,7 +73,7 @@ function ClaimAllTotalsBox({
                         <div className={iconWrap}>
                             <img src="/images/icon/Zem.png" alt="다이아" className={`${iconClass} shrink-0 object-contain`} />
                         </div>
-                        <span className={diaClass}>+{totalDiamonds.toLocaleString()}</span>
+                        <span className={diaClass}>+{formatWalletDiamonds(totalDiamonds)}</span>
                     </div>
                 )}
             </div>
@@ -150,14 +151,14 @@ function MobileClaimBody({
                                         <>
                                             <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4" />
                                             <span className="text-xs font-bold tabular-nums text-yellow-300 sm:text-[13px]">
-                                                +{reward.rewardAmount.toLocaleString()}
+                                                +{formatGoldAmountKoG(reward.rewardAmount)}
                                             </span>
                                         </>
                                     ) : (
                                         <>
                                             <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4" />
                                             <span className="text-xs font-bold tabular-nums text-cyan-300 sm:text-[13px]">
-                                                +{reward.rewardAmount.toLocaleString()}
+                                                +{formatWalletDiamonds(reward.rewardAmount)}
                                             </span>
                                         </>
                                     )}
@@ -291,14 +292,14 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
                                             <>
                                                 <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 sm:h-5 sm:w-5" />
                                                 <span className="text-xs font-bold tabular-nums text-yellow-300 sm:text-sm">
-                                                    +{reward.rewardAmount.toLocaleString()}
+                                                    +{formatGoldAmountKoG(reward.rewardAmount)}
                                                 </span>
                                             </>
                                         ) : (
                                             <>
                                                 <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4 sm:h-5 sm:w-5" />
                                                 <span className="text-xs font-bold tabular-nums text-cyan-300 sm:text-sm">
-                                                    +{reward.rewardAmount.toLocaleString()}
+                                                    +{formatWalletDiamonds(reward.rewardAmount)}
                                                 </span>
                                             </>
                                         )}

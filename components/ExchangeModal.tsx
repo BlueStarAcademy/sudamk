@@ -17,6 +17,9 @@ import {
 } from '../shared/constants/mobileEquipmentDetailModal.js';
 import { EQUIPMENT_POOL, gradeBackgrounds, gradeStyles } from '../constants/items.js';
 import { getApiUrl } from '../utils/apiConfig.js';
+import { maxExchangeListPrice } from '../shared/constants/numericLimits.js';
+import { clampDigitsOnlyInputString, clampGameInt, exchangeListingFeeFromPrice } from '../shared/utils/gameIntegerField.js';
+import { formatGoldAmountKoG, formatWalletCurrencyAmount, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
 
 type ExchangeTab = 'buy' | 'sell' | 'settlement' | 'history';
 type SaleCurrency = 'gold' | 'diamonds';
@@ -252,7 +255,7 @@ function buildBuyPreviewInventoryItem(listing: ExchangeListing): InventoryItem {
 }
 
 const formatCurrency = (value: number, currency: SaleCurrency): string =>
-    `${value.toLocaleString()}${currency === 'gold' ? '골드' : '다이아'}`;
+    `${formatWalletCurrencyAmount(value, currency)}${currency === 'gold' ? '골드' : '다이아'}`;
 
 /** 거래소 정산 수령 → 공통 아이템 획득 모달(ItemObtainedModal)용 가상 인벤 행 */
 function createExchangeSettlementCurrencyObtainItem(currency: SaleCurrency, quantity: number): InventoryItem {
@@ -424,7 +427,8 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
         [currentUser.inventory],
     );
     const allowedListingCount = isAdminUser ? Number.POSITIVE_INFINITY : functionVipActive ? MAX_SELL_SLOTS : tradeListingTicketCount;
-    const saleFee = Math.floor((Number(salePrice || 0) * 10) / 100);
+    const maxSaleListPrice = maxExchangeListPrice(saleCurrency);
+    const saleFee = exchangeListingFeeFromPrice(clampGameInt(Math.floor(Number(salePrice || 0)), { min: 0, max: maxSaleListPrice }));
     const minimumPrice = minPriceByCurrency[saleCurrency];
     const selectedItem = allEquipmentItems.find((entry) => entry.id === selectedItemId);
     const myActiveListings = listings.filter((listing) => listing.sellerId === currentUser.id && listing.status === 'listed');
@@ -695,17 +699,17 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
             setSalePrice(String(minPriceByCurrency[saleCurrency]));
             return;
         }
-        const parsedPrice = Math.floor(Number(salePrice));
+        const parsedPrice = clampGameInt(Math.floor(Number(salePrice)), { min: minimumPrice, max: maxSaleListPrice });
         if (!Number.isFinite(parsedPrice) || parsedPrice < minimumPrice) {
             window.alert(`최소 판매가는 ${formatCurrency(minimumPrice, saleCurrency)}입니다.`);
             return;
         }
         if (saleCurrency === 'gold' && walletGold < saleFee) {
-            window.alert(`등록 수수료가 부족합니다. 필요: ${saleFee.toLocaleString()}골드`);
+            window.alert(`등록 수수료가 부족합니다. 필요: ${formatCurrency(saleFee, saleCurrency)}`);
             return;
         }
         if (saleCurrency === 'diamonds' && walletDiamonds < saleFee) {
-            window.alert(`등록 수수료가 부족합니다. 필요: ${saleFee.toLocaleString()}다이아`);
+            window.alert(`등록 수수료가 부족합니다. 필요: ${formatCurrency(saleFee, saleCurrency)}`);
             return;
         }
         setSellComposerOpen(false);
@@ -773,7 +777,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
         const settlement = settlements.find((entry) => entry.listingId === listingId && !entry.claimed);
         if (!settlement) return;
 
-        const claimFee = Math.floor((settlement.soldPrice * 10) / 100);
+        const claimFee = exchangeListingFeeFromPrice(settlement.soldPrice);
         const netAmount = Math.max(0, settlement.soldPrice - claimFee);
 
         const result = await onAction?.({
@@ -831,7 +835,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
         if (totalDiamondsNet > 0) obtain.push(createExchangeSettlementCurrencyObtainItem('diamonds', totalDiamondsNet));
         if (obtain.length > 0) setSettlementObtainItems(obtain);
         appendHistory(
-            `정산 모두 수령: 골드 ${totalGoldNet.toLocaleString()} / 다이아 ${totalDiamondsNet.toLocaleString()}`,
+            `정산 모두 수령: 골드 ${formatGoldAmountKoG(totalGoldNet)} / 다이아 ${formatWalletDiamonds(totalDiamondsNet)}`,
         );
     };
 
@@ -973,14 +977,14 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
     React.useEffect(() => {
         if (!selectedItemId) return;
         if (!currentLowestForSelected) return;
-        setSalePrice(String(currentLowestForSelected.price));
+        setSalePrice(String(Math.min(maxExchangeListPrice(saleCurrency), currentLowestForSelected.price)));
     }, [selectedItemId, saleCurrency, currentLowestForSelected?.price]);
     const unclaimedSettlements = settlements.filter((entry) => !entry.claimed);
     const settlementDisplayItems = useMemo(
         () =>
             unclaimedSettlements.map((entry) => {
                 const linkedListing = listings.find((listing) => listing.id === entry.listingId);
-                const fee = Math.floor((entry.soldPrice * 10) / 100);
+                const fee = exchangeListingFeeFromPrice(entry.soldPrice);
                 const net = Math.max(0, entry.soldPrice - fee);
                 return {
                     ...entry,
@@ -1200,7 +1204,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                 <div className="flex items-center justify-between">
                     <span>현재가</span>
                     <span className="flex items-center gap-1 font-semibold text-amber-200">
-                        <span className="tabular-nums">{selectedBuyListing.price.toLocaleString()}</span>
+                        <span className="tabular-nums">{formatWalletCurrencyAmount(selectedBuyListing.price, selectedBuyListing.currency)}</span>
                         <img
                             src={selectedBuyListing.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
                             alt={selectedBuyListing.currency === 'gold' ? '골드' : '다이아'}
@@ -1212,7 +1216,10 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                     <span>최저가</span>
                     <span className="flex items-center gap-1 font-semibold text-cyan-200">
                         <span className="tabular-nums">
-                            {(lowestPriceByBuyGroup.get(getBuyListingGroupKey(selectedBuyListing)) ?? selectedBuyListing.price).toLocaleString()}
+                            {formatWalletCurrencyAmount(
+                                lowestPriceByBuyGroup.get(getBuyListingGroupKey(selectedBuyListing)) ?? selectedBuyListing.price,
+                                selectedBuyListing.currency,
+                            )}
                         </span>
                         <img
                             src={selectedBuyListing.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
@@ -1224,7 +1231,11 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                 <div className="mt-1 flex items-center justify-between">
                     <span>최근 거래가</span>
                     <span className="flex items-center gap-1 font-semibold">
-                        <span className="tabular-nums">{recentSoldForBuySelection ? recentSoldForBuySelection.price.toLocaleString() : '-'}</span>
+                        <span className="tabular-nums">
+                            {recentSoldForBuySelection
+                                ? formatWalletCurrencyAmount(recentSoldForBuySelection.price, recentSoldForBuySelection.currency)
+                                : '-'}
+                        </span>
                         {recentSoldForBuySelection ? (
                             <img
                                 src={recentSoldForBuySelection.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
@@ -1312,7 +1323,8 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                             type="number"
                             value={salePrice}
                             min={minimumPrice}
-                            onChange={(e) => setSalePrice(e.target.value)}
+                            max={maxSaleListPrice}
+                            onChange={(e) => setSalePrice(clampDigitsOnlyInputString(e.target.value, { max: maxSaleListPrice }))}
                             className={`w-full bg-transparent text-center font-semibold tabular-nums leading-snug outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${sellFormInputNums} ${
                                 saleCurrency === 'gold' ? 'text-amber-100 placeholder:text-amber-200/45' : 'text-sky-100 placeholder:text-sky-200/45'
                             }`}
@@ -1329,7 +1341,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                         <span>현재 최저가</span>
                         {currentLowestForSelected ? (
                             <span className="flex items-center gap-0.5 font-semibold">
-                                <span className="tabular-nums">{currentLowestForSelected.price.toLocaleString()}</span>
+                                <span className="tabular-nums">{formatWalletCurrencyAmount(currentLowestForSelected.price, saleCurrency)}</span>
                                 <img
                                     src={currentLowestForSelected.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
                                     alt={currentLowestForSelected.currency === 'gold' ? '골드' : '다이아'}
@@ -1353,7 +1365,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                     <div className="flex items-center justify-between gap-1.5">
                         <span>수수료(10%)</span>
                         <span className="flex items-center gap-0.5 tabular-nums font-semibold">
-                            <span>{saleFee.toLocaleString()}</span>
+                            <span>{formatWalletCurrencyAmount(saleFee, saleCurrency)}</span>
                             <img
                                 src={saleCurrency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
                                 alt={saleCurrency === 'gold' ? '골드' : '다이아'}
@@ -1431,14 +1443,14 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                 <div className="flex items-center justify-between">
                                     <span className="text-slate-300">판매 가격</span>
                                     <span className="flex items-center gap-1 font-semibold">
-                                        <span>{pendingRegistration.price.toLocaleString()}</span>
+                                        <span>{formatWalletCurrencyAmount(pendingRegistration.price, pendingRegistration.currency)}</span>
                                         <img src={pendingRegistration.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'} alt="" className="h-4 w-4 object-contain" />
                                     </span>
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-slate-300">등록 수수료(10%)</span>
                                     <span className="flex items-center gap-1 font-semibold">
-                                        <span>{pendingRegistration.fee.toLocaleString()}</span>
+                                        <span>{formatWalletCurrencyAmount(pendingRegistration.fee, pendingRegistration.currency)}</span>
                                         <img src={pendingRegistration.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'} alt="" className="h-4 w-4 object-contain" />
                                     </span>
                                 </div>
@@ -1790,13 +1802,13 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                             className={`flex items-center gap-1 rounded-md border border-amber-500/35 bg-amber-900/20 text-amber-200 ${mobileExchange ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}
                         >
                             <img src="/images/icon/Gold.png" alt="골드" className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
-                            <span className="tabular-nums">{walletGold.toLocaleString()}</span>
+                            <span className="tabular-nums">{formatGoldAmountKoG(walletGold)}</span>
                         </div>
                         <div
                             className={`flex items-center gap-1 rounded-md border border-sky-500/35 bg-sky-900/20 text-sky-200 ${mobileExchange ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}
                         >
                             <img src="/images/icon/Zem.png" alt="다이아" className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
-                            <span className="tabular-nums">{walletDiamonds.toLocaleString()}</span>
+                            <span className="tabular-nums">{formatWalletDiamonds(walletDiamonds)}</span>
                         </div>
                         <div
                             className={`flex items-center gap-1 rounded-md border border-emerald-500/35 bg-emerald-900/20 text-emerald-200 ${mobileExchange ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}
@@ -2027,7 +2039,9 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                 <div
                                                     className={`flex w-full min-w-0 max-w-full flex-row items-center justify-center font-bold text-amber-200 ${mobileExchange ? 'gap-0.5 text-[11px] leading-tight' : 'gap-1 text-sm leading-tight'}`}
                                                 >
-                                                    <span className={`min-w-0 tabular-nums ${mobileExchange ? 'max-w-[calc(100%-1rem)] truncate' : ''}`}>{listing.price.toLocaleString()}</span>
+                                                    <span className={`min-w-0 tabular-nums ${mobileExchange ? 'max-w-[calc(100%-1rem)] truncate' : ''}`}>
+                                                        {formatWalletCurrencyAmount(listing.price, listing.currency)}
+                                                    </span>
                                                     <img
                                                         src={listing.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
                                                         alt={listing.currency === 'gold' ? '골드' : '다이아'}
@@ -2038,7 +2052,10 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                     className={`flex w-full min-w-0 max-w-full flex-row items-center justify-center font-bold text-cyan-200 ${mobileExchange ? 'gap-0.5 text-[11px] leading-tight' : 'gap-1 text-sm leading-tight'}`}
                                                 >
                                                     <span className={`min-w-0 tabular-nums ${mobileExchange ? 'max-w-[calc(100%-1rem)] truncate' : ''}`}>
-                                                        {(lowestPriceByBuyGroup.get(getBuyListingGroupKey(listing)) ?? listing.price).toLocaleString()}
+                                                        {formatWalletCurrencyAmount(
+                                                            lowestPriceByBuyGroup.get(getBuyListingGroupKey(listing)) ?? listing.price,
+                                                            listing.currency,
+                                                        )}
                                                     </span>
                                                     <img
                                                         src={listing.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
@@ -2156,7 +2173,9 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                                         {slot.itemName}
                                                                     </span>
                                                                     <div className="mt-1 flex min-w-0 items-center justify-center gap-1 text-[11px] font-semibold leading-tight text-slate-100">
-                                                                        <span className="max-w-full truncate tabular-nums">{slot.price.toLocaleString()}</span>
+                                                                        <span className="max-w-full truncate tabular-nums">
+                                                                            {formatWalletCurrencyAmount(slot.price, slot.currency)}
+                                                                        </span>
                                                                         <img
                                                                             src={slot.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
                                                                             alt={slot.currency === 'gold' ? '골드' : '다이아'}
@@ -2283,7 +2302,9 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                                             {slot.itemName}
                                                                         </span>
                                                                         <div className="mt-1 flex items-center justify-center gap-1.5 text-xs font-semibold leading-tight text-slate-100">
-                                                                            <span className="tabular-nums">{slot.price.toLocaleString()}</span>
+                                                                            <span className="tabular-nums">
+                                                                                {formatWalletCurrencyAmount(slot.price, slot.currency)}
+                                                                            </span>
                                                                             <img
                                                                                 src={slot.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
                                                                                 alt={slot.currency === 'gold' ? '골드' : '다이아'}
@@ -2474,19 +2495,19 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                         <div
                                                             className={`flex items-center justify-center gap-1 font-semibold text-amber-100 ${mobileExchange ? 'text-[11px] leading-tight' : 'text-sm'}`}
                                                         >
-                                                            <span className="tabular-nums">{entry.soldPrice.toLocaleString()}</span>
+                                                            <span className="tabular-nums">{formatWalletCurrencyAmount(entry.soldPrice, entry.currency)}</span>
                                                             <img src={currencyIcon} alt={currencyAlt} className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
                                                         </div>
                                                         <div
                                                             className={`flex items-center justify-center gap-1 font-semibold text-rose-200 ${mobileExchange ? 'text-[11px] leading-tight' : 'text-sm'}`}
                                                         >
-                                                            <span className="tabular-nums">{entry.fee.toLocaleString()}</span>
+                                                            <span className="tabular-nums">{formatWalletCurrencyAmount(entry.fee, entry.currency)}</span>
                                                             <img src={currencyIcon} alt={currencyAlt} className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
                                                         </div>
                                                         <div
                                                             className={`flex items-center justify-center gap-1 font-bold text-emerald-200 ${mobileExchange ? 'text-[11px] leading-tight' : 'text-sm'}`}
                                                         >
-                                                            <span className="tabular-nums">{entry.net.toLocaleString()}</span>
+                                                            <span className="tabular-nums">{formatWalletCurrencyAmount(entry.net, entry.currency)}</span>
                                                             <img src={currencyIcon} alt={currencyAlt} className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
                                                         </div>
                                                     </button>
@@ -2509,7 +2530,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-rose-200">수수료</span>
                                                     <span className="flex items-center gap-1 tabular-nums font-semibold text-rose-200">
-                                                        <span>{selectedSettlement.fee.toLocaleString()}</span>
+                                                        <span>{formatWalletCurrencyAmount(selectedSettlement.fee, selectedSettlement.currency)}</span>
                                                         <img
                                                             src={selectedSettlement.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
                                                             alt={selectedSettlement.currency === 'gold' ? '골드' : '다이아'}
@@ -2520,7 +2541,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                 <div className="mt-1 flex items-center justify-between">
                                                     <span>수령액</span>
                                                     <span className="flex items-center gap-1 tabular-nums font-bold text-emerald-200">
-                                                        <span>{selectedSettlement.net.toLocaleString()}</span>
+                                                        <span>{formatWalletCurrencyAmount(selectedSettlement.net, selectedSettlement.currency)}</span>
                                                         <img
                                                             src={selectedSettlement.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
                                                             alt={selectedSettlement.currency === 'gold' ? '골드' : '다이아'}
@@ -2536,11 +2557,11 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                         <span className="text-rose-200">수수료</span>
                                                         <div className="grid grid-cols-2 items-center gap-1">
                                                             <span className="flex min-w-[72px] items-center justify-end gap-1 tabular-nums font-semibold text-rose-200">
-                                                                <span>{settlementTotals.selectedFeeGold.toLocaleString()}</span>
+                                                                <span>{formatGoldAmountKoG(settlementTotals.selectedFeeGold)}</span>
                                                                 <img src="/images/icon/Gold.png" alt="골드" className="h-3.5 w-3.5 object-contain" />
                                                             </span>
                                                             <span className="flex min-w-[72px] items-center justify-end gap-1 tabular-nums font-semibold text-rose-200">
-                                                                <span>{settlementTotals.selectedFeeDiamonds.toLocaleString()}</span>
+                                                                <span>{formatWalletDiamonds(settlementTotals.selectedFeeDiamonds)}</span>
                                                                 <img src="/images/icon/Zem.png" alt="다이아" className="h-3.5 w-3.5 object-contain" />
                                                             </span>
                                                         </div>
@@ -2549,11 +2570,11 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                         <span className="text-emerald-200">수령액</span>
                                                         <div className="grid grid-cols-2 items-center gap-1">
                                                             <span className="flex min-w-[72px] items-center justify-end gap-1 tabular-nums font-bold text-emerald-200">
-                                                                <span>{settlementTotals.selectedNetGold.toLocaleString()}</span>
+                                                                <span>{formatGoldAmountKoG(settlementTotals.selectedNetGold)}</span>
                                                                 <img src="/images/icon/Gold.png" alt="골드" className="h-3.5 w-3.5 object-contain" />
                                                             </span>
                                                             <span className="flex min-w-[72px] items-center justify-end gap-1 tabular-nums font-bold text-emerald-200">
-                                                                <span>{settlementTotals.selectedNetDiamonds.toLocaleString()}</span>
+                                                                <span>{formatWalletDiamonds(settlementTotals.selectedNetDiamonds)}</span>
                                                                 <img src="/images/icon/Zem.png" alt="다이아" className="h-3.5 w-3.5 object-contain" />
                                                             </span>
                                                         </div>
@@ -2604,13 +2625,13 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                     <span
                                                         className={`flex min-w-0 items-center justify-end gap-0.5 tabular-nums font-semibold text-rose-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}
                                                     >
-                                                        <span className="min-w-0 truncate">{historySummary.totals.outGold.toLocaleString()}</span>
+                                                        <span className="min-w-0 truncate">{formatGoldAmountKoG(historySummary.totals.outGold)}</span>
                                                         <img src="/images/icon/Gold.png" alt="골드" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
                                                     </span>
                                                     <span
                                                         className={`flex min-w-0 items-center justify-end gap-0.5 tabular-nums font-semibold text-rose-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}
                                                     >
-                                                        <span className="min-w-0 truncate">{historySummary.totals.outDiamonds.toLocaleString()}</span>
+                                                        <span className="min-w-0 truncate">{formatWalletDiamonds(historySummary.totals.outDiamonds)}</span>
                                                         <img src="/images/icon/Zem.png" alt="다이아" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
                                                     </span>
                                                 </div>
@@ -2621,13 +2642,13 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                     <span
                                                         className={`flex min-w-0 items-center justify-end gap-0.5 tabular-nums font-semibold text-emerald-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}
                                                     >
-                                                        <span className="min-w-0 truncate">{historySummary.totals.inGold.toLocaleString()}</span>
+                                                        <span className="min-w-0 truncate">{formatGoldAmountKoG(historySummary.totals.inGold)}</span>
                                                         <img src="/images/icon/Gold.png" alt="골드" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
                                                     </span>
                                                     <span
                                                         className={`flex min-w-0 items-center justify-end gap-0.5 tabular-nums font-semibold text-emerald-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}
                                                     >
-                                                        <span className="min-w-0 truncate">{historySummary.totals.inDiamonds.toLocaleString()}</span>
+                                                        <span className="min-w-0 truncate">{formatWalletDiamonds(historySummary.totals.inDiamonds)}</span>
                                                         <img src="/images/icon/Zem.png" alt="다이아" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
                                                     </span>
                                                 </div>
@@ -2690,7 +2711,9 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                 >
                                                     {row.priceCurrency ? (
                                                         <>
-                                                            <span className="min-w-0 truncate tabular-nums">{row.priceAmount.toLocaleString()}</span>
+                                                            <span className="min-w-0 truncate tabular-nums">
+                                                                {formatWalletCurrencyAmount(row.priceAmount, row.priceCurrency)}
+                                                            </span>
                                                             <img
                                                                 src={row.priceCurrency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
                                                                 alt={row.priceCurrency === 'gold' ? '골드' : '다이아'}
@@ -2704,7 +2727,9 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                 <div className={`flex items-center justify-center gap-0.5 font-semibold text-rose-400 ${mobileExchange ? 'text-[11px] leading-tight' : 'text-base'}`}>
                                                     {row.feeCurrency ? (
                                                         <>
-                                                            <span className="min-w-0 truncate tabular-nums">{row.feeAmount.toLocaleString()}</span>
+                                                            <span className="min-w-0 truncate tabular-nums">
+                                                                {formatWalletCurrencyAmount(row.feeAmount, row.feeCurrency)}
+                                                            </span>
                                                             <img
                                                                 src={row.feeCurrency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
                                                                 alt={row.feeCurrency === 'gold' ? '골드' : '다이아'}

@@ -4,6 +4,7 @@ import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import MailRewardItemTile from './MailRewardItemTile.js';
+import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
 
 interface MailboxModalProps {
     currentUser: UserWithStatus;
@@ -231,13 +232,13 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
                                                         {(selectedMail.attachments.gold ?? 0) > 0 ? (
                                                             <span className="inline-flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-950/25 px-3 py-2 font-medium text-amber-100">
                                                                 <img src="/images/icon/Gold.png" alt="" className="h-5 w-5" />
-                                                                {selectedMail.attachments.gold!.toLocaleString()} 골드
+                                                                {formatGoldAmountKoG(selectedMail.attachments.gold!)} 골드
                                                             </span>
                                                         ) : null}
                                                         {(selectedMail.attachments.diamonds ?? 0) > 0 ? (
                                                             <span className="inline-flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-950/25 px-3 py-2 font-medium text-cyan-100">
                                                                 <img src="/images/icon/Zem.png" alt="" className="h-5 w-5" />
-                                                                {selectedMail.attachments.diamonds!.toLocaleString()} 다이아
+                                                                {formatWalletDiamonds(selectedMail.attachments.diamonds!)} 다이아
                                                             </span>
                                                         ) : null}
                                                     </div>

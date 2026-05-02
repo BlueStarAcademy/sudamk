@@ -2212,6 +2212,40 @@ export async function makeGoAiBotMove(
         }
     }
 
+    if (
+        selectedMove.x === -1 &&
+        selectedMove.y === -1 &&
+        pairCurrentSeat &&
+        pairHasFixedScoringTurnLimit
+    ) {
+        const logicPairNoPass = getGoLogic(game);
+        let legalPairNoPass = findAllValidMoves(game, logicPairNoPass, aiPlayerEnum);
+        if (
+            getUserUnrevealedHiddenPoints(game, aiPlayerEnum).length > 0 &&
+            legalPairNoPass.length > 0
+        ) {
+            legalPairNoPass = legalPairNoPass.filter(
+                (m) => !isInvalidAiHiddenNeighborhoodForKataAndHeuristic(game, m.x, m.y, aiPlayerEnum),
+            );
+        }
+        if (legalPairNoPass.length === 0) {
+            const totalTurnsEnd = getProgressTurnCount(game);
+            console.warn(
+                `[makeGoAiBotMove] pair fixed-turn blocked AI PASS (no legal) → scoring, game=${game.id}, turns=${totalTurnsEnd}`,
+            );
+            game.totalTurns = totalTurnsEnd;
+            game.gameStatus = 'scoring';
+            await db.saveGame(game);
+            const { getGameResult } = await import('./gameModes.js');
+            await getGameResult(game);
+            return;
+        }
+        selectedMove = { x: legalPairNoPass[0]!.x, y: legalPairNoPass[0]!.y };
+        console.warn(
+            `[makeGoAiBotMove] pair fixed-turn blocked AI PASS → (${selectedMove.x},${selectedMove.y}), game=${game.id}`,
+        );
+    }
+
     if (selectedMove.x === -1 && selectedMove.y === -1 && pairCurrentSeat) {
         game.koInfo = null;
         game.passCount++;

@@ -5,6 +5,8 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import ToggleSwitch from '../ui/ToggleSwitch.js';
 import AdminPageHeader from './AdminPageHeader.js';
 import { adminCard, adminInput, adminPageNarrow, adminSectionGap, adminShell } from './adminChrome.js';
+import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js';
+import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 
 interface AdminGuildManagementPanelProps {
     guild: GuildType;
@@ -27,7 +29,7 @@ const AdminGuildManagementPanel: React.FC<AdminGuildManagementPanelProps> = ({ g
 
     const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setEditedGuild(prev => ({ ...prev, [name]: parseInt(value, 10) || 0 }));
+        setEditedGuild((prev) => ({ ...prev, [name]: clampGameInt(parseInt(value, 10) || 0) }));
     };
 
     const handleSave = () => {
@@ -72,15 +74,15 @@ const AdminGuildManagementPanel: React.FC<AdminGuildManagementPanelProps> = ({ g
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                         <label className="block text-sm font-medium text-secondary">길드 레벨</label>
-                        <input type="number" name="level" value={editedGuild.level || 1} onChange={handleNumberChange} className={adminInput} />
+                        <input type="number" name="level" min={0} max={MAX_GAME_INTEGER_INPUT} value={editedGuild.level || 1} onChange={handleNumberChange} className={adminInput} />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-secondary">길드 경험치</label>
-                        <input type="number" name="xp" value={editedGuild.xp || 0} onChange={handleNumberChange} className={adminInput} />
+                        <input type="number" name="xp" min={0} max={MAX_GAME_INTEGER_INPUT} value={editedGuild.xp || 0} onChange={handleNumberChange} className={adminInput} />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-secondary">연구 포인트</label>
-                        <input type="number" name="researchPoints" value={editedGuild.researchPoints || 0} onChange={handleNumberChange} className={adminInput} />
+                        <input type="number" name="researchPoints" min={0} max={MAX_GAME_INTEGER_INPUT} value={editedGuild.researchPoints || 0} onChange={handleNumberChange} className={adminInput} />
                     </div>
                     <div className="flex items-center justify-between bg-tertiary/50 p-2 rounded-md">
                         <label className="text-sm font-medium">공개 설정</label>

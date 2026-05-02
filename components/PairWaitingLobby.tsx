@@ -1313,9 +1313,9 @@ const PairWaitingLobby: React.FC = () => {
                                 />
                             </div>
                             <div
-                                className={`flex min-h-0 shrink-0 min-w-0 flex-col gap-2 ${isHandheld ? '' : 'sm:flex-row sm:items-stretch sm:gap-2'}`}
+                                className={`flex min-h-0 shrink-0 min-w-0 gap-2 ${isHandheld ? 'flex-row items-stretch' : 'flex-col sm:flex-row sm:items-stretch'}`}
                             >
-                                <div className={`min-h-0 min-w-0 ${isHandheld ? 'w-full shrink-0' : 'shrink-0 sm:flex-1 sm:min-w-0'}`}>
+                                <div className={`min-h-0 min-w-0 ${isHandheld ? 'min-w-0 flex-1' : 'shrink-0 sm:flex-1 sm:min-w-0'}`}>
                                     <PairRoomChatPanel
                                         roomId={myRoom.id}
                                         messages={pairRoomChatByRoomId[myRoom.id] || []}

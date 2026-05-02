@@ -7,6 +7,7 @@ import {
 import { gradeBackgrounds } from '../../shared/constants/items.js';
 import { ItemGrade } from '../../shared/types/enums.js';
 import type { AdventureStageId } from '../../constants/adventureConstants.js';
+import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
 const GOLD_SRC = '/images/icon/Gold.png';
 
@@ -108,14 +109,14 @@ const AdventureChapterRewardHints: React.FC<Props> = ({ stageId, compact, classN
         {
             id: 'gold-normal',
             gradeBg: gradeBackgrounds[ItemGrade.Legendary],
-            bubbleText: `승리 골드(참고) 약 ${v.goldNormalRange.min.toLocaleString()}~${v.goldNormalRange.max.toLocaleString()}`,
+            bubbleText: `승리 골드(참고) 약 ${formatGoldAmountKoG(v.goldNormalRange.min)}~${formatGoldAmountKoG(v.goldNormalRange.max)}`,
         },
     ];
     if (v.goldBoss19Range) {
         goldSlots.push({
             id: 'gold-boss19',
             gradeBg: gradeBackgrounds[ItemGrade.Mythic],
-            bubbleText: `19줄 보스 승리 시 골드 약 ${v.goldBoss19Range.min.toLocaleString()}~${v.goldBoss19Range.max.toLocaleString()}`,
+            bubbleText: `19줄 보스 승리 시 골드 약 ${formatGoldAmountKoG(v.goldBoss19Range.min)}~${formatGoldAmountKoG(v.goldBoss19Range.max)}`,
         });
     }
 

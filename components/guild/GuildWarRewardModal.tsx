@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import GuildExpBadge from './GuildExpBadge.js';
+import { formatGoldAmountKoG, formatWalletDiamonds } from '../../shared/utils/walletAmountDisplay.js';
 
 interface WarResult {
     isWinner: boolean;
@@ -130,7 +131,7 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, onCl
                                 <div className="bg-stone-800/50 rounded-lg p-4 border border-stone-700/50">
                                     <div className="flex items-center justify-between gap-3">
                                         <img src="/images/icon/Gold.png" alt="" className="h-8 w-8 shrink-0 object-contain" title="골드" />
-                                        <span className="text-yellow-400 font-bold text-lg tabular-nums">+{rewards.gold.toLocaleString()}</span>
+                                        <span className="text-yellow-400 font-bold text-lg tabular-nums">+{formatGoldAmountKoG(rewards.gold)}</span>
                                     </div>
                                 </div>
 
@@ -138,7 +139,7 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, onCl
                                 <div className="bg-stone-800/50 rounded-lg p-4 border border-stone-700/50">
                                     <div className="flex items-center justify-between gap-3">
                                         <img src="/images/icon/Diamond.png" alt="" className="h-8 w-8 shrink-0 object-contain" title="다이아" />
-                                        <span className="text-cyan-400 font-bold text-lg tabular-nums">+{rewards.diamonds.toLocaleString()}</span>
+                                        <span className="text-cyan-400 font-bold text-lg tabular-nums">+{formatWalletDiamonds(rewards.diamonds)}</span>
                                     </div>
                                 </div>
 

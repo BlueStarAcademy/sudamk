@@ -21,6 +21,7 @@ import {
     arenaGameRoomIngameInnerNeutralSurfaceClass,
     pveIngameFooterReservedHeightClass,
 } from './arenaGameRoomStyles.js';
+import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
 interface SinglePlayerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
     setShowResultModal?: (show: boolean) => void;
@@ -251,9 +252,9 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
             return;
         }
         if (!refreshDisabled && canAfford) {
-            const priceLine = nextCost > 0 ? `이용 가격: ${nextCost.toLocaleString()} 골드` : '이용 가격: 무료';
+            const priceLine = nextCost > 0 ? `이용 가격: ${formatGoldAmountKoG(nextCost)} 골드` : '이용 가격: 무료';
             const confirmationMessage = nextCost > 0
-                ? `${priceLine}\n\n${nextCost.toLocaleString()} 골드를 사용하여 배치를 다시 섞으시겠습니까? (남은 재배치 ${remainingRefreshes}/5)`
+                ? `${priceLine}\n\n${formatGoldAmountKoG(nextCost)} 골드를 사용하여 배치를 다시 섞으시겠습니까? (남은 재배치 ${remainingRefreshes}/5)`
                 : `${priceLine}\n\n첫 재배치는 무료입니다. 배치를 다시 섞으시겠습니까?`;
             setConfirmModal({
                 title: '배치변경',
@@ -417,7 +418,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
                 {nextCost > 0 && (
                     <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} flex items-center gap-0.5 whitespace-nowrap ${refreshDisabled ? 'text-gray-500' : 'text-yellow-300'}`}>
                         <img src="/images/icon/Gold.png" alt="골드" className={`${isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'} shrink-0`} />
-                        {nextCost.toLocaleString()}
+                        {formatGoldAmountKoG(nextCost)}
                     </span>
                 )}
             </div>

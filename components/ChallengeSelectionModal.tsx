@@ -17,6 +17,8 @@ import {
   getScoringTurnLimitOptionsByBoardSize,
   FISCHER_INCREMENT_SECONDS,
 } from '../constants/gameSettings';
+import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
+import { clampGameInt } from '../shared/utils/gameIntegerField.js';
 
 /** 전략 로비에서 판 크기별 ‘계가까지 턴’ 옵션을 쓰는 모드 (따내기 바둑·따목 등 제외) */
 const STRATEGIC_MODES_WITH_SCORING_TURN: GameMode[] = [
@@ -607,8 +609,15 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               <input 
                 type="number" 
                 step="1" 
+                min={0}
+                max={MAX_GAME_INTEGER_INPUT}
                 value={Math.floor(settings.komi)} 
-                onChange={e => handleSettingChange('komi', parseInt(e.target.value, 10) + 0.5)} 
+                onChange={(e) =>
+                  handleSettingChange(
+                    'komi',
+                    clampGameInt(parseInt(e.target.value, 10) || 0, { min: 0, max: MAX_GAME_INTEGER_INPUT }) + 0.5,
+                  )
+                }
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
                 style={inputStyle}
               />

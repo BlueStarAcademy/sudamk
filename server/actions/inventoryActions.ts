@@ -37,6 +37,9 @@ import { mythicStatPoolForItemGrade } from '../../shared/utils/specialOptionGear
 import { isPairEggItem, isPairPetMaterial } from '../../shared/constants/petLobby.js';
 import { reconcileEquippedPairPetInventoryItem } from '../../shared/utils/pairEquippedPet.js';
 import { isItemIdInPairTraining, normalizePairPetTrainingSlots } from '../../shared/constants/pairTraining.js';
+import { maxExchangeListPrice } from '../../shared/constants/numericLimits.js';
+import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
+import { exchangeListingFeeFromPrice } from '../../shared/utils/gameIntegerField.js';
 import {
     BLACKSMITH_ENHANCEMENT_XP_GAIN,
     BLACKSMITH_DISASSEMBLY_XP_GAIN,
@@ -1133,7 +1136,16 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 if (listPrice < minBy) {
                     return { error: listCurrency === 'gold' ? '최소 판매가는 100골드입니다.' : '최소 판매가는 10다이아입니다.' };
                 }
-                const listingFee = Math.floor((listPrice * 10) / 100);
+                const listMax = maxExchangeListPrice(listCurrency);
+                if (listPrice > listMax) {
+                    return {
+                        error:
+                            listCurrency === 'gold'
+                                ? '판매 가격은 100억 이하로만 등록할 수 있습니다.'
+                                : '판매 가격은 1,000만 다이아 이하로만 등록할 수 있습니다.',
+                    };
+                }
+                const listingFee = exchangeListingFeeFromPrice(listPrice);
                 if (!user.isAdmin && listingFee > 0) {
                     if (listCurrency === 'gold') {
                         if ((user.gold ?? 0) < listingFee) {
@@ -1330,7 +1342,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
 
             const goldCost = calculateEnhancementGoldCost(item.grade, item.stars);
             if (user.gold < goldCost) {
-                return { error: `골드가 부족합니다. (필요: ${goldCost}, 현재: ${user.gold})` };
+                return { error: `골드가 부족합니다. (필요: ${formatGoldAmountKoG(goldCost)}, 현재: ${formatGoldAmountKoG(user.gold)})` };
             }
 
             if (!removeUserItems(user, costs)) {
@@ -1495,7 +1507,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             
             // 골드 부족 체크
             if (user.gold < requiredGold) {
-                return { error: `골드가 부족합니다. (필요: ${requiredGold.toLocaleString()}, 보유: ${user.gold.toLocaleString()})` };
+                return { error: `골드가 부족합니다. (필요: ${formatGoldAmountKoG(requiredGold)}, 보유: ${formatGoldAmountKoG(user.gold)})` };
             }
             
             // 필요한 변경권 확인

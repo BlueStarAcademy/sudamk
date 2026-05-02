@@ -2,6 +2,7 @@ import React from 'react';
 import { Guild, GuildMember } from '../../types/entities.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import Avatar from '../Avatar.js';
+import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
 interface GuildInfoPanelProps {
     guild: Guild;
@@ -41,7 +42,9 @@ const GuildInfoPanel: React.FC<GuildInfoPanelProps> = ({ guild, members }) => {
                     </div>
                     <div>
                         <span className="text-gray-400">길드 골드:</span>
-                        <span className="ml-2 text-yellow-400 font-semibold">{(guild.gold ?? 0).toLocaleString()}</span>
+                        <span className="ml-2 text-yellow-400 font-semibold">
+                            {formatGoldAmountKoG(guild.gold ?? 0, { valueCap: Number.MAX_SAFE_INTEGER })}
+                        </span>
                     </div>
                     <div>
                         <span className="text-gray-400">멤버 수:</span>

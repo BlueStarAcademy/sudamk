@@ -22,6 +22,7 @@ import {
     MOBILE_EQUIPMENT_DETAIL_MAX_HEIGHT_CSS,
     MOBILE_EQUIPMENT_DETAIL_MODAL_WIDTH,
 } from '../shared/constants/mobileEquipmentDetailModal.js';
+import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
 
 interface ItemObtainedModalProps {
     item: InventoryItem;
@@ -173,7 +174,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                         >
                             <img src="/images/icon/Gold.png" alt="" className={COMPACT_CURRENCY_IMG_CLASS} />
                         </div>
-                        <span className={ITEM_OBTAIN_COUNT_BADGE_CLASS}>+{currencyAmount.toLocaleString()}</span>
+                        <span className={ITEM_OBTAIN_COUNT_BADGE_CLASS}>+{formatGoldAmountKoG(currencyAmount)}</span>
                     </div>
                 }
                 name="골드"
@@ -192,7 +193,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                         >
                             <img src="/images/icon/Zem.png" alt="" className={COMPACT_CURRENCY_IMG_CLASS} />
                         </div>
-                        <span className={ITEM_OBTAIN_COUNT_BADGE_CLASS}>+{currencyAmount.toLocaleString()}</span>
+                        <span className={ITEM_OBTAIN_COUNT_BADGE_CLASS}>+{formatWalletDiamonds(currencyAmount)}</span>
                     </div>
                 }
                 name="다이아몬드"

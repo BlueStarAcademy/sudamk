@@ -38,6 +38,7 @@ import {
 import BaseGameFooterPanel, { BasePlacementControlStrip, isBaseGameFooterPhase } from './BaseGameFooterPanel.js';
 import IngameMobileFooterAd from './IngameMobileFooterAd.js';
 import { isPairCooperativeTwoHumansVsAi } from '../../shared/utils/pairGameTurn.js';
+import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
 interface ImageButtonProps {
     src: string;
@@ -1271,6 +1272,8 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
     const hasCaptureRule = modeIncludesCaptureRule(mode, session.settings);
     const isPairGame = Boolean(session.settings.pairGame?.turnOrder?.length);
+    /** 펫·2인 페어 AI전: `isAiGame`이 false일 수 있어 `pairMode === 'ai'`로 구분 (summaryService와 동일) */
+    const isPairAiAutoScoringMatch = Boolean(isPairGame && session.settings?.pairGame?.pairMode === 'ai');
     const isMobilePairGame = Boolean(isMobile && isPairGame);
     const pairCoopTwoHumansVsAi = isPairCooperativeTwoHumansVsAi(session.settings);
     const showMannerActionRow = !isSinglePlayer && !session.isAiGame && !pairCoopTwoHumansVsAi;
@@ -1659,7 +1662,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 return;
             }
             const confirmationMessage = nextCost > 0
-                ? `${nextCost.toLocaleString()} 골드를 사용하여 배치를 다시 섞으시겠습니까? (남은 재배치 ${remainingRefreshes}/5)`
+                ? `${formatGoldAmountKoG(nextCost)} 골드를 사용하여 배치를 다시 섞으시겠습니까? (남은 재배치 ${remainingRefreshes}/5)`
                 : '첫 재배치는 무료입니다. 배치를 다시 섞으시겠습니까?';
             if (window.confirm(confirmationMessage)) {
                 onAction({ type: 'SINGLE_PLAYER_REFRESH_PLACEMENT', payload: { gameId } } as ServerAction);
@@ -1867,7 +1870,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             <>
                                 <span>·</span>
                                 <img src="/images/icon/Gold.png" alt="골드" className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0" />
-                                <span>{nextCost.toLocaleString()}</span>
+                                <span>{formatGoldAmountKoG(nextCost)}</span>
                             </>
                         )}
                         {nextCost === 0 && <span>· 무료</span>}
@@ -2099,6 +2102,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     {isStrategic &&
                         !hasCaptureRule &&
                         (!isAiLobbyGame || isPairGame) &&
+                        !isPairAiAutoScoringMatch &&
                         session.gameCategory !== 'adventure' && (
                         <LabeledControlButton
                             key="pass"

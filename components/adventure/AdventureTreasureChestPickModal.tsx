@@ -4,6 +4,7 @@ import {
     getAdventureTreasureRollPreview,
     type AdventureTreasureRollResult,
 } from '../../shared/utils/adventureMapTreasureRewards.js';
+import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
 type Phase = 'pick' | 'spin' | 'result';
 
@@ -89,7 +90,7 @@ function RouletteStripCell({ roll }: { roll: AdventureTreasureRollResult }) {
             <div className="flex h-full flex-col items-center justify-center gap-1.5 px-0.5 py-1">
                 <img src={p.imageSrc} alt="" className="h-11 w-11 shrink-0 object-contain drop-shadow-md" draggable={false} />
                 <span className="font-mono text-[13px] font-black tabular-nums tracking-tight text-amber-200 drop-shadow-sm sm:text-sm">
-                    {roll.gold.toLocaleString()}
+                    {formatGoldAmountKoG(roll.gold)}
                 </span>
             </div>
         );

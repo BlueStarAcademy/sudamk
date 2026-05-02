@@ -7,6 +7,7 @@ import { PAIR_PET_GRADE_ORDER } from '../../shared/constants/pairPetGrade.js';
 import { PAIR_PET_SHOP_SKUS } from '../../shared/constants/petLobby.js';
 import { PAIR_TRAINING_SLOT_DEFS } from '../../shared/constants/pairTraining.js';
 import { pairPetSoulConvertMaterialNameForGrade } from '../../shared/utils/pairPetSoulConvert.js';
+import { formatGoldAmountKoG, formatWalletDiamonds } from '../../shared/utils/walletAmountDisplay.js';
 
 export type PairPetLobbySoulStoneViewerProps = {
     item: InventoryItem;
@@ -65,8 +66,8 @@ function soulPetShopAcquireDetail(materialName: string): string {
     if (!sku) return '';
     const price =
         sku.diamonds > 0
-            ? `[다이아 ${sku.diamonds.toLocaleString()}]`
-            : `[골드 ${sku.gold.toLocaleString()}]`;
+            ? `[다이아 ${formatWalletDiamonds(sku.diamonds)}]`
+            : `[골드 ${formatGoldAmountKoG(sku.gold)}]`;
     return `${price} [일일 ${sku.dailyLimit}회]`;
 }
 

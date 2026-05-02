@@ -27,6 +27,8 @@ import {
     MYTHIC_GRADE_SPECIAL_OPTION_STATS,
     TRANSCENDENT_GRADE_SPECIAL_OPTION_STATS,
 } from '../../shared/utils/specialOptionGearEffects.js';
+import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js';
+import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 
 export type MailAttachedItemPayload = {
     name: string;
@@ -238,7 +240,7 @@ const ItemSelectionModal: React.FC<ItemSelectionModalProps> = ({ onAddItem, onCl
                     <div className="flex flex-wrap items-center gap-3">
                         <div>
                             <label className="text-xs text-gray-400">수량</label>
-                            <input type="number" min={1} value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))} className="bg-tertiary w-20 p-1.5 rounded block mt-0.5" />
+                            <input type="number" min={1} max={MAX_GAME_INTEGER_INPUT} value={quantity} onChange={(e) => setQuantity(clampGameInt(parseInt(e.target.value, 10) || 1, { min: 1 }))} className="bg-tertiary w-20 p-1.5 rounded block mt-0.5" />
                         </div>
                         {activeTab === 'equipment' && (
                             <div>
@@ -527,27 +529,27 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
                 </div>
                 <div>
                     <label className="mb-1 block font-medium text-secondary">수령 제한일 (0일 = 무제한)</label>
-                    <input type="number" min="0" value={expiresInDays} onChange={(e) => setExpiresInDays(parseInt(e.target.value, 10) || 0)} className={adminInput} />
+                    <input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} value={expiresInDays} onChange={(e) => setExpiresInDays(clampGameInt(parseInt(e.target.value, 10) || 0))} className={adminInput} />
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div>
                         <label className="mb-1 block font-medium text-secondary">⚡ 행동력</label>
-                        <input type="number" min="0" value={actionPoints} onChange={(e) => setActionPoints(parseInt(e.target.value, 10) || 0)} className={adminInput} />
+                        <input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} value={actionPoints} onChange={(e) => setActionPoints(clampGameInt(parseInt(e.target.value, 10) || 0))} className={adminInput} />
                     </div>
                     <div>
                         <label className="mb-1 flex items-center gap-1 font-medium text-secondary">
                             <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 object-contain" />
                             골드
                         </label>
-                        <input type="number" min="0" value={gold} onChange={(e) => setGold(parseInt(e.target.value, 10) || 0)} className={adminInput} />
+                        <input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} value={gold} onChange={(e) => setGold(clampGameInt(parseInt(e.target.value, 10) || 0))} className={adminInput} />
                     </div>
                     <div>
                         <label className="mb-1 flex items-center gap-1 font-medium text-secondary">
                             <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4 object-contain" />
                             다이아
                         </label>
-                        <input type="number" min="0" value={diamonds} onChange={(e) => setDiamonds(parseInt(e.target.value, 10) || 0)} className={adminInput} />
+                        <input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} value={diamonds} onChange={(e) => setDiamonds(clampGameInt(parseInt(e.target.value, 10) || 0, { max: MAX_GAME_INTEGER_INPUT }))} className={adminInput} />
                     </div>
                 </div>
             </div>

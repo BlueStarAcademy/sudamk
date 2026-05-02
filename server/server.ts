@@ -4739,7 +4739,15 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             }
             
             // 성공 응답 즉시 반환 (불필요한 로깅 제거)
-            respondAction(200, { success: true, ...result.clientResponse });
+            {
+                const { drainCurrencyCapNotices } = await import('./currencyCapNoticeBuffer.js');
+                const capNotices = drainCurrencyCapNotices(userId);
+                respondAction(200, {
+                    success: true,
+                    ...(result.clientResponse || {}),
+                    ...(capNotices.length ? { currencyCapNotices: capNotices } : {}),
+                });
+            }
         } catch (e: any) {
             clearTimeout(timeout);
             const { prismaErrorImpliesEngineNotConnected } = await import('./prismaClient.js');

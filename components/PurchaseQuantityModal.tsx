@@ -5,6 +5,9 @@ import { BASE_SLOTS_PER_CATEGORY } from '../constants/items.js';
 import { isActionPointConsumable } from '../constants/items.js';
 import { ITEM_OBTAIN_COUNT_BADGE_CLASS, SingleItemObtainCard } from './game/ItemObtainModalShared.js';
 import { resolvePurchaseModalDescription, resolvePurchaseModalUsageLines } from '../shared/utils/bagItemDetailHelpers.js';
+import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
+import { clampGameInt } from '../shared/utils/gameIntegerField.js';
+import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
 
 interface PurchaseQuantityModalProps {
     item: {
@@ -67,7 +70,7 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
         const currency = isGold ? (currentUser.gold ?? 0) : (currentUser.diamonds ?? 0);
         const maxByCurrency = !isTieredPriceItem && pricePerItem > 0 ? Math.floor(currency / pricePerItem) : (isTieredPriceItem ? maxAffordByTieredPrices : Infinity);
         const byLimit = isTieredPriceItem ? remainingDaily : (item.limit ?? Infinity);
-        const cap = Math.min(byLimit, maxByCurrency, 999);
+        const cap = Math.min(byLimit, maxByCurrency, MAX_GAME_INTEGER_INPUT);
         return Math.max(0, cap);
     }, [item.limit, currentUser.gold, currentUser.diamonds, isGold, pricePerItem, isTieredPriceItem, remainingDaily, maxAffordByTieredPrices]);
 
@@ -167,8 +170,12 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
                         </button>
                         <input
                             type="number"
+                            min={1}
+                            max={Math.max(1, maxQuantity)}
                             value={quantity}
-                            onChange={e => setQuantity(Math.max(1, Math.min(maxQuantity, Number(e.target.value) || 1)))}
+                            onChange={(e) =>
+                                setQuantity(clampGameInt(Number(e.target.value) || 1, { min: 1, max: Math.max(1, maxQuantity) }))
+                            }
                             className="w-24 h-12 text-center text-2xl font-bold bg-slate-700/80 border border-slate-500/50 rounded-xl text-white focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400/50 outline-none"
                         />
                         <button
@@ -203,7 +210,7 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
                     <span className="text-slate-300 font-medium">총 가격</span>
                     <div className="flex items-center gap-2 font-bold text-xl text-amber-300">
                         <img src={isGold ? '/images/icon/Gold.png' : '/images/icon/Zem.png'} alt={isGold ? '골드' : '다이아'} className="w-7 h-7 object-contain" />
-                        <span>{totalPrice.toLocaleString()}</span>
+                        <span>{isGold ? formatGoldAmountKoG(totalPrice) : formatWalletDiamonds(totalPrice)}</span>
                     </div>
                 </div>
 

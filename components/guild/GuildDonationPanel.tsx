@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { GuildDonation } from '../../types/entities.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import Button from '../Button.js';
+import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js';
+import { clampDigitsOnlyInputString, clampGameInt } from '../../shared/utils/gameIntegerField.js';
+import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
 interface GuildDonationPanelProps {
     guildId: string;
@@ -16,7 +19,7 @@ const GuildDonationPanel: React.FC<GuildDonationPanelProps> = ({ guildId, donati
     const [loading, setLoading] = useState(false);
 
     const handleDonate = async () => {
-        const amount = parseInt(donationAmount);
+        const amount = clampGameInt(parseInt(donationAmount, 10) || 0, { min: 1, max: MAX_GAME_INTEGER_INPUT });
         if (!amount || amount <= 0) {
             alert('기부할 골드를 입력해주세요.');
             return;
@@ -57,9 +60,10 @@ const GuildDonationPanel: React.FC<GuildDonationPanelProps> = ({ guildId, donati
                     <input
                         type="number"
                         value={donationAmount}
-                        onChange={(e) => setDonationAmount(e.target.value)}
+                        onChange={(e) => setDonationAmount(clampDigitsOnlyInputString(e.target.value))}
                         placeholder="기부할 골드"
-                        min="1"
+                        min={1}
+                        max={MAX_GAME_INTEGER_INPUT}
                         className="flex-1 px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
                     />
                     <Button
@@ -72,7 +76,7 @@ const GuildDonationPanel: React.FC<GuildDonationPanelProps> = ({ guildId, donati
                     </Button>
                 </div>
                 <p className="text-sm text-gray-400">
-                    보유 골드: {currentUserWithStatus?.gold?.toLocaleString() || 0}
+                    보유 골드: {formatGoldAmountKoG(currentUserWithStatus?.gold ?? 0)}
                 </p>
             </div>
 

@@ -4,6 +4,8 @@ import { InventoryItem, UserWithStatus } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import { isActionPointConsumable, gradeBackgrounds, gradeStyles } from '../constants/items.js';
 import { resolveCurrencyBundleConsumableKey } from '../shared/utils/currencyBundleConsumable.js';
+import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
+import { clampGameInt } from '../shared/utils/gameIntegerField.js';
 
 interface UseQuantityModalProps {
     item: InventoryItem;
@@ -64,7 +66,8 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
         }
         const numValue = parseInt(value, 10);
         if (!isNaN(numValue)) {
-            setQuantity(Math.max(1, Math.min(totalQuantity, numValue)));
+            const cap = Math.min(totalQuantity, MAX_GAME_INTEGER_INPUT);
+            setQuantity(Math.max(1, Math.min(cap, numValue)));
         } else {
             setQuantity(1);
         }
@@ -221,7 +224,7 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
                                     <input
                                         type="number"
                                         min={1}
-                                        max={totalQuantity}
+                                        max={Math.min(totalQuantity, MAX_GAME_INTEGER_INPUT)}
                                         value={quantity || ''}
                                         onChange={handleQuantityChange}
                                         onBlur={handleQuantityBlur}

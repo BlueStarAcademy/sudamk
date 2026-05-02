@@ -3,6 +3,7 @@ import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
 import { SinglePlayerLevel } from '../../types.js';
 import type { SinglePlayerStageInfo } from '../../types.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, EQUIPMENT_POOL } from '../../constants/index.js';
+import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
 const CLASS_TABS: { level: SinglePlayerLevel; label: string }[] = [
     { level: SinglePlayerLevel.입문, label: '입문반' },
@@ -84,7 +85,7 @@ const RewardBadges: React.FC<{ reward: RewardCell | undefined }> = ({ reward }) 
                 <RewardBadge
                     tone="gold"
                     label="골드"
-                    value={`+${(reward.gold ?? 0).toLocaleString()}`}
+                    value={`+${formatGoldAmountKoG(reward.gold ?? 0)}`}
                     icon={<img src="/images/icon/Gold.png" alt="" className="h-4 w-4 object-contain" />}
                 />
             )}

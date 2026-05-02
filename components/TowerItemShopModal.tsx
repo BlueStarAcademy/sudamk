@@ -6,6 +6,9 @@ import { isSameDayKST } from '../utils/timeUtils.js';
 import { countTowerLobbyInventoryQty, towerShopInventoryNameOrIdsForItem } from '../utils/towerLobbyInventory.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
+import { clampGameInt } from '../shared/utils/gameIntegerField.js';
+import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
 
 interface TowerItem {
     itemId: string;
@@ -162,7 +165,7 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
 
         const { maxCanBuy, currentOwned, todayPurchased } = getItemPurchaseInfo(item);
         const currentCartQuantity = cart[itemId] || 0;
-        const newQuantity = Math.max(0, Math.min(maxCanBuy, currentCartQuantity + delta));
+        const newQuantity = Math.max(0, Math.min(maxCanBuy, clampGameInt(currentCartQuantity + delta)));
         
         if (newQuantity === 0) {
             const newCart = { ...cart };
@@ -178,7 +181,7 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
         if (!item) return;
 
         const { maxCanBuy } = getItemPurchaseInfo(item);
-        const newQuantity = Math.max(0, Math.min(maxCanBuy, quantity));
+        const newQuantity = Math.max(0, Math.min(maxCanBuy, clampGameInt(quantity)));
         
         if (newQuantity === 0) {
             const newCart = { ...cart };
@@ -301,7 +304,11 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
                                             <div className="mt-0.5 flex items-center justify-center gap-1">
                                                 {item.price.gold && <img src="/images/icon/Gold.png" alt="골드" className="h-3 w-3" />}
                                                 {item.price.diamonds && <img src="/images/icon/Zem.png" alt="다이아" className="h-3 w-3" />}
-                                                <span className="text-[10px] font-semibold text-amber-100">{(item.price.gold || item.price.diamonds || 0).toLocaleString()}</span>
+                                                <span className="text-[10px] font-semibold text-amber-100">
+                                                    {item.price.gold
+                                                        ? formatGoldAmountKoG(item.price.gold)
+                                                        : formatWalletDiamonds(item.price.diamonds ?? 0)}
+                                                </span>
                                             </div>
                                         </button>
                                     );
@@ -326,9 +333,9 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
                                                 <input
                                                     type="number"
                                                     min={0}
-                                                    max={maxCanBuy}
+                                                    max={Math.min(maxCanBuy, MAX_GAME_INTEGER_INPUT)}
                                                     value={cartQuantity || 0}
-                                                    onChange={(e) => handleSetQuantity(selectedItem.itemId, parseInt(e.target.value) || 0)}
+                                                    onChange={(e) => handleSetQuantity(selectedItem.itemId, parseInt(e.target.value, 10) || 0)}
                                                     className="w-14 rounded border border-amber-700/35 bg-gray-800/50 text-center text-xs text-amber-100"
                                                 />
                                                 <button
@@ -422,7 +429,7 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
                                                         <label className="text-sm text-amber-200 font-semibold">수량 선택:</label>
                                                         <div className="flex items-center gap-2">
                                                             <button onClick={() => handleQuantityChange(selectedItem.itemId, -1)} disabled={!canBuyMore || (cartQuantity || 0) <= 0} className="w-8 h-8 rounded bg-amber-900/40 border border-amber-700/30 hover:bg-amber-800/60 text-amber-200 disabled:opacity-50 disabled:cursor-not-allowed">-</button>
-                                                            <input type="number" min={0} max={maxCanBuy} value={cartQuantity || 0} onChange={(e) => handleSetQuantity(selectedItem.itemId, parseInt(e.target.value) || 0)} className="w-16 text-center bg-gray-800/40 border border-amber-700/30 rounded text-amber-200" />
+                                                            <input type="number" min={0} max={Math.min(maxCanBuy, MAX_GAME_INTEGER_INPUT)} value={cartQuantity || 0} onChange={(e) => handleSetQuantity(selectedItem.itemId, parseInt(e.target.value, 10) || 0)} className="w-16 text-center bg-gray-800/40 border border-amber-700/30 rounded text-amber-200" />
                                                             <button onClick={() => handleQuantityChange(selectedItem.itemId, 1)} disabled={!canBuyMore || (cartQuantity || 0) >= maxCanBuy} className="w-8 h-8 rounded bg-amber-900/40 border border-amber-700/30 hover:bg-amber-800/60 text-amber-200 disabled:opacity-50 disabled:cursor-not-allowed">+</button>
                                                         </div>
                                                     </div>

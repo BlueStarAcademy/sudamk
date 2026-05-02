@@ -8,6 +8,7 @@ import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { MythicSubsPartitioned } from '../MythicSubsPartitioned.js';
 import { formatSpecialSubLineForPanel } from '../../shared/utils/specialStatMilestones.js';
+import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
 const formatEnhancePercent = (n: number): string => {
     const rounded = Math.round(n * 10) / 10;
@@ -351,7 +352,7 @@ const EnhancementView: React.FC<EnhancementViewProps> = ({
         if (selectedItem.stars >= 10) return '최대 강화';
         if (levelRequirement > 0 && !meetsLevelRequirement) return `레벨 부족 (합 ${levelRequirement} 필요)`;
         if (!costs) return '강화 정보 없음';
-        if (!hasEnoughGold) return `골드 부족 (필요: ${goldCost.toLocaleString()})`;
+        if (!hasEnoughGold) return `골드 부족 (필요: ${formatGoldAmountKoG(goldCost)})`;
         if (!canEnhance) return '재료 부족';
         return `강화하기 (+${selectedItem.stars + 1})`;
     }, [isEnhancing, selectedItem, levelRequirement, meetsLevelRequirement, costs, canEnhance, hasEnoughGold, goldCost]);
@@ -515,7 +516,10 @@ useEffect(() => {
                         <div className="min-w-0 flex-1 rounded-xl border border-white/10 bg-gradient-to-b from-slate-900/75 via-black/35 to-black/45 p-2">
                             <h4 className="mb-2 text-center text-xs font-bold text-amber-100">필요 재료</h4>
                             <div className="flex flex-wrap items-end justify-center gap-x-3 gap-y-2">
-                                <div className="relative flex min-w-[3.25rem] flex-col items-center px-0.5" title={`골드: ${(currentUser?.gold || 0).toLocaleString()} / ${goldCost.toLocaleString()}`}>
+                                <div
+                                    className="relative flex min-w-[3.25rem] flex-col items-center px-0.5"
+                                    title={`골드: ${formatGoldAmountKoG(currentUser?.gold || 0)} / ${formatGoldAmountKoG(goldCost)}`}
+                                >
                                     <div className="relative h-8 w-8" style={{ background: 'transparent', borderRadius: 0, overflow: 'hidden' }}>
                                         <img src="/images/icon/Gold.png" alt="골드" className="h-full w-full" style={{ background: 'transparent', borderRadius: 0, padding: 0, margin: 0, objectFit: 'contain', display: 'block', border: 'none', boxShadow: 'none' }} />
                                         {!hasEnoughGold && <div className="absolute inset-0 rounded-full bg-red-500/30" />}
@@ -525,11 +529,11 @@ useEffect(() => {
                                             <>
                                                 <span className="block text-[10px] font-medium text-slate-400">보유 / 필요</span>
                                                 <span className="whitespace-nowrap">
-                                                    {(currentUser?.gold ?? 0).toLocaleString()} / {goldCost.toLocaleString()}
+                                                    {formatGoldAmountKoG(currentUser?.gold ?? 0)} / {formatGoldAmountKoG(goldCost)}
                                                 </span>
                                             </>
                                         ) : (
-                                            <span className="whitespace-nowrap">{goldCost.toLocaleString()}</span>
+                                            <span className="whitespace-nowrap">{formatGoldAmountKoG(goldCost)}</span>
                                         )}
                                     </span>
                                 </div>

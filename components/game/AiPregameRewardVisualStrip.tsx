@@ -8,6 +8,7 @@ import {
   RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
   equipmentGradeRewardIconShellClassNames,
 } from './ResultModalRewardSlot.js';
+import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
 type DisplaySlot =
   | AiPregameRewardSlot
@@ -23,8 +24,8 @@ function formatQtyRange(min: number, max: number): string {
 }
 
 function formatGoldRange(min: number, max: number): string {
-  if (min === max) return min.toLocaleString();
-  return `${min.toLocaleString()}~${max.toLocaleString()}`;
+  if (min === max) return formatGoldAmountKoG(min);
+  return `${formatGoldAmountKoG(min)}~${formatGoldAmountKoG(max)}`;
 }
 
 const GoldRangeSlot: React.FC<{ min: number; max: number; highlight?: 'boss' }> = ({ min, max, highlight }) => (
@@ -54,7 +55,7 @@ const GoldPointSlot: React.FC<{ amount: number; tone: 'win' | 'loss' }> = ({ amo
       <div className={`${GOLD_BOX_COMPACT} ${ring}`} aria-hidden>
         <img src="/images/icon/Gold.png" alt="" className="h-7 w-7 object-contain p-0.5 sm:h-8 sm:w-8" />
       </div>
-      <span className="text-[0.7rem] font-bold tabular-nums text-amber-100 sm:text-xs">{amount.toLocaleString()}</span>
+      <span className="text-[0.7rem] font-bold tabular-nums text-amber-100 sm:text-xs">{formatGoldAmountKoG(amount)}</span>
     </div>
   );
 };
@@ -65,8 +66,8 @@ const GoldPointCombinedSlot: React.FC<{ amount: number; bonusAmount?: number }> 
       <img src="/images/icon/Gold.png" alt="" className="h-7 w-7 object-contain p-0.5 sm:h-8 sm:w-8" />
     </div>
     <span className="whitespace-nowrap text-[0.7rem] font-bold tabular-nums text-amber-100 sm:text-xs">
-      {amount.toLocaleString()}
-      {bonusAmount != null && bonusAmount > 0 ? `(+${bonusAmount.toLocaleString()})` : ''}
+      {formatGoldAmountKoG(amount)}
+      {bonusAmount != null && bonusAmount > 0 ? `(+${formatGoldAmountKoG(bonusAmount)})` : ''}
     </span>
   </div>
 );
@@ -326,14 +327,14 @@ export const AiPregameRewardVisualStrip: React.FC<{
             key: `gp-${idx}`,
             image: '/images/icon/Gold.png',
             isExp: false,
-            line: slot.amount.toLocaleString(),
+            line: formatGoldAmountKoG(slot.amount),
           };
         case 'gold_compact_total':
           return {
             key: `gpc-${idx}`,
             image: '/images/icon/Gold.png',
             isExp: false,
-            line: `${slot.amount.toLocaleString()}${slot.bonusAmount != null && slot.bonusAmount > 0 ? `(+${slot.bonusAmount.toLocaleString()})` : ''}`,
+            line: `${formatGoldAmountKoG(slot.amount)}${slot.bonusAmount != null && slot.bonusAmount > 0 ? `(+${formatGoldAmountKoG(slot.bonusAmount)})` : ''}`,
           };
         case 'equipment_grade_box':
           return {

@@ -22,6 +22,8 @@ import {
 } from '../../constants/gameSettings.js';
 import Avatar from '../Avatar.js';
 import { profileStepFromKataServerLevel } from '../../shared/utils/strategicAiDifficulty.js';
+import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js';
+import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 
 interface AiChallengeModalProps {
     lobbyType: 'strategic' | 'playful';
@@ -624,8 +626,15 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             <input 
                                 type="number" 
                                 step="1" 
+                                min={0}
+                                max={MAX_GAME_INTEGER_INPUT}
                                 value={Math.floor(settings.komi)} 
-                                onChange={e => handleSettingChange('komi', parseInt(e.target.value, 10) + 0.5)} 
+                                onChange={(e) =>
+                                    handleSettingChange(
+                                        'komi',
+                                        clampGameInt(parseInt(e.target.value, 10) || 0, { min: 0, max: MAX_GAME_INTEGER_INPUT }) + 0.5,
+                                    )
+                                }
                                 className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
                                 style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
                             />

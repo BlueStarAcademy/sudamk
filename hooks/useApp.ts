@@ -3857,6 +3857,16 @@ export const useApp = () => {
                     rollbackTowerAddTurnOptimistic();
                     return { error: errorMessage } as HandleActionResult;
                 }
+                const currencyCapNotices = (result as { currencyCapNotices?: unknown }).currencyCapNotices;
+                if (Array.isArray(currencyCapNotices) && currencyCapNotices.length > 0) {
+                    const seen = new Set<string>();
+                    for (const msg of currencyCapNotices) {
+                        if (typeof msg === 'string' && msg.length > 0 && !seen.has(msg)) {
+                            seen.add(msg);
+                            window.alert(msg);
+                        }
+                    }
+                }
                 if (action.type === 'TOWER_ADD_TURNS') {
                     const gidOk = (action.payload as { gameId?: string })?.gameId;
                     if (gidOk) {

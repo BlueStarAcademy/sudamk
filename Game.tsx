@@ -160,6 +160,15 @@ function pairSeatOwnerUser(session: LiveGameSession, seat: PairSeat) {
     return null;
 }
 
+/** 페어 좌석이 해당 유저(본인 펫 슬롯 `pet-ai-{id}` 포함)인지 */
+function pairSeatMatchesViewerUser(seat: PairSeat, userId: string): boolean {
+    if (seat.kind === 'user') return seat.participantId === userId;
+    if (seat.participantId.startsWith('pet-ai-')) {
+        return seat.participantId.slice('pet-ai-'.length) === userId;
+    }
+    return false;
+}
+
 function pairSeatDisplayInfo(session: LiveGameSession, seat: PairSeat): { name: string; avatarUrl: string | null; borderUrl: string | null } {
     const owner = pairSeatOwnerUser(session, seat);
     if (seat.kind === 'user') {
@@ -300,12 +309,35 @@ const PairTeamSummaryPanel: React.FC<{ session: LiveGameSession; player: Player.
     );
 };
 
+/** 페어 인게임 수순: `scoringTurnLimit`이 있으면 전략 로비와 동일하게 남은 턴/제한(0/N → 계가) — PASS 포함 moveHistory 길이 */
+function getPairMoveCountDisplay(session: LiveGameSession): { label: string; primary: number; secondary?: number } {
+    const moveHistory = session.moveHistory ?? [];
+    const moveCount = moveHistory.length;
+    const limit = session.settings?.scoringTurnLimit;
+    if (session.mode === GameMode.Capture) {
+        return { label: '수순', primary: moveCount };
+    }
+    if (limit != null && limit > 0) {
+        const scoringTurnProgress = Math.max(moveCount, session.totalTurns ?? 0);
+        const remaining = Math.max(0, limit - scoringTurnProgress);
+        return { label: '계가까지', primary: remaining, secondary: limit };
+    }
+    return { label: '수순', primary: moveCount };
+}
+
 const PairMoveCountBox: React.FC<{ session: LiveGameSession }> = ({ session }) => {
-    const moveCount = session.moveHistory?.length ?? 0;
+    const { label, primary, secondary } = getPairMoveCountDisplay(session);
     return (
         <div className="flex h-full min-w-[5.25rem] flex-col items-center justify-center rounded-2xl border border-amber-300/60 bg-black/75 px-3 py-2 text-center text-amber-50 shadow-xl ring-1 ring-amber-400/20">
-            <div className="text-[11px] font-black tracking-[0.22em] text-amber-200/85">수순</div>
-            <div className="font-mono text-3xl font-black leading-none tabular-nums">{moveCount}</div>
+            <div className="text-[11px] font-black tracking-[0.22em] text-amber-200/85">{label}</div>
+            {secondary != null ? (
+                <div className="flex items-baseline justify-center gap-0.5 tabular-nums">
+                    <span className="font-mono text-3xl font-black leading-none text-amber-300">{primary}</span>
+                    <span className="font-mono text-lg font-bold leading-none text-amber-200/70">/ {secondary}</span>
+                </div>
+            ) : (
+                <div className="font-mono text-3xl font-black leading-none tabular-nums">{primary}</div>
+            )}
         </div>
     );
 };
@@ -314,14 +346,34 @@ const PairMobileTeamPanel: React.FC<{
     session: LiveGameSession;
     clientTimes: PairClientTimes;
     player: Player.Black | Player.White;
-}> = ({ session, clientTimes, player }) => {
+    viewerUserId?: string;
+}> = ({ session, clientTimes, player, viewerUserId }) => {
     const black = player === Player.Black;
     const seats = sortPairSeatsBySeatId((session.settings.pairGame?.turnOrder ?? []).filter((seat) => seat.player === player));
     const colorTime = black ? clientTimes.black : clientTimes.white;
     const score = session.captures?.[player] ?? 0;
+    const currentSeat = getCurrentPairTurnSeat(session.settings);
+    const inPairTurnPhase = session.gameStatus === 'playing' || session.gameStatus === 'hidden_placing';
+    const isMyTurnHighlight =
+        Boolean(viewerUserId) &&
+        inPairTurnPhase &&
+        currentSeat != null &&
+        currentSeat.player === player &&
+        pairSeatMatchesViewerUser(currentSeat, viewerUserId);
 
     return (
-        <div className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-xl border px-1.5 py-1 shadow-lg ${black ? 'border-slate-500/65 bg-slate-950 text-slate-100' : 'border-amber-200/85 bg-amber-50 text-slate-950'}`}>
+        <div
+            className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-xl px-1.5 py-1 shadow-lg ${
+                isMyTurnHighlight
+                    ? black
+                        ? 'sudamr-pair-mobile-my-turn-black border-2 border-emerald-400/70 bg-gradient-to-br from-emerald-950/80 via-slate-950 to-black text-emerald-50'
+                        : 'sudamr-pair-mobile-my-turn-white border-2 border-amber-500/80 bg-gradient-to-br from-amber-100 via-white to-amber-50 text-slate-950'
+                    : black
+                      ? 'border border-slate-500/65 bg-slate-950 text-slate-100'
+                      : 'border border-amber-200/85 bg-amber-50 text-slate-950'
+            }`}
+            aria-current={isMyTurnHighlight ? 'true' : undefined}
+        >
             <div className="flex shrink-0 -space-x-2">
                 {seats.map((seat) => {
                     const display = pairSeatDisplayInfo(session, seat);
@@ -352,11 +404,18 @@ const PairMobileTeamPanel: React.FC<{
 };
 
 const PairMobileMoveCountBox: React.FC<{ session: LiveGameSession }> = ({ session }) => {
-    const moveCount = session.moveHistory?.length ?? 0;
+    const { label, primary, secondary } = getPairMoveCountDisplay(session);
     return (
-        <div className="flex min-w-[3.6rem] flex-col items-center justify-center rounded-xl border border-amber-300/55 bg-black/75 px-2 py-1 text-center text-amber-50 shadow-lg ring-1 ring-amber-400/15">
-            <div className="text-[9px] font-black tracking-[0.16em] text-amber-200/85">수순</div>
-            <div className="font-mono text-xl font-black leading-none tabular-nums">{moveCount}</div>
+        <div className="flex min-w-[3.25rem] flex-col items-center justify-center rounded-xl border border-amber-300/55 bg-black/75 px-1.5 py-1 text-center text-amber-50 shadow-lg ring-1 ring-amber-400/15">
+            <div className="text-[8px] font-black leading-tight tracking-[0.12em] text-amber-200/85">{label}</div>
+            {secondary != null ? (
+                <div className="mt-0.5 flex items-baseline justify-center gap-px tabular-nums">
+                    <span className="font-mono text-lg font-black leading-none text-amber-300">{primary}</span>
+                    <span className="font-mono text-[11px] font-bold leading-none text-amber-200/70">/{secondary}</span>
+                </div>
+            ) : (
+                <div className="font-mono text-xl font-black leading-none tabular-nums">{primary}</div>
+            )}
         </div>
     );
 };
@@ -385,17 +444,19 @@ const PairIngameTeamGroup: React.FC<{
     );
 };
 
-const PairIngameTopPanel: React.FC<{ session: LiveGameSession; clientTimes: PairClientTimes; mobile?: boolean }> = ({
-    session,
-    clientTimes,
-    mobile = false,
-}) => {
+const PairIngameTopPanel: React.FC<{
+    session: LiveGameSession;
+    clientTimes: PairClientTimes;
+    mobile?: boolean;
+    /** 모바일: 내 차례일 때 팀 패널 색·테두리 강조 */
+    pairMobileViewerUserId?: string;
+}> = ({ session, clientTimes, mobile = false, pairMobileViewerUserId }) => {
     if (mobile) {
         return (
             <div className="flex w-full shrink-0 items-stretch gap-1 px-1 pb-1">
-                <PairMobileTeamPanel session={session} player={Player.Black} clientTimes={clientTimes} />
+                <PairMobileTeamPanel session={session} player={Player.Black} clientTimes={clientTimes} viewerUserId={pairMobileViewerUserId} />
                 <PairMobileMoveCountBox session={session} />
-                <PairMobileTeamPanel session={session} player={Player.White} clientTimes={clientTimes} />
+                <PairMobileTeamPanel session={session} player={Player.White} clientTimes={clientTimes} viewerUserId={pairMobileViewerUserId} />
             </div>
         );
     }
@@ -1292,7 +1353,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             if (PLAYFUL_GAME_MODES.some(m => m.mode === mode)) return Player.Black;
             return Player.None;
         }
-        const pairSeat = session.settings.pairGame?.turnOrder?.find((seat) => seat.participantId === currentUser.id);
+        const pairSeat = session.settings.pairGame?.turnOrder?.find((seat) => pairSeatMatchesViewerUser(seat, currentUser.id));
         if (pairSeat) return pairSeat.player;
         if (blackPlayerId === currentUser.id) return Player.Black;
         if (whitePlayerId === currentUser.id) return Player.White;
@@ -1341,7 +1402,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 return false;
             }
             case 'playing': case 'hidden_placing': 
-                if (pairCurrentSeat) return pairCurrentSeat.participantId === currentUser.id;
+                if (pairCurrentSeat) return pairSeatMatchesViewerUser(pairCurrentSeat, currentUser.id);
                 return myPlayerEnum !== Player.None && myPlayerEnum === currentPlayer;
             case 'alkkagi_placement': case 'alkkagi_playing': case 'curling_playing': case 'curling_tiebreaker_playing':
             case 'dice_rolling':
@@ -4179,6 +4240,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                     session={session}
                                                     clientTimes={clientTimes.clientTimes}
                                                     mobile={isMobile}
+                                                    pairMobileViewerUserId={!isSpectator ? currentUser.id : undefined}
                                                 />
                                                 <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto">
                                                     <GameArena

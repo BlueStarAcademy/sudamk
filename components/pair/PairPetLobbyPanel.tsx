@@ -17,6 +17,7 @@ import { ItemGrade } from '../../types/enums.js';
 import { isSameDayKST } from '../../utils/timeUtils.js';
 import { effectivePairPetGradeFromRow, PAIR_PET_MAX_LEVEL } from '../../shared/constants/pairPetGrade.js';
 import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
+import { formatGoldAmountKoG, formatWalletDiamonds } from '../../shared/utils/walletAmountDisplay.js';
 import {
     PAIR_PET_SHOP_SKUS,
     type PairPetShopSku,
@@ -343,7 +344,9 @@ function PairPetShopSkuCard({
                         ) : (
                             <img src="/images/icon/Zem.png" alt="" className="h-4 w-4 shrink-0 drop-shadow-md" />
                         )}
-                        <span className="tabular-nums">{priceAmount.toLocaleString()}</span>
+                        <span className="tabular-nums">
+                            {isGold ? formatGoldAmountKoG(priceAmount) : formatWalletDiamonds(priceAmount)}
+                        </span>
                     </div>
                     <span className={`max-w-full px-0.5 text-center text-xs leading-tight ${isGold ? 'text-slate-800/95' : 'text-white/85'}`}>
                         일일 한도 {remaining}/{sku.dailyLimit}
@@ -1148,8 +1151,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             'flex min-w-0 max-w-full flex-nowrap items-end justify-center overflow-x-auto pb-px [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
                         const goldDisplay =
                             def.goldMin === def.goldMax
-                                ? def.goldMin.toLocaleString()
-                                : `${def.goldMin.toLocaleString()}~${def.goldMax.toLocaleString()}`;
+                                ? formatGoldAmountKoG(def.goldMin)
+                                : `${formatGoldAmountKoG(def.goldMin)}~${formatGoldAmountKoG(def.goldMax)}`;
                         const rewardPanel = (
                             <div
                                 className={`flex min-h-0 min-w-0 flex-1 flex-row flex-nowrap items-center justify-center gap-1 self-stretch overflow-x-auto border-l pl-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
@@ -2114,7 +2117,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                 <p className="mt-2 text-[0.7rem] text-slate-400">
                                                     보유{' '}
                                                     <span className="font-bold tabular-nums text-slate-200">
-                                                        {(currentUser.diamonds ?? 0).toLocaleString()}
+                                                        {formatWalletDiamonds(currentUser.diamonds ?? 0)}
                                                     </span>
                                                 </p>
                                             ) : null}

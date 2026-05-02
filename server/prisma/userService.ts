@@ -4,6 +4,13 @@ import type { User } from "../../types/index.js";
 import { deserializeUser, serializeUser, PrismaUserWithStatus } from "./userAdapter.js";
 import { ensurePrismaEngineReady } from "./gameService.js";
 import { mergeAdventureProfileForPersistence } from "../../utils/adventureProfileMerge.js";
+import {
+  MAX_PLAYER_GOLD,
+  MAX_PLAYER_DIAMONDS,
+  GOLD_CAP_EXCEEDED_KO_MESSAGE,
+  DIAMOND_CAP_EXCEEDED_KO_MESSAGE,
+} from "../../shared/constants/numericLimits.js";
+import { pushCurrencyCapNotice } from "../currencyCapNoticeBuffer.js";
 
 const toBigInt = (value: number | undefined): bigint => {
   if (typeof value === "bigint") return value;
@@ -11,7 +18,26 @@ const toBigInt = (value: number | undefined): bigint => {
   return BigInt(Math.trunc(value));
 };
 
+function applyCurrencyClampForPersist(user: User): void {
+  const uid = user.id;
+  const g = Math.floor(Number(user.gold ?? 0));
+  const d = Math.floor(Number(user.diamonds ?? 0));
+  if (g > MAX_PLAYER_GOLD) {
+    user.gold = MAX_PLAYER_GOLD;
+    if (uid) pushCurrencyCapNotice(uid, GOLD_CAP_EXCEEDED_KO_MESSAGE);
+  } else {
+    user.gold = Math.max(0, g);
+  }
+  if (d > MAX_PLAYER_DIAMONDS) {
+    user.diamonds = MAX_PLAYER_DIAMONDS;
+    if (uid) pushCurrencyCapNotice(uid, DIAMOND_CAP_EXCEEDED_KO_MESSAGE);
+  } else {
+    user.diamonds = Math.max(0, d);
+  }
+}
+
 const buildPersistentFields = (user: User) => {
+  applyCurrencyClampForPersist(user);
   const status = serializeUser(user);
   // Convert status to Prisma-compatible JSON type
   const statusJson = JSON.parse(JSON.stringify(status)) as InputJsonValue;

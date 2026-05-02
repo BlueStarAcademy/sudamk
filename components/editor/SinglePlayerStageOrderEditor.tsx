@@ -9,6 +9,7 @@ import {
     setSinglePlayerStagesFromServer,
 } from '../../constants/singlePlayerConstants.js';
 import { SinglePlayerLevel } from '../../types/enums.js';
+import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 
 const LEVEL_SHORT: Partial<Record<SinglePlayerLevel, string>> = {
     [SinglePlayerLevel.입문]: '입문',
@@ -275,7 +276,7 @@ const SinglePlayerStageOrderEditor: React.FC<SinglePlayerStageOrderEditorProps> 
                                                 onChange={(e) =>
                                                     patchSlotEconomy(selectedSlotIndex, (prev) => ({
                                                         ...prev,
-                                                        actionPointCost: Number(e.target.value) || 0,
+                                                        actionPointCost: clampGameInt(Number(e.target.value) || 0),
                                                     }))
                                                 }
                                             />
@@ -294,7 +295,7 @@ const SinglePlayerStageOrderEditor: React.FC<SinglePlayerStageOrderEditorProps> 
                                                                 ...prev,
                                                                 rewards: {
                                                                     ...r0,
-                                                                    firstClear: { ...r0.firstClear, gold: Number(e.target.value) || 0 },
+                                                                    firstClear: { ...r0.firstClear, gold: clampGameInt(Number(e.target.value) || 0) },
                                                                 },
                                                             };
                                                         })
@@ -314,7 +315,7 @@ const SinglePlayerStageOrderEditor: React.FC<SinglePlayerStageOrderEditorProps> 
                                                                 ...prev,
                                                                 rewards: {
                                                                     ...r0,
-                                                                    firstClear: { ...r0.firstClear, exp: Number(e.target.value) || 0 },
+                                                                    firstClear: { ...r0.firstClear, exp: clampGameInt(Number(e.target.value) || 0) },
                                                                 },
                                                             };
                                                         })
@@ -336,7 +337,7 @@ const SinglePlayerStageOrderEditor: React.FC<SinglePlayerStageOrderEditorProps> 
                                                                 ...prev,
                                                                 rewards: {
                                                                     ...r0,
-                                                                    repeatClear: { ...r0.repeatClear, gold: Number(e.target.value) || 0 },
+                                                                    repeatClear: { ...r0.repeatClear, gold: clampGameInt(Number(e.target.value) || 0) },
                                                                 },
                                                             };
                                                         })
@@ -356,7 +357,7 @@ const SinglePlayerStageOrderEditor: React.FC<SinglePlayerStageOrderEditorProps> 
                                                                 ...prev,
                                                                 rewards: {
                                                                     ...r0,
-                                                                    repeatClear: { ...r0.repeatClear, exp: Number(e.target.value) || 0 },
+                                                                    repeatClear: { ...r0.repeatClear, exp: clampGameInt(Number(e.target.value) || 0) },
                                                                 },
                                                             };
                                                         })

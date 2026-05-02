@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { LiveGameSession, ServerAction, UserWithStatus } from '../../types.js';
 import Avatar from '../Avatar.js';
+import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js';
+import { clampDigitsOnlyInputString } from '../../shared/utils/gameIntegerField.js';
 
 interface GameListProps {
     games: LiveGameSession[];
@@ -123,14 +125,17 @@ const GameList: React.FC<GameListProps> = ({
             <div className="flex items-center gap-1.5 sm:gap-2">
                 <input 
                     type="number"
-                    min="1"
+                    min={1}
+                    max={MAX_GAME_INTEGER_INPUT}
                     placeholder="방 번호"
                     value={spectateRoomNumber}
                     onChange={(e) => {
                         const val = e.target.value;
-                        if (val === '' || parseInt(val, 10) > 0) {
-                            setSpectateRoomNumber(val);
+                        if (val === '') {
+                            setSpectateRoomNumber('');
+                            return;
                         }
+                        setSpectateRoomNumber(clampDigitsOnlyInputString(val));
                     }}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleSpectateByNumber(); }}
                     className={`w-[5.5rem] bg-tertiary border border-color rounded-md text-center focus:ring-accent focus:border-accent sm:w-24 ${

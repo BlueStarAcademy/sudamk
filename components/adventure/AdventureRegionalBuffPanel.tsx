@@ -22,6 +22,7 @@ import type { AdventureRegionalSpecialtyBuffEntry, AdventureRegionalSpecialtyBuf
 import { normalizeAdventureProfile } from '../../utils/adventureUnderstanding.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import AdventureRegionalUnderstandingHelpModal from './AdventureRegionalUnderstandingHelpModal.js';
+import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
 const REGIONAL_SPECIALTY_SLOT_COUNT = 5 as const;
 
@@ -401,7 +402,7 @@ const AdventureRegionalBuffPanel: React.FC<{
                                     >
                                         <span>{isEmptyUnlockedSlot ? '효과 획득' : '변경'}</span>
                                         {!isEmptyUnlockedSlot ? (
-                                            <GoldCostInline text={ADVENTURE_REGIONAL_BUFF_ACTION_GOLD.toLocaleString()} />
+                                            <GoldCostInline text={formatGoldAmountKoG(ADVENTURE_REGIONAL_BUFF_ACTION_GOLD)} />
                                         ) : (
                                             <span className="tabular-nums text-emerald-200/90">무료</span>
                                         )}
@@ -430,7 +431,7 @@ const AdventureRegionalBuffPanel: React.FC<{
                                         aria-label={`강화, 비용 ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD} 골드 및 포인트 1`}
                                     >
                                         <span>강화</span>
-                                        <GoldCostInline text={ADVENTURE_REGIONAL_BUFF_ACTION_GOLD.toLocaleString()} />
+                                        <GoldCostInline text={formatGoldAmountKoG(ADVENTURE_REGIONAL_BUFF_ACTION_GOLD)} />
                                     </button>
                                 </div>
                             );

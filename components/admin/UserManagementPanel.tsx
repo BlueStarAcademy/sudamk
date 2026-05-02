@@ -9,6 +9,8 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import { getApiUrl } from '../../utils/apiConfig.js';
 import AdminPageHeader from './AdminPageHeader.js';
 import { adminCard, adminCardTitle, adminInput, adminPageNarrow, adminShell } from './adminChrome.js';
+import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js';
+import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 
 interface UserManagementModalProps {
     user: User;
@@ -179,7 +181,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
         const { name, value } = e.target;
         const numValue = value === '' ? 0 : Number(value);
         if (!isNaN(numValue)) {
-            setEditedUser(prev => ({ ...prev, [name]: numValue }));
+            setEditedUser((prev) => ({ ...prev, [name]: clampGameInt(numValue, { max: MAX_GAME_INTEGER_INPUT }) }));
         }
     };
 
@@ -198,7 +200,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
             const newCumulativeRankingScore = { ...(prev.cumulativeRankingScore || {}) };
             const numValue = value === '' ? 0 : Number(value);
             if (!isNaN(numValue)) {
-                newCumulativeRankingScore[key] = numValue;
+                newCumulativeRankingScore[key] = clampGameInt(numValue);
             }
             return { ...prev, cumulativeRankingScore: newCumulativeRankingScore };
         });
@@ -210,7 +212,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
             if (newQuests[questType] && newQuests[questType].quests) {
                 const quest = newQuests[questType].quests.find((q: Quest) => q.id === questId);
                 if (quest) {
-                    (quest as any)[field] = value;
+                    (quest as any)[field] = field === 'progress' && typeof value === 'number' ? clampGameInt(value) : value;
                 }
             }
             return { ...prev, quests: newQuests };
@@ -221,9 +223,14 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
         setEditedUser(prev => {
             const newQuests = JSON.parse(JSON.stringify(prev.quests || {}));
             if (newQuests[questType]) {
-                newQuests[questType].activityProgress = value;
+                newQuests[questType].activityProgress = clampGameInt(value);
             } else if (!newQuests[questType]) {
-                newQuests[questType] = { quests: [], activityProgress: value, claimedMilestones: [false,false,false,false,false], lastReset: 0 };
+                newQuests[questType] = {
+                    quests: [],
+                    activityProgress: clampGameInt(value),
+                    claimedMilestones: [false, false, false, false, false],
+                    lastReset: 0,
+                };
             }
             return { ...prev, quests: newQuests };
         });
@@ -281,7 +288,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
             <h3 className="font-bold text-lg text-highlight mb-2">{title}</h3>
             <div className="flex items-center gap-2 mb-2">
                 <label className="text-sm font-medium text-secondary whitespace-nowrap">활약도:</label>
-                <input type="number" value={questData?.activityProgress || 0} onChange={e => handleActivityProgressChange(questType, parseInt(e.target.value, 10) || 0)} className="bg-secondary p-1 rounded w-full" />
+                <input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} value={questData?.activityProgress || 0} onChange={e => handleActivityProgressChange(questType, clampGameInt(parseInt(e.target.value, 10) || 0))} className="bg-secondary p-1 rounded w-full" />
             </div>
             <div className="flex items-center gap-2 mb-3">
                 <label className="text-sm font-medium text-secondary whitespace-nowrap">마일스톤:</label>
@@ -301,7 +308,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
                         <div className="flex items-center justify-between gap-2 mt-1">
                             <div className="flex items-center gap-1">
                                 <span>진행도:</span>
-                                <input type="number" value={quest.progress} onChange={e => handleQuestPropertyChange(questType, quest.id, 'progress', parseInt(e.target.value, 10) || 0)} className="w-16 bg-secondary p-0.5 rounded text-center"/>
+                                <input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} value={quest.progress} onChange={e => handleQuestPropertyChange(questType, quest.id, 'progress', clampGameInt(parseInt(e.target.value, 10) || 0))} className="w-16 bg-secondary p-0.5 rounded text-center"/>
                                 <span>/ {quest.target}</span>
                             </div>
                             <label className="flex items-center gap-1">
@@ -332,17 +339,17 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
                     {activeTab === 'general' && (
                         <div className="space-y-3">
                             <div className="grid grid-cols-2 gap-2"><label>닉네임</label><input type="text" name="nickname" value={editedUser.nickname} onChange={handleTextInputChange} className="bg-tertiary p-1 rounded" maxLength={6} /></div>
-                            <div className="grid grid-cols-2 gap-2"><label>전략 레벨</label><input type="number" name="strategyLevel" value={editedUser.strategyLevel} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
-                            <div className="grid grid-cols-2 gap-2"><label>전략 XP</label><input type="number" name="strategyXp" value={editedUser.strategyXp} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
-                            <div className="grid grid-cols-2 gap-2"><label>놀이 레벨</label><input type="number" name="playfulLevel" value={editedUser.playfulLevel} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
-                            <div className="grid grid-cols-2 gap-2"><label>놀이 XP</label><input type="number" name="playfulXp" value={editedUser.playfulXp} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
-                            <div className="grid grid-cols-2 gap-2"><label>골드</label><input type="number" name="gold" value={editedUser.gold} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
-                            <div className="grid grid-cols-2 gap-2"><label>다이아</label><input type="number" name="diamonds" value={editedUser.diamonds} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
-                            <div className="grid grid-cols-2 gap-2"><label>행동력 현재</label><input type="number" value={editedUser.actionPoints?.current ?? 0} onChange={(e) => setEditedUser((p) => ({ ...p, actionPoints: { ...(p.actionPoints || { current: 0, max: 100 }), current: Number(e.target.value) || 0, max: p.actionPoints?.max ?? 100 } }))} className="bg-tertiary p-1 rounded" /></div>
-                            <div className="grid grid-cols-2 gap-2"><label>행동력 최대</label><input type="number" value={editedUser.actionPoints?.max ?? 0} onChange={(e) => setEditedUser((p) => ({ ...p, actionPoints: { ...(p.actionPoints || { current: 0, max: 100 }), max: Number(e.target.value) || 1, current: p.actionPoints?.current ?? 0 } }))} className="bg-tertiary p-1 rounded" /></div>
-                            <div className="grid grid-cols-2 gap-2"><label>매너 점수</label><input type="number" name="mannerScore" value={editedUser.mannerScore} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
-                            <div className="grid grid-cols-2 gap-2"><label>챔피언십 누적 점수</label><input type="number" name="cumulativeTournamentScore" value={editedUser.cumulativeTournamentScore ?? 0} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
-                            <div className="grid grid-cols-2 gap-2"><label>챔피언십 주간 점수</label><input type="number" name="tournamentScore" value={editedUser.tournamentScore ?? 0} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
+                            <div className="grid grid-cols-2 gap-2"><label>전략 레벨</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} name="strategyLevel" value={editedUser.strategyLevel} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
+                            <div className="grid grid-cols-2 gap-2"><label>전략 XP</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} name="strategyXp" value={editedUser.strategyXp} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
+                            <div className="grid grid-cols-2 gap-2"><label>놀이 레벨</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} name="playfulLevel" value={editedUser.playfulLevel} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
+                            <div className="grid grid-cols-2 gap-2"><label>놀이 XP</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} name="playfulXp" value={editedUser.playfulXp} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
+                            <div className="grid grid-cols-2 gap-2"><label>골드</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} name="gold" value={editedUser.gold} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
+                            <div className="grid grid-cols-2 gap-2"><label>다이아</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} name="diamonds" value={editedUser.diamonds} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
+                            <div className="grid grid-cols-2 gap-2"><label>행동력 현재</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} value={editedUser.actionPoints?.current ?? 0} onChange={(e) => setEditedUser((p) => ({ ...p, actionPoints: { ...(p.actionPoints || { current: 0, max: 100 }), current: clampGameInt(Number(e.target.value) || 0), max: p.actionPoints?.max ?? 100 } }))} className="bg-tertiary p-1 rounded" /></div>
+                            <div className="grid grid-cols-2 gap-2"><label>행동력 최대</label><input type="number" min={1} max={MAX_GAME_INTEGER_INPUT} value={editedUser.actionPoints?.max ?? 0} onChange={(e) => setEditedUser((p) => ({ ...p, actionPoints: { ...(p.actionPoints || { current: 0, max: 100 }), max: clampGameInt(Number(e.target.value) || 1, { min: 1 }), current: p.actionPoints?.current ?? 0 } }))} className="bg-tertiary p-1 rounded" /></div>
+                            <div className="grid grid-cols-2 gap-2"><label>매너 점수</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} name="mannerScore" value={editedUser.mannerScore} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
+                            <div className="grid grid-cols-2 gap-2"><label>챔피언십 누적 점수</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} name="cumulativeTournamentScore" value={editedUser.cumulativeTournamentScore ?? 0} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
+                            <div className="grid grid-cols-2 gap-2"><label>챔피언십 주간 점수</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} name="tournamentScore" value={editedUser.tournamentScore ?? 0} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
                              <div className="grid grid-cols-2 gap-2 items-center">
                                 <label>관리자 권한</label>
                                 <input
@@ -363,6 +370,8 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
                                 <label className="text-secondary">전략바둑 통합 랭킹 점수</label>
                                 <input 
                                     type="number" 
+                                    min={0}
+                                    max={MAX_GAME_INTEGER_INPUT}
                                     value={editedUser.cumulativeRankingScore?.['standard'] ?? 0} 
                                     onChange={e => handleCumulativeRankingScoreChange('standard', e.target.value)} 
                                     className="bg-tertiary p-1 rounded" 
@@ -379,6 +388,8 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
                                 <label className="text-secondary">놀이바둑 통합 랭킹 점수</label>
                                 <input 
                                     type="number" 
+                                    min={0}
+                                    max={MAX_GAME_INTEGER_INPUT}
                                     value={editedUser.cumulativeRankingScore?.['playful'] ?? 0} 
                                     onChange={e => handleCumulativeRankingScoreChange('playful', e.target.value)} 
                                     className="bg-tertiary p-1 rounded" 
@@ -408,13 +419,13 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
                                 <textarea className="bg-tertiary p-1 rounded min-h-[60px]" value={rewardMessage} onChange={(e) => setRewardMessage(e.target.value)} />
                             </div>
                             <div className="grid grid-cols-3 gap-2">
-                                <div><label className="text-xs">골드</label><input type="number" className="w-full bg-tertiary p-1 rounded" value={rewardGold} onChange={(e) => setRewardGold(Number(e.target.value) || 0)} /></div>
-                                <div><label className="text-xs">다이아</label><input type="number" className="w-full bg-tertiary p-1 rounded" value={rewardDiamonds} onChange={(e) => setRewardDiamonds(Number(e.target.value) || 0)} /></div>
-                                <div><label className="text-xs">행동력(우편)</label><input type="number" className="w-full bg-tertiary p-1 rounded" value={rewardAp} onChange={(e) => setRewardAp(Number(e.target.value) || 0)} /></div>
+                                <div><label className="text-xs">골드</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} className="w-full bg-tertiary p-1 rounded" value={rewardGold} onChange={(e) => setRewardGold(clampGameInt(Number(e.target.value) || 0))} /></div>
+                                <div><label className="text-xs">다이아</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} className="w-full bg-tertiary p-1 rounded" value={rewardDiamonds} onChange={(e) => setRewardDiamonds(clampGameInt(Number(e.target.value) || 0, { max: MAX_GAME_INTEGER_INPUT }))} /></div>
+                                <div><label className="text-xs">행동력(우편)</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} className="w-full bg-tertiary p-1 rounded" value={rewardAp} onChange={(e) => setRewardAp(clampGameInt(Number(e.target.value) || 0))} /></div>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                                 <label>만료(일)</label>
-                                <input type="number" className="bg-tertiary p-1 rounded" value={rewardExpiresDays} onChange={(e) => setRewardExpiresDays(Math.max(0, Number(e.target.value) || 0))} />
+                                <input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} className="bg-tertiary p-1 rounded" value={rewardExpiresDays} onChange={(e) => setRewardExpiresDays(clampGameInt(Number(e.target.value) || 0))} />
                             </div>
                             <div className="border border-color rounded p-2 space-y-2">
                                 <div className="text-xs font-semibold text-secondary">첨부 아이템</div>
@@ -472,7 +483,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
                                     </div>
                                     <div>
                                         <label className="text-xs block text-gray-400">개수</label>
-                                        <input type="number" className="w-16 bg-tertiary p-1 rounded" value={newEqQty} onChange={(e) => setNewEqQty(Number(e.target.value) || 1)} />
+                                        <input type="number" min={1} max={MAX_GAME_INTEGER_INPUT} className="w-16 bg-tertiary p-1 rounded" value={newEqQty} onChange={(e) => setNewEqQty(clampGameInt(Number(e.target.value) || 1, { min: 1 }))} />
                                     </div>
                                     <div>
                                         <label className="text-xs block text-gray-400">소모/재료</label>
@@ -492,7 +503,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
                                     </div>
                                     <div>
                                         <label className="text-xs block text-gray-400">수량</label>
-                                        <input type="number" className="w-20 bg-tertiary p-1 rounded" value={newStackQty} onChange={(e) => setNewStackQty(Number(e.target.value) || 1)} />
+                                        <input type="number" min={1} max={MAX_GAME_INTEGER_INPUT} className="w-20 bg-tertiary p-1 rounded" value={newStackQty} onChange={(e) => setNewStackQty(clampGameInt(Number(e.target.value) || 1, { min: 1 }))} />
                                     </div>
                                     <Button type="button" colorScheme="purple" className="!text-xs" disabled={appendBusy} onClick={() => void handleAppendItems()}>
                                         {appendBusy ? '추가 중…' : '인벤에 추가'}
@@ -555,14 +566,14 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
                                             >삭제</button>
                                         </div>
                                         <div className="flex flex-wrap gap-2 mt-1 text-xs">
-                                            <label className="flex items-center gap-1">강화<input type="number" className="w-12 bg-tertiary rounded p-0.5" value={it.level} onChange={(e) => setInvDraft((p) => p.map((x) => (x.id === it.id ? { ...x, level: Number(e.target.value) || 0 } : x)))} /></label>
-                                            <label className="flex items-center gap-1">별<input type="number" className="w-10 bg-tertiary rounded p-0.5" value={it.stars} onChange={(e) => setInvDraft((p) => p.map((x) => (x.id === it.id ? { ...x, stars: Number(e.target.value) || 0 } : x)))} /></label>
+                                            <label className="flex items-center gap-1">강화<input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} className="w-12 bg-tertiary rounded p-0.5" value={it.level} onChange={(e) => setInvDraft((p) => p.map((x) => (x.id === it.id ? { ...x, level: clampGameInt(Number(e.target.value) || 0) } : x)))} /></label>
+                                            <label className="flex items-center gap-1">별<input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} className="w-10 bg-tertiary rounded p-0.5" value={it.stars} onChange={(e) => setInvDraft((p) => p.map((x) => (x.id === it.id ? { ...x, stars: clampGameInt(Number(e.target.value) || 0) } : x)))} /></label>
                                             {it.type !== 'equipment' && (
-                                                <label className="flex items-center gap-1">수량<input type="number" className="w-14 bg-tertiary rounded p-0.5" value={it.quantity ?? 1} onChange={(e) => setInvDraft((p) => p.map((x) => (x.id === it.id ? { ...x, quantity: Math.max(1, Number(e.target.value) || 1) } : x)))} /></label>
+                                                <label className="flex items-center gap-1">수량<input type="number" min={1} max={MAX_GAME_INTEGER_INPUT} className="w-14 bg-tertiary rounded p-0.5" value={it.quantity ?? 1} onChange={(e) => setInvDraft((p) => p.map((x) => (x.id === it.id ? { ...x, quantity: clampGameInt(Number(e.target.value) || 1, { min: 1 }) } : x)))} /></label>
                                             )}
                                             {it.type === 'equipment' && (
                                                 <>
-                                                    <label className="flex items-center gap-1">강화실패<input type="number" className="w-12 bg-tertiary rounded p-0.5" value={it.enhancementFails ?? 0} onChange={(e) => setInvDraft((p) => p.map((x) => (x.id === it.id ? { ...x, enhancementFails: Number(e.target.value) || 0 } : x)))} /></label>
+                                                    <label className="flex items-center gap-1">강화실패<input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} className="w-12 bg-tertiary rounded p-0.5" value={it.enhancementFails ?? 0} onChange={(e) => setInvDraft((p) => p.map((x) => (x.id === it.id ? { ...x, enhancementFails: clampGameInt(Number(e.target.value) || 0) } : x)))} /></label>
                                                 </>
                                             )}
                                         </div>

@@ -25,4 +25,5 @@ export * from './petLobby.js';
 export * from './pairTraining.js';
 export * from './pairHatchery.js';
 export * from './pairArena.js';
+export * from './numericLimits.js';
 export { RANKED_STRATEGIC_MODES, RANKED_PLAYFUL_MODES, RANKED_AVAILABLE_MODES } from './rankedGameSettings.js';

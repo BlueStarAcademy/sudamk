@@ -1,6 +1,7 @@
 import React from 'react';
 import { ItemGrade } from '../../types/enums.js';
 import { gradeBackgrounds, gradeStyles } from '../../constants.js';
+import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
 function equipmentGradeBorderClass(grade: ItemGrade): string {
     switch (grade) {
@@ -86,8 +87,8 @@ export const ResultModalGoldCurrencySlot: React.FC<{
         className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''} ${dimmed ? 'opacity-80' : ''}`}
         title={
             understandingBonus != null && understandingBonus > 0
-                ? `골드 ${amount.toLocaleString()} (모험 이해도·효과 +${understandingBonus.toLocaleString()})`
-                : `골드 ${amount.toLocaleString()}`
+                ? `골드 ${formatGoldAmountKoG(amount)} (모험 이해도·효과 +${formatGoldAmountKoG(understandingBonus)})`
+                : `골드 ${formatGoldAmountKoG(amount)}`
         }
     >
         <div
@@ -110,7 +111,7 @@ export const ResultModalGoldCurrencySlot: React.FC<{
                     : 'flex max-w-[7rem] flex-wrap items-baseline justify-center gap-x-1 text-center text-sm font-bold tabular-nums text-amber-100 min-[1024px]:max-w-[8rem] min-[1024px]:text-base'
             }
         >
-            <span className="whitespace-nowrap">{amount.toLocaleString()}</span>
+            <span className="whitespace-nowrap">{formatGoldAmountKoG(amount)}</span>
             {understandingBonus != null && understandingBonus > 0 && (
                 <span
                     className={
@@ -119,7 +120,7 @@ export const ResultModalGoldCurrencySlot: React.FC<{
                             : 'whitespace-nowrap text-xs font-semibold text-emerald-300/95 min-[1024px]:text-sm'
                     }
                 >
-                    (+{understandingBonus.toLocaleString()})
+                    (+{formatGoldAmountKoG(understandingBonus)})
                 </span>
             )}
         </span>

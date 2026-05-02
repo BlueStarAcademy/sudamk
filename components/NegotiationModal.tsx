@@ -23,6 +23,8 @@ import {
 } from './game/PreGameDescriptionLayout.js';
 import { projectActionPointsCurrent } from '../services/effectService.js';
 import { getStrategicBoardSizesByMode } from '../constants/gameSettings.js';
+import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
+import { clampGameInt } from '../shared/utils/gameIntegerField.js';
 
 interface NegotiationModalProps {
   negotiation: Negotiation;
@@ -542,8 +544,15 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                             <input 
                                 type="number" 
                                 step="1" 
+                                min={0}
+                                max={MAX_GAME_INTEGER_INPUT}
                                 value={Math.floor(settings.komi)} 
-                                onChange={e => handleSettingChange('komi', parseInt(e.target.value, 10) + 0.5)} 
+                                onChange={(e) =>
+                                    handleSettingChange(
+                                        'komi',
+                                        clampGameInt(parseInt(e.target.value, 10) || 0, { min: 0, max: MAX_GAME_INTEGER_INPUT }) + 0.5,
+                                    )
+                                }
                                 disabled={isReadOnly} 
                                 className="w-full rounded-lg border border-gray-600 bg-gray-700 p-2.5 text-base text-white focus:border-blue-500 focus:ring-blue-500" 
                             />

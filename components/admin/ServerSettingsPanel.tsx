@@ -8,6 +8,7 @@ import AdminPageHeader from './AdminPageHeader.js';
 import KataServerRuntimeAdminPanel from './KataServerRuntimeAdminPanel.js';
 import type { KataServerRuntimeSnapshot } from '../../shared/types/kataServerRuntime.js';
 import { adminCard, adminCardTitle, adminCheckRow, adminInput, adminPageNarrow, adminSectionGap } from './adminChrome.js';
+import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 
 interface KataGoStatus {
     status: 'running' | 'starting' | 'stopped';
@@ -235,7 +236,7 @@ const ServerSettingsPanel: React.FC<ServerSettingsPanelProps> = (props) => {
                     min={1}
                     max={60}
                     value={localInterval}
-                    onChange={(e) => setLocalInterval(parseInt(e.target.value, 10))}
+                    onChange={(e) => setLocalInterval(clampGameInt(parseInt(e.target.value, 10) || 1, { min: 1, max: 60 }))}
                     className={`${adminInput} w-24`}
                 />
                 <Button onClick={() => onAction({ type: 'ADMIN_SET_ANNOUNCEMENT_INTERVAL', payload: { interval: localInterval } })} className="!text-xs">

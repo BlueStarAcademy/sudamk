@@ -1,6 +1,7 @@
 import React from 'react';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import Button from './Button.js';
+import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
 
 interface ClaimAllSummaryModalProps {
     summary: { gold: number, diamonds: number, actionPoints: number };
@@ -18,13 +19,13 @@ const ClaimAllSummaryModal: React.FC<ClaimAllSummaryModalProps> = ({ summary, on
                     {summary.gold > 0 && (
                         <div className="flex justify-between items-center gap-3">
                             <img src="/images/icon/Gold.png" alt="" className="h-5 w-5 shrink-0 object-contain" title="골드" />
-                            <span className="font-bold text-yellow-300 tabular-nums">+{summary.gold.toLocaleString()}</span>
+                            <span className="font-bold text-yellow-300 tabular-nums">+{formatGoldAmountKoG(summary.gold)}</span>
                         </div>
                     )}
                     {summary.diamonds > 0 && (
                         <div className="flex justify-between items-center gap-3">
                             <img src="/images/icon/Zem.png" alt="" className="h-5 w-5 shrink-0 object-contain" title="다이아" />
-                            <span className="font-bold text-cyan-300 tabular-nums">+{summary.diamonds.toLocaleString()}</span>
+                            <span className="font-bold text-cyan-300 tabular-nums">+{formatWalletDiamonds(summary.diamonds)}</span>
                         </div>
                     )}
                     {summary.actionPoints > 0 && (

@@ -23,6 +23,7 @@ import {
     TOWER_ITEM_SCAN_NAMES,
     TOWER_ITEM_REFRESH_NAMES,
 } from '../utils/towerLobbyInventory.js';
+import { formatGoldAmountKoG } from '../shared/utils/walletAmountDisplay.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 // 월간 보상 구간 (매월 1일 0시 KST 지급, 역대 최고 층수 아님 월간 최고 층수 기준)
@@ -777,7 +778,7 @@ const TowerLobby: React.FC = () => {
                                                             <div className="grid grid-cols-1 gap-1.5">
                                                                 <div className="inline-flex min-w-0 items-center justify-center gap-1 rounded-lg border border-amber-500/25 bg-black/35 px-1.5 py-1.5 text-xs text-yellow-100">
                                                                     <img src="/images/icon/Gold.png" alt="" className="h-3.5 w-3.5 shrink-0" />
-                                                                    <span className="truncate tabular-nums font-semibold">{myRewardTier.gold.toLocaleString()}</span>
+                                                                    <span className="truncate tabular-nums font-semibold">{formatGoldAmountKoG(myRewardTier.gold)}</span>
                                                                 </div>
                                                                 <div className="inline-flex min-w-0 items-center justify-center gap-1 rounded-lg border border-cyan-500/30 bg-black/35 px-1.5 py-1.5 text-xs text-cyan-100">
                                                                     <img src="/images/icon/Zem.png" alt="" className="h-3.5 w-3.5 shrink-0" />
@@ -943,7 +944,7 @@ const TowerLobby: React.FC = () => {
                                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                                                 <span className="inline-flex items-center gap-1 text-yellow-200">
                                                     <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 shrink-0" />
-                                                    {myRewardTier.gold.toLocaleString()}
+                                                    {formatGoldAmountKoG(myRewardTier.gold)}
                                                 </span>
                                                 <span className="inline-flex items-center gap-1 text-cyan-200">
                                                     <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4 shrink-0" />
@@ -1241,7 +1242,7 @@ const TowerLobby: React.FC = () => {
                                         >
                                             <span className="inline-flex items-center gap-1">
                                                 <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 sm:h-6 sm:w-6" />
-                                                {tier.gold.toLocaleString()}
+                                                {formatGoldAmountKoG(tier.gold)}
                                             </span>
                                             <span className="inline-flex items-center gap-1">
                                                 <img src="/images/icon/Zem.png" alt="다이아몬드" className="h-4 w-4 sm:h-6 sm:w-6" />

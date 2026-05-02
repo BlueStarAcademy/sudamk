@@ -22,6 +22,7 @@ import {
   PRE_GAME_MODAL_ACCENT_BTN_CLASS,
 } from './game/PreGameDescriptionLayout.js';
 import { ResultModalXpRewardBadge } from './game/ResultModalXpRewardBadge.js';
+import { formatGoldAmountKoG } from '../shared/utils/walletAmountDisplay.js';
 import {
     RESULT_MODAL_BOX_GOLD_CLASS,
     RESULT_MODAL_BOX_ITEM_CLASS,
@@ -301,7 +302,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                                             />
                                         </div>
                                         <span className="max-w-[6.5rem] text-center text-[0.7rem] font-bold tabular-nums leading-tight text-amber-100 sm:text-xs">
-                                            {(clearReward.gold ?? 0).toLocaleString()}
+                                            {formatGoldAmountKoG(clearReward.gold ?? 0)}
                                         </span>
                                     </div>
                                 )}

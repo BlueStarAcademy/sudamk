@@ -1751,6 +1751,13 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             if (modeIncludesCaptureRule(game)) {
                 return { error: '따내기 규칙이 포함된 대국에서는 통과할 수 없습니다.' };
             }
+            if (
+                pairClassicGame &&
+                game.settings?.pairGame?.pairMode === 'ai' &&
+                !modeIncludesCaptureRule(game)
+            ) {
+                return { error: '페어 AI 대국에서는 통과할 수 없습니다. 정해진 수순이 끝나면 자동으로 계가됩니다.' };
+            }
             // 수순 고정 모드에서는 제한 수순 종료 후 PASS도 엄격 차단한다.
             {
                 const { fixedScoringTurnLimit, currentTurnCount } = await resolveFixedScoringTurnState();

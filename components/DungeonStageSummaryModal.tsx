@@ -8,6 +8,7 @@ import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, gradeBackgrounds, EQUIPMENT_POOL, EQU
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { resolvePublicUrl } from '../utils/publicAssetUrl.js';
+import { formatGoldAmountKoG } from '../shared/utils/walletAmountDisplay.js';
 
 export interface DungeonStageSummaryModalProps {
     dungeonType: TournamentType;
@@ -73,7 +74,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
         if (tournamentState.matchGoldRewards && tournamentState.matchGoldRewards.length > 0) {
             tournamentState.matchGoldRewards.forEach((goldAmount: number, idx: number) => {
                 rewardItemsMap.set(`neighborhood_round_${idx}`, {
-                    name: `골드 ${goldAmount.toLocaleString()}`,
+                    name: `골드 ${formatGoldAmountKoG(goldAmount)}`,
                     image: '/images/icon/Gold.png',
                     quantity: goldAmount,
                 });
@@ -263,7 +264,8 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
     const rewardChipFooterNumber = (item: RewardChip): string | null => {
         if (item.displayAmount != null && item.displayAmount !== '') return item.displayAmount;
         if (dungeonType === 'world' && item.grade != null && item.quantity <= 1) return null;
-        return item.quantity.toLocaleString();
+        if (item.image === '/images/icon/Gold.png') return formatGoldAmountKoG(item.quantity);
+        return item.quantity.toLocaleString('ko-KR');
     };
 
     const panelCardClass =

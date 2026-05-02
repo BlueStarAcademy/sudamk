@@ -23,6 +23,8 @@ import {
     normalizePairPetHatcherySessions,
     normalizePairPetHatcherySlotUnlocked,
 } from "../../shared/constants/pairHatchery.js";
+import { clampGameInt } from "../../shared/utils/gameIntegerField.js";
+import { MAX_PLAYER_DIAMONDS, MAX_PLAYER_GOLD } from "../../shared/constants/numericLimits.js";
 
 export { normalizeLegacyDivineMythicInventoryItem } from "../../shared/utils/inventoryLegacyNormalize.js";
 
@@ -384,8 +386,8 @@ const applyDefaults = (
     actionPointPurchasesToday: user.actionPointPurchasesToday ?? 0,
     lastActionPointPurchaseDate: user.lastActionPointPurchaseDate ?? 0,
     dailyShopPurchases: user.dailyShopPurchases ?? {},
-    gold: safeNumber(user.gold ?? prismaUser.gold ?? 0),
-    diamonds: safeNumber(user.diamonds ?? prismaUser.diamonds ?? 0),
+    gold: clampGameInt(safeNumber(user.gold ?? prismaUser.gold ?? 0), { max: MAX_PLAYER_GOLD }),
+    diamonds: clampGameInt(safeNumber(user.diamonds ?? prismaUser.diamonds ?? 0), { max: MAX_PLAYER_DIAMONDS }),
     mannerScore: user.mannerScore ?? 0,
     mail: resolveMailForUser(user, status),
     quests: user.quests ?? createDefaultQuests(),
@@ -693,8 +695,8 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
       (prismaUser.league as LeagueTier) ??
       (cloned.league as LeagueTier) ??
       LeagueTier.Sprout;
-    cloned.gold = safeNumber(prismaUser.gold ?? cloned.gold ?? 0);
-    cloned.diamonds = safeNumber(prismaUser.diamonds ?? cloned.diamonds ?? 0);
+    cloned.gold = clampGameInt(safeNumber(prismaUser.gold ?? cloned.gold ?? 0), { max: MAX_PLAYER_GOLD });
+    cloned.diamonds = clampGameInt(safeNumber(prismaUser.diamonds ?? cloned.diamonds ?? 0), { max: MAX_PLAYER_DIAMONDS });
     // weeklyCompetitorsBotScores는 leagueMetadata에서 우선적으로 가져오되, 없으면 serializedUser에서 가져옴
     cloned.weeklyCompetitorsBotScores = 
       (status.leagueMetadata?.weeklyCompetitorsBotScores ?? cloned.weeklyCompetitorsBotScores ?? {}) as User["weeklyCompetitorsBotScores"];

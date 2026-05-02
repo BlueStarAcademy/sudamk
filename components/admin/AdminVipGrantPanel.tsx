@@ -3,6 +3,8 @@ import type { ServerAction, User, UserWithStatus } from '../../types/index.js';
 import AdminPageHeader from './AdminPageHeader.js';
 import { adminCard, adminCardTitle, adminCheckRow, adminInput, adminPageNarrow, adminShell } from './adminChrome.js';
 import Button from '../Button.js';
+import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js';
+import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 
 interface AdminVipGrantPanelProps {
     currentUser: UserWithStatus;
@@ -219,10 +221,10 @@ const AdminVipGrantPanel: React.FC<AdminVipGrantPanelProps> = ({ currentUser, al
                     <input
                         type="number"
                         min={1}
-                        max={3650}
+                        max={MAX_GAME_INTEGER_INPUT}
                         className={adminInput}
                         value={durationDays}
-                        onChange={(e) => setDurationDays(Number(e.target.value))}
+                        onChange={(e) => setDurationDays(clampGameInt(Number(e.target.value) || 1, { min: 1 }))}
                         disabled={busy}
                     />
                     <p className="mt-2 text-xs text-gray-500">

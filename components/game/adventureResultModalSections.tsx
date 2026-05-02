@@ -27,6 +27,7 @@ import {
 } from './ResultModalRewardSlot.js';
 import { ResultModalVipRewardSlot } from './ResultModalVipRewardSlot.js';
 import AdventureKeyFragmentIcon from '../adventure/AdventureKeyFragmentIcon.js';
+import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
 const ADVENTURE_DEFAULT_EQUIP_BOX_IMG =
     CONSUMABLE_ITEMS.find((c) => c.name === '장비 상자 I')?.image ?? '/images/Box/EquipmentBox1.png';
@@ -297,7 +298,7 @@ function GoldRollingPlaceholder({
                             : 'text-sm font-bold tabular-nums text-amber-100 min-[1024px]:text-base'
                     }
                 >
-                    {v.toLocaleString()}
+                    {formatGoldAmountKoG(v)}
                 </span>,
             );
         }
@@ -316,7 +317,7 @@ function GoldRollingPlaceholder({
                     : 'text-sm font-bold tabular-nums text-amber-100 min-[1024px]:text-base'
             }
         >
-            {obtained ? targetAmount.toLocaleString() : '—'}
+            {obtained ? formatGoldAmountKoG(targetAmount) : '—'}
         </span>
     );
 

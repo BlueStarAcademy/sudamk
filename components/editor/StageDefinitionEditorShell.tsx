@@ -5,6 +5,8 @@ import {
     resolveSinglePlayerMixedModes,
 } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 import Button from '../Button.js';
+import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js';
+import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 
 const RULE_PRESET_OPTIONS: { value: Exclude<SinglePlayerStrategicRulePreset, 'auto'>; label: string }[] = [
     { value: 'classic', label: '클래식' },
@@ -803,7 +805,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                             onChange={(e) =>
                                                                 updateForcedAiResponse(idx, (prev) => ({
                                                                     ...prev,
-                                                                    move: { ...prev.move, x: Number(e.target.value) || 0 },
+                                                                    move: { ...prev.move, x: clampGameInt(Number(e.target.value) || 0) },
                                                                 }))
                                                             }
                                                         />
@@ -816,7 +818,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                             onChange={(e) =>
                                                                 updateForcedAiResponse(idx, (prev) => ({
                                                                     ...prev,
-                                                                    move: { ...prev.move, y: Number(e.target.value) || 0 },
+                                                                    move: { ...prev.move, y: clampGameInt(Number(e.target.value) || 0) },
                                                                 }))
                                                             }
                                                         />
@@ -844,8 +846,8 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                             <div className="grid grid-cols-2 gap-2">
                                 <label className="text-xs">액션포인트
                                     <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
-                                        type="number" value={draft.actionPointCost}
-                                        onChange={(e) => setDraft((p) => ({ ...p, actionPointCost: Number(e.target.value) || 0 }))} />
+                                        type="number" min={0} max={MAX_GAME_INTEGER_INPUT} value={draft.actionPointCost}
+                                        onChange={(e) => setDraft((p) => ({ ...p, actionPointCost: clampGameInt(Number(e.target.value) || 0) }))} />
                                 </label>
                                 <label className="text-xs">보드 크기
                                     <select className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
@@ -903,25 +905,25 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                 <div className="grid grid-cols-2 gap-2">
                                     <label className="text-xs">첫클리어 골드
                                         <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
-                                            type="number" value={draft.rewards.firstClear.gold}
-                                            onChange={(e) => setDraft((p) => ({ ...p, rewards: { ...p.rewards, firstClear: { ...p.rewards.firstClear, gold: Number(e.target.value) || 0 } } }))} />
+                                            type="number" min={0} max={MAX_GAME_INTEGER_INPUT} value={draft.rewards.firstClear.gold}
+                                            onChange={(e) => setDraft((p) => ({ ...p, rewards: { ...p.rewards, firstClear: { ...p.rewards.firstClear, gold: clampGameInt(Number(e.target.value) || 0) } } }))} />
                                     </label>
                                     <label className="text-xs">첫클리어 경험치
                                         <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
-                                            type="number" value={draft.rewards.firstClear.exp}
-                                            onChange={(e) => setDraft((p) => ({ ...p, rewards: { ...p.rewards, firstClear: { ...p.rewards.firstClear, exp: Number(e.target.value) || 0 } } }))} />
+                                            type="number" min={0} max={MAX_GAME_INTEGER_INPUT} value={draft.rewards.firstClear.exp}
+                                            onChange={(e) => setDraft((p) => ({ ...p, rewards: { ...p.rewards, firstClear: { ...p.rewards.firstClear, exp: clampGameInt(Number(e.target.value) || 0) } } }))} />
                                     </label>
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
                                     <label className="text-xs">반복클리어 골드
                                         <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
-                                            type="number" value={draft.rewards.repeatClear.gold}
-                                            onChange={(e) => setDraft((p) => ({ ...p, rewards: { ...p.rewards, repeatClear: { ...p.rewards.repeatClear, gold: Number(e.target.value) || 0 } } }))} />
+                                            type="number" min={0} max={MAX_GAME_INTEGER_INPUT} value={draft.rewards.repeatClear.gold}
+                                            onChange={(e) => setDraft((p) => ({ ...p, rewards: { ...p.rewards, repeatClear: { ...p.rewards.repeatClear, gold: clampGameInt(Number(e.target.value) || 0) } } }))} />
                                     </label>
                                     <label className="text-xs">반복클리어 경험치
                                         <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
-                                            type="number" value={draft.rewards.repeatClear.exp}
-                                            onChange={(e) => setDraft((p) => ({ ...p, rewards: { ...p.rewards, repeatClear: { ...p.rewards.repeatClear, exp: Number(e.target.value) || 0 } } }))} />
+                                            type="number" min={0} max={MAX_GAME_INTEGER_INPUT} value={draft.rewards.repeatClear.exp}
+                                            onChange={(e) => setDraft((p) => ({ ...p, rewards: { ...p.rewards, repeatClear: { ...p.rewards.repeatClear, exp: clampGameInt(Number(e.target.value) || 0) } } }))} />
                                     </label>
                                 </div>
                             </>
@@ -989,7 +991,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                     className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
                                                     type="number"
                                                     value={draft.blackTurnLimit ?? 0}
-                                                    onChange={(e) => setDraft((p) => ({ ...p, blackTurnLimit: Number(e.target.value) || 0 }))}
+                                                    onChange={(e) => setDraft((p) => ({ ...p, blackTurnLimit: clampGameInt(Number(e.target.value) || 0) }))}
                                                 />
                                             </label>
                                             <label className="text-xs">흑 목표점수
@@ -997,7 +999,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                     className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
                                                     type="number"
                                                     value={draft.targetScore.black ?? 0}
-                                                    onChange={(e) => setDraft((p) => ({ ...p, targetScore: { ...p.targetScore, black: Number(e.target.value) || 0 } }))}
+                                                    onChange={(e) => setDraft((p) => ({ ...p, targetScore: { ...p.targetScore, black: clampGameInt(Number(e.target.value) || 0) } }))}
                                                 />
                                             </label>
                                             <label className="text-xs">백 목표점수
@@ -1005,7 +1007,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                     className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
                                                     type="number"
                                                     value={draft.targetScore.white ?? 0}
-                                                    onChange={(e) => setDraft((p) => ({ ...p, targetScore: { ...p.targetScore, white: Number(e.target.value) || 0 } }))}
+                                                    onChange={(e) => setDraft((p) => ({ ...p, targetScore: { ...p.targetScore, white: clampGameInt(Number(e.target.value) || 0) } }))}
                                                 />
                                             </label>
                                         </>
@@ -1017,7 +1019,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                     className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
                                                     type="number"
                                                     value={draft.survivalTurns ?? 0}
-                                                    onChange={(e) => setDraft((p) => ({ ...p, survivalTurns: Number(e.target.value) || 0 }))}
+                                                    onChange={(e) => setDraft((p) => ({ ...p, survivalTurns: clampGameInt(Number(e.target.value) || 0) }))}
                                                 />
                                             </label>
                                             <label className="text-xs">백 목표점수
@@ -1025,7 +1027,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                     className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
                                                     type="number"
                                                     value={draft.targetScore.black ?? 0}
-                                                    onChange={(e) => setDraft((p) => ({ ...p, targetScore: { ...p.targetScore, black: Number(e.target.value) || 0 } }))}
+                                                    onChange={(e) => setDraft((p) => ({ ...p, targetScore: { ...p.targetScore, black: clampGameInt(Number(e.target.value) || 0) } }))}
                                                 />
                                             </label>
                                         </>
@@ -1036,7 +1038,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                 className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
                                                 type="number"
                                                 value={draft.autoScoringTurns ?? 0}
-                                                onChange={(e) => setDraft((p) => ({ ...p, autoScoringTurns: Number(e.target.value) || 0 }))}
+                                                onChange={(e) => setDraft((p) => ({ ...p, autoScoringTurns: clampGameInt(Number(e.target.value) || 0) }))}
                                             />
                                         </label>
                                     )}
@@ -1046,7 +1048,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                 className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
                                                 type="number"
                                                 value={Number((draft as any).baseStones ?? 0)}
-                                                onChange={(e) => setDraft((p) => ({ ...(p as any), baseStones: Number(e.target.value) || 0 }))}
+                                                onChange={(e) => setDraft((p) => ({ ...(p as any), baseStones: clampGameInt(Number(e.target.value) || 0) }))}
                                             />
                                         </label>
                                     )}
@@ -1057,7 +1059,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                     className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
                                                     type="number"
                                                     value={draft.hiddenCount ?? 0}
-                                                    onChange={(e) => setDraft((p) => ({ ...p, hiddenCount: Number(e.target.value) || 0 }))}
+                                                    onChange={(e) => setDraft((p) => ({ ...p, hiddenCount: clampGameInt(Number(e.target.value) || 0) }))}
                                                 />
                                             </label>
                                             <label className="text-xs">스캔 개수
@@ -1065,7 +1067,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                     className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
                                                     type="number"
                                                     value={draft.scanCount ?? 0}
-                                                    onChange={(e) => setDraft((p) => ({ ...p, scanCount: Number(e.target.value) || 0 }))}
+                                                    onChange={(e) => setDraft((p) => ({ ...p, scanCount: clampGameInt(Number(e.target.value) || 0) }))}
                                                 />
                                             </label>
                                         </>
@@ -1108,7 +1110,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                     type="number"
                                                     value={draft.aiHiddenItemUseWithinTurn ?? 0}
                                                     onChange={(e) =>
-                                                        setDraft((p) => ({ ...p, aiHiddenItemUseWithinTurn: Number(e.target.value) || 0 }))
+                                                        setDraft((p) => ({ ...p, aiHiddenItemUseWithinTurn: clampGameInt(Number(e.target.value) || 0) }))
                                                     }
                                                     disabled={draft.disableAiHiddenItemUsage === true}
                                                 />
@@ -1123,7 +1125,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                     onChange={(e) =>
                                                         setDraft((p) => ({
                                                             ...p,
-                                                            aiHiddenItemUseCount: Number(e.target.value) || 0,
+                                                            aiHiddenItemUseCount: clampGameInt(Number(e.target.value) || 0),
                                                         }))
                                                     }
                                                     disabled={draft.disableAiHiddenItemUsage === true}
@@ -1147,7 +1149,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                 className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
                                                 type="number"
                                                 value={draft.missileCount ?? 0}
-                                                onChange={(e) => setDraft((p) => ({ ...p, missileCount: Number(e.target.value) || 0 }))}
+                                                onChange={(e) => setDraft((p) => ({ ...p, missileCount: clampGameInt(Number(e.target.value) || 0) }))}
                                             />
                                         </label>
                                     )}
@@ -1157,21 +1159,21 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                         <div className="grid grid-cols-2 gap-2">
                             <label className="text-xs">랜덤 흑돌
                                 <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1" type="number" value={draft.placements.black}
-                                    onChange={(e) => setDraft((p) => ({ ...p, placements: { ...p.placements, black: Number(e.target.value) || 0 } }))} />
+                                    onChange={(e) => setDraft((p) => ({ ...p, placements: { ...p.placements, black: clampGameInt(Number(e.target.value) || 0) } }))} />
                             </label>
                             <label className="text-xs">랜덤 백돌
                                 <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1" type="number" value={draft.placements.white}
-                                    onChange={(e) => setDraft((p) => ({ ...p, placements: { ...p.placements, white: Number(e.target.value) || 0 } }))} />
+                                    onChange={(e) => setDraft((p) => ({ ...p, placements: { ...p.placements, white: clampGameInt(Number(e.target.value) || 0) } }))} />
                             </label>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                             <label className="text-xs">랜덤 흑 문양돌
                                 <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1" type="number" value={draft.placements.blackPattern}
-                                    onChange={(e) => setDraft((p) => ({ ...p, placements: { ...p.placements, blackPattern: Number(e.target.value) || 0 } }))} />
+                                    onChange={(e) => setDraft((p) => ({ ...p, placements: { ...p.placements, blackPattern: clampGameInt(Number(e.target.value) || 0) } }))} />
                             </label>
                             <label className="text-xs">랜덤 백 문양돌
                                 <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1" type="number" value={draft.placements.whitePattern}
-                                    onChange={(e) => setDraft((p) => ({ ...p, placements: { ...p.placements, whitePattern: Number(e.target.value) || 0 } }))} />
+                                    onChange={(e) => setDraft((p) => ({ ...p, placements: { ...p.placements, whitePattern: clampGameInt(Number(e.target.value) || 0) } }))} />
                             </label>
                         </div>
                         <label className="flex items-center gap-2 text-sm">

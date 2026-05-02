@@ -17,6 +17,7 @@ import { calculateRefinementGoldCost } from '../../constants/rules.js';
 import { MythicOptionAbbrev, MythicStatAbbrev } from '../MythicStatAbbrev.js';
 import { PortalHoverBubble } from '../PortalHoverBubble.js';
 import RefinementResultModal from './RefinementResultModal.js';
+import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
 const REFINEMENT_TICKET_DEFS: { id: 'type' | 'value' | 'mythic'; itemKey: keyof typeof MATERIAL_ITEMS }[] = [
     { id: 'type', itemKey: '옵션 종류 변경권' },
@@ -861,7 +862,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                                                     className="w-6 h-6 object-contain"
                                                 />
                                                 <span className={`text-xs ${currentUser.gold >= requiredGold ? 'text-white' : 'text-red-400'}`}>
-                                                    {requiredGold.toLocaleString()}
+                                                    {formatGoldAmountKoG(requiredGold)}
                                                 </span>
                                             </div>
                                         </div>

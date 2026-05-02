@@ -33,6 +33,8 @@ import { broadcast } from '../socket.js';
 import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 import { generateSgfFromGame } from '../../utils/sgfGenerator.js';
+import { maxExchangeListPrice } from '../../shared/constants/numericLimits.js';
+import { exchangeListingFeeFromPrice } from '../../shared/utils/gameIntegerField.js';
 import { isStrategicPvpForGameRecord, isGameStatusSaveableForRecord, isShortGameStrategicNoContest } from '../../utils/strategicPvpGameRecord.js';
 import { randomUUID } from 'crypto';
 import * as effectService from '../effectService.js';
@@ -1401,6 +1403,9 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 return { error: '가격 정보가 올바르지 않습니다.' };
             }
             const currency = row.currency === 'diamonds' ? 'diamonds' : 'gold';
+            if (price > maxExchangeListPrice(currency)) {
+                return { error: '거래 가격이 허용 범위를 벗어났습니다. 목록을 새로고침 해 주세요.' };
+            }
             if (currency === 'gold') {
                 if ((buyer.gold ?? 0) < price) {
                     return { error: '골드가 부족합니다.' };
@@ -1547,7 +1552,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 const soldPrice = Math.floor(Number(row.soldPrice));
                 if (!Number.isFinite(soldPrice) || soldPrice < 0) continue;
                 const currency = row.currency === 'diamonds' ? 'diamonds' : 'gold';
-                const fee = Math.floor((soldPrice * 10) / 100);
+                const fee = exchangeListingFeeFromPrice(soldPrice);
                 const net = Math.max(0, soldPrice - fee);
                 toApply.push({ idx, net, currency });
             }

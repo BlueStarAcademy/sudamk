@@ -1,5 +1,6 @@
 import React from 'react';
 import type { AdventureTreasureUserRewardSections } from '../../shared/utils/adventureMapTreasureRewards.js';
+import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
 const GOLD_SRC = '/images/icon/Gold.png';
 
@@ -34,11 +35,11 @@ const AdventureTreasureChestRewardSections: React.FC<Props> = ({ sections, compa
                         <div className="flex flex-1 flex-col items-center justify-center gap-1.5">
                             <img src={GOLD_SRC} alt="" className={`${goldIcon} shrink-0 object-contain drop-shadow-md`} draggable={false} />
                             <p className="bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-300 bg-clip-text text-center font-mono text-xs font-black tabular-nums leading-none text-transparent sm:text-[13px]">
-                                {sections.goldMin.toLocaleString()}
+                                {formatGoldAmountKoG(sections.goldMin)}
                                 <span className="mx-0.5 text-amber-500/80" aria-hidden>
                                     —
                                 </span>
-                                {sections.goldMax.toLocaleString()}
+                                {formatGoldAmountKoG(sections.goldMax)}
                             </p>
                         </div>
                     </section>
@@ -89,11 +90,11 @@ const AdventureTreasureChestRewardSections: React.FC<Props> = ({ sections, compa
                     <div className="flex flex-1 flex-col items-center justify-center gap-1.5">
                         <img src={GOLD_SRC} alt="" className={`${goldIcon} shrink-0 object-contain drop-shadow-md`} draggable={false} />
                         <p className="bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-300 bg-clip-text text-center font-mono text-[11px] font-black tabular-nums leading-none text-transparent sm:text-xs">
-                            {sections.goldMin.toLocaleString()}
+                            {formatGoldAmountKoG(sections.goldMin)}
                             <span className="mx-0.5 text-amber-500/80" aria-hidden>
                                 —
                             </span>
-                            {sections.goldMax.toLocaleString()}
+                            {formatGoldAmountKoG(sections.goldMax)}
                         </p>
                     </div>
                 </section>

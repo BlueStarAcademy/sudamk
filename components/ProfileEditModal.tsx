@@ -13,6 +13,7 @@ import {
     RESERVED_STAFF_NICKNAME_USER_MESSAGE,
 } from '../shared/utils/staffNicknameDisplay.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
 
 interface ProfileEditModalProps {
     currentUser: UserWithStatus;
@@ -427,8 +428,8 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                                     setSelectedBorderId(border.id);
                                 } else if (isPurchasable && shopItem) {
                                     const priceText = shopItem.price.gold
-                                        ? `${shopItem.price.gold.toLocaleString()} 골드`
-                                        : `${shopItem.price.diamonds?.toLocaleString()} 다이아`;
+                                        ? `${formatGoldAmountKoG(shopItem.price.gold)} 골드`
+                                        : `${formatWalletDiamonds(shopItem.price.diamonds ?? 0)} 다이아`;
                                     if (window.confirm(`'${border.name}' 테두리를 ${priceText}로 구매하시겠습니까?`)) {
                                         onAction({ type: 'BUY_BORDER', payload: { borderId: border.id } });
                                     }
@@ -476,7 +477,11 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                                                 ) : (
                                                     <img src="/images/icon/Zem.png" alt="" className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
                                                 )}
-                                                <span>{shopItem.price.gold?.toLocaleString() || shopItem.price.diamonds?.toLocaleString()}</span>
+                                                <span>
+                                                    {shopItem.price.gold != null
+                                                        ? formatGoldAmountKoG(shopItem.price.gold)
+                                                        : formatWalletDiamonds(shopItem.price.diamonds ?? 0)}
+                                                </span>
                                             </div>
                                         )}
                                     </div>
@@ -617,7 +622,7 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                                 <div className="mt-2 flex items-center justify-between">
                                     <span className="text-zinc-400">보유 다이아</span>
                                     <span className="flex items-center gap-1.5 font-bold tabular-nums text-stone-100">
-                                        <img src="/images/icon/Zem.png" alt="" className="h-4 w-4" /> {currentUser.diamonds.toLocaleString()}
+                                        <img src="/images/icon/Zem.png" alt="" className="h-4 w-4" /> {formatWalletDiamonds(currentUser.diamonds)}
                                     </span>
                                 </div>
                             </div>

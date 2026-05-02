@@ -8,6 +8,8 @@ import { calculateTotalStats } from '../services/statService.js';
 import MbtiComparisonModal from './MbtiComparisonModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import type { ServerAction } from '../types.js';
+import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
+import { clampGameInt } from '../shared/utils/gameIntegerField.js';
 
 // Re-using components from Profile.tsx for consistency.
 const getXpRequirementForLevel = (level: number): number => {
@@ -532,10 +534,10 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                             <label className="text-gray-400">채팅금지(분)
-                                <input type="number" min={1} className="mt-1 w-full bg-black/40 rounded px-2 py-1" value={chatDurationMinutes} onChange={(e) => setChatDurationMinutes(Math.max(1, Number(e.target.value) || 1))} />
+                                <input type="number" min={1} max={MAX_GAME_INTEGER_INPUT} className="mt-1 w-full bg-black/40 rounded px-2 py-1" value={chatDurationMinutes} onChange={(e) => setChatDurationMinutes(clampGameInt(Number(e.target.value) || 1, { min: 1 }))} />
                             </label>
                             <label className="text-gray-400">접속금지(분)
-                                <input type="number" min={1} className="mt-1 w-full bg-black/40 rounded px-2 py-1" value={connectionDurationMinutes} onChange={(e) => setConnectionDurationMinutes(Math.max(1, Number(e.target.value) || 1))} />
+                                <input type="number" min={1} max={MAX_GAME_INTEGER_INPUT} className="mt-1 w-full bg-black/40 rounded px-2 py-1" value={connectionDurationMinutes} onChange={(e) => setConnectionDurationMinutes(clampGameInt(Number(e.target.value) || 1, { min: 1 }))} />
                             </label>
                         </div>
                         <div>

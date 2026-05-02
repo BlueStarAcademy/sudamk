@@ -124,6 +124,49 @@ const isLobbyAiStrategicGame = (game: types.LiveGameSession) =>
     game.gameCategory !== 'singleplayer' &&
     game.gameCategory !== 'guildwar';
 
+/**
+ * 전략 로비(페어 포함): `scoringTurnLimit` 기준 턴 수(패스 포함, moveHistory 길이) 도달 시 계가.
+ * 착수(PLACE_STONE) 직후·패스(PASS_TURN) 직후 공통.
+ */
+const tryTriggerScoringTurnLimitAfterTurn = async (
+    game: types.LiveGameSession,
+    totalTurnsAfterAction: number,
+    logPrefix: string,
+): Promise<boolean> => {
+    const limit = game.settings.scoringTurnLimit;
+    if (
+        limit == null ||
+        limit <= 0 ||
+        game.mode === types.GameMode.Capture ||
+        game.isSinglePlayer ||
+        game.gameCategory === 'tower'
+    ) {
+        return false;
+    }
+    game.totalTurns = totalTurnsAfterAction;
+    if (totalTurnsAfterAction < limit) {
+        return false;
+    }
+    console.log(
+        `${logPrefix} Scoring turn limit reached: totalTurns=${totalTurnsAfterAction}, scoringTurnLimit=${limit}, triggering getGameResult`,
+    );
+    if (isLobbyAiStrategicGame(game)) {
+        await broadcastPlayingSnapshotBeforeScoring(game);
+    }
+    game.gameStatus = 'scoring';
+    await db.saveGame(game);
+    const { broadcastToGameParticipants } = await import('../socket.js');
+    const gameToBroadcast = { ...game };
+    delete (gameToBroadcast as any).boardState;
+    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+    try {
+        await getGameResult(game);
+    } catch (scoringError: any) {
+        console.error(`[handleStrategicAction] Error during scoring (turn limit) for game ${game.id}:`, scoringError?.message);
+    }
+    return true;
+};
+
 export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.Negotiation, now: number) => {
     const p1 = game.player1;
     const p2 = game.player2;
@@ -1166,40 +1209,10 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
             }
 
-            // 전략바둑 로비/AI 대국: 계가까지 턴 제한(scoringTurnLimit)이 있으면 해당 턴 수 도달 시 자동 계가
-            // (이미 위에서 scoringTurnLimit을 읽었으므로 여기서는 재선언하지 않음)
-            const scoringTurnLimitAfterMove = scoringTurnLimit;
-            if (
-                scoringTurnLimitAfterMove != null &&
-                scoringTurnLimitAfterMove > 0 &&
-                game.mode !== types.GameMode.Capture &&
-                !game.isSinglePlayer &&
-                game.gameCategory !== 'tower'
-            ) {
-                // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
-                const newTotalTurns = (game.moveHistory || []).length;
-                game.totalTurns = newTotalTurns;
-                if (newTotalTurns >= scoringTurnLimitAfterMove) {
-                    // N수 계가: 제한 도달 직후(정확히 N수가 쌓인 판)에서 계가 — 다음 차례가 AI여도 한 수 더 두지 않음(81수째 계가 방지)
-                    console.log(
-                        `[handleStrategicAction] Scoring turn limit reached: totalTurns=${newTotalTurns}, scoringTurnLimit=${scoringTurnLimitAfterMove}, triggering getGameResult`,
-                    );
-                    if (isLobbyAiStrategicGame(game)) {
-                        await broadcastPlayingSnapshotBeforeScoring(game);
-                    }
-                    game.gameStatus = 'scoring';
-                    await db.saveGame(game);
-                    const { broadcastToGameParticipants } = await import('../socket.js');
-                    const gameToBroadcast = { ...game };
-                    delete (gameToBroadcast as any).boardState;
-                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
-                    try {
-                        await getGameResult(game);
-                    } catch (scoringError: any) {
-                        console.error(`[handleStrategicAction] Error during scoring (turn limit) for game ${game.id}:`, scoringError?.message);
-                    }
-                    return {};
-                }
+            // 전략바둑 로비/AI 대국·페어: 계가까지 턴 제한(scoringTurnLimit) 도달 시 자동 계가 (PASS 포함 moveHistory 길이)
+            const newTotalTurnsAfterPlace = (game.moveHistory || []).length;
+            if (await tryTriggerScoringTurnLimitAfterTurn(game, newTotalTurnsAfterPlace, '[handleStrategicAction]')) {
+                return {};
             }
 
             // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
@@ -1286,6 +1299,9 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     getGameResult(game);
                 }
             } else {
+                if (await tryTriggerScoringTurnLimitAfterTurn(game, game.moveHistory.length, '[handleStrategicAction PASS]')) {
+                    return {};
+                }
                 const playerWhoMoved = myPlayerEnum;
                 if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
                     const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';

@@ -3,6 +3,7 @@ import AdminPageHeader from './AdminPageHeader.js';
 import Button from '../Button.js';
 import { adminCard, adminCardTitle, adminInput, adminPageNarrow, adminSectionGap } from './adminChrome.js';
 import { DEFAULT_REWARD_CONFIG, type RewardConfig } from '../../shared/constants/rewardConfig.js';
+import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js';
 
 interface RewardSystemPanelProps {
     currentUserId: string;
@@ -277,7 +278,7 @@ const RewardSystemPanel: React.FC<RewardSystemPanelProps> = ({ currentUserId, on
 
     const updateField = (key: keyof RewardConfig, nextValue: string) => {
         const num = Number(nextValue);
-        const safe = Number.isFinite(num) ? Math.max(0, Math.min(1000000, Math.floor(num))) : 0;
+        const safe = Number.isFinite(num) ? Math.max(0, Math.min(MAX_GAME_INTEGER_INPUT, Math.floor(num))) : 0;
         setConfig((prev) => ({ ...prev, [key]: safe }));
         setMessage(null);
     };
@@ -360,7 +361,7 @@ const RewardSystemPanel: React.FC<RewardSystemPanelProps> = ({ currentUserId, on
                                     <input
                                         type="number"
                                         min={0}
-                                        max={1000000}
+                                        max={MAX_GAME_INTEGER_INPUT}
                                         step={1}
                                         value={config[field.key]}
                                         onChange={(e) => updateField(field.key, e.target.value)}
