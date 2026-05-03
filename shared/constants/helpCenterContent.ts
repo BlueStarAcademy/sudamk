@@ -170,8 +170,8 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                         {
                             type: 'imageRow',
                             images: [
-                                { src: '/images/bg/strategicbg.png', alt: '전략 대기실', caption: '전략 바둑' },
-                                { src: '/images/bg/playfulbg.png', alt: '놀이 대기실', caption: '놀이 바둑' },
+                                { src: '/images/bg/strategicbg.webp', alt: '전략 대기실', caption: '전략 바둑' },
+                                { src: '/images/bg/playfulbg.webp', alt: '놀이 대기실', caption: '놀이 바둑' },
                             ],
                         },
                     ],
@@ -280,7 +280,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'modes-strategic',
                     title: '전략 바둑 모드 안내',
                     tagline: '클래식부터 미사일·믹스룰까지, 수읽기 중심 라인업입니다.',
-                    hero: { src: '/images/bg/strategicbg.png', alt: '전략 바둑' },
+                    hero: { src: '/images/bg/strategicbg.webp', alt: '전략 바둑' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -308,7 +308,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'modes-playful',
                     title: '놀이 바둑 모드 안내',
                     tagline: '주사위·역할·액션형 등 가볍게 즐기는 라인업입니다.',
-                    hero: { src: '/images/bg/playfulbg.png', alt: '놀이 바둑' },
+                    hero: { src: '/images/bg/playfulbg.webp', alt: '놀이 바둑' },
                     blocks: [
                         {
                             type: 'paragraph',

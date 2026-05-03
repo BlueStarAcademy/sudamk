@@ -426,9 +426,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 const clearedStages = Array.isArray(user.clearedSinglePlayerStages) ? user.clearedSinglePlayerStages : [];
                 requirementMet = clearedStages.includes(stage.requirement.stageId);
             } else if (stage.requirement.type === 'strategy_level') {
-                requirementMet = (user.strategyLevel ?? 0) >= stage.requirement.level;
-            } else if (stage.requirement.type === 'playful_level') {
-                requirementMet = (user.playfulLevel ?? 0) >= stage.requirement.level;
+                requirementMet = (user.userLevel ?? 0) >= stage.requirement.level;
             } else if (stage.requirement.type === 'championship_cumulative_score') {
                 requirementMet = (user.cumulativeTournamentScore ?? 0) >= stage.requirement.score;
             } else if (stage.requirement.type === 'all_equipment_min_grade') {

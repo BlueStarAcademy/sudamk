@@ -5,7 +5,6 @@ export type AchievementStageDefinition = {
     requirement:
         | { type: 'singleplayer_stage_clear'; stageId: string }
         | { type: 'strategy_level'; level: number }
-        | { type: 'playful_level'; level: number }
         | { type: 'championship_cumulative_score'; score: number }
         | { type: 'all_equipment_min_grade'; grade: 'normal' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic' | 'transcendent' }
         | { type: 'strategy_tier'; tier: '루키' | '브론즈' | '실버' | '골드' | '플래티넘' | '다이아' | '마스터' | '챌린저' }
@@ -26,7 +25,6 @@ export type AchievementTrackDefinition = {
 
 export const BADUK_ACADEMY_TRACK_ID = 'baduk_academy_20_clear';
 export const STRATEGY_LEVEL_TRACK_ID = 'strategy_level_milestones';
-export const PLAYFUL_LEVEL_TRACK_ID = 'playful_level_milestones';
 export const CHAMPIONSHIP_SCORE_TRACK_ID = 'championship_score_milestones';
 export const ALL_EQUIPMENT_GRADE_TRACK_ID = 'all_equipment_grade_milestones';
 export const STRATEGY_TIER_TRACK_ID = 'strategy_tier_milestones';
@@ -97,22 +95,6 @@ export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
             { id: 'strategy-level-40', title: '전략바둑 40레벨 달성', description: '전략바둑 레벨 40을 달성하세요.', requirement: { type: 'strategy_level', level: 40 }, rewardDiamonds: 100 },
             { id: 'strategy-level-45', title: '전략바둑 45레벨 달성', description: '전략바둑 레벨 45를 달성하세요.', requirement: { type: 'strategy_level', level: 45 }, rewardDiamonds: 100 },
             { id: 'strategy-level-50', title: '전략바둑 50레벨 달성', description: '전략바둑 레벨 50을 달성하세요.', requirement: { type: 'strategy_level', level: 50 }, rewardDiamonds: 100 },
-        ],
-    },
-    {
-        id: PLAYFUL_LEVEL_TRACK_ID,
-        title: '놀이바둑 레벨 업적',
-        stages: [
-            { id: 'playful-level-5', title: '놀이바둑 5레벨 달성', description: '놀이바둑 레벨 5를 달성하세요.', requirement: { type: 'playful_level', level: 5 }, rewardDiamonds: 50 },
-            { id: 'playful-level-10', title: '놀이바둑 10레벨 달성', description: '놀이바둑 레벨 10을 달성하세요.', requirement: { type: 'playful_level', level: 10 }, rewardDiamonds: 100 },
-            { id: 'playful-level-15', title: '놀이바둑 15레벨 달성', description: '놀이바둑 레벨 15를 달성하세요.', requirement: { type: 'playful_level', level: 15 }, rewardDiamonds: 100 },
-            { id: 'playful-level-20', title: '놀이바둑 20레벨 달성', description: '놀이바둑 레벨 20을 달성하세요.', requirement: { type: 'playful_level', level: 20 }, rewardDiamonds: 100 },
-            { id: 'playful-level-25', title: '놀이바둑 25레벨 달성', description: '놀이바둑 레벨 25를 달성하세요.', requirement: { type: 'playful_level', level: 25 }, rewardDiamonds: 100 },
-            { id: 'playful-level-30', title: '놀이바둑 30레벨 달성', description: '놀이바둑 레벨 30을 달성하세요.', requirement: { type: 'playful_level', level: 30 }, rewardDiamonds: 100 },
-            { id: 'playful-level-35', title: '놀이바둑 35레벨 달성', description: '놀이바둑 레벨 35를 달성하세요.', requirement: { type: 'playful_level', level: 35 }, rewardDiamonds: 100 },
-            { id: 'playful-level-40', title: '놀이바둑 40레벨 달성', description: '놀이바둑 레벨 40을 달성하세요.', requirement: { type: 'playful_level', level: 40 }, rewardDiamonds: 100 },
-            { id: 'playful-level-45', title: '놀이바둑 45레벨 달성', description: '놀이바둑 레벨 45를 달성하세요.', requirement: { type: 'playful_level', level: 45 }, rewardDiamonds: 100 },
-            { id: 'playful-level-50', title: '놀이바둑 50레벨 달성', description: '놀이바둑 레벨 50을 달성하세요.', requirement: { type: 'playful_level', level: 50 }, rewardDiamonds: 100 },
         ],
     },
     {

@@ -62,13 +62,21 @@ export const StrategyXpResultBar: React.FC<StrategyXpResultBarProps> = ({
 
     return (
         <div className={`relative w-full overflow-hidden rounded-full ${trackClassName} ${className}`}>
+            {/* 최종 XP 비율까지의 구간을 미리 깔아 두어, 채움 애니메이션 중에도 진행 ‘막대 길이(끝점)’가 변하지 않게 보이게 함 */}
+            {fin > 0 && (
+                <div
+                    className="pointer-events-none absolute inset-y-0 left-0 z-0 rounded-l-full bg-white/[0.08]"
+                    style={{ width: `${fin}%` }}
+                    aria-hidden
+                />
+            )}
             <div
-                className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 transition-[width] ease-out"
+                className="absolute left-0 top-0 z-[1] h-full rounded-l-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 transition-[width] ease-out"
                 style={{ width: `${baseW}%`, transitionDuration: `${BASE_DURATION_MS}ms` }}
             />
             {gainPct > 0 && (
                 <div
-                    className="absolute top-0 h-full rounded-full bg-gradient-to-r from-emerald-400 via-green-500 to-teal-500 transition-[width] ease-out"
+                    className="absolute top-0 z-[2] h-full rounded-r-full bg-gradient-to-r from-emerald-400 via-green-500 to-teal-500 transition-[width] ease-out"
                     style={{
                         left: `${prev}%`,
                         width: `${gainW}%`,

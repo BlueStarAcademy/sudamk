@@ -285,10 +285,8 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             const backupData = JSON.parse(JSON.stringify(targetUser));
 
             if (resetType === 'full') {
-                targetUser.strategyLevel = 1;
-                targetUser.strategyXp = 0;
-                targetUser.playfulLevel = 1;
-                targetUser.playfulXp = 0;
+                targetUser.userLevel = 1;
+                targetUser.userXp = 0;
                 targetUser.spentStatPoints = createDefaultSpentStatPoints();
             }
             targetUser.stats = JSON.parse(JSON.stringify(defaultStats));
@@ -858,10 +856,8 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             const oldMannerScore = targetUser.mannerScore;
 
             targetUser.isAdmin = !!updatedDetails.isAdmin;
-            targetUser.strategyLevel = Number(updatedDetails.strategyLevel) || 1;
-            targetUser.strategyXp = Number(updatedDetails.strategyXp) || 0;
-            targetUser.playfulLevel = Number(updatedDetails.playfulLevel) || 1;
-            targetUser.playfulXp = Number(updatedDetails.playfulXp) || 0;
+            targetUser.userLevel = Number(updatedDetails.userLevel) || 1;
+            targetUser.userXp = Number(updatedDetails.userXp) || 0;
             targetUser.gold = clampGameInt(Number(updatedDetails.gold) || 0, { max: MAX_PLAYER_GOLD });
             targetUser.diamonds = clampGameInt(Number(updatedDetails.diamonds) || 0, { max: MAX_PLAYER_DIAMONDS });
             targetUser.mannerScore = Number(updatedDetails.mannerScore) || 200;

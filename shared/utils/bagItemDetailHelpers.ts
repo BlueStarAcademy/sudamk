@@ -2,6 +2,7 @@ import { InventoryItem, ItemGrade } from '../../types.js';
 import {
     CONSUMABLE_ITEMS,
     ENHANCEMENT_COSTS,
+    EQUIPMENT_POOL,
     MATERIAL_ITEMS,
     gradeStyles,
     isActionPointConsumable,
@@ -281,6 +282,104 @@ export function resolvePurchaseModalUsageLines(params: { name: string; type: Inv
         return ['가방에서 상자를 사용하면 장비를 획득할 수 있습니다.'];
     }
     return [];
+}
+
+function normalizeInventoryImagePath(raw: string | undefined): string {
+    const t = (raw || '').trim();
+    if (!t) return '';
+    return t.startsWith('/') ? t : `/${t}`;
+}
+
+/**
+ * 상점·구매 수량 모달 등: `EquipmentDetailPanel`에 넣을 `InventoryItem` 미리보기(보유 0, 가짜 id).
+ */
+export function buildInventoryItemPreviewForPurchase(params: {
+    itemId: string;
+    name: string;
+    type: InventoryItem['type'];
+    image?: string;
+    description?: string;
+    /** 템플릿에 없는 상점 전용 이름 등 — 등급 배지용 */
+    gradeHint?: ItemGrade;
+}): InventoryItem {
+    const now = Date.now();
+    const desc = resolvePurchaseModalDescription({
+        description: params.description,
+        name: params.name,
+        type: params.type,
+    });
+    const imgParam = normalizeInventoryImagePath(params.image);
+
+    const consumableTemplate = findConsumableItem(params.name);
+    if (consumableTemplate) {
+        return {
+            id: params.itemId,
+            name: consumableTemplate.name,
+            description: (desc || (consumableTemplate.description || '').trim()).trim() || '—',
+            type: 'consumable',
+            slot: null,
+            quantity: 0,
+            level: 0,
+            isEquipped: false,
+            createdAt: now,
+            image: imgParam || normalizeInventoryImagePath(consumableTemplate.image),
+            grade: params.gradeHint !== undefined ? params.gradeHint : consumableTemplate.grade,
+            stars: 0,
+        };
+    }
+
+    const mat = MATERIAL_ITEMS[params.name] || MATERIAL_ITEMS[normalizeConsumableName(params.name)];
+    if (mat) {
+        const tpl = mat as InventoryItem & { templateId?: string };
+        return {
+            id: params.itemId,
+            name: mat.name,
+            description: (desc || (mat.description || '').trim()).trim() || '—',
+            type: 'material',
+            slot: mat.slot,
+            quantity: 0,
+            level: 0,
+            isEquipped: false,
+            createdAt: now,
+            image: imgParam || normalizeInventoryImagePath(mat.image),
+            grade: params.gradeHint !== undefined ? params.gradeHint : mat.grade,
+            stars: 0,
+            templateId: tpl.templateId,
+        };
+    }
+
+    const poolRow = EQUIPMENT_POOL.find((e) => e.name === params.name);
+    if (poolRow && params.type === 'equipment') {
+        return {
+            id: params.itemId,
+            name: poolRow.name,
+            description: (desc || poolRow.description || '').trim() || '—',
+            type: 'equipment',
+            slot: poolRow.slot,
+            quantity: 0,
+            level: 0,
+            isEquipped: false,
+            createdAt: now,
+            image: imgParam || normalizeInventoryImagePath(poolRow.image),
+            grade: poolRow.grade,
+            stars: poolRow.stars ?? 0,
+        };
+    }
+
+    return {
+        id: params.itemId,
+        name: params.name,
+        description: desc.trim() || '—',
+        type: params.type === 'equipment' ? 'consumable' : params.type,
+        slot: null,
+        quantity: 0,
+        level: 0,
+        isEquipped: false,
+        createdAt: now,
+        image: imgParam || '/images/icon/Gold.png',
+        grade: params.gradeHint !== undefined ? params.gradeHint : ItemGrade.Normal,
+        stars: 0,
+    };
 }
 
 export function getBagConsumableUsageHint(name: string): string | null {

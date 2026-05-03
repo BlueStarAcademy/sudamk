@@ -182,7 +182,7 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({
             items.push({ label: '시간 추가', value: `피셔 방식 ${settings.timeIncrement}초` });
         }
         if (settings.captureTarget) {
-            items.push({ label: '따내기 목표', value: `${settings.captureTarget}점` });
+            items.push({ label: '목표점수', value: `${settings.captureTarget}점` });
         }
         if (settings.hiddenStoneCount) {
             items.push({ label: '히든 아이템', value: `${settings.hiddenStoneCount}개` });

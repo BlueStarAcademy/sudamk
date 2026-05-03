@@ -7,7 +7,7 @@ import {
     isBlacksmithQuickUnlocked,
     isQuestQuickUnlocked,
 } from '../shared/utils/contentProgressionGates.js';
-import { isNewFeatureBadgeActive, NEW_FEATURE_BADGE_CLASS } from '../utils/newFeatureBadges.js';
+import { NEW_FEATURE_BADGE_CLASS } from '../utils/newFeatureBadges.js';
 interface QuickAccessSidebarProps {
     mobile?: boolean;
     compact?: boolean;
@@ -110,7 +110,6 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 handler: handlers.openExchange,
                 disabled: tutorialQuickDisabled('거래소'),
                 notification: hasClaimableExchangeSettlement,
-                newBadge: isNewFeatureBadgeActive('exchange'),
             },
             {
                 label: '대장간',

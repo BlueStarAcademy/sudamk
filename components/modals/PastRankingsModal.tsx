@@ -3,9 +3,10 @@ import { UserWithStatus, GameMode } from '../../types.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { RANKING_TIERS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
 import { getCompletedTrackedRankingSeasonsNewestFirst } from '../../utils/timeUtils.js';
+import { RANKING_MODAL_SLIM_SCROLL_Y } from '../../shared/constants/rankingModalScrollbar.js';
 
 interface PastRankingsModalProps {
-    info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'playful'; };
+    info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'playful' | 'pair'; };
     onClose: () => void;
     isTopmost?: boolean;
 }
@@ -46,6 +47,38 @@ const PastRankingsModal: React.FC<PastRankingsModalProps> = ({ info, onClose, is
 
     const trackedPastSeasons = useMemo(() => getCompletedTrackedRankingSeasonsNewestFirst(), []);
 
+    const pairSeasonBody = useMemo(() => {
+        if (mode !== 'pair') return null;
+        if (trackedPastSeasons.length === 0) {
+            return <p className="text-center text-gray-500 py-6">{EMPTY_RANKING_LABEL}</p>;
+        }
+        return (
+            <ul className="space-y-2">
+                {trackedPastSeasons.map((season) => {
+                    const row = history[season.name] as Record<string, string | undefined> | undefined;
+                    const tierName = row?.pair;
+                    const tierInfo = tierName ? RANKING_TIERS.find((t) => t.name === tierName) : undefined;
+                    return (
+                        <li
+                            key={season.name}
+                            className="flex items-center justify-between gap-3 rounded-lg bg-gray-900/50 p-3"
+                        >
+                            <span className="shrink-0 font-semibold text-gray-300">{season.name}</span>
+                            {tierName && tierInfo ? (
+                                <div className="flex min-w-0 items-center justify-end gap-2">
+                                    <img src={tierInfo.icon} alt={tierName} className="h-8 w-8 shrink-0" />
+                                    <span className={`truncate font-bold ${tierInfo.color}`}>{tierName}</span>
+                                </div>
+                            ) : (
+                                <span className="text-right text-sm text-gray-500">{EMPTY_RANKING_LABEL}</span>
+                            )}
+                        </li>
+                    );
+                })}
+            </ul>
+        );
+    }, [history, mode, trackedPastSeasons]);
+
     const strategicOrPlayfulBody = useMemo(() => {
         if (mode !== 'strategic' && mode !== 'playful') return null;
         if (trackedPastSeasons.length === 0) {
@@ -84,9 +117,20 @@ const PastRankingsModal: React.FC<PastRankingsModalProps> = ({ info, onClose, is
         const lobbyTitle = mode === 'strategic' ? '전략바둑' : '놀이바둑';
         return (
             <DraggableWindow title="지난 시즌 랭킹" onClose={onClose} windowId="past-rankings" initialWidth={450} isTopmost={isTopmost}>
-                <div className="max-h-[calc(var(--vh,1vh)*60)] overflow-y-auto pr-2">
+                <div className={`max-h-[calc(var(--vh,1vh)*60)] overflow-y-auto pr-2 ${RANKING_MODAL_SLIM_SCROLL_Y}`}>
                     <h3 className="text-lg font-bold text-center mb-4">{lobbyTitle}</h3>
                     {strategicOrPlayfulBody}
+                </div>
+            </DraggableWindow>
+        );
+    }
+
+    if (mode === 'pair') {
+        return (
+            <DraggableWindow title="지난 시즌 랭킹" onClose={onClose} windowId="past-rankings" initialWidth={450} isTopmost={isTopmost}>
+                <div className={`max-h-[calc(var(--vh,1vh)*60)] overflow-y-auto pr-2 ${RANKING_MODAL_SLIM_SCROLL_Y}`}>
+                    <h3 className="mb-4 text-center text-lg font-bold">페어 바둑</h3>
+                    {pairSeasonBody}
                 </div>
             </DraggableWindow>
         );
@@ -97,7 +141,7 @@ const PastRankingsModal: React.FC<PastRankingsModalProps> = ({ info, onClose, is
 
     return (
         <DraggableWindow title="지난 시즌 랭킹" onClose={onClose} windowId="past-rankings" initialWidth={450} isTopmost={isTopmost}>
-            <div className="max-h-[calc(var(--vh,1vh)*60)] overflow-y-auto pr-2">
+            <div className={`max-h-[calc(var(--vh,1vh)*60)] overflow-y-auto pr-2 ${RANKING_MODAL_SLIM_SCROLL_Y}`}>
                 <h3 className="text-lg font-bold text-center mb-4">{mode}</h3>
                 {orderedSeasonNames.length > 0 ? (
                     <ul className="space-y-2">

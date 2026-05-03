@@ -1,6 +1,5 @@
 import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { GameMode, ServerAction, Announcement, OverrideAnnouncement, UserWithStatus, LiveGameSession, UserStatus } from '../../types.js';
-import Avatar from '../Avatar.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 
 // Import newly created sub-components
@@ -9,10 +8,10 @@ import RankingList from './RankingList.js';
 import GameList from './GameList.js';
 import ChatWindow from './ChatWindow.js';
 import TierInfoModal from '../TierInfoModal.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, aiUserId } from '../../constants';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from '../QuickAccessSidebar.js';
-import Button from '../Button.js';
 import AiChallengeModal from './AiChallengeModal.js';
+import AiChallengePanel from './AiChallengePanel.js';
 import RankedMatchPanel from './RankedMatchPanel.js';
 import MatchFoundModal from './MatchFoundModal.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
@@ -26,7 +25,8 @@ import {
   waitingLobbyPairAlignedMobileScreenTitleClass,
   waitingLobbyPairAlignedMobileTabButtonClass,
 } from './waitingLobbyHomePanelStyles.js';
-
+import { WaitingLobbyAnnouncementBoard, WAITING_LOBBY_PANEL_GLASS } from './WaitingLobbyAnnouncementBoard.js';
+import { userMatchesAggregateWaitingLobby } from './aggregateWaitingLobbyUserFilter.js';
 
 interface WaitingRoomComponentProps {
     mode: GameMode | 'strategic' | 'playful';
@@ -34,235 +34,10 @@ interface WaitingRoomComponentProps {
 
 const PLAYFUL_AI_MODES: GameMode[] = [GameMode.Dice, GameMode.Omok, GameMode.Ttamok, GameMode.Thief, GameMode.Alkkagi, GameMode.Curling];
 
-/** 전략·놀이 대기실: 패널 뒤 경기장 배경 블러(프로스트 글래스) */
-const WAITING_LOBBY_PANEL_GLASS =
-  'backdrop-blur-xl backdrop-saturate-150 will-change-[backdrop-filter] [transform:translateZ(0)]';
-
-const ROW_HEIGHT_REM = 2.5;
-const ANNOUNCEMENT_MARQUEE_SPEED_PX_PER_SEC = 90;
-
-/** 전략/놀이 집계 대기실에 속하는지 (서버 waitingLobby 우선, 구버전 호환으로 mode 카테고리) */
-function userMatchesAggregateWaitingLobby(u: UserWithStatus, strategic: boolean): boolean {
-  if (strategic) {
-    return (
-      u.waitingLobby === 'strategic' ||
-      (!u.waitingLobby && u.mode != null && SPECIAL_GAME_MODES.some((m) => m.mode === u.mode))
-    );
-  }
-  return (
-    u.waitingLobby === 'playful' ||
-    (!u.waitingLobby && u.mode != null && PLAYFUL_GAME_MODES.some((m) => m.mode === u.mode))
-  );
-}
-
-const AnnouncementBoard: React.FC<{ mode: GameMode | 'strategic' | 'playful'; }> = ({ mode }) => {
-    const { announcements, globalOverrideAnnouncement, announcementInterval } = useAppContext();
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const [isMarqueeRunning, setIsMarqueeRunning] = useState(true);
-    const [travelDurationSec, setTravelDurationSec] = useState(12);
-    const [travelDistancePx, setTravelDistancePx] = useState(1000);
-    const waitTimerRef = useRef<number | null>(null);
-    const viewportRef = useRef<HTMLDivElement>(null);
-    const textRef = useRef<HTMLSpanElement>(null);
-    const announcementIds = useMemo(() => announcements.map(a => a.id).join(','), [announcements]);
-    const strategicModes = useMemo(() => SPECIAL_GAME_MODES.map(m => m.mode), []);
-    const playfulModes = useMemo(() => PLAYFUL_GAME_MODES.map(m => m.mode), []);
-
-    useEffect(() => {
-        if (!announcements || announcements.length <= 0) {
-            setCurrentIndex(0);
-            setIsMarqueeRunning(true);
-        }
-    }, [announcementIds, announcements.length]);
-
-    useEffect(() => {
-        if (!announcements || announcements.length === 0 || !isMarqueeRunning) return;
-        const viewportWidth = viewportRef.current?.clientWidth ?? 0;
-        const textWidth = textRef.current?.scrollWidth ?? 0;
-        if (viewportWidth <= 0 || textWidth <= 0) return;
-
-        const distancePx = viewportWidth + textWidth;
-        const duration = Math.max(6, distancePx / ANNOUNCEMENT_MARQUEE_SPEED_PX_PER_SEC);
-        setTravelDistancePx(distancePx);
-        setTravelDurationSec(duration);
-    }, [currentIndex, announcementIds, isMarqueeRunning, announcements.length]);
-
-    useEffect(() => {
-        return () => {
-            if (waitTimerRef.current != null) {
-                window.clearTimeout(waitTimerRef.current);
-            }
-        };
-    }, []);
-
-    const handleMarqueeEnd = useCallback(() => {
-        if (!announcements || announcements.length <= 1) {
-            setIsMarqueeRunning(true);
-            return;
-        }
-        if (waitTimerRef.current != null) {
-            window.clearTimeout(waitTimerRef.current);
-        }
-        setIsMarqueeRunning(false);
-        const waitMs = Math.max(1000, (announcementInterval ?? 3) * 1000);
-        waitTimerRef.current = window.setTimeout(() => {
-            setCurrentIndex((prevIndex) => (prevIndex + 1) % announcements.length);
-            setIsMarqueeRunning(true);
-        }, waitMs);
-    }, [announcementInterval, announcements]);
-
-    const isLobbyGlass = mode === 'strategic' || mode === 'playful';
-    const glassCls = isLobbyGlass ? WAITING_LOBBY_PANEL_GLASS : '';
-
-    const relevantOverride = globalOverrideAnnouncement && (
-        globalOverrideAnnouncement.modes === 'all' ||
-        (Array.isArray(globalOverrideAnnouncement.modes) && globalOverrideAnnouncement.modes.some(m => {
-            if (mode === 'strategic') return strategicModes.includes(m);
-            if (mode === 'playful') return playfulModes.includes(m);
-            return m === mode;
-        }))
-    );
-
-    if (relevantOverride) {
-        return (
-            <div
-                className={`relative rounded-2xl p-2 flex items-center justify-center flex-shrink-0 h-10 ${
-                    isLobbyGlass ? 'bg-gradient-to-r from-yellow-900/70 via-amber-800/65 to-yellow-900/70 backdrop-blur-xl backdrop-saturate-150' : 'bg-yellow-800/50'
-                }`}
-                style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.14)' }}
-            >
-                <span className="text-center text-[0.65rem] font-bold text-yellow-300 animate-pulse sm:text-sm">
-                    {globalOverrideAnnouncement.message}
-                </span>
-            </div>
-        );
-    }
-    
-    if (!announcements || announcements.length === 0) {
-        return (
-            <div
-                className={`rounded-2xl p-2 flex items-center justify-center flex-shrink-0 h-10 text-on-panel ${glassCls}`}
-                style={{ background: 'linear-gradient(110deg, rgba(24,24,27,0.9), rgba(63,63,70,0.75), rgba(24,24,27,0.9))', boxShadow: '0 12px 30px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.09)' }}
-            >
-                <span className="text-center text-[0.65rem] font-bold text-tertiary sm:text-sm">
-                    [현재 등록된 공지사항이 없습니다.]
-                </span>
-            </div>
-        );
-    }
-
-    const currentAnnouncement = announcements[currentIndex];
-    const shouldAnimate = isMarqueeRunning && !!currentAnnouncement;
-
-    return (
-        <div
-            ref={viewportRef}
-            className={`relative overflow-hidden flex-shrink-0 rounded-2xl px-4 text-on-panel ${glassCls}`}
-            style={{ height: `${ROW_HEIGHT_REM}rem` }}
-        >
-            <div
-                className="pointer-events-none absolute inset-[1px] rounded-2xl"
-                style={{ background: 'linear-gradient(100deg, rgba(8,14,24,0.9), rgba(26,34,49,0.78), rgba(13,18,30,0.88))' }}
-            />
-            <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_18%_50%,rgba(56,189,248,0.16),transparent_45%),radial-gradient(circle_at_82%_50%,rgba(245,158,11,0.14),transparent_45%)]" />
-            <div className="relative h-full w-full overflow-hidden" style={{ boxShadow: '0 14px 34px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.14)' }}>
-                {currentAnnouncement && shouldAnimate && (
-                    <div className="absolute inset-y-0 flex items-center" style={{ left: shouldAnimate ? '100%' : '0%' }}>
-                        <span
-                            ref={textRef}
-                            key={`${currentAnnouncement.id}-${currentIndex}`}
-                            onAnimationEnd={handleMarqueeEnd}
-                            className="inline-flex items-center whitespace-nowrap px-2 text-[0.65rem] font-bold will-change-transform sm:text-sm"
-                            style={
-                                {
-                                    animation: `waitingLobbyAnnouncementMarquee ${travelDurationSec}s linear 1 forwards`,
-                                    ['--announcement-travel-distance' as string]: `${travelDistancePx}px`,
-                                } as React.CSSProperties
-                            }
-                        >
-                            <span className="mr-2 text-red-400">[공지]</span>
-                            <span className="bg-gradient-to-r from-cyan-100 via-amber-100 to-cyan-100 bg-clip-text text-transparent">
-                                {currentAnnouncement.message}
-                            </span>
-                        </span>
-                    </div>
-                )}
-            </div>
-            <style>{`
-                @keyframes waitingLobbyAnnouncementMarquee {
-                    from { transform: translateX(0); }
-                    to { transform: translateX(calc(-1 * var(--announcement-travel-distance, 1000px))); }
-                }
-            `}</style>
-        </div>
-    );
-};
-
-const AiChallengePanel: React.FC<{
-    mode: GameMode | 'strategic' | 'playful';
-    onOpenModal: () => void;
-    /** 네이티브 전략·놀이 대기실: 페어 경기장 모바일과 동일한 글자 크기 */
-    pairAlignedTypography?: boolean;
-}> = ({ mode, onOpenModal, pairAlignedTypography = false }) => {
-  const isStrategic = mode === 'strategic' || SPECIAL_GAME_MODES.some((m) => m.mode === mode);
-  const isPlayful = mode === 'playful' || PLAYFUL_GAME_MODES.some((m) => m.mode === mode);
-
-  if (!isStrategic && !isPlayful) return null;
-
-  const botName = mode === 'strategic' ? '전략바둑 AI' : '놀이바둑 AI';
-
-  return (
-    <div
-        className={`rounded-xl border border-fuchsia-400/45 bg-gradient-to-r from-fuchsia-950/55 via-purple-950/55 to-indigo-950/55 shadow-[0_14px_32px_rgba(192,38,211,0.3)] ring-1 ring-fuchsia-300/20 ${
-            pairAlignedTypography ? 'p-2' : 'p-3'
-        }`}
-    >
-      <div className={`flex items-center justify-between gap-2 sm:gap-3 ${pairAlignedTypography ? 'min-h-[52px]' : 'min-h-[58px]'}`}>
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <Avatar
-            userId={aiUserId}
-            userName="AI"
-            size={pairAlignedTypography ? 32 : 40}
-            className="border-2 border-fuchsia-400/80 shadow-[0_0_14px_rgba(217,70,239,0.5)]"
-          />
-          <div className="min-w-0">
-            <h3
-                className={`truncate font-extrabold tracking-tight text-fuchsia-100 drop-shadow-[0_0_10px_rgba(217,70,239,0.35)] ${
-                    pairAlignedTypography ? 'text-sm sm:text-base' : 'text-base'
-                }`}
-            >
-                AI와 대결하기
-            </h3>
-            <p
-                className={`truncate font-medium text-fuchsia-200/90 ${
-                    pairAlignedTypography ? 'text-[0.65rem] sm:text-xs' : 'text-xs'
-                }`}
-            >
-                {botName}와 즉시 대국 시작
-            </p>
-          </div>
-        </div>
-        <Button
-            onClick={onOpenModal}
-            colorScheme="purple"
-            className={
-                pairAlignedTypography
-                    ? '!px-2.5 !py-1.5 !text-[0.65rem] !font-bold shadow-[0_6px_16px_rgba(139,92,246,0.45)] sm:!text-xs'
-                    : '!px-3.5 !py-2 !text-sm !font-bold shadow-[0_6px_16px_rgba(139,92,246,0.45)]'
-            }
-        >
-          설정 및 시작
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-
 const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   const { 
     currentUserWithStatus, onlineUsers, allUsers, liveGames, 
-    waitingRoomChats, negotiations, handlers, arenaEntranceAvailability,
+    waitingRoomChats, handlers, arenaEntranceAvailability,
     rankedMatchingQueue, rankedMatchFound,
   } = useAppContext();
   const { isNativeMobile } = useNativeMobileShell();
@@ -380,8 +155,9 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         return allGames.filter(g => g.mode === mode);
       }
     })();
+    /** 종료 후에도 대기실에 남은 방(gameId 유지)은 플레이어가 퇴장할 때까지 목록에 남긴다. */
     const hasSomeoneInRoom = (gameId: string) =>
-      onlineUsers.some(u => (u.gameId === gameId || u.spectatingGameId === gameId) && (u.status === UserStatus.InGame || u.status === UserStatus.Spectating));
+      onlineUsers.some((u) => u.gameId === gameId || u.spectatingGameId === gameId);
     return byCategory.filter(g => {
       if (g.isAiGame) return false;
       const isOngoing = g.gameStatus !== 'ended' && g.gameStatus !== 'no_contest';
@@ -590,7 +366,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
       {isNativeMobile && isStrategicPlayfulLobby && (
         <div className="shrink-0 px-2 pt-2">
           <div className="overflow-hidden rounded-lg">
-            <AnnouncementBoard mode={mode} />
+            <WaitingLobbyAnnouncementBoard mode={mode} />
           </div>
         </div>
       )}
@@ -704,7 +480,6 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                           mode={mode}
                           onAction={handlers.handleAction}
                           currentUser={currentUserWithStatus}
-                          negotiations={Object.values(negotiations)}
                           onViewUser={handlers.openViewingUser}
                           lobbyType={isStrategic ? 'strategic' : 'playful'}
                           userCount={playersForListPanel.length}
@@ -820,7 +595,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
               <div className={waitingLobbyPcCenterShellClass}>
                 <div className={waitingLobbyPcHairlineClass} aria-hidden />
                 <div className="relative z-[2] shrink-0 px-0.5 pt-0.5 sm:px-1">
-                  <AnnouncementBoard mode={mode} />
+                  <WaitingLobbyAnnouncementBoard mode={mode} />
                 </div>
                 <div className="relative z-[2] flex min-h-0 flex-1 flex-col overflow-hidden">
                   <GameList
@@ -846,7 +621,6 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                           mode={mode}
                           onAction={handlers.handleAction}
                           currentUser={currentUserWithStatus}
-                          negotiations={Object.values(negotiations)}
                           onViewUser={handlers.openViewingUser}
                           lobbyType={isStrategic ? 'strategic' : 'playful'}
                           userCount={playersForListPanel.length}
@@ -869,7 +643,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
             <div ref={desktopContainerRef} className="grid h-full grid-cols-5 gap-4 overflow-hidden">
               <div className="col-span-3 flex min-h-0 flex-col gap-4 overflow-hidden">
                 <div className="flex-shrink-0">
-                  <AnnouncementBoard mode={mode} />
+                  <WaitingLobbyAnnouncementBoard mode={mode} />
                 </div>
                 <div className="flex min-h-0 flex-[1.25] flex-col overflow-hidden">
                   <GameList
@@ -928,7 +702,6 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                         mode={mode}
                         onAction={handlers.handleAction}
                         currentUser={currentUserWithStatus}
-                        negotiations={Object.values(negotiations)}
                         onViewUser={handlers.openViewingUser}
                         lobbyType={isStrategic ? 'strategic' : 'playful'}
                         userCount={usersInThisRoom.length}

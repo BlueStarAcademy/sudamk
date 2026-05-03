@@ -7,6 +7,7 @@ import { aiUserId, getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { applyPassiveActionPointRegenToUser } from '../effectService.js';
+import { maybeDeleteDetachedEndedPvpGame } from '../maybeDeleteDetachedEndedPvpGame.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -31,13 +32,14 @@ function normalizeStrategicAiScoringSettings(mode: GameMode, settings: GameSetti
 }
 
 /** 협상 종료 후 대기실 복귀: 전략/놀이 집계 로비는 waitingLobby로 복원 */
-function restoreUserToWaitingLobby(
+async function restoreUserToWaitingLobby(
     volatileState: VolatileState,
     userId: string,
     gameMode: GameMode
 ) {
     const st = volatileState.userStatuses[userId];
     if (!st) return;
+    const oldGameId = st.gameId;
     st.status = UserStatus.Waiting;
     st.gameId = undefined;
     if (SPECIAL_GAME_MODES.some((m) => m.mode === gameMode)) {
@@ -49,6 +51,9 @@ function restoreUserToWaitingLobby(
     } else {
         st.mode = gameMode;
         delete st.waitingLobby;
+    }
+    if (oldGameId) {
+        await maybeDeleteDetachedEndedPvpGame(volatileState, oldGameId);
     }
 }
 
@@ -198,7 +203,12 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             };
         
             volatileState.negotiations[negotiationId] = newNegotiation;
+            const priorEndedRoomId = volatileState.userStatuses[user.id]?.gameId;
             volatileState.userStatuses[user.id].status = UserStatus.Negotiating;
+            delete volatileState.userStatuses[user.id].gameId;
+            if (priorEndedRoomId) {
+                await maybeDeleteDetachedEndedPvpGame(volatileState, priorEndedRoomId);
+            }
             // Draft negotiation이 생성되었으므로 브로드캐스트 (challenger가 설정을 조정할 수 있도록)
             broadcast({ type: 'NEGOTIATION_UPDATE', payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses } });
             return {
@@ -229,7 +239,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
 
             if (isOpponentAlreadyInNegotiation) {
                 delete volatileState.negotiations[negotiationId];
-                restoreUserToWaitingLobby(volatileState, user.id, negotiation.mode);
+                await restoreUserToWaitingLobby(volatileState, user.id, negotiation.mode);
                 return { error: '상대방이 대국 협상중입니다.' };
             }
 
@@ -237,14 +247,14 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 const freshOpponent = await db.getUser(opponent.id);
                 if (!freshOpponent) {
                     delete volatileState.negotiations[negotiationId];
-                    restoreUserToWaitingLobby(volatileState, user.id, negotiation.mode);
+                    await restoreUserToWaitingLobby(volatileState, user.id, negotiation.mode);
                     broadcast({ type: 'NEGOTIATION_UPDATE', payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses } });
                     return { error: 'Opponent not found.' };
                 }
                 await applyPassiveActionPointRegenToUser(freshOpponent, now);
                 if (freshOpponent.actionPoints.current < cost && !freshOpponent.isAdmin) {
                     delete volatileState.negotiations[negotiationId];
-                    restoreUserToWaitingLobby(volatileState, user.id, negotiation.mode);
+                    await restoreUserToWaitingLobby(volatileState, user.id, negotiation.mode);
                     broadcast({ type: 'NEGOTIATION_UPDATE', payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses } });
                     return { error: OPPONENT_INSUFFICIENT_ACTION_POINTS_MESSAGE };
                 }
@@ -262,7 +272,12 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             
             // 상대방의 상태를 Negotiating으로 업데이트 (대국 신청을 받았으므로)
             if (volatileState.userStatuses[opponent.id]) {
+                const opponentPriorGameId = volatileState.userStatuses[opponent.id].gameId;
                 volatileState.userStatuses[opponent.id].status = UserStatus.Negotiating;
+                delete volatileState.userStatuses[opponent.id].gameId;
+                if (opponentPriorGameId) {
+                    await maybeDeleteDetachedEndedPvpGame(volatileState, opponentPriorGameId);
+                }
             }
             
             // negotiations를 깊은 복사하여 브로드캐스트
@@ -284,8 +299,8 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             negotiation.deadline = now + 60000;
 
             if (negotiation.turnCount >= 10) {
-                restoreUserToWaitingLobby(volatileState, negotiation.challenger.id, negotiation.mode);
-                restoreUserToWaitingLobby(volatileState, negotiation.opponent.id, negotiation.mode);
+                await restoreUserToWaitingLobby(volatileState, negotiation.challenger.id, negotiation.mode);
+                await restoreUserToWaitingLobby(volatileState, negotiation.opponent.id, negotiation.mode);
                 delete volatileState.negotiations[negotiationId];
                 broadcast({ type: 'NEGOTIATION_UPDATE', payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses } });
                 return { error: 'Negotiation failed after too many turns.' };
@@ -306,7 +321,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             if (!challengerStatus || (challengerStatus.status !== UserStatus.Negotiating && challengerStatus.status !== UserStatus.Waiting)) {
                 // challenger가 이미 나간 경우 negotiation 삭제 및 opponent 상태 복구
                 if (volatileState.userStatuses[negotiation.opponent.id]?.status === UserStatus.Negotiating) {
-                    restoreUserToWaitingLobby(volatileState, negotiation.opponent.id, negotiation.mode);
+                    await restoreUserToWaitingLobby(volatileState, negotiation.opponent.id, negotiation.mode);
                 }
                 delete volatileState.negotiations[negotiationId];
                 broadcast({ type: 'NEGOTIATION_UPDATE', payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses } });
@@ -321,8 +336,8 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             await applyPassiveActionPointRegenToUser(challenger, now);
             await applyPassiveActionPointRegenToUser(opponent, now);
             if ((challenger.actionPoints.current < cost && !challenger.isAdmin) || (opponent.actionPoints.current < cost && !opponent.isAdmin)) {
-                restoreUserToWaitingLobby(volatileState, challenger.id, negotiation.mode);
-                restoreUserToWaitingLobby(volatileState, opponent.id, negotiation.mode);
+                await restoreUserToWaitingLobby(volatileState, challenger.id, negotiation.mode);
+                await restoreUserToWaitingLobby(volatileState, opponent.id, negotiation.mode);
                 delete volatileState.negotiations[negotiationId];
                 return { error: 'One of the players does not have enough action points.' };
             }
@@ -366,15 +381,15 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             }
             
             const playerIdsInGame = new Set([game.player1.id, game.player2.id]);
-            Object.values(volatileState.negotiations).forEach(negToCancel => {
+            for (const negToCancel of Object.values(volatileState.negotiations)) {
                 if (negToCancel.id !== negotiationId && (playerIdsInGame.has(negToCancel.challenger.id) || playerIdsInGame.has(negToCancel.opponent.id))) {
                     const challengerId = negToCancel.challenger.id;
                     if (volatileState.userStatuses[challengerId]?.status === UserStatus.Negotiating) {
-                        restoreUserToWaitingLobby(volatileState, challengerId, negToCancel.mode);
+                        await restoreUserToWaitingLobby(volatileState, challengerId, negToCancel.mode);
                     }
                     delete volatileState.negotiations[negToCancel.id];
                 }
-            });
+            }
 
             delete volatileState.negotiations[negotiationId];
             
@@ -417,13 +432,13 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                     }
                 });
             } else {
-                const restoreNegotiatorToWaiting = (userId: string) => {
+                const restoreNegotiatorToWaiting = async (userId: string) => {
                     const st = volatileState.userStatuses[userId];
                     if (st?.status !== UserStatus.Negotiating) return;
-                    restoreUserToWaitingLobby(volatileState, userId, mode);
+                    await restoreUserToWaitingLobby(volatileState, userId, mode);
                 };
-                restoreNegotiatorToWaiting(challenger.id);
-                restoreNegotiatorToWaiting(opponent.id);
+                await restoreNegotiatorToWaiting(challenger.id);
+                await restoreNegotiatorToWaiting(opponent.id);
             }
         
             // 거절한 사람이 opponent인 경우 challenger에게 거절 메시지 전달

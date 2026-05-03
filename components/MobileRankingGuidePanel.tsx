@@ -1,5 +1,6 @@
 import React from 'react';
 import { replaceAppHash } from '../utils/appUtils.js';
+import { RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScrollbar.js';
 
 export type MobileRankingGuideVariant = 'game-combat' | 'game-manner' | 'baduk-strategic' | 'baduk-playful';
 
@@ -137,7 +138,7 @@ const MobileRankingGuidePanel: React.FC<{ variant: MobileRankingGuideVariant }> 
                     <div className="h-px min-w-0 flex-1 bg-gradient-to-r from-amber-500/35 to-transparent" />
                 </div>
 
-                <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto pr-0.5">
+                <div className={`min-h-0 flex-1 space-y-2.5 overflow-y-auto pr-0.5 ${RANKING_MODAL_SLIM_SCROLL_Y}`}>
                     {renderSection(g.how, 'amber', '↑')}
                     {g.where != null && renderSection(g.where, 'sky', '◎')}
                 </div>

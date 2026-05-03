@@ -1,14 +1,10 @@
-import React, { useState } from 'react';
-import { UserWithStatus, ServerAction, UserStatus, GameMode, Negotiation } from '../../types.js';
+import React from 'react';
+import { UserWithStatus, ServerAction, UserStatus, GameMode } from '../../types.js';
 import Avatar from '../Avatar.js';
 import UserNicknameText from '../UserNicknameText.js';
 import { AVATAR_POOL, BORDER_POOL, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
 import Button from '../Button.js';
-import ChallengeSelectionModal from '../ChallengeSelectionModal';
-import GameRejectionSettingsModal from '../GameRejectionSettingsModal.tsx';
 import { useAppContext } from '../../hooks/useAppContext.js';
-import { isOpponentInsufficientActionPointsError } from '../../constants.js';
-import { getApiUrl } from '../../utils/apiConfig.js';
 
 type UserListStats = { wins: number; losses: number; winRate: number; score: number };
 
@@ -75,7 +71,6 @@ interface PlayerListProps {
     onAction: (a: ServerAction) => void;
     currentUser: UserWithStatus;
     mode: GameMode | 'strategic' | 'playful' | 'pair';
-    negotiations: Negotiation[];
     onViewUser: (userId: string) => void;
     lobbyType: 'strategic' | 'playful';
     userCount?: number;
@@ -100,7 +95,6 @@ const PlayerList: React.FC<PlayerListProps> = ({
     onAction,
     currentUser,
     mode,
-    negotiations,
     onViewUser,
     lobbyType,
     userCount,
@@ -111,44 +105,19 @@ const PlayerList: React.FC<PlayerListProps> = ({
 }) => {
     const { handlers } = useAppContext();
     const isStrategicLobby = lobbyType === 'strategic';
-    const [isChallengeSelectionModalOpen, setIsChallengeSelectionModalOpen] = useState(false);
-    const [challengeTargetUser, setChallengeTargetUser] = useState<UserWithStatus | null>(null);
-    const [isRejectionSettingsModalOpen, setIsRejectionSettingsModalOpen] = useState(false);
-    const me = users.find(user => user.id === currentUser.id);
+    const me =
+        users.find((user) => user.id === currentUser.id) ??
+        users.find((user) => String(user?.id) === String(currentUser?.id));
 
-    // 신청자 UI는 ChallengeSelectionModal로 일관 유지 (상대 수정 제안 시에도 닫지 않음)
-    const otherUsers = users.filter(user => user.id !== currentUser.id).sort((a,b) => a.nickname.localeCompare(b.nickname));
-
-    const canChallenge = (targetUser: UserWithStatus) => {
-        // 서버가 CHALLENGE_USER에서 waiting으로 보정하므로 online/resting도 신청 허용
-        // (취소 직후 상태 동기화 지연으로 버튼이 잠기는 현상 방지)
-        const canRequesterChallenge =
-            currentUser.status === 'waiting' ||
-            currentUser.status === 'resting' ||
-            currentUser.status === 'online';
-        if (!canRequesterChallenge) {
-            return false;
-        }
-        // negotiating: 상대가 나에게 신청 작성 중일 수 있음 — 버튼은 열어두고 서버/수신 모달에서 먼저 신청한 쪽 우선 처리
-        return (
-            targetUser.status === 'waiting' ||
-            targetUser.status === 'online' ||
-            targetUser.status === 'negotiating'
-        );
-    };
+    const otherUsers = users
+        .filter((user) => user.id !== currentUser.id && String(user.id) !== String(currentUser.id))
+        .sort((a, b) => a.nickname.localeCompare(b.nickname));
 
     const isPairArenaList = mode === 'pair' && !pairInvite;
 
     const renderUserItem = (user: UserWithStatus, isCurrentUser: boolean) => {
-        const isChallengeable = !isCurrentUser && !isPairArenaList && canChallenge(user);
         const statusInfo = statusDisplay[user.status];
         const isDiceGo = mode === GameMode.Dice;
-
-        const sentNegotiation = !isCurrentUser ? negotiations.find(n => 
-            n.challenger.id === currentUser.id && 
-            n.opponent.id === user.id && 
-            (n.status === 'pending' || n.status === 'draft')
-        ) : null;
 
         const listStats = computeUserListStats(user, mode);
 
@@ -290,26 +259,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
                                     초대하기
                                 </Button>
                             );
-                        })() : isPairArenaList ? null : sentNegotiation ? (
-                             <Button
-                                onClick={() => onAction({ type: 'DECLINE_NEGOTIATION', payload: { negotiationId: sentNegotiation.id } })}
-                                colorScheme="red"
-                                className={`!py-1 !px-2 ${pairAlignedNativeCompact ? '!text-[0.65rem] sm:!text-xs' : '!text-xs'}`}
-                            >
-                                신청 취소
-                            </Button>
-                        ) : (
-                            <Button
-                                onClick={() => {
-                                    setChallengeTargetUser(user);
-                                    setIsChallengeSelectionModalOpen(true);
-                                }}
-                                disabled={!isChallengeable}
-                                className={`!py-1 !px-2 ${pairAlignedNativeCompact ? '!text-[0.65rem] sm:!text-xs' : '!text-xs'}`}
-                            >
-                                대국 신청
-                            </Button>
-                        )}
+                        })() : null}
                     </div>
                 )}
             </li>
@@ -342,17 +292,6 @@ const PlayerList: React.FC<PlayerListProps> = ({
                         </span>
                     )}
                 </span>
-                {!isPairArenaList && (
-                    <Button
-                        onClick={() => setIsRejectionSettingsModalOpen(true)}
-                        colorScheme="none"
-                        className={`!py-1 !px-2 bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 text-white font-bold rounded-lg shadow-lg transition-all duration-200 ${
-                            pairAlignedNativeCompact ? '!text-[0.65rem] sm:!text-xs' : '!text-xs'
-                        }`}
-                    >
-                        대국 신청 거부
-                    </Button>
-                )}
             </h2>
             )}
             {me && (
@@ -369,96 +308,6 @@ const PlayerList: React.FC<PlayerListProps> = ({
                     <p className="text-center text-tertiary pt-8">다른 플레이어가 없습니다.</p>
                 )}
             </ul>
-            {!pairInvite && isRejectionSettingsModalOpen && (
-                <GameRejectionSettingsModal
-                    onClose={() => setIsRejectionSettingsModalOpen(false)}
-                    lobbyType={lobbyType}
-                />
-            )}
-            {!pairInvite && isChallengeSelectionModalOpen && challengeTargetUser && (
-                <ChallengeSelectionModal
-                    opponent={challengeTargetUser}
-                    onClose={() => {
-                        setIsChallengeSelectionModalOpen(false);
-                        setChallengeTargetUser(null);
-                    }}
-                    negotiations={negotiations}
-                    currentUser={currentUser}
-                    onChallenge={async (gameMode, settings) => {
-                        // 모달을 닫지 않고 유지하여 응답을 기다림
-                        
-                        // CHALLENGE_USER로 draft negotiation 생성 (친선전)
-                        const createChallengeAction = { 
-                            type: 'CHALLENGE_USER', 
-                            payload: { opponentId: challengeTargetUser.id, mode: gameMode, settings, isRanked: false } 
-                        };
-                        
-                        // handleAction을 직접 호출하여 응답을 받음
-                        try {
-                            // 배포(프론트/백 분리)에서도 백엔드로 요청되도록 getApiUrl 사용
-                            const response = await fetch(getApiUrl('/api/action'), {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({
-                                    ...createChallengeAction,
-                                    userId: currentUser.id
-                                })
-                            });
-                            
-                            const result = await response.json();
-                            if (result.challengeComposerSuperseded === true) {
-                                setIsChallengeSelectionModalOpen(false);
-                                setChallengeTargetUser(null);
-                                return;
-                            }
-                            const serverError =
-                                (typeof result?.error === 'string' && result.error) ||
-                                (typeof result?.message === 'string' && result.message) ||
-                                (!response.ok ? '대국 신청 생성에 실패했습니다.' : '');
-
-                            if (serverError) {
-                                if (isOpponentInsufficientActionPointsError(serverError)) {
-                                    handlers.openOpponentInsufficientActionPointsModal();
-                                } else {
-                                    alert(serverError);
-                                }
-                                return;
-                            }
-                            
-                            // 응답에서 negotiationId를 받아서 즉시 SEND_CHALLENGE 호출
-                            const negotiationId = result.negotiationId || result.clientResponse?.negotiationId;
-                            if (negotiationId) {
-                                onAction({ 
-                                    type: 'SEND_CHALLENGE', 
-                                    payload: { negotiationId, settings } 
-                                });
-                            } else {
-                                // negotiationId가 없으면 WebSocket 업데이트를 기다림
-                                setTimeout(() => {
-                                    const negotiationsArray = Object.values(negotiations || {});
-                                    const draftNegotiation = negotiationsArray.find(n => 
-                                        n.challenger.id === currentUser.id && 
-                                        n.opponent.id === challengeTargetUser.id && 
-                                        n.status === 'draft'
-                                    );
-                                    
-                                    if (draftNegotiation) {
-                                        onAction({ 
-                                            type: 'SEND_CHALLENGE', 
-                                            payload: { negotiationId: draftNegotiation.id, settings } 
-                                        });
-                                    }
-                                }, 300);
-                            }
-                        } catch (error) {
-                            console.error('Failed to send challenge:', error);
-                            alert('대국 신청 전송에 실패했습니다.');
-                        }
-                    }}
-                    lobbyType={lobbyType}
-                />
-            )}
         </div>
     );
 };

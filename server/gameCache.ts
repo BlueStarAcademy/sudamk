@@ -1,6 +1,7 @@
 import { LiveGameSession, User } from '../types/index.js';
 import { volatileState } from './state.js';
 import * as db from './db.js';
+import { isPairClassicGame } from '../shared/utils/pairGameTurn.js';
 
 const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production';
 const CACHE_TTL_MS = isRailway ? 300 * 1000 : 30 * 1000;
@@ -64,6 +65,17 @@ export async function getCachedGame(gameId: string): Promise<LiveGameSession | n
             cache.set(gameId, { game: cached.game, lastUpdated: now });
             return cached.game;
         }
+        // 페어: 순서 확인 후 캐시는 playing인데 DB가 아직 pair_order_reveal(저장 지연·메인루프 배치)이면 덮어쓰지 않음
+        const pairRevealStale =
+            cached?.game &&
+            isPairClassicGame(game.settings, game.mode) &&
+            Boolean(game.settings?.pairGame?.turnOrder?.length) &&
+            cached.game.gameStatus === 'playing' &&
+            game.gameStatus === 'pair_order_reveal';
+        if (pairRevealStale) {
+            cache.set(gameId, { game: cached.game, lastUpdated: now });
+            return cached.game;
+        }
         cache.set(gameId, { game, lastUpdated: now });
         return game;
     }
@@ -88,9 +100,18 @@ export async function getCachedGame(gameId: string): Promise<LiveGameSession | n
  */
 export function updateGameCache(game: LiveGameSession): void {
     const cache = volatileState.gameCache;
-    if (cache) {
-        cache.set(game.id, { game, lastUpdated: Date.now() });
+    if (!cache) return;
+    const prev = cache.get(game.id);
+    if (
+        prev?.game &&
+        isPairClassicGame(game.settings, game.mode) &&
+        Boolean(game.settings?.pairGame?.turnOrder?.length) &&
+        prev.game.gameStatus === 'playing' &&
+        game.gameStatus === 'pair_order_reveal'
+    ) {
+        return;
     }
+    cache.set(game.id, { game, lastUpdated: Date.now() });
 }
 
 /**

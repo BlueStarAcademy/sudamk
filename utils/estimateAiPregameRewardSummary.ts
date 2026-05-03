@@ -28,9 +28,9 @@ function resolveHumanOpponent(session: LiveGameSession, currentUser?: User): { h
   return null;
 }
 
-function xpLevelMultiplier(human: User, opponent: User, isStrategic: boolean): number {
-  const initialLevel = isStrategic ? human.strategyLevel ?? 1 : human.playfulLevel ?? 1;
-  const opponentLevel = isStrategic ? opponent.strategyLevel ?? 1 : opponent.playfulLevel ?? 1;
+function xpLevelMultiplier(human: User, opponent: User, _isStrategic: boolean): number {
+  const initialLevel = human.userLevel ?? 1;
+  const opponentLevel = opponent.userLevel ?? 1;
   const levelDiff = opponentLevel - initialLevel;
   const raw = 1 + levelDiff * 0.1;
   return Math.max(0.5, Math.min(1.5, raw));
@@ -160,8 +160,7 @@ export function buildAiPregameRewardVisual(session: LiveGameSession, currentUser
     appendVipPlayRewardSlot(slots, session, currentUser);
     return {
       slots,
-      footnote:
-        '※ 이번 판에서 획득한 별(0~3)에 따라 골드만 지급됩니다. 0별이면 골드 없음. 보상 VIP는 승리 시 VIP 슬롯에서 골드(100~1000), 장비 상자 I~IV, 재료 상자 I~IV, 전설 장비 중 하나를 받습니다.',
+      footnote: '※ 이번 판에서 획득한 별(0~3)에 따라 골드만 지급됩니다. 0별이면 골드 없음.',
     };
   }
 
@@ -179,8 +178,7 @@ export function buildAiPregameRewardVisual(session: LiveGameSession, currentUser
     appendVipPlayRewardSlot(slots, session, currentUser);
     return {
       slots,
-      footnote:
-        '※ 전략 AI 승리 시 모험과 동일한 기본 전략 경험치만 지급됩니다. 골드·아이템 드롭 없음. 보상 VIP는 승리 시 VIP 슬롯에서 골드(100~1000), 장비 상자 I~IV, 재료 상자 I~IV, 전설 장비 중 하나를 받습니다.',
+      footnote: '※ 전략 AI 승리 시 모험과 동일한 기본 전략 경험치만 지급됩니다. 골드·아이템 드롭 없음.',
     };
   }
 

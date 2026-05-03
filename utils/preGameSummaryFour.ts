@@ -758,7 +758,7 @@ function getSinglePlayerStageSummary(
       winGoal = `${cap}점 먼저 획득`;
       loseGoal = `백이 ${cap}점 먼저 획득`;
     } else {
-      winGoal = '따내기 목표 달성';
+      winGoal = '목표점수 달성';
       loseGoal = '백이 목표 먼저 달성';
     }
   } else if (isSpeedMode) {

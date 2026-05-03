@@ -1,8 +1,7 @@
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { User } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import { getMannerScore, getMannerRank, getMannerStyle, MANNER_RANKS } from '../services/manner.js';
-import { getMannerEffects } from '../services/effectService.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 interface MannerRankModalProps {
@@ -11,184 +10,149 @@ interface MannerRankModalProps {
     isTopmost?: boolean;
 }
 
+/** 본문은 창( DraggableWindow ) 한 곳만 세로 스크롤 — 내부 max-height 스크롤 금지 */
 const MannerRankModal: React.FC<MannerRankModalProps> = ({ user, onClose, isTopmost }) => {
     const { isNativeMobile } = useNativeMobileShell();
     const totalMannerScore = getMannerScore(user);
     const mannerRank = getMannerRank(totalMannerScore);
     const mannerStyle = getMannerStyle(totalMannerScore);
-    const currentEffects = getMannerEffects(user);
-
-    // 현재 등급 정보
-    const currentRankInfo = useMemo(() => {
-        return MANNER_RANKS.find(rank => totalMannerScore >= rank.min && totalMannerScore <= rank.max) || MANNER_RANKS[0];
-    }, [totalMannerScore]);
-
-    // 다음 등급 정보
-    const nextRankInfo = useMemo(() => {
-        const currentIndex = MANNER_RANKS.findIndex(rank => rank.name === currentRankInfo.name);
-        if (currentIndex < MANNER_RANKS.length - 1) {
-            return MANNER_RANKS[currentIndex + 1];
-        }
-        return null;
-    }, [currentRankInfo]);
-
-
-    // 현재 적용 중인 효과 요약
-    const activeEffects = useMemo(() => {
-        const active: string[] = [];
-
-        if (currentEffects.maxActionPoints > 30) {
-            active.push(`최대 행동력: ${currentEffects.maxActionPoints} (기본 30 + ${currentEffects.maxActionPoints - 30})`);
-        } else if (currentEffects.maxActionPoints < 30) {
-            active.push(`최대 행동력: ${currentEffects.maxActionPoints} (기본 30 ${currentEffects.maxActionPoints - 30})`);
-        }
-
-        if (currentEffects.winGoldBonusPercent > 0) {
-            active.push(`승리 골드 확률: +${currentEffects.winGoldBonusPercent}%`);
-        }
-
-        if (currentEffects.winDropBonusPercent > 0) {
-            active.push(`승리 아이템 확률: +${currentEffects.winDropBonusPercent}%`);
-        }
-
-        if (currentEffects.disassemblyJackpotBonusPercent > 0) {
-            active.push(`분해 대박 확률: +${currentEffects.disassemblyJackpotBonusPercent}%`);
-        }
-
-        if (currentEffects.allStatsFlatBonus > 0) {
-            active.push(`모든 능력치 보너스: +${currentEffects.allStatsFlatBonus}`);
-        }
-
-        if (currentEffects.goldRewardMultiplier < 1) {
-            active.push(`골드 보상: ${Math.round(currentEffects.goldRewardMultiplier * 100)}%`);
-        }
-
-        if (currentEffects.dropChanceMultiplier < 1) {
-            active.push(`드롭 확률: ${Math.round(currentEffects.dropChanceMultiplier * 100)}%`);
-        }
-
-        if (currentEffects.actionPointRegenInterval > 300000) { // 5분보다 길면
-            const minutes = Math.round(currentEffects.actionPointRegenInterval / 60000);
-            active.push(`행동력 회복 시간 증가: ${minutes}분`);
-        }
-
-        return active;
-    }, [currentEffects]);
 
     const rankListRef = useRef<HTMLDivElement>(null);
     const activeRankRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!rankListRef.current || !activeRankRef.current) return;
-        activeRankRef.current.scrollIntoView({ block: 'center', inline: 'nearest' });
+        activeRankRef.current.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }, [totalMannerScore]);
 
+    /** 통일 타이포 — 한 단계 작게 (가독성 유지) */
+    const t = {
+        sectionTitle: 'text-sm font-bold tracking-tight text-slate-100 sm:text-base',
+        body: 'text-xs leading-relaxed text-slate-300 sm:text-sm sm:leading-relaxed',
+        bodyMuted: 'text-xs leading-relaxed text-slate-500 sm:text-sm',
+        cardTitle: 'text-xs font-bold sm:text-sm',
+        cardMeta: 'text-[0.65rem] font-medium tabular-nums text-slate-500 sm:text-xs',
+        cardBody: 'text-xs leading-snug text-slate-400 sm:text-sm sm:leading-relaxed',
+        badge: 'rounded-full border border-amber-400/45 bg-amber-500/15 px-1.5 py-px text-[0.65rem] font-bold text-amber-100 sm:text-xs',
+    };
+
+    const sectionPad = isNativeMobile ? 'p-3 sm:p-3.5' : 'p-3 sm:p-4';
+    const gapMain = 'gap-3 sm:gap-4';
+
     return (
-        <DraggableWindow title="매너 등급 정보" onClose={onClose} windowId="manner-rank" initialWidth={600} isTopmost={isTopmost}>
-            <div className={`flex flex-col ${isNativeMobile ? 'gap-2.5 p-2.5' : 'gap-4 p-4'}`}>
-                {/* 현재 등급 정보 */}
-                <div className={`bg-gray-800/50 rounded-lg border border-gray-700 ${isNativeMobile ? 'p-2.5' : 'p-4'}`}>
-                    <div className={`flex items-center justify-between ${isNativeMobile ? 'mb-1.5' : 'mb-2'}`}>
-                        <h3 className={`${isNativeMobile ? 'text-base' : 'text-lg'} font-bold text-gray-200`}>현재 등급</h3>
-                        <span className={`${isNativeMobile ? 'text-lg' : 'text-xl'} font-bold ${mannerRank.color}`}>{mannerRank.rank}</span>
-                    </div>
-                    <div className={`flex items-center justify-between ${isNativeMobile ? 'mb-1.5 text-sm' : 'mb-2'}`}>
-                        <span className="text-gray-400">매너 점수</span>
-                        <span className="text-gray-200 font-semibold">{totalMannerScore}점</span>
-                    </div>
-                    <div className={`w-full bg-gray-700 rounded-full ${isNativeMobile ? 'mb-1.5 h-2.5' : 'mb-2 h-3'}`}>
-                        <div className={`${mannerStyle.colorClass} h-full rounded-full transition-all`} style={{ width: `${mannerStyle.percentage}%` }}></div>
-                    </div>
-                    {nextRankInfo && (
-                        <div className={`${isNativeMobile ? 'text-xs' : 'text-sm'} text-gray-400`}>
-                            다음 등급까지: <span className="text-gray-200 font-semibold">{nextRankInfo.min - totalMannerScore}점</span>
+        <DraggableWindow
+            title="매너 등급 정보"
+            onClose={onClose}
+            windowId="manner-rank"
+            initialWidth={640}
+            initialHeight={540}
+            shrinkHeightToContent={false}
+            isTopmost={isTopmost}
+        >
+            <div className={`relative flex w-full min-w-0 flex-col ${gapMain}`}>
+                <div className="pointer-events-none absolute -left-24 -top-24 h-56 w-56 rounded-full bg-violet-500/10 blur-3xl" aria-hidden />
+                <div className="pointer-events-none absolute -bottom-16 -right-20 h-48 w-48 rounded-full bg-teal-500/[0.08] blur-3xl" aria-hidden />
+
+                {/* 프로필 홈「매너 등급」패널과 동일한 박스 (등급 정보 버튼만 생략) */}
+                <section className="min-w-0">
+                    <div
+                        className="w-full min-w-0 overflow-hidden rounded-lg border border-amber-500/35 bg-gradient-to-b from-zinc-800/90 to-zinc-950 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_10px_30px_-18px_rgba(0,0,0,0.65)] sm:p-2.5"
+                    >
+                        <div className="mb-1.5 flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-1">
+                            <span className="shrink-0 font-bold text-amber-100/95 text-sm sm:text-base">매너 등급</span>
+                            <span
+                                className={`min-w-0 shrink truncate font-bold tabular-nums text-sm sm:text-base ${mannerRank.color}`}
+                                title={`${totalMannerScore}점 (${mannerRank.rank})`}
+                            >
+                                {totalMannerScore}점 ({mannerRank.rank})
+                            </span>
                         </div>
-                    )}
-                </div>
-
-                {/* 등급별 효과 정보 */}
-                <div className={`bg-gray-800/50 rounded-lg border border-gray-700 ${isNativeMobile ? 'p-2.5' : 'p-4'}`}>
-                    <h3 className={`${isNativeMobile ? 'mb-2 text-base' : 'mb-3 text-lg'} font-bold text-gray-200`}>등급별 효과</h3>
-                    <div ref={rankListRef} className={`overflow-y-auto ${isNativeMobile ? 'max-h-[42dvh] space-y-2 pr-1 pb-1' : 'max-h-96 space-y-3 pr-3 pb-4'}`}>
-                        {MANNER_RANKS.slice().reverse().map((rank, index) => {
-                            const isActive = totalMannerScore >= rank.min && totalMannerScore <= rank.max;
-                            const rankColor = getMannerRank(rank.min === 0 ? 0 : rank.min).color;
-                            const effects: string[] = [];
-                            
-                            // 긍정 효과 (누적)
-                            if (rank.min >= 2000) {
-                                effects.push('모든 능력치 +10');
-                            }
-                            if (rank.min >= 1600) {
-                                effects.push('분해 대박 확률 +20%');
-                            }
-                            if (rank.min >= 1200) {
-                                effects.push('승리 아이템 확률 +20%');
-                            }
-                            if (rank.min >= 800) {
-                                effects.push('승리 골드 확률 +20%');
-                            }
-                            if (rank.min >= 400) {
-                                effects.push('최대 행동력 +10');
-                            }
-                            
-                            // 부정 효과
-                            if (rank.max <= 0) {
-                                effects.push('최대 행동력 -20');
-                            }
-                            if (rank.max <= 49 && rank.max > 0) {
-                                effects.push('행동력 회복 시간 증가');
-                            }
-                            if (rank.max <= 99 && rank.max > 0) {
-                                effects.push('승리 골드 보상 -50%');
-                            }
-                            if (rank.max <= 199 && rank.max > 0) {
-                                effects.push('승리 아이템 확률 -50%');
-                            }
-                            
-                            // 기본 등급
-                            if (rank.min >= 200 && rank.max <= 399) {
-                                effects.push('기본 효과 (효과 없음)');
-                            }
-                            
-                            return (
-                                <div
-                                    key={index}
-                                    ref={isActive ? activeRankRef : null}
-                                    className={`${isNativeMobile ? 'p-2' : 'p-3'} rounded-lg border ${isActive ? 'border-amber-400 bg-amber-900/20' : 'border-gray-700 bg-gray-900/30'}`}
-                                >
-                                    <div className={`flex items-center justify-between ${isNativeMobile ? 'mb-1.5' : 'mb-2'}`}>
-                                        <div className="flex items-center gap-2">
-                                            <span className={`font-bold ${rankColor}`}>{rank.name}</span>
-                                            {isActive && (
-                                                <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/50 rounded">
-                                                    나의 등급
-                                                </span>
-                                            )}
-                                        </div>
-                                        <span className={`${isNativeMobile ? 'text-[11px]' : 'text-xs'} text-gray-400`}>
-                                            {rank.min === 0 && rank.max === 0 ? '0점' : 
-                                             rank.max === Infinity ? `${rank.min}점 이상` : 
-                                             `${rank.min}~${rank.max}점`}
-                                        </span>
-                                    </div>
-                                    {effects.length > 0 && (
-                                        <div className={`${isNativeMobile ? 'text-xs' : 'text-sm'} text-gray-300 space-y-1`}>
-                                            {effects.map((effect, i) => (
-                                                <div key={i}>• {effect}</div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+                        <div className="w-full rounded-full border border-color bg-tertiary/50 h-2 sm:h-2">
+                            <div className={`${mannerStyle.colorClass} h-full rounded-full`} style={{ width: `${mannerStyle.percentage}%` }} />
+                        </div>
                     </div>
-                </div>
+                </section>
 
+                <section
+                    className={`relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-slate-900/92 to-slate-950/98 shadow-[0_12px_40px_-24px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-white/[0.04] ${sectionPad}`}
+                >
+                    <div className="mb-3">
+                        <h3 className={t.sectionTitle}>등급별 효과</h3>
+                        <p className={`mt-1 ${t.bodyMuted}`}>점수 구간별로 적용되는 혜택·페널티입니다.</p>
+                    </div>
+                    {/* 단일 스크롤: 창 본문만 스크롤 — 여기서는 overflow 제거 */}
+                    <div ref={rankListRef} className="flex flex-col gap-2.5 sm:gap-3">
+                        {MANNER_RANKS.slice()
+                            .reverse()
+                            .map((rank, index) => {
+                                const isActive = totalMannerScore >= rank.min && totalMannerScore <= rank.max;
+                                const rankColor = getMannerRank(rank.min === 0 ? 0 : rank.min).color;
+                                const effects: string[] = [];
+
+                                if (rank.min >= 2000) effects.push('모든 능력치 +10');
+                                if (rank.min >= 1600) effects.push('분해 대박 확률 +20%');
+                                if (rank.min >= 1200) effects.push('승리 아이템 확률 +20%');
+                                if (rank.min >= 800) effects.push('승리 골드 확률 +20%');
+                                if (rank.min >= 400) effects.push('최대 행동력 +10');
+                                if (rank.max <= 0) effects.push('최대 행동력 -20');
+                                if (rank.max <= 49 && rank.max > 0) effects.push('행동력 회복 시간 증가');
+                                if (rank.max <= 99 && rank.max > 0) effects.push('승리 골드 보상 -50%');
+                                if (rank.max <= 199 && rank.max > 0) effects.push('승리 아이템 확률 -50%');
+                                if (rank.min >= 200 && rank.max <= 399) effects.push('기본 효과 (효과 없음)');
+
+                                return (
+                                    <div
+                                        key={index}
+                                        ref={isActive ? activeRankRef : null}
+                                        className={`relative overflow-hidden rounded-xl border transition-shadow duration-200 ${
+                                            isActive
+                                                ? 'border-amber-400/40 bg-gradient-to-br from-amber-950/40 via-slate-950/85 to-slate-950 shadow-[0_0_0_1px_rgba(251,191,36,0.14),0_12px_32px_-16px_rgba(251,191,36,0.18)] ring-1 ring-amber-400/30'
+                                                : 'border-white/[0.07] bg-black/25 ring-1 ring-inset ring-white/[0.04] hover:border-white/12'
+                                        } p-3 sm:p-4`}
+                                    >
+                                        {isActive && (
+                                            <div
+                                                className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-amber-300 via-amber-500 to-amber-600/80"
+                                                aria-hidden
+                                            />
+                                        )}
+                                        <div className={`flex flex-wrap items-center justify-between gap-2 ${isActive ? 'pl-1 sm:pl-1.5' : ''}`}>
+                                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                                <span className={`min-w-0 ${t.cardTitle} ${rankColor}`}>{rank.name}</span>
+                                                {isActive ? <span className={t.badge}>현재</span> : null}
+                                            </div>
+                                            <span
+                                                className={`shrink-0 rounded-lg border border-white/[0.08] bg-black/40 px-2 py-1 font-mono ${t.cardMeta}`}
+                                            >
+                                                {rank.min === 0 && rank.max === 0
+                                                    ? '0점'
+                                                    : rank.max === Infinity
+                                                      ? `${rank.min}점 이상`
+                                                      : `${rank.min}~${rank.max}점`}
+                                            </span>
+                                        </div>
+                                        {effects.length > 0 && (
+                                            <div
+                                                className={`mt-2.5 space-y-1.5 border-t border-white/[0.06] pt-2.5 ${isActive ? 'pl-1 sm:pl-1.5' : ''}`}
+                                            >
+                                                {effects.map((effect, i) => (
+                                                    <div key={i} className={`flex gap-2 ${t.cardBody}`}>
+                                                        <span className="shrink-0 text-slate-600" aria-hidden>
+                                                            ·
+                                                        </span>
+                                                        <span>{effect}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                    </div>
+                </section>
             </div>
         </DraggableWindow>
     );
 };
 
 export default MannerRankModal;
-

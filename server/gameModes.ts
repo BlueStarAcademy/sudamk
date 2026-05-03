@@ -1154,6 +1154,9 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                 ((game.mode === types.GameMode.Dice &&
                     (game.gameStatus === 'dice_rolling_animating' ||
                         game.gameStatus === 'dice_turn_rolling_animating' ||
+                        game.gameStatus === 'dice_turn_rolling' ||
+                        game.gameStatus === 'dice_turn_choice' ||
+                        game.gameStatus === 'dice_start_confirmation' ||
                         (pveDiceThiefIsAiTurn &&
                             (game.gameStatus === 'dice_rolling' || game.gameStatus === 'dice_placing')))) ||
                     (game.mode === types.GameMode.Thief &&

@@ -29,15 +29,15 @@ function captureTargetSummary(session: LiveGameSession): string {
         const b = effectiveCaptureTargets[Player.Black];
         const w = effectiveCaptureTargets[Player.White];
         if (isTower) {
-            return `이번 대국 따내기 목표: 흑 ${b}개 / 백 ${w}개`;
+            return `이번 대국 목표점수: 흑 ${b}개 / 백 ${w}개`;
         }
         if (isSurvival) {
-            return `살리기 스테이지: 백(상대)의 따내기 목표는 ${w}개입니다. 흑 입장에서 생존·형세를 확인하세요.`;
+            return `살리기 스테이지: 백(상대)의 목표점수는 ${w}개입니다. 흑 입장에서 생존·형세를 확인하세요.`;
         }
-        return `이번 대국 따내기 목표: 흑 ${b}개 / 백 ${w}개 (입찰 결과가 반영되었습니다).`;
+        return `이번 대국 목표점수: 흑 ${b}개 / 백 ${w}개 (입찰 결과가 반영되었습니다).`;
     }
     const base = settings.captureTarget ?? 20;
-    return `기본 따내기 목표는 ${base}개입니다. 입찰이 끝나면 흑·백 각각의 목표가 확정됩니다.`;
+    return `기본 목표점수는 ${base}개입니다. 입찰이 끝나면 흑·백 각각의 목표가 확정됩니다.`;
 }
 
 function environmentSection(session: LiveGameSession): MatchPlayGuideSection | null {
@@ -107,7 +107,7 @@ function captureGuide(session: LiveGameSession): MatchPlayGuide {
             {
                 subtitle: '승리 조건',
                 items: pickStrings([
-                    '자신의 따내기 목표 개수만큼 상대 돌을 먼저 따내면 즉시 승리합니다(집 계산 없음).',
+                    '자신의 목표점수만큼 상대 돌을 먼저 따내면 즉시 승리합니다(집 계산 없음).',
                     targetLine,
                 ]),
             },
@@ -198,7 +198,7 @@ function mixGuide(session: LiveGameSession): MatchPlayGuide {
     const win: string[] = [
         `이번 대국은 믹스룰입니다. 조합: ${names}.`,
         hasCapture
-            ? '따내기 목표를 먼저 채우면 그 시점에 승리할 수 있습니다(다른 규칙보다 우선하는 경우가 많습니다).'
+            ? '목표점수를 먼저 채우면 그 시점에 승리할 수 있습니다(다른 규칙보다 우선하는 경우가 많습니다).'
             : '조합에 따내기가 없으면, 최종적으로는 집으로 승패가 갈리는 흐름입니다.',
     ];
     const effort: string[] = [
@@ -320,7 +320,7 @@ function ttamokGuide(session: LiveGameSession): MatchPlayGuide {
                 subtitle: '승리 조건',
                 items: [
                     '다음 중 하나를 먼저 달성하면 승리합니다: (1) 오목 5목 완성 (2) 상대 돌을 따내기 규칙으로 목표 개수 달성.',
-                    `이번 설정의 따내기 목표는 약 ${cap}개입니다(대국 정보 수치를 기준으로 하세요).`,
+                    `이번 설정의 목표점수는 약 ${cap}개입니다(대국 정보 수치를 기준으로 하세요).`,
                 ],
             },
             {

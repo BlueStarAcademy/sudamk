@@ -1,5 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
-import type { InventoryItem, UserWithStatus, ServerAction, ItemGrade, EquipmentSlot } from '../types.js';
+import type { InventoryItem, User, UserWithStatus, ServerAction, EquipmentSlot } from '../types.js';
+import type { HandleActionResult } from '../types/api.js';
+import { ItemGrade } from '../types/enums.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import Button from './Button.js';
@@ -81,9 +83,10 @@ type PurchaseSuccessData = {
 };
 interface ExchangeModalProps {
     currentUser: UserWithStatus;
-    allUsers?: Record<string, UserWithStatus>;
+    /** 서버 `usersMap` 배열 또는 id→유저 맵 */
+    allUsers?: Record<string, UserWithStatus> | UserWithStatus[] | User[];
     onClose: () => void;
-    onAction?: (action: ServerAction) => void | Promise<void | { error?: string }>;
+    onAction?: (action: ServerAction) => void | Promise<void | HandleActionResult | { error?: string }>;
     isTopmost?: boolean;
     /** 판매 등록·구매 미리보기 장비를 ItemDetailModal로 표시 (두 번째 인자: 내 소유 여부) */
     onViewListedEquipment?: (item: InventoryItem, isOwnedByCurrentUser?: boolean) => void;
@@ -177,7 +180,7 @@ function resolveExchangeHistoryRowVisual(
     if (!name) {
         return {
             itemImage: line.includes('정산') ? '/images/Box/GoldBox3.png' : genericFallback,
-            itemGrade: 'normal',
+            itemGrade: ItemGrade.Normal,
             itemStars: 0,
         };
     }
@@ -186,7 +189,7 @@ function resolveExchangeHistoryRowVisual(
     if (imgListed) {
         return {
             itemImage: imgListed.startsWith('/') ? imgListed : `/${imgListed}`,
-            itemGrade: ((listing?.itemGrade as ItemGrade | undefined) ?? inventoryItem?.grade ?? 'normal') as ItemGrade,
+            itemGrade: ((listing?.itemGrade as ItemGrade | undefined) ?? inventoryItem?.grade ?? ItemGrade.Normal) as ItemGrade,
             itemStars: listing?.itemStars ?? inventoryItem?.stars ?? 0,
         };
     }
@@ -195,12 +198,12 @@ function resolveExchangeHistoryRowVisual(
     if (isListingEquipmentSnapshot(snap) && snap.image?.trim()) {
         return {
             itemImage: normalizeExchangeAssetPath(snap.image),
-            itemGrade: (snap.grade as ItemGrade) ?? (listing?.itemGrade as ItemGrade) ?? inventoryItem?.grade ?? 'normal',
+            itemGrade: (snap.grade as ItemGrade) ?? (listing?.itemGrade as ItemGrade) ?? inventoryItem?.grade ?? ItemGrade.Normal,
             itemStars: snap.stars ?? listing?.itemStars ?? inventoryItem?.stars ?? 0,
         };
     }
 
-    const gradeHint = (listing?.itemGrade as ItemGrade | undefined) ?? inventoryItem?.grade ?? 'normal';
+    const gradeHint = (listing?.itemGrade as ItemGrade | undefined) ?? inventoryItem?.grade ?? ItemGrade.Normal;
     const poolMatch =
         EQUIPMENT_POOL.find((p) => p.name === name && p.grade === gradeHint) ?? EQUIPMENT_POOL.find((p) => p.name === name);
     const poolImage = poolMatch?.image ? normalizeExchangeAssetPath(poolMatch.image) : '';
@@ -213,7 +216,7 @@ function resolveExchangeHistoryRowVisual(
     const itemGrade = (poolMatch?.grade as ItemGrade | undefined) ??
         inventoryItem?.grade ??
         (listing?.itemGrade as ItemGrade | undefined) ??
-        'normal';
+        ItemGrade.Normal;
     const itemStars = listing?.itemStars ?? inventoryItem?.stars ?? 0;
 
     return { itemImage, itemGrade, itemStars };
@@ -229,7 +232,7 @@ function buildBuyPreviewInventoryItem(listing: ExchangeListing): InventoryItem {
             isEquipped: false,
         };
     }
-    const grade = (listing.itemGrade ?? 'normal') as ItemGrade;
+    const grade = (listing.itemGrade ?? ItemGrade.Normal) as ItemGrade;
     const name = listing.itemName?.trim() || '장비';
     const templateMatch =
         EQUIPMENT_POOL.find((p) => p.name === name && p.grade === grade) ?? EQUIPMENT_POOL.find((p) => p.name === name);
@@ -272,7 +275,7 @@ function createExchangeSettlementCurrencyObtainItem(currency: SaleCurrency, quan
         isEquipped: false,
         createdAt: now,
         image: isGold ? '/images/icon/Gold.png' : '/images/icon/Zem.png',
-        grade: 'normal',
+        grade: ItemGrade.Normal,
         stars: 0,
     };
 }
@@ -289,7 +292,7 @@ const isExchangeHistoryLineForDisplay = (line: string): boolean =>
     line.includes('구매 완료') || line.includes('정산 모두 수령') || line.includes('정산 수령');
 
 const getBuyListingGroupKey = (entry: Pick<ExchangeListing, 'itemName' | 'itemGrade' | 'itemStars' | 'itemSlot' | 'currency'>): string =>
-    [entry.itemName, entry.itemGrade ?? 'normal', entry.itemStars ?? 0, entry.itemSlot ?? 'none', entry.currency].join('::');
+    [entry.itemName, entry.itemGrade ?? ItemGrade.Normal, entry.itemStars ?? 0, entry.itemSlot ?? 'none', entry.currency].join('::');
 
 const getStarVisual = (stars: number): { image: string; color: string } | null => {
     if (stars >= 10) return { image: '/images/equipments/Star4.png', color: 'prism-text-effect' };
@@ -315,13 +318,13 @@ const BUY_CURRENCY_FILTER_OPTIONS: Array<{ value: BuyCurrencyFilter; label: stri
 ];
 const BUY_GRADE_FILTER_OPTIONS: Array<{ value: BuyGradeFilter; label: string }> = [
     { value: 'all', label: '등급(전체)' },
-    { value: 'normal', label: '일반' },
-    { value: 'uncommon', label: '고급' },
-    { value: 'rare', label: '희귀' },
-    { value: 'epic', label: '에픽' },
-    { value: 'legendary', label: '전설' },
-    { value: 'mythic', label: '신화' },
-    { value: 'transcendent', label: '초월' },
+    { value: ItemGrade.Normal, label: '일반' },
+    { value: ItemGrade.Uncommon, label: '고급' },
+    { value: ItemGrade.Rare, label: '희귀' },
+    { value: ItemGrade.Epic, label: '에픽' },
+    { value: ItemGrade.Legendary, label: '전설' },
+    { value: ItemGrade.Mythic, label: '신화' },
+    { value: ItemGrade.Transcendent, label: '초월' },
 ];
 
 const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, onClose, onAction, isTopmost, onViewListedEquipment }) => {
@@ -462,7 +465,12 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
             remoteIds.add(entry.id);
             merged.set(entry.id, entry);
         });
-        Object.values(allUsers ?? {}).forEach((user) => {
+        const userRows: User[] = !allUsers
+            ? []
+            : Array.isArray(allUsers)
+              ? (allUsers as User[])
+              : (Object.values(allUsers) as User[]);
+        userRows.forEach((user) => {
             const userListings = (user.exchangeState?.listings as ExchangeListing[] | undefined) ?? [];
             userListings.forEach((entry) => {
                 if (!entry || !entry.id) return;
@@ -852,7 +860,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
             listingId,
             itemName: target.itemName,
             itemImage: target.itemImage,
-            itemGrade: (target.itemGrade as ItemGrade | undefined) ?? 'normal',
+            itemGrade: (target.itemGrade as ItemGrade | undefined) ?? ItemGrade.Normal,
             itemStars: target.itemStars ?? 0,
         });
     };
@@ -880,7 +888,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
             (entry) =>
                 (keyword.length === 0 ? true : entry.itemName.toLowerCase().includes(keyword)) &&
                 (buySlotFilter === 'all' ? true : entry.itemSlot === buySlotFilter) &&
-                (buyGradeFilter === 'all' ? true : (entry.itemGrade ?? 'normal') === buyGradeFilter) &&
+                (buyGradeFilter === 'all' ? true : (entry.itemGrade ?? ItemGrade.Normal) === buyGradeFilter) &&
                 (buyCurrencyFilter === 'all' ? true : entry.currency === buyCurrencyFilter),
         );
         const copied = [...filtered];
@@ -991,7 +999,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                     fee,
                     net,
                     itemImage: linkedListing?.itemImage,
-                    itemGrade: (linkedListing?.itemGrade as ItemGrade | undefined) ?? 'normal',
+                    itemGrade: (linkedListing?.itemGrade as ItemGrade | undefined) ?? ItemGrade.Normal,
                     itemStars: linkedListing?.itemStars ?? 0,
                 };
             }),
@@ -1089,7 +1097,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                     timestampText,
                     statusText,
                     itemImage: bulkImage,
-                    itemGrade: 'normal' as ItemGrade,
+                    itemGrade: ItemGrade.Normal,
                     itemStars: 0,
                     priceAmount,
                     priceCurrency,
@@ -1413,7 +1421,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                     <div className="relative flex h-full min-h-0 flex-col gap-3 overflow-hidden rounded-xl border border-amber-500/35 bg-gradient-to-b from-[#161d2e] via-[#0e131f] to-[#070a10] p-3 text-slate-100 shadow-[0_0_0_1px_rgba(251,191,36,0.1),0_24px_48px_-24px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.07)]">
                         {(() => {
                             const item = pendingRegistration.item;
-                            const gradeKey = (item.grade ?? 'normal') as ItemGrade;
+                            const gradeKey = (item.grade ?? ItemGrade.Normal) as ItemGrade;
                             const gradeStyle = gradeStyles[gradeKey];
                             const starVisual = getStarVisual(item.stars ?? 0);
                             const isTranscendent = gradeKey === 'transcendent';
@@ -1546,7 +1554,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                             <div className="flex justify-center">
                                 <div className="relative h-16 w-16 overflow-hidden rounded bg-black/25">
                                     <img
-                                        src={gradeBackgrounds[(pendingCancelListing.itemGrade ?? 'normal') as ItemGrade]}
+                                        src={gradeBackgrounds[(pendingCancelListing.itemGrade ?? ItemGrade.Normal) as ItemGrade]}
                                         alt={pendingCancelListing.itemName}
                                         className="absolute inset-0 h-full w-full object-cover"
                                     />
@@ -1611,7 +1619,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                             <div className="flex justify-center">
                                 <div className="relative h-16 w-16 overflow-hidden rounded bg-black/25">
                                     <img
-                                        src={gradeBackgrounds[(purchaseSuccessData.inventoryItem?.grade ?? purchaseSuccessData.listing.itemGrade ?? 'normal') as ItemGrade]}
+                                        src={gradeBackgrounds[(purchaseSuccessData.inventoryItem?.grade ?? purchaseSuccessData.listing.itemGrade ?? ItemGrade.Normal) as ItemGrade]}
                                         alt={purchaseSuccessData.listing.itemName}
                                         className="absolute inset-0 h-full w-full object-cover"
                                     />
@@ -1968,7 +1976,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                         )}
                                         <div className={mobileExchange ? 'space-y-1.5' : 'space-y-2'}>
                                         {filteredAndSortedBuyItems.map((listing) => {
-                                            const gradeKey = (listing.itemGrade ?? 'normal') as ItemGrade;
+                                            const gradeKey = (listing.itemGrade ?? ItemGrade.Normal) as ItemGrade;
                                             const gradeLabel = gradeStyles[gradeKey]?.name ?? '일반';
                                             const gradeColor = gradeStyles[gradeKey]?.color ?? 'text-slate-200';
                                             const starVisual = getStarVisual(listing.itemStars ?? 0);
@@ -2122,7 +2130,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                     const remainingMs = Math.max(0, (slot.expiresAt ?? nowMs) - nowMs);
                                                     const remainingDays = Math.floor(remainingMs / (24 * 60 * 60 * 1000));
                                                     const remainingHours = Math.floor((remainingMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-                                                    const slotGradeKey = (slot.itemGrade ?? 'normal') as ItemGrade;
+                                                    const slotGradeKey = (slot.itemGrade ?? ItemGrade.Normal) as ItemGrade;
                                                     const slotGradeLabel = gradeStyles[slotGradeKey]?.name ?? '일반';
                                                     const slotGradeColor = gradeStyles[slotGradeKey]?.color ?? 'text-slate-200';
                                                     return (
@@ -2255,7 +2263,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                         const remainingMs = Math.max(0, (slot.expiresAt ?? nowMs) - nowMs);
                                                         const remainingDays = Math.floor(remainingMs / (24 * 60 * 60 * 1000));
                                                         const remainingHours = Math.floor((remainingMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-                                                        const slotGradeKey = (slot.itemGrade ?? 'normal') as ItemGrade;
+                                                        const slotGradeKey = (slot.itemGrade ?? ItemGrade.Normal) as ItemGrade;
                                                         const slotGradeLabel = gradeStyles[slotGradeKey]?.name ?? '일반';
                                                         const slotGradeColor = gradeStyles[slotGradeKey]?.color ?? 'text-slate-200';
                                                         return (
@@ -2442,7 +2450,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                         )}
                                         <div className="space-y-2">
                                             {settlementDisplayItems.map((entry) => {
-                                                const gradeKey = (entry.itemGrade ?? 'normal') as ItemGrade;
+                                                const gradeKey = (entry.itemGrade ?? ItemGrade.Normal) as ItemGrade;
                                                 const gradeLabel = gradeStyles[gradeKey]?.name ?? '일반';
                                                 const starVisual = getStarVisual(entry.itemStars ?? 0);
                                                 const currencyIcon = entry.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png';

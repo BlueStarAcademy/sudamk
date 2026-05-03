@@ -71,9 +71,11 @@ function ensureSession(gameId: string): AiSession {
 export function shouldProcessAiTurn(gameId: string, currentMoveCount: number): boolean {
     const session = ensureSession(gameId);
 
-    // 메인루프/캐시 불일치로 lastProcessed만 앞서가면 "이미 처리됨"으로 AI가 영구 정지할 수 있음 → 실제 수순에 맞게 되돌림
+    // 세션 수순이 game.moveHistory보다 앞서 있으면(낡은 스냅샷으로 makeAiMove가 호출된 경우) currentMoveCount-1로 내리면
+    // shouldProcessAiTurn이 다시 true가 되어 동일 국면에 AI가 중복 착수할 수 있음 → 스냅샷 길이에만 맞추고 스킵
     if (session.lastProcessedMoveCount > currentMoveCount) {
-        session.lastProcessedMoveCount = Math.max(0, currentMoveCount - 1);
+        session.lastProcessedMoveCount = currentMoveCount;
+        return false;
     }
 
     if (session.lastProcessedMoveCount > 0 && currentMoveCount <= session.lastProcessedMoveCount) {
@@ -194,6 +196,11 @@ export function syncAiSession(game: LiveGameSession, aiPlayerId: string, options
         // 예외: 동기화/인간 턴 처리 등으로 lastProcessedMoveCount === moveCount 인 채 AI 차례가 되면
         // shouldProcessAiTurn이 영구 false → 모험·AI 대국에서 봇이 안 두는 현상. 한 수만큼만 되돌린다.
         if (session.lastProcessedMoveCount >= moveCount) {
+            if (session.lastProcessedMoveCount > moveCount) {
+                // lastProcessed > moveCount: 실제 DB/브로드캐스트보다 짧은 스냅샷 — moveCount-1 복구는 중복 AI 착수를 유발하므로 길이만 맞춘다.
+                session.lastProcessedMoveCount = moveCount;
+                return;
+            }
             session.lastProcessedMoveCount = Math.max(-1, moveCount - 1);
             cancelAiProcessing(game.id);
             console.warn(

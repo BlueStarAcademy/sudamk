@@ -36,6 +36,23 @@ import { PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS } from '../constants/pveStr
 import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
 import { tryEndGameWhenCaptureTargetReached } from '../utils/captureTargets.js';
 
+/** `Game.tsx` findLatestMoveIndexAt와 동일 — 상대 히든 판별 시 같은 좌표의 과거 수와 혼동하지 않도록 */
+function findLatestMoveIndexAt(
+    moveHistory: types.LiveGameSession['moveHistory'] | undefined,
+    x: number,
+    y: number,
+    player?: types.Player,
+): number {
+    const moves = moveHistory || [];
+    for (let i = moves.length - 1; i >= 0; i--) {
+        const move = moves[i];
+        if (move.x === x && move.y === y && (player === undefined || move.player === player)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 const ADVENTURE_ENCOUNTER_FROZEN_MS_KEY = 'adventureEncounterFrozenHumanMsRemaining';
 
 const resolveEffectiveFischerIncrement = (game: types.LiveGameSession): number => {
@@ -612,39 +629,42 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 if (freshGame) {
                     serverBoardState = freshGame.boardState;
                     serverMoveHistory = freshGame.moveHistory;
+                    // standard.ts와 동일: board만 DB에서 가져오고 hiddenMoves 등은 옛 메모리를 쓰면 히든 공개 분기를 놓침
+                    if (freshGame.hiddenMoves != null) {
+                        game.hiddenMoves = { ...freshGame.hiddenMoves };
+                    }
+                    if (Array.isArray(freshGame.permanentlyRevealedStones)) {
+                        game.permanentlyRevealedStones = [...freshGame.permanentlyRevealedStones];
+                    }
+                    if (freshGame.revealedHiddenMoves != null) {
+                        game.revealedHiddenMoves = { ...freshGame.revealedHiddenMoves } as any;
+                    }
+                    const fg = freshGame as any;
+                    const gg = game as any;
+                    if (fg.aiInitialHiddenStone !== undefined) gg.aiInitialHiddenStone = fg.aiInitialHiddenStone;
+                    if (fg.aiInitialHiddenStoneIsPrePlaced !== undefined) gg.aiInitialHiddenStoneIsPrePlaced = fg.aiInitialHiddenStoneIsPrePlaced;
+                    if (fg.scannedAiInitialHiddenByUser != null) {
+                        gg.scannedAiInitialHiddenByUser = { ...fg.scannedAiInitialHiddenByUser };
+                    }
                 }
             }
             
             // 범위 체크 후에만 boardState에 접근
             const stoneAtTarget = serverBoardState[y][x];
 
-            // 싱글플레이/AI 게임에서 AI가 둔 자리 체크 (서버 boardState 기준만 사용)
-            // boardState가 빈 칸이면 moveHistory와 불일치해도 착수 허용 (빈 공간에 돌이 안 놓이는 현상 방지)
+            // 서버 boardState를 먼저 반영한 뒤 히든 여부를 판별해야 한다.
+            // (길드전 등: 상대 히든 칸을 상대 돌로 두고 기존처럼 먼저 차단하면 공개 분기에 들어가지 못함)
             if (
                 game.isSinglePlayer ||
                 game.gameCategory === 'tower' ||
                 game.isAiGame ||
                 (game as any).gameCategory === 'guildwar'
             ) {
-                if (stoneAtTarget === opponentPlayerEnum) {
-                    console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: AI stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, opponentPlayerEnum=${opponentPlayerEnum}, isSinglePlayer=${game.isSinglePlayer}, gameCategory=${game.gameCategory}`);
-                    return { error: 'AI가 둔 자리에는 돌을 놓을 수 없습니다.' };
-                }
-                
-                // 서버 boardState를 게임 객체에 반영 (클라이언트 무시, 돌 사라짐 방지)
                 game.boardState = serverBoardState;
                 game.moveHistory = serverMoveHistory;
             }
 
-            let moveIndexAtTarget = -1;
-            const moveHistoryForIndex = game.moveHistory || [];
-            for (let i = moveHistoryForIndex.length - 1; i >= 0; i--) {
-                const m = moveHistoryForIndex[i];
-                if (m.x === x && m.y === y) {
-                    moveIndexAtTarget = i;
-                    break;
-                }
-            }
+            const moveIndexAtTarget = findLatestMoveIndexAt(game.moveHistory, x, y, opponentPlayerEnum);
             const aiInitialHiddenCellTracking = useAiInitialHiddenCellTracking(game);
             const isAiInitialHiddenStone =
                 aiInitialHiddenCellTracking &&
@@ -658,6 +678,18 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     game.hiddenMoves?.[moveIndexAtTarget] &&
                     !game.permanentlyRevealedStones?.some(p => p.x === x && p.y === y)) ||
                 isAiInitialHiddenStone;
+
+            if (
+                game.isSinglePlayer ||
+                game.gameCategory === 'tower' ||
+                game.isAiGame ||
+                (game as any).gameCategory === 'guildwar'
+            ) {
+                if (stoneAtTarget === opponentPlayerEnum && !isTargetHiddenOpponentStone) {
+                    console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: AI stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, opponentPlayerEnum=${opponentPlayerEnum}, isSinglePlayer=${game.isSinglePlayer}, gameCategory=${game.gameCategory}`);
+                    return { error: 'AI가 둔 자리에는 돌을 놓을 수 없습니다.' };
+                }
+            }
 
             // 치명적 버그 방지: 상대방 돌 위에 착점하는 것을 명시적으로 차단 (PVP 포함)
             if (stoneAtTarget !== types.Player.None && !isTargetHiddenOpponentStone) {

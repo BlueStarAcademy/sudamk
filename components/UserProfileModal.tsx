@@ -44,13 +44,15 @@ const getXpRequirementForLevel = (level: number): number => {
 };
 
 const XpBar: React.FC<{ level: number, currentXp: number, label: string, colorClass: string }> = ({ level, currentXp, label, colorClass }) => {
-    const maxXp = getXpRequirementForLevel(level);
-    const percentage = Math.min((currentXp / maxXp) * 100, 100);
+    const safeLevel = Math.max(1, Math.floor(Number(level) || 1));
+    const safeXp = Math.max(0, Math.floor(Number(currentXp) || 0));
+    const maxXp = getXpRequirementForLevel(safeLevel);
+    const percentage = maxXp > 0 ? Math.min((safeXp / maxXp) * 100, 100) : 0;
     return (
         <div>
             <div className="flex justify-between items-baseline mb-1 text-sm">
-                <span className="font-semibold">{label} <span className="text-lg font-bold">Lv.{level}</span></span>
-                <span className="text-xs font-mono text-gray-400">{currentXp} / {maxXp}</span>
+                <span className="font-semibold">{label} <span className="text-lg font-bold">Lv.{safeLevel}</span></span>
+                <span className="text-xs font-mono text-gray-400">{safeXp} / {maxXp}</span>
             </div>
             <div className="w-full bg-gray-700 rounded-full h-4 border border-gray-900">
                 <div className={`${colorClass} h-full rounded-full transition-width duration-500`} style={{ width: `${percentage}%` }}></div>
@@ -60,9 +62,10 @@ const XpBar: React.FC<{ level: number, currentXp: number, label: string, colorCl
 };
 
 const CombinedLevelBadge: React.FC<{ level: number }> = ({ level }) => {
+    const safeLevel = Math.max(1, Math.floor(Number(level) || 1));
     return (
         <div className="flex-shrink-0 bg-gray-900/70 rounded-md border border-gray-700 flex items-center justify-center px-3 py-2">
-            <span className="font-bold text-xl text-blue-300 whitespace-nowrap">Lv.{level}</span>
+            <span className="font-bold text-xl text-blue-300 whitespace-nowrap">Lv.{safeLevel}</span>
         </div>
     );
 };
@@ -139,6 +142,43 @@ interface UserProfileModalProps {
   isTopmost?: boolean;
 }
 
+/** 페어: 랭킹전 통합(`stats.pair`) + 경기장 전략 모드별(`pairArenaStatsByMode`) */
+const PairStatsTab: React.FC<{ user: UserWithStatus }> = ({ user }) => {
+    const pairAgg = user.stats?.pair as { wins?: number; losses?: number } | undefined;
+    const totalWins = pairAgg?.wins ?? 0;
+    const totalLosses = pairAgg?.losses ?? 0;
+    const totalGames = totalWins + totalLosses;
+    const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
+    const byMode = user.pairArenaStatsByMode;
+
+    return (
+        <div className="space-y-1 text-xs">
+            <div className="bg-gray-700/50 px-1.5 py-1 rounded-md text-center">
+                <span className="font-bold text-gray-100">
+                    랭킹전 통합: {totalWins}승 {totalLosses}패 ({winRate}%)
+                </span>
+            </div>
+            <div className="space-y-1">
+                {SPECIAL_GAME_MODES.map(({ mode, name }) => {
+                    const row = byMode?.[String(mode)];
+                    const wins = row?.wins ?? 0;
+                    const losses = row?.losses ?? 0;
+                    const g = wins + losses;
+                    const wr = g > 0 ? Math.round((wins / g) * 100) : 0;
+                    return (
+                        <div key={mode} className="bg-gray-900/40 rounded px-1.5 py-0.5 flex items-center justify-between gap-1.5">
+                            <span className="font-semibold text-gray-200 truncate">{name}</span>
+                            <span className="text-right text-gray-300 whitespace-nowrap">
+                                {wins}승 {losses}패 ({wr}%)
+                            </span>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
 const StatsTab: React.FC<{ user: UserWithStatus, type: 'strategic' | 'playful' }> = ({ user, type }) => {
     const modes = type === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
     const stats = user.stats || {};
@@ -194,6 +234,7 @@ const getTier = (score: number, rank: number, totalGames: number) => {
 const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onViewItem, isTopmost }) => {
     const { inventory, stats, nickname, avatarId, borderId, equipment } = user;
     const [showMbtiComparison, setShowMbtiComparison] = useState(false);
+    const [adminToolsOpen, setAdminToolsOpen] = useState(false);
     const { currentUserWithStatus, guilds, handlers } = useAppContext();
     const isAdminViewingOtherUser = !!currentUserWithStatus?.isAdmin && currentUserWithStatus.id !== user.id;
     const [chatDurationMinutes, setChatDurationMinutes] = useState(10);
@@ -207,10 +248,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
     const onlineStatus = (user as any).status as string | undefined;
     const isConnected = Boolean((user as any).isConnected);
     const myFriendIds = new Set(currentUserWithStatus?.friendIds || []);
-    const myIncoming = new Set(currentUserWithStatus?.incomingFriendRequestIds || []);
     const isSelfProfile = currentUserWithStatus?.id === user.id;
     const isFriend = myFriendIds.has(user.id);
-    const hasIncomingRequest = myIncoming.has(user.id);
 
     const runAdminAction = async (action: ServerAction) => {
         try {
@@ -252,14 +291,9 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
         });
     };
 
-    const sendFriendRequest = async () => {
+    const addFriend = async () => {
         if (isSelfProfile) return;
         await handlers.handleAction({ type: 'FRIEND_SEND_REQUEST', payload: { targetUserId: user.id } } as any);
-    };
-
-    const acceptFriendRequest = async () => {
-        if (isSelfProfile) return;
-        await handlers.handleAction({ type: 'FRIEND_ACCEPT_REQUEST', payload: { requesterUserId: user.id } } as any);
     };
 
     const removeFriend = async () => {
@@ -302,35 +336,24 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
         return { tier, score: Math.round(seasonScore) };
     }, [user.dailyRankings?.strategic, user.stats]);
 
-    const playfulTierInfo = useMemo(() => {
-        const dr = user.dailyRankings?.playful;
+    const pairTierInfo = useMemo(() => {
+        const dr = user.dailyRankings?.pair;
         let seasonScore: number;
         let rank: number;
-        let totalGames = 0;
-        for (const m of PLAYFUL_GAME_MODES) {
-            const s = user.stats?.[m.mode];
-            if (s) totalGames += (s.wins || 0) + (s.losses || 0);
-        }
+        const pairS = user.stats?.pair;
+        const totalGames = (pairS?.wins ?? 0) + (pairS?.losses ?? 0);
         if (dr && typeof dr.rank === 'number') {
             const delta = typeof dr.score === 'number' ? dr.score : 0;
             seasonScore = SEASON_BASE_SCORE + delta;
             rank = dr.rank;
         } else {
-            let sum = 0;
-            let count = 0;
-            for (const m of PLAYFUL_GAME_MODES) {
-                const s = user.stats?.[m.mode];
-                if (s && typeof s.rankingScore === 'number') {
-                    sum += s.rankingScore;
-                    count++;
-                }
-            }
-            seasonScore = count > 0 ? sum / count : SEASON_BASE_SCORE;
+            seasonScore =
+                pairS && typeof pairS.rankingScore === 'number' ? pairS.rankingScore : SEASON_BASE_SCORE;
             rank = 9999;
         }
         const tier = getTier(seasonScore, rank, totalGames);
         return { tier, score: Math.round(seasonScore) };
-    }, [user.dailyRankings?.playful, user.stats]);
+    }, [user.dailyRankings?.pair, user.stats?.pair]);
 
     // equipment 필드와 inventory를 매칭하여 장착된 아이템 찾기
     const equippedItems = useMemo(() => {
@@ -363,7 +386,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
     const mannerStyle = getMannerStyle(totalMannerScore);
     const totalStats = calculateTotalStats(user);
 
-    const combinedLevel = (user as any).strategyLevel + (user as any).playfulLevel;
+    const combinedLevel = user.userLevel ?? 1;
 
     const guildInfo = useMemo(() => {
         if (!user.guildId) return null;
@@ -373,51 +396,83 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
     const PROFILE_MODAL_WIDTH = 900;
 
     return (
+        <>
         <DraggableWindow
             title={`${user.nickname}님의 프로필`}
-            onClose={onClose}
+            onClose={() => {
+                setAdminToolsOpen(false);
+                onClose();
+            }}
             windowId={`view-user-${user.id}`}
             initialWidth={PROFILE_MODAL_WIDTH}
             initialHeight={800}
             isTopmost={isTopmost}
             mobileViewportFit
+            headerContent={
+                isAdminViewingOtherUser ? (
+                    <button
+                        type="button"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setAdminToolsOpen(true);
+                        }}
+                        className="z-30 shrink-0 rounded-lg border border-red-400/50 bg-red-950/75 px-2.5 py-1.5 text-xs font-bold text-red-100 shadow-sm hover:bg-red-900/85 sm:px-3 sm:py-2 sm:text-sm"
+                    >
+                        관리자 기능
+                    </button>
+                ) : undefined
+            }
         >
             {showMbtiComparison && <MbtiComparisonModal opponentUser={user} onClose={() => setShowMbtiComparison(false)} isTopmost={true} />}
             <div className="h-full min-h-0 overflow-y-auto pr-1">
-                <div className="grid min-h-full grid-cols-1 gap-3 lg:grid-cols-2 lg:grid-rows-2">
+                <div className="grid min-h-full grid-cols-1 gap-3 lg:grid-cols-2">
                     {/* 좌상단: 프로필 */}
                     <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col gap-2 min-h-[260px]">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-start gap-3">
                             <Avatar userId={user.id} userName={nickname} size={60} avatarUrl={avatarUrl} borderUrl={borderUrl} />
-                            <div className="flex-1 min-w-0">
-                                <h2 className="text-xl font-extrabold tracking-wide truncate text-blue-100">{nickname}</h2>
-                                <div className="flex items-center gap-2 text-sm text-gray-300 mt-1 flex-wrap">
-                                    <span className="font-semibold text-gray-200">MBTI:</span>
-                                    {user.mbti ? (
-                                        <>
-                                            <span className="font-bold text-base text-cyan-200">{user.mbti}</span>
-                                            <button
-                                                onClick={() => setShowMbtiComparison(true)}
-                                                className="px-3 py-1 text-xs font-bold rounded-md border border-cyan-300/55 bg-gradient-to-br from-cyan-500/80 via-sky-500/72 to-indigo-600/82 text-white shadow-[0_12px_22px_-14px_rgba(56,189,248,0.85)] transition-all duration-200 hover:-translate-y-0.5 hover:border-cyan-200/80 hover:from-cyan-400/85 hover:via-sky-500/78 hover:to-indigo-500/85"
-                                            >
-                                                분석하기
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <span className="font-semibold text-base text-gray-200 flex items-center gap-1">
-                                            미설정
-                                            <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
-                                        </span>
-                                    )}
+                            <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                    <h2 className="text-xl font-extrabold tracking-wide truncate text-blue-100">{nickname}</h2>
+                                    <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-300">
+                                        <span className="font-semibold text-gray-200">MBTI:</span>
+                                        {user.mbti ? (
+                                            <>
+                                                <span className="font-bold text-base text-cyan-200">{user.mbti}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowMbtiComparison(true)}
+                                                    className="shrink-0 px-3 py-1.5 text-xs font-bold rounded-md border border-cyan-300/55 bg-gradient-to-br from-cyan-500/80 via-sky-500/72 to-indigo-600/82 text-white shadow-[0_12px_22px_-14px_rgba(56,189,248,0.85)] transition-all duration-200 hover:-translate-y-0.5 hover:border-cyan-200/80 hover:from-cyan-400/85 hover:via-sky-500/78 hover:to-indigo-500/85"
+                                                >
+                                                    분석하기
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <span className="font-semibold text-base text-gray-200 inline-flex items-center gap-1">
+                                                미설정
+                                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                                 {!isSelfProfile && (
-                                    <div className="mt-2 flex flex-wrap gap-1.5">
+                                    <div className="flex shrink-0 flex-col items-end gap-2 border-l border-gray-600/50 pl-3">
                                         {isFriend ? (
-                                            <button onClick={removeFriend} className="rounded-md border border-rose-300/45 bg-rose-900/45 px-2 py-1 text-xs font-bold text-rose-100">친구삭제</button>
-                                        ) : hasIncomingRequest ? (
-                                            <button onClick={acceptFriendRequest} className="rounded-md border border-emerald-300/45 bg-emerald-900/45 px-2 py-1 text-xs font-bold text-emerald-100">친구수락</button>
+                                            <button
+                                                type="button"
+                                                onClick={removeFriend}
+                                                className="min-w-[6.5rem] rounded-lg border border-rose-300/50 bg-rose-900/55 px-4 py-2 text-sm font-bold text-rose-100 shadow-sm transition hover:bg-rose-800/60"
+                                            >
+                                                친구 삭제
+                                            </button>
                                         ) : (
-                                            <button onClick={sendFriendRequest} className="rounded-md border border-cyan-300/45 bg-cyan-900/45 px-2 py-1 text-xs font-bold text-cyan-100">친구신청</button>
+                                            <button
+                                                type="button"
+                                                onClick={addFriend}
+                                                className="min-w-[6.5rem] rounded-lg border border-cyan-300/50 bg-cyan-900/55 px-4 py-2 text-sm font-bold text-cyan-100 shadow-sm transition hover:bg-cyan-800/60"
+                                            >
+                                                친구 추가
+                                            </button>
                                         )}
                                     </div>
                                 )}
@@ -452,8 +507,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                             <div className="flex items-center gap-2 min-w-0">
                                 <CombinedLevelBadge level={combinedLevel} />
                                 <div className="flex-1 min-w-0 space-y-1">
-                                    <XpBar level={(user as any).strategyLevel} currentXp={(user as any).strategyXp} label="전략" colorClass="bg-gradient-to-r from-blue-500 to-cyan-400" />
-                                    <XpBar level={(user as any).playfulLevel} currentXp={(user as any).playfulXp} label="놀이" colorClass="bg-gradient-to-r from-yellow-500 to-orange-400" />
+                                    <XpBar level={user.userLevel} currentXp={user.userXp} label="유저 경험치" colorClass="bg-gradient-to-r from-blue-500 to-cyan-400" />
                                 </div>
                             </div>
                             <div className="mt-0.5">
@@ -490,94 +544,152 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                         </div>
                     </div>
 
-                    {/* 좌하단: 전략 바둑 정보 */}
-                    <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col min-h-[260px]">
-                        <div className="flex items-center gap-2 py-1.5 px-2 rounded-md bg-blue-900/30 border border-blue-700/50 mb-2">
-                            <img src={strategicTierInfo.tier.icon} alt={strategicTierInfo.tier.name} className="w-8 h-8 flex-shrink-0" />
-                            <span className="text-xs text-blue-300 font-medium">전략 바둑</span>
-                            <span className={`text-sm font-semibold ml-auto ${strategicTierInfo.tier.color}`}>{strategicTierInfo.tier.name} {strategicTierInfo.score}점</span>
+                    {/* 하단: 전략 → 페어 → 놀이 (한 줄, 모바일은 세로) */}
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:col-span-2">
+                        <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col min-h-[220px]">
+                            <div className="mb-2 flex items-center gap-2 rounded-md border border-blue-700/50 bg-blue-900/30 py-1.5 px-2">
+                                <img src={strategicTierInfo.tier.icon} alt={strategicTierInfo.tier.name} className="h-8 w-8 shrink-0" />
+                                <span className="text-xs font-medium text-blue-300">전략 바둑</span>
+                                <span className={`ml-auto text-sm font-semibold ${strategicTierInfo.tier.color}`}>
+                                    {strategicTierInfo.tier.name} {strategicTierInfo.score}점
+                                </span>
+                            </div>
+                            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                                <StatsTab user={user} type="strategic" />
+                            </div>
                         </div>
-                        <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-                            <StatsTab user={user} type="strategic" />
-                        </div>
-                    </div>
 
-                    {/* 우하단: 놀이 바둑 정보 */}
-                    <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col min-h-[260px]">
-                        <div className="flex items-center gap-2 py-1.5 px-2 rounded-md bg-amber-900/30 border border-amber-700/50 mb-2">
-                            <img src={playfulTierInfo.tier.icon} alt={playfulTierInfo.tier.name} className="w-8 h-8 flex-shrink-0" />
-                            <span className="text-xs text-amber-300 font-medium">놀이 바둑</span>
-                            <span className={`text-sm font-semibold ml-auto ${playfulTierInfo.tier.color}`}>{playfulTierInfo.tier.name} {playfulTierInfo.score}점</span>
+                        <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col min-h-[220px]">
+                            <div className="mb-2 flex items-center gap-2 rounded-md border border-violet-700/50 bg-violet-900/30 py-1.5 px-2">
+                                <img src={pairTierInfo.tier.icon} alt={pairTierInfo.tier.name} className="h-8 w-8 shrink-0" />
+                                <span className="text-xs font-medium text-violet-200">페어 바둑</span>
+                                <span className={`ml-auto text-sm font-semibold ${pairTierInfo.tier.color}`}>
+                                    {pairTierInfo.tier.name} {pairTierInfo.score}점
+                                </span>
+                            </div>
+                            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                                <PairStatsTab user={user} />
+                            </div>
                         </div>
-                        <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-                            <StatsTab user={user} type="playful" />
+
+                        <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col min-h-[220px]">
+                            <div className="mb-2 flex items-center rounded-md border border-amber-700/50 bg-amber-900/30 py-2 px-2.5">
+                                <span className="text-sm font-semibold text-amber-200">놀이 바둑</span>
+                            </div>
+                            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                                <StatsTab user={user} type="playful" />
+                            </div>
                         </div>
                     </div>
                 </div>
-
-                {isAdminViewingOtherUser && (
-                    <div className="mt-3 bg-red-950/35 border border-red-500/30 rounded-lg p-3 text-xs space-y-2">
-                        <div className="font-bold text-red-300">관리자 기능</div>
-                        <div className="text-gray-300">
-                            접속 상태: <span className={isConnected ? 'text-emerald-400 font-semibold' : 'text-gray-400'}>{isConnected ? '접속중' : (onlineStatus || '오프라인')}</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <button type="button" onClick={forceLogout} className="px-2 py-1 rounded bg-red-700 hover:bg-red-600">로그아웃 처리</button>
-                            <button type="button" onClick={() => applySanction('connection', connectionDurationMinutes)} className="px-2 py-1 rounded bg-orange-700 hover:bg-orange-600">접속금지 적용</button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <button type="button" onClick={() => applySanction('chat', chatDurationMinutes)} className="px-2 py-1 rounded bg-yellow-700 hover:bg-yellow-600">채팅금지 적용</button>
-                            <button type="button" onClick={() => liftSanction('chat')} className="px-2 py-1 rounded bg-zinc-700 hover:bg-zinc-600">채팅금지 해제</button>
-                        </div>
-                        <div>
-                            <button type="button" onClick={() => liftSanction('connection')} className="w-full px-2 py-1 rounded bg-zinc-700 hover:bg-zinc-600">접속금지 해제</button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <label className="text-gray-400">채팅금지(분)
-                                <input type="number" min={1} max={MAX_GAME_INTEGER_INPUT} className="mt-1 w-full bg-black/40 rounded px-2 py-1" value={chatDurationMinutes} onChange={(e) => setChatDurationMinutes(clampGameInt(Number(e.target.value) || 1, { min: 1 }))} />
-                            </label>
-                            <label className="text-gray-400">접속금지(분)
-                                <input type="number" min={1} max={MAX_GAME_INTEGER_INPUT} className="mt-1 w-full bg-black/40 rounded px-2 py-1" value={connectionDurationMinutes} onChange={(e) => setConnectionDurationMinutes(clampGameInt(Number(e.target.value) || 1, { min: 1 }))} />
-                            </label>
-                        </div>
-                        <div>
-                            <label className="text-gray-400">제재 사유</label>
-                            <select value={sanctionReason} onChange={(e) => setSanctionReason(e.target.value)} className="mt-1 w-full bg-black/40 rounded px-2 py-1">
-                                <option>욕설/비방</option>
-                                <option>도배/스팸</option>
-                                <option>불법 프로그램 의심</option>
-                                <option>부적절한 닉네임/프로필</option>
-                                <option>기타</option>
-                            </select>
-                            {sanctionReason === '기타' && (
-                                <textarea
-                                    className="mt-2 w-full bg-black/40 rounded px-2 py-1 min-h-[54px]"
-                                    placeholder="사유를 직접 입력하세요"
-                                    value={sanctionReasonEtc}
-                                    onChange={(e) => setSanctionReasonEtc(e.target.value)}
-                                />
-                            )}
-                        </div>
-                        <div className="text-gray-300">
-                            제재내역:
-                            <div className="mt-1 max-h-24 overflow-y-auto space-y-1 pr-1">
-                                {(user.sanctionHistory || []).slice(0, 8).map((h) => (
-                                    <div key={h.id} className="rounded bg-black/35 px-2 py-1">
-                                        [{h.sanctionType === 'chat' ? '채팅금지' : '접속금지'}] {h.reason}
-                                        {h.details ? ` (${h.details})` : ''} / {new Date(h.createdAt).toLocaleString()}
-                                        {h.releasedAt ? ' / 해제됨' : ''}
-                                    </div>
-                                ))}
-                                {(user.sanctionHistory || []).length === 0 && <div className="text-gray-500">기록 없음</div>}
-                            </div>
-                            <div className="mt-1 text-[11px] text-gray-400">
-                                현재: 채팅 {isChatBanned ? '금지중' : '정상'} / 접속 {isConnectionBanned ? '금지중' : '정상'}
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
         </DraggableWindow>
+
+        {adminToolsOpen && isAdminViewingOtherUser && (
+            <DraggableWindow
+                title={`${user.nickname} — 관리자 기능`}
+                onClose={() => setAdminToolsOpen(false)}
+                windowId={`view-user-admin-${user.id}`}
+                initialWidth={480}
+                initialHeight={640}
+                isTopmost
+                mobileViewportFit
+                hideFooter
+            >
+                <div className="space-y-2 rounded-lg border border-red-500/30 bg-red-950/35 p-3 text-xs">
+                    <div className="text-gray-300">
+                        접속 상태:{' '}
+                        <span className={isConnected ? 'font-semibold text-emerald-400' : 'text-gray-400'}>
+                            {isConnected ? '접속중' : onlineStatus || '오프라인'}
+                        </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <button type="button" onClick={forceLogout} className="rounded bg-red-700 px-2 py-1 hover:bg-red-600">
+                            로그아웃 처리
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => applySanction('connection', connectionDurationMinutes)}
+                            className="rounded bg-orange-700 px-2 py-1 hover:bg-orange-600"
+                        >
+                            접속금지 적용
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <button type="button" onClick={() => applySanction('chat', chatDurationMinutes)} className="rounded bg-yellow-700 px-2 py-1 hover:bg-yellow-600">
+                            채팅금지 적용
+                        </button>
+                        <button type="button" onClick={() => liftSanction('chat')} className="rounded bg-zinc-700 px-2 py-1 hover:bg-zinc-600">
+                            채팅금지 해제
+                        </button>
+                    </div>
+                    <div>
+                        <button type="button" onClick={() => liftSanction('connection')} className="w-full rounded bg-zinc-700 px-2 py-1 hover:bg-zinc-600">
+                            접속금지 해제
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <label className="text-gray-400">
+                            채팅금지(분)
+                            <input
+                                type="number"
+                                min={1}
+                                max={MAX_GAME_INTEGER_INPUT}
+                                className="mt-1 w-full rounded bg-black/40 px-2 py-1"
+                                value={chatDurationMinutes}
+                                onChange={(e) => setChatDurationMinutes(clampGameInt(Number(e.target.value) || 1, { min: 1 }))}
+                            />
+                        </label>
+                        <label className="text-gray-400">
+                            접속금지(분)
+                            <input
+                                type="number"
+                                min={1}
+                                max={MAX_GAME_INTEGER_INPUT}
+                                className="mt-1 w-full rounded bg-black/40 px-2 py-1"
+                                value={connectionDurationMinutes}
+                                onChange={(e) => setConnectionDurationMinutes(clampGameInt(Number(e.target.value) || 1, { min: 1 }))}
+                            />
+                        </label>
+                    </div>
+                    <div>
+                        <label className="text-gray-400">제재 사유</label>
+                        <select value={sanctionReason} onChange={(e) => setSanctionReason(e.target.value)} className="mt-1 w-full rounded bg-black/40 px-2 py-1">
+                            <option>욕설/비방</option>
+                            <option>도배/스팸</option>
+                            <option>불법 프로그램 의심</option>
+                            <option>부적절한 닉네임/프로필</option>
+                            <option>기타</option>
+                        </select>
+                        {sanctionReason === '기타' && (
+                            <textarea
+                                className="mt-2 min-h-[54px] w-full rounded bg-black/40 px-2 py-1"
+                                placeholder="사유를 직접 입력하세요"
+                                value={sanctionReasonEtc}
+                                onChange={(e) => setSanctionReasonEtc(e.target.value)}
+                            />
+                        )}
+                    </div>
+                    <div className="text-gray-300">
+                        제재내역:
+                        <div className="mt-1 max-h-24 space-y-1 overflow-y-auto pr-1">
+                            {(user.sanctionHistory || []).slice(0, 8).map((h) => (
+                                <div key={h.id} className="rounded bg-black/35 px-2 py-1">
+                                    [{h.sanctionType === 'chat' ? '채팅금지' : '접속금지'}] {h.reason}
+                                    {h.details ? ` (${h.details})` : ''} / {new Date(h.createdAt).toLocaleString()}
+                                    {h.releasedAt ? ' / 해제됨' : ''}
+                                </div>
+                            ))}
+                            {(user.sanctionHistory || []).length === 0 && <div className="text-gray-500">기록 없음</div>}
+                        </div>
+                        <div className="mt-1 text-[11px] text-gray-400">
+                            현재: 채팅 {isChatBanned ? '금지중' : '정상'} / 접속 {isConnectionBanned ? '금지중' : '정상'}
+                        </div>
+                    </div>
+                </div>
+            </DraggableWindow>
+        )}
+        </>
     );
 };
 

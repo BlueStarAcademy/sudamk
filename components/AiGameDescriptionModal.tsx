@@ -90,10 +90,10 @@ const getSettingsRows = (session: LiveGameSession): { label: string; value: Reac
     rows.push({ label: '장목 금지', value: settings.hasOverlineForbidden ? '금지' : '가능' });
   }
   if (mode === GameMode.Ttamok) {
-    rows.push({ label: '따내기 목표', value: `${settings.captureTarget}개` });
+    rows.push({ label: '목표점수', value: `${settings.captureTarget}개` });
   }
   if (mode === GameMode.Capture || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Capture))) {
-    rows.push({ label: '따내기 목표', value: `${settings.captureTarget}개` });
+    rows.push({ label: '목표점수', value: `${settings.captureTarget}개` });
   }
   if (mode === GameMode.Base || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base))) {
     rows.push({ label: '베이스돌', value: `${settings.baseStones}개` });

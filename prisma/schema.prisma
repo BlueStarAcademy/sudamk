@@ -20,10 +20,8 @@ model User {
   username         String?  @unique
   isAdmin          Boolean  @default(false)
   email            String?  @unique
-  strategyLevel    Int      @default(1)
-  strategyXp       Int      @default(0)
-  playfulLevel     Int      @default(1)
-  playfulXp        Int      @default(0)
+  userLevel        Int      @default(1)
+  userXp           Int      @default(0)
   actionPointCurr  Int      @default(0)
   actionPointMax   Int      @default(0)
   gold             BigInt   @default(0)

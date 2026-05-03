@@ -62,10 +62,8 @@ export const rowToUser = (row: any): types.User | null => {
             username: row.username,
             nickname: row.nickname,
             isAdmin: !!row.isAdmin,
-            strategyLevel: row.strategyLevel ?? 1,
-            strategyXp: row.strategyXp ?? 0,
-            playfulLevel: row.playfulLevel ?? 1,
-            playfulXp: row.playfulXp ?? 0,
+            userLevel: row.userLevel ?? row.strategyLevel ?? 1,
+            userXp: row.userXp ?? row.strategyXp ?? 0,
             gold: row.gold ?? 0,
             diamonds: row.diamonds ?? 0,
             inventorySlots: (() => {

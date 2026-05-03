@@ -8,9 +8,12 @@ import PairPetLobbyInfoPetViewer from './PairPetLobbyInfoPetViewer.js';
 import PairPetLobbySoulStoneViewer from './PairPetLobbySoulStoneViewer.js';
 import PairPetSoulConvertModal from './PairPetSoulConvertModal.js';
 import PairTrainingRewardModal from './PairTrainingRewardModal.js';
+import PairPetDetailCardBody from './PairPetDetailCardBody.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import PurchaseQuantityModal from '../PurchaseQuantityModal.js';
+import SellItemConfirmModal from '../SellItemConfirmModal.js';
 import type { User, UserWithStatus, InventoryItem, ServerAction } from '../../types.js';
 import { MATERIAL_ITEMS, gradeBackgrounds } from '../../shared/constants/items.js';
 import { ItemGrade } from '../../types/enums.js';
@@ -33,6 +36,8 @@ import {
     isPairSoulStoneItem,
     pairPetLobbyInventorySlots,
     pairPetLobbyExpandDiamondCost,
+    countPairLobbyPetEntriesInInventory,
+    isPairLobbyPetInventoryFull,
 } from '../../shared/constants/petLobby.js';
 import {
     PAIR_TRAINING_SLOT_DEFS,
@@ -58,11 +63,27 @@ import {
     type PairHatcherySlotDef,
 } from '../../shared/constants/pairHatchery.js';
 import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
+import { resolvePairPetMetaFromInventoryRow } from '../../shared/utils/pairPetRoll.js';
 type AiTab = 'info' | 'training' | 'hatchery' | 'shop';
 type InvFilter = 'pet' | 'soul';
 type ShopSkuTab = 'egg' | 'soul';
 type PairExpandCategory = 'pet';
 type InvSortMode = 'recent' | 'oldest' | 'name';
+
+type PairTrainingRewardModalOpen = { slotIndex: number; petItem: InventoryItem; autoClaimOnMount?: boolean };
+
+/** 인벤 썸네일 배지: 슬롯에 있으면서 타이머 종료 후 수령 전이면 `claim_ready` */
+function pairTrainingBadgeVariantForItem(currentUser: User, itemId: string): 'in_progress' | 'claim_ready' | undefined {
+    const slots = normalizePairPetTrainingSlots(currentUser.pairPetTrainingSlots);
+    if (!isItemIdInPairTraining(slots, itemId)) return undefined;
+    const now = Date.now();
+    for (let si = 0; si < slots.length; si += 1) {
+        const sess = slots[si];
+        if (!sess || sess.itemId !== itemId) continue;
+        return now >= trainingEndsAt(sess.startedAt, si) ? 'claim_ready' : 'in_progress';
+    }
+    return 'in_progress';
+}
 
 const SOUL_SLOT_PREFIX = 'soul-slot:';
 
@@ -155,6 +176,8 @@ function InvThumb({
     onClick,
     disabled,
     showRepresentativeBadge,
+    showTrainingBadge,
+    trainingBadgeVariant,
     title,
 }: {
     item: InventoryItem;
@@ -163,6 +186,10 @@ function InvThumb({
     disabled?: boolean;
     /** 페어 로비 인벤: 대표로 장착된 펫 썸네일 상단 표시 */
     showRepresentativeBadge?: boolean;
+    /** 수련 슬롯에 올라간 펫 */
+    showTrainingBadge?: boolean;
+    /** 수련 배지: 진행 중 vs 타이머 종료(슬롯에서 수령 전) */
+    trainingBadgeVariant?: 'in_progress' | 'claim_ready';
     title?: string;
 }) {
     const qty = item.quantity ?? 1;
@@ -171,6 +198,9 @@ function InvThumb({
     const petG = effectivePairPetGradeFromRow(item);
     const petBg = petThumb ? (gradeBackgrounds[petG] ?? gradeBackgrounds[ItemGrade.Normal]) : null;
     const petTrans = petThumb && petG === ItemGrade.Transcendent;
+    const petLevel = petThumb ? resolvePairPetMetaFromInventoryRow(item).level : null;
+    const badgeChip =
+        'max-w-[95%] truncate px-[3px] py-[1px] text-[clamp(0.45rem,2.4vmin,0.5625rem)] font-black leading-none tracking-tight text-white shadow-sm ring-1 ring-black/35';
     return (
         <button
             type="button"
@@ -181,13 +211,38 @@ function InvThumb({
                 selected ? 'border-cyan-300 bg-cyan-950/60 text-cyan-50' : 'border-white/15 bg-black/40 text-slate-200 hover:border-white/35'
             } ${petTrans ? 'transcendent-grade-slot' : ''} disabled:opacity-40`}
         >
-            {petThumb && showRepresentativeBadge ? (
+            {petThumb && (showRepresentativeBadge || showTrainingBadge) ? (
+                <span className="pointer-events-none absolute inset-x-0 top-0 z-[3] flex flex-col items-center gap-px px-0.5 pt-px">
+                    {showRepresentativeBadge ? (
+                        <span className="flex w-full justify-center" title="대표 펫">
+                            <span className={`${badgeChip} rounded-b bg-cyan-600`}>대표펫</span>
+                        </span>
+                    ) : null}
+                    {showTrainingBadge ? (
+                        <span
+                            className="flex w-full justify-center"
+                            title={trainingBadgeVariant === 'claim_ready' ? '수련 완료 — 슬롯에서 보상 수령' : '수련 중'}
+                        >
+                            <span
+                                className={`${badgeChip} rounded-b ${
+                                    trainingBadgeVariant === 'claim_ready' ? 'bg-lime-600' : 'bg-violet-600'
+                                }`}
+                            >
+                                {trainingBadgeVariant === 'claim_ready' ? '수련완료' : '수련중'}
+                            </span>
+                        </span>
+                    ) : null}
+                </span>
+            ) : null}
+            {petThumb && petLevel != null ? (
                 <span
-                    className="pointer-events-none absolute inset-x-0 top-0 z-[3] flex justify-center px-0.5 pt-px"
-                    title="대표 펫"
+                    className="pointer-events-none absolute inset-x-0 bottom-0 z-[3] flex justify-center px-0.5 pb-px"
+                    title={`레벨 ${petLevel}`}
                 >
-                    <span className="max-w-[95%] truncate rounded-b bg-cyan-600 px-[3px] py-[1px] text-[clamp(0.45rem,2.4vmin,0.5625rem)] font-black leading-none tracking-tight text-white shadow-sm ring-1 ring-black/35">
-                        대표펫
+                    <span
+                        className={`${badgeChip} rounded-t bg-slate-900/92 tabular-nums text-amber-100 ring-amber-500/25`}
+                    >
+                        Lv.{petLevel}
                     </span>
                 </span>
             ) : null}
@@ -296,12 +351,12 @@ function PairPetShopSkuCard({
     const refinedDescription = formatPairShopDescription(sku.description);
 
     return (
-        <div className="group relative flex flex-col items-center overflow-hidden rounded-xl border border-indigo-400/35 bg-gradient-to-br from-[#1f2239]/95 via-[#0f172a]/95 to-[#060b12]/95 p-2.5 text-center shadow-[0_22px_55px_-30px_rgba(99,102,241,0.55)] transition-transform duration-300 hover:-translate-y-0.5 hover:shadow-[0_26px_60px_-32px_rgba(129,140,248,0.55)]">
+        <div className="group relative flex flex-col items-center overflow-hidden rounded-lg border border-indigo-400/35 bg-gradient-to-br from-[#1f2239]/95 via-[#0f172a]/95 to-[#060b12]/95 p-1.5 text-center shadow-[0_22px_55px_-30px_rgba(99,102,241,0.55)] transition-transform duration-300 hover:-translate-y-0.5 hover:shadow-[0_26px_60px_-32px_rgba(129,140,248,0.55)] sm:rounded-xl sm:p-2.5">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent" />
             <div
                 role="button"
                 tabIndex={0}
-                className="relative mb-1.5 flex h-16 w-16 cursor-pointer items-center justify-center rounded-lg bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_22px_-8px_rgba(129,140,248,0.55)] transition-transform hover:scale-[1.03]"
+                className="relative mb-1 flex h-11 w-11 cursor-pointer items-center justify-center rounded-md bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_22px_-8px_rgba(129,140,248,0.55)] transition-transform hover:scale-[1.03] sm:mb-1.5 sm:h-16 sm:w-16 sm:rounded-lg"
                 onClick={onOpenDesc}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
@@ -318,37 +373,39 @@ function PairPetShopSkuCard({
                 ) : null}
             </div>
             {descOpen ? (
-                <div className="absolute left-1/2 top-[4.5rem] z-40 w-[min(100%,14rem)] -translate-x-1/2 rounded-lg border border-indigo-400/50 bg-gray-900/95 p-2 shadow-xl">
+                <div className="absolute left-1/2 top-[3.35rem] z-40 w-[min(100%,14rem)] -translate-x-1/2 rounded-lg border border-indigo-400/50 bg-gray-900/95 p-2 shadow-xl sm:top-[4.5rem]">
                     <p className="text-left text-xs leading-relaxed text-slate-200/90">{refinedDescription}</p>
                 </div>
             ) : null}
-            <h3 className="line-clamp-2 min-h-[2.25rem] w-full px-0.5 text-center text-xs font-semibold leading-tight tracking-tight text-white drop-shadow-[0_2px_10px_rgba(99,102,241,0.45)] sm:text-sm">
+            <h3 className="line-clamp-2 min-h-[2rem] w-full px-0.5 text-center text-[0.65rem] font-semibold leading-tight tracking-tight text-white drop-shadow-[0_2px_10px_rgba(99,102,241,0.45)] sm:min-h-[2.25rem] sm:text-sm">
                 {sku.label}
             </h3>
-            <div className="mt-1.5 flex w-full flex-1 flex-col justify-end">
+            <div className="mt-1 flex w-full flex-1 flex-col justify-end sm:mt-1.5">
                 <Button
                     type="button"
                     onClick={() => onBuyClick(sku)}
                     disabled={isBusy || remaining === 0}
                     colorScheme="none"
                     bare
-                    className={`flex w-full min-h-[3rem] flex-col items-center justify-center gap-0.5 rounded-lg border px-1 py-1.5 text-center text-xs font-semibold leading-tight transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 disabled:cursor-not-allowed disabled:opacity-60 ${
+                    className={`flex w-full min-h-[2.35rem] flex-col items-center justify-center gap-0 rounded-md border px-0.5 py-1 text-center text-[0.65rem] font-semibold leading-tight transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[3rem] sm:gap-0.5 sm:rounded-lg sm:px-1 sm:py-1.5 sm:text-xs ${
                         isGold
                             ? 'border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_10px_28px_-16px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500'
                             : 'border-sky-400/50 bg-gradient-to-r from-sky-400/90 via-blue-500/90 to-indigo-500/90 text-white shadow-[0_10px_28px_-16px_rgba(56,189,248,0.75)] hover:from-sky-300 hover:to-indigo-500'
                     }`}
                 >
-                    <div className="flex min-w-0 items-center justify-center gap-1 font-semibold tracking-tight">
+                    <div className="flex min-w-0 items-center justify-center gap-0.5 font-semibold tracking-tight sm:gap-1">
                         {isGold ? (
-                            <img src="/images/icon/Gold.png" alt="" className="h-4 w-4 shrink-0 drop-shadow-md" />
+                            <img src="/images/icon/Gold.png" alt="" className="h-3 w-3 shrink-0 drop-shadow-md sm:h-4 sm:w-4" />
                         ) : (
-                            <img src="/images/icon/Zem.png" alt="" className="h-4 w-4 shrink-0 drop-shadow-md" />
+                            <img src="/images/icon/Zem.png" alt="" className="h-3 w-3 shrink-0 drop-shadow-md sm:h-4 sm:w-4" />
                         )}
                         <span className="tabular-nums">
                             {isGold ? formatGoldAmountKoG(priceAmount) : formatWalletDiamonds(priceAmount)}
                         </span>
                     </div>
-                    <span className={`max-w-full px-0.5 text-center text-xs leading-tight ${isGold ? 'text-slate-800/95' : 'text-white/85'}`}>
+                    <span
+                        className={`max-w-full px-0.5 text-center text-[0.6rem] leading-tight sm:text-xs ${isGold ? 'text-slate-800/95' : 'text-white/85'}`}
+                    >
                         일일 한도 {remaining}/{sku.dailyLimit}
                     </span>
                 </Button>
@@ -369,6 +426,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     const { isNativeMobile, isNarrowViewport, pcLikeMobileLayout } = useNativeMobileShell();
     /** 터치·좁은 화면: 드롭 대신 슬롯 탭 → 펫 탭 */
     const useTapTrainingFlow = isNativeMobile || (isNarrowViewport && !pcLikeMobileLayout);
+    /** 페어 로비 모바일 셸과 동일(1024): 부화장 등에서 세로 여유 확보 */
+    const pairLobbyHandheld = useIsHandheldDevice(1024);
     const [aiTab, setAiTab] = useState<AiTab>('info');
     const [shopSkuTab, setShopSkuTab] = useState<ShopSkuTab>('egg');
     const [shopDescSkuId, setShopDescSkuId] = useState<string | null>(null);
@@ -379,22 +438,29 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     const [invSort, setInvSort] = useState<InvSortMode>('recent');
     const [trainingTick, setTrainingTick] = useState(0);
     const [hatcheryTick, setHatcheryTick] = useState(0);
+    /** 수련·부화 탭 붉은점: 다른 탭에 있어도 완료 시각이 지나면 갱신 */
+    const [pairLobbyPendingTick, setPairLobbyPendingTick] = useState(0);
     const [hatcheryConfirmSlotIndex, setHatcheryConfirmSlotIndex] = useState<number | null>(null);
     const [hatcheryInstantConfirmSlotIndex, setHatcheryInstantConfirmSlotIndex] = useState<number | null>(null);
     const [hatcheryPetInvFullModalOpen, setHatcheryPetInvFullModalOpen] = useState(false);
     const [soulConvertItem, setSoulConvertItem] = useState<InventoryItem | null>(null);
+    /** 영혼석 판매 확인(스택 행 + 판매 개수) */
+    const [soulStoneSellConfirm, setSoulStoneSellConfirm] = useState<{ stackItem: InventoryItem; quantity: number } | null>(
+        null,
+    );
     /** 모바일: 빈 수련 슬롯 탭 후 인벤에서 펫 선택 */
     const [trainingMobilePickSlotIndex, setTrainingMobilePickSlotIndex] = useState<number | null>(null);
     /** 수련 시작 직전 확인(드롭·모바일 탭 공통) */
     const [trainingStartConfirm, setTrainingStartConfirm] = useState<{ slotIndex: number; itemId: string } | null>(null);
     /** 수련 완료 보상 모달: 수령 후에도 슬롯이 비워져도 펫·슬롯 정보 유지 */
-    const [trainingRewardModal, setTrainingRewardModal] = useState<{ slotIndex: number; petItem: InventoryItem } | null>(null);
+    const [trainingRewardModal, setTrainingRewardModal] = useState<PairTrainingRewardModalOpen | null>(null);
     /** 수련 진행 중 취소 확인 모달(슬롯 인덱스) */
     const [trainingCancelConfirmSlotIndex, setTrainingCancelConfirmSlotIndex] = useState<number | null>(null);
 
     const equippedTid = currentUser.equippedPairPetTemplateId ?? null;
     /** 저장되어 있으면 해당 행만 대표 표시(동종 다마리 구분). 없으면 템플릿 일치 행 전체에 표시(구버전 호환). */
     const equippedItemId = currentUser.equippedPairPetInventoryItemId ?? null;
+    const equippedPetRow = useMemo(() => getEquippedPairPetInventoryRow(currentUser), [currentUser]);
 
     const inventory = currentUser.inventory || [];
 
@@ -410,6 +476,37 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         () => inventory.filter(isPairEggItem).reduce((s, it) => s + (it.quantity ?? 1), 0),
         [inventory]
     );
+
+    const pairHatcheryHasClaimReady = useMemo(() => {
+        void hatcheryTick;
+        void pairLobbyPendingTick;
+        const sessions = normalizePairPetHatcherySessions(currentUser.pairPetHatcherySessions);
+        const now = Date.now();
+        for (const def of PAIR_HATCHERY_SLOT_DEFS) {
+            const idx = def.slotIndex;
+            if (!canUsePairHatcherySlot(currentUser, idx)) continue;
+            const session = sessions[idx];
+            if (!session) continue;
+            if (now >= hatcheryEndsAt(session.startedAt, idx)) return true;
+        }
+        return false;
+    }, [currentUser, hatcheryTick, pairLobbyPendingTick]);
+
+    const pairTrainingHasClaimReady = useMemo(() => {
+        void trainingTick;
+        void pairLobbyPendingTick;
+        const slots = normalizePairPetTrainingSlots(currentUser.pairPetTrainingSlots);
+        const now = Date.now();
+        for (const def of PAIR_TRAINING_SLOT_DEFS) {
+            const i = def.slotIndex;
+            if (!isPairTrainingSlotUnlocked(currentUser, i)) continue;
+            const session = slots[i];
+            if (!session) continue;
+            if (now < trainingEndsAt(session.startedAt, i)) continue;
+            if (inventory.some((x) => x.id === session.itemId)) return true;
+        }
+        return false;
+    }, [currentUser, inventory, trainingTick, pairLobbyPendingTick]);
 
     const shopSkusVisible = useMemo(
         () =>
@@ -450,9 +547,11 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     }, [inventory]);
 
     const pairPetMaterialCount = useMemo(
-        () => inventory.filter(isPairPetMaterial).length,
+        () => countPairLobbyPetEntriesInInventory(inventory),
         [inventory]
     );
+
+    const pairLobbyPetInvFull = useMemo(() => isPairLobbyPetInventoryFull(currentUser), [currentUser]);
 
     const slotCountPet = pairPetLobbyInventorySlots(
         currentUser.pairPetLobbyPetSlotCount ?? currentUser.pairPetLobbySlotCount
@@ -542,6 +641,11 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     }, [aiTab]);
 
     useEffect(() => {
+        const id = window.setInterval(() => setPairLobbyPendingTick((n) => n + 1), 1000);
+        return () => window.clearInterval(id);
+    }, []);
+
+    useEffect(() => {
         if (aiTab !== 'hatchery') {
             setHatcheryConfirmSlotIndex(null);
             setHatcheryInstantConfirmSlotIndex(null);
@@ -627,6 +731,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     };
 
     const handleHatcheryClaim = async (slotIndex: number) => {
+        if (isPairLobbyPetInventoryFull(currentUser)) {
+            setHatcheryPetInvFullModalOpen(true);
+            return;
+        }
         const before = JSON.parse(JSON.stringify(currentUser.inventory || [])) as InventoryItem[];
         const res = await applyPetAction({ type: 'PAIR_PET_HATCHERY_CLAIM', payload: { slotIndex } });
         const claimErr = res && (res as { error?: string }).error;
@@ -642,6 +750,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     };
 
     const instantFinishHatch = async (slotIndex: number) => {
+        if (isPairLobbyPetInventoryFull(currentUser)) {
+            setHatcheryPetInvFullModalOpen(true);
+            return { error: PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE };
+        }
         const before = JSON.parse(JSON.stringify(currentUser.inventory || [])) as InventoryItem[];
         const res = await applyPetAction({ type: 'PAIR_PET_HATCHERY_INSTANT_FINISH', payload: { slotIndex } });
         if (res && (res as { error?: string }).error) return res;
@@ -697,79 +809,100 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
             const durationHMS = formatHatcheryDurationHMS(def.durationMs);
 
+            const infoPanelShell = isVip
+                ? 'border-amber-500/20 bg-gradient-to-br from-black/40 via-black/25 to-amber-950/22 shadow-[inset_0_1px_0_rgba(251,191,36,0.06)]'
+                : 'border-white/[0.08] bg-gradient-to-br from-black/40 via-black/25 to-fuchsia-950/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
+            const hatchStartBtn = isVip
+                ? '!border !border-amber-400/65 !bg-gradient-to-b !from-amber-500/95 !to-amber-900/95 !text-amber-50 !shadow-[0_6px_18px_rgba(245,158,11,0.38)] hover:!from-amber-400 hover:!to-amber-800'
+                : '!border !border-fuchsia-400/60 !bg-gradient-to-b !from-fuchsia-600/95 !to-fuchsia-900/95 !text-fuchsia-50 !shadow-[0_6px_18px_rgba(192,38,211,0.35)] hover:!from-fuchsia-500 hover:!to-fuchsia-800';
+
             const infoPanel = (
                 <div
-                    className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-gradient-to-br from-black/40 via-black/25 to-fuchsia-950/15 p-[clamp(0.35rem,1.1vmin,0.65rem)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-[2px]"
+                    className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border p-[clamp(0.35rem,1.1vmin,0.65rem)] backdrop-blur-[2px] ${infoPanelShell}`}
                 >
                     <div className="shrink-0 border-b border-white/[0.08] pb-[clamp(0.25rem,0.85vmin,0.45rem)] leading-snug text-amber-100/95">
                         {levelOutcome}
                     </div>
-                    {usable && !session ? (
-                        <Button
-                            type="button"
-                            disabled={isBusy || eggCount < 1}
-                            onClick={() => setHatcheryConfirmSlotIndex(slotIndex)}
-                            colorScheme="none"
-                            className="mt-[clamp(0.35rem,1vmin,0.6rem)] !w-auto !min-w-0 self-center !rounded-lg !border !border-fuchsia-400/60 !bg-gradient-to-b !from-fuchsia-600/95 !to-fuchsia-900/95 !px-[clamp(0.65rem,2vmin,1.1rem)] !py-[clamp(0.2rem,0.75vmin,0.55rem)] !text-[clamp(0.58rem,1.5vmin,0.75rem)] !font-black !uppercase !tracking-widest !text-fuchsia-50 !shadow-[0_6px_18px_rgba(192,38,211,0.35)] hover:!from-fuchsia-500 hover:!to-fuchsia-800 disabled:!opacity-40"
-                        >
-                            부화 시작
-                        </Button>
-                    ) : null}
-                    {usable && session && !canClaim ? (
-                        <div className="mt-[clamp(0.35rem,1vmin,0.6rem)] flex min-w-0 flex-row flex-nowrap items-stretch gap-[clamp(0.25rem,0.85vmin,0.45rem)]">
+                    {/* 부화 시작 ↔ 진행 중(즉시·취소) 전환 시 높이 고정 */}
+                    <div className="mt-[clamp(0.35rem,1vmin,0.6rem)] flex min-h-[clamp(2.55rem,10vmin,3.45rem)] flex-col justify-start gap-[clamp(0.25rem,0.85vmin,0.45rem)]">
+                        {usable && !session ? (
                             <Button
                                 type="button"
-                                disabled={isBusy || !hasEnoughInstantDiamonds}
-                                title={!hasEnoughInstantDiamonds ? '다이아가 부족합니다.' : undefined}
-                                onClick={() => setHatcheryInstantConfirmSlotIndex(slotIndex)}
+                                disabled={isBusy || eggCount < 1}
+                                onClick={() => setHatcheryConfirmSlotIndex(slotIndex)}
                                 colorScheme="none"
-                                className="!flex !min-w-0 !flex-1 !basis-0 !flex-row !items-center !justify-center !gap-1 !rounded-lg !border !border-cyan-400/55 !bg-gradient-to-b !from-cyan-600/90 !to-cyan-950/95 !px-[clamp(0.25rem,1vmin,0.55rem)] !py-[clamp(0.22rem,0.8vmin,0.5rem)] !text-[clamp(0.48rem,1.25vmin,0.68rem)] !font-black !uppercase !tracking-wide !text-cyan-50 !shadow-[0_4px_14px_rgba(6,182,212,0.28)] hover:!from-cyan-500 hover:!to-cyan-900 disabled:!opacity-40"
+                                className={`!w-auto !min-w-0 self-center !rounded-lg !px-[clamp(0.65rem,2vmin,1.1rem)] !py-[clamp(0.2rem,0.75vmin,0.55rem)] !text-[clamp(0.58rem,1.5vmin,0.75rem)] !font-black !uppercase !tracking-widest disabled:!opacity-40 ${hatchStartBtn}`}
                             >
-                                <span className="min-w-0 shrink truncate">즉시 완료</span>
-                                <span className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-cyan-300/35 bg-black/25 px-[clamp(0.12rem,0.55vmin,0.28rem)] py-0.5 tabular-nums">
-                                    <img src="/images/icon/Zem.png" alt="" className="h-[clamp(0.75rem,2.1vmin,0.9rem)] w-[clamp(0.75rem,2.1vmin,0.9rem)] shrink-0" />
-                                    <span>{instantDiamondCost}</span>
-                                </span>
+                                부화 시작
                             </Button>
+                        ) : null}
+                        {usable && session && !canClaim ? (
+                            <div className="flex min-w-0 flex-row flex-nowrap items-stretch gap-[clamp(0.25rem,0.85vmin,0.45rem)]">
+                                <Button
+                                    type="button"
+                                    disabled={isBusy || !hasEnoughInstantDiamonds || pairLobbyPetInvFull}
+                                    title={
+                                        pairLobbyPetInvFull
+                                            ? PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE
+                                            : !hasEnoughInstantDiamonds
+                                              ? '다이아가 부족합니다.'
+                                              : undefined
+                                    }
+                                    onClick={() => setHatcheryInstantConfirmSlotIndex(slotIndex)}
+                                    colorScheme="none"
+                                    className="!flex !min-w-0 !flex-1 !basis-0 !flex-row !items-center !justify-center !gap-1 !rounded-lg !border !border-cyan-400/55 !bg-gradient-to-b !from-cyan-600/90 !to-cyan-950/95 !px-[clamp(0.25rem,1vmin,0.55rem)] !py-[clamp(0.22rem,0.8vmin,0.5rem)] !text-[clamp(0.48rem,1.25vmin,0.68rem)] !font-black !uppercase !tracking-wide !text-cyan-50 !shadow-[0_4px_14px_rgba(6,182,212,0.28)] hover:!from-cyan-500 hover:!to-cyan-900 disabled:!opacity-40"
+                                >
+                                    <span className="min-w-0 shrink truncate">즉시 완료</span>
+                                    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-cyan-300/35 bg-black/25 px-[clamp(0.12rem,0.55vmin,0.28rem)] py-0.5 tabular-nums">
+                                        <img src="/images/icon/Zem.png" alt="" className="h-[clamp(0.75rem,2.1vmin,0.9rem)] w-[clamp(0.75rem,2.1vmin,0.9rem)] shrink-0" />
+                                        <span>{instantDiamondCost}</span>
+                                    </span>
+                                </Button>
+                                <Button
+                                    type="button"
+                                    disabled={isBusy}
+                                    onClick={() => void cancelHatchery(slotIndex)}
+                                    colorScheme="none"
+                                    className="!min-w-0 !flex-1 !basis-0 !rounded-lg !border !border-white/20 !bg-white/[0.06] !px-[clamp(0.25rem,1vmin,0.55rem)] !py-[clamp(0.2rem,0.75vmin,0.48rem)] !text-[clamp(0.48rem,1.25vmin,0.68rem)] !font-bold !text-zinc-200 hover:!border-white/30 hover:!bg-white/[0.1] disabled:!opacity-40"
+                                >
+                                    취소
+                                </Button>
+                            </div>
+                        ) : null}
+                        {usable && session && canClaim ? (
                             <Button
                                 type="button"
                                 disabled={isBusy}
-                                onClick={() => void cancelHatchery(slotIndex)}
+                                title={
+                                    pairLobbyPetInvFull
+                                        ? '펫 인벤토리가 가득 찼습니다. 눌러 안내를 확인하세요.'
+                                        : undefined
+                                }
+                                onClick={() => void handleHatcheryClaim(slotIndex)}
                                 colorScheme="none"
-                                className="!min-w-0 !flex-1 !basis-0 !rounded-lg !border !border-white/20 !bg-white/[0.06] !px-[clamp(0.25rem,1vmin,0.55rem)] !py-[clamp(0.2rem,0.75vmin,0.48rem)] !text-[clamp(0.48rem,1.25vmin,0.68rem)] !font-bold !text-zinc-200 hover:!border-white/30 hover:!bg-white/[0.1] disabled:!opacity-40"
+                                className="!flex !w-full !min-w-0 !flex-row !items-center !justify-center !gap-1 !rounded-lg !border !border-amber-400/55 !bg-gradient-to-b !from-amber-500/95 !to-amber-800/95 !px-[clamp(0.25rem,1vmin,0.55rem)] !py-[clamp(0.22rem,0.8vmin,0.5rem)] !text-[clamp(0.48rem,1.25vmin,0.68rem)] !font-black !uppercase !tracking-wide !text-amber-50 !shadow-[0_4px_14px_rgba(245,158,11,0.3)] hover:!from-amber-500 hover:!to-amber-800 disabled:!opacity-40"
                             >
-                                취소
+                                펫 받기
                             </Button>
-                        </div>
-                    ) : null}
-                    {usable && session && canClaim ? (
-                        <Button
-                            type="button"
-                            disabled={isBusy}
-                            onClick={() => void handleHatcheryClaim(slotIndex)}
-                            colorScheme="none"
-                            className="mt-[clamp(0.35rem,1vmin,0.6rem)] !flex !w-full !min-w-0 !flex-row !items-center !justify-center !gap-1 !rounded-lg !border !border-amber-400/55 !bg-gradient-to-b !from-amber-500/95 !to-amber-800/95 !px-[clamp(0.25rem,1vmin,0.55rem)] !py-[clamp(0.22rem,0.8vmin,0.5rem)] !text-[clamp(0.48rem,1.25vmin,0.68rem)] !font-black !uppercase !tracking-wide !text-amber-50 !shadow-[0_4px_14px_rgba(245,158,11,0.3)] hover:!from-amber-500 hover:!to-amber-800 disabled:!opacity-40"
-                        >
-                            펫 받기
-                        </Button>
-                    ) : null}
-                    {isVip && !vipActive ? (
-                        <div className="mt-[clamp(0.35rem,1vmin,0.6rem)] flex items-center justify-center gap-1.5 rounded-lg border border-amber-500/20 bg-amber-950/20 py-[clamp(0.25rem,0.8vmin,0.45rem)] text-amber-200/90">
-                            <HatcheryFunctionVipHintIcon />
-                        </div>
-                    ) : null}
-                    {showUnlockBtn ? (
-                        <Button
-                            type="button"
-                            disabled={isBusy || !gate?.ok}
-                            title={!gate?.ok ? gate?.reason : undefined}
-                            onClick={() => void unlockSlot(slotIndex)}
-                            colorScheme="none"
-                            className="mt-[clamp(0.35rem,1vmin,0.6rem)] !w-full !min-h-0 !rounded-lg !border !border-amber-400/50 !bg-gradient-to-b !from-amber-600/90 !to-amber-900/90 !py-[clamp(0.2rem,0.75vmin,0.5rem)] !text-[clamp(0.58rem,1.5vmin,0.75rem)] !font-extrabold !text-amber-50 !shadow-[0_4px_14px_rgba(245,158,11,0.25)] hover:!from-amber-500 hover:!to-amber-800 disabled:!opacity-45"
-                        >
-                            해금
-                        </Button>
-                    ) : null}
+                        ) : null}
+                        {isVip && !vipActive ? (
+                            <div className="flex items-center justify-center gap-1.5 rounded-lg border border-amber-500/20 bg-amber-950/20 py-[clamp(0.25rem,0.8vmin,0.45rem)] text-amber-200/90">
+                                <HatcheryFunctionVipHintIcon />
+                            </div>
+                        ) : null}
+                        {showUnlockBtn ? (
+                            <Button
+                                type="button"
+                                disabled={isBusy || !gate?.ok}
+                                title={!gate?.ok ? gate?.reason : undefined}
+                                onClick={() => void unlockSlot(slotIndex)}
+                                colorScheme="none"
+                                className="!w-full !min-h-0 !rounded-lg !border !border-amber-400/50 !bg-gradient-to-b !from-amber-600/90 !to-amber-900/90 !py-[clamp(0.2rem,0.75vmin,0.5rem)] !text-[clamp(0.58rem,1.5vmin,0.75rem)] !font-extrabold !text-amber-50 !shadow-[0_4px_14px_rgba(245,158,11,0.25)] hover:!from-amber-500 hover:!to-amber-800 disabled:!opacity-45"
+                            >
+                                해금
+                            </Button>
+                        ) : null}
+                    </div>
                 </div>
             );
 
@@ -777,29 +910,27 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
             const eggBox = 'h-[clamp(1.45rem,10.5vmin,2.5rem)] w-[clamp(1.45rem,10.5vmin,2.5rem)]';
 
+            const outerUsable = isVip
+                ? 'border-amber-500/38 bg-gradient-to-br from-amber-950/42 via-zinc-950/82 to-orange-950/28 shadow-[0_0_28px_rgba(245,158,11,0.16),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-amber-400/22 hover:-translate-y-[1px]'
+                : 'border-fuchsia-500/35 bg-gradient-to-br from-fuchsia-950/45 via-zinc-950/80 to-violet-950/35 shadow-[0_0_28px_rgba(192,38,211,0.14),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-fuchsia-400/15 hover:-translate-y-[1px]';
+            const outerLocked = 'border-white/[0.09] bg-gradient-to-br from-zinc-900/70 via-black/70 to-zinc-950/90 ring-1 ring-black/50';
+            const glowOrb = usable ? (isVip ? 'bg-amber-500/22' : 'bg-fuchsia-600/20') : 'bg-zinc-600/10';
+            const topHairline = usable ? (isVip ? 'via-amber-400/45' : 'via-fuchsia-400/40') : 'via-white/15';
+
             return (
                 <div
                     key={`hatch-def-${slotIndex}`}
-                    className={`group relative flex min-h-0 flex-1 basis-0 flex-col overflow-hidden rounded-2xl border p-[clamp(0.35rem,1vmin,0.65rem)] text-[clamp(0.58rem,1.45vmin,0.75rem)] shadow-lg transition-[box-shadow,transform] duration-300 hover:shadow-xl ${
-                        usable
-                            ? 'border-fuchsia-500/35 bg-gradient-to-br from-fuchsia-950/45 via-zinc-950/80 to-violet-950/35 shadow-[0_0_28px_rgba(192,38,211,0.14),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-fuchsia-400/15 hover:-translate-y-[1px]'
-                            : 'border-white/[0.09] bg-gradient-to-br from-zinc-900/70 via-black/70 to-zinc-950/90 ring-1 ring-black/50'
+                    className={`group relative flex w-full min-h-0 shrink-0 flex-col overflow-hidden rounded-2xl border p-[clamp(0.35rem,1vmin,0.65rem)] text-[clamp(0.58rem,1.45vmin,0.75rem)] shadow-lg transition-[box-shadow,transform] duration-300 hover:shadow-xl ${
+                        usable ? outerUsable : outerLocked
                     }`}
                 >
+                    <div className={`pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full blur-2xl ${glowOrb}`} aria-hidden />
                     <div
-                        className={`pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full blur-2xl ${
-                            usable ? 'bg-fuchsia-600/20' : 'bg-zinc-600/10'
-                        }`}
+                        className={`pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent ${topHairline} to-transparent`}
                         aria-hidden
                     />
-                    <div
-                        className={`pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent ${
-                            usable ? 'via-fuchsia-400/40' : 'via-white/15'
-                        } to-transparent`}
-                        aria-hidden
-                    />
-                    <div className="relative flex min-h-0 flex-1 items-stretch gap-[clamp(0.35rem,1.1vmin,0.65rem)]">
-                        <div className="relative min-h-0 w-[clamp(4.15rem,26vw,6.75rem)] shrink-0">
+                    <div className="relative flex w-full min-h-0 items-start gap-[clamp(0.35rem,1.1vmin,0.65rem)] sm:items-stretch">
+                        <div className="relative min-h-0 w-[clamp(4.15rem,26vw,6.75rem)] shrink-0 self-start sm:self-auto">
                             {isVip ? (
                                 <div className="pointer-events-none absolute left-1/2 top-0 z-20 flex -translate-x-1/2 -translate-y-1/2 justify-center">
                                     <span className="rounded-md border border-amber-200/50 bg-gradient-to-b from-amber-300 via-amber-500 to-amber-700 px-[clamp(0.35rem,1.2vmin,0.55rem)] py-[clamp(0.1rem,0.35vmin,0.2rem)] text-[clamp(0.5rem,1.35vmin,0.625rem)] font-black uppercase tracking-[0.12em] text-amber-950 shadow-[0_3px_10px_rgba(245,158,11,0.4),inset_0_1px_0_rgba(255,255,255,0.35)] ring-1 ring-amber-400/50">
@@ -808,113 +939,104 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 </div>
                             ) : null}
                             <div
-                                className={`flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border p-[clamp(0.25rem,0.9vmin,0.45rem)] shadow-inner transition ${
+                                className={`flex min-h-0 w-full flex-col overflow-hidden rounded-xl border shadow-inner transition sm:h-full ${
+                                    usable
+                                        ? `px-[clamp(0.25rem,0.9vmin,0.45rem)] pb-[clamp(0.25rem,0.9vmin,0.45rem)] pt-[clamp(0.65rem,1.75vmin,1.05rem)]`
+                                        : 'p-[clamp(0.25rem,0.9vmin,0.45rem)]'
+                                } ${
                                     !usable
-                                        ? 'border-white/10 bg-gradient-to-b from-zinc-900/50 to-black/70'
+                                        ? isVip
+                                            ? 'border-amber-900/25 bg-gradient-to-b from-amber-950/35 to-black/72'
+                                            : 'border-white/10 bg-gradient-to-b from-zinc-900/50 to-black/70'
                                         : chamberBusy
-                                          ? 'border-fuchsia-400/40 bg-gradient-to-b from-fuchsia-950/40 via-black/60 to-violet-950/30 shadow-[inset_0_0_20px_rgba(168,85,247,0.12)]'
-                                          : 'border-fuchsia-400/50 bg-gradient-to-b from-fuchsia-900/25 to-black/50 shadow-[inset_0_0_24px_rgba(217,70,239,0.08)]'
+                                          ? isVip
+                                              ? 'border-amber-400/45 bg-gradient-to-b from-amber-950/45 via-black/58 to-orange-950/28 shadow-[inset_0_0_20px_rgba(251,191,36,0.12)]'
+                                              : 'border-fuchsia-400/40 bg-gradient-to-b from-fuchsia-950/40 via-black/60 to-violet-950/30 shadow-[inset_0_0_20px_rgba(168,85,247,0.12)]'
+                                          : isVip
+                                            ? 'border-amber-400/50 bg-gradient-to-b from-amber-900/28 to-black/50 shadow-[inset_0_0_24px_rgba(251,191,36,0.1)]'
+                                            : 'border-fuchsia-400/50 bg-gradient-to-b from-fuchsia-900/25 to-black/50 shadow-[inset_0_0_24px_rgba(217,70,239,0.08)]'
                                 }`}
                             >
-                                <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden">
-                                {!usable ? (
-                                    <div className="flex min-h-0 flex-col items-center justify-center gap-[clamp(0.2rem,0.8vmin,0.45rem)] px-0.5 text-center">
-                                        <span
-                                            className="flex h-[clamp(1.65rem,7.5vmin,2.35rem)] w-[clamp(1.65rem,7.5vmin,2.35rem)] shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/40 text-[clamp(0.85rem,3.5vmin,1.1rem)] leading-none text-zinc-400 shadow-inner"
-                                            aria-hidden
-                                        >
-                                            🔒
-                                        </span>
-                                        {isVip ? (
-                                            <div className="flex flex-col items-center gap-1">
-                                                <HatcheryFunctionVipHintIcon />
+                                <div
+                                    className={`flex min-h-0 flex-1 flex-col items-center justify-center ${
+                                        usable ? 'overflow-visible' : 'overflow-hidden'
+                                    }`}
+                                >
+                                    {!usable ? (
+                                        <div className="flex min-h-0 flex-col items-center justify-center gap-[clamp(0.2rem,0.8vmin,0.45rem)] px-0.5 text-center">
+                                            <span
+                                                className="flex h-[clamp(1.65rem,7.5vmin,2.35rem)] w-[clamp(1.65rem,7.5vmin,2.35rem)] shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/40 text-[clamp(0.85rem,3.5vmin,1.1rem)] leading-none text-zinc-400 shadow-inner"
+                                                aria-hidden
+                                            >
+                                                🔒
+                                            </span>
+                                            {isVip ? (
                                                 <p className="max-w-full px-0.5 text-center text-[clamp(0.58rem,1.55vmin,0.7rem)] font-extrabold leading-tight text-amber-200/95">
                                                     기능VIP활성화
                                                 </p>
-                                            </div>
-                                        ) : (
-                                            <p className="max-w-full bg-gradient-to-r from-amber-100 to-amber-300 bg-clip-text px-0.5 text-center text-[clamp(0.58rem,1.55vmin,0.7rem)] font-extrabold leading-tight text-transparent">
-                                                페어 {def.unlockWinsRequired}승
-                                            </p>
-                                        )}
-                                    </div>
-                                ) : session ? (
-                                    <>
-                                        <div className="relative shrink-0">
-                                            <div
-                                                className={`absolute inset-0 rounded-full blur-md ${canClaim ? 'bg-amber-400/35' : 'bg-fuchsia-500/30'}`}
-                                                aria-hidden
-                                            />
-                                            <img
-                                                src={eggImgForSlot}
-                                                alt=""
-                                                className={`relative ${eggBox} shrink-0 rounded-lg object-contain ring-[3px] ring-fuchsia-300/55 ring-offset-2 ring-offset-fuchsia-950/80 shadow-[0_0_20px_rgba(217,70,239,0.45),inset_0_1px_0_rgba(255,255,255,0.15)]`}
-                                                loading="lazy"
-                                            />
+                                            ) : (
+                                                <p className="max-w-full bg-gradient-to-r from-amber-100 to-amber-300 bg-clip-text px-0.5 text-center text-[clamp(0.58rem,1.55vmin,0.7rem)] font-extrabold leading-tight text-transparent">
+                                                    페어 {def.unlockWinsRequired}승
+                                                </p>
+                                            )}
                                         </div>
-                                        <span
-                                            className={`mt-[clamp(0.1rem,0.4vmin,0.25rem)] text-[clamp(0.5rem,1.35vmin,0.625rem)] font-black uppercase tracking-[0.12em] ${
-                                                canClaim ? 'text-amber-200/95' : 'text-fuchsia-200/90'
-                                            }`}
-                                        >
-                                            {canClaim ? '부화 완료' : '부화 중'}
-                                        </span>
-                                    </>
-                                ) : (
-                                    <div className="relative flex min-h-0 w-full flex-col items-center justify-center px-1 py-1">
-                                        <div
-                                            className="pointer-events-none absolute left-1/2 top-1/2 h-[clamp(2.75rem,18vmin,4rem)] w-[clamp(2.75rem,18vmin,4rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-fuchsia-500/35 via-violet-500/20 to-transparent blur-2xl"
-                                            aria-hidden
-                                        />
-                                        <div
-                                            className="pointer-events-none absolute inset-x-[12%] top-[18%] h-px bg-gradient-to-r from-transparent via-fuchsia-300/40 to-transparent"
-                                            aria-hidden
-                                        />
-                                        <div className="relative w-[min(100%,5.75rem)]">
-                                            <div
-                                                className="absolute -inset-[1.5px] rounded-[13px] bg-gradient-to-br from-fuchsia-400/70 via-violet-500/50 to-fuchsia-600/55 opacity-95 shadow-[0_0_18px_rgba(192,38,211,0.35)]"
-                                                aria-hidden
-                                            />
-                                            <div className="relative overflow-hidden rounded-xl border border-white/[0.14] bg-gradient-to-b from-fuchsia-950/85 via-zinc-950/92 to-violet-950/80 px-[clamp(0.4rem,1.35vmin,0.6rem)] py-[clamp(0.42rem,1.45vmin,0.62rem)] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-12px_20px_rgba(0,0,0,0.35)]">
+                                    ) : (
+                                        <>
+                                            <div className="relative flex shrink-0 flex-col items-center">
                                                 <div
-                                                    className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(244,114,182,0.22),transparent_55%)]"
+                                                    className={`absolute inset-0 rounded-full blur-md ${
+                                                        session
+                                                            ? canClaim
+                                                                ? 'bg-amber-400/35'
+                                                                : isVip
+                                                                  ? 'bg-amber-500/28'
+                                                                  : 'bg-fuchsia-500/30'
+                                                            : isVip
+                                                              ? 'bg-amber-500/22'
+                                                              : 'bg-fuchsia-500/24'
+                                                    }`}
                                                     aria-hidden
                                                 />
-                                                <div className="relative flex items-center justify-center gap-[0.35em]">
-                                                    <span
-                                                        className="select-none text-[clamp(0.55rem,1.35vmin,0.68rem)] leading-none text-fuchsia-300/90 drop-shadow-[0_0_6px_rgba(232,121,249,0.65)]"
-                                                        aria-hidden
-                                                    >
-                                                        ✦
-                                                    </span>
-                                                    <p className="bg-gradient-to-b from-fuchsia-50 via-white to-violet-100 bg-clip-text text-center text-[clamp(0.58rem,1.55vmin,0.74rem)] font-black leading-none tracking-[0.06em] text-transparent drop-shadow-[0_1px_0_rgba(0,0,0,0.5)]">
-                                                        부화 가능
-                                                    </p>
-                                                    <span
-                                                        className="select-none text-[clamp(0.55rem,1.35vmin,0.68rem)] leading-none text-violet-300/90 drop-shadow-[0_0_6px_rgba(167,139,250,0.55)]"
-                                                        aria-hidden
-                                                    >
-                                                        ✦
-                                                    </span>
-                                                </div>
-                                                <div
-                                                    className="pointer-events-none mx-auto mt-[clamp(0.2rem,0.65vmin,0.3rem)] flex h-0.5 w-[42%] justify-center gap-1"
-                                                    aria-hidden
-                                                >
-                                                    <span className="h-full flex-1 rounded-full bg-fuchsia-400/55 shadow-[0_0_6px_rgba(244,114,182,0.5)]" />
-                                                    <span className="h-full flex-1 rounded-full bg-violet-400/45 shadow-[0_0_6px_rgba(167,139,250,0.45)]" />
-                                                    <span className="h-full flex-1 rounded-full bg-fuchsia-400/55 shadow-[0_0_6px_rgba(244,114,182,0.5)]" />
-                                                </div>
+                                                <img
+                                                    src={eggImgForSlot}
+                                                    alt=""
+                                                    className={`relative ${eggBox} shrink-0 rounded-lg object-contain ring-[3px] ring-offset-2 ${
+                                                        session
+                                                            ? isVip
+                                                                ? 'ring-amber-300/65 ring-offset-amber-950/85 shadow-[0_0_20px_rgba(245,158,11,0.42),inset_0_1px_0_rgba(255,255,255,0.15)]'
+                                                                : 'ring-fuchsia-300/55 ring-offset-fuchsia-950/80 shadow-[0_0_20px_rgba(217,70,239,0.45),inset_0_1px_0_rgba(255,255,255,0.15)]'
+                                                            : isVip
+                                                              ? 'ring-amber-300/50 ring-offset-amber-950/85 opacity-92 shadow-[0_0_16px_rgba(245,158,11,0.32),inset_0_1px_0_rgba(255,255,255,0.12)]'
+                                                              : 'ring-fuchsia-300/48 ring-offset-fuchsia-950/80 opacity-92 shadow-[0_0_16px_rgba(217,70,239,0.3),inset_0_1px_0_rgba(255,255,255,0.12)]'
+                                                    }`}
+                                                    loading="lazy"
+                                                />
                                             </div>
-                                        </div>
-                                    </div>
-                                )}
+                                            <span
+                                                className={`mt-[clamp(0.1rem,0.4vmin,0.25rem)] text-[clamp(0.5rem,1.35vmin,0.625rem)] font-black uppercase tracking-[0.12em] ${
+                                                    session
+                                                        ? canClaim
+                                                            ? 'text-amber-200/95'
+                                                            : isVip
+                                                              ? 'text-amber-100/92'
+                                                              : 'text-fuchsia-200/90'
+                                                        : isVip
+                                                          ? 'text-amber-200/88'
+                                                          : 'text-fuchsia-200/88'
+                                                }`}
+                                            >
+                                                {session ? (canClaim ? '부화 완료' : '부화 중') : '부화 가능'}
+                                            </span>
+                                        </>
+                                    )}
                                 </div>
                                 <div
                                     className={`shrink-0 border-t border-white/[0.07] pt-[clamp(0.12rem,0.45vmin,0.28rem)] text-center font-mono text-[clamp(0.5rem,1.3vmin,0.65rem)] font-bold tabular-nums leading-none tracking-tight ${
-                                    usable && session && !canClaim
-                                        ? 'text-cyan-200 drop-shadow-[0_0_8px_rgba(34,211,238,0.35)]'
-                                        : 'text-fuchsia-200/90'
+                                        usable && session && !canClaim
+                                            ? 'text-cyan-200 drop-shadow-[0_0_8px_rgba(34,211,238,0.35)]'
+                                            : usable && !session && isVip
+                                              ? 'text-amber-200/88'
+                                              : 'text-fuchsia-200/90'
                                     }`}
                                 >
                                     {usable && session
@@ -935,7 +1057,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             MATERIAL_ITEMS[PAIR_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS]?.image ?? PAIR_EGG_DISPLAY_IMAGE;
 
         return (
-            <div className="flex min-h-0 flex-1 flex-col gap-[clamp(0.25rem,0.9vmin,0.5rem)] overflow-hidden">
+            <div className="flex w-full min-w-0 flex-col gap-[clamp(0.25rem,0.9vmin,0.5rem)]">
                 <div className="flex shrink-0 justify-end">
                     <div className="flex items-center gap-[clamp(0.25rem,0.9vmin,0.45rem)] rounded-xl border border-fuchsia-400/30 bg-gradient-to-r from-fuchsia-950/50 to-violet-950/40 px-[clamp(0.45rem,1.4vmin,0.75rem)] py-[clamp(0.2rem,0.75vmin,0.45rem)] shadow-[0_0_20px_rgba(192,38,211,0.15),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-fuchsia-500/10">
                         <div className="relative shrink-0">
@@ -952,8 +1074,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         </span>
                     </div>
                 </div>
-                <div className="flex min-h-0 flex-1 flex-col [gap:clamp(0.2rem,0.85vmin,0.5rem)]">
-                    {PAIR_HATCHERY_SLOT_DEFS.map((d) => renderSlot(d.slotIndex))}
+                <div className="flex flex-col [gap:clamp(0.2rem,0.85vmin,0.5rem)]">
+                    {[...PAIR_HATCHERY_SLOT_DEFS]
+                        .sort((a, b) => Number(b.requiresFunctionVip) - Number(a.requiresFunctionVip))
+                        .map((d) => renderSlot(d.slotIndex))}
                 </div>
             </div>
         );
@@ -978,6 +1102,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     it.templateId === equippedTid &&
                     (!equippedItemId || equippedItemId === it.id),
             );
+        const trainingSlotsNorm = normalizePairPetTrainingSlots(currentUser.pairPetTrainingSlots);
+        const inTraining =
+            isPairPetMaterial(it) && !isPairEggItem(it) && isItemIdInPairTraining(trainingSlotsNorm, it.id);
+        const trainingBadgeVariant = inTraining ? pairTrainingBadgeVariantForItem(currentUser, it.id) : undefined;
         if (aiTab === 'info') {
             return (
                 <InvThumb
@@ -986,15 +1114,26 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     selected={selectedLobbyItemId === it.id}
                     disabled={isBusy}
                     onClick={() => {
+                        if (inTraining && !isBusy) {
+                            handlers.openPairPetDetailModal(it, 'view');
+                            return;
+                        }
                         setSelectedLobbyItemId(it.id);
                     }}
                     showRepresentativeBadge={representativeThumb}
+                    showTrainingBadge={inTraining}
+                    trainingBadgeVariant={trainingBadgeVariant}
+                    title={
+                        inTraining
+                            ? trainingBadgeVariant === 'claim_ready'
+                                ? '수련 완료 — 클릭하면 상세 정보'
+                                : '수련 중 — 클릭하면 상세 정보'
+                            : undefined
+                    }
                 />
             );
         }
         if (aiTab === 'training') {
-            const slotsNorm = normalizePairPetTrainingSlots(currentUser.pairPetTrainingSlots);
-            const inTrain = isItemIdInPairTraining(slotsNorm, it.id);
             const isRepPet = Boolean(
                 isPairPetMaterial(it) &&
                     !isPairEggItem(it) &&
@@ -1004,23 +1143,25 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     (!equippedItemId || equippedItemId === it.id),
             );
             const dragPet =
-                isPairPetMaterial(it) && !isPairEggItem(it) && !inTrain && !isRepPet && !useTapTrainingFlow;
+                isPairPetMaterial(it) && !isPairEggItem(it) && !inTraining && !isRepPet && !useTapTrainingFlow;
             const canTapPetToTrain =
-                useTapTrainingFlow && isPairPetMaterial(it) && !isPairEggItem(it) && !inTrain && !isRepPet;
+                useTapTrainingFlow && isPairPetMaterial(it) && !isPairEggItem(it) && !inTraining && !isRepPet;
             const trainInvTitle = useTapTrainingFlow
                 ? trainingMobilePickSlotIndex == null
-                    ? '먼저 위쪽 빈 수련 슬롯을 누른 뒤 펫을 선택하세요.'
+                    ? '빈 수련 슬롯을 먼저 터치한 뒤 펫을 선택하세요.'
                     : isRepPet
                       ? '대표 펫은 수련에 보낼 수 없습니다.'
                       : undefined
                 : isRepPet
                   ? '대표 펫은 수련에 보낼 수 없습니다.'
                   : undefined;
-            const petDetailTitle = inTrain
-                ? '수련 중 — 클릭하면 상세 정보'
+            const petDetailTitle = inTraining
+                ? trainingBadgeVariant === 'claim_ready'
+                    ? '수련 완료 — 클릭하면 상세 정보'
+                    : '수련 중 — 클릭하면 상세 정보'
                 : isRepPet
                   ? '대표 펫 — 클릭하면 상세 정보'
-                : trainInvTitle;
+                  : trainInvTitle;
             return (
                 <div
                     key={it.id}
@@ -1030,7 +1171,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         e.dataTransfer.setData('text/pair-training-pet', it.id);
                         e.dataTransfer.effectAllowed = 'copy';
                     }}
-                    className={`min-w-0${inTrain || isRepPet ? ' opacity-[0.72]' : ''}`}
+                    className={`min-w-0${inTraining || isRepPet ? ' opacity-[0.72]' : ''}`}
                 >
                     <InvThumb
                         item={it}
@@ -1039,6 +1180,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         onClick={() => {
                             const canDetail = isPairPetMaterial(it) && !isPairEggItem(it) && it.templateId;
                             if (!canDetail) return;
+                            if (inTraining && !isBusy) {
+                                handlers.openPairPetDetailModal(it, 'view');
+                                return;
+                            }
                             if (canTapPetToTrain && trainingMobilePickSlotIndex != null) {
                                 setTrainingStartConfirm({ slotIndex: trainingMobilePickSlotIndex, itemId: it.id });
                                 setTrainingMobilePickSlotIndex(null);
@@ -1047,6 +1192,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             handlers.openPairPetDetailModal(it, 'view');
                         }}
                         showRepresentativeBadge={representativeThumb}
+                        showTrainingBadge={inTraining}
+                        trainingBadgeVariant={trainingBadgeVariant}
                         title={petDetailTitle}
                     />
                 </div>
@@ -1066,8 +1213,23 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     item={it}
                     selected={sel}
                     disabled={isBusy}
-                    onClick={() => void equipPet(tid, it.id)}
+                    onClick={() => {
+                        if (inTraining && !isBusy) {
+                            handlers.openPairPetDetailModal(it, 'view');
+                            return;
+                        }
+                        void equipPet(tid, it.id);
+                    }}
                     showRepresentativeBadge={representativeThumb}
+                    showTrainingBadge={inTraining}
+                    trainingBadgeVariant={trainingBadgeVariant}
+                    title={
+                        inTraining
+                            ? trainingBadgeVariant === 'claim_ready'
+                                ? '수련 완료 — 클릭하면 상세 정보'
+                                : '수련 중 — 클릭하면 상세 정보'
+                            : undefined
+                    }
                 />
             );
         }
@@ -1111,25 +1273,31 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
         const padTime2 = (n: number) => String(n).padStart(2, '0');
 
-        /** 수련 탭: 모바일 한 화면 정보 밀도 */
+        /** 수련 탭: 모바일 탭 플로우일 때 보상 칸을 한 줄에 넣기 위해 살짝 축소 */
         const trLbl =
             'whitespace-nowrap text-xs font-extrabold leading-none tracking-wide sm:text-sm';
         const trAmt = 'text-center text-xs font-bold tabular-nums leading-tight sm:text-sm';
+        const trLblDense =
+            'whitespace-nowrap text-[0.58rem] font-extrabold leading-none tracking-wide sm:text-sm';
+        const trAmtDense = 'text-center text-[0.58rem] font-bold tabular-nums leading-tight sm:text-sm';
         const trSlotTitle = 'text-xs font-extrabold leading-snug text-violet-100 sm:text-sm';
+        const trSlotTitleDense = 'text-[0.62rem] font-extrabold leading-snug text-violet-100 sm:text-sm';
         const trMono = 'text-xs font-bold tabular-nums font-mono leading-none sm:text-sm';
 
         return (
             <div className="space-y-2">
                 {useTapTrainingFlow ? (
                     <p className="rounded-md border border-violet-500/25 bg-violet-950/30 px-2 py-1.5 text-center text-[0.65rem] font-semibold leading-snug text-violet-100/95 sm:text-xs">
-                        빈 수련 슬롯을 누른 뒤 아래 인벤토리에서 펫을 고르면 확인 창이 열립니다. 대표 펫은 수련에 보낼 수 없습니다.
+                        빈 수련 슬롯을 터치 하여 수련
                     </p>
                 ) : (
                     <p className="rounded-md border border-white/10 bg-black/25 px-2 py-1 text-center text-[0.65rem] font-semibold text-slate-400 sm:text-xs">
                         펫을 슬롯에 놓으면 확인 후 수련이 시작됩니다.
                     </p>
                 )}
-                    {PAIR_TRAINING_SLOT_DEFS.map((def) => {
+                    {[...PAIR_TRAINING_SLOT_DEFS]
+                        .sort((a, b) => Number(!!b.requiresFunctionVip) - Number(!!a.requiresFunctionVip))
+                        .map((def) => {
                         const i = def.slotIndex;
                         const unlocked = isPairTrainingSlotUnlocked(currentUser, i);
                         const reqW = PAIR_TRAINING_UNLOCK_WINS[i]!;
@@ -1139,6 +1307,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         const petRow = session ? inventory.find((x) => x.id === session.itemId) : null;
                         const endAt = session ? trainingEndsAt(session.startedAt, i) : 0;
                         const canClaim = Boolean(session && now >= endAt);
+                        const rowClaimReady = Boolean(unlocked && session && petRow && canClaim);
                         const remainMs = session && !canClaim ? Math.max(0, endAt - now) : 0;
                         const durationTotalSec = Math.max(0, Math.floor(def.durationMs / 1000));
                         const durationHh = Math.floor(durationTotalSec / 3600);
@@ -1149,6 +1318,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         const showSoulCandidates = def.soulDropChance > 0 && def.soulTable.length > 0;
                         const rewardScrollRow =
                             'flex min-w-0 max-w-full flex-nowrap items-end justify-center overflow-x-auto pb-px [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
+                        const rwLbl = useTapTrainingFlow ? trLblDense : trLbl;
+                        const rwAmt = useTapTrainingFlow ? trAmtDense : trAmt;
                         const goldDisplay =
                             def.goldMin === def.goldMax
                                 ? formatGoldAmountKoG(def.goldMin)
@@ -1159,30 +1330,52 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                     isVipTrainingSlot ? 'border-amber-500/25' : 'border-white/10'
                                 }`}
                             >
-                                <div className="flex shrink-0 flex-col items-center gap-1">
-                                    <span className={`${trLbl} text-amber-100/95`}>확정보상</span>
-                                    <div className="rounded-lg border border-amber-400/30 bg-gradient-to-br from-amber-950/35 via-black/30 to-zinc-950/40 px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                                        <div className={`${rewardScrollRow} gap-2`}>
-                                            <div className="flex shrink-0 flex-col items-center gap-1">
-                                                <div className="flex h-10 w-10 items-center justify-center rounded-md border border-amber-400/35 bg-black/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                                <div className={`flex shrink-0 flex-col items-center ${useTapTrainingFlow ? 'gap-0.5' : 'gap-1'}`}>
+                                    <span className={`${rwLbl} text-amber-100/95`}>확정보상</span>
+                                    <div
+                                        className={`rounded-lg border border-amber-400/30 bg-gradient-to-br from-amber-950/35 via-black/30 to-zinc-950/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
+                                            useTapTrainingFlow ? 'px-1 py-1' : 'px-2 py-1.5'
+                                        }`}
+                                    >
+                                        <div className={`${rewardScrollRow} ${useTapTrainingFlow ? 'gap-1' : 'gap-2'}`}>
+                                            <div className={`flex shrink-0 flex-col items-center ${useTapTrainingFlow ? 'gap-0.5' : 'gap-1'}`}>
+                                                <div
+                                                    className={`flex items-center justify-center rounded-md border border-amber-400/35 bg-black/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
+                                                        useTapTrainingFlow ? 'h-8 w-8' : 'h-10 w-10'
+                                                    }`}
+                                                >
                                                     <img
                                                         src="/images/icon/Gold.png"
                                                         alt=""
-                                                        className="h-8 w-8 object-contain"
+                                                        className={`object-contain ${useTapTrainingFlow ? 'h-6 w-6' : 'h-8 w-8'}`}
                                                         loading="lazy"
                                                     />
                                                 </div>
-                                                <span className={`${trAmt} text-amber-50`}>{goldDisplay}</span>
+                                                <span className={`${rwAmt} text-amber-50`}>{goldDisplay}</span>
                                             </div>
-                                            <div className="flex shrink-0 flex-col items-center gap-1">
+                                            <div className={`flex shrink-0 flex-col items-center ${useTapTrainingFlow ? 'gap-0.5' : 'gap-1'}`}>
                                                 <div
-                                                    className="flex h-10 w-10 flex-col items-center justify-center rounded-md border border-violet-400/45 bg-violet-950/55 px-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]"
+                                                    className={`flex flex-col items-center justify-center rounded-md border border-violet-400/45 bg-violet-950/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${
+                                                        useTapTrainingFlow ? 'h-8 w-8 px-px' : 'h-10 w-10 px-0.5'
+                                                    }`}
                                                     title="펫 경험치"
                                                 >
-                                                    <span className="text-sm font-black leading-none text-violet-100">펫</span>
-                                                    <span className="mt-px text-sm font-black leading-none text-violet-100">EXP</span>
+                                                    <span
+                                                        className={`font-black leading-none text-violet-100 ${
+                                                            useTapTrainingFlow ? 'text-[10px]' : 'text-sm'
+                                                        }`}
+                                                    >
+                                                        펫
+                                                    </span>
+                                                    <span
+                                                        className={`mt-px font-black leading-none text-violet-100 ${
+                                                            useTapTrainingFlow ? 'text-[10px]' : 'text-sm'
+                                                        }`}
+                                                    >
+                                                        EXP
+                                                    </span>
                                                 </div>
-                                                <span className={`${trAmt} text-violet-100`}>
+                                                <span className={`${rwAmt} text-violet-100`}>
                                                     {def.xpMin}~{def.xpMax}
                                                 </span>
                                             </div>
@@ -1190,12 +1383,16 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                     </div>
                                 </div>
                                 {showSoulCandidates ? (
-                                    <div className="flex shrink-0 flex-col items-center gap-1">
-                                        <span className={`${trLbl} text-cyan-100/95`}>
+                                    <div className={`flex shrink-0 flex-col items-center ${useTapTrainingFlow ? 'gap-0.5' : 'gap-1'}`}>
+                                        <span className={`${rwLbl} text-cyan-100/95`}>
                                             {def.soulTable.length > 1 ? '확률보상(1종류)' : '확률보상'}
                                         </span>
-                                        <div className="rounded-lg border border-cyan-500/25 bg-black/30 px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                                            <div className={`${rewardScrollRow} gap-1.5`}>
+                                        <div
+                                            className={`rounded-lg border border-cyan-500/25 bg-black/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${
+                                                useTapTrainingFlow ? 'px-1 py-1' : 'px-2 py-1.5'
+                                            }`}
+                                        >
+                                            <div className={`${rewardScrollRow} ${useTapTrainingFlow ? 'gap-1' : 'gap-1.5'}`}>
                                                 {def.soulTable.map((row, si) => {
                                                     const mat = MATERIAL_ITEMS[row.materialName as keyof typeof MATERIAL_ITEMS];
                                                     const src = mat?.image ?? '/images/pets/soulstone1.webp';
@@ -1205,11 +1402,13 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                     return (
                                                         <div
                                                             key={`train-soul-${i}-${si}`}
-                                                            className="flex w-[3rem] shrink-0 flex-col items-center gap-1"
+                                                            className={`flex shrink-0 flex-col items-center ${useTapTrainingFlow ? 'w-[2.65rem] gap-0.5' : 'w-[3rem] gap-1'}`}
                                                             title={row.materialName}
                                                         >
                                                             <div
-                                                                className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-md border ${
+                                                                className={`relative flex items-center justify-center overflow-hidden rounded-md border ${
+                                                                    useTapTrainingFlow ? 'h-8 w-8' : 'h-10 w-10'
+                                                                } ${
                                                                     isTranscendent
                                                                         ? 'transcendent-grade-slot border-white/25'
                                                                         : 'border-white/20'
@@ -1228,7 +1427,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                                     loading="lazy"
                                                                 />
                                                             </div>
-                                                            <span className={`${trAmt} text-slate-100`}>×{row.quantity}</span>
+                                                            <span className={`${rwAmt} text-slate-100`}>×{row.quantity}</span>
                                                         </div>
                                                     );
                                                 })}
@@ -1242,19 +1441,29 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         return (
                             <div
                                 key={`train-slot-${i}`}
-                                className={`flex items-stretch gap-1.5 rounded-xl border p-2 text-sm ${
-                                    isVipTrainingSlot
-                                        ? unlocked
-                                            ? 'border-amber-500/45 bg-gradient-to-br from-amber-950/30 via-zinc-950/50 to-amber-950/20 shadow-[inset_0_1px_0_rgba(251,191,36,0.08)] ring-1 ring-amber-500/15'
-                                            : 'border-amber-800/35 bg-amber-950/12 ring-1 ring-amber-900/25'
-                                        : unlocked
-                                          ? 'border-violet-500/35 bg-violet-950/20'
-                                          : 'border-white/10 bg-black/30'
+                                className={`flex min-w-0 items-stretch gap-1.5 rounded-xl border p-2 text-sm ${
+                                    rowClaimReady
+                                        ? isVipTrainingSlot
+                                            ? 'border-lime-400/75 bg-gradient-to-br from-lime-950/40 via-amber-950/35 to-emerald-950/30 shadow-[0_0_26px_rgba(163,230,53,0.28),inset_0_1px_0_rgba(217,249,157,0.12)] ring-2 ring-lime-400/55 ring-offset-2 ring-offset-zinc-950'
+                                            : 'border-lime-400/70 bg-gradient-to-br from-lime-950/35 via-violet-950/25 to-emerald-950/25 shadow-[0_0_24px_rgba(52,211,153,0.22),inset_0_1px_0_rgba(167,243,208,0.1)] ring-2 ring-lime-400/50 ring-offset-2 ring-offset-zinc-950'
+                                        : isVipTrainingSlot
+                                          ? unlocked
+                                              ? 'border-amber-500/45 bg-gradient-to-br from-amber-950/30 via-zinc-950/50 to-amber-950/20 shadow-[inset_0_1px_0_rgba(251,191,36,0.08)] ring-1 ring-amber-500/15'
+                                              : 'border-amber-800/35 bg-amber-950/12 ring-1 ring-amber-900/25'
+                                          : unlocked
+                                            ? 'border-violet-500/35 bg-violet-950/20'
+                                            : 'border-white/10 bg-black/30'
                                 }`}
                             >
-                                <div className="flex w-[5.5rem] shrink-0 flex-col items-stretch gap-1">
+                                <div
+                                    className={`flex shrink-0 flex-col items-stretch gap-1 ${
+                                        useTapTrainingFlow ? 'w-[5rem] min-w-0' : 'w-[5.5rem]'
+                                    }`}
+                                >
                                     <span
-                                        className={`${trSlotTitle} flex w-full min-w-0 flex-row flex-wrap items-center justify-center gap-0.5 ${
+                                        className={`${
+                                            useTapTrainingFlow ? trSlotTitleDense : trSlotTitle
+                                        } flex w-full min-w-0 flex-row flex-wrap items-center justify-center gap-0.5 ${
                                             isVipTrainingSlot ? 'text-amber-100' : ''
                                         }`}
                                     >
@@ -1263,7 +1472,9 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                 VIP
                                             </span>
                                         ) : null}
-                                        <span className="min-w-0 flex-1 text-center leading-snug line-clamp-2">{getPairTrainingSlotDisplayName(i)}</span>
+                                        <span className="min-w-0 flex-1 text-center leading-snug line-clamp-2">
+                                            {getPairTrainingSlotDisplayName(i)}
+                                        </span>
                                     </span>
                                     <div
                                         role={useTapTrainingFlow && unlocked && !session ? 'button' : undefined}
@@ -1284,15 +1495,17 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             setTrainingMobilePickSlotIndex((cur) => (cur === i ? null : i));
                                         }}
                                         className={`flex aspect-square w-full shrink-0 flex-col items-center justify-center rounded-lg border-2 border-dashed p-0.5 ${
-                                            unlocked && !session
-                                                ? isVipTrainingSlot
-                                                    ? 'border-amber-400/55 bg-amber-950/20'
-                                                    : 'border-violet-400/50 bg-black/25'
-                                                : 'border-white/12 bg-black/20'
+                                            rowClaimReady
+                                                ? 'border-lime-300/85 border-solid bg-gradient-to-b from-lime-500/15 via-emerald-950/40 to-zinc-950/80 shadow-[inset_0_0_18px_rgba(163,230,53,0.2),0_0_14px_rgba(52,211,153,0.25)]'
+                                                : unlocked && !session
+                                                  ? isVipTrainingSlot
+                                                      ? 'border-amber-400/55 bg-amber-950/20'
+                                                      : 'border-violet-400/50 bg-black/25'
+                                                  : 'border-white/12 bg-black/20'
                                         } ${
                                             unlocked && session && canClaim && petRow
                                                 ? `cursor-pointer outline-none transition ${
-                                                      isVipTrainingSlot ? 'hover:border-amber-300/75' : 'hover:border-violet-300/70'
+                                                      isVipTrainingSlot ? 'hover:border-lime-200/90' : 'hover:border-lime-300/85'
                                                   }`
                                                 : ''
                                         } ${
@@ -1337,7 +1550,11 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                 )}
                                             </div>
                                         ) : session && petRow ? (
-                                            <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded">
+                                            <div
+                                                className={`relative flex h-full w-full items-center justify-center rounded ${
+                                                    canClaim ? 'overflow-hidden' : 'overflow-visible'
+                                                }`}
+                                            >
                                                 {canClaim ? (
                                                     <>
                                                         <img
@@ -1354,33 +1571,53 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                                 e.stopPropagation();
                                                                 if (!isBusy) setTrainingRewardModal({ slotIndex: i, petItem: petRow });
                                                             }}
-                                                            className="absolute inset-0 flex items-center justify-center rounded-md bg-black/55 px-0.5 outline-none transition hover:bg-black/60 focus-visible:ring-2 focus-visible:ring-amber-300/80 disabled:opacity-45"
+                                                            className="absolute inset-0 flex items-center justify-center rounded-md bg-gradient-to-b from-lime-600/88 via-emerald-800/82 to-zinc-950/90 px-0.5 outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] transition hover:from-lime-500/90 hover:via-emerald-700/85 focus-visible:ring-2 focus-visible:ring-lime-200/90 disabled:opacity-45"
                                                             aria-label="수련 보상 수령"
                                                         >
-                                                            <span className="text-center text-[0.58rem] font-black leading-tight tracking-tight text-amber-100 shadow-black/80 drop-shadow sm:text-[0.62rem]">
+                                                            <span className="text-center text-[0.58rem] font-black leading-tight tracking-tight text-lime-50 [text-shadow:0_1px_2px_rgba(0,0,0,0.85),0_0_12px_rgba(190,242,100,0.55)] sm:text-[0.62rem]">
                                                                 수련완료
                                                             </span>
                                                         </button>
                                                     </>
                                                 ) : (
-                                                    <button
-                                                        type="button"
-                                                        disabled={isBusy}
-                                                        tabIndex={0}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            if (!isBusy) handlers.openPairPetDetailModal(petRow, 'view');
-                                                        }}
-                                                        className="flex h-full w-full min-h-0 min-w-0 items-center justify-center rounded outline-none transition hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-violet-400/70 disabled:opacity-45"
-                                                        aria-label="펫 상세 정보"
-                                                    >
-                                                        <img
-                                                            src={petRow.image}
-                                                            alt=""
-                                                            className="max-h-full max-w-full rounded object-contain"
-                                                            loading="lazy"
-                                                        />
-                                                    </button>
+                                                    <div className="relative flex h-full w-full min-h-0 min-w-0 flex-col overflow-visible rounded">
+                                                        <button
+                                                            type="button"
+                                                            disabled={isBusy}
+                                                            tabIndex={0}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (!isBusy) handlers.openPairPetDetailModal(petRow, 'view');
+                                                            }}
+                                                            className="relative z-[1] flex min-h-0 flex-1 w-full items-center justify-center rounded outline-none transition hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-violet-400/70 disabled:opacity-45"
+                                                            aria-label="펫 상세 정보"
+                                                        >
+                                                            <img
+                                                                src={petRow.image}
+                                                                alt=""
+                                                                className="max-h-full max-w-full rounded object-contain"
+                                                                loading="lazy"
+                                                            />
+                                                        </button>
+                                                        <div
+                                                            className="pointer-events-none absolute bottom-[-6px] left-1/2 z-[4] flex max-w-[calc(100%-4px)] -translate-x-1/2 justify-center sm:bottom-[-7px]"
+                                                            aria-label={`남은 시간 ${formatRemainHMS(remainMs)}`}
+                                                        >
+                                                            <div
+                                                                className={`w-max rounded-md border border-white/18 px-1.5 py-px text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_2px_10px_rgba(0,0,0,0.5)] backdrop-blur-[4px] ${
+                                                                    isVipTrainingSlot
+                                                                        ? 'bg-amber-950/82 text-amber-50'
+                                                                        : 'bg-zinc-950/82 text-violet-50'
+                                                                }`}
+                                                            >
+                                                                <span
+                                                                    className={`${trMono} inline-block font-black tabular-nums tracking-tight text-[clamp(0.62rem,2.6vmin,0.75rem)] [text-shadow:0_1px_2px_rgba(0,0,0,0.92),0_0_6px_rgba(0,0,0,0.55)] sm:text-[0.75rem]`}
+                                                                >
+                                                                    {formatRemainHMS(remainMs)}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 )}
                                             </div>
                                         ) : unlocked ? (
@@ -1392,29 +1629,11 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                 {useTapTrainingFlow
                                                     ? trainingMobilePickSlotIndex === i
                                                         ? '펫 선택'
-                                                        : '슬롯 탭'
+                                                        : '터치'
                                                     : '펫 드롭'}
                                             </span>
                                         ) : null}
                                     </div>
-                                    <span
-                                        className={`${trMono} text-center tracking-tight ${
-                                            isVipTrainingSlot ? 'text-amber-200/90' : 'text-violet-200/90'
-                                        }`}
-                                        aria-label={
-                                            unlocked && session && petRow
-                                                ? canClaim
-                                                    ? '수련 완료'
-                                                    : `남은 시간 ${formatRemainHMS(remainMs)}`
-                                                : `수련 소요 ${durationHhMmSs}`
-                                        }
-                                    >
-                                        {unlocked && session && petRow
-                                            ? canClaim
-                                                ? '완료'
-                                                : formatRemainHMS(remainMs)
-                                            : durationHhMmSs}
-                                    </span>
                                     {unlocked && session && petRow && !canClaim ? (
                                         <button
                                             type="button"
@@ -1431,24 +1650,30 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                         >
                                             수련 취소
                                         </button>
-                                    ) : null}
-                                    {unlocked && session && petRow && canClaim ? (
-                                        <button
-                                            type="button"
-                                            disabled={isBusy}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (!isBusy) handlers.openPairPetDetailModal(petRow, 'view');
-                                            }}
-                                            className={`w-full shrink-0 rounded border px-1 py-1 text-[0.62rem] font-semibold leading-tight transition ${
-                                                isVipTrainingSlot
-                                                    ? 'border-cyan-400/35 bg-cyan-950/30 text-cyan-100 hover:border-cyan-300/55'
-                                                    : 'border-cyan-500/35 bg-cyan-950/25 text-cyan-100/95 hover:border-cyan-400/55'
-                                            } disabled:opacity-45`}
+                                    ) : (
+                                        <span
+                                            className={`${trMono} text-center tracking-tight ${
+                                                unlocked && session && petRow && canClaim
+                                                    ? 'font-black text-lime-200 drop-shadow-[0_0_10px_rgba(163,230,53,0.55)]'
+                                                    : isVipTrainingSlot
+                                                      ? 'text-amber-200/90'
+                                                      : 'text-violet-200/90'
+                                            }`}
+                                            aria-label={
+                                                unlocked && session && petRow
+                                                    ? canClaim
+                                                        ? '수련 완료'
+                                                        : `남은 시간 ${formatRemainHMS(remainMs)}`
+                                                    : `수련 소요 ${durationHhMmSs}`
+                                            }
                                         >
-                                            펫 상세
-                                        </button>
-                                    ) : null}
+                                            {unlocked && session && petRow
+                                                ? canClaim
+                                                    ? '완료'
+                                                    : formatRemainHMS(remainMs)
+                                                : durationHhMmSs}
+                                        </span>
+                                    )}
                                 </div>
                                 {rewardPanel}
                             </div>
@@ -1478,17 +1703,23 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     applyPetAction={applyPetAction}
                 />
             ) : isPairSoulStoneItem(selectedItem) ? (
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-1 sm:p-2">
                     <PairPetLobbySoulStoneViewer
                         item={selectedItem}
                         isBusy={isBusy}
                         primaryStackId={selectedSoulPrimaryStackId}
                         primaryStackQty={selectedSoulPrimaryStackQty}
                         onSellOne={() => {
-                            if (selectedSoulPrimaryStackId) void sellItem(selectedSoulPrimaryStackId, 1);
+                            if (!selectedSoulPrimaryStackId) return;
+                            const row = inventory.find((i) => i.id === selectedSoulPrimaryStackId);
+                            if (row) setSoulStoneSellConfirm({ stackItem: row, quantity: 1 });
                         }}
                         onSellAll={() => {
-                            if (selectedSoulPrimaryStackId) void sellItem(selectedSoulPrimaryStackId, selectedSoulPrimaryStackQty);
+                            if (!selectedSoulPrimaryStackId) return;
+                            const row = inventory.find((i) => i.id === selectedSoulPrimaryStackId);
+                            if (row && selectedSoulPrimaryStackQty >= 1) {
+                                setSoulStoneSellConfirm({ stackItem: row, quantity: selectedSoulPrimaryStackQty });
+                            }
                         }}
                     />
                 </div>
@@ -1529,7 +1760,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             </button>
                         ))}
                     </div>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    <div className="grid grid-cols-3 gap-1 sm:gap-2">
                         {shopSkusVisible.map((sku) => (
                             <PairPetShopSkuCard
                                 key={sku.id}
@@ -1548,15 +1779,25 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         </>
     );
 
+    const hatcheryHandheldTight = pairLobbyHandheld && aiTab === 'hatchery';
+
     return (
-        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden sm:gap-2">
-            <PairPetProfilePanel
-                currentUser={currentUser}
-                currentUserId={currentUserId}
-                isBusy={isBusy}
-                onOpenEquippedPetDetail={openEquippedPetDetail}
-                onFocusPetInventory={focusInfoPetInventory}
-            />
+        <div
+            className={`flex min-h-0 flex-1 flex-col overflow-hidden ${hatcheryHandheldTight ? 'gap-1' : 'gap-1.5 sm:gap-2'}`}
+        >
+            <div className={`flex shrink-0 flex-col ${hatcheryHandheldTight ? 'gap-0.5' : 'gap-1'}`}>
+                <PairPetProfilePanel
+                    currentUser={currentUser}
+                    currentUserId={currentUserId}
+                    isBusy={isBusy}
+                    pairLobbyProminent
+                    detailButtonLabel="상세보기"
+                    hideInlineBadukChip
+                    showRepresentativeBadge={Boolean(equippedPetRow)}
+                    onOpenEquippedPetDetail={openEquippedPetDetail}
+                    onFocusPetInventory={focusInfoPetInventory}
+                />
+            </div>
 
             <div className="grid shrink-0 grid-cols-4 gap-0.5 rounded-lg border border-white/10 bg-black/30 p-0.5 sm:gap-1 sm:p-1">
                 <button
@@ -1569,16 +1810,30 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                 <button
                     type="button"
                     onClick={() => setAiTab('training')}
-                    className={`rounded-md px-0.5 py-1 text-[0.7rem] font-bold leading-tight sm:px-1 sm:py-1.5 sm:text-sm ${aiTab === 'training' ? 'bg-violet-500 text-violet-950' : 'text-violet-100 hover:bg-violet-950/45'}`}
+                    title={pairTrainingHasClaimReady ? '수련 보상을 수령할 수 있습니다' : undefined}
+                    className={`relative rounded-md px-0.5 py-1 text-[0.7rem] font-bold leading-tight sm:px-1 sm:py-1.5 sm:text-sm ${aiTab === 'training' ? 'bg-violet-500 text-violet-950' : 'text-violet-100 hover:bg-violet-950/45'}`}
                 >
                     수련
+                    {pairTrainingHasClaimReady ? (
+                        <span
+                            className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.95)] ring-2 ring-zinc-900/90 sm:right-1 sm:top-1"
+                            aria-hidden
+                        />
+                    ) : null}
                 </button>
                 <button
                     type="button"
                     onClick={() => setAiTab('hatchery')}
-                    className={`rounded-md px-0.5 py-1 text-[0.7rem] font-bold leading-tight sm:px-1 sm:py-1.5 sm:text-sm ${aiTab === 'hatchery' ? 'bg-fuchsia-600 text-fuchsia-50' : 'text-fuchsia-100 hover:bg-fuchsia-950/45'}`}
+                    title={pairHatcheryHasClaimReady ? '부화가 완료된 슬롯이 있습니다' : undefined}
+                    className={`relative rounded-md px-0.5 py-1 text-[0.7rem] font-bold leading-tight sm:px-1 sm:py-1.5 sm:text-sm ${aiTab === 'hatchery' ? 'bg-fuchsia-600 text-fuchsia-50' : 'text-fuchsia-100 hover:bg-fuchsia-950/45'}`}
                 >
                     부화장
+                    {pairHatcheryHasClaimReady ? (
+                        <span
+                            className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.95)] ring-2 ring-zinc-900/90 sm:right-1 sm:top-1"
+                            aria-hidden
+                        />
+                    ) : null}
                 </button>
                 <button
                     type="button"
@@ -1592,11 +1847,11 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
                 {showInvStrip ? (
                     <>
-                        <div className="flex min-h-0 min-w-0 flex-1 basis-0 flex-col overflow-hidden">
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden basis-0">
                             <div
                                 className={`min-h-0 flex-1 rounded-lg border border-white/10 bg-black/25 text-[0.7rem] text-slate-200 sm:text-xs ${
                                     aiTab === 'hatchery'
-                                        ? 'flex flex-col overflow-hidden p-1.5 sm:p-2'
+                                        ? `flex flex-col overflow-y-auto overscroll-y-contain p-1.5 sm:p-2 ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS}`
                                         : aiTab === 'info'
                                           ? `flex min-h-0 flex-col overflow-hidden p-0 sm:p-0`
                                           : `overflow-y-auto overscroll-y-contain p-1.5 sm:p-2 ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS}`
@@ -1670,7 +1925,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                 effectiveInvFilter === 'soul' ? 'invisible' : ''
                                             }`}
                                         >
-                                            {Math.min(pairPetMaterialCount, slotCountPet)} / {slotCountPet}
+                                            {pairPetMaterialCount} / {slotCountPet}
                                         </div>
                                     </div>
                                 </div>
@@ -1703,7 +1958,9 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
-                                        {Array.from({ length: slotCount }, (_, i) => renderLobbyGridSlot(sortedFilteredInv[i], i))}
+                                        {Array.from({ length: Math.max(slotCount, sortedFilteredInv.length) }, (_, i) =>
+                                            renderLobbyGridSlot(sortedFilteredInv[i], i)
+                                        )}
                                         {canExpandSlots ? (
                                             <button
                                                 type="button"
@@ -1769,6 +2026,21 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                 />
             ) : null}
 
+            {soulStoneSellConfirm ? (
+                <SellItemConfirmModal
+                    item={soulStoneSellConfirm.stackItem}
+                    materialSellQuantity={soulStoneSellConfirm.quantity}
+                    windowId="pairLobbySoulStoneSellConfirm"
+                    onClose={() => setSoulStoneSellConfirm(null)}
+                    onConfirm={() => {
+                        const pending = soulStoneSellConfirm;
+                        setSoulStoneSellConfirm(null);
+                        if (pending) void sellItem(pending.stackItem.id, pending.quantity);
+                    }}
+                    isTopmost
+                />
+            ) : null}
+
             {trainingStartConfirm ? (
                 <DraggableWindow
                     title="펫 수련 확인"
@@ -1778,7 +2050,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     windowId="pairPetTrainingStartConfirm"
                     isTopmost
                     variant="store"
-                    initialWidth={420}
+                    initialWidth={520}
                     shrinkHeightToContent
                     bodyNoScroll
                     bodyPaddingClassName="p-0"
@@ -1790,24 +2062,32 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         const petName = petRow
                             ? getPairPetDefinition(petRow.templateId!)?.displayName ?? petRow.name
                             : '펫';
+                        const repPet = getEquippedPairPetInventoryRow(currentUser);
                         return (
                             <div className="relative overflow-hidden">
                                 <div
                                     className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_75%_55%_at_50%_-18%,rgba(139,92,246,0.32),transparent_55%),linear-gradient(165deg,rgba(24,24,27,0.98)0%,rgba(9,9,11,0.99)48%,rgba(59,7,100,0.32)100%)]"
                                     aria-hidden
                                 />
-                                <div className="relative px-5 pb-5 pt-6 text-center sm:px-6 sm:pb-6 sm:pt-7">
-                                    {petRow ? (
-                                        <div className="mx-auto mb-4 flex h-[5.25rem] w-[5.25rem] items-center justify-center rounded-xl border border-violet-400/40 bg-black/35 p-1 shadow-inner sm:h-[5.75rem] sm:w-[5.75rem]">
-                                            <img src={petRow.image} alt="" className="max-h-full max-w-full object-contain" loading="lazy" />
-                                        </div>
-                                    ) : null}
+                                <div className="relative px-4 pb-5 pt-5 text-center sm:px-5 sm:pb-6 sm:pt-6">
                                     <h3 className="text-base font-black leading-snug text-violet-50 sm:text-lg">
                                         <span className="text-white">{petName}</span> 펫을
                                         <br />
                                         <span className="text-violet-200">{slotLabel}</span>에 보낼까요?
                                     </h3>
-                                    <p className="mx-auto mt-3 max-w-sm text-left text-[0.7rem] font-semibold leading-relaxed text-slate-300 sm:text-xs">
+                                    {petRow ? (
+                                        <div
+                                            className={`mx-auto mt-4 w-full max-w-[min(100%,30rem)] text-left ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} max-h-[min(52vh,480px)] overflow-y-auto overflow-x-hidden px-0.5 sm:px-1`}
+                                        >
+                                            <PairPetDetailCardBody
+                                                currentUser={currentUser}
+                                                item={petRow}
+                                                statsGridVariant="modal"
+                                                showRepresentativeBadge={repPet?.id === petRow.id}
+                                            />
+                                        </div>
+                                    ) : null}
+                                    <p className="mx-auto mt-4 max-w-sm text-left text-[0.7rem] font-semibold leading-relaxed text-slate-300 sm:text-xs">
                                         수련이 진행되는 동안 이 펫은 페어바둑에 출전할 수 없습니다. 대표 펫으로 지정된 펫은 수련에 보낼 수 없으며, 수련 중에는
                                         대표 펫으로 바꿀 수 없습니다.
                                     </p>
@@ -1902,10 +2182,12 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
             {trainingRewardModal ? (
                 <PairTrainingRewardModal
-                    key={`ptr-${trainingRewardModal.slotIndex}-${trainingRewardModal.petItem.id}`}
+                    key={`ptr-${trainingRewardModal.slotIndex}-${trainingRewardModal.petItem.id}-${trainingRewardModal.autoClaimOnMount === true ? 'ac' : 'm'}`}
                     slotIndex={trainingRewardModal.slotIndex}
                     slotLabel={getPairTrainingSlotDisplayName(trainingRewardModal.slotIndex)}
                     petItem={trainingRewardModal.petItem}
+                    /** 마운트 시 자동 수령은 React Strict Mode에서 이중 호출되어 두 번째가 실패·모달만 닫히는 문제가 있어 기본은 수동 수령만 사용 */
+                    autoClaimOnMount={trainingRewardModal.autoClaimOnMount === true}
                     onClose={() => setTrainingRewardModal(null)}
                     applyPetAction={applyPetAction}
                     isBusy={isBusy}
@@ -1914,7 +2196,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
             {hatcheryPetInvFullModalOpen ? (
                 <DraggableWindow
-                    title="안내"
+                    title="경고"
                     onClose={() => setHatcheryPetInvFullModalOpen(false)}
                     windowId="pairPetHatcheryPetInvFull"
                     isTopmost
@@ -1930,8 +2212,11 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             aria-hidden
                         />
                         <div className="relative px-6 pb-6 pt-7 text-center">
-                            <p className="text-[0.95rem] font-semibold leading-relaxed text-rose-100/95">
+                            <p className="text-lg font-bold leading-snug text-rose-100/95 sm:text-xl">
                                 {PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE}
+                            </p>
+                            <p className="mt-3 text-sm font-medium leading-relaxed text-rose-200/85 sm:text-base">
+                                인벤토리에 빈 칸을 확보하세요
                             </p>
                             <Button
                                 type="button"
@@ -2023,7 +2308,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                     type: 'PAIR_PET_HATCHERY_START',
                                                     payload: { slotIndex: hatcheryConfirmSlotIndex },
                                                 });
-                                                if (res && (res as { error?: string }).error) return;
+                                                const startErr = res && (res as { error?: string }).error;
+                                                if (startErr) {
+                                                    return;
+                                                }
                                                 setHatcheryConfirmSlotIndex(null);
                                             }}
                                             colorScheme="none"
@@ -2066,6 +2354,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             sessionM && !canClaimM && remainMsM > 0 ? Math.max(1, Math.ceil(remainMsM / 60_000)) : 0;
                         const hasEnoughM =
                             Boolean(currentUser.isAdmin) || (currentUser.diamonds ?? 0) >= costM;
+                        const petInvFullModal = isPairLobbyPetInventoryFull(currentUser);
                         const eggImgModal =
                             MATERIAL_ITEMS[PAIR_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS]?.image ??
                             PAIR_EGG_DISPLAY_IMAGE;
@@ -2124,6 +2413,9 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             {!hasEnoughM && !currentUser.isAdmin ? (
                                                 <p className="mt-2 text-xs font-semibold text-rose-300">다이아가 부족합니다.</p>
                                             ) : null}
+                                            {petInvFullModal ? (
+                                                <p className="mt-2 text-xs font-semibold text-amber-200/95">{PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE}</p>
+                                            ) : null}
                                         </>
                                     )}
                                     <div className="mx-auto mt-6 flex max-w-sm flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
@@ -2144,7 +2436,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                 !sessionM ||
                                                 canClaimM ||
                                                 costM < 1 ||
-                                                !hasEnoughM
+                                                !hasEnoughM ||
+                                                petInvFullModal
                                             }
                                             onClick={async () => {
                                                 if (hatcheryInstantConfirmSlotIndex === null || isBusy) return;

@@ -1,7 +1,9 @@
 import React, { useCallback, useMemo } from 'react';
 import Avatar from '../Avatar.js';
+import { GameMode } from '../../types.js';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants.js';
 
-export type PairRoomKind = 'ai_duel' | 'duo_match' | 'friendly_4p';
+export type PairRoomKind = 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'arena_ai';
 
 type SeatTone = 'open' | 'filled' | 'locked';
 
@@ -12,6 +14,12 @@ export type PairSeatMember = {
     ready?: boolean;
     subLabel?: string;
     portraitSrc?: string | null;
+    /** 유저 슬롯: 로비 온라인 목록과 동일한 프로필 초상화·테두리 */
+    avatarUrl?: string | null;
+    borderUrl?: string | null;
+    /** 펫 슬롯: 첫 줄 레벨(예: Lv.3), 둘째 줄 이름(줄임 없이 줄바꿈) */
+    petLineLevel?: string | null;
+    petLineName?: string | null;
 };
 
 function HostHomeBadge({ compact }: { compact?: boolean }) {
@@ -60,7 +68,6 @@ function SeatTile({
     isRoomHost,
     showReady,
     draggable,
-    dragForKick,
     dropTeam,
     dropIndex,
     onDropUser,
@@ -68,6 +75,12 @@ function SeatTile({
     portraitSrc,
     onProfileClick,
     compact,
+    profileInline = false,
+    actionFooter,
+    petLineLevel,
+    petLineName,
+    avatarUrl,
+    borderUrl,
 }: {
     tone: SeatTone;
     label: string;
@@ -79,8 +92,6 @@ function SeatTile({
     isRoomHost?: boolean;
     showReady?: boolean;
     draggable?: boolean;
-    /** 방장 강퇴 슬롯으로 끌기용(착석 배치와 무관, 예: 펫 페어) */
-    dragForKick?: boolean;
     dropTeam?: 'teamA' | 'teamB';
     dropIndex?: 0 | 1;
     onDropUser?: (team: 'teamA' | 'teamB', index: 0 | 1, draggedUserId: string) => void;
@@ -91,6 +102,14 @@ function SeatTile({
     onProfileClick?: () => void;
     /** 모바일 대기실: 타일·아바타 축소 */
     compact?: boolean;
+    /** 착석 펫 타일: 초상화 옆에 이름·부제를 가로로 배치(카드 높이 안에 수렴) */
+    profileInline?: boolean;
+    /** 슬롯 하단(방장 강퇴 등) */
+    actionFooter?: React.ReactNode;
+    petLineLevel?: string | null;
+    petLineName?: string | null;
+    avatarUrl?: string | null;
+    borderUrl?: string | null;
 }) {
     const locked = tone === 'locked';
     const open = tone === 'open';
@@ -126,8 +145,17 @@ function SeatTile({
 
     const interactive = open && typeof onOpenClick === 'function';
     const droppable = typeof onDropUser === 'function' && dropTeam !== undefined && dropIndex !== undefined;
-    const tileH = compact ? 'h-[5.25rem] min-h-[5.25rem] px-1.5 py-1' : 'h-[7.5rem] min-h-[7.5rem] px-2 py-2';
+    const tileH = actionFooter
+        ? compact
+            ? 'min-h-[6.75rem] px-1.5 py-1'
+            : 'min-h-[9.25rem] px-2 py-2'
+        : compact
+          ? 'h-[5.25rem] min-h-[5.25rem] px-1.5 py-1'
+          : 'h-[7.5rem] min-h-[7.5rem] px-2 py-2';
     const avSize = compact ? 32 : 40;
+    const filledInline = Boolean(profileInline && tone === 'filled');
+    /** 펫 슬롯: 레벨(있으면)·이름(한 줄, 폭에 따라 폰트 축소, 줄임표 없음) */
+    const usePetNameLines = Boolean(petLineName);
 
     return (
         <div
@@ -144,9 +172,9 @@ function SeatTile({
                       }
                     : undefined
             }
-            draggable={Boolean((draggable || dragForKick) && userId && tone === 'filled')}
+            draggable={Boolean(draggable && userId && tone === 'filled')}
             onDragStart={(e) => {
-                if ((!draggable && !dragForKick) || !userId || tone !== 'filled') return;
+                if (!draggable || !userId || tone !== 'filled') return;
                 e.dataTransfer.setData('text/pair-user-id', userId);
                 e.dataTransfer.effectAllowed = 'move';
             }}
@@ -161,13 +189,20 @@ function SeatTile({
                 const dragged = e.dataTransfer.getData('text/pair-user-id');
                 if (dragged) onDropUser(dropTeam, dropIndex, dragged);
             }}
-            className={`relative flex ${tileH} flex-col items-center justify-center rounded-lg border text-center transition sm:rounded-xl ${baseBorder} ${baseBg} ${innerGlow} ${
+            className={`relative flex ${tileH} flex-col rounded-lg border transition sm:rounded-xl ${baseBorder} ${baseBg} ${innerGlow} ${
                 interactive ? 'cursor-pointer hover:border-cyan-300/55 hover:brightness-[1.03] active:scale-[0.99]' : ''
             } ${tone === 'filled' && onProfileClick ? 'cursor-pointer' : ''} ${droppable && isDropTarget ? 'ring-2 ring-cyan-400/50 ring-offset-2 ring-offset-black/40' : ''} ${
-                (draggable || dragForKick) && tone === 'filled' ? 'cursor-grab active:cursor-grabbing' : ''
+                draggable && tone === 'filled' ? 'cursor-grab active:cursor-grabbing' : ''
             }`}
         >
             {isRoomHost ? <HostHomeBadge compact={compact} /> : null}
+            <div
+                className={
+                    filledInline
+                        ? 'flex min-h-0 w-full flex-1 flex-row items-center gap-1 text-left'
+                        : 'flex min-h-0 w-full flex-1 flex-col items-center justify-center text-center'
+                }
+            >
             {locked ? (
                 <>
                     <span className={`${compact ? 'text-sm' : 'text-base'} opacity-50`} aria-hidden>
@@ -183,7 +218,7 @@ function SeatTile({
                         <span className={`mt-0.5 font-semibold text-slate-400 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>{subLabel}</span>
                     ) : null}
                 </>
-            ) : (
+            ) : filledInline ? (
                 <>
                     <div className={`relative flex shrink-0 items-center justify-center overflow-visible ${compact ? 'h-8 w-8' : 'h-10 w-10'}`}>
                         {userId && userName ? (
@@ -195,7 +230,14 @@ function SeatTile({
                                     loading="lazy"
                                 />
                             ) : (
-                                <Avatar userId={userId} userName={userName} size={avSize} fixedFrameSize />
+                                <Avatar
+                                    userId={userId}
+                                    userName={userName}
+                                    avatarUrl={avatarUrl ?? undefined}
+                                    borderUrl={borderUrl ?? undefined}
+                                    size={avSize}
+                                    fixedFrameSize
+                                />
                             )
                         ) : (
                             <div
@@ -218,10 +260,115 @@ function SeatTile({
                         ) : null}
                         {showReady ? <ReadyRibbonOnAvatar compact={compact} /> : null}
                     </div>
-                    <span className={`mt-0.5 max-w-full truncate font-extrabold text-white ${compact ? 'text-[11px] leading-tight' : 'text-sm'}`}>
-                        {userName || label}
-                    </span>
-                    {(subLabel || label) && (subLabel || label) !== (userName || label) ? (
+                    <div className="@container flex min-h-0 min-w-0 flex-1 flex-col justify-center gap-0.5 pr-0.5">
+                        {usePetNameLines ? (
+                            <>
+                                {petLineLevel ? (
+                                    <span
+                                        className={`w-full whitespace-nowrap font-extrabold leading-none text-violet-200/95 ${compact ? 'text-[9px]' : 'text-[11px]'}`}
+                                    >
+                                        {petLineLevel}
+                                    </span>
+                                ) : null}
+                                <span
+                                    className={`block w-full min-w-0 max-w-full whitespace-nowrap font-extrabold leading-none text-white ${
+                                        compact ? '[font-size:clamp(5.5px,9.5cqw,0.75rem)]' : '[font-size:clamp(6px,10.5cqw,0.875rem)]'
+                                    }`}
+                                >
+                                    {petLineName}
+                                </span>
+                            </>
+                        ) : (
+                            <span className={`w-full truncate font-extrabold leading-tight text-white ${compact ? 'text-[10px]' : 'text-sm'}`}>
+                                {userName || label}
+                            </span>
+                        )}
+                        {subLabel && usePetNameLines ? (
+                            <span
+                                className={`w-full truncate font-bold uppercase tracking-wider text-emerald-200/65 ${compact ? 'text-[7px] leading-tight' : 'text-[10px]'}`}
+                            >
+                                {subLabel}
+                            </span>
+                        ) : (subLabel || label) && (subLabel || label) !== (userName || label) && !usePetNameLines ? (
+                            <span
+                                className={`w-full truncate font-bold uppercase tracking-wider text-emerald-200/65 ${compact ? 'text-[7px] leading-tight' : 'text-[10px]'}`}
+                            >
+                                {subLabel || label}
+                            </span>
+                        ) : null}
+                    </div>
+                </>
+            ) : (
+                <>
+                    <div className={`relative flex shrink-0 items-center justify-center overflow-visible ${compact ? 'h-8 w-8' : 'h-10 w-10'}`}>
+                        {userId && userName ? (
+                            portraitSrc ? (
+                                <img
+                                    src={portraitSrc}
+                                    alt=""
+                                    className={`shrink-0 rounded-full border border-white/20 bg-black/50 object-contain shadow-inner ${compact ? 'h-8 w-8' : 'h-10 w-10'}`}
+                                    loading="lazy"
+                                />
+                            ) : (
+                                <Avatar
+                                    userId={userId}
+                                    userName={userName}
+                                    avatarUrl={avatarUrl ?? undefined}
+                                    borderUrl={borderUrl ?? undefined}
+                                    size={avSize}
+                                    fixedFrameSize
+                                />
+                            )
+                        ) : (
+                            <div
+                                className={`flex items-center justify-center rounded-full border border-white/15 bg-black/50 font-bold text-slate-300 ${compact ? 'h-8 w-8 text-[10px]' : 'h-10 w-10 text-xs'}`}
+                            >
+                                ?
+                            </div>
+                        )}
+                        {onProfileClick ? (
+                            <button
+                                type="button"
+                                className="absolute inset-0 z-[4] cursor-pointer rounded-full border-0 bg-transparent p-0 outline-none ring-cyan-400/0 transition hover:ring-2 hover:ring-cyan-400/45 focus-visible:ring-2 focus-visible:ring-cyan-400/60"
+                                title="정보 보기"
+                                aria-label="정보 보기"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onProfileClick();
+                                }}
+                            />
+                        ) : null}
+                        {showReady ? <ReadyRibbonOnAvatar compact={compact} /> : null}
+                    </div>
+                    {usePetNameLines ? (
+                        <div
+                            className={`@container mt-0.5 flex min-w-0 max-w-full flex-col items-center gap-0.5 px-0.5 ${compact ? 'text-[11px]' : 'text-sm'}`}
+                        >
+                            {petLineLevel ? (
+                                <span className={`whitespace-nowrap font-extrabold leading-none text-violet-200/95 ${compact ? 'text-[9px]' : 'text-xs'}`}>
+                                    {petLineLevel}
+                                </span>
+                            ) : null}
+                            <span
+                                className={`block min-w-0 max-w-full whitespace-nowrap text-center font-extrabold leading-none text-white ${
+                                    compact ? '[font-size:clamp(5.5px,9.5cqw,0.75rem)]' : '[font-size:clamp(6px,10.5cqw,0.875rem)]'
+                                }`}
+                            >
+                                {petLineName}
+                            </span>
+                        </div>
+                    ) : (
+                        <span className={`mt-0.5 max-w-full truncate font-extrabold text-white ${compact ? 'text-[11px] leading-tight' : 'text-sm'}`}>
+                            {userName || label}
+                        </span>
+                    )}
+                    {subLabel && usePetNameLines ? (
+                        <span
+                            className={`max-w-full truncate font-bold uppercase tracking-wider text-emerald-200/65 ${compact ? 'text-[8px] leading-tight' : 'text-[10px]'}`}
+                        >
+                            {subLabel}
+                        </span>
+                    ) : (subLabel || label) && (subLabel || label) !== (userName || label) && !usePetNameLines ? (
                         <span
                             className={`max-w-full truncate font-bold uppercase tracking-wider text-emerald-200/65 ${compact ? 'text-[8px] leading-tight' : 'text-[10px]'}`}
                         >
@@ -230,6 +377,10 @@ function SeatTile({
                     ) : null}
                 </>
             )}
+            </div>
+            {actionFooter ? (
+                <div className="mt-auto w-full shrink-0 border-t border-white/[0.06] pt-1">{actionFooter}</div>
+            ) : null}
         </div>
     );
 }
@@ -240,12 +391,15 @@ function TeamPanel({
     variant,
     children,
     compact,
+    seatColumns = 2,
 }: {
     title: string;
     subtitle: string;
     variant: 'ally' | 'enemy';
     children: React.ReactNode;
     compact?: boolean;
+    /** 1:1 경기장 등 팀당 슬롯 1개만 표시 */
+    seatColumns?: 1 | 2;
 }) {
     const ally = variant === 'ally';
     return (
@@ -278,7 +432,9 @@ function TeamPanel({
                     ) : null}
                 </div>
             )}
-            <div className={`grid grid-cols-2 ${compact ? 'gap-1.5' : 'gap-2'}`}>{children}</div>
+            <div className={`grid ${seatColumns === 1 ? 'grid-cols-1' : 'grid-cols-2'} ${compact ? 'gap-1.5' : 'gap-2'}`}>
+                {children}
+            </div>
         </div>
     );
 }
@@ -290,15 +446,41 @@ type GridCell = {
     ready?: boolean;
     subLabel?: string;
     portraitSrc?: string | null;
+    avatarUrl?: string | null;
+    borderUrl?: string | null;
+    petLineLevel?: string | null;
+    petLineName?: string | null;
 };
 
 function membersToTwoSlots(members: PairSeatMember[] | undefined): [GridCell, GridCell] {
     const users = (members || []).filter((m) => m.kind === 'user' || m.kind === 'pet');
     const c0: GridCell = users[0]
-        ? { userId: users[0].id, name: users[0].name, kind: users[0].kind, ready: users[0].ready, subLabel: users[0].subLabel, portraitSrc: users[0].portraitSrc }
+        ? {
+              userId: users[0].id,
+              name: users[0].name,
+              kind: users[0].kind,
+              ready: users[0].ready,
+              subLabel: users[0].subLabel,
+              portraitSrc: users[0].portraitSrc,
+              avatarUrl: users[0].avatarUrl,
+              borderUrl: users[0].borderUrl,
+              petLineLevel: users[0].petLineLevel,
+              petLineName: users[0].petLineName,
+          }
         : { userId: null, name: null, kind: 'empty', ready: false };
     const c1: GridCell = users[1]
-        ? { userId: users[1].id, name: users[1].name, kind: users[1].kind, ready: users[1].ready, subLabel: users[1].subLabel, portraitSrc: users[1].portraitSrc }
+        ? {
+              userId: users[1].id,
+              name: users[1].name,
+              kind: users[1].kind,
+              ready: users[1].ready,
+              subLabel: users[1].subLabel,
+              portraitSrc: users[1].portraitSrc,
+              avatarUrl: users[1].avatarUrl,
+              borderUrl: users[1].borderUrl,
+              petLineLevel: users[1].petLineLevel,
+              petLineName: users[1].petLineName,
+          }
         : { userId: null, name: null, kind: 'empty', ready: false };
     return [c0, c1];
 }
@@ -318,6 +500,48 @@ function pickViewerAllyTeam(
     if ((teamAMembers ?? []).some(isMine)) return 'teamA';
     if ((teamBMembers ?? []).some(isMine)) return 'teamB';
     return 'teamA';
+}
+
+/** 전략·놀이 경기장 `arena_ai` 방 — 상대 슬롯에 모드별 봇 이름·게임 심볼 이미지 */
+function resolveArenaAiBotSeat(mode: GameMode | undefined): {
+    displayName: string;
+    portraitSrc: string;
+    subLabel: string;
+} {
+    const def =
+        (mode && SPECIAL_GAME_MODES.find((d) => d.mode === mode)) ||
+        (mode && PLAYFUL_GAME_MODES.find((d) => d.mode === mode)) ||
+        SPECIAL_GAME_MODES.find((d) => d.mode === GameMode.Standard) ||
+        SPECIAL_GAME_MODES[0];
+    return {
+        displayName: `${def.name}봇`,
+        portraitSrc: def.image,
+        subLabel: '카타 AI',
+    };
+}
+
+/** 2인 페어 AI대전 상대 팀 B — 슬롯 0: 본봇, 슬롯 1: 펫봇(`makeDuoPairAiDuelSettings`의 상대 AI / 상대 펫 AI에 대응) */
+function resolveDuoTeamBAiSlotPresentation(
+    mode: GameMode | undefined,
+    slotIdx: 0 | 1,
+): { displayName: string; portraitSrc: string; subLabel: string } {
+    const def =
+        (mode && SPECIAL_GAME_MODES.find((d) => d.mode === mode)) ||
+        (mode && PLAYFUL_GAME_MODES.find((d) => d.mode === mode)) ||
+        SPECIAL_GAME_MODES.find((d) => d.mode === GameMode.Standard) ||
+        SPECIAL_GAME_MODES[0];
+    if (slotIdx === 0) {
+        return {
+            displayName: `${def.name}봇`,
+            portraitSrc: def.image,
+            subLabel: '카타 AI',
+        };
+    }
+    return {
+        displayName: `${def.name} 펫봇`,
+        portraitSrc: def.image,
+        subLabel: '카타 AI',
+    };
 }
 
 function applyDropOnSlots(
@@ -385,10 +609,18 @@ export interface PairRoomSeatGridProps {
     onInvitePartnerSlot?: () => void;
     onInviteEmptySlot?: (team: 'teamA' | 'teamB', index: 0 | 1) => void;
     onCommitSeatAssignments?: (teamA: string[], teamB: string[]) => void | Promise<void>;
-    /** 방장이 다른 유저 착석 타일을 강퇴 슬롯으로 드래그할 수 있게 함 */
-    enableOwnerKickSeatDrag?: boolean;
+    /** 방장: 해당 유저 강퇴 확인 모달을 띄움 */
+    onKickRoomMemberRequest?: (userId: string) => void;
+    /** 방장: 방장 위임 확인 모달을 띄움 */
+    onDelegateRoomOwnershipRequest?: (userId: string) => void;
+    /** 강퇴 버튼 비활성(매칭 중 등) */
+    kickUiDisabled?: boolean;
     /** 모바일 페어 대기실: 슬롯·프로필 축소 */
     compact?: boolean;
+    /** 전략/놀이 1:1 등 팀당 착석 슬롯 1개만 표시(화면에 슬롯 2개) */
+    oneSlotPerTeam?: boolean;
+    /** `arena_ai`·펫 페어 AI 상대 슬롯 — 선택 모드 기준 봇 표시 */
+    arenaAiGameMode?: GameMode;
 }
 
 const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
@@ -411,12 +643,16 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     onInvitePartnerSlot,
     onInviteEmptySlot,
     onCommitSeatAssignments,
-    enableOwnerKickSeatDrag = false,
+    onKickRoomMemberRequest,
+    onDelegateRoomOwnershipRequest,
+    kickUiDisabled = false,
     compact = false,
+    oneSlotPerTeam = false,
+    arenaAiGameMode,
 }) => {
-    const petAiId = `pet-ai-${ownerId}`;
     const viewerPetAiId = `pet-ai-${viewerId}`;
-    const isAiRoom = roomKind === 'ai_duel';
+    const isPetPairLobby = roomKind === 'ai_duel';
+    const isFriendlyTwoPet = roomKind === 'friendly_2p';
     const isFriendly = roomKind === 'friendly_4p';
 
     const ownerLabel = viewerId === ownerId ? '방장 (나)' : '방장';
@@ -424,10 +660,18 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     const partnerDisplayId = partnerSlotFilled ? partnerId : undefined;
     const partnerDisplayName = partnerSlotFilled ? partnerName || '파트너' : undefined;
     const isOwnerViewer = viewerId === ownerId;
+    const canOfferKick = Boolean(isOwnerViewer && onKickRoomMemberRequest);
     const canClickPartnerSlot = Boolean(isOwnerViewer && onInvitePartnerSlot && !partnerSlotFilled && roomKind === 'duo_match');
     const inviteOpen = (team: 'teamA' | 'teamB', index: 0 | 1) =>
         isOwnerViewer && onInviteEmptySlot ? () => onInviteEmptySlot(team, index) : undefined;
-    const canDragAssign = Boolean(isOwnerViewer && onCommitSeatAssignments && roomKind !== 'ai_duel');
+    const canDragAssign = Boolean(
+        isOwnerViewer &&
+            onCommitSeatAssignments &&
+            roomKind !== 'ai_duel' &&
+            roomKind !== 'friendly_2p' &&
+            roomKind !== 'arena_ai' &&
+            roomKind !== 'duo_match',
+    );
 
     const gridA = useMemo(() => membersToTwoSlots(teamAMembers), [teamAMembers]);
     const gridB = useMemo(() => membersToTwoSlots(teamBMembers), [teamBMembers]);
@@ -443,13 +687,68 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
         [canDragAssign, onCommitSeatAssignments, slotsA, slotsB],
     );
 
+    const arenaAiBotSeatPresentation = useMemo(() => resolveArenaAiBotSeat(arenaAiGameMode), [arenaAiGameMode]);
+    const duoTeamBAiPresentations = useMemo(
+        () =>
+            [resolveDuoTeamBAiSlotPresentation(arenaAiGameMode, 0), resolveDuoTeamBAiSlotPresentation(arenaAiGameMode, 1)] as const,
+        [arenaAiGameMode],
+    );
+
     const renderHumanSlot = (
         cell: GridCell,
         slotIdx: 0 | 1,
         team: 'teamA' | 'teamB',
         accent: 'ally' | 'enemy',
-        opts: { emptyLabel: string; emptySub?: string; onOpen?: () => void },
+        opts: {
+            emptyLabel: string;
+            emptySub?: string;
+            onOpen?: () => void;
+            syntheticAiDisplay?: { displayName: string; portraitSrc: string; subLabel?: string };
+        },
     ) => {
+        const kickStripBtnClass = `min-w-0 flex-1 rounded-md font-extrabold transition ${
+            compact ? 'py-0.5 text-[9px]' : 'py-1 text-[10px]'
+        }`;
+        /** 빈 슬롯도 착석 타일과 동일한 하단(강퇴·위임) 높이를 미리 확보 — 방장 뷰에서만 */
+        const emptySeatKickReserveFooter =
+            canOfferKick ? (
+                <div className="flex w-full min-w-0 gap-0.5">
+                    <div
+                        className={`${kickStripBtnClass} pointer-events-none invisible border border-transparent bg-transparent text-transparent`}
+                        aria-hidden
+                    >
+                        강퇴
+                    </div>
+                    {onDelegateRoomOwnershipRequest ? (
+                        <div
+                            className={`${kickStripBtnClass} pointer-events-none invisible border border-transparent bg-transparent text-transparent`}
+                            aria-hidden
+                        >
+                            위임
+                        </div>
+                    ) : null}
+                </div>
+            ) : undefined;
+        if (!cell.userId && opts.syntheticAiDisplay) {
+            const s = opts.syntheticAiDisplay;
+            const syntheticUserId = `pair-lobby-ai-${team}-${slotIdx}`;
+            return (
+                <SeatTile
+                    key={`${team}-arena-ai-${slotIdx}`}
+                    tone="filled"
+                    label={s.displayName}
+                    userId={syntheticUserId}
+                    userName={s.displayName}
+                    subLabel={s.subLabel ?? '카타 AI'}
+                    portraitSrc={s.portraitSrc}
+                    accent={accent}
+                    isRoomHost={false}
+                    showReady
+                    compact={compact}
+                    actionFooter={emptySeatKickReserveFooter}
+                />
+            );
+        }
         if (cell.userId && cell.name) {
             const isHost = cell.userId === ownerId;
             const ready = Boolean(cell.ready);
@@ -467,6 +766,61 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
             } else if (String(cell.kind).toLowerCase() === 'user' && onViewSeatUserProfile) {
                 profileClick = () => onViewSeatUserProfile(uid);
             }
+            const showKickButton =
+                canOfferKick &&
+                !isHost &&
+                String(cell.kind).toLowerCase() === 'user' &&
+                !uid.startsWith('pet-ai-');
+            const showDelegateButton = Boolean(showKickButton && onDelegateRoomOwnershipRequest);
+            /** 방장일 때 강퇴·위임 줄 높이를 모든 착석 타일에 동일하게 잡아 패널 높이가 들쭉날쭉하지 않게 함 */
+            const reserveKickStrip = canOfferKick;
+            const kickFooter =
+                reserveKickStrip && uid ? (
+                    <div className="flex w-full min-w-0 gap-0.5">
+                        {showKickButton ? (
+                            <button
+                                type="button"
+                                disabled={kickUiDisabled}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onKickRoomMemberRequest?.(uid);
+                                }}
+                                className={`${kickStripBtnClass} border border-rose-400/55 bg-rose-950/70 text-rose-100 hover:border-rose-300/60 hover:bg-rose-900/55 disabled:pointer-events-none disabled:opacity-45`}
+                            >
+                                강퇴
+                            </button>
+                        ) : (
+                            <div
+                                className={`${kickStripBtnClass} pointer-events-none invisible border border-transparent bg-transparent text-transparent`}
+                                aria-hidden
+                            >
+                                강퇴
+                            </div>
+                        )}
+                        {onDelegateRoomOwnershipRequest ? (
+                            showDelegateButton ? (
+                                <button
+                                    type="button"
+                                    disabled={kickUiDisabled}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onDelegateRoomOwnershipRequest(uid);
+                                    }}
+                                    className={`${kickStripBtnClass} border border-violet-400/55 bg-violet-950/70 text-violet-100 hover:border-violet-300/60 hover:bg-violet-900/55 disabled:pointer-events-none disabled:opacity-45`}
+                                >
+                                    위임
+                                </button>
+                            ) : (
+                                <div
+                                    className={`${kickStripBtnClass} pointer-events-none invisible border border-transparent bg-transparent text-transparent`}
+                                    aria-hidden
+                                >
+                                    위임
+                                </div>
+                            )
+                        ) : null}
+                    </div>
+                ) : undefined;
             return (
                 <SeatTile
                     key={`${team}-${slotIdx}-${cell.userId}`}
@@ -480,20 +834,18 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                     isRoomHost={isHost}
                     showReady={ready}
                     draggable={canDragAssign && cell.kind === 'user'}
-                    dragForKick={
-                        Boolean(
-                            enableOwnerKickSeatDrag &&
-                                !isHost &&
-                                String(cell.kind).toLowerCase() === 'user' &&
-                                !uid.startsWith('pet-ai-'),
-                        )
-                    }
                     onDropUser={canDragAssign ? handleDrop : undefined}
                     dropTeam={team}
                     dropIndex={slotIdx}
                     isDropTarget={canDragAssign}
                     onProfileClick={profileClick}
                     compact={compact}
+                    profileInline={Boolean(compact && cell.portraitSrc && uid.startsWith('pet-ai-'))}
+                    actionFooter={kickFooter}
+                    petLineLevel={cell.petLineLevel ?? undefined}
+                    petLineName={cell.petLineName ?? undefined}
+                    avatarUrl={cell.avatarUrl ?? undefined}
+                    borderUrl={cell.borderUrl ?? undefined}
                 />
             );
         }
@@ -510,9 +862,40 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                 dropIndex={slotIdx}
                 isDropTarget={canDragAssign}
                 compact={compact}
+                actionFooter={emptySeatKickReserveFooter}
             />
         );
     };
+
+    const teamSeatCols: 1 | 2 = oneSlotPerTeam ? 1 : 2;
+
+    /** 전략/놀이 AI방: 팀당 1칸이 아니라 방장 vs AI 두 칸(데이터상 AI 자리는 teamA 슬롯 1) */
+    if (oneSlotPerTeam && roomKind === 'arena_ai') {
+        const allyTeam = pickViewerAllyTeam(viewerId, teamAMembers, teamBMembers);
+        const accentHuman = allyTeam === 'teamA' ? 'ally' : 'enemy';
+        const accentAi = allyTeam === 'teamA' ? 'enemy' : 'ally';
+        return (
+            <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
+                <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
+                    <TeamPanel title="" subtitle="" variant={allyTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={1}>
+                        {renderHumanSlot(gridA[0], 0, 'teamA', accentHuman, {
+                            emptyLabel: '빈 슬롯',
+                            emptySub: inviteOpen('teamA', 0) ? '터치하여 초대' : undefined,
+                            onOpen: inviteOpen('teamA', 0),
+                        })}
+                    </TeamPanel>
+                    <TeamPanel title="" subtitle="" variant={allyTeam === 'teamA' ? 'enemy' : 'ally'} compact={compact} seatColumns={1}>
+                        {renderHumanSlot(gridA[1], 1, 'teamA', accentAi, {
+                            emptyLabel: 'AI',
+                            emptySub: '카타 AI',
+                            onOpen: undefined,
+                            syntheticAiDisplay: !gridA[1].userId ? arenaAiBotSeatPresentation : undefined,
+                        })}
+                    </TeamPanel>
+                </div>
+            </div>
+        );
+    }
 
     if (isFriendly) {
         const allyTeam = pickViewerAllyTeam(viewerId, teamAMembers, teamBMembers);
@@ -520,8 +903,8 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
         const accentB = allyTeam === 'teamB' ? 'ally' : 'enemy';
         return (
             <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
-                <div className={compact ? 'flex flex-col gap-2 sm:flex-row sm:gap-3' : 'flex flex-col gap-3 sm:flex-row sm:gap-4'}>
-                    <TeamPanel title="" subtitle="" variant={allyTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact}>
+                <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
+                    <TeamPanel title="" subtitle="" variant={allyTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridA[0], 0, 'teamA', accentA, {
                             emptyLabel: '빈 슬롯',
                             emptySub: inviteOpen('teamA', 0) ? '터치하여 초대' : undefined,
@@ -533,7 +916,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                             onOpen: inviteOpen('teamA', 1),
                         })}
                     </TeamPanel>
-                    <TeamPanel title="" subtitle="" variant={allyTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact}>
+                    <TeamPanel title="" subtitle="" variant={allyTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridB[0], 0, 'teamB', accentB, {
                             emptyLabel: '빈 슬롯',
                             emptySub: inviteOpen('teamB', 0) ? '터치하여 초대' : undefined,
@@ -550,44 +933,129 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
         );
     }
 
-    if (isAiRoom && gridB.every((cell) => !cell.userId)) {
+    /** 놀이바둑 친선 등: 팀당 유저 1슬롯(화면 2칸), AI 플레이스홀더 없음 */
+    if (oneSlotPerTeam && roomKind === 'duo_match' && !isFriendly) {
+        const allyTeam = pickViewerAllyTeam(viewerId, teamAMembers, teamBMembers);
+        const accentA = allyTeam === 'teamA' ? 'ally' : 'enemy';
+        const accentB = allyTeam === 'teamB' ? 'ally' : 'enemy';
         return (
             <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
-                <div className={compact ? 'flex flex-col gap-2 sm:flex-row sm:gap-3' : 'flex flex-col gap-3 sm:flex-row sm:gap-4'}>
-                    <TeamPanel title="" subtitle="" variant="ally" compact={compact}>
-                        <SeatTile
-                            tone="filled"
-                            label="나"
-                            userId={ownerId}
-                            userName={ownerName}
-                            accent="ally"
-                            isRoomHost
-                            showReady={ownerReady}
-                            onProfileClick={onViewSeatUserProfile ? () => onViewSeatUserProfile(ownerId) : undefined}
-                            compact={compact}
-                        />
-                        <SeatTile
-                            tone="filled"
-                            label="내 펫"
-                            userId={petAiId}
-                            userName={
-                                viewerEquippedPairPetLevel
-                                    ? `Lv.${viewerEquippedPairPetLevel} ${viewerEquippedPairPetName || partnerName || '내 펫'}`
-                                    : viewerEquippedPairPetName || partnerName || '내 펫'
-                            }
-                            subLabel="장착 펫"
-                            portraitSrc={viewerEquippedPairPetPortraitSrc ?? undefined}
-                            accent="ally"
-                            showReady={partnerReady}
-                            onProfileClick={
-                                isOwnerViewer && onViewOwnerEquippedPetDetail
-                                    ? () => onViewOwnerEquippedPetDetail()
-                                    : undefined
-                            }
-                            compact={compact}
-                        />
+                <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
+                    <TeamPanel title="" subtitle="" variant={allyTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={1}>
+                        {renderHumanSlot(gridA[0], 0, 'teamA', accentA, {
+                            emptyLabel: '빈 슬롯',
+                            emptySub: inviteOpen('teamA', 0) ? '터치하여 초대' : undefined,
+                            onOpen: inviteOpen('teamA', 0),
+                        })}
                     </TeamPanel>
-                    <TeamPanel title="" subtitle="" variant="enemy" compact={compact}>
+                    <TeamPanel title="" subtitle="" variant={allyTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact} seatColumns={1}>
+                        {renderHumanSlot(gridB[0], 0, 'teamB', accentB, {
+                            emptyLabel: '상대',
+                            emptySub: inviteOpen('teamB', 0) ? '터치하여 초대' : '대기 중',
+                            onOpen: inviteOpen('teamB', 0),
+                        })}
+                    </TeamPanel>
+                </div>
+            </div>
+        );
+    }
+
+    /**
+     * 2인 페어: 4칸(2×2) — 우리 팀 2슬롯 + 상대 팀 2슬롯.
+     * AI 대전 시 상대는 `pair-opponent-ai` / `pair-opponent-pet`에 대응하는 봇 프로필을 미리 표시(대기 중 teamB 비어 있을 때).
+     */
+    if (roomKind === 'duo_match' && !isFriendly) {
+        const allyTeam = pickViewerAllyTeam(viewerId, teamAMembers, teamBMembers);
+        const accentA = allyTeam === 'teamA' ? 'ally' : 'enemy';
+        const accentB = allyTeam === 'teamB' ? 'ally' : 'enemy';
+        return (
+            <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
+                <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
+                    <TeamPanel title="" subtitle="" variant={allyTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={2}>
+                        {renderHumanSlot(gridA[0], 0, 'teamA', accentA, {
+                            emptyLabel: '빈 슬롯',
+                            emptySub: inviteOpen('teamA', 0) ? '터치하여 초대' : undefined,
+                            onOpen: inviteOpen('teamA', 0),
+                        })}
+                        {renderHumanSlot(gridA[1], 1, 'teamA', accentA, {
+                            emptyLabel: '파트너',
+                            emptySub:
+                                canClickPartnerSlot || inviteOpen('teamA', 1) ? '터치하여 초대' : partnerSlotFilled ? undefined : '대기 중',
+                            onOpen: canClickPartnerSlot ? onInvitePartnerSlot : inviteOpen('teamA', 1),
+                        })}
+                    </TeamPanel>
+                    <TeamPanel title="" subtitle="" variant={allyTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact} seatColumns={2}>
+                        {renderHumanSlot(gridB[0], 0, 'teamB', accentB, {
+                            emptyLabel: 'AI',
+                            emptySub: '카타 AI',
+                            onOpen: undefined,
+                            syntheticAiDisplay: !gridB[0].userId ? duoTeamBAiPresentations[0] : undefined,
+                        })}
+                        {renderHumanSlot(gridB[1], 1, 'teamB', accentB, {
+                            emptyLabel: 'AI',
+                            emptySub: '카타 AI',
+                            onOpen: undefined,
+                            syntheticAiDisplay: !gridB[1].userId ? duoTeamBAiPresentations[1] : undefined,
+                        })}
+                    </TeamPanel>
+                </div>
+            </div>
+        );
+    }
+
+    /** 펫 페어: 나·내 펫 + 상대 자리는 모드별 AI봇(대기 중) */
+    if (isPetPairLobby) {
+        return (
+            <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
+                <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
+                    <TeamPanel title="" subtitle="" variant="ally" compact={compact} seatColumns={2}>
+                        {renderHumanSlot(gridA[0], 0, 'teamA', 'ally', {
+                            emptyLabel: '방장',
+                            emptySub: undefined,
+                            onOpen: undefined,
+                        })}
+                        {renderHumanSlot(gridA[1], 1, 'teamA', 'ally', {
+                            emptyLabel: '펫 슬롯',
+                            emptySub: undefined,
+                            onOpen: undefined,
+                        })}
+                    </TeamPanel>
+                    <TeamPanel title="" subtitle="" variant="enemy" compact={compact} seatColumns={2}>
+                        {renderHumanSlot(gridB[0], 0, 'teamB', 'enemy', {
+                            emptyLabel: 'AI',
+                            emptySub: '카타 AI',
+                            onOpen: undefined,
+                            syntheticAiDisplay: !gridB[0].userId ? duoTeamBAiPresentations[0] : undefined,
+                        })}
+                        {renderHumanSlot(gridB[1], 1, 'teamB', 'enemy', {
+                            emptyLabel: 'AI',
+                            emptySub: '카타 AI',
+                            onOpen: undefined,
+                            syntheticAiDisplay: !gridB[1].userId ? duoTeamBAiPresentations[1] : undefined,
+                        })}
+                    </TeamPanel>
+                </div>
+            </div>
+        );
+    }
+
+    if (isFriendlyTwoPet && gridB.every((cell) => !cell.userId)) {
+        return (
+            <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
+                <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
+                    <TeamPanel title="" subtitle="" variant="ally" compact={compact} seatColumns={2}>
+                        {renderHumanSlot(gridA[0], 0, 'teamA', 'ally', {
+                            emptyLabel: '방장',
+                            emptySub: undefined,
+                            onOpen: undefined,
+                        })}
+                        {renderHumanSlot(gridA[1], 1, 'teamA', 'ally', {
+                            emptyLabel: '펫 슬롯',
+                            emptySub: undefined,
+                            onOpen: undefined,
+                        })}
+                    </TeamPanel>
+                    <TeamPanel title="" subtitle="" variant="enemy" compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridB[0], 0, 'teamB', 'enemy', {
                             emptyLabel: '상대',
                             emptySub: inviteOpen('teamB', 0) ? '터치하여 초대' : '대기 중',
@@ -608,30 +1076,39 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     const accentB = allyTeam === 'teamB' ? 'ally' : 'enemy';
     return (
         <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
-            <div className={compact ? 'flex flex-col gap-2 sm:flex-row sm:gap-3' : 'flex flex-col gap-3 sm:flex-row sm:gap-4'}>
-                <TeamPanel title="" subtitle="" variant={allyTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact}>
+            <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
+                <TeamPanel title="" subtitle="" variant={allyTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={teamSeatCols}>
                     {renderHumanSlot(gridA[0], 0, 'teamA', accentA, {
                         emptyLabel: '빈 슬롯',
                         emptySub: inviteOpen('teamA', 0) ? '터치하여 초대' : undefined,
                         onOpen: inviteOpen('teamA', 0),
                     })}
-                    {renderHumanSlot(gridA[1], 1, 'teamA', accentA, {
-                        emptyLabel: '파트너',
-                        emptySub: canClickPartnerSlot || inviteOpen('teamA', 1) ? '터치하여 초대' : '대기 중',
-                        onOpen: canClickPartnerSlot ? onInvitePartnerSlot : inviteOpen('teamA', 1),
-                    })}
+                    {!oneSlotPerTeam
+                        ? renderHumanSlot(gridA[1], 1, 'teamA', accentA, {
+                              emptyLabel: roomKind === 'arena_ai' ? 'AI' : '파트너',
+                              emptySub:
+                                  roomKind === 'arena_ai'
+                                      ? '카타 AI'
+                                      : canClickPartnerSlot || inviteOpen('teamA', 1)
+                                        ? '터치하여 초대'
+                                        : '대기 중',
+                              onOpen: roomKind === 'arena_ai' ? undefined : canClickPartnerSlot ? onInvitePartnerSlot : inviteOpen('teamA', 1),
+                          })
+                        : null}
                 </TeamPanel>
-                <TeamPanel title="" subtitle="" variant={allyTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact}>
+                <TeamPanel title="" subtitle="" variant={allyTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact} seatColumns={teamSeatCols}>
                     {renderHumanSlot(gridB[0], 0, 'teamB', accentB, {
                         emptyLabel: '빈 슬롯',
                         emptySub: inviteOpen('teamB', 0) ? '터치하여 초대' : undefined,
                         onOpen: inviteOpen('teamB', 0),
                     })}
-                    {renderHumanSlot(gridB[1], 1, 'teamB', accentB, {
-                        emptyLabel: '빈 슬롯',
-                        emptySub: inviteOpen('teamB', 1) ? '터치하여 초대' : undefined,
-                        onOpen: inviteOpen('teamB', 1),
-                    })}
+                    {!oneSlotPerTeam
+                        ? renderHumanSlot(gridB[1], 1, 'teamB', accentB, {
+                              emptyLabel: '빈 슬롯',
+                              emptySub: inviteOpen('teamB', 1) ? '터치하여 초대' : undefined,
+                              onOpen: inviteOpen('teamB', 1),
+                          })
+                        : null}
                 </TeamPanel>
             </div>
         </div>

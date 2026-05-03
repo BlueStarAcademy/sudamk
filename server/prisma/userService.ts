@@ -47,10 +47,8 @@ const buildPersistentFields = (user: User) => {
     username: user.username,
     email: (user as any).email ?? null,
     isAdmin: user.isAdmin ?? false,
-    strategyLevel: user.strategyLevel,
-    strategyXp: user.strategyXp,
-    playfulLevel: user.playfulLevel,
-    playfulXp: user.playfulXp,
+    userLevel: user.userLevel,
+    userXp: user.userXp,
     actionPointCurr: user.actionPoints?.current ?? 0,
     actionPointMax: user.actionPoints?.max ?? 0,
     gold: toBigInt(user.gold),
@@ -213,24 +211,22 @@ export async function searchUsersForAdmin(
     nickname: true,
     username: true,
     isAdmin: true,
-    strategyLevel: true,
-    playfulLevel: true,
+    userLevel: true,
   } as const;
   const toAdminSearchUser = (row: {
     id: string;
     nickname: string;
     username: string | null;
     isAdmin: boolean;
-    strategyLevel: number;
-    playfulLevel: number;
+    userLevel: number;
   }): User =>
     ({
       id: row.id,
       nickname: row.nickname,
       username: row.username ?? `user-${row.id.slice(-6)}`,
       isAdmin: row.isAdmin,
-      strategyLevel: row.strategyLevel,
-      playfulLevel: row.playfulLevel,
+      userLevel: row.userLevel,
+      userXp: 0,
     } as User);
 
   const where = q
@@ -424,6 +420,12 @@ async function syncEquipmentAndInventory(user: User): Promise<void> {
             metadata: (() => {
               const m = { ...((item as any).metadata || {}) };
               delete (m as any).isDivineMythic;
+              // 거래소 등록 여부: UserInventory 정규화 저장 시 누락되면 재로드 후 가방에 그대로 노출됨
+              if ((item as { isExchangeListed?: boolean }).isExchangeListed === true) {
+                (m as { isExchangeListed?: boolean }).isExchangeListed = true;
+              } else {
+                delete (m as { isExchangeListed?: boolean }).isExchangeListed;
+              }
               // ...m를 먼저 펼치면 레거시 m.options가 아래에서 덮어써져, 갱신된 item.options가 유실된다.
               const pairMeta = (item as any).pairPetMeta;
               return {

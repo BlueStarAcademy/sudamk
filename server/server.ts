@@ -47,6 +47,7 @@ import { AVATAR_POOL, BOT_NAMES, PLAYFUL_GAME_MODES, SPECIAL_GAME_MODES, SINGLE_
 import { calculateTotalStats } from './statService.js';
 import { isSameDayKST, getKSTDate } from '../shared/utils/timeUtils.js';
 import { createDefaultBaseStats, createDefaultUser } from './initialData.ts';
+import { maybeResetStatAllocationAfterLevelStructureChange } from './statAllocationLevelStructureMigration.js';
 import { containsProfanity } from '../profanity.js';
 import {
     nicknameContainsReservedStaffTerms,
@@ -1721,7 +1722,13 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                             (g.gameStatus === 'dice_rolling' || g.gameStatus === 'dice_placing')) ||
                             (g.mode === types.GameMode.Thief &&
                                 (g.gameStatus === 'thief_rolling' || g.gameStatus === 'thief_placing')));
-                    return playfulRollAnimNeedsTick || playfulAiRollingPlacingNeedsTick;
+                    // 선·후공 굴림~시작 확정: 전용 gameStatus라 유저 WS가 잠깐 끊기면 틱이 스킵되어 고착될 수 있음
+                    const playfulDicePregameNeedsTick =
+                        g.mode === types.GameMode.Dice &&
+                        (g.gameStatus === 'dice_turn_rolling' ||
+                            g.gameStatus === 'dice_turn_choice' ||
+                            g.gameStatus === 'dice_start_confirmation');
+                    return playfulRollAnimNeedsTick || playfulAiRollingPlacingNeedsTick || playfulDicePregameNeedsTick;
                 }
                 return onlineUserIdsSet.has(g.player1?.id ?? '') || onlineUserIdsSet.has(g.player2?.id ?? '');
             });
@@ -3454,7 +3461,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 updatedUser.equipment = JSON.parse(JSON.stringify(userForLogin.equipment));
             }
 
-            const userLevelSum = updatedUser.strategyLevel + updatedUser.playfulLevel;
+            const userLevelSum = updatedUser.userLevel;
             let itemsUnequipped = false;
             const validEquipped: types.Equipment = {};
             
@@ -3516,6 +3523,11 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 }
             }
 
+            let statAllocationMigrated = false;
+            if (maybeResetStatAllocationAfterLevelStructureChange(updatedUser)) {
+                statAllocationMigrated = true;
+            }
+
             // --- Equipment Presets Migration Logic ---
             let presetsMigrated = false;
             if (!updatedUser.equipmentPresets || updatedUser.equipmentPresets.length === 0) { // Check for empty array too
@@ -3554,7 +3566,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             updatedUser.lastLoginAt = Date.now();
 
             // 사용자 업데이트에 타임아웃 추가 (3초 - Railway 환경 최적화)
-            if (userBeforeUpdate !== JSON.stringify(updatedUser) || statsMigrated || itemsUnequipped || presetsMigrated) {
+            if (userBeforeUpdate !== JSON.stringify(updatedUser) || statsMigrated || itemsUnequipped || presetsMigrated || statAllocationMigrated) {
                 try {
                     const updateTimeout = new Promise((_, reject) => 
                         setTimeout(() => reject(new Error('updateUser timeout')), 3000)
@@ -3681,8 +3693,8 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         inventory: userForLogin.inventory,
                         equipment: userForLogin.equipment,
                         equipmentPresets: userForLogin.equipmentPresets,
-                        strategyLevel: userForLogin.strategyLevel,
-                        playfulLevel: userForLogin.playfulLevel,
+                        userLevel: userForLogin.userLevel,
+                        userXp: userForLogin.userXp,
                         gold: userForLogin.gold,
                         ownedBorders: userForLogin.ownedBorders,
                         mail: userForLogin.mail,
@@ -4234,10 +4246,8 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 nickname: user.nickname,
                 avatarId: user.avatarId,
                 borderId: user.borderId,
-                strategyLevel: user.strategyLevel,
-                strategyXp: user.strategyXp,
-                playfulLevel: user.playfulLevel,
-                playfulXp: user.playfulXp,
+                userLevel: user.userLevel,
+                userXp: user.userXp,
                 gold: user.gold,
                 diamonds: user.diamonds,
                 stats: user.stats,
@@ -4484,6 +4494,11 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             if (isDev) console.log(`[API/State] User ${user.nickname}: Stats migration complete (migrated: ${statsMigrated}).`);
             // --- End Migration Logic ---
 
+            let statAllocationMigrated = false;
+            if (maybeResetStatAllocationAfterLevelStructureChange(updatedUser)) {
+                statAllocationMigrated = true;
+            }
+
             // --- Equipment Presets Migration Logic ---
             let presetsMigrated = false;
             if (!updatedUser.equipmentPresets || updatedUser.equipmentPresets.length === 0) { // Check for empty array too
@@ -4523,7 +4538,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 }
             }
 
-            if (userBeforeUpdate !== JSON.stringify(updatedUser) || statsMigrated || inventorySlotsUpdated || presetsMigrated) {
+            if (userBeforeUpdate !== JSON.stringify(updatedUser) || statsMigrated || inventorySlotsUpdated || presetsMigrated || statAllocationMigrated) {
                 if (isDev) console.log(`[API/State] User ${user.nickname}: Updating user in DB.`);
                 await db.updateUser(updatedUser);
                 user = updatedUser; // updatedUser를 반환하기 위해 user에 할당
@@ -4696,6 +4711,12 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 }
             }
             // --- End Migration Logic ---
+
+            if (maybeResetStatAllocationAfterLevelStructureChange(user)) {
+                db.updateUser(user).catch((err) =>
+                    console.error(`[API] Failed to save stat allocation migration for user ${userId}:`, err)
+                );
+            }
 
             const actionIp = await ensureClientIpAllowsSession(volatileState, req, res, userId, !!user.isAdmin);
             if (!actionIp.ok) {

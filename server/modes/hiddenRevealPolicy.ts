@@ -32,12 +32,9 @@ export const skipPendingCaptureForAdventureHiddenReveal = (game: types.LiveGameS
  */
 export const shouldPreserveDiscovererTurnAfterOpponentHiddenReveal = (game: types.LiveGameSession): boolean => {
     if (isAdventureCategory(game)) return false;
-    return (
-        !!game.isSinglePlayer ||
-        game.gameCategory === 'tower' ||
-        (game as any).gameCategory === 'guildwar' ||
-        !!game.isAiGame
-    );
+    // 싱글·도전의 탑만 연출 후 스냅샷으로 되돌려 같은 턴 내 재시도 UX를 유지한다.
+    // 길드전·전략 AI 대기실 등 온라인 대국은 실제 포획·착수를 반영해야 하므로 여기서 false.
+    return !!game.isSinglePlayer || game.gameCategory === types.GameCategory.Tower;
 };
 
 /** aiInitialHiddenStone 좌표 추적(히든 분기 진입) */

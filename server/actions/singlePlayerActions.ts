@@ -398,8 +398,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             const aiUser = {
                 ...getAiUser(gameMode),
                 nickname: botNickname,
-                strategyLevel: botLevel,
-                playfulLevel: botLevel,
+                userLevel: botLevel,
+                userXp: 0,
             };
             
             let board: BoardState;

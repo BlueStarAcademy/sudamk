@@ -6,6 +6,7 @@ import DraggableWindow, {
 import type { InventoryItem, User } from '../types.js';
 import { audioService } from '../services/audioService.js';
 import PairPetHatchAcquirePanel from './pair/PairPetHatchAcquirePanel.js';
+import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import {
     MOBILE_EQUIPMENT_DETAIL_MAX_HEIGHT_CSS,
 } from '../shared/constants/mobileEquipmentDetailModal.js';
@@ -40,6 +41,9 @@ const PairPetObtainedModal: React.FC<PairPetObtainedModalProps> = ({ currentUser
         }
     }, [item.grade, mode]);
 
+    const showRepresentativeBadge =
+        mode === 'view' && getEquippedPairPetInventoryRow(currentUser)?.id === item.id;
+
     return (
         <DraggableWindow
             title={title}
@@ -62,7 +66,11 @@ const PairPetObtainedModal: React.FC<PairPetObtainedModalProps> = ({ currentUser
         >
             <>
                 <div className="min-w-0 w-full">
-                    <PairPetHatchAcquirePanel currentUser={currentUser} item={item} />
+                    <PairPetHatchAcquirePanel
+                        currentUser={currentUser}
+                        item={item}
+                        showRepresentativeBadge={showRepresentativeBadge}
+                    />
                 </div>
                 <div className={`${ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS} shrink-0 border-t border-slate-700/50`}>
                     <button type="button" onClick={onClose} className={`${ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS} !text-xs !leading-snug`}>

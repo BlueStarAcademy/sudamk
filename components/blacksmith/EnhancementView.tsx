@@ -93,7 +93,7 @@ const ItemDisplay: React.FC<{ item: InventoryItem; previousStars?: number; isAni
     const styles = gradeStyles[item.grade];
 
     const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
-    const userLevelSum = (currentUserWithStatus?.strategyLevel || 0) + (currentUserWithStatus?.playfulLevel || 0);
+    const userLevelSum = currentUserWithStatus?.userLevel ?? 0;
     const canEquip = userLevelSum >= requiredLevel;
 
     return (
@@ -257,7 +257,7 @@ const EnhancementView: React.FC<EnhancementViewProps> = ({
         return ENHANCEMENT_COSTS[selectedItem.grade]?.[selectedItem.stars];
     }, [selectedItem]);
 
-    const userLevelSum = currentUser ? currentUser.strategyLevel + currentUser.playfulLevel : 0;
+    const userLevelSum = currentUser ? currentUser.userLevel : 0;
 
     const levelRequirement = useMemo(() => {
         if (!selectedItem) return 0;

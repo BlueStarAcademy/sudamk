@@ -11,6 +11,7 @@ import { updateGameStates } from './gameModes.js';
 import { DAILY_QUESTS, WEEKLY_QUESTS, MONTHLY_QUESTS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, ACTION_POINT_REGEN_INTERVAL_MS, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES, ACHIEVEMENT_TRACKS } from '../shared/constants';
 import { initializeGame } from './gameModes.js';
 import { handleStrategicGameAction } from './modes/standard.js';
+import { isPairClassicGame } from '../shared/utils/pairGameTurn.js';
 import {
     towerP1ConsumableAllowance,
     countTowerLobbyInventoryQty,
@@ -394,8 +395,13 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
     
 
     // 관리자 액션은 먼저 처리 (gameId가 있어도 관리자 액션은 여기서 처리)
-    // ADMIN_SET_VIP_TEST_FLAGS는 프로필 VIP 테스트용으로 userActions에서만 처리
-    if (type.startsWith('ADMIN_') && type !== 'ADMIN_SET_VIP_TEST_FLAGS') return handleAdminAction(volatileState, action, userData);
+    // ADMIN_SET_VIP_TEST_FLAGS·ADMIN_SET_DIAMOND_PACKAGE_TEST는 프로필 테스트용으로 userActions에서만 처리
+    if (
+        type.startsWith('ADMIN_') &&
+        type !== 'ADMIN_SET_VIP_TEST_FLAGS' &&
+        type !== 'ADMIN_SET_DIAMOND_PACKAGE_TEST'
+    )
+        return handleAdminAction(volatileState, action, userData);
 
     // 타워 게임 관련 액션은 먼저 처리 (gameId가 있어도 타워 액션은 여기서 처리)
     if (type === 'START_TOWER_GAME' || type === 'CONFIRM_TOWER_GAME_START' || type === 'TOWER_REFRESH_PLACEMENT' || type === 'TOWER_ADD_TURNS' || type === 'END_TOWER_GAME') {
@@ -429,23 +435,9 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         return result;
     }
 
-    // 페어 로비 펫 상점·부화·장착 등: payload에 gameId가 끼어 있어도 대국 액션으로 오인하지 않도록 먼저 소셜에서 처리
-    if (
-        type === 'PAIR_PET_PURCHASE' ||
-        type === 'PAIR_PET_SET_EQUIPPED' ||
-        type === 'PAIR_PET_HATCH_EGG' ||
-        type === 'PAIR_PET_CONVERT_PET' ||
-        type === 'PAIR_PET_EXPAND_LOBBY_SLOTS' ||
-        type === 'PAIR_PET_START_TRAINING' ||
-        type === 'PAIR_PET_CANCEL_TRAINING' ||
-        type === 'PAIR_PET_CLAIM_TRAINING' ||
-        type === 'PAIR_PET_HATCHERY_UNLOCK' ||
-        type === 'PAIR_PET_HATCHERY_START' ||
-        type === 'PAIR_PET_HATCHERY_CLAIM' ||
-        type === 'PAIR_PET_HATCHERY_CANCEL' ||
-        type === 'PAIR_PET_HATCHERY_INSTANT_FINISH' ||
-        type === 'PAIR_PET_UPGRADE_GRADE'
-    ) {
+    // 페어 로비·방·펫 등: payload에 gameId가 끼어 있어도 대국 액션으로 오인하지 않도록 먼저 소셜에서 처리
+    // (예: 모바일에서 PAIR_LOBBY_ROOM_GRID_SLICE에 stray gameId → 전략 핸들러 400)
+    if (type.startsWith('PAIR_')) {
         return handleSocialAction(volatileState, action, userData);
     }
 
@@ -1090,7 +1082,17 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             if (!fresh) {
                 return { error: 'Game not found.' };
             }
+            const beforeSyncStatus = game.gameStatus;
             Object.assign(game, JSON.parse(JSON.stringify(fresh)) as types.LiveGameSession);
+            // DB가 페어 순서 모달 단계로 남아 있는데 이미 본대국으로 진행된 경우(저장·배치 레이스) 복구
+            if (
+                isPairClassicGame(game.settings, game.mode as GameMode) &&
+                Boolean(game.settings?.pairGame?.turnOrder?.length) &&
+                game.gameStatus === 'pair_order_reveal' &&
+                beforeSyncStatus === 'playing'
+            ) {
+                game.gameStatus = 'playing';
+            }
             syncAiSession(game, aiUserId);
             try {
                 const { updateHiddenState } = await import('./modes/hidden.js');
@@ -1709,7 +1711,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         }
     }
     
-    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'SAVE_EXCHANGE_STATE', 'PURCHASE_EXCHANGE_LISTING', 'CLAIM_EXCHANGE_SETTLEMENT', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS', 'SAVE_GAME_RECORD', 'DELETE_GAME_RECORD', 'RECORD_ADVENTURE_MONSTER_DEFEAT', 'START_ADVENTURE_MONSTER_BATTLE', 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST', 'CONFIRM_ADVENTURE_MAP_TREASURE_CHEST', 'ABANDON_ADVENTURE_MAP_TREASURE_PICK', 'REROLL_ADVENTURE_REGIONAL_BUFF', 'ENHANCE_ADVENTURE_REGIONAL_BUFF', 'ADVANCE_ONBOARDING_TUTORIAL', 'BEGIN_ONBOARDING_ON_FIRST_HOME', 'SKIP_ONBOARDING_TUTORIAL', 'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD', 'CLAIM_ONBOARDING_INTRO1_FAN', 'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL', 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ', 'ADMIN_SET_VIP_TEST_FLAGS', 'RESET_PAIR_ARENA_SINGLE_STAT', 'RESET_PAIR_ARENA_STRATEGIC_ALL'].includes(type)) return handleUserAction(volatileState, action, userData);
+    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'SAVE_EXCHANGE_STATE', 'PURCHASE_EXCHANGE_LISTING', 'CLAIM_EXCHANGE_SETTLEMENT', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS', 'SAVE_GAME_RECORD', 'DELETE_GAME_RECORD', 'RECORD_ADVENTURE_MONSTER_DEFEAT', 'START_ADVENTURE_MONSTER_BATTLE', 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST', 'CONFIRM_ADVENTURE_MAP_TREASURE_CHEST', 'ABANDON_ADVENTURE_MAP_TREASURE_PICK', 'REROLL_ADVENTURE_REGIONAL_BUFF', 'ENHANCE_ADVENTURE_REGIONAL_BUFF', 'ADVANCE_ONBOARDING_TUTORIAL', 'BEGIN_ONBOARDING_ON_FIRST_HOME', 'SKIP_ONBOARDING_TUTORIAL', 'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD', 'CLAIM_ONBOARDING_INTRO1_FAN', 'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL', 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ', 'ADMIN_SET_VIP_TEST_FLAGS', 'ADMIN_SET_DIAMOND_PACKAGE_TEST', 'RESET_PAIR_ARENA_SINGLE_STAT', 'RESET_PAIR_ARENA_STRATEGIC_ALL'].includes(type)) return handleUserAction(volatileState, action, userData);
     if (type.startsWith('CLAIM_') || type.startsWith('DELETE_MAIL') || type === 'DELETE_ALL_CLAIMED_MAIL' || type === 'MARK_MAIL_AS_READ') return handleRewardAction(volatileState, action, userData);
     if (type.startsWith('BUY_') || type === 'PURCHASE_ACTION_POINTS' || type === 'EXPAND_INVENTORY' || type === 'BUY_TOWER_ITEM' || type === 'CLAIM_SHOP_AD_REWARD') return handleShopAction(volatileState, action, userData);
     if (type.startsWith('TOURNAMENT') || 

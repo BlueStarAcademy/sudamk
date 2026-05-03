@@ -41,7 +41,7 @@ import {
 } from '../constants/arenaEntrance.js';
 import { applyOnboardingArenaEntranceTutorialLocks } from '../shared/constants/onboardingTutorial.js';
 import { PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE } from '../shared/constants/pairHatchery.js';
-import { isPairAiSeat } from '../shared/utils/pairGameTurn.js';
+import { advancePairTurn, getCurrentPairTurnSeat, isPairAiSeat, resetPairPasses } from '../shared/utils/pairGameTurn.js';
 
 const HOME_BOARD_READ_STORAGE_PREFIX = 'sudamr-home-board-read-posts';
 
@@ -65,6 +65,7 @@ import { isIntersectionRecordedAsBaseStone } from '../shared/utils/removeCapture
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from '../client/logic/goLogic.js';
 import { normalizeInventoryAfterLoad } from '../utils/inventoryUtils.js';
 import { mergeAdventureProfileForPersistence } from '../utils/adventureProfileMerge.js';
+import { coerceUserLevelXpFromPayload } from '../shared/utils/userLevelMerge.js';
 import type { LevelUpCelebrationPayload } from '../types/levelUpModal.js';
 import type { MannerGradeChangePayload } from '../types/mannerGradeChangeModal.js';
 import { getMannerRank, MANNER_RANKS } from '../services/manner.js';
@@ -685,6 +686,9 @@ export const useApp = () => {
                 if (u?.inventory && Array.isArray(u.inventory)) {
                     u.inventory = normalizeInventoryAfterLoad(u.inventory);
                 }
+                const lv = coerceUserLevelXpFromPayload(u as unknown as Record<string, unknown>);
+                u.userLevel = lv.userLevel;
+                u.userXp = lv.userXp;
                 return u;
             }
         } catch (e) { console.error('Failed to parse user from sessionStorage', e); }
@@ -716,7 +720,9 @@ export const useApp = () => {
 
     const mergeUserState = useCallback((prev: User | null, updates: Partial<User>) => {
         if (!prev) {
-            return updates as User;
+            const first = { ...(updates as User) } as unknown as Record<string, unknown>;
+            const lv = coerceUserLevelXpFromPayload(first);
+            return { ...(updates as User), userLevel: lv.userLevel, userXp: lv.userXp };
         }
         
         // 깊은 병합을 위해 JSON 직렬화/역직렬화 사용
@@ -763,7 +769,11 @@ export const useApp = () => {
             lastNationalTournament: patch.lastNationalTournament !== undefined ? patch.lastNationalTournament : base.lastNationalTournament,
             lastWorldTournament: patch.lastWorldTournament !== undefined ? patch.lastWorldTournament : base.lastWorldTournament,
         };
-        
+
+        const coercedLv = coerceUserLevelXpFromPayload(merged as unknown as Record<string, unknown>);
+        merged.userLevel = coercedLv.userLevel;
+        merged.userXp = coercedLv.userXp;
+
         return merged;
     }, []);
 
@@ -803,10 +813,8 @@ export const useApp = () => {
                 prevUser.diamonds !== mergedUser.diamonds ||
                 prevUser.towerFloor !== mergedUser.towerFloor ||
                 prevUser.monthlyTowerFloor !== mergedUser.monthlyTowerFloor ||
-                prevUser.strategyXp !== mergedUser.strategyXp ||
-                prevUser.playfulXp !== mergedUser.playfulXp ||
-                prevUser.strategyLevel !== mergedUser.strategyLevel ||
-                prevUser.playfulLevel !== mergedUser.playfulLevel ||
+                prevUser.userXp !== mergedUser.userXp ||
+                prevUser.userLevel !== mergedUser.userLevel ||
                 prevUser.avatarId !== mergedUser.avatarId ||
                 prevUser.borderId !== mergedUser.borderId ||
                 prevUser.nickname !== mergedUser.nickname ||
@@ -880,16 +888,13 @@ export const useApp = () => {
         });
 
         if (prevUser && source !== 'INITIAL_STATE') {
-            const prevS = prevUser.strategyLevel ?? 1;
-            const nextS = mergedUser.strategyLevel ?? 1;
-            const prevP = prevUser.playfulLevel ?? 1;
-            const nextP = mergedUser.playfulLevel ?? 1;
-            const stratUp = nextS > prevS;
-            const playUp = nextP > prevP;
-            if (stratUp || playUp) {
+            const prevL = prevUser.userLevel ?? 1;
+            const nextL = mergedUser.userLevel ?? 1;
+            const levelUp = nextL > prevL;
+            if (levelUp) {
                 const levelPayload: LevelUpCelebrationPayload = {
-                    strategy: stratUp ? { from: prevS, to: nextS } : undefined,
-                    playful: playUp ? { from: prevP, to: nextP } : undefined,
+                    strategy: { from: prevL, to: nextL },
+                    playful: undefined,
                 };
                 const uid = mergedUser.id;
                 const blockCelebration =
@@ -1227,7 +1232,7 @@ export const useApp = () => {
     const [enhancementOutcome, setEnhancementOutcome] = useState<{ message: string; success: boolean; itemBefore: InventoryItem; itemAfter: InventoryItem; xpGained?: number; isRolling?: boolean; } | null>(null);
     const [refinementResult, setRefinementResult] = useState<{ message: string; success: boolean; itemBefore: InventoryItem; itemAfter: InventoryItem; } | null>(null);
     const [enhancementAnimationTarget, setEnhancementAnimationTarget] = useState<{ itemId: string; stars: number } | null>(null);
-    const [pastRankingsInfo, setPastRankingsInfo] = useState<{ user: UserWithStatus; mode: GameMode | 'strategic' | 'playful'; } | null>(null);
+    const [pastRankingsInfo, setPastRankingsInfo] = useState<{ user: UserWithStatus; mode: GameMode | 'strategic' | 'playful' | 'pair'; } | null>(null);
     const [enhancingItem, setEnhancingItem] = useState<InventoryItem | null>(null);
     const [viewingItem, setViewingItem] = useState<{
         item: InventoryItem;
@@ -1558,13 +1563,17 @@ export const useApp = () => {
         // updateTrigger와 actionPointUpdateTrigger를 dependency에 포함시켜 강제 리렌더링 보장
         if (!currentUser) return null;
         const statusInfo = Array.isArray(onlineUsers)
-            ? onlineUsers.find(u => u && u.id === currentUser.id)
+            ? onlineUsers.find(u => u && u.id === currentUser.id) ??
+              onlineUsers.find(u => u && String(u.id) === String(currentUser.id))
             : null;
         let statusData: UserStatusInfo = {
             status: statusInfo?.status ?? ('online' as UserStatus),
             mode: statusInfo?.mode,
             gameId: statusInfo?.gameId,
             spectatingGameId: statusInfo?.spectatingGameId,
+            waitingLobby: statusInfo?.waitingLobby,
+            gameCategory: statusInfo?.gameCategory,
+            inPairLobby: statusInfo?.inPairLobby,
         };
         // 로그인 응답으로 받은 진행 중 경기가 있으면 WebSocket INITIAL_STATE 전까지 in-game으로 표시
         if (activeGameFromLogin && (activeGameFromLogin.player1?.id === currentUser.id || activeGameFromLogin.player2?.id === currentUser.id)) {
@@ -1642,11 +1651,10 @@ export const useApp = () => {
         const u = currentUserRef.current;
         if (!u?.isAdmin) return;
         deferredLevelUpCelebrationRef.current = null;
-        const s = Math.max(1, u.strategyLevel ?? 1);
-        const p = Math.max(1, u.playfulLevel ?? 1);
+        const s = Math.max(1, u.userLevel ?? 1);
         setLevelUpCelebration({
             strategy: s > 1 ? { from: s - 1, to: s } : { from: 1, to: 2 },
-            playful: p > 1 ? { from: p - 1, to: p } : { from: 1, to: 2 },
+            playful: undefined,
         });
     }, []);
 
@@ -2349,6 +2357,64 @@ export const useApp = () => {
                     moveHistory: [...(game.moveHistory || []), { x, y, player: movePlayer }],
                     captures: newCaptures,
                     currentPlayer: movePlayer === Player.Black ? Player.White : Player.Black,
+                    hiddenMoves: game.hiddenMoves,
+                    gameStatus: 'playing',
+                    itemUseDeadline: undefined,
+                    pausedTurnTimeLeft: undefined,
+                };
+                return { ...currentGames, [gameId]: updatedGame };
+            });
+            return;
+        }
+
+        if ((action as any).type === 'PAIR_GAME_CLIENT_MOVE') {
+            const payload = (action as any).payload;
+            const { gameId, x, y, newBoardState, capturedStones, newKoInfo, movePlayer: payloadMovePlayer } = payload;
+            setLiveGames((currentGames) => {
+                const game = currentGames[gameId];
+                if (!game || game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') return currentGames;
+                const pg = game.settings?.pairGame;
+                if (!pg?.turnOrder?.length) return currentGames;
+
+                const movePlayer: Player = (payloadMovePlayer ?? game.currentPlayer) as Player;
+                const pairSeat = getCurrentPairTurnSeat(game.settings);
+                const moveEntry = {
+                    x,
+                    y,
+                    player: movePlayer,
+                    ...(pairSeat ? { actorId: pairSeat.participantId, pairSeatId: pairSeat.seatId } : {}),
+                };
+
+                const newCaptures = {
+                    ...game.captures,
+                    [movePlayer]: (game.captures[movePlayer] || 0) + (capturedStones?.length || 0),
+                };
+
+                const settingsWithPair = {
+                    ...game.settings,
+                    pairGame: {
+                        ...pg,
+                        turnOrder: pg.turnOrder.map((s) => ({ ...s })),
+                        passSeatIds: [...(pg.passSeatIds ?? [])],
+                        orderRevealConfirmed: pg.orderRevealConfirmed ? { ...pg.orderRevealConfirmed } : undefined,
+                        currentTurnIndex: pg.currentTurnIndex,
+                    },
+                };
+                resetPairPasses(settingsWithPair);
+                advancePairTurn(settingsWithPair);
+                const nextSeat = getCurrentPairTurnSeat(settingsWithPair);
+                const nextCurrentPlayer =
+                    nextSeat?.player ?? (movePlayer === Player.Black ? Player.White : Player.Black);
+
+                const updatedGame: LiveGameSession = {
+                    ...game,
+                    settings: settingsWithPair,
+                    boardState: newBoardState,
+                    koInfo: newKoInfo ?? game.koInfo,
+                    lastMove: { x, y },
+                    moveHistory: [...(game.moveHistory || []), moveEntry],
+                    captures: newCaptures,
+                    currentPlayer: nextCurrentPlayer,
                     hiddenMoves: game.hiddenMoves,
                     gameStatus: 'playing',
                     itemUseDeadline: undefined,
@@ -3958,33 +4024,78 @@ export const useApp = () => {
                             /* ignore */
                         }
 
+                        const g = liveGamesRef.current[gameId];
+                        const retainEndedPvpRoom =
+                            g &&
+                            !g.isAiGame &&
+                            !g.isSinglePlayer &&
+                            (g.gameStatus === 'ended' || g.gameStatus === 'no_contest') &&
+                            !(g.settings as { pairGame?: unknown } | undefined)?.pairGame;
+
                         flushSync(() => {
-                            setTowerGames((current) => {
-                                if (!current[gameId]) return current;
-                                const next = { ...current };
-                                delete next[gameId];
-                                return next;
-                            });
-                            setSinglePlayerGames((current) => {
-                                if (!current[gameId]) return current;
-                                const next = { ...current };
-                                delete next[gameId];
-                                return next;
-                            });
-                            setLiveGames((current) => {
-                                if (!current[gameId]) return current;
-                                const next = { ...current };
-                                delete next[gameId];
-                                return next;
-                            });
+                            const removeFromTowerSp = () => {
+                                setTowerGames((current) => {
+                                    if (!current[gameId]) return current;
+                                    const next = { ...current };
+                                    delete next[gameId];
+                                    return next;
+                                });
+                                setSinglePlayerGames((current) => {
+                                    if (!current[gameId]) return current;
+                                    const next = { ...current };
+                                    delete next[gameId];
+                                    return next;
+                                });
+                            };
+                            if (!retainEndedPvpRoom) {
+                                removeFromTowerSp();
+                                setLiveGames((current) => {
+                                    if (!current[gameId]) return current;
+                                    const next = { ...current };
+                                    delete next[gameId];
+                                    return next;
+                                });
+                            } else {
+                                removeFromTowerSp();
+                            }
 
                             const uid = currentUserRef.current?.id;
                             if (uid) {
-                                setOnlineUsers((prev) =>
-                                    prev.map((u) =>
-                                        u.id === uid ? { ...u, status: UserStatus.Online, gameId: undefined, mode: undefined } : u
-                                    )
-                                );
+                                if (retainEndedPvpRoom) {
+                                    const post = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('postGameRedirect') : null;
+                                    const wl: 'strategic' | 'playful' | undefined = post?.includes('/waiting/strategic')
+                                        ? 'strategic'
+                                        : post?.includes('/waiting/playful')
+                                          ? 'playful'
+                                          : SPECIAL_GAME_MODES.some((m) => m.mode === g.mode)
+                                            ? 'strategic'
+                                            : PLAYFUL_GAME_MODES.some((m) => m.mode === g.mode)
+                                              ? 'playful'
+                                              : undefined;
+                                    setOnlineUsers((prev) =>
+                                        prev.map((u) =>
+                                            u.id === uid
+                                                ? wl
+                                                    ? {
+                                                          ...u,
+                                                          status: UserStatus.Waiting,
+                                                          waitingLobby: wl,
+                                                          gameId,
+                                                          mode: g.mode,
+                                                      }
+                                                    : { ...u, status: UserStatus.Online, gameId: undefined, mode: undefined, waitingLobby: undefined }
+                                                : u
+                                        )
+                                    );
+                                } else {
+                                    setOnlineUsers((prev) =>
+                                        prev.map((u) =>
+                                            u.id === uid
+                                                ? { ...u, status: UserStatus.Online, gameId: undefined, mode: undefined, waitingLobby: undefined }
+                                                : u
+                                        )
+                                    );
+                                }
                             }
                         });
                     }
@@ -4300,6 +4411,8 @@ export const useApp = () => {
                         'COMPLETE_DUNGEON_STAGE',
                         'BUY_SHOP_ITEM',
                         'BUY_MATERIAL_BOX',
+                        'BUY_CASH_PACKAGE',
+                        'ADMIN_SET_DIAMOND_PACKAGE_TEST',
                         'BUY_CONSUMABLE',
                         'BUY_CONDITION_POTION',
                         'USE_CONDITION_POTION',
@@ -4443,7 +4556,9 @@ export const useApp = () => {
                     lastHttpHadUpdatedUser.current = false;
                     const actionsThatShouldHaveUpdatedUser = [
                         'TOGGLE_EQUIP_ITEM', 'UNBIND_EQUIPMENT', 'MARK_ITEM_EXCHANGE_LISTED', 'UNMARK_ITEM_EXCHANGE_LISTED', 'USE_ITEM', 'USE_ALL_ITEMS_OF_TYPE', 'ENHANCE_ITEM',
-                        'COMBINE_ITEMS', 'DISASSEMBLE_ITEM', 'CRAFT_MATERIAL', 'BUY_SHOP_ITEM', 
+                        'COMBINE_ITEMS', 'DISASSEMBLE_ITEM', 'CRAFT_MATERIAL', 'BUY_SHOP_ITEM',
+                        'BUY_CASH_PACKAGE',
+                        'ADMIN_SET_DIAMOND_PACKAGE_TEST',
                         'BUY_CONSUMABLE', 'BUY_CONDITION_POTION', 'USE_CONDITION_POTION', 'UPDATE_AVATAR', 
                         'UPDATE_BORDER', 'CHANGE_NICKNAME', 'UPDATE_MBTI', 'ALLOCATE_STAT_POINT',
                         'SELL_ITEM', 'EXPAND_INVENTORY', 'BUY_BORDER', 'APPLY_PRESET', 'SAVE_PRESET',
@@ -5288,6 +5403,8 @@ export const useApp = () => {
                     result.guilds ||
                     /** `/api/action` 평탄화: `updatedUser`만 최상위에 있는 응답(페어 부화 수령 등)도 호출부에 전달 */
                     !!(result as any).updatedUser ||
+                    /** 페어 펫 수련 수령: `pairTrainingClaimSummary`만 추가로 오는 경우에도 호출부(모달)로 전달 */
+                    !!(result as any).pairTrainingClaimSummary ||
                     /** `/api/action` 평탄화: `clientResponse` 키 없이 최상위에만 오는 필드 (예: 보물상자 PREPARE/CONFIRM) */
                     (result as any).adventureTreasurePick ||
                     (result as any).grantedTreasureRolls != null ||
@@ -5513,14 +5630,15 @@ export const useApp = () => {
                     console.log('[WebSocket] Processing initial state - total users:', userEntries.length, 'filtered:', filteredEntries.length);
                 }
 
-                const normalizedFiltered = filteredEntries.map(([id, u]) => [
-                    id,
-                    {
+                const normalizedFiltered = filteredEntries.map(([id, u]) => {
+                    const row = {
                         ...u,
                         mbti: typeof u.mbti === 'string' ? u.mbti : null,
                         inventory: Array.isArray(u.inventory) ? u.inventory : [],
-                    },
-                ]);
+                    } as Record<string, unknown>;
+                    const lv = coerceUserLevelXpFromPayload(row);
+                    return [id, { ...row, userLevel: lv.userLevel, userXp: lv.userXp }];
+                });
 
             if (users && typeof users === 'object' && !Array.isArray(users)) {
                 setUsersMap(Object.fromEntries(normalizedFiltered));
@@ -6322,10 +6440,16 @@ export const useApp = () => {
                             const payload = message.payload || {};
                             const updatedCurrentUser = currentUser ? payload[currentUser.id] : undefined;
 
-                            setUsersMap(currentUsersMap => {
+                            setUsersMap((currentUsersMap) => {
                                 const updatedUsersMap = { ...currentUsersMap };
                                 Object.entries(payload).forEach(([userId, updatedUserData]: [string, any]) => {
-                                    updatedUsersMap[userId] = updatedUserData;
+                                    const prevRow = currentUsersMap[userId];
+                                    const mergedRow = {
+                                        ...(prevRow || {}),
+                                        ...(updatedUserData || {}),
+                                    } as Record<string, unknown>;
+                                    const lv = coerceUserLevelXpFromPayload(mergedRow);
+                                    updatedUsersMap[userId] = { ...mergedRow, userLevel: lv.userLevel, userXp: lv.userXp } as User;
                                 });
                                 return updatedUsersMap;
                             });
@@ -6337,12 +6461,21 @@ export const useApp = () => {
                                 const hasAdventureProfileUpdate = updatedCurrentUser.adventureProfile !== undefined;
                                 /** 타 유저 구매 등으로 서버가 보낸 거래소 상태 — HTTP 디바운스로 버리면 판매 완료·정산 동기화가 깨짐 */
                                 const hasExchangeStatePayload = updatedCurrentUser.exchangeState !== undefined;
+                                /** 거래소 구매 직후 서버가 보내는 WS는 인벤·재화 동기화용 — HTTP 디바운스로 버리면 가방에 장비가 늦게/안 보일 수 있음 */
+                                const isPostExchangePurchaseInventoryWs =
+                                    lastHttpActionType.current === 'PURCHASE_EXCHANGE_LISTING' &&
+                                    Array.isArray(updatedCurrentUser.inventory);
 
                                 const hadHttpUpdate = lastHttpUpdateTime.current > 0;
                                 const httpUpdateHadUser = lastHttpHadUpdatedUser.current;
 
                                 if (!hasNicknameUpdate && !hasAdventureProfileUpdate && !hasExchangeStatePayload) {
-                                    if (hadHttpUpdate && httpUpdateHadUser && timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS) {
+                                    if (
+                                        !isPostExchangePurchaseInventoryWs &&
+                                        hadHttpUpdate &&
+                                        httpUpdateHadUser &&
+                                        timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS
+                                    ) {
                                         console.log(`[WebSocket] USER_UPDATE ignored (${timeSinceLastHttpUpdate}ms since HTTP update with user, debounce: ${HTTP_UPDATE_DEBOUNCE_MS}ms, last action: ${lastHttpActionType.current})`);
                                         return;
                                     }
@@ -6351,7 +6484,13 @@ export const useApp = () => {
                                         lastHttpUpdateTime.current = now;
                                         lastHttpHadUpdatedUser.current = true;
                                     }
-                                    if (hadHttpUpdate && httpUpdateHadUser && timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS * 2 && lastHttpActionType.current) {
+                                    if (
+                                        !isPostExchangePurchaseInventoryWs &&
+                                        hadHttpUpdate &&
+                                        httpUpdateHadUser &&
+                                        timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS * 2 &&
+                                        lastHttpActionType.current
+                                    ) {
                                         console.log(`[WebSocket] USER_UPDATE ignored (possible stale data, ${timeSinceLastHttpUpdate}ms since HTTP update)`);
                                         return;
                                     }
@@ -6447,7 +6586,24 @@ export const useApp = () => {
                         case 'USER_STATUS_UPDATE': {
                             setUsersMap(currentUsersMap => {
                                 const updatedUsersMap = { ...currentUsersMap };
-                                const onlineStatuses = Object.entries(message.payload || {}).map(([id, statusInfo]: [string, any]) => {
+                                const rawPayload = message.payload as Record<string, unknown> | undefined;
+                                const statusMap: Record<string, unknown> | undefined = (() => {
+                                    if (!rawPayload || typeof rawPayload !== 'object' || Array.isArray(rawPayload)) {
+                                        return rawPayload as Record<string, unknown> | undefined;
+                                    }
+                                    const nested = (rawPayload as { userStatuses?: unknown }).userStatuses;
+                                    if (
+                                        nested &&
+                                        typeof nested === 'object' &&
+                                        !Array.isArray(nested) &&
+                                        Object.keys(rawPayload).length === 1 &&
+                                        'userStatuses' in rawPayload
+                                    ) {
+                                        return nested as Record<string, unknown>;
+                                    }
+                                    return rawPayload as Record<string, unknown>;
+                                })();
+                                const onlineStatuses = Object.entries(statusMap || {}).map(([id, statusInfo]: [string, any]) => {
                                     let user: User | undefined = currentUsersMap[id];
                                     if (!user) {
                                         const allUsersArray = Object.values(currentUsersMap);
@@ -9080,7 +9236,7 @@ export const useApp = () => {
             closeStatAllocationModal: () => setIsStatAllocationModalOpen(false),
             openProfileEditModal: () => setIsProfileEditModalOpen(true),
             closeProfileEditModal: () => setIsProfileEditModalOpen(false),
-            openPastRankings: (info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'playful'; }) => setPastRankingsInfo(info),
+            openPastRankings: (info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'playful' | 'pair'; }) => setPastRankingsInfo(info),
             closePastRankings: () => setPastRankingsInfo(null),
             openViewingItem,
             openPairPetDetailModal,

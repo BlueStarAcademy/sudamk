@@ -25,6 +25,8 @@ export type SingleItemObtainCardProps = {
     usageLines?: string[];
     /** a11y / 래퍼 */
     regionAriaLabel?: string;
+    /** 페어 영혼석 획득 등 가독성 강조(이미지·타이포는 부모에서 키움) */
+    emphasis?: boolean;
 };
 
 export const SingleItemObtainCard: React.FC<SingleItemObtainCardProps> = ({
@@ -33,28 +35,40 @@ export const SingleItemObtainCard: React.FC<SingleItemObtainCardProps> = ({
     description = '',
     usageLines = [],
     regionAriaLabel = '획득 아이템',
+    emphasis = false,
 }) => {
     const showFooter = !!description.trim() || usageLines.length > 0;
+    const rowPad = emphasis ? 'gap-4 px-5 py-5 sm:gap-5 sm:px-6 sm:py-6' : 'gap-3 px-4 py-4 sm:gap-4 sm:px-5 sm:py-5';
+    const titleClass = emphasis
+        ? 'inline-block whitespace-nowrap pr-1 text-left text-base font-black tracking-tight text-slate-100 sm:text-lg'
+        : 'inline-block whitespace-nowrap pr-1 text-left text-sm font-black tracking-tight text-slate-100 sm:text-base';
+    const footerPad = emphasis ? 'space-y-2.5 px-5 pb-5 pt-3.5 sm:px-6' : 'space-y-2 px-4 pb-4 pt-3 sm:px-5';
+    const descClass = emphasis
+        ? 'text-sm leading-relaxed text-slate-300 sm:text-[15px]'
+        : 'text-xs leading-relaxed text-slate-300 sm:text-[13px]';
+    const usageHeadClass = emphasis
+        ? 'text-xs font-bold uppercase tracking-[0.14em] text-amber-200/75 sm:text-[13px]'
+        : 'text-[10px] font-bold uppercase tracking-[0.14em] text-amber-200/75 sm:text-[11px]';
+    const usageListClass = emphasis
+        ? 'list-inside list-disc space-y-1 text-sm leading-snug text-slate-200/90 sm:text-[15px]'
+        : 'list-inside list-disc space-y-0.5 text-[11px] leading-snug text-slate-200/90 sm:text-xs';
+
     return (
         <div className={ITEM_OBTAIN_UNIFIED_CARD_CLASS} role="region" aria-label={regionAriaLabel}>
             <div className="pointer-events-none absolute inset-0" style={ITEM_OBTAIN_CARD_RADIAL_STYLE} aria-hidden />
-            <div className="relative flex flex-row items-center gap-3 px-4 py-4 sm:gap-4 sm:px-5 sm:py-5">
+            <div className={`relative flex flex-row items-center ${rowPad}`}>
                 {leftVisual}
                 <div className={NAME_SCROLL_ROW_CLASS}>
-                    <h2 className="inline-block whitespace-nowrap pr-1 text-left text-sm font-black tracking-tight text-slate-100 sm:text-base">
-                        {name}
-                    </h2>
+                    <h2 className={titleClass}>{name}</h2>
                 </div>
             </div>
             {showFooter ? (
-                <div className="space-y-2 border-t border-white/[0.08] px-4 pb-4 pt-3 sm:px-5">
-                    {description.trim() ? (
-                        <p className="text-xs leading-relaxed text-slate-300 sm:text-[13px]">{description.trim()}</p>
-                    ) : null}
+                <div className={`${footerPad} border-t border-white/[0.08]`}>
+                    {description.trim() ? <p className={descClass}>{description.trim()}</p> : null}
                     {usageLines.length > 0 ? (
-                        <div className="space-y-1">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-200/75 sm:text-[11px]">사용처</p>
-                            <ul className="list-inside list-disc space-y-0.5 text-[11px] leading-snug text-slate-200/90 sm:text-xs">
+                        <div className="space-y-1.5">
+                            <p className={usageHeadClass}>사용처</p>
+                            <ul className={usageListClass}>
                                 {usageLines.map((line, i) => (
                                     <li key={i}>{line}</li>
                                 ))}

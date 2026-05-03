@@ -1,6 +1,12 @@
 import { InventoryItem, EquipmentSlot, CoreStat, SpecialStat, MythicStat, ItemOption } from '../types/index.js';
 import { ItemGrade } from '../types/enums.js';
-import { PAIR_EGG_DISPLAY_IMAGE, PAIR_PET_KIND_NAMES, PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS, PAIR_SOULSTONE_NAMES } from './petLobby.js';
+import {
+    PAIR_EGG_DISPLAY_IMAGE,
+    PAIR_PET_KIND_NAMES,
+    PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS,
+    PAIR_SOULSTONE_NAMES,
+    pairSoulStoneMaterialSellGoldPerUnit,
+} from './petLobby.js';
 
 export const emptySlotImages: Record<EquipmentSlot, string> = {
     fan: 'images/equipments/EmptyFanSlot.png',
@@ -458,12 +464,12 @@ export const MATERIAL_SELL_PRICES: Record<string, number> = {
     신비로운알: 120,
     /** 구 인벤 호환 */
     '페어 미스터리 알': 120,
-    '새싹영혼석': 25,
-    '파동영혼석': 45,
-    '심연영혼석': 70,
-    '화염영혼석': 100,
-    '천광영혼석': 150,
 };
+
+for (const soulName of PAIR_SOULSTONE_NAMES) {
+    const g = pairSoulStoneMaterialSellGoldPerUnit(soulName);
+    if (g != null) MATERIAL_SELL_PRICES[soulName] = g;
+}
 
 for (let n = 1; n <= 24; n += 1) {
     const gold = 40 + n * 8;

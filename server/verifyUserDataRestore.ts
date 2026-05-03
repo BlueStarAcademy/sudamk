@@ -34,7 +34,7 @@ const verifyUserData = async (nickname: string) => {
         console.log(`[사용자 정보]`);
         console.log(`  ID: ${user.id}`);
         console.log(`  닉네임: ${user.nickname}`);
-        console.log(`  레벨: 전략 ${user.strategyLevel}, 놀이 ${user.playfulLevel}`);
+        console.log(`  레벨: Lv.${(user as any).userLevel ?? '?'}`);
         
         // 장비 확인
         console.log(`\n[장비 정보]`);

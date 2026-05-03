@@ -172,13 +172,16 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 
         const baseRetryApCost = stage?.actionPointCost ?? 0;
         const baseNextFloorApCost = nextStageForEnded?.actionPointCost ?? 0;
-        const inferredRetryApCost = isFloorCleared ? 0 : baseRetryApCost;
+        const inferredRetryApCost = isFloorCleared || isWinner ? 0 : baseRetryApCost;
+        // 이미 클리어한 층은 재도전 무료(⚡0). 입장 차감값은 미클리어일 때만 표시(할인·stale 보정).
         const effectiveRetryApCost =
-            session.towerStartActionPointCost === 0
+            inferredRetryApCost === 0
                 ? 0
-                : typeof session.towerStartActionPointCost === 'number'
-                  ? session.towerStartActionPointCost
-                  : inferredRetryApCost;
+                : session.towerStartActionPointCost === 0
+                  ? 0
+                  : typeof session.towerStartActionPointCost === 'number'
+                    ? session.towerStartActionPointCost
+                    : inferredRetryApCost;
         const isNextFloorAlreadyCleared = nextFloor != null && userTowerFloor >= nextFloor;
         const effectiveNextFloorApCost = isNextFloorAlreadyCleared ? 0 : baseNextFloorApCost;
 

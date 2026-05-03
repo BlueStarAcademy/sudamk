@@ -3,7 +3,13 @@ import { GameMode, ServerAction, UserWithStatus } from '../../types.js';
 import type { RankingEntry } from '../../hooks/useRanking.js';
 import Button from '../Button.js';
 import RankedMatchSelectionModal from './RankedMatchSelectionModal.js';
-import { RANKING_TIERS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
+import {
+    RANKING_TIERS,
+    SPECIAL_GAME_MODES,
+    PLAYFUL_GAME_MODES,
+    STRATEGIC_ACTION_POINT_COST,
+    PLAYFUL_ACTION_POINT_COST,
+} from '../../constants';
 import { useRanking } from '../../hooks/useRanking.js';
 import { getCurrentSeason, getPreviousSeason } from '../../utils/timeUtils.js';
 
@@ -149,6 +155,9 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
 
     const lobbyModes = useMemo(() => lobbyModesFor(lobbyType), [lobbyType]);
 
+    const rankedActionPointCost =
+        lobbyType === 'strategic' ? STRATEGIC_ACTION_POINT_COST : PLAYFUL_ACTION_POINT_COST;
+
     const currentSeasonTierAndScore = useMemo(() => {
         const eligible = rankings.filter((r) => (r.totalGames ?? 0) >= 10);
         const myEntry = rankings.find((r) => r.id === currentUser.id);
@@ -293,7 +302,9 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                         >
                             <span className={`flex items-center justify-center gap-0.5 ${nativeNarrow ? '' : 'gap-1.5'}`}>
                                 <span className={nativeNarrow ? 'text-[0.65rem] sm:text-xs' : ''}>⚔️</span>
-                                <span>{nativeNarrow ? '시작' : '랭킹전 시작'}</span>
+                                <span className={nativeNarrow ? 'text-[0.65rem] sm:text-xs' : ''}>
+                                    {nativeNarrow ? '시작' : '랭킹전 시작'} (⚡{rankedActionPointCost})
+                                </span>
                             </span>
                         </Button>
                     ) : (

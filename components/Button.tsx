@@ -22,6 +22,8 @@ interface ButtonProps {
   bare?: boolean;
   /** 온보딩 스포트라이트 타깃 측정용 */
   'data-onboarding-target'?: string;
+  tabIndex?: number;
+  'aria-hidden'?: boolean | 'true' | 'false';
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -38,6 +40,8 @@ const Button: React.FC<ButtonProps> = ({
   cooldownMs = 1000,
   bare = false,
   'data-onboarding-target': dataOnboardingTarget,
+  tabIndex,
+  'aria-hidden': ariaHidden,
 }) => {
   const baseDisabledDim = 'disabled:bg-secondary disabled:opacity-70 disabled:cursor-not-allowed';
   const baseDisabledNoDim = 'disabled:cursor-not-allowed';
@@ -182,6 +186,8 @@ const Button: React.FC<ButtonProps> = ({
       title={title}
       style={Object.keys(defaultStyle).length ? defaultStyle : undefined}
       data-onboarding-target={dataOnboardingTarget}
+      tabIndex={tabIndex}
+      aria-hidden={ariaHidden}
     >
       {bare || hasComplexChildren ? (
         children

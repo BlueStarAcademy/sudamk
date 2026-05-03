@@ -461,10 +461,8 @@ export type User = {
   isAdmin: boolean;
   /** 관리자 패널에서 예약 닉네임(관리자/운영자 문구)을 허용한 경우 UI 강조용 */
   staffNicknameDisplayEligibility?: boolean;
-  strategyLevel: number;
-  strategyXp: number;
-  playfulLevel: number;
-  playfulXp: number;
+  userLevel: number;
+  userXp: number;
   baseStats: Record<CoreStat, number>;
   spentStatPoints: Record<CoreStat, number>;
   inventory: InventoryItem[];
@@ -482,7 +480,7 @@ export type User = {
   mannerScore: number;
   mail: Mail[];
   quests: QuestLog;
-  stats?: Record<string, { wins: number; losses: number; rankingScore: number; aiWins?: number; aiLosses?: number; }>;
+  stats?: Record<string, { wins: number; losses: number; rankingScore?: number; aiWins?: number; aiLosses?: number; }>;
   chatBanUntil?: number | null;
   connectionBanUntil?: number | null;
   chatBanReason?: string | null;
@@ -561,6 +559,11 @@ export type User = {
   onboardingSpResultTutorialStep?: number;
   clearedSinglePlayerStages?: string[]; // 클리어한 스테이지 ID 배열 (최초 클리어 여부 추적용)
   bonusStatPoints?: number;
+  /**
+   * 통합 레벨 구조 변경 시 서버가 1회 `spentStatPoints`를 비운 뒤 true.
+   * 신규 유저는 생성 시 true로 두어 마이그레이션을 건너뜀.
+   */
+  statAllocationResetForUserLevelStructureV1?: boolean;
   singlePlayerMissions?: Record<string, SinglePlayerMissionState>;
   guildId?: string;
   /** 길드전 출전 의사 (미설정은 참여로 간주) */
@@ -623,6 +626,12 @@ export type User = {
   rewardVipExpiresAt?: number;
   functionVipExpiresAt?: number;
   vvipExpiresAt?: number;
+  /** 활성 유료 다이아 패키지 티어(1~3). 만료 후 0 또는 미설정 */
+  activeDiamondPackageTier?: 0 | 1 | 2 | 3;
+  /** 다이아 패키지(매일 우편 구간) 종료 시각(ms) */
+  diamondPackageExpiresAt?: number;
+  /** KST 기준 마지막 다이아 패키지 일일 우편 발송일 YYYY-MM-DD */
+  diamondPackageLastMailDayKST?: string;
 };
 
 export type GameRecord = {
@@ -709,6 +718,7 @@ export type SinglePlayerStrategicRulePreset =
 export type SinglePlayerStageInfo = {
     id: string;
     name: string;
+    description?: string;
     level: SinglePlayerLevel;
     actionPointCost: number;
     boardSize: 7 | 9 | 11 | 13;
@@ -754,8 +764,12 @@ export type SinglePlayerStageInfo = {
     forceAiResponsesOnHiddenTurnsOnly?: boolean;
     // 흑(유저)의 턴 수 제한
     blackTurnLimit?: number; // 유저(흑)의 턴 수 제한
+    // 베이스 바둑 모드: 베이스 돌 개수
+    baseStones?: number;
     fixedOpening?: Array<{ x: number; y: number; color: 'black' | 'white'; kind?: 'plain' | 'pattern' }>;
     mergeRandomPlacementsWithFixed?: boolean;
+    /** false면 해당 싱글 스테이지에서 첫 수 전 배치변경 버튼/액션 사용 불가 */
+    allowPlacementRefresh?: boolean;
     /** 싱글 스테이지별 KataServer 레벨 오버라이드(-31~9). 미지정 시 반(level) 기본값 사용 */
     kataServerLevel?: number;
     strategicRulePreset?: SinglePlayerStrategicRulePreset;
@@ -795,6 +809,8 @@ export type GameSettings = {
   byoyomiTime: number; // in seconds
   byoyomiCount: number;
   pairGame?: {
+    /** 대기 방이 속한 경기장 — 인게임 배경(페어 전용 이미지 vs 전략/놀이 CSS) 구분 */
+    lobbyChannel?: 'pair' | 'strategic' | 'playful';
     roomId: string;
     pairMode: 'pvp' | 'ai';
     teamA: {
@@ -832,6 +848,12 @@ export type GameSettings = {
   hiddenStoneCount?: number;
   scanCount?: number;
   missileCount?: number;
+  /** 싱글플레이 스테이지별 배치변경 허용 여부 */
+  singlePlayerPlacementRefreshAllowed?: boolean;
+  /** 싱글/탑 런타임: 살리기 모드 명시(스테이지와 불일치 방지) */
+  isSurvivalMode?: boolean;
+  /** 세션에 복사된 살리기 턴 한도(표시·로직용) */
+  survivalTurns?: number;
   mixedModes?: GameMode[];
   autoScoring?: boolean;
   /** START_SINGLE_PLAYER_GAME 시 stage.forcedAiResponses를 runtime으로 복사해 AI 착수에서 사용 */
@@ -1064,6 +1086,8 @@ export type GameSummary = {
           max: number;
       };
   };
+  /** 페어 대국 등으로 이번에만 추가된 펫 6코어 레벨업 보너스 */
+  pairPetLevelUpCoreBonuses?: Partial<Record<CoreStat, number>>;
   /** VIP 슬롯에서 추가 지급된 골드 */
   vipGoldBonus?: number;
   diamonds?: number;

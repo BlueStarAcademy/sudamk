@@ -2519,8 +2519,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     nickname: string;
                     avatarId?: string | null;
                     borderId?: string | null;
-                    strategyLevel: number;
-                    playfulLevel: number;
+                    userLevel: number;
                 }
             > = {};
             if (warInProgress?.boards && typeof warInProgress.boards === 'object') {
@@ -2542,8 +2541,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                             nickname: u.nickname || u.username || id,
                             avatarId: u.avatarId ?? null,
                             borderId: u.borderId ?? null,
-                            strategyLevel: Number(u.strategyLevel) || 0,
-                            playfulLevel: Number(u.playfulLevel) || 0,
+                            userLevel: Number(u.userLevel) || 0,
                         };
                     });
                 }
@@ -2911,7 +2909,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 const activeWars = await db.getKV<any[]>('activeGuildWars') || [];
                 await broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars } });
             }
-            await broadcast({ type: 'USER_STATUS_UPDATE', payload: { userStatuses: volatileState.userStatuses } });
+            await broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
             
             return { clientResponse: { gameId: game.id } };
         }

@@ -727,8 +727,8 @@ export const broadcastUserUpdate = (user: any, changedFields?: string[]) => {
     // (항상 넣으면 호출 시점의 user 스냅샷이 낡았을 때 클라이언트 레벨이 잠깐 되돌아갔다가
     //  다음 패치로 복구되며 applyUserUpdate가 '레벨업' 축하 모달을 띄우는 레이스가 난다.)
     if (!narrowFields) {
-        optimizedUser.strategyLevel = user.strategyLevel;
-        optimizedUser.playfulLevel = user.playfulLevel;
+        optimizedUser.userLevel = user.userLevel;
+        optimizedUser.userXp = user.userXp;
     }
 
     // 변경된 필드가 지정된 경우에만 추가 필드 포함

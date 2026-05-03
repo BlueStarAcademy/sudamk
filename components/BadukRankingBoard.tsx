@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScrollbar.js';
 import { useRanking } from '../hooks/useRanking.js';
 import { User } from '../types.js';
 import Avatar from './Avatar.js';
-import { AVATAR_POOL, BORDER_POOL, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
+import { AVATAR_POOL, BORDER_POOL, SPECIAL_GAME_MODES } from '../constants';
 import MobileRankingGuidePanel from './MobileRankingGuidePanel.js';
 
 interface BadukRankingBoardProps {
@@ -114,9 +115,9 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
     const rowDense = Boolean(dense && !mobileSplitLarge);
     const wide = Boolean(mobileSplitLarge);
     const { currentUserWithStatus, handlers } = useAppContext();
-    const [activeTab, setActiveTab] = useState<'strategic' | 'playful' | 'pair'>('strategic');
+    const [activeTab, setActiveTab] = useState<'strategic' | 'pair'>('strategic');
 
-    const rankingType = activeTab === 'strategic' ? 'strategic' : activeTab === 'playful' ? 'playful' : 'pair';
+    const rankingType = activeTab === 'strategic' ? 'strategic' : 'pair';
     const pairSeason = activeTab === 'pair';
     const { rankings: rankingEntries, loading, error } = useRanking(rankingType, undefined, undefined, pairSeason ? true : false);
 
@@ -197,9 +198,9 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
             return { user: currentUserWithStatus, value: score, rank: 'N/A' as const };
         }
 
-        const mode = activeTab === 'strategic' ? 'strategic' : 'playful';
-        const scoreMode = mode === 'strategic' ? 'standard' : 'playful';
-        const gameModes = mode === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
+        const mode = 'strategic';
+        const scoreMode = 'standard';
+        const gameModes = SPECIAL_GAME_MODES;
 
         let totalGames = 0;
         if (currentUserWithStatus.stats) {
@@ -241,7 +242,7 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
             >
                 바둑 랭킹
             </h3>
-            <div className={`relative z-[1] grid flex-shrink-0 grid-cols-3 gap-0.5 rounded-xl border border-white/10 bg-black/45 p-1 shadow-inner ${wide ? '' : rowDense ? 'p-px' : ''}`}>
+            <div className={`relative z-[1] grid flex-shrink-0 grid-cols-2 gap-0.5 rounded-xl border border-white/10 bg-black/45 p-1 shadow-inner ${wide ? '' : rowDense ? 'p-px' : ''}`}>
                 <button
                     type="button"
                     onClick={() => setActiveTab('strategic')}
@@ -254,19 +255,6 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
                     }`}
                 >
                     전략바둑
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setActiveTab('playful')}
-                    className={`rounded-lg font-semibold transition-all ${
-                        wide ? 'py-1.5 text-[11px]' : rowDense ? 'py-0.5 text-[7px]' : 'py-1.5 text-xs'
-                    } ${
-                        activeTab === 'playful'
-                            ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md shadow-violet-500/25'
-                            : 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'
-                    }`}
-                >
-                    놀이바둑
                 </button>
                 <button
                     type="button"
@@ -323,7 +311,7 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
                                 </div>
                             )}
                             <div
-                                className={`min-h-0 flex-1 overflow-x-hidden overflow-y-auto ${!wide && !rowDense ? 'pr-1' : 'pr-0.5'}`}
+                                className={`min-h-0 flex-1 overflow-x-hidden overflow-y-auto ${RANKING_MODAL_SLIM_SCROLL_Y} ${!wide && !rowDense ? 'pr-1' : 'pr-0.5'}`}
                             >
                                 <div className="flex flex-col gap-0.5">
                                     {displayedRankings.filter(r => r && r.user && r.user.id).map((r) => (
@@ -348,9 +336,9 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
                         </>
                     )}
                 </div>
-                {wide && !hideInlineGuide && (activeTab === 'strategic' || activeTab === 'playful') && (
+                {wide && !hideInlineGuide && activeTab === 'strategic' && (
                     <div className="flex min-h-0 flex-[3] flex-col overflow-hidden">
-                        <MobileRankingGuidePanel variant={activeTab === 'strategic' ? 'baduk-strategic' : 'baduk-playful'} />
+                        <MobileRankingGuidePanel variant="baduk-strategic" />
                     </div>
                 )}
             </div>

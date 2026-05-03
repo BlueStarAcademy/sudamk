@@ -1,5 +1,16 @@
+/** 페어·전략·놀이 경기장 슬롯 그리드(방 코드 정수 1~N) */
+export const PAIR_LOBBY_GRID_SLOT_COUNT = 100;
+
+/** 슬롯 그리드용 — 방 `code`가 순수 정수 문자열이면 슬롯 번호, 아니면 null */
+export function pairLobbyGridSlotFromRoomCode(code: string | undefined | null): number | null {
+    const s = String(code ?? '').trim();
+    const n = parseInt(s, 10);
+    if (!Number.isFinite(n) || n < 1 || n > PAIR_LOBBY_GRID_SLOT_COUNT || String(n) !== s) return null;
+    return n;
+}
+
 /** 페어 경기장 방 제목(표시명) 최대 글자 수 — 한글 기준으로 코드 포인트 단위 */
-export const PAIR_ROOM_TITLE_MAX_CHARS = 12;
+export const PAIR_ROOM_TITLE_MAX_CHARS = 20;
 
 export function clampPairRoomTitle(raw: string | undefined | null): string {
     const t = String(raw ?? '').trim();

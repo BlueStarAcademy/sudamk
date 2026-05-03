@@ -4,6 +4,10 @@ import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, BOT_NAMES, AVATAR_POOL, GUILD_M
 import * as crypto from 'crypto';
 import { MATERIAL_ITEMS } from '../shared/constants/items.js';
 import { PAIR_EGG_MATERIAL_NAME, PAIR_EGG_TEMPLATE_ID, PAIR_PET_CATALOG } from '../shared/constants/petLobby.js';
+import {
+    STRATEGIC_RANKED_STAT_KEY,
+    PAIR_RANKED_STAT_KEY,
+} from '../shared/constants/userRankedStats.js';
 import { rollPairPetMetaForHatch } from '../shared/utils/pairPetRoll.js';
 // FIX: Import createDefaultBaseStats from shared utils.
 import { createDefaultBaseStats } from '../utils/statUtils.js';
@@ -113,10 +117,23 @@ function createPairPetLobbyDemoStarterItems(): InventoryItem[] {
 export const DEFAULT_RANKING_SCORE_SEASON_START = 1200;
 
 const allGameModes = [...SPECIAL_GAME_MODES, ...PLAYFUL_GAME_MODES].map(m => m.mode);
-export const defaultStats: User['stats'] = allGameModes.reduce((acc, mode) => {
-    acc[mode] = { wins: 0, losses: 0, rankingScore: DEFAULT_RANKING_SCORE_SEASON_START };
-    return acc;
-}, {} as Record<GameMode, { wins: number; losses: number; rankingScore: number }>);
+export const defaultStats: User['stats'] = (() => {
+    const acc = allGameModes.reduce((a, mode) => {
+        a[mode] = { wins: 0, losses: 0 };
+        return a;
+    }, {} as Record<string, { wins: number; losses: number }>);
+    acc[STRATEGIC_RANKED_STAT_KEY] = {
+        wins: 0,
+        losses: 0,
+        rankingScore: DEFAULT_RANKING_SCORE_SEASON_START,
+    };
+    acc[PAIR_RANKED_STAT_KEY] = {
+        wins: 0,
+        losses: 0,
+        rankingScore: DEFAULT_RANKING_SCORE_SEASON_START,
+    };
+    return acc as User['stats'];
+})();
 
 // createInitialBotCompetitors 제거됨 - 던전 시스템으로 변경
 // export const createInitialBotCompetitors = (newUser: Pick<User, 'league' | 'tournamentScore'>): WeeklyCompetitor[] => {
@@ -131,10 +148,8 @@ export const createDefaultUser = (id: string, username: string, nickname: string
         nickname,
         isAdmin,
         staffNicknameDisplayEligibility: false,
-        strategyLevel: 1,
-        strategyXp: 0,
-        playfulLevel: 1,
-        playfulXp: 0,
+        userLevel: 1,
+        userXp: 0,
         baseStats: createDefaultBaseStats(),
         spentStatPoints: createDefaultSpentStatPoints(),
         inventory: [...createDefaultInventory(), ...createPairPetLobbyDemoStarterItems()],
@@ -168,9 +183,9 @@ export const createDefaultUser = (id: string, username: string, nickname: string
         // dailyRankings.score는 1200 대비 델타 — 신규는 0 델타로 시즌 점수 1200과 동일
         dailyRankings: {
             strategic: { rank: 0, score: 0, lastUpdated: now },
-            playful: { rank: 0, score: 0, lastUpdated: now },
+            pair: { rank: 0, score: 0, lastUpdated: now },
         },
-        cumulativeRankingScore: { standard: 0, playful: 0 },
+        cumulativeRankingScore: { standard: 0, pair: 0 },
         tournamentScore: 0,
         league: LeagueTier.Sprout,
         // weeklyCompetitors 제거됨 - 던전 시스템으로 변경
@@ -185,6 +200,7 @@ export const createDefaultUser = (id: string, username: string, nickname: string
         isMbtiPublic: false,
         singlePlayerProgress: 0,
         bonusStatPoints: 0,
+        statAllocationResetForUserLevelStructureV1: true,
         singlePlayerMissions: {},
         onboardingTutorialPhase: isAdmin ? undefined : 0,
         onboardingTutorialPendingFirstHome: isAdmin ? undefined : false,

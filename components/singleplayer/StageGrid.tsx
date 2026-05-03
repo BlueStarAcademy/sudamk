@@ -104,11 +104,16 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
         [GameMode.Standard]: '클래식',
         [GameMode.Speed]: '스피드',
         [GameMode.Capture]: '따내기',
-        [GameMode.Survival]: '살리기',
         [GameMode.Hidden]: '히든',
         [GameMode.Missile]: '미사일',
         [GameMode.Base]: '베이스',
         [GameMode.Mix]: '믹스',
+        [GameMode.Dice]: '주사위',
+        [GameMode.Omok]: '오목',
+        [GameMode.Ttamok]: '따목',
+        [GameMode.Thief]: '도둑·경찰',
+        [GameMode.Alkkagi]: '알까기',
+        [GameMode.Curling]: '컬링',
     };
 
     // 스테이지 프리셋(명시/auto 추론) 기준으로 대기실 모드명을 표시

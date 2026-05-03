@@ -4,7 +4,6 @@ import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, NATIVE_MOBILE_MODAL_MAX_WIDTH_VW } from '../constants/ads.js';
 import NegotiationModal from './NegotiationModal.js';
-import ChallengeReceivedModal from './ChallengeReceivedModal.js';
 
 const InventoryModal = lazy(() => import('./InventoryModal.js'));
 const MailboxModal = lazy(() => import('./MailboxModal.js'));
@@ -51,7 +50,7 @@ const ModalLoadingFallback = () => null;
 const AppModalLayer: React.FC = () => {
     const { isNativeMobile } = useNativeMobileShell();
     const {
-        users,
+        allUsers,
         currentUserWithStatus,
         activeNegotiation,
         modals,
@@ -204,7 +203,7 @@ const AppModalLayer: React.FC = () => {
                 <Suspense fallback={ModalLoadingFallback()}>
                     <ExchangeModal
                         currentUser={currentUserWithStatus}
-                        allUsers={users}
+                        allUsers={allUsers}
                         onClose={handlers.closeExchange}
                         onAction={handlers.handleAction}
                         isTopmost={topmostModalId === 'exchange'}
@@ -328,57 +327,15 @@ const AppModalLayer: React.FC = () => {
                     isTopmost={topmostModalId === 'viewingItem'}
                 />
             )}
-            {activeNegotiation && (() => {
-                const isReceivedChallenge = activeNegotiation.status === 'pending' &&
-                    (activeNegotiation.opponent.id === currentUserWithStatus.id &&
-                        activeNegotiation.proposerId === activeNegotiation.opponent.id);
-                const isChallengerOwnsModal =
-                    activeNegotiation.challenger.id === currentUserWithStatus.id &&
-                    (activeNegotiation.status === 'draft' || activeNegotiation.status === 'pending');
-                if (isChallengerOwnsModal) return null;
-                if (isReceivedChallenge) {
-                    return (
-                        <ChallengeReceivedModal
-                            negotiation={activeNegotiation}
-                            currentUser={currentUserWithStatus}
-                            onAccept={(settings) => {
-                                handlers.handleAction({
-                                    type: 'ACCEPT_NEGOTIATION',
-                                    payload: { negotiationId: activeNegotiation.id, settings },
-                                });
-                            }}
-                            onDecline={() => {
-                                handlers.handleAction({
-                                    type: 'DECLINE_NEGOTIATION',
-                                    payload: { negotiationId: activeNegotiation.id },
-                                });
-                            }}
-                            onProposeModification={(settings) => {
-                                handlers.handleAction({
-                                    type: 'UPDATE_NEGOTIATION',
-                                    payload: { negotiationId: activeNegotiation.id, settings },
-                                });
-                            }}
-                            onClose={() => {
-                                handlers.handleAction({
-                                    type: 'DECLINE_NEGOTIATION',
-                                    payload: { negotiationId: activeNegotiation.id },
-                                });
-                            }}
-                            onAction={handlers.handleAction}
-                        />
-                    );
-                }
-                return (
-                    <NegotiationModal
-                        negotiation={activeNegotiation}
-                        currentUser={currentUserWithStatus}
-                        onAction={handlers.handleAction}
-                        onlineUsers={onlineUsers}
-                        isTopmost={topmostModalId === 'negotiation'}
-                    />
-                );
-            })()}
+            {activeNegotiation && currentUserWithStatus && (
+                <NegotiationModal
+                    negotiation={activeNegotiation}
+                    currentUser={currentUserWithStatus}
+                    onAction={handlers.handleAction}
+                    onlineUsers={onlineUsers}
+                    isTopmost={topmostModalId === 'negotiation'}
+                />
+            )}
             {modals.isMbtiInfoModalOpen && <MbtiInfoModal onClose={handlers.closeMbtiInfoModal} isTopmost={topmostModalId === 'mbtiInfo'} />}
             {modals.mutualDisconnectMessage && (
                 <div className="sudamr-modal-overlay z-[200]" role="dialog" aria-modal="true" aria-labelledby="mutual-disconnect-title">

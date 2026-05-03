@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import Button from '../Button.js';
 import PairPetGradeUpgradeModal from './PairPetGradeUpgradeModal.js';
-import PairPetDetailCardBody from './PairPetDetailCardBody.js';
+import PairPetDetailEmbedPanel from './PairPetDetailEmbedPanel.js';
 import type { InventoryItem, ServerAction, User } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
 import { resolvePairPetMetaFromInventoryRow } from '../../shared/utils/pairPetRoll.js';
@@ -14,10 +14,6 @@ import {
     pairPetMinLevelForNextGrade,
 } from '../../shared/constants/pairPetGrade.js';
 import { isPairSoulStoneItem } from '../../shared/constants/petLobby.js';
-
-/** `PairPetLobbyPanel` 정보 탭 본문 스크롤 — 가방과 동일한 얇은 스크롤바 */
-const PET_INFO_DETAIL_SCROLLBAR_CLASS =
-    '[scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.28)_transparent] [&::-webkit-scrollbar]:w-[2px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-500/40 hover:[&::-webkit-scrollbar-thumb]:bg-slate-400/55';
 
 export interface PairPetLobbyInfoPetViewerProps {
     currentUser: User;
@@ -87,14 +83,11 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
 
     return (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <div
-                className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-1.5 pb-1.5 pt-1.5 [-webkit-overflow-scrolling:touch] sm:px-2 sm:pb-2 sm:pt-2 ${PET_INFO_DETAIL_SCROLLBAR_CLASS}`}
-            >
-                <div className="min-w-0 rounded-lg border border-white/10 bg-black/20 p-1.5 ring-1 ring-white/[0.04] sm:p-2">
-                    <PairPetDetailCardBody
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-1.5 pb-1.5 pt-1.5 sm:px-2 sm:pb-2 sm:pt-2">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-black/20 p-1 ring-1 ring-white/[0.04] sm:p-1.5">
+                    <PairPetDetailEmbedPanel
                         currentUser={currentUser}
                         item={item}
-                        statsGridVariant="modal"
                         showRepresentativeBadge={isRepresentative}
                     />
                 </div>
@@ -120,27 +113,15 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                                 ? '수련 중인 펫은 대표펫으로 지정할 수 없습니다. 수련을 마친 뒤 지정해 주세요.'
                                 : undefined
                         }
-                        onClick={() => tid && void onSetRepresentative(tid, item.id)}
+                        onClick={() => {
+                            if (tid) void onSetRepresentative(tid, item.id);
+                        }}
                         colorScheme="none"
                         className="!min-w-0 !flex-1 !shrink !rounded-lg !border !border-cyan-400/50 !bg-cyan-950/55 !px-1 !py-2 !text-[0.7rem] !font-extrabold !leading-tight !text-cyan-50 sm:!rounded-xl sm:!px-2 sm:!text-xs"
                     >
                         대표펫
                     </Button>
                 )}
-                <Button
-                    type="button"
-                    disabled={isBusy || isRepresentative}
-                    title={
-                        isRepresentative
-                            ? '대표펫으로 장착 중인 펫은 영혼변환할 수 없습니다. 대표펫 해제 후 이용하세요.'
-                            : undefined
-                    }
-                    onClick={() => void onSoulConvert(item)}
-                    colorScheme="none"
-                    className="!min-w-0 !flex-1 !shrink !rounded-lg !border !border-violet-400/50 !bg-violet-950/50 !px-1 !py-2 !text-[0.7rem] !font-extrabold !leading-tight !text-violet-50 sm:!rounded-xl sm:!px-2 sm:!text-xs"
-                >
-                    영혼변환
-                </Button>
                 <Button
                     type="button"
                     disabled={isBusy || !canGradeUpgrade}
@@ -156,6 +137,20 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                     className="!min-w-0 !flex-1 !shrink !rounded-lg !border !border-amber-400/55 !bg-amber-950/45 !px-1 !py-2 !text-[0.7rem] !font-extrabold !leading-tight !text-amber-50 disabled:!opacity-45 sm:!rounded-xl sm:!px-2 sm:!text-xs"
                 >
                     등급 강화
+                </Button>
+                <Button
+                    type="button"
+                    disabled={isBusy || isRepresentative}
+                    title={
+                        isRepresentative
+                            ? '대표펫으로 장착 중인 펫은 영혼변환할 수 없습니다. 대표펫 해제 후 이용하세요.'
+                            : undefined
+                    }
+                    onClick={() => void onSoulConvert(item)}
+                    colorScheme="none"
+                    className="!min-w-0 !flex-1 !shrink !rounded-lg !border !border-rose-500/55 !bg-gradient-to-b !from-rose-700/90 !to-rose-950/95 !px-1 !py-2 !text-[0.7rem] !font-extrabold !leading-tight !text-rose-50 !shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_12px_rgba(244,63,94,0.2)] hover:!border-rose-400/65 hover:!from-rose-600/95 hover:!to-rose-950 disabled:!opacity-45 sm:!rounded-xl sm:!px-2 sm:!text-xs"
+                >
+                    영혼변환
                 </Button>
             </div>
 

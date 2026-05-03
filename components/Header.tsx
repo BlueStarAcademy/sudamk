@@ -79,6 +79,16 @@ const getVipHeaderLabel = (user: UserWithStatus): '보상VIP' | '기능VIP' | 'V
     return null;
 };
 
+const getActiveDiamondPackageRoman = (user: UserWithStatus): 'I' | 'II' | 'III' | null => {
+    const now = Date.now();
+    if ((user.diamondPackageExpiresAt ?? 0) <= now) return null;
+    const t = user.activeDiamondPackageTier;
+    if (t === 1) return 'I';
+    if (t === 2) return 'II';
+    if (t === 3) return 'III';
+    return null;
+};
+
 const ResourceDisplay = memo<{
     icon: ResourceIconKey;
     value: number;
@@ -86,13 +96,20 @@ const ResourceDisplay = memo<{
     dense?: boolean;
     /** 모바일 헤더: 가로를 채우며 숫자만 clamp로 반응형 */
     fluid?: boolean;
-}>(({ icon, value, className, dense, fluid }) => {
+    /** fluid일 때 내용 너비만 쓰고 늘리지 않음 (헤더 우측 정렬 등) */
+    fluidShrinkToFit?: boolean;
+}>(({ icon, value, className, dense, fluid, fluidShrinkToFit }) => {
     const formattedValue = useMemo(() => value.toLocaleString(), [value]);
-    const shell = fluid
-        ? 'min-w-0 flex-1'
-        : 'flex-shrink-0';
+    const shell =
+        fluid && !fluidShrinkToFit
+            ? 'min-w-0 flex-1'
+            : fluid
+              ? 'min-w-0 w-max max-w-full shrink-0'
+              : 'flex-shrink-0';
     const valueClass = fluid
-        ? HEADER_RESOURCE_VALUE_CLASS.fluid
+        ? fluidShrinkToFit
+            ? 'min-w-0 tabular-nums leading-none tracking-tight text-[clamp(0.5rem,calc(0.1rem+2.5vw),0.95rem)]'
+            : HEADER_RESOURCE_VALUE_CLASS.fluid
         : dense
           ? HEADER_RESOURCE_VALUE_CLASS.dense
           : HEADER_RESOURCE_VALUE_CLASS.pc;
@@ -342,7 +359,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
     if (!currentUserWithStatus) return null;
 
     const { handleLogout, openProfileEditModal, openMailbox, openSettingsModal, handleAction } = handlers;
-    const { actionPoints, gold, diamonds, guildCoins, isAdmin, avatarId, borderId, mbti, strategyLevel, playfulLevel, guildId } = currentUserWithStatus;
+    const { actionPoints, gold, diamonds, guildCoins, isAdmin, avatarId, borderId, mbti, userLevel, guildId } = currentUserWithStatus;
     const guildWarTickets = useGuildWarTicketsRemaining(guildId, handleAction);
     const todayKstBoss = getTodayKSTDateString();
     const guildBossUsedToday =
@@ -350,8 +367,12 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
             ? (currentUserWithStatus.guildBossAttemptsUsedToday ?? 0)
             : 0;
     const guildBossRemaining = guildId ? Math.max(0, GUILD_BOSS_MAX_ATTEMPTS - guildBossUsedToday) : 0;
-    const combinedUserLevel = (Number(strategyLevel) || 0) + (Number(playfulLevel) || 0);
+    const combinedUserLevel = (() => {
+        const n = Number(userLevel);
+        return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
+    })();
     const vipHeaderLabel = getVipHeaderLabel(currentUserWithStatus);
+    const diamondPackageRoman = getActiveDiamondPackageRoman(currentUserWithStatus);
 
     // actionPoints가 없으면 기본값 사용
     const safeActionPoints = actionPoints || { current: 0, max: 30 };
@@ -452,9 +473,19 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                           : 'min-h-[clamp(3.5rem,calc(2.85rem+2vw),4.85rem)] flex-wrap gap-2 p-2.5 sm:flex-nowrap sm:gap-3 sm:p-3'
                 }`}
             >
-                {isMobile && vipHeaderLabel && (
-                    <div className="mr-auto shrink-0 rounded-full border border-amber-300/50 bg-gradient-to-r from-amber-500/35 to-yellow-300/20 px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-amber-100 shadow-[0_8px_20px_-14px_rgba(251,191,36,0.85)]">
-                        {vipHeaderLabel}
+                {isMobile && (vipHeaderLabel || diamondPackageRoman) && (
+                    <div className="mr-auto flex shrink-0 flex-wrap items-center gap-1">
+                        {vipHeaderLabel ? (
+                            <div className="shrink-0 rounded-full border border-amber-300/50 bg-gradient-to-r from-amber-500/35 to-yellow-300/20 px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-amber-100 shadow-[0_8px_20px_-14px_rgba(251,191,36,0.85)]">
+                                {vipHeaderLabel}
+                            </div>
+                        ) : null}
+                        {diamondPackageRoman ? (
+                            <div className="flex shrink-0 items-center gap-0.5 rounded-full border border-cyan-400/45 bg-gradient-to-r from-cyan-600/35 to-sky-500/25 px-1.5 py-0.5 text-[10px] font-extrabold tabular-nums tracking-wide text-cyan-100 shadow-[0_8px_20px_-14px_rgba(34,211,238,0.55)]">
+                                <img src="/images/icon/Zem.png" alt="" className="h-3 w-3 shrink-0 object-contain" />
+                                <span>{diamondPackageRoman}</span>
+                            </div>
+                        ) : null}
                     </div>
                 )}
                 {!isMobile && (
@@ -462,12 +493,29 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                     className={`flex min-w-0 flex-shrink-0 cursor-pointer items-center gap-2 sm:gap-3 ${dense ? 'max-w-[min(48%,14rem)]' : ''} relative`}
                     onClick={openProfileEditModal}
                 >
-                     {vipHeaderLabel && (
-                        <span className="absolute -left-1 -top-2 rounded-full border border-amber-300/50 bg-gradient-to-r from-amber-500/40 to-yellow-300/20 px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-amber-100 shadow-[0_8px_20px_-14px_rgba(251,191,36,0.85)]">
-                            {vipHeaderLabel}
-                        </span>
+                     {(vipHeaderLabel || diamondPackageRoman) && (
+                        <div className="absolute -left-1 -top-2 z-20 flex flex-wrap items-center gap-1">
+                            {vipHeaderLabel ? (
+                                <span className="rounded-full border border-amber-300/50 bg-gradient-to-r from-amber-500/40 to-yellow-300/20 px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-amber-100 shadow-[0_8px_20px_-14px_rgba(251,191,36,0.85)]">
+                                    {vipHeaderLabel}
+                                </span>
+                            ) : null}
+                            {diamondPackageRoman ? (
+                                <span className="flex items-center gap-0.5 rounded-full border border-cyan-400/45 bg-gradient-to-r from-cyan-600/40 to-sky-500/25 px-1.5 py-0.5 text-[10px] font-extrabold tabular-nums tracking-wide text-cyan-100 shadow-[0_8px_20px_-14px_rgba(34,211,238,0.55)]">
+                                    <img src="/images/icon/Zem.png" alt="" className="h-3.5 w-3.5 shrink-0 object-contain" />
+                                    {diamondPackageRoman}
+                                </span>
+                            ) : null}
+                        </div>
                      )}
-                     <Avatar userId={currentUserWithStatus.id} userName={currentUserWithStatus.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 36 : compact ? 32 : 40} />
+                     <Avatar
+                        userId={currentUserWithStatus.id}
+                        userName={currentUserWithStatus.nickname}
+                        avatarUrl={avatarUrl}
+                        borderUrl={borderUrl}
+                        size={dense ? 36 : compact ? 32 : 40}
+                        className="z-0"
+                    />
                      <p
                         className={`shrink-0 whitespace-nowrap font-extrabold tabular-nums tracking-tight text-amber-200 drop-shadow-[0_0_10px_rgba(251,191,36,0.35)] ${
                             dense ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
@@ -481,7 +529,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         {currentUserWithStatus.nickname}
                      </h1>
                      {!mbti && (
-                        <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500" aria-hidden />
+                        <span className="absolute top-0 right-0 z-20 h-2 w-2 rounded-full bg-red-500" aria-hidden />
                      )}
                 </div>
                 )}
@@ -573,13 +621,14 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         ref={specialResourcesRef}
                     >
                         {isMobile ? (
-                            <div className="flex min-w-0 w-full max-w-full items-center gap-[clamp(0.1rem,0.8vw,0.24rem)]">
-                                <div className="min-w-0 flex-1 overflow-hidden">
+                            <div className="flex min-w-0 w-full max-w-full items-center justify-end gap-[clamp(0.1rem,0.8vw,0.24rem)]">
+                                <div className="min-w-0 shrink-0 overflow-hidden">
                                     <ResourceDisplay
                                         icon="gold"
                                         value={safeGold}
                                         dense={dense}
                                         fluid
+                                        fluidShrinkToFit
                                         className="h-[clamp(1.45rem,4.8vw,1.85rem)]"
                                     />
                                 </div>
@@ -685,9 +734,14 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         />
                         {unreadMailCount > 0 && (
                             <span
-                                className={`absolute rounded-full border-2 border-primary bg-red-500 ${
-                                    isMobile ? 'right-0 top-0 h-[clamp(0.36rem,1.45vw,0.5rem)] w-[clamp(0.36rem,1.45vw,0.5rem)]' : dense ? 'top-0 right-0 h-1.5 w-1.5' : 'top-1 right-1 h-2.5 w-2.5'
+                                className={`pointer-events-none absolute z-[1] rounded-full border-2 border-primary bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.95),0_0_3px_rgba(0,0,0,0.65)] ring-2 ring-zinc-950/85 ${
+                                    isMobile
+                                        ? 'right-0 top-0 h-[clamp(0.55rem,2.6vw,0.7rem)] w-[clamp(0.55rem,2.6vw,0.7rem)] min-h-[10px] min-w-[10px]'
+                                        : dense
+                                          ? 'right-0 top-0 h-3 w-3'
+                                          : 'right-0.5 top-0.5 h-3.5 w-3.5 sm:right-1 sm:top-1 sm:h-4 sm:w-4'
                                 }`}
+                                aria-hidden
                             />
                         )}
                     </button>

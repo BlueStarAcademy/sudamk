@@ -82,11 +82,8 @@ const LevelUpCelebrationModal: React.FC<LevelUpCelebrationModalProps> = ({ user,
 
     const unlockLines = useMemo(
         () =>
-            getLevelUpFeatureUnlockLines(payload, {
-                strategyLevel: user.strategyLevel,
-                playfulLevel: user.playfulLevel,
-            }),
-        [payload, user.strategyLevel, user.playfulLevel],
+            getLevelUpFeatureUnlockLines(payload, { userLevel: user.userLevel }),
+        [payload, user.userLevel],
     );
     const hasFeatureUnlocks = unlockLines.strategy.length > 0 || unlockLines.combined.length > 0;
 
@@ -167,11 +164,11 @@ const LevelUpCelebrationModal: React.FC<LevelUpCelebrationModalProps> = ({ user,
                         <div className="flex flex-col gap-3">
                             {payload.strategy && (
                                 <BranchCard
-                                    title="전략 바둑"
-                                    subtitle="Strategy"
+                                    title="유저 레벨"
+                                    subtitle="Account"
                                     from={payload.strategy.from}
                                     to={payload.strategy.to}
-                                    currentXp={user.strategyXp ?? 0}
+                                    currentXp={user.userXp ?? 0}
                                     glowClass="bg-emerald-400/40"
                                     levelToClass="text-emerald-200"
                                     panelClass="border-emerald-500/30 from-emerald-950/80 via-[#0a1210] to-black/80 ring-emerald-400/15"
@@ -184,7 +181,7 @@ const LevelUpCelebrationModal: React.FC<LevelUpCelebrationModalProps> = ({ user,
                                     subtitle="Play"
                                     from={payload.playful.from}
                                     to={payload.playful.to}
-                                    currentXp={user.playfulXp ?? 0}
+                                    currentXp={user.userXp ?? 0}
                                     glowClass="bg-sky-400/35"
                                     levelToClass="text-sky-200"
                                     panelClass="border-sky-500/35 from-indigo-950/85 via-[#0c101c] to-black/80 ring-sky-400/15"
@@ -202,7 +199,7 @@ const LevelUpCelebrationModal: React.FC<LevelUpCelebrationModalProps> = ({ user,
                                     {unlockLines.strategy.length > 0 && (
                                         <div>
                                             <p className="mb-1.5 text-[0.65rem] font-bold uppercase tracking-wide text-emerald-200/75">
-                                                전략 바둑 레벨
+                                                유저 레벨
                                             </p>
                                             <ul className="space-y-1.5">
                                                 {unlockLines.strategy.map((line, i) => (

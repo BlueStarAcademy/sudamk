@@ -1370,7 +1370,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
 
         if (!item.isEquipped) {
             const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
-            const userLevelSum = currentUser.strategyLevel + currentUser.playfulLevel;
+            const userLevelSum = currentUser.userLevel;
             if (userLevelSum < requiredLevel) {
                 alert(`착용 레벨 합이 부족합니다. (필요: ${requiredLevel}, 현재: ${userLevelSum})`);
                 return;
@@ -1510,9 +1510,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     const canEquip = useMemo(() => {
         if (!selectedItem || selectedItem.type !== 'equipment') return false;
         const requiredLevel = GRADE_LEVEL_REQUIREMENTS[selectedItem.grade];
-        const userLevelSum = currentUser.strategyLevel + currentUser.playfulLevel;
+        const userLevelSum = currentUser.userLevel;
         return userLevelSum >= requiredLevel;
-    }, [selectedItem, currentUser.strategyLevel, currentUser.playfulLevel]);
+    }, [selectedItem, currentUser.userLevel]);
 
     /** 장비 교체 시 6종 바둑 능력치 변화 (비교 모달용) */
     const equipSwapStatPreview = useMemo(() => {
@@ -1640,11 +1640,11 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                 const finalValue = computeCoreStatFinalFromBonuses(baseValue, flatBonus, percentBonus);
                                                 const bonus = finalValue - baseValue;
                                                 return (
-                                                    <div key={stat} className="flex items-center justify-between rounded-md bg-tertiary/40 p-1" style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                    <div key={stat} className="flex items-center justify-between rounded-md bg-tertiary/40 p-1" style={{ fontSize: `${Math.max(13, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
                                                         <span className="whitespace-nowrap font-semibold text-secondary">{stat}</span>
                                                         <span className="whitespace-nowrap font-mono font-bold" title={`기본: ${baseValue}, 장비: ${bonus}`}>
                                                             {isNaN(finalValue) ? 0 : finalValue}
-                                                            {bonus > 0 && <span className="ml-0.5 text-green-400" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>(+{bonus})</span>}
+                                                            {bonus > 0 && <span className="ml-0.5 text-green-400" style={{ fontSize: `${Math.max(11, Math.round(12.5 * scaleFactor * mobileTextScale))}px` }}>(+{bonus})</span>}
                                                         </span>
                                                     </div>
                                                 );
@@ -1654,8 +1654,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                             <select
                                                 value={selectedPreset}
                                                 onChange={(e) => handlePresetChange(Number(e.target.value))}
-                                                className="flex-grow rounded-md border border-color bg-secondary p-1 focus:border-accent focus:ring-accent"
-                                                style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
+                                                className="flex-grow rounded-md border border-color bg-secondary p-1.5 focus:border-accent focus:ring-accent"
+                                                style={{ fontSize: `${Math.max(13, Math.round(14 * scaleFactor * mobileTextScale))}px` }}
                                             >
                                                 {presets.map((preset, index) => (
                                                     <option key={index} value={index}>
@@ -1663,7 +1663,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                     </option>
                                                 ))}
                                             </select>
-                                            <Button onClick={handleOpenRenameModal} colorScheme="blue" className={`!py-1 ${viewerActionButtonClass.info}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                            <Button onClick={handleOpenRenameModal} colorScheme="blue" className={`!py-1 ${viewerActionButtonClass.info}`} style={{ fontSize: `${Math.max(13, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
                                                 저장
                                             </Button>
                                         </div>
@@ -1708,7 +1708,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                 comparisonItem={undefined}
                                                 scaleFactor={scaleFactor}
                                                 mobileTextScale={detailTextScale}
-                                                userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel}
+                                                userLevelSum={currentUser.userLevel}
                                                 emptySlot={selectedItem?.slot}
                                                 expandOptionsToFill
                                             />
@@ -1929,7 +1929,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                             comparisonItem={undefined}
                                             scaleFactor={scaleFactor}
                                             mobileTextScale={detailTextScale}
-                                            userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel}
+                                            userLevelSum={currentUser.userLevel}
                                             expandOptionsToFill
                                         />
                                     ) : (
@@ -2175,18 +2175,18 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                     <Button onClick={() => setActiveTab('material')} colorScheme={activeTab === 'material' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'material')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>재료</Button>
                                 </div>
                                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 border-t border-gray-700/50 pt-2">
-                                    <span className="shrink-0" style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>정렬:</span>
+                                    <span className="shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>정렬:</span>
                                     <select
                                         onChange={(e) => setSortKey(e.target.value as SortKey)}
                                         value={sortKey}
                                         className="min-w-0 flex-1 rounded-md bg-gray-700 p-1.5 text-white sm:max-w-[14rem]"
-                                        style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
+                                        style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}
                                     >
                                         <option value="createdAt">최신순</option>
                                         <option value="grade">등급순</option>
                                         <option value="type">종류순</option>
                                     </select>
-                                    <div className="ml-auto shrink-0 text-gray-400" style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                    <div className="ml-auto shrink-0 text-gray-400" style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
                                         {`${filteredAndSortedInventory.length} / ${currentSlots}`}
                                     </div>
                                 </div>
@@ -2200,13 +2200,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                     <Button onClick={() => setActiveTab('material')} colorScheme={activeTab === 'material' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'material')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>재료</Button>
                                 </div>
                                 <div className={`flex items-center space-x-2`}>
-                                    <span style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>정렬:</span>
-                                    <select onChange={(e) => setSortKey(e.target.value as SortKey)} value={sortKey} className={`bg-gray-700 text-white rounded-md p-1`} style={{ fontSize: `${Math.max(9, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
+                                    <span style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>정렬:</span>
+                                    <select onChange={(e) => setSortKey(e.target.value as SortKey)} value={sortKey} className={`rounded-md bg-gray-700 p-1.5 text-white`} style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
                                         <option value="createdAt">최신순</option>
                                         <option value="grade">등급순</option>
                                         <option value="type">종류순</option>
                                     </select>
-                                    <div className="text-gray-400" style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                    <div className="text-gray-400" style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
                                         {`${filteredAndSortedInventory.length} / ${currentSlots}`}
                                     </div>
                                 </div>
@@ -2351,8 +2351,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                     const percentBonus = Number(bonusInfo.percent) || 0;
                                     const finalValue = computeCoreStatFinalFromBonuses(baseValue, flatBonus, percentBonus);
                                     const bonus = finalValue - baseValue;
-                                    const eqStatFs = Math.max(13, Math.round(14.5 * mobileEquippedLayoutScale * mobileTextScale));
-                                    const eqBonusFs = Math.max(11, Math.round(12.5 * mobileEquippedLayoutScale * mobileTextScale));
+                                    const eqStatFs = Math.max(14, Math.round(16 * mobileEquippedLayoutScale * mobileTextScale));
+                                    const eqBonusFs = Math.max(12, Math.round(14 * mobileEquippedLayoutScale * mobileTextScale));
                                     return (
                                         <div
                                             key={stat}
@@ -2377,7 +2377,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                     value={selectedPreset}
                                     onChange={(e) => handlePresetChange(Number(e.target.value))}
                                     className="min-w-0 flex-1 rounded-md border border-color bg-secondary py-1.5 pl-2 pr-1 focus:border-accent focus:ring-accent"
-                                    style={{ fontSize: `${Math.max(13, Math.round(14 * mobileEquippedLayoutScale * mobileTextScale))}px` }}
+                                    style={{ fontSize: `${Math.max(14, Math.round(15.5 * mobileEquippedLayoutScale * mobileTextScale))}px` }}
                                 >
                                     {presets.map((preset, index) => (
                                         <option key={index} value={index}>
@@ -2385,7 +2385,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         </option>
                                     ))}
                                 </select>
-                                <Button onClick={handleOpenRenameModal} colorScheme="blue" className={`!shrink-0 !py-1.5 !px-2 ${viewerActionButtonClass.info}`} style={{ fontSize: `${Math.max(12, Math.round(13.5 * mobileEquippedLayoutScale * mobileTextScale))}px` }}>
+                                <Button onClick={handleOpenRenameModal} colorScheme="blue" className={`!shrink-0 !py-1.5 !px-2 ${viewerActionButtonClass.info}`} style={{ fontSize: `${Math.max(13, Math.round(15 * mobileEquippedLayoutScale * mobileTextScale))}px` }}>
                                     저장
                                 </Button>
                             </div>
@@ -2439,7 +2439,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         comparisonItem={undefined}
                                         scaleFactor={Math.max(0.35, scaleFactor * MOBILE_EQUIPMENT_DETAIL_LAYOUT_SCALE * 1.15)}
                                         mobileTextScale={mobileTextScale}
-                                        userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel}
+                                        userLevelSum={currentUser.userLevel}
                                         detailScaleMultiplier={0.88}
                                         expandOptionsToFill={false}
                                     />
@@ -2841,7 +2841,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                 comparisonItem={selectedItem}
                                                 scaleFactor={Math.max(0.42, scaleFactor * 0.92)}
                                                 mobileTextScale={compareModalTextScale}
-                                                userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel}
+                                                userLevelSum={currentUser.userLevel}
                                                 emptySlot={selectedItem.slot}
                                                 detailScaleMultiplier={0.92}
                                                 expandOptionsToFill
@@ -2862,7 +2862,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                 comparisonItem={correspondingEquippedItem ?? undefined}
                                                 scaleFactor={Math.max(0.42, scaleFactor * 0.92)}
                                                 mobileTextScale={compareModalTextScale}
-                                                userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel}
+                                                userLevelSum={currentUser.userLevel}
                                                 detailScaleMultiplier={0.92}
                                                 expandOptionsToFill
                                             />
@@ -2874,7 +2874,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                 <div className={`min-h-0 flex-[0.85_1_0%] overflow-y-auto rounded-lg border border-amber-400/30 bg-gradient-to-br from-amber-950/40 via-gray-900/90 to-gray-950/95 p-1.5 shadow-inner ${BAG_SCROLLBAR_Y_CLASS}`}>
                                     <h4
                                         className="mb-0.5 font-bold text-amber-100/95 leading-tight"
-                                        style={{ fontSize: `${Math.max(13, Math.round(14 * scaleFactor * compareModalTextScale))}px` }}
+                                        style={{ fontSize: `${Math.max(14, Math.round(15 * scaleFactor * compareModalTextScale))}px` }}
                                     >
                                         교체 시 바둑 능력치 변화
                                     </h4>
@@ -2896,7 +2896,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                         className={`flex items-center justify-center font-mono tabular-nums leading-none text-stone-100 ${
                                                             narrowInventoryLayout ? 'gap-1.5' : 'gap-3'
                                                         }`}
-                                                        style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * compareModalTextScale))}px` }}
+                                                        style={{ fontSize: `${Math.max(13, Math.round(14 * scaleFactor * compareModalTextScale))}px` }}
                                                     >
                                                         <span className={`${narrowInventoryLayout ? 'w-[4.6rem]' : 'w-[6.2rem]'} shrink-0 text-right font-semibold text-stone-300 whitespace-nowrap`}>{stat}</span>
                                                         <span className={`${narrowInventoryLayout ? 'w-[5.8rem]' : 'w-[7.6rem]'} shrink-0 whitespace-nowrap text-center`}>
@@ -2917,7 +2917,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                     </div>
                                     <div
                                         className="mt-1 flex items-center justify-center gap-1.5 border-t border-amber-500/20 pt-0.5 font-bold text-stone-100"
-                                        style={{ fontSize: `${Math.max(13, Math.round(14 * scaleFactor * compareModalTextScale))}px` }}
+                                        style={{ fontSize: `${Math.max(14, Math.round(15 * scaleFactor * compareModalTextScale))}px` }}
                                     >
                                         <span className={`${narrowInventoryLayout ? 'w-[4.6rem]' : 'w-[6.2rem]'} shrink-0 text-right text-amber-200/90 whitespace-nowrap`}>종합 능력</span>
                                         <span className={`${narrowInventoryLayout ? 'w-[5.8rem]' : 'w-[7.6rem]'} shrink-0 text-center font-mono tabular-nums whitespace-nowrap`}>

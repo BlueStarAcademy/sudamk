@@ -171,9 +171,9 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             return {
                 gold: rewards.gold || 0,
                 xp: {
-                    initial: currentUser.strategyXp,
+                    initial: currentUser.userXp,
                     change: rewards.exp || 0,
-                    final: currentUser.strategyXp + (rewards.exp || 0)
+                    final: currentUser.userXp + (rewards.exp || 0)
                 },
                 items: rewards.items ? rewards.items.map((item: any) => ({
                     id: `temp-${item.itemId}-${Date.now()}`,
@@ -199,9 +199,9 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                 return {
                     gold: failureRewards.gold,
                     xp: {
-                        initial: currentUser.strategyXp,
+                        initial: currentUser.userXp,
                         change: failureRewards.exp,
-                        final: currentUser.strategyXp + failureRewards.exp
+                        final: currentUser.userXp + failureRewards.exp
                     },
                     items: []
                 };
@@ -339,8 +339,8 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             (displaySummary.xp?.change ?? 0) > 0 ||
             (Array.isArray(displaySummary.items) && displaySummary.items.length > 0));
 
-    const xpRequirement = getXpRequirementForLevel(Math.max(1, currentUser.strategyLevel));
-    const clampedXp = Math.min(currentUser.strategyXp, xpRequirement);
+    const xpRequirement = getXpRequirementForLevel(Math.max(1, currentUser.userLevel));
+    const clampedXp = Math.min(currentUser.userXp, xpRequirement);
     const xpChange = displaySummary?.xp?.change ?? 0;
     const previousXp = Math.max(0, clampedXp - xpChange);
     const previousXpPercent = Math.min(100, (previousXp / (xpRequirement || 1)) * 100);
@@ -591,7 +591,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                                 {currentUser.nickname}
                                             </p>
                                             <p className="text-amber-200/60" style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px` }}>
-                                                전략 Lv.{currentUser.strategyLevel}
+                                                전략 Lv.{currentUser.userLevel}
                                             </p>
                                         </div>
                                     </div>
@@ -688,7 +688,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                             {currentUser.nickname}
                                         </p>
                                         <p className="text-amber-200/60" style={{ fontSize: '13px' }}>
-                                            전략 Lv.{currentUser.strategyLevel}
+                                            전략 Lv.{currentUser.userLevel}
                                         </p>
                                     </div>
                                 </div>

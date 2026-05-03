@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, EQUIPMENT_POOL } from '../../constants.js';
+import { VIP_PLAY_REWARD_SLOT_PREVIEW_IMAGE } from '../../shared/constants/vipPlayReward.js';
 import { RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS } from './ResultModalRewardSlot.js';
 
 export type VipPlayRewardSlotState = {
@@ -34,6 +35,42 @@ export const ResultModalVipRewardSlot: React.FC<{
     const imgCls = compact
         ? 'h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 object-contain p-0.5 sm:h-9 sm:w-9'
         : 'h-11 w-11 object-contain p-1 min-[1024px]:h-12 min-[1024px]:w-12';
+
+    const g = slot.grantedItem;
+    const fallbackVipImg = useMemo(() => {
+        const raw = VIP_PLAY_REWARD_SLOT_PREVIEW_IMAGE;
+        return raw.startsWith('/') ? raw : `/${raw}`;
+    }, []);
+
+    const resolvedImg = useMemo(() => {
+        if (!g) return null;
+        return resolveGrantedImage(g.name, g.image);
+    }, [g?.name, g?.image, g?.quantity]);
+
+    /** 이름 매핑 실패 시에도 아이콘이 보이도록 */
+    const staticDisplaySrc = useMemo(() => resolvedImg ?? (g ? fallbackVipImg : null), [resolvedImg, g, fallbackVipImg]);
+
+    const roulettePool = useMemo(() => {
+        const fromConsumables = CONSUMABLE_ITEMS
+            .map((c) => normalizeRewardImagePath(c.image))
+            .filter((v): v is string => !!v)
+            .filter((v) => /box|gold|ticket|material|item/i.test(v))
+            .slice(0, 8);
+        const base = [staticDisplaySrc, ...fromConsumables, fallbackVipImg, '/images/icon/Gold.png'].filter((v): v is string => !!v);
+        return Array.from(new Set(base));
+    }, [staticDisplaySrc, fallbackVipImg]);
+
+    const [rouletteIdx, setRouletteIdx] = useState(0);
+
+    useEffect(() => {
+        if (!rouletteActive || roulettePool.length <= 1) return;
+        const t = setInterval(() => setRouletteIdx((prev) => (prev + 1) % roulettePool.length), 90);
+        return () => clearInterval(t);
+    }, [rouletteActive, roulettePool]);
+
+    const spinSrc =
+        rouletteActive && roulettePool.length > 0 ? roulettePool[rouletteIdx % roulettePool.length] : staticDisplaySrc;
+    const imgSrc = g ? (spinSrc ?? fallbackVipImg) : null;
 
     if (slot.locked) {
         return (
@@ -73,27 +110,6 @@ export const ResultModalVipRewardSlot: React.FC<{
         );
     }
 
-    const g = slot.grantedItem;
-    const img = g ? resolveGrantedImage(g.name, g.image) : null;
-    const roulettePool = useMemo(() => {
-        const fromConsumables = CONSUMABLE_ITEMS
-            .map((c) => normalizeRewardImagePath(c.image))
-            .filter((v): v is string => !!v)
-            .filter((v) => /box|gold|ticket|material|item/i.test(v))
-            .slice(0, 8);
-        const base = [img, ...fromConsumables, '/images/icon/Gold.png'].filter((v): v is string => !!v);
-        return Array.from(new Set(base));
-    }, [img]);
-    const [rouletteIdx, setRouletteIdx] = useState(0);
-
-    useEffect(() => {
-        if (!rouletteActive || roulettePool.length <= 1) return;
-        const t = setInterval(() => setRouletteIdx((prev) => (prev + 1) % roulettePool.length), 90);
-        return () => clearInterval(t);
-    }, [rouletteActive, roulettePool]);
-
-    const rouletteImg = rouletteActive && roulettePool.length > 0 ? roulettePool[rouletteIdx] : img;
-
     return (
         <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''}`}>
             <div
@@ -106,14 +122,12 @@ export const ResultModalVipRewardSlot: React.FC<{
                             'radial-gradient(circle at 25% 15%, rgba(250,232,255,0.5), transparent 40%), radial-gradient(circle at 90% 80%, rgba(52,211,153,0.25), transparent 45%)',
                     }}
                 />
-                {g && rouletteImg ? (
+                {g && imgSrc ? (
                     <div className="relative z-[1] flex flex-col items-center">
-                        <img src={rouletteImg} alt="" className={`${imgCls} drop-shadow-[0_0_8px_rgba(250,232,255,0.35)]`} />
+                        <img src={imgSrc} alt="" className={`${imgCls} drop-shadow-[0_0_8px_rgba(250,232,255,0.35)]`} />
                     </div>
                 ) : (
-                    <div className="relative z-[1] flex flex-col items-center justify-center gap-0.5 px-1 text-center">
-                        <span className="text-[0.58rem] font-bold text-fuchsia-100/90 sm:text-[0.62rem]">승리 시 획득</span>
-                    </div>
+                    <div className="relative z-[1] flex flex-col items-center justify-center px-1 text-center" aria-hidden />
                 )}
             </div>
             {g ? (

@@ -2,6 +2,7 @@ import React from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import { RANKING_TIERS, SEASONAL_TIER_REWARDS, CONSUMABLE_ITEMS } from '../constants';
 import { QuestReward } from '../types.js';
+import { RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScrollbar.js';
 
 interface TierInfoModalProps {
     onClose: () => void;
@@ -76,7 +77,7 @@ const TierInfoModal: React.FC<TierInfoModalProps> = ({ onClose }) => {
                     </p>
                 </div>
 
-                <ul className="space-y-2 max-h-[40vh] overflow-y-auto pr-2">
+                <ul className={`space-y-2 max-h-[40vh] overflow-y-auto pr-2 ${RANKING_MODAL_SLIM_SCROLL_Y}`}>
                     {RANKING_TIERS.map(tier => (
                         <li key={tier.name} className="p-3 bg-gray-900/50 rounded-lg">
                             <div className="flex items-center">

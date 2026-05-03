@@ -168,8 +168,8 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             const aiUser = {
                 ...getAiUser(gameMode),
                 nickname: botNickname,
-                strategyLevel: botLevel,
-                playfulLevel: botLevel,
+                userLevel: botLevel,
+                userXp: 0,
             };
 
             const { board, blackPattern, whitePattern } = generateTowerBoard(stage, floor);

@@ -1050,15 +1050,8 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 (game as any).aiInitialHiddenStone.y === y &&
                 !game.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
 
-            let moveIndexAtTarget = -1;
-            const moveHistoryForIndex = game.moveHistory || [];
-            for (let i = moveHistoryForIndex.length - 1; i >= 0; i--) {
-                const m = moveHistoryForIndex[i];
-                if (m.x === x && m.y === y) {
-                    moveIndexAtTarget = i;
-                    break;
-                }
-            }
+            // 클라 Game.tsx findLatestMoveIndexAt와 동일: 같은 좌표 재착수 시 상대의 최근 수만 히든 판별에 사용
+            const moveIndexAtTarget = findLatestMoveIndexAt(game.moveHistory, x, y, opponentPlayerEnum);
             const isTargetHiddenOpponentStone =
                 (stoneAtTarget === opponentPlayerEnum &&
                     moveIndexAtTarget !== -1 &&

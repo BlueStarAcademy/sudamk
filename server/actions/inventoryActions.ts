@@ -1008,10 +1008,10 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             }
             
             const requiredLevel = GRADE_LEVEL_REQUIREMENTS[itemToToggle.grade];
-            const userLevelSum = user.strategyLevel + user.playfulLevel;
+            const userLevelSum = user.userLevel;
 
             if (!itemToToggle.isEquipped && userLevelSum < requiredLevel) {
-                 return { error: `착용 레벨 합이 부족합니다. (필요: ${requiredLevel}, 현재: ${userLevelSum})` };
+                 return { error: `착용 레벨이 부족합니다. (필요: ${requiredLevel}, 현재: ${userLevelSum})` };
             }
 
             if (itemToToggle.isEquipped) {
@@ -1324,7 +1324,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             if (item.stars >= 10) return { error: '최대 강화 레벨입니다.' };
 
             const targetStars = item.stars + 1;
-            const userLevelSum = user.strategyLevel + user.playfulLevel;
+            const userLevelSum = user.userLevel;
             const enhancementLevelRequirements: Record<number, number> = {
                 4: 3,
                 7: 8,
@@ -1332,7 +1332,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             };
 
             if (enhancementLevelRequirements[targetStars] && userLevelSum < enhancementLevelRequirements[targetStars]) {
-                return { error: `+${targetStars}강화 시도에는 유저 레벨 합 ${enhancementLevelRequirements[targetStars]}이(가) 필요합니다.` };
+                return { error: `+${targetStars}강화 시도에는 유저 Lv.${enhancementLevelRequirements[targetStars]}이(가) 필요합니다.` };
             }
             
             const originalItemState = JSON.parse(JSON.stringify(item));

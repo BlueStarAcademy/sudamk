@@ -140,7 +140,14 @@ export interface VolatileState {
             ownerBId: string;
             acceptOwnerA: boolean;
             acceptOwnerB: boolean;
+            partnerAId?: string;
+            partnerBId?: string;
+            acceptPartnerA: boolean;
+            acceptPartnerB: boolean;
             createdAt: number;
+            acceptDeadlineAt: number;
+            /** 기본(미지정)=페어 펫 랭크; 2인 페어 인간 팀 랭크 매칭 */
+            matchKind?: 'pet' | 'duo_human';
         }
     >;
     // PVP 양쪽 접속 끊김 시 재접속 후 안내 메시지 (userId -> 메시지)
@@ -161,12 +168,30 @@ export interface PairLobbyPetSnapshot {
     pairPetMeta?: PairPetMeta;
 }
 
+/** 전략 바둑 방: 입장자 제안·방장 직접 수정에 공통 필드 */
+export type PairLobbySettingChangeProposalPayload = {
+    title?: string;
+    visibility?: 'public' | 'private';
+    password?: string;
+    roomKind?: 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'arena_ai';
+    selectedGameMode?: GameMode;
+    settings?: GameSettings;
+};
+
+export interface PairLobbySettingChangeProposal {
+    proposalId: string;
+    fromUserId: string;
+    fromUserName: string;
+    createdAt: number;
+    payload: PairLobbySettingChangeProposalPayload;
+}
+
 export interface PairRoomState {
     id: string;
     code: string;
     mode: 'pvp' | 'ai';
     pairMode: 'pvp' | 'ai';
-    roomKind: 'ai_duel' | 'duo_match' | 'friendly_4p';
+    roomKind: 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'arena_ai';
     visibility: 'public' | 'private';
     passwordProtected: boolean;
     phase: 'waiting' | 'ready' | 'matching' | 'match_pending' | 'in_game';
@@ -184,6 +209,12 @@ export interface PairRoomState {
     partnerReady: boolean;
     matchStartedAt?: number;
     pairPetMatchingQueuedAt?: number;
+    /** 전략·놀이 경기장 2인 페어: 방장이 랭킹전 모드 제안 후 파트너가 동의하기 전 */
+    pairDuoRankedLobbyProposal?: {
+        proposalId: string;
+        mode: GameMode;
+        proposedAt: number;
+    };
     pairRankedPetProposal?: {
         proposalId: string;
         opponentOwnerId: string;
@@ -192,6 +223,10 @@ export interface PairRoomState {
         opponentRating: number;
         myAccepted: boolean;
         peerAccepted: boolean;
+        acceptDeadlineAt?: number;
+        matchKind?: 'pet' | 'duo_human';
+        myPartnerAccepted?: boolean;
+        peerPartnerAccepted?: boolean;
     };
     createdAt: number;
     pairChatMessages?: PairRoomChatLine[];
@@ -201,8 +236,14 @@ export interface PairRoomState {
     pairRoomKickedUserIds?: string[];
     /** 클라이언트 목록용 — 서버가 브로드캐스트·동기 시 채움 */
     listOccupiedHumans?: number;
+    /** 방이 속한 경기장(미지정=페어) */
+    lobbyChannel?: 'pair' | 'strategic' | 'playful';
     ownerLobbyPet?: PairLobbyPetSnapshot;
     opponentLobbyPet?: PairLobbyPetSnapshot;
+    /** 전략 바둑 방: 입장자가 방장에게 보낸 로비 변경 제안 */
+    pairLobbySettingChangeProposal?: PairLobbySettingChangeProposal;
+    /** 거절 후 동일 유저 재제안 쿨다운 — 유저 id → 만료 시각(ms) */
+    pairLobbySettingChangeCooldownUntil?: Record<string, number>;
 }
 
 export interface PairTeamState {
@@ -279,19 +320,48 @@ export type ServerAction =
     // Ranked Matching
     | { type: 'START_RANKED_MATCHING', payload: { lobbyType: 'strategic' | 'playful'; selectedModes: GameMode[] } }
     | { type: 'CANCEL_RANKED_MATCHING', payload?: never }
-    | { type: 'PAIR_CREATE_ROOM', payload: { mode?: 'pvp' | 'ai'; title?: string; roomKind?: 'ai_duel' | 'duo_match' | 'friendly_4p'; visibility?: 'public' | 'private'; password?: string } }
+    | {
+          type: 'PAIR_CREATE_ROOM';
+          payload: {
+              mode?: 'pvp' | 'ai';
+              title?: string;
+              roomKind?: 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'arena_ai';
+              visibility?: 'public' | 'private';
+              password?: string;
+              selectedGameMode?: GameMode;
+              settings?: GameSettings;
+              lobbyChannel?: 'pair' | 'strategic' | 'playful';
+          };
+      }
+    | {
+          type: 'PAIR_UPDATE_ROOM_LOBBY';
+          payload: PairLobbySettingChangeProposalPayload;
+      }
+    | {
+          type: 'PAIR_PROPOSE_STRATEGIC_LOBBY_SETTING_CHANGE';
+          payload: { roomId: string } & PairLobbySettingChangeProposalPayload;
+      }
+    | { type: 'PAIR_RESPOND_STRATEGIC_LOBBY_SETTING_CHANGE'; payload: { roomId: string; accept: boolean } }
     | { type: 'PAIR_JOIN_ROOM', payload: { roomId?: string; code?: string; password?: string } }
     | { type: 'PAIR_LEAVE_ROOM', payload?: never }
     | { type: 'PAIR_KICK_ROOM_MEMBER', payload: { roomId: string; targetUserId: string } }
+    | { type: 'PAIR_DELEGATE_ROOM_OWNERSHIP', payload: { roomId: string; targetUserId: string } }
     | { type: 'PAIR_SET_READY', payload: { ready: boolean } }
-    | { type: 'PAIR_SET_ROOM_KIND', payload: { roomKind: 'ai_duel' | 'duo_match' | 'friendly_4p' } }
+    | { type: 'PAIR_SET_ROOM_KIND', payload: { roomKind: 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'arena_ai' } }
     | { type: 'PAIR_SEND_ROOM_CHAT', payload: { roomId: string; text: string; scope: 'room' | 'team' } }
     | { type: 'PAIR_SET_SEAT_ASSIGNMENTS', payload: { roomId: string; teamA: string[]; teamB: string[] } }
     | { type: 'PAIR_START_MATCH', payload?: { mode?: GameMode; settings?: GameSettings } }
     | { type: 'PAIR_CANCEL_PAIR_PET_MATCHING', payload?: never }
+    | { type: 'PAIR_PROPOSE_DUO_RANKED_MATCH', payload: { mode: GameMode } }
+    | { type: 'PAIR_ACK_DUO_RANKED_MATCH', payload: { accept: boolean } }
+    | { type: 'PAIR_CANCEL_DUO_RANKED_LOBBY_PROPOSAL', payload?: never }
     | { type: 'PAIR_RESPOND_PAIR_PET_RANKED_MATCH', payload: { proposalId: string; accept: boolean } }
     | { type: 'PAIR_START_AI_MATCH', payload?: { mode?: GameMode; settings?: GameSettings } }
     | { type: 'PAIR_SYNC', payload?: never }
+    | {
+          type: 'PAIR_LOBBY_ROOM_GRID_SLICE';
+          payload: { lobbyChannel: 'pair' | 'strategic' | 'playful'; fromSlot: number; toSlot: number };
+      }
     | { type: 'PAIR_SET_LOBBY_SCREEN', payload: { active: boolean; clientId?: string } }
     | { type: 'PAIR_INVITE_PARTNER', payload: { targetUserId: string; targetTeam?: 'teamA' | 'teamB'; targetIndex?: 0 | 1 } }
     | { type: 'PAIR_RESPOND_PARTNER_INVITE', payload: { inviteId: string; accept: boolean } }
@@ -408,6 +478,8 @@ export type ServerAction =
     | { type: 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ', payload?: never }
     /** 관리자 본인: VIP 헤더·혜택 UI 테스트용 (만료 시각을 강제로 켜거나 끔) */
     | { type: 'ADMIN_SET_VIP_TEST_FLAGS'; payload: { rewardVip: boolean; functionVip: boolean; vvip: boolean } }
+    /** 프로필 관리자 테스트: 다이아 패키지 ON은 BUY_CASH_PACKAGE와 동일, OFF는 해당 티어 활성 시만 해제 */
+    | { type: 'ADMIN_SET_DIAMOND_PACKAGE_TEST'; payload: { tier: 1 | 2 | 3; on: boolean } }
     | { type: 'UPDATE_MBTI', payload: { mbti: string, isMbtiPublic: boolean, isFirstTime?: boolean } }
     | { type: 'RESET_STAT_POINTS', payload?: never }
     | { type: 'CONFIRM_STAT_ALLOCATION', payload: { newStatPoints: any } }
@@ -472,6 +544,7 @@ export type ServerAction =
     | { type: 'PURCHASE_ACTION_POINTS', payload?: never }
     | { type: 'EXPAND_INVENTORY', payload: { category: InventoryItemType } }
     | { type: 'BUY_BORDER', payload: { borderId: string } }
+    | { type: 'BUY_CASH_PACKAGE', payload: { packageId: string } }
     // Admin
     | { type: 'ADMIN_APPLY_SANCTION', payload: { targetUserId: string; sanctionType: 'chat' | 'connection'; durationMinutes: number; reason: string; reasonDetail?: string } }
     | { type: 'ADMIN_LIFT_SANCTION', payload: { targetUserId: string; sanctionType: 'chat' | 'connection' } }
@@ -561,6 +634,8 @@ export type ServerAction =
     | { type: 'LOCAL_HIDDEN_REVEAL_TRIGGER', payload: { gameId: string; gameType: 'tower' | 'singleplayer'; point: Point; player: Player; keepTurn?: boolean } }
     | { type: 'LOCAL_HIDDEN_REVEAL_COMPLETE', payload: { gameId: string; gameType: 'tower' | 'singleplayer' } }
     | { type: 'AI_GAME_CLIENT_MOVE', payload: { gameId: string; x: number; y: number; newBoardState: BoardState; capturedStones: Point[]; newKoInfo: LiveGameSession['koInfo']; movePlayer?: Player } }
+    /** 페어 바둑: 서버 응답 전 보드·페어 턴 인덱스를 클라이언트에 즉시 반영 */
+    | { type: 'PAIR_GAME_CLIENT_MOVE', payload: { gameId: string; x: number; y: number; newBoardState: BoardState; capturedStones: Point[]; newKoInfo: LiveGameSession['koInfo']; movePlayer?: Player } }
     | { type: 'START_SINGLE_PLAYER_MISSION', payload: { missionId: string } }
     | { type: 'CLAIM_SINGLE_PLAYER_MISSION_REWARD', payload: { missionId: string } }
     | { type: 'CLAIM_ALL_TRAINING_QUEST_REWARDS', payload?: never }

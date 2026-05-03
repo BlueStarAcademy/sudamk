@@ -24,6 +24,7 @@ import { broadcast } from './socket.js';
 import * as mailRepo from './prisma/mailRepository.js';
 import { volatileState } from './state.js';
 import { FUNCTION_VIP_DAILY_ACTION_POINT_POTION_NAME } from '../shared/constants/vipBenefits.js';
+import { DIAMOND_PACKAGE_DAILY_MAIL_DIAMONDS } from '../shared/constants/cashShopPackages.js';
 import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
 import { guildWarEffectiveEndMs, guildWarIsChronologicallyActive } from './guildWarActiveUtils.js';
 
@@ -1488,31 +1489,22 @@ export async function processDailyRankings(): Promise<void> {
             score: entry.score
         }));
     
-    // 놀이바둑 랭킹 계산 (1200에서의 차이 기준, 10판 이상 PVP 필수)
-    // cumulativeRankingScore는 이미 1200에서의 차이값으로 저장되어 있음
-    const playfulRankings = allUsers
+    const pairRankings = allUsers
         .filter(user => {
             if (!user || !user.id) return false;
-            // 놀이바둑 모드들의 총 게임 수 계산 (wins + losses)
-            let totalGames = 0;
-            for (const mode of PLAYFUL_GAME_MODES) {
-                const gameStats = user.stats?.[mode.mode];
-                if (gameStats) {
-                    totalGames += (gameStats.wins || 0) + (gameStats.losses || 0);
-                }
-            }
-            // 10판 이상 PVP를 한 유저만 랭킹에 포함
-            return totalGames >= 10 && user.cumulativeRankingScore?.['playful'] !== undefined;
+            const ps = user.stats?.['pair'];
+            const totalGames = (ps?.wins || 0) + (ps?.losses || 0);
+            return totalGames >= 5 && user.cumulativeRankingScore?.['pair'] !== undefined;
         })
         .map(user => ({
             user,
-            score: user.cumulativeRankingScore?.['playful'] || 0 // 이미 1200에서의 차이값
+            score: user.cumulativeRankingScore?.['pair'] || 0,
         }))
-        .sort((a, b) => b.score - a.score) // 높은 차이값이 위로 (양수가 위로, 음수가 아래로)
+        .sort((a, b) => b.score - a.score)
         .map((entry, index) => ({
             userId: entry.user.id,
             rank: index + 1,
-            score: entry.score
+            score: entry.score,
         }));
     
     // 챔피언십 랭킹 계산 (던전 시스템: 각 던전 타입별 최고 클리어 단계 기준)
@@ -1679,13 +1671,12 @@ export async function processDailyRankings(): Promise<void> {
             };
         }
         
-        // 놀이바둑 순위 저장
-        const playfulRank = playfulRankings.findIndex(r => r.userId === user.id);
-        if (playfulRank !== -1) {
-            updatedUser.dailyRankings.playful = {
-                rank: playfulRank + 1,
-                score: user.cumulativeRankingScore?.['playful'] || 0,
-                lastUpdated: now
+        const pairRank = pairRankings.findIndex((r) => r.userId === user.id);
+        if (pairRank !== -1) {
+            updatedUser.dailyRankings.pair = {
+                rank: pairRank + 1,
+                score: user.cumulativeRankingScore?.['pair'] || 0,
+                lastUpdated: now,
             };
         }
         
@@ -2122,6 +2113,51 @@ export async function processDailyQuestReset(): Promise<void> {
     }
     if (functionVipMailCount > 0) {
         console.log(`[DailyQuestReset] Sent function VIP daily mail to ${functionVipMailCount} users`);
+    }
+
+    let diamondPackageDailyMailCount = 0;
+    let diamondPackageExpiredCleared = 0;
+    for (const u of allUsers) {
+        if (!u?.id) continue;
+        const exp = u.diamondPackageExpiresAt ?? 0;
+        if (exp > 0 && exp <= now) {
+            u.activeDiamondPackageTier = 0;
+            u.diamondPackageExpiresAt = 0;
+            delete u.diamondPackageLastMailDayKST;
+            await db.updateUser(u);
+            const { broadcastUserUpdate } = await import('./socket.js');
+            broadcastUserUpdate(u, ['activeDiamondPackageTier', 'diamondPackageExpiresAt', 'diamondPackageLastMailDayKST']);
+            diamondPackageExpiredCleared++;
+            continue;
+        }
+        if (exp <= now || !u.activeDiamondPackageTier) continue;
+        const dayKeyDiamond = getTodayKSTDateString(now);
+        if (u.diamondPackageLastMailDayKST === dayKeyDiamond) continue;
+        const mailIdDiamond = `mail-diamond-pkg-daily-${dayKeyDiamond}-${u.id}`;
+        if (u.mail?.some((m) => m.id === mailIdDiamond)) continue;
+        const mailDiamond: types.Mail = {
+            id: mailIdDiamond,
+            from: 'System',
+            title: '다이아 패키지 일일 보상',
+            message: `다이아 패키지 혜택으로 다이아 ${DIAMOND_PACKAGE_DAILY_MAIL_DIAMONDS}개를 우편으로 드립니다. 7일 이내 수령해 주세요.`,
+            attachments: { diamonds: DIAMOND_PACKAGE_DAILY_MAIL_DIAMONDS },
+            receivedAt: now,
+            expiresAt: now + 7 * 24 * 60 * 60 * 1000,
+            isRead: false,
+            attachmentsClaimed: false,
+        };
+        if (!u.mail) u.mail = [];
+        u.mail.unshift(mailDiamond);
+        u.diamondPackageLastMailDayKST = dayKeyDiamond;
+        await db.updateUser(u);
+        const { broadcastUserUpdate: broadcastDiamondPkg } = await import('./socket.js');
+        broadcastDiamondPkg(u, ['mail', 'diamondPackageLastMailDayKST']);
+        diamondPackageDailyMailCount++;
+    }
+    if (diamondPackageDailyMailCount > 0 || diamondPackageExpiredCleared > 0) {
+        console.log(
+            `[DailyQuestReset] Diamond package: ${diamondPackageDailyMailCount} daily mails, ${diamondPackageExpiredCleared} expiries cleared`,
+        );
     }
 
     lastDailyQuestResetTimestamp = now;

@@ -159,7 +159,7 @@ export const GameInfoPanel: React.FC<{
         }
 
         if (mode === GameMode.Ttamok) {
-            details.push(renderSetting("따내기 목표", `${settings.captureTarget}개`));
+            details.push(renderSetting("목표점수", `${settings.captureTarget}개`));
         }
         
         if (mode === GameMode.Capture || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Capture))) {
@@ -189,7 +189,7 @@ export const GameInfoPanel: React.FC<{
                     captureTargetText = `${settings.captureTarget}개 (흑/백 결정 중)`;
                 }
             }
-            details.push(renderSetting("따내기 목표", captureTargetText));
+            details.push(renderSetting("목표점수", captureTargetText));
         }
         
         if (mode === GameMode.Base || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base))) {

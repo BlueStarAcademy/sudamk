@@ -3,6 +3,7 @@ import * as db from './db.js';
 import { prismaErrorImpliesEngineNotConnected } from './prismaClient.js';
 import { ensurePrismaEngineReady } from './prisma/gameService.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants/index.js';
+import { readStrategicRankedBlock, readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
 
 interface RankingEntry {
     id: string;
@@ -15,17 +16,21 @@ interface RankingEntry {
     wins: number;
     losses: number;
     league?: string;
+    /** 통합 유저 레벨(랭킹 UI 표시용) */
+    userLevel?: number;
 }
 
 interface RankingCache {
     strategic: RankingEntry[];
+    /** @deprecated 놀이바둑 랭킹 제거 — 항상 빈 배열 */
     playful: RankingEntry[];
     pair: RankingEntry[];
     championship: RankingEntry[];
     combat: RankingEntry[];
     manner: RankingEntry[];
     strategicSeason: RankingEntry[]; // 시즌별 티어 랭킹
-    playfulSeason: RankingEntry[]; // 시즌별 티어 랭킹
+    /** @deprecated 항상 빈 배열 */
+    playfulSeason: RankingEntry[];
     pairSeason: RankingEntry[]; // 페어 시즌 랭킹
     timestamp: number;
 }
@@ -129,13 +134,9 @@ export async function buildRankingCache(): Promise<RankingCache> {
                 });
             
             // 병렬로 여러 랭킹 계산
-            const [strategicRankings, playfulRankings, pairRankings, championshipRankings, mannerRankings, combatRankings, strategicSeasonRankings, playfulSeasonRankings, pairSeasonRankings] = await Promise.all([
-                Promise.resolve(calculateRanking(allUsers, SPECIAL_GAME_MODES, 'strategic', 'standard')).catch((err) => {
+            const [strategicRankings, pairRankings, championshipRankings, mannerRankings, combatRankings, strategicSeasonRankings, pairSeasonRankings] = await Promise.all([
+                Promise.resolve(calculateStrategicUnifiedRanking(allUsers)).catch((err) => {
                     console.error('[RankingCache] Error calculating strategic rankings:', err);
-                    return [];
-                }),
-                Promise.resolve(calculateRanking(allUsers, PLAYFUL_GAME_MODES, 'playful', 'playful')).catch((err) => {
-                    console.error('[RankingCache] Error calculating playful rankings:', err);
                     return [];
                 }),
                 Promise.resolve(calculatePairRanking(allUsers)).catch((err) => {
@@ -151,12 +152,8 @@ export async function buildRankingCache(): Promise<RankingCache> {
                     return [];
                 }),
                 combatUsersPromise,
-                Promise.resolve(calculateSeasonRanking(allUsers, SPECIAL_GAME_MODES, 'strategic')).catch((err) => {
+                Promise.resolve(calculateStrategicSeasonRanking(allUsers)).catch((err) => {
                     console.error('[RankingCache] Error calculating strategic season rankings:', err);
-                    return [];
-                }),
-                Promise.resolve(calculateSeasonRanking(allUsers, PLAYFUL_GAME_MODES, 'playful')).catch((err) => {
-                    console.error('[RankingCache] Error calculating playful season rankings:', err);
                     return [];
                 }),
                 Promise.resolve(calculatePairSeasonRanking(allUsers)).catch((err) => {
@@ -167,13 +164,13 @@ export async function buildRankingCache(): Promise<RankingCache> {
             
             rankingCache = {
                 strategic: strategicRankings || [],
-                playful: playfulRankings || [],
+                playful: [],
                 pair: pairRankings || [],
                 championship: championshipRankings || [],
                 combat: combatRankings || [],
                 manner: mannerRankings || [],
                 strategicSeason: strategicSeasonRankings || [],
-                playfulSeason: playfulSeasonRankings || [],
+                playfulSeason: [],
                 pairSeason: pairSeasonRankings || [],
                 timestamp: now
             };
@@ -371,120 +368,66 @@ async function calculateCombatRankings(usersWithEquipment: any[]): Promise<Ranki
     return rankings.map((entry, index) => ({ ...entry, rank: index + 1 }));
 }
 
-// 특정 타입의 랭킹 계산 (누적 랭킹 점수 사용)
-function calculateRanking(
-    allUsers: any[],
-    gameModes: any[],
-    mode: 'strategic' | 'playful',
-    scoreKey: 'standard' | 'playful'
-): RankingEntry[] {
+/** 전략바둑(1인) 통합 레이팅 — `cumulativeRankingScore.standard`(1200 대비 델타) 기준 */
+function calculateStrategicUnifiedRanking(allUsers: any[]): RankingEntry[] {
     const rankings: RankingEntry[] = [];
-    
+
     for (const user of allUsers) {
         if (!user || !user.id) continue;
-        
-        // cumulativeRankingScore가 있어야 랭킹에 포함
-        if (user.cumulativeRankingScore?.[scoreKey] === undefined) continue;
-        
-        // 한 번만 계산
-        const totalGames = calculateTotalGames(user, gameModes);
-        // 10판 이상 PVP 필수
+        if (user.cumulativeRankingScore?.['standard'] === undefined) continue;
+
+        const blk = readStrategicRankedBlock(user.stats);
+        const totalGames = blk.wins + blk.losses;
         if (totalGames < 10) continue;
-        
-        let wins = 0;
-        let losses = 0;
-        for (const gameMode of gameModes) {
-            const gameStats = user.stats?.[gameMode.mode];
-            if (gameStats) {
-                wins += gameStats.wins || 0;
-                losses += gameStats.losses || 0;
-            }
-        }
-        
-        // cumulativeRankingScore는 이미 1200에서의 차이값 (예: 828점이면 -372점)
-        const score = user.cumulativeRankingScore?.[scoreKey] || 0;
-        
+
+        const score = user.cumulativeRankingScore?.['standard'] || 0;
+
         rankings.push({
             id: user.id,
             nickname: user.nickname || user.username,
             avatarId: user.avatarId,
             borderId: user.borderId,
-            rank: 0, // rank는 나중에 정렬 후 설정됨
-            score: score, // 1200에서의 차이값 그대로 사용 (기본점수 제외)
+            rank: 0,
+            score,
             totalGames,
-            wins,
-            losses,
-            league: user.league
+            wins: blk.wins,
+            losses: blk.losses,
+            league: user.league,
         });
     }
-    
-    // 정렬 후 rank 설정
+
     rankings.sort((a, b) => b.score - a.score);
-    return rankings.map((entry, index) => ({
-        ...entry,
-        rank: index + 1 // 정렬 후 rank 설정
-    }));
+    return rankings.map((entry, index) => ({ ...entry, rank: index + 1 }));
 }
 
-// 시즌별 티어 랭킹 점수 계산 (매 시즌 시작일에 1200점 부여, 랭킹전을 통해 얻거나 잃은 점수)
-function calculateSeasonRanking(
-    allUsers: any[],
-    gameModes: any[],
-    mode: 'strategic' | 'playful'
-): RankingEntry[] {
+/** 전략 통합 시즌 점수(절대 레이팅) — `stats.strategicRanked.rankingScore` */
+function calculateStrategicSeasonRanking(allUsers: any[]): RankingEntry[] {
     const rankings: RankingEntry[] = [];
-    
+
     for (const user of allUsers) {
         if (!user || !user.id) continue;
-        
-        // 한 번만 계산
-        const totalGames = calculateTotalGames(user, gameModes);
-        // 10판 이상 PVP 필수
+
+        const totalGames = calculateTotalGames(user, SPECIAL_GAME_MODES);
         if (totalGames < 10) continue;
-        
-        let wins = 0;
-        let losses = 0;
-        let totalScore = 0;
-        let modeCount = 0;
-        
-        // 해당 모드들의 rankingScore 평균 계산
-        for (const gameMode of gameModes) {
-            const gameStats = user.stats?.[gameMode.mode];
-            if (gameStats) {
-                wins += gameStats.wins || 0;
-                losses += gameStats.losses || 0;
-                // rankingScore는 매 시즌 시작일에 1200점으로 초기화되고 랭킹전을 통해 변동
-                if (gameStats.rankingScore !== undefined) {
-                    totalScore += gameStats.rankingScore;
-                    modeCount++;
-                }
-            }
-        }
-        
-        // 평균 점수 계산 (모드가 없으면 제외)
-        if (modeCount === 0) continue;
-        const avgScore = Math.round(totalScore / modeCount);
-        
+
+        const blk = readStrategicRankedBlock(user.stats);
         rankings.push({
             id: user.id,
             nickname: user.nickname || user.username,
             avatarId: user.avatarId,
             borderId: user.borderId,
-            rank: 0, // rank는 나중에 정렬 후 설정됨
-            score: avgScore, // 시즌별 티어 랭킹 점수 (1200점 기준)
+            rank: 0,
+            score: blk.rankingScore,
             totalGames,
-            wins,
-            losses,
-            league: user.league
+            wins: blk.wins,
+            losses: blk.losses,
+            league: user.league,
+            userLevel: Math.max(1, Math.floor(Number(user.userLevel) || 1)),
         });
     }
-    
-    // 정렬 후 rank 설정
+
     rankings.sort((a, b) => b.score - a.score);
-    return rankings.map((entry, index) => ({
-        ...entry,
-        rank: index + 1 // 정렬 후 rank 설정
-    }));
+    return rankings.map((entry, index) => ({ ...entry, rank: index + 1 }));
 }
 
 function calculatePairRanking(allUsers: any[]): RankingEntry[] {
@@ -508,6 +451,7 @@ function calculatePairRanking(allUsers: any[]): RankingEntry[] {
             wins,
             losses,
             league: user.league,
+            userLevel: Math.max(1, Math.floor(Number(user.userLevel) || 1)),
         });
     }
     rankings.sort((a, b) => b.score - a.score);
@@ -535,6 +479,7 @@ function calculatePairSeasonRanking(allUsers: any[]): RankingEntry[] {
             wins,
             losses,
             league: user.league,
+            userLevel: Math.max(1, Math.floor(Number(user.userLevel) || 1)),
         });
     }
     rankings.sort((a, b) => b.score - a.score);

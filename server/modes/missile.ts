@@ -795,6 +795,20 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
             // 클라이언트가 애니메이션 완료를 알림 (모든 게임 모드에서 사용)
             // 게임 상태가 이미 playing으로 변경되었거나 애니메이션이 없는 경우에도 처리 (이미 완료된 경우 대비)
             if (game.gameStatus !== 'missile_animating' && game.gameStatus !== 'playing') {
+                const pveMissileAnimDupOk = new Set([
+                    'hidden_placing',
+                    'hidden_reveal_animating',
+                    'scanning',
+                    'scanning_animating',
+                    'hidden_final_reveal',
+                    'scoring',
+                ]);
+                const gc = (game as any).gameCategory;
+                const pveLike =
+                    gc === 'adventure' || gc === 'tower' || game.isSinglePlayer === true;
+                if (pveLike && pveMissileAnimDupOk.has(String(game.gameStatus))) {
+                    return { clientResponse: { gameUpdated: true } };
+                }
                 console.warn(`[Missile Go] MISSILE_ANIMATION_COMPLETE failed: gameStatus=${game.gameStatus}, expected=missile_animating or playing, gameId=${game.id}`);
                 return { error: "Not in missile animation state." };
             }

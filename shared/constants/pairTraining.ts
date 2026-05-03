@@ -15,12 +15,12 @@ export const PAIR_TRAINING_MIN_PET_LEVEL = [1, 5, 10, 15, 20, 1] as const;
 
 /** 수련 슬롯 UI 표시 이름 */
 export const PAIR_TRAINING_SLOT_DISPLAY_NAMES = [
-    '기술 훈련',
-    '사활 훈련',
-    '수상전 훈련',
-    '정석 훈련',
-    '기보 훈련',
-    '수담훈련',
+    '기술 수련',
+    '사활 수련',
+    '수상전 수련',
+    '정석 수련',
+    '기보 수련',
+    '수담수련',
 ] as const;
 
 export function getPairTrainingSlotDisplayName(slotIndex: number): string {
@@ -42,7 +42,7 @@ export type PairTrainingSlotDef = {
     /** 영혼석 추가 지급 확률 (0~1) */
     soulDropChance: number;
     soulTable: PairTrainingSoulRow[];
-    /** 기능 VIP 활성 시에만 해금 (기보 훈련과 동일 확률보상 구조) */
+    /** 기능 VIP 활성 시에만 해금 (기보 수련과 동일 확률보상 구조) */
     requiresFunctionVip?: boolean;
 };
 
@@ -52,8 +52,8 @@ export const PAIR_TRAINING_SLOT_DEFS: PairTrainingSlotDef[] = [
         durationMs: 30 * 60 * 1000,
         goldMin: 300,
         goldMax: 300,
-        xpMin: 30,
-        xpMax: 50,
+        xpMin: 60,
+        xpMax: 100,
         soulDropChance: 0.2,
         soulTable: [{ materialName: '새싹영혼석', weight: 100, quantity: 1 }],
     },
@@ -62,8 +62,8 @@ export const PAIR_TRAINING_SLOT_DEFS: PairTrainingSlotDef[] = [
         durationMs: 45 * 60 * 1000,
         goldMin: 500,
         goldMax: 500,
-        xpMin: 55,
-        xpMax: 80,
+        xpMin: 110,
+        xpMax: 160,
         soulDropChance: 0.2,
         soulTable: [
             { materialName: '새싹영혼석', weight: 80, quantity: 1 },
@@ -75,8 +75,8 @@ export const PAIR_TRAINING_SLOT_DEFS: PairTrainingSlotDef[] = [
         durationMs: 60 * 60 * 1000,
         goldMin: 800,
         goldMax: 800,
-        xpMin: 85,
-        xpMax: 100,
+        xpMin: 170,
+        xpMax: 200,
         soulDropChance: 0.2,
         soulTable: [
             { materialName: '새싹영혼석', weight: 70, quantity: 2 },
@@ -89,8 +89,8 @@ export const PAIR_TRAINING_SLOT_DEFS: PairTrainingSlotDef[] = [
         durationMs: 90 * 60 * 1000,
         goldMin: 1200,
         goldMax: 1200,
-        xpMin: 110,
-        xpMax: 150,
+        xpMin: 220,
+        xpMax: 300,
         soulDropChance: 0.2,
         soulTable: [
             { materialName: '파동영혼석', weight: 70, quantity: 2 },
@@ -103,8 +103,8 @@ export const PAIR_TRAINING_SLOT_DEFS: PairTrainingSlotDef[] = [
         durationMs: 120 * 60 * 1000,
         goldMin: 2000,
         goldMax: 2000,
-        xpMin: 150,
-        xpMax: 200,
+        xpMin: 300,
+        xpMax: 400,
         soulDropChance: 0.2,
         soulTable: [
             { materialName: '심연영혼석', weight: 60, quantity: 2 },
@@ -117,8 +117,8 @@ export const PAIR_TRAINING_SLOT_DEFS: PairTrainingSlotDef[] = [
         durationMs: 30 * 60 * 1000,
         goldMin: 1000,
         goldMax: 1000,
-        xpMin: 100,
-        xpMax: 200,
+        xpMin: 200,
+        xpMax: 400,
         soulDropChance: 0.2,
         soulTable: [
             { materialName: '심연영혼석', weight: 60, quantity: 2 },
@@ -148,18 +148,56 @@ export function minPetLevelForTrainingSlot(slotIndex: number): number {
     return PAIR_TRAINING_MIN_PET_LEVEL[slotIndex]!;
 }
 
+function parseTrainingStartedAtMs(value: unknown): number {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+        return Math.floor(value);
+    }
+    if (typeof value === 'bigint') {
+        const n = Number(value);
+        return Number.isFinite(n) && n > 0 ? Math.floor(n) : NaN;
+    }
+    if (typeof value === 'string' && value.length > 0) {
+        const asNum = Number(value);
+        if (Number.isFinite(asNum) && asNum > 0) return Math.floor(asNum);
+        const parsed = Date.parse(value);
+        if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+    return NaN;
+}
+
+/** DB/JSON 직렬화 등으로 배열이 아닌 `{ "0": {...} }` 형태가 될 수 있음 */
+function pairTrainingSlotsAsArray(
+    raw: (PairPetTrainingSlotState | null | undefined)[] | Record<string, unknown> | null | undefined
+): (PairPetTrainingSlotState | null | undefined)[] {
+    if (raw == null) return [];
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw !== 'object') return [];
+    const row: (PairPetTrainingSlotState | null | undefined)[] = [];
+    for (let i = 0; i < PAIR_TRAINING_SLOT_COUNT; i += 1) {
+        const rec = raw as Record<string, unknown>;
+        const v = rec[String(i)] ?? (rec as Record<number, unknown>)[i];
+        row[i] = (v as PairPetTrainingSlotState | null | undefined) ?? undefined;
+    }
+    return row;
+}
+
 export function normalizePairPetTrainingSlots(
-    raw: (PairPetTrainingSlotState | null | undefined)[] | null | undefined
+    raw: (PairPetTrainingSlotState | null | undefined)[] | Record<string, unknown> | null | undefined
 ): (PairPetTrainingSlotState | null)[] {
     const out: (PairPetTrainingSlotState | null)[] = Array(PAIR_TRAINING_SLOT_COUNT).fill(null);
-    if (!Array.isArray(raw)) return out;
+    const cells = pairTrainingSlotsAsArray(raw);
     for (let i = 0; i < PAIR_TRAINING_SLOT_COUNT; i += 1) {
-        const cell = raw[i];
+        const cell = cells[i];
         if (!cell || typeof cell !== 'object') continue;
-        const slotIndex = Math.floor(Number((cell as PairPetTrainingSlotState).slotIndex));
+        const declared = Math.floor(Number((cell as PairPetTrainingSlotState).slotIndex));
+        const hasDeclaredSlot =
+            Number.isFinite(declared) && declared >= 0 && declared < PAIR_TRAINING_SLOT_COUNT;
+        /** `slotIndex` 필드 누락·NaN 시 배열 인덱스를 신뢰 (누락 시 세션이 전부 날아가 수령 400 유발) */
+        const slotIndex = hasDeclaredSlot ? declared : i;
+        if (slotIndex !== i) continue;
         const itemId = String((cell as PairPetTrainingSlotState).itemId ?? '');
-        const startedAt = Number((cell as PairPetTrainingSlotState).startedAt);
-        if (slotIndex !== i || !itemId || !Number.isFinite(startedAt) || startedAt <= 0) continue;
+        const startedAt = parseTrainingStartedAtMs((cell as PairPetTrainingSlotState).startedAt);
+        if (!itemId || !Number.isFinite(startedAt) || startedAt <= 0) continue;
         out[i] = { slotIndex: i, itemId, startedAt };
     }
     return out;

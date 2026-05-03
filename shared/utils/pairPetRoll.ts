@@ -98,6 +98,29 @@ function mergeCoreBonus(
     return out;
 }
 
+/** 이번 성장(레벨업)으로만 늘어난 6코어 보너스 — UI 표시용 */
+export function diffPairPetLevelUpCoreBonuses(
+    before: Partial<Record<CoreStat, number>> | undefined,
+    after: Partial<Record<CoreStat, number>> | undefined,
+): Partial<Record<CoreStat, number>> {
+    const out: Partial<Record<CoreStat, number>> = {};
+    for (const k of CORE_ORDER) {
+        const d = (after?.[k] ?? 0) - (before?.[k] ?? 0);
+        if (d !== 0) out[k] = d;
+    }
+    return out;
+}
+
+/** `diffPairPetLevelUpCoreBonuses` 결과를 표시 순서대로 엔트리화 */
+export function pairPetLevelUpCoreBonusDeltaEntries(
+    delta: Partial<Record<CoreStat, number>>,
+): { stat: CoreStat; add: number }[] {
+    return CORE_ORDER.map((stat) => {
+        const add = delta[stat];
+        return typeof add === 'number' && add !== 0 ? { stat, add } : null;
+    }).filter((x): x is { stat: CoreStat; add: number } => x != null);
+}
+
 /** 한 레벨 상승분: 등급별 총합만큼 6코어에 무작위로 +1씩 배분 (같은 스탯에 여러 번 가능) */
 export function rollSingleLevelUpCoreBonuses(grade: ItemGrade, rng: () => number): Partial<Record<CoreStat, number>> {
     const n = pairPetLevelUpStatBudget(grade);

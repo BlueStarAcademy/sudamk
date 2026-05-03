@@ -191,7 +191,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
   
   const opponentStats = useMemo(() => {
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === negotiation.mode);
-    const level = isStrategic ? opponent.strategyLevel : opponent.playfulLevel;
+    const level = opponent.userLevel;
     const stats = opponent.stats?.[negotiation.mode];
     const wins = stats?.wins ?? 0;
     const losses = stats?.losses ?? 0;
@@ -199,7 +199,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
     const totalGames = wins + losses;
     const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
     
-    return { level, levelLabel: isStrategic ? '전략' : '놀이', wins, losses, mannerScore, winRate };
+    return { level, levelLabel: '유저', wins, losses, mannerScore, winRate };
   }, [opponent, negotiation.mode]);
 
   const opponentAvatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === opponent.avatarId)?.url, [opponent.avatarId]);
@@ -503,7 +503,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                                 </SettingRow>
                             )}
                             {settings.mixedModes?.includes(GameMode.Capture) && (
-                                <SettingRow label="따내기 목표" className="mt-2">
+                                <SettingRow label="목표점수" className="mt-2">
                                     <Select value={settings.captureTarget} onChange={v => handleSettingChange('captureTarget', parseInt(v))} disabled={isReadOnly}>
                                         {CAPTURE_TARGETS.map(t => <option key={t} value={t}>{t}개</option>)}
                                     </Select>
@@ -656,14 +656,14 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                 )}
 
                 {showCaptureTarget && (
-                    <SettingRow label="따내기 목표">
+                    <SettingRow label="목표점수">
                         <Select value={settings.captureTarget} onChange={v => handleSettingChange('captureTarget', parseInt(v))} disabled={isReadOnly}>
                             {CAPTURE_TARGETS.map(t => <option key={t} value={t}>{t}개</option>)}
                         </Select>
                     </SettingRow>
                 )}
                 {showTtamokCaptureTarget && (
-                    <SettingRow label="따내기 목표">
+                    <SettingRow label="목표점수">
                         <Select value={settings.captureTarget} onChange={v => handleSettingChange('captureTarget', parseInt(v))} disabled={isReadOnly}>
                             {TTAMOK_CAPTURE_TARGETS.map(t => <option key={t} value={t}>{t}개</option>)}
                         </Select>

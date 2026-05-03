@@ -251,7 +251,7 @@ export const ADVENTURE_MONSTERS_AQUARIUM = [
     },
     {
         codexId: 'aqua_11',
-        imageWebp: `${aqua}/aquarium_11.webp`,
+        imageWebp: `${aqua}/aquarium_12.webp`,
         name: '스타판이',
         codexDescription: '다섯 갈래 별처럼 빛나는 윤곽이에요. 밤 수조에서는 길 잃은 손님에게 별빛 안내등 노릇을 합니다.',
         codexPercentBossBonus: { target: 'itemDrop' },
@@ -286,8 +286,8 @@ export const ADVENTURE_MONSTERS_AMUSEMENT_PARK = [
     {
         codexId: 'amuse_05',
         imageWebp: `${amuse}/amusement_park_05.webp`,
-        name: '뽑기돌',
-        codexDescription: '뽑기 기계 앞에서만큼은 운명을 믿는 낙관주의자예요. 꽝이 나와도 “다음엔 대박”이라 외치며 줄을 다시 섭니다.',
+        name: '캡슐판이',
+        codexDescription: '투명 캡슐 안에 작은 세계가 들어 있는 듯한 둥근 실루엣이에요. 돌려도 안 열리니 참고만 하고 지나가 주세요.',
         codexPercentBossBonus: { target: 'core', stat: CoreStat.Calculation },
     },
     {
@@ -299,21 +299,21 @@ export const ADVENTURE_MONSTERS_AMUSEMENT_PARK = [
     {
         codexId: 'amuse_07',
         imageWebp: `${amuse}/amusement_park_07.webp`,
-        name: '카니발돌',
-        codexDescription: '불꽃과 리본이 머릿속에서 터지는 타입이에요. 밤에 네온만 보면 저절로 박자를 탑니다.',
+        name: '두들돌',
+        codexDescription: '리듬감 좋은 돌이에요. 지나가다 발에 밟히면 “탁탁” 인사하고 지나갑니다.',
         codexPercentBossBonus: { target: 'core', stat: CoreStat.ThinkingSpeed },
     },
     {
         codexId: 'amuse_08',
         imageWebp: `${amuse}/amusement_park_08.webp`,
-        name: '두들돌',
-        codexDescription: '리듬감 좋은 돌이에요. 지나가다 발에 밟히면 “탁탁” 인사하고 지나갑니다.'
+        name: '스타돌',
+        codexDescription: '무대 조명을 한 몸에 받은 듯한 반짝임이에요. 사인펜으로 낙서하면 화내지 않고 웃긴 낙서로 바꿔 준다는 전설이 있습니다.',
     },
     {
         codexId: 'amuse_09',
         imageWebp: `${amuse}/amusement_park_09.webp`,
-        name: '스타돌',
-        codexDescription: '무대 조명을 한 몸에 받은 듯한 반짝임이에요. 사인펜으로 낙서하면 화내지 않고 웃긴 낙서로 바꿔 준다는 전설이 있습니다.',
+        name: '카니발돌',
+        codexDescription: '불꽃과 리본이 머릿속에서 터지는 타입이에요. 밤에 네온만 보면 저절로 박자를 탑니다.',
         codexPercentBossBonus: { target: 'highGradeEquipment' },
         isAdventureBoss: true,
     },
@@ -323,21 +323,22 @@ export const ADVENTURE_MONSTERS_ZOO = [
     {
         codexId: 'zoo_01',
         imageWebp: `${zoo}/zoo_01.webp`,
-        name: '롱목돌',
-        codexDescription: '목이 길어서 멀리 구경하기 좋아요. 안 본 척해도 다 보고 있는 스파이 감성입니다.'
+        name: '사자판이',
+        codexDescription:
+            '갈기처럼 삐죽한 윤곽이 당당함을 말해 줘요. 사실 속은 초식 성향으로 배려 깊은 반전이 있습니다.',
+        codexPercentBossBonus: { target: 'core', stat: CoreStat.CombatPower },
     },
     {
         codexId: 'zoo_02',
         imageWebp: `${zoo}/zoo_02.webp`,
-        name: '사자판이',
-        codexDescription: '갈기처럼 삐죽한 윤곽이 당당함을 말해 줘요. 사실 속은 초식 성향으로 배려 깊은 반전이 있습니다.',
-        codexPercentBossBonus: { target: 'core', stat: CoreStat.CombatPower },
+        name: '판판이',
+        codexDescription: '‘판’자가 두 번이라 더 납작해야 할 압박이 있어요. 그래도 자존감은 지구 반쪽입니다.',
     },
     {
         codexId: 'zoo_03',
         imageWebp: `${zoo}/zoo_03.webp`,
-        name: '판판이',
-        codexDescription: '‘판’자가 두 번이라 더 납작해야 할 압박이 있어요. 그래도 자존감은 지구 반쪽입니다.'
+        name: '롱목돌',
+        codexDescription: '목이 길어서 멀리 구경하기 좋아요. 안 본 척해도 다 보고 있는 스파이 감성입니다.',
     },
     {
         codexId: 'zoo_04',
@@ -366,27 +367,29 @@ export const ADVENTURE_MONSTERS_ZOO = [
     {
         codexId: 'zoo_08',
         imageWebp: `${zoo}/zoo_08.webp`,
-        name: '야행돌',
-        codexDescription: '밤 행성이 끌리는 타입이에요. 달이 뜨면 산책 코스를 혼자 개척합니다.',
-        codexPercentBossBonus: { target: 'highGradeMaterial' },
+        name: '장수돌',
+        codexDescription: '오래도록 옆에 두고 싶은 묵직한 인연을 상징해요. 말은 적어도 배려는 깊습니다.',
     },
     {
         codexId: 'zoo_09',
         imageWebp: `${zoo}/zoo_09.webp`,
-        name: '장수돌',
-        codexDescription: '오래도록 옆에 두고 싶은 묵직한 인연을 상징해요. 말은 적어도 배려는 깊습니다.'
+        name: '거북판이',
+        codexDescription:
+            '천천히, 그러나 끝까지 가는 끈기가 있어요. 등 껍질이 판처럼 넓어 작은 친구를 그늘에 태워 줍니다.',
     },
     {
         codexId: 'zoo_10',
         imageWebp: `${zoo}/zoo_10.webp`,
-        name: '거북판이',
-        codexDescription: '천천히, 그러나 끝까지 가는 끈기가 있어요. 등 껍질이 판처럼 넓어 작은 친구를 그늘에 태워 줍니다.'
+        name: '별판이',
+        codexDescription:
+            '동물원 밤하늘의 별을 닮은 몸빛이에요. 가이드가 없어도 길 잃으면 이 친구를 찾으면 된다는 농담이 있습니다.',
     },
     {
         codexId: 'zoo_11',
         imageWebp: `${zoo}/zoo_11.webp`,
-        name: '별판이',
-        codexDescription: '동물원 밤하늘의 별을 닮은 몸빛이에요. 가이드가 없어도 길 잃으면 이 친구를 찾으면 된다는 농담이 있습니다.',
+        name: '야행돌',
+        codexDescription: '밤 행성이 끌리는 타입이에요. 달이 뜨면 산책 코스를 혼자 개척합니다.',
+        codexPercentBossBonus: { target: 'highGradeMaterial' },
     },
 ] as const satisfies readonly AdventureMonsterCodexEntry[];
 

@@ -16,9 +16,22 @@ interface SellItemConfirmModalProps {
     onClose: () => void;
     onConfirm: () => void;
     isTopmost?: boolean;
+    /** 재료 판매 시 판매 개수(일괄). 미지정이면 1 */
+    materialSellQuantity?: number;
+    /** 동일 화면에 인벤 판매 창 등이 있을 때 창 ID 충돌 방지 */
+    windowId?: string;
 }
 
-const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({ item, onClose, onConfirm, isTopmost }) => {
+const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({
+    item,
+    onClose,
+    onConfirm,
+    isTopmost,
+    materialSellQuantity,
+    windowId = 'sellItemConfirm',
+}) => {
+    const materialQty = item.type === 'material' ? Math.max(1, Math.floor(materialSellQuantity ?? 1)) : 1;
+
     const calculateSellPrice = (): number => {
         if (item.type === 'equipment') {
             const basePrice = ITEM_SELL_PRICES[item.grade] || 0;
@@ -26,7 +39,7 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({ item, onClo
             return Math.floor(basePrice * enhancementMultiplier);
         } else if (item.type === 'material') {
             const pricePerUnit = MATERIAL_SELL_PRICES[item.name] || 1;
-            return pricePerUnit;
+            return pricePerUnit * materialQty;
         } else if (item.type === 'consumable') {
             const pricePerUnit =
                 CONSUMABLE_SELL_PRICES[item.name] ??
@@ -50,7 +63,7 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({ item, onClo
         <DraggableWindow
             title="아이템 판매"
             onClose={onClose}
-            windowId="sellItemConfirm"
+            windowId={windowId}
             isTopmost={isTopmost}
             variant="store"
             initialWidth={460}
@@ -108,7 +121,11 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({ item, onClo
                                     보유{' '}
                                     <span className="font-semibold text-slate-100">{item.quantity.toLocaleString()}</span>개
                                     {item.type === 'material' ? (
-                                        <span className="mt-0.5 block text-slate-400 sm:mt-0 sm:inline sm:text-slate-500"> · 이번 판매: 1개만 빠집니다</span>
+                                        <span className="mt-0.5 block text-slate-400 sm:mt-0 sm:inline sm:text-slate-500">
+                                            {' '}
+                                            · 이번 판매:{' '}
+                                            <span className="font-semibold text-slate-200">{materialQty.toLocaleString()}</span>개
+                                        </span>
                                     ) : (
                                         <span className="mt-0.5 block text-slate-400 sm:mt-0 sm:inline sm:text-slate-500"> · 소모품은 전부 판매됩니다</span>
                                     )}

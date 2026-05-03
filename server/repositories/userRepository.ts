@@ -19,7 +19,7 @@ export const getUserByNickname = async (db: Database, nickname: string): Promise
 export const createUser = async (db: Database, user: User): Promise<void> => {
     await db.run(
         `INSERT INTO users ( 
-            id, username, nickname, isAdmin, strategyLevel, strategyXp, playfulLevel, playfulXp, 
+            id, username, nickname, isAdmin, userLevel, userXp, 
             gold, diamonds, inventory, inventorySlots, equipment, actionPoints, lastActionPointUpdate, 
             mannerScore, mail, quests, stats, chatBanUntil, connectionBanUntil, avatarId, borderId, previousSeasonTier, 
             seasonHistory, tournamentScore, league, mannerMasteryApplied, pendingPenaltyNotification,
@@ -31,9 +31,9 @@ export const createUser = async (db: Database, user: User): Promise<void> => {
             mbti, isMbtiPublic, singlePlayerProgress, clearedSinglePlayerStages, bonusStatPoints, blacksmithLevel, blacksmithXp, cumulativeTournamentScore, singlePlayerMissions
         ) 
          VALUES ( 
-            ?, ?, ?, ?, ?, ?, ?, ?, 
-            ?, ?, ?, ?, ?, ?, ?, 
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+            ?, ?, ?, ?, ?, ?, 
+            ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?,
             ?, ?, ?, ?,
             ?, ?, ?, ?,
@@ -42,7 +42,7 @@ export const createUser = async (db: Database, user: User): Promise<void> => {
             ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, ?, ?, ?
          )`,
-        user.id, user.username, user.nickname, user.isAdmin, user.strategyLevel, user.strategyXp, user.playfulLevel, user.playfulXp,
+        user.id, user.username, user.nickname, user.isAdmin, user.userLevel, user.userXp,
         user.gold, user.diamonds, JSON.stringify(user.inventory), JSON.stringify(user.inventorySlots), JSON.stringify(user.equipment), 
         JSON.stringify(user.actionPoints), user.lastActionPointUpdate, user.mannerScore, JSON.stringify(user.mail), 
         JSON.stringify(user.quests), JSON.stringify(user.stats), user.chatBanUntil, user.connectionBanUntil, user.avatarId, user.borderId, user.previousSeasonTier,
@@ -57,7 +57,7 @@ export const createUser = async (db: Database, user: User): Promise<void> => {
 };
 export const updateUser = async (db: Database, user: User): Promise<void> => {
     const columns = [
-        'username', 'nickname', 'isAdmin', 'strategyLevel', 'strategyXp', 'playfulLevel', 'playfulXp',
+        'username', 'nickname', 'isAdmin', 'userLevel', 'userXp',
         'gold', 'diamonds', 'inventory', 'inventorySlots', 'equipment', 'actionPoints', 'lastActionPointUpdate',
         'mannerScore', 'mail', 'quests', 'stats', 'chatBanUntil', 'connectionBanUntil', 'avatarId', 'borderId', 'previousSeasonTier',
         'seasonHistory', 'tournamentScore', 'league', 'mannerMasteryApplied', 'pendingPenaltyNotification',

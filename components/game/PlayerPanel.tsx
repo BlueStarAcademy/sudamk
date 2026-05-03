@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useLayoutEffect, useRef } from 'react';
 // FIX: Import missing types from the centralized types file.
-import { Player, GameProps, GameMode, User, AlkkagiPlacementType, GameSettings, GameStatus, UserWithStatus } from '../../types/index.js';
+import { Player, GameProps, GameMode, User, AlkkagiPlacementType, GameSettings, GameStatus, UserWithStatus, LiveGameSession } from '../../types/index.js';
 import Avatar from '../Avatar.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, ALKKAGI_TURN_TIME_LIMIT, CURLING_TURN_TIME_LIMIT, DICE_GO_MAIN_PLACE_TIME, DICE_GO_MAIN_ROLL_TIME, ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, aiUserId, AVATAR_POOL, BORDER_POOL, PLAYFUL_MODE_FOUL_LIMIT, THIEF_NIGHTS_PER_SEGMENT } from '../../constants';
 import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
@@ -310,8 +310,8 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         ? Math.max(0, Math.min(100, (1 - speedBonusTickProgress!) * 100))
         : 0;
 
-    const levelToDisplay = isStrategic ? user.strategyLevel : user.playfulLevel;
-    const levelLabel = isStrategic ? '전략' : '놀이';
+    const levelToDisplay = user.userLevel;
+    const levelLabel = '유저';
     let levelText = `${levelLabel} Lv.${levelToDisplay}`;
 
     // 전략바둑 AI 대국: 상단 패널에서 봇 이름 옆에 AI 난이도(단계 1~10 → 표시 레벨 1,3,5,…,50)

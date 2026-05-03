@@ -500,10 +500,8 @@ export const getOrCreateBotGuildForWar = async (): Promise<string> => {
                     data: {
                         id: GUILD_WAR_BOT_USER_ID,
                         nickname: 'guild-war-bot',
-                        strategyLevel: 1,
-                        strategyXp: 0,
-                        playfulLevel: 1,
-                        playfulXp: 0,
+                        userLevel: 1,
+                        userXp: 0,
                         actionPointCurr: 0,
                         actionPointMax: 0,
                         gold: 0n,

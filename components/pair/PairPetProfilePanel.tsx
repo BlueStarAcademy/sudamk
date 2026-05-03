@@ -21,6 +21,20 @@ export interface PairPetProfilePanelProps {
     onOpenEquippedPetDetail: () => void;
     /** 대표펫 미지정 시 패널 클릭 → 정보 탭 펫 인벤으로 이동 */
     onFocusPetInventory?: () => void;
+    /** 홈 프로필 등 좁은 영역: 패딩·아바타·본문 글자 축소 */
+    compact?: boolean;
+    /** 상위 카드가 테두리·배경을 담당할 때 내부만 표시 */
+    embed?: boolean;
+    /** 하단에 바둑능력 스트립이 있을 때 인라인 칩 중복 방지 */
+    hideInlineBadukChip?: boolean;
+    /** 홈 대표펫 등: 등급 옆 대표펫 배지 */
+    showRepresentativeBadge?: boolean;
+    /** 홈 우측 대표펫 칸: 아바타·한 줄·상세 버튼을 더 작게 */
+    homeColumn?: boolean;
+    /** 페어 경기장 로비 상단: 아바타·본문 글자를 한 단계 키움( compact=false 와 함께 사용) */
+    pairLobbyProminent?: boolean;
+    /** 우측 상세 버튼 문구 덮어쓰기(예: 상세보기) */
+    detailButtonLabel?: string;
 }
 
 const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
@@ -29,7 +43,30 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
     isBusy,
     onOpenEquippedPetDetail,
     onFocusPetInventory,
+    compact = false,
+    embed = false,
+    hideInlineBadukChip = false,
+    showRepresentativeBadge = false,
+    homeColumn = false,
+    pairLobbyProminent = false,
+    detailButtonLabel,
 }) => {
+    const lineFontMax =
+        pairLobbyProminent && !compact
+            ? 17
+            : homeColumn && compact
+              ? 9.75
+              : compact
+                ? 11.5
+                : PET_PROFILE_LINE_FONT_MAX;
+    const lineFontMin =
+        pairLobbyProminent && !compact
+            ? 8
+            : homeColumn && compact
+              ? 5.25
+              : compact
+                ? 6
+                : PET_PROFILE_LINE_FONT_MIN;
     const equippedTid = currentUser.equippedPairPetTemplateId ?? null;
     const equippedDef = equippedTid ? getPairPetDefinition(equippedTid) : null;
     const equippedItem = useMemo(
@@ -71,10 +108,10 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
         if (!outer || !inner) return;
 
         const fitLineFont = () => {
-            let px = PET_PROFILE_LINE_FONT_MAX;
+            let px = lineFontMax;
             inner.style.fontSize = `${px}px`;
             let guard = 0;
-            while (inner.offsetWidth > outer.clientWidth && px > PET_PROFILE_LINE_FONT_MIN && guard < 48) {
+            while (inner.offsetWidth > outer.clientWidth && px > lineFontMin && guard < 48) {
                 px -= 0.4;
                 inner.style.fontSize = `${px}px`;
                 guard += 1;
@@ -85,28 +122,59 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
         const ro = new ResizeObserver(fitLineFont);
         ro.observe(outer);
         return () => ro.disconnect();
-    }, [displayName, levelSafe, badukTotal, equippedItem, gradeKo]);
+    }, [
+        displayName,
+        levelSafe,
+        badukTotal,
+        equippedItem,
+        gradeKo,
+        lineFontMax,
+        lineFontMin,
+        hideInlineBadukChip,
+        showRepresentativeBadge,
+        homeColumn,
+        pairLobbyProminent,
+        compact,
+    ]);
 
-    const panelClassName =
-        'shrink-0 rounded-lg border border-violet-400/25 bg-gradient-to-br from-violet-950/40 via-black/35 to-fuchsia-950/25 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-2.5';
+    const panelClassName = embed
+        ? 'shrink-0 rounded-lg border-0 bg-transparent p-0 shadow-none'
+        : pairLobbyProminent && !compact
+          ? 'shrink-0 rounded-xl border border-violet-400/35 bg-gradient-to-br from-violet-950/50 via-black/40 to-fuchsia-950/30 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-violet-400/10 sm:p-3'
+          : compact
+            ? 'shrink-0 rounded-lg border border-violet-400/25 bg-gradient-to-br from-violet-950/40 via-black/35 to-fuchsia-950/25 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-1.5'
+            : 'shrink-0 rounded-lg border border-violet-400/25 bg-gradient-to-br from-violet-950/40 via-black/35 to-fuchsia-950/25 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-2.5';
 
+    const avatarSize =
+        pairLobbyProminent && !compact ? 52 : homeColumn && compact ? 28 : compact ? 32 : 40;
+    const detailBtnText = detailButtonLabel ?? (homeColumn && compact ? '상세' : '상세정보');
     const body = (
-            <div className="flex min-h-0 min-w-0 flex-nowrap items-center gap-1.5 sm:gap-2.5">
+            <div
+                className={`flex min-h-0 min-w-0 flex-nowrap items-center ${
+                    pairLobbyProminent && !compact ? 'gap-2 sm:gap-3' : homeColumn && compact ? 'gap-0.5' : compact ? 'gap-1' : 'gap-1.5 sm:gap-2.5'
+                }`}
+            >
                 {equippedItem && petAvatarUrl ? (
                     <Avatar
                         userId={`pet-ai-${currentUserId}`}
                         userName={displayName}
-                        size={40}
+                        size={avatarSize}
                         avatarUrl={petAvatarUrl}
                         className="shrink-0 ring-2 ring-violet-400/40"
                     />
                 ) : (
                     <div
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-violet-300/45 bg-black/35 shadow-inner ring-2 ring-violet-400/25"
+                        className={`flex shrink-0 items-center justify-center rounded-full border-2 border-dashed border-violet-300/45 bg-black/35 shadow-inner ring-2 ring-violet-400/25 ${
+                            pairLobbyProminent && !compact ? 'h-14 w-14' : compact ? 'h-8 w-8' : 'h-10 w-10'
+                        }`}
                         title={emptyTitle}
                         aria-label={emptyTitle}
                     >
-                        <div className="h-6 w-6 rounded-md border border-violet-200/45 bg-violet-950/35" />
+                        <div
+                            className={`rounded-md border border-violet-200/45 bg-violet-950/35 ${
+                                pairLobbyProminent && !compact ? 'h-9 w-9' : compact ? 'h-5 w-5' : 'h-6 w-6'
+                            }`}
+                        />
                     </div>
                 )}
                 <div
@@ -117,7 +185,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                     <div
                         ref={lineInnerRef}
                         className="inline-flex max-w-none flex-nowrap items-center gap-x-[0.45em] gap-y-0 whitespace-nowrap leading-tight"
-                        style={{ fontSize: `${PET_PROFILE_LINE_FONT_MAX}px` }}
+                        style={{ fontSize: `${lineFontMax}px` }}
                     >
                         <span className="inline-flex shrink-0 items-baseline gap-x-[0.35em]">
                             <span
@@ -125,12 +193,25 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                             >
                                 {gradeKo}
                             </span>
+                            {showRepresentativeBadge ? (
+                                <span
+                                    className={`shrink-0 rounded-md border border-cyan-400/55 bg-cyan-950/65 font-extrabold text-cyan-50 ${
+                                        homeColumn && compact
+                                            ? 'px-[0.28em] py-px text-[0.65em]'
+                                            : compact
+                                              ? 'px-[0.35em] py-px text-[0.72em]'
+                                              : 'px-[0.45em] py-px text-[0.82em]'
+                                    }`}
+                                >
+                                    대표펫
+                                </span>
+                            ) : null}
                             {levelSafe != null ? (
                                 <span className="font-black tabular-nums text-amber-200">Lv.{levelSafe}</span>
                             ) : null}
                             <span className="font-semibold text-violet-100/95">{displayName}</span>
                         </span>
-                        {badukTotal != null ? (
+                        {!hideInlineBadukChip && badukTotal != null ? (
                             <span
                                 className="relative inline-flex shrink-0 items-baseline gap-x-[0.25em] rounded-md border border-amber-600/45 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 px-[0.45em] py-[0.2em] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
                                 title="6코어 표시값과 성향 보너스 합계"
@@ -153,19 +234,39 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                         ) : null}
                     </div>
                     ) : (
-                        <p className="min-w-0 pr-0.5 text-left text-[0.7rem] font-semibold leading-snug text-violet-200/95 sm:text-sm">
+                        <p
+                            className={`min-w-0 pr-0.5 text-left font-semibold leading-snug text-violet-200/95 ${
+                                pairLobbyProminent && !compact
+                                    ? 'text-sm sm:text-base'
+                                    : compact
+                                      ? 'text-[0.62rem] sm:text-[0.68rem]'
+                                      : 'text-[0.7rem] sm:text-sm'
+                            }`}
+                        >
                             대표펫을 지정해 주세요.
                         </p>
                     )}
                 </div>
-                {equippedItem ? (
+                {equippedItem && !embed ? (
                     <button
                         type="button"
                         disabled={isBusy}
-                        onClick={() => onOpenEquippedPetDetail()}
-                        className="ml-auto shrink-0 rounded-md border border-cyan-400/40 bg-cyan-950/45 px-1.5 py-0.5 text-[0.65rem] font-bold text-cyan-50 hover:bg-cyan-900/55 disabled:opacity-40 sm:px-2.5 sm:py-1 sm:text-sm"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenEquippedPetDetail();
+                        }}
+                        title={detailBtnText}
+                        className={`ml-auto shrink-0 rounded-md border border-cyan-400/40 bg-cyan-950/45 font-bold text-cyan-50 shadow-sm shadow-black/30 hover:bg-cyan-900/55 disabled:opacity-40 ${
+                            pairLobbyProminent && !compact
+                                ? 'px-2.5 py-1.5 text-sm sm:px-3 sm:py-2 sm:text-base'
+                                : homeColumn && compact
+                                  ? 'px-1 py-px text-[0.52rem] leading-tight sm:text-[0.55rem]'
+                                  : compact
+                                    ? 'px-1 py-0.5 text-[0.58rem] sm:px-1.5 sm:py-0.5 sm:text-[0.62rem]'
+                                    : 'px-1.5 py-0.5 text-[0.65rem] sm:px-2.5 sm:py-1 sm:text-sm'
+                        }`}
                     >
-                        상세정보
+                        {detailBtnText}
                     </button>
                 ) : null}
             </div>
@@ -179,6 +280,20 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                 onClick={() => onFocusPetInventory()}
                 aria-label="정보 탭 펫 인벤토리로 이동"
                 className={`${panelClassName} w-full text-left transition hover:border-violet-300/45 hover:bg-violet-950/25 disabled:cursor-not-allowed disabled:opacity-50`}
+            >
+                {body}
+            </button>
+        );
+    }
+
+    if (embed && equippedItem) {
+        return (
+            <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => onOpenEquippedPetDetail()}
+                aria-label="펫 상세 보기"
+                className={`${panelClassName} w-full cursor-pointer text-left outline-none transition hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:ring-1 focus-visible:ring-cyan-400/40`}
             >
                 {body}
             </button>

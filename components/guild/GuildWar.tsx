@@ -124,8 +124,7 @@ type GuildWarOccupierServerProfile = {
     nickname: string;
     avatarId?: string | null;
     borderId?: string | null;
-    strategyLevel: number;
-    playfulLevel: number;
+    userLevel: number;
 };
 
 function guildWarOccupierHash(s: string): number {
@@ -417,11 +416,9 @@ const GuildWar = () => {
                                 (board as any).occupierAvatarUrl = resolveHomeStyleAvatarUrl(avatarId);
                                 const bId = serv?.borderId ?? (occUser as any)?.borderId ?? 'default';
                                 (board as any).occupierBorderId = bId || 'default';
-                                const st =
-                                    Number(serv?.strategyLevel ?? (occUser as any)?.strategyLevel ?? 0) || 0;
-                                const pl =
-                                    Number(serv?.playfulLevel ?? (occUser as any)?.playfulLevel ?? 0) || 0;
-                                (board as any).occupierLevel = st + pl;
+                                const ul =
+                                    Number(serv?.userLevel ?? (occUser as any)?.userLevel ?? 0) || 0;
+                                (board as any).occupierLevel = ul;
                                 (board as any).occupierIsAiBot = false;
                             }
                             (board as any).occupierCaptures = Number(holderResult.captures ?? 0) || 0;
@@ -497,7 +494,7 @@ const GuildWar = () => {
                     myChallengerIds?.forEach((userId: string) => {
                         const user = userMap.get(userId) as any;
                         if (user) {
-                            const level = (Number(user.strategyLevel ?? 0) || 0) + (Number(user.playfulLevel ?? 0) || 0);
+                            const level = Number(user.userLevel ?? 0) || 0;
                             const avatarUrl = AVATAR_POOL.find((a: any) => a.id === user.avatarId)?.url || '/images/guild/profile/icon1.png';
                             myChallengers.push({ name: user.nickname, board: boardName, level, avatarUrl });
                         }
@@ -506,7 +503,7 @@ const GuildWar = () => {
                     opponentChallengerIds?.forEach((userId: string) => {
                         const user = userMap.get(userId) as any;
                         if (user) {
-                            const level = (Number(user.strategyLevel ?? 0) || 0) + (Number(user.playfulLevel ?? 0) || 0);
+                            const level = Number(user.userLevel ?? 0) || 0;
                             const avatarUrl = AVATAR_POOL.find((a: any) => a.id === user.avatarId)?.url || '/images/guild/profile/icon1.png';
                             opponentChallengers.push({ name: user.nickname, board: boardName, level, avatarUrl });
                         }
@@ -1074,7 +1071,7 @@ const GuildWar = () => {
                                             {board.gameMode === 'capture' && (
                                                 <div className="col-span-2 rounded-lg border border-amber-500/25 bg-slate-900/50 px-2 py-1.5 sm:px-2.5 sm:py-2">
                                                     <p className="mb-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-amber-200/90 sm:text-xs">
-                                                        따내기 목표
+                                                        목표점수
                                                     </p>
                                                     <div className="flex flex-wrap items-center justify-center gap-2">
                                                         <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/35 px-2 py-1.5">

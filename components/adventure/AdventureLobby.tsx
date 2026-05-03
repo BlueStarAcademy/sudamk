@@ -50,12 +50,12 @@ const AdventureLobby: React.FC = () => {
 
     const chapterUnlockCtx: AdventureChapterUnlockContext = useMemo(
         () => ({
-            strategyLevel: Number(currentUserWithStatus?.strategyLevel ?? 0) || 0,
+            strategyLevel: Number(currentUserWithStatus?.userLevel ?? 0) || 0,
             isAdmin: !!currentUserWithStatus?.isAdmin,
             understandingXpByStage: currentUserWithStatus?.adventureProfile?.understandingXpByStage,
         }),
         [
-            currentUserWithStatus?.strategyLevel,
+            currentUserWithStatus?.userLevel,
             currentUserWithStatus?.isAdmin,
             currentUserWithStatus?.adventureProfile?.understandingXpByStage,
         ],

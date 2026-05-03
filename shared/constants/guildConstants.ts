@@ -356,16 +356,18 @@ export const GUILD_NAME_CHANGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 export const GUILD_LEAVE_COOLDOWN_MS = 3 * 60 * 60 * 1000; // 3 hours
 export const GUILD_INITIAL_MEMBER_LIMIT = 25;
 
-/** 전략·놀이 레벨 합(각 1부터 표기되는 합산)이 이 값 이상일 때 길드 UI·API 이용 */
+/** 유저 레벨이 이 값 이상일 때 길드 UI·API 이용 */
 export const MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES = 5;
 
-export function getCombinedStrategyPlayfulLevel(user: { strategyLevel?: number; playfulLevel?: number }): number {
-    return (user.strategyLevel ?? 1) + (user.playfulLevel ?? 1);
+export function getCombinedStrategyPlayfulLevel(user: { userLevel?: number }): number {
+    if (typeof user.userLevel === 'number' && Number.isFinite(user.userLevel)) {
+        return Math.max(1, user.userLevel);
+    }
+    return 1;
 }
 
 export function userMeetsGuildFeatureLevelRequirement(user: {
-    strategyLevel?: number;
-    playfulLevel?: number;
+    userLevel?: number;
     isAdmin?: boolean;
 }): boolean {
     if (user.isAdmin) return true;

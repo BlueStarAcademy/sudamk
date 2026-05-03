@@ -11,6 +11,7 @@ export interface RankingEntry {
     wins: number;
     losses: number;
     league?: string;
+    userLevel?: number;
 }
 
 export interface RankingResponse {

@@ -39,8 +39,8 @@ function useUnlockedAvatars(user: UserWithStatus | null): AvatarInfo[] {
         return AVATAR_POOL.filter(
             (avatar) =>
                 avatar.type === 'any' ||
-                (avatar.type === 'strategy' && user.strategyLevel >= avatar.requiredLevel) ||
-                (avatar.type === 'playful' && user.playfulLevel >= avatar.requiredLevel),
+                (avatar.type === 'strategy' && user.userLevel >= avatar.requiredLevel) ||
+                (avatar.type === 'playful' && user.userLevel >= avatar.requiredLevel),
         );
     }, [user]);
 }

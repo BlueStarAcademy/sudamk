@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { UserWithStatus } from '../../types.js';
 import type { ServerAction } from '../../types.js';
-import type { Negotiation } from '../../types.js';
 import PlayerList, { type PairInviteListTab } from '../waiting-room/PlayerList.js';
 import { UserStatus } from '../../types.js';
 
@@ -15,7 +14,6 @@ type Props = {
     cooldownUntilByInviteeId: Record<string, number>;
     onRegisterLocalCooldown: (inviteeId: string, untilMs: number) => void;
     onAction: (a: ServerAction) => void | Promise<unknown>;
-    negotiations: Negotiation[];
     onViewUser: (userId: string) => void;
     inviteTargetSlot?: { team: 'teamA' | 'teamB'; index: 0 | 1 } | null;
 };
@@ -30,7 +28,6 @@ const PairPartnerInviteModal: React.FC<Props> = ({
     cooldownUntilByInviteeId,
     onRegisterLocalCooldown,
     onAction,
-    negotiations,
     onViewUser,
     inviteTargetSlot,
 }) => {
@@ -165,7 +162,6 @@ const PairPartnerInviteModal: React.FC<Props> = ({
                         mode="pair"
                         onAction={onAction}
                         currentUser={currentUser}
-                        negotiations={negotiations}
                         onViewUser={onViewUser}
                         lobbyType="strategic"
                         pairInvite={{

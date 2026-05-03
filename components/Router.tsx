@@ -12,7 +12,6 @@ import GoogleCallback from './GoogleCallback.js';
 import SetNickname from './SetNickname.js';
 import Profile from './Profile.js';
 import Lobby from './Lobby.js';
-import WaitingRoom from './waiting-room/WaitingRoom.js';
 import Game from '../Game.js';
 import Admin from './Admin.js';
 import TournamentLobby from './TournamentLobby.js';
@@ -215,16 +214,17 @@ const Router: React.FC = () => {
         case 'waiting':
             if (currentRoute.params.mode) {
                 const mode = currentRoute.params.mode;
-                // 통합 대기실(strategic/playful)만 허용, 개별 게임 모드는 프로필로 리다이렉트
                 if (mode === 'strategic' || mode === 'playful') {
-                    return <WaitingRoom mode={mode as 'strategic' | 'playful'} />;
-                } else {
-                    console.warn('Router: Individual game mode waiting room access denied, redirecting to profile:', mode);
-                    window.location.hash = '#/profile';
-                    return null;
+                    return (
+                        <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
+                            <PairWaitingLobby lobbyChannel={mode as 'strategic' | 'playful'} />
+                        </div>
+                    );
                 }
+                console.warn('Router: Individual game mode waiting room access denied, redirecting to profile:', mode);
+                window.location.hash = '#/profile';
+                return null;
             }
-            // Fallback if mode is missing
             window.location.hash = '#/profile';
             return null;
         case 'pair':

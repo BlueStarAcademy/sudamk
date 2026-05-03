@@ -112,10 +112,7 @@ const AchievementTrackPanel: React.FC<{
             return (currentUser.clearedSinglePlayerStages ?? []).includes(stage.requirement.stageId);
         }
         if (stage.requirement.type === 'strategy_level') {
-            return (currentUser.strategyLevel ?? 0) >= stage.requirement.level;
-        }
-        if (stage.requirement.type === 'playful_level') {
-            return (currentUser.playfulLevel ?? 0) >= stage.requirement.level;
+            return (currentUser.userLevel ?? 0) >= stage.requirement.level;
         }
         if (stage.requirement.type === 'championship_cumulative_score') {
             return (currentUser.cumulativeTournamentScore ?? 0) >= stage.requirement.score;
@@ -814,9 +811,7 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
             if (requirement.type === 'singleplayer_stage_clear') {
                 met = (currentUser.clearedSinglePlayerStages ?? []).includes(requirement.stageId);
             } else if (requirement.type === 'strategy_level') {
-                met = (currentUser.strategyLevel ?? 0) >= requirement.level;
-            } else if (requirement.type === 'playful_level') {
-                met = (currentUser.playfulLevel ?? 0) >= requirement.level;
+                met = (currentUser.userLevel ?? 0) >= requirement.level;
             } else if (requirement.type === 'championship_cumulative_score') {
                 met = (currentUser.cumulativeTournamentScore ?? 0) >= requirement.score;
             } else if (requirement.type === 'all_equipment_min_grade') {

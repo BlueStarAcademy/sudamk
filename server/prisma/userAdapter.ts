@@ -25,6 +25,8 @@ import {
 } from "../../shared/constants/pairHatchery.js";
 import { clampGameInt } from "../../shared/utils/gameIntegerField.js";
 import { MAX_PLAYER_DIAMONDS, MAX_PLAYER_GOLD } from "../../shared/constants/numericLimits.js";
+import { mergeLegacyStrategyPlayfulIntoUserLevelXp } from "../../shared/utils/userLevelMerge.js";
+import { migrateUserStatsToUnifiedRanked } from "../../shared/utils/unifiedRankedStatsMigration.js";
 
 export { normalizeLegacyDivineMythicInventoryItem } from "../../shared/utils/inventoryLegacyNormalize.js";
 
@@ -231,7 +233,7 @@ const ensureDailyRankings = (value: unknown): User["dailyRankings"] =>
   parseJson<User["dailyRankings"]>(value, {});
 
 const ensureStats = (value: unknown): User["stats"] =>
-  parseJson<User["stats"]>(value, {});
+  migrateUserStatsToUnifiedRanked(parseJson<Record<string, unknown>>(value, {})) as User["stats"];
 
 const ensureInventory = (value: unknown): InventoryItem[] =>
   parseJson<InventoryItem[]>(value, []);
@@ -312,6 +314,29 @@ export type PrismaUserWithStatus = Prisma.UserGetPayload<{ include: { status: tr
   }>;
 };
 
+/** 거래소 `listed` 목록과 인벤 `isExchangeListed` 동기화 — UserInventory.metadata에 플래그가 없던 기존 데이터 보정 */
+function reconcileExchangeListedInventoryFlags(user: User): User {
+  const listings = user.exchangeState?.listings;
+  if (!Array.isArray(listings)) return user;
+  const listedIds = new Set(
+    listings
+      .filter((row: unknown) => {
+        const r = row as { status?: unknown; itemId?: unknown } | null;
+        return Boolean(r && r.status === "listed" && typeof r.itemId === "string");
+      })
+      .map((row: unknown) => (row as { itemId: string }).itemId),
+  );
+  let changed = false;
+  const inventory = user.inventory.map((it: InventoryItem) => {
+    if (!it || it.type !== "equipment") return it;
+    const should = listedIds.has(it.id);
+    if (should === Boolean(it.isExchangeListed)) return it;
+    changed = true;
+    return { ...it, isExchangeListed: should };
+  });
+  return changed ? { ...user, inventory } : user;
+}
+
 const applyDefaults = (
   user: Partial<User>,
   prismaUser: PrismaUserWithStatus,
@@ -350,6 +375,23 @@ const applyDefaults = (
   const savedGameRecords =
     Array.isArray(savedGameRecordsCandidate) ? savedGameRecordsCandidate : undefined;
 
+  const levelSnap = (status?.serializedUser ?? {}) as Partial<User> & Record<string, unknown>;
+  let resolvedUserLevel = user.userLevel ?? prismaUser.userLevel ?? 1;
+  let resolvedUserXp = user.userXp ?? prismaUser.userXp ?? 0;
+  if (
+    typeof (levelSnap as any).userLevel !== "number" &&
+    typeof (levelSnap as any).strategyLevel === "number"
+  ) {
+    const merged = mergeLegacyStrategyPlayfulIntoUserLevelXp(
+      Math.max(1, Math.floor(Number((levelSnap as any).strategyLevel) || 1)),
+      Math.max(0, Math.floor(Number((levelSnap as any).strategyXp) || 0)),
+      Math.max(1, Math.floor(Number((levelSnap as any).playfulLevel) || 1)),
+      Math.max(0, Math.floor(Number((levelSnap as any).playfulXp) || 0))
+    );
+    resolvedUserLevel = merged.userLevel;
+    resolvedUserXp = merged.userXp;
+  }
+
   const out: User = {
     id: prismaUser.id,
     username:
@@ -362,10 +404,8 @@ const applyDefaults = (
       user.staffNicknameDisplayEligibility ??
       (status?.serializedUser as User | undefined)?.staffNicknameDisplayEligibility
     ),
-    strategyLevel: user.strategyLevel ?? prismaUser.strategyLevel ?? 1,
-    strategyXp: user.strategyXp ?? prismaUser.strategyXp ?? 0,
-    playfulLevel: user.playfulLevel ?? prismaUser.playfulLevel ?? 1,
-    playfulXp: user.playfulXp ?? prismaUser.playfulXp ?? 0,
+    userLevel: resolvedUserLevel,
+    userXp: resolvedUserXp,
     baseStats: user.baseStats ?? createDefaultBaseStats(),
     spentStatPoints: user.spentStatPoints ?? createDefaultSpentStatPoints(),
     inventory: syncedInventory,
@@ -446,6 +486,10 @@ const applyDefaults = (
     cumulativeRankingScore: user.cumulativeRankingScore ?? {},
     cumulativeTournamentScore: (user.cumulativeTournamentScore != null ? user.cumulativeTournamentScore : 0),
     inventorySlotsMigrated: user.inventorySlotsMigrated ?? false,
+    statAllocationResetForUserLevelStructureV1:
+      user.statAllocationResetForUserLevelStructureV1 ??
+      (status?.serializedUser as User | undefined)?.statAllocationResetForUserLevelStructureV1 ??
+      false,
     dailyRankings: user.dailyRankings ?? {},
     equippedPairPetTemplateId:
         user.equippedPairPetTemplateId ??
@@ -504,9 +548,25 @@ const applyDefaults = (
         0,
     vvipExpiresAt:
         user.vvipExpiresAt ?? (status?.serializedUser as User | undefined)?.vvipExpiresAt ?? 0,
+    activeDiamondPackageTier:
+        user.activeDiamondPackageTier ??
+        (status?.serializedUser as User | undefined)?.activeDiamondPackageTier ??
+        0,
+    diamondPackageExpiresAt:
+        user.diamondPackageExpiresAt ??
+        (status?.serializedUser as User | undefined)?.diamondPackageExpiresAt ??
+        0,
+    diamondPackageLastMailDayKST:
+        user.diamondPackageLastMailDayKST ??
+        (status?.serializedUser as User | undefined)?.diamondPackageLastMailDayKST ??
+        undefined,
   };
-  reconcileEquippedPairPetInventoryItem(out);
-  return out;
+  const withExchangeFlags = reconcileExchangeListedInventoryFlags(out);
+  reconcileEquippedPairPetInventoryItem(withExchangeFlags);
+  withExchangeFlags.stats = migrateUserStatsToUnifiedRanked(
+    (withExchangeFlags.stats ?? {}) as Record<string, unknown>
+  ) as User["stats"];
+  return withExchangeFlags;
 };
 
 const ensureAdminSinglePlayerAccess = (user: User): User => {
@@ -609,6 +669,7 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
               enhancementFails: meta?.enhancementFails || 0,
               templateId: def.templateId,
               pairPetMeta: meta.pairPetMeta,
+              ...(meta.isExchangeListed === true ? { isExchangeListed: true as const } : {}),
             };
             inventoryFromTable.push(normalizeInventoryEquipmentItem(item));
             continue;
@@ -636,6 +697,7 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
           stars: inv.stars,
           options: meta?.options || itemInfo?.options || [],
           enhancementFails: meta?.enhancementFails || 0,
+          ...(meta.isExchangeListed === true ? { isExchangeListed: true as const } : {}),
         };
         inventoryFromTable.push(normalizeInventoryEquipmentItem(item));
       }
@@ -674,10 +736,8 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
       cloned.isAdmin ??
       status.serializedUser?.isAdmin ??
       false;
-    cloned.strategyLevel = prismaUser.strategyLevel ?? cloned.strategyLevel;
-    cloned.strategyXp = prismaUser.strategyXp ?? cloned.strategyXp;
-    cloned.playfulLevel = prismaUser.playfulLevel ?? cloned.playfulLevel;
-    cloned.playfulXp = prismaUser.playfulXp ?? cloned.playfulXp;
+    cloned.userLevel = prismaUser.userLevel ?? cloned.userLevel;
+    cloned.userXp = prismaUser.userXp ?? cloned.userXp;
     cloned.actionPoints = {
       current:
         status.actionPointMeta?.actionPoints?.current ??

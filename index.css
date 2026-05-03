@@ -295,6 +295,35 @@ html[data-theme="green"] {
     line-height: 1.5;
   }
 
+  /**
+   * 정보 밀집 모달(랭킹전 매칭 설정 등): 모바일 본문 보정을 끄고 Tailwind 기본 단계에 맞춤.
+   * `.sudamr-mobile-modal-body`와 같은 요소에 함께 둔다(특이도로 위 규칙 덮어씀).
+   */
+  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy {
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+
+  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy .text-xs {
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+
+  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy .text-sm {
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+
+  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy .text-base {
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+
+  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy .text-lg {
+    font-size: 1rem;
+    line-height: 1.35;
+  }
+
   .panel-surface,
   .bg-panel,
   .bg-panel-secondary,
@@ -1819,14 +1848,14 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .bg-strategic-background {
-    background-image: url('/images/bg/strategicbg.png');
+    background-image: url('/images/bg/strategicbg.webp');
     background-size: cover;
     background-position: center;
     background-color: rgb(var(--bg-tertiary));
 }
 
 .bg-playful-background {
-    background-image: url('/images/bg/playfulbg.png');
+    background-image: url('/images/bg/playfulbg.webp');
     background-size: cover;
     background-position: center;
     background-color: rgb(var(--bg-tertiary));
@@ -1849,6 +1878,17 @@ input[type="range"]::-moz-range-thumb {
         radial-gradient(ellipse 90% 55% at 50% -10%, rgba(251, 191, 36, 0.22), transparent 55%),
         radial-gradient(ellipse 60% 45% at 0% 100%, rgba(234, 88, 12, 0.14), transparent 48%),
         linear-gradient(165deg, #120c0a 0%, #241810 35%, #3d2512 58%, #140e0a 100%);
+    background-repeat: no-repeat;
+    background-size: 100% 100%, 100% 100%, 100% 100%;
+}
+
+/* 페어 경기장 — 전략(시안·남색)과 놀이(앰버) 사이: 바이올렛·퍼플 톤 */
+.bg-lobby-shell-pair {
+    background-color: #0e0818;
+    background-image:
+        radial-gradient(ellipse 96% 56% at 50% -12%, rgba(167, 139, 250, 0.3), transparent 54%),
+        radial-gradient(ellipse 58% 46% at 100% 92%, rgba(192, 132, 252, 0.16), transparent 50%),
+        linear-gradient(163deg, #0a0614 0%, #1a0f2e 36%, #2d1a4a 64%, #0b0716 100%);
     background-repeat: no-repeat;
     background-size: 100% 100%, 100% 100%, 100% 100%;
 }

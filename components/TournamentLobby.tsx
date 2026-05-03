@@ -941,13 +941,10 @@ const TournamentLobby: React.FC = () => {
         [finalByStat],
     );
     const userDungeonCoreStatAverage = useMemo(() => badukAbilityTotal / 6, [badukAbilityTotal]);
-    const totalPoints =
-        (Math.max(0, currentUserWithStatus.strategyLevel - 1) * 2) +
-        (Math.max(0, currentUserWithStatus.playfulLevel - 1) * 2) +
-        (currentUserWithStatus.bonusStatPoints || 0);
+    const totalPoints = (Math.max(0, currentUserWithStatus.userLevel - 1) * 2) + (currentUserWithStatus.bonusStatPoints || 0);
     const spentPoints = Object.values(currentUserWithStatus.spentStatPoints || {}).reduce((sum, points) => sum + points, 0);
     const availablePoints = totalPoints - spentPoints;
-    const combinedLevel = (currentUserWithStatus.strategyLevel || 0) + (currentUserWithStatus.playfulLevel || 0);
+    const combinedLevel = currentUserWithStatus.userLevel || 0;
     const myAvatarUrl = AVATAR_POOL.find(a => a.id === currentUserWithStatus.avatarId)?.url;
     const myBorderUrl = BORDER_POOL.find(b => b.id === currentUserWithStatus.borderId)?.url;
     const championshipScore = currentUserWithStatus.cumulativeTournamentScore || currentUserWithStatus.tournamentScore || 0;

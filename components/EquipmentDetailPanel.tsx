@@ -14,9 +14,10 @@ import {
     getMaterialBagUsageLines,
     resolveBagItemDetailImagePath,
 } from '../shared/utils/bagItemDetailHelpers.js';
+import { resolveBagItemAcquireLines } from '../shared/utils/itemAcquireSourceLines.js';
 
-/** ItemDetailModal과 동일 — 등급별 프레임·배경 */
-const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; frame: string }> = {
+/** ItemDetailModal과 동일 — 등급별 프레임·배경 (구매 모달 등에서 재사용 가능) */
+export const equipmentDetailGradeStyles: Record<ItemGrade, { name: string; color: string; background: string; frame: string }> = {
     normal: { name: '일반', color: 'text-zinc-300', background: '/images/equipments/normalbgi.png', frame: 'from-zinc-500/15 to-zinc-700/5 ring-zinc-500/25' },
     uncommon: { name: '고급', color: 'text-emerald-400', background: '/images/equipments/uncommonbgi.png', frame: 'from-emerald-500/20 to-emerald-900/10 ring-emerald-500/30' },
     rare: { name: '희귀', color: 'text-sky-400', background: '/images/equipments/rarebgi.png', frame: 'from-sky-500/20 to-blue-950/15 ring-sky-500/35' },
@@ -80,6 +81,10 @@ export interface EquipmentDetailPanelProps {
      * 지정 시 sm/md 반응형 슬롯 크기 대신 이 값을 사용합니다.
      */
     iconSlotPx?: number;
+    /** 설명·사용처 아래에 획득처(정적 요약) 표시 — 상점 구매 미리보기 등 */
+    showAcquireSources?: boolean;
+    /** 상점 미리보기 등에서 「보유 수량」 행 숨김 */
+    hideOwnedQuantity?: boolean;
 }
 
 /**
@@ -92,12 +97,14 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
     comfortableTypography = false,
     optionRowsSingleLine = false,
     iconSlotPx,
+    showAcquireSources = false,
+    hideOwnedQuantity = false,
 }) => {
     const { currentUserWithStatus } = useAppContext();
-    const styles = gradeStyles[item.grade];
+    const styles = equipmentDetailGradeStyles[item.grade];
 
     const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
-    const userLevelSum = (currentUserWithStatus?.strategyLevel || 0) + (currentUserWithStatus?.playfulLevel || 0);
+    const userLevelSum = currentUserWithStatus?.userLevel ?? 0;
     const canEquip = userLevelSum >= requiredLevel;
 
     const refinementCount = (item as { refinementCount?: number }).refinementCount ?? 0;
@@ -112,6 +119,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
         const usageFallback =
             item.type === 'consumable' ? '가방에서 사용할 수 있습니다.' : '이 재료는 현재 어떤 장비 강화에도 사용되지 않습니다.';
         const typeLabel = item.type === 'consumable' ? '소모품' : '재료';
+        const acquireLines = showAcquireSources ? resolveBagItemAcquireLines(item) : [];
 
         const mainBodyPx = comfortableTypography ? 13 : 12;
         const computedNameFontPx = Math.max(
@@ -202,7 +210,9 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                             </div>
                             <p className={`${metaText} text-slate-400`}>{typeLabel}</p>
                             <p className={`${metaText} ${styles.color}`}>[{styles.name}]</p>
-                            <p className={`${metaSemi} text-slate-300`}>보유 수량: {item.quantity ?? 0}</p>
+                            {!hideOwnedQuantity ? (
+                                <p className={`${metaSemi} text-slate-300`}>보유 수량: {item.quantity ?? 0}</p>
+                            ) : null}
                         </div>
                     </div>
                 </div>
@@ -232,6 +242,21 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                                 )}
                             </div>
                         </div>
+                        {acquireLines.length > 0 ? (
+                            <>
+                                <div className="my-2 h-px w-full shrink-0 bg-gradient-to-r from-transparent via-white/12 to-transparent" aria-hidden />
+                                <div>
+                                    <p className={sectionLabelClass}>획득처</p>
+                                    <div className="mt-1 space-y-1.5 text-slate-200/95">
+                                        {acquireLines.map((line, i) => (
+                                            <p key={`acq-${i}`} className="leading-relaxed">
+                                                {line}
+                                            </p>
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
+                        ) : null}
                     </div>
                 </div>
             </div>
@@ -255,6 +280,10 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
     const tradeStatusBadgeClass = 'text-[11px] font-semibold leading-none';
     const tradeStatusLineClass = 'text-[11px] font-semibold leading-snug';
     const optLine = optionRowsSingleLine ? 'whitespace-nowrap' : '';
+    const equipSectionLabelClass = comfortableTypography
+        ? 'text-[11px] font-bold uppercase tracking-wide text-slate-500'
+        : 'text-[10px] font-bold uppercase tracking-wide text-slate-500';
+    const acquireEquipLines = showAcquireSources ? resolveBagItemAcquireLines(item) : [];
 
     const optionsSectionClass = optionsScrollable
         ? 'min-h-0 flex-1 overflow-y-auto rounded-xl border border-white/[0.08] bg-gradient-to-b from-zinc-900/80 to-zinc-950/90 p-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-black/30'
@@ -378,6 +407,26 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                             enlargeBody={comfortableTypography}
                             rowsNoWrap={optionRowsSingleLine}
                         />
+                    ) : null}
+                    {showAcquireSources && item.description?.trim() ? (
+                        <div className="mt-2 border-t border-white/10 pt-2">
+                            <p className={equipSectionLabelClass}>설명</p>
+                            <p className={`mt-1 text-slate-200/95 ${comfortableTypography ? 'text-[13px] leading-snug' : 'text-[12px] leading-snug'}`}>
+                                {item.description.trim()}
+                            </p>
+                        </div>
+                    ) : null}
+                    {acquireEquipLines.length > 0 ? (
+                        <div className="mt-2 border-t border-white/10 pt-2">
+                            <p className={equipSectionLabelClass}>획득처</p>
+                            <div className="mt-1 space-y-1.5 text-slate-200/95">
+                                {acquireEquipLines.map((line, i) => (
+                                    <p key={`eq-acq-${i}`} className="leading-relaxed">
+                                        {line}
+                                    </p>
+                                ))}
+                            </div>
+                        </div>
                     ) : null}
                 </div>
             </div>

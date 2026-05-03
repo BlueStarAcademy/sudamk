@@ -114,7 +114,7 @@ const AnnouncementBoard: React.FC<{ mode: GameMode; }> = ({ mode }) => {
 const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   const { 
     currentUserWithStatus, onlineUsers, allUsers, liveGames, 
-    waitingRoomChats, negotiations, handlers 
+    waitingRoomChats, handlers 
   } = useAppContext();
 
   const isMobile = false;
@@ -297,7 +297,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                         <QuickAccessSidebar />
                     </div>
                 </div>
-                <div className="flex-1 min-h-0"><PlayerList users={usersInThisRoom} mode={mode} onAction={handlers.handleAction} currentUser={currentUserWithStatus} negotiations={Object.values(negotiations)} onViewUser={handlers.openViewingUser} lobbyType={lobbyType} /></div>
+                <div className="flex-1 min-h-0"><PlayerList users={usersInThisRoom} mode={mode} onAction={handlers.handleAction} currentUser={currentUserWithStatus} onViewUser={handlers.openViewingUser} lobbyType={lobbyType} /></div>
                 <div className="flex-1 min-h-0 border-t border-color"><RankingList mode={mode} onShowTierInfo={() => setIsTierInfoModalOpen(true)} currentUser={currentUserWithStatus} onViewUser={handlers.openViewingUser} onShowPastRankings={handlers.openPastRankings} lobbyType={lobbyType} /></div>
             </div>
             {isMobileSidebarOpen && <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setIsMobileSidebarOpen(false)}></div>}
@@ -326,7 +326,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
             <div className="col-span-2 grid grid-rows-2 gap-4">
               <div className="flex flex-row gap-4 items-stretch min-h-0">
                 <div className={`flex-1 min-w-0 rounded-xl border p-1 ${theme.panel} ${theme.glow}`}>
-                  <PlayerList users={usersInThisRoom} mode={mode} onAction={handlers.handleAction} currentUser={currentUserWithStatus} negotiations={Object.values(negotiations)} onViewUser={handlers.openViewingUser} lobbyType={lobbyType} />
+                  <PlayerList users={usersInThisRoom} mode={mode} onAction={handlers.handleAction} currentUser={currentUserWithStatus} onViewUser={handlers.openViewingUser} lobbyType={lobbyType} />
                 </div>
                 <div className={PC_QUICK_RAIL_COLUMN_CLASS}>
                   <QuickAccessSidebar />

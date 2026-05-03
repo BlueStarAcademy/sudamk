@@ -552,9 +552,10 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                 game.turnOrderRollDeadline = undefined;
             }
             break;
-        case 'dice_turn_rolling_animating':
-            if (game.animation && game.animation.type === 'dice_roll_turn' && now > game.animation.startTime + game.animation.duration) {
-                const { p1Roll, p2Roll } = game.animation;
+        case 'dice_turn_rolling_animating': {
+            const turnAnim = game.animation;
+            if (turnAnim && turnAnim.type === 'dice_roll_turn' && now > turnAnim.startTime + turnAnim.duration) {
+                const { p1Roll, p2Roll } = turnAnim;
                 game.turnOrderRolls = { [p1Id]: p1Roll, [p2Id]: p2Roll };
                 if (p1Roll === p2Roll) {
                     game.turnOrderRollTies = (game.turnOrderRollTies || 0) + 1;
@@ -579,8 +580,36 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                     game.turnOrderRollTies = 0; // Reset on non-tie
                 }
                 game.animation = null;
+            } else if (!turnAnim || turnAnim.type !== 'dice_roll_turn') {
+                // 새로고침·저장/병합 등으로 굴림 애니만 유실된 채 animating에 고착된 경우
+                const p1Roll = Math.floor(Math.random() * 6) + 1;
+                const p2Roll = Math.floor(Math.random() * 6) + 1;
+                game.turnOrderRolls = { [p1Id]: p1Roll, [p2Id]: p2Roll };
+                game.animation = null;
+                if (p1Roll === p2Roll) {
+                    game.turnOrderRollTies = (game.turnOrderRollTies || 0) + 1;
+                    if (game.turnOrderRollTies >= 3) {
+                        const winnerId = Math.random() < 0.5 ? p1Id : p2Id;
+                        game.turnChooserId = winnerId;
+                        game.gameStatus = 'dice_turn_choice';
+                        game.turnChoiceDeadline = now + DICE_GO_TURN_CHOICE_TIME * 1000;
+                        game.turnOrderRollTies = 0;
+                    } else {
+                        game.gameStatus = 'dice_turn_rolling';
+                        game.turnOrderRollResult = 'tie';
+                        game.turnOrderRollReady = { [p1Id]: false, [p2Id]: false };
+                        game.turnOrderRollDeadline = now + DICE_GO_TURN_ROLL_TIME * 1000;
+                    }
+                } else {
+                    game.turnChooserId = p1Roll > p2Roll ? p1Id : p2Id;
+                    game.gameStatus = 'dice_turn_choice';
+                    game.turnChoiceDeadline = now + DICE_GO_TURN_CHOICE_TIME * 1000;
+                    game.turnOrderRollTies = 0;
+                }
+                console.warn(`[updateDiceGoState] Orphan dice_turn_rolling_animating recovered gameId=${game.id}`);
             }
             break;
+        }
         case 'dice_turn_choice':
             if (game.turnChoiceDeadline && now > game.turnChoiceDeadline) {
                 const choice = Math.random() < 0.5 ? 'first' : 'second';
@@ -655,13 +684,23 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
             // 애니 객체가 없는데 animating만 남은 경우: 굴림 이력이 있으면 보드+주사위로 착수/오버샷 판정
             const orphanAnimatingByHistory =
                 (!rollAnim || rollAnim.type !== 'dice_roll_main') && hasValidHistRoll;
+            // AI가 굴린 직후 stonesToPlace(1~6) 또는 오버샷(-1)은 이미 확정값인데 애니 JSON만 유실된 경우 (새로고침·직렬화)
+            const stpCommitted = Number(game.stonesToPlace);
+            const orphanAnimatingByCommittedStones =
+                (!rollAnim || rollAnim.type !== 'dice_roll_main') &&
+                Number.isFinite(stpCommitted) &&
+                stpCommitted >= 1 &&
+                stpCommitted <= 6;
 
-            if (rollAnimComplete || orphanOvershotNoAnim || orphanAnimatingByHistory) {
+            if (rollAnimComplete || orphanOvershotNoAnim || orphanAnimatingByHistory || orphanAnimatingByCommittedStones) {
                 if (rollAnimComplete && rollAnim!.type === 'dice_roll_main') {
                     game.dice = rollAnim.dice;
                     game.animation = null;
-                } else if (orphanOvershotNoAnim || orphanAnimatingByHistory) {
+                } else if (orphanOvershotNoAnim || orphanAnimatingByHistory || orphanAnimatingByCommittedStones) {
                     game.animation = null;
+                    if (orphanAnimatingByCommittedStones && !game.dice) {
+                        game.dice = { dice1: stpCommitted, dice2: 0, dice3: 0 };
+                    }
                     if (lastDiceFromHist != null && !game.dice) {
                         game.dice = { dice1: lastDiceFromHist, dice2: 0, dice3: 0 };
                     }

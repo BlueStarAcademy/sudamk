@@ -1,13 +1,14 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScrollbar.js';
 import { useRanking } from '../hooks/useRanking.js';
 import { RankingEntry } from '../hooks/useRanking.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import Avatar from './Avatar.js';
 
 const CHAMPIONSHIP_TOP = 100;
-const MOBILE_RANK_ROW_CLASS = 'min-h-[2.75rem]';
-const MOBILE_RANK_TEXT_CLASS = 'text-[11px]';
+const MOBILE_RANK_ROW_CLASS = 'min-h-[3rem]';
+const MOBILE_RANK_TEXT_CLASS = 'text-xs sm:text-[13px]';
 /** 첫 화면에 약 6명 분량이 보이도록 행 높이와 맞춘 초기 로드 개수 */
 const INITIAL_DISPLAY = 6;
 const LOAD_MORE = 8;
@@ -42,7 +43,7 @@ const CompactRankRow: React.FC<{
             title={!isCurrentUser ? `${entry.nickname} 프로필 보기` : ''}
         >
             <span
-                className={`text-center font-bold ${dense ? 'w-5 text-[8px]' : lobbyNativeMobile ? `w-8 ${MOBILE_RANK_TEXT_CLASS}` : 'w-8 text-xs'} ${
+                className={`text-center font-bold ${dense ? 'w-5 text-[8px]' : lobbyNativeMobile ? `w-9 ${MOBILE_RANK_TEXT_CLASS}` : 'w-8 text-xs'} ${
                     !dense && r === 1
                         ? 'text-amber-300'
                         : !dense && r === 2
@@ -54,14 +55,14 @@ const CompactRankRow: React.FC<{
             >
                 {entry.rank === 0 ? '-' : entry.rank}
             </span>
-            <Avatar userId={entry.id} userName={entry.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 20 : lobbyNativeMobile ? 34 : 28} />
+            <Avatar userId={entry.id} userName={entry.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 20 : lobbyNativeMobile ? 38 : 28} />
             <span
                 className={`ml-1 flex-1 truncate font-semibold ${dense ? 'text-[8px]' : lobbyNativeMobile ? `ml-1.5 ${MOBILE_RANK_TEXT_CLASS}` : 'ml-1.5 text-xs'}`}
             >
                 {entry.nickname}
             </span>
             <span
-                className={`text-right font-mono ${dense ? 'w-10 text-[7px]' : lobbyNativeMobile ? `w-[4.25rem] ${MOBILE_RANK_TEXT_CLASS}` : 'w-16 text-xs'}`}
+                className={`text-right font-mono ${dense ? 'w-10 text-[7px]' : lobbyNativeMobile ? `w-[4.75rem] ${MOBILE_RANK_TEXT_CLASS}` : 'w-16 text-xs'}`}
             >
                 {entry.score.toLocaleString()}
             </span>
@@ -203,18 +204,19 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
                         dense
                             ? 'text-[8px] leading-tight text-secondary'
                             : lobbyNativeMobile
-                              ? 'bg-gradient-to-r from-fuchsia-100 via-violet-50 to-amber-100/90 bg-clip-text text-base text-transparent'
+                              ? 'bg-gradient-to-r from-fuchsia-100 via-violet-50 to-amber-100/90 bg-clip-text text-lg text-transparent sm:text-xl'
                               : 'bg-gradient-to-r from-fuchsia-100 via-violet-50 to-amber-100/90 bg-clip-text text-sm text-transparent'
                     }`}
                 >
                     챔피언십 랭킹
                 </h3>
-                <div className={`flex min-h-0 flex-grow flex-col overflow-y-auto pr-0.5 ${dense ? 'gap-0.5 text-[8px]' : 'gap-1 pr-1'}`}
+                <div
+                    className={`flex min-h-0 flex-grow flex-col overflow-y-auto pr-0.5 ${RANKING_MODAL_SLIM_SCROLL_Y} ${dense ? 'gap-0.5 text-[8px]' : 'gap-1 pr-1'}`}
                 >
                     {loading && rankings.length === 0 ? (
-                        <div className={`flex h-full items-center justify-center text-gray-400 ${lobbyNativeMobile ? 'text-[11px]' : 'text-xs'}`}>데이터 로딩 중...</div>
+                        <div className={`flex h-full items-center justify-center text-gray-400 ${lobbyNativeMobile ? 'text-xs sm:text-[13px]' : 'text-xs'}`}>데이터 로딩 중...</div>
                     ) : error ? (
-                        <div className={`flex h-full items-center justify-center text-red-400 ${lobbyNativeMobile ? 'text-[11px]' : 'text-xs'}`}>랭킹을 불러오는데 실패했습니다.</div>
+                        <div className={`flex h-full items-center justify-center text-red-400 ${lobbyNativeMobile ? 'text-xs sm:text-[13px]' : 'text-xs'}`}>랭킹을 불러오는데 실패했습니다.</div>
                     ) : (
                         <>
                             {currentUserEntry && (
@@ -229,7 +231,7 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
                                 </div>
                             )}
                             {visibleRankings.length === 0 ? (
-                                <div className={`flex flex-1 items-center justify-center py-3 text-center text-gray-400 ${lobbyNativeMobile ? 'text-[11px]' : 'text-xs'}`}>
+                                <div className={`flex flex-1 items-center justify-center py-3 text-center text-gray-400 ${lobbyNativeMobile ? 'text-xs sm:text-[13px]' : 'text-xs'}`}>
                                     랭킹에 표시할 점수가 있는 유저가 없습니다.
                                 </div>
                             ) : (
@@ -245,7 +247,7 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
                                         />
                                     ))}
                                     {displayCount < visibleRankings.length && (
-                                        <div ref={loadMoreRef as React.RefObject<HTMLDivElement>} className={`py-2 text-center text-gray-400 ${lobbyNativeMobile ? 'text-[11px]' : 'text-xs'}`}>로딩 중...</div>
+                                        <div ref={loadMoreRef as React.RefObject<HTMLDivElement>} className={`py-2 text-center text-gray-400 ${lobbyNativeMobile ? 'text-xs sm:text-[13px]' : 'text-xs'}`}>로딩 중...</div>
                                     )}
                                 </div>
                             )}
@@ -307,7 +309,7 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
                         </div>
                     )}
 
-                    <ul className="min-h-0 flex-grow space-y-3 overflow-y-auto pr-2">
+                    <ul className={`min-h-0 flex-grow space-y-3 overflow-y-auto pr-2 ${RANKING_MODAL_SLIM_SCROLL_Y}`}>
                         {displayedEntries.length > 0 ? (
                             <>
                                 {displayedEntries.map((entry) => (

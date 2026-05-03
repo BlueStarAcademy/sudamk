@@ -52,7 +52,7 @@ import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
 import { replaceAppHash } from './utils/appUtils.js';
 import { getAdventureMapWebpPath } from './constants/adventureConstants.js';
 import { InGameModalLayoutProvider } from './contexts/InGameModalLayoutContext.js';
-import { getCurrentPairTurnSeat, isPairAiSeat, PAIR_TURN_SEAT_IDS } from './shared/utils/pairGameTurn.js';
+import { getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame, PAIR_TURN_SEAT_IDS } from './shared/utils/pairGameTurn.js';
 import { getPairPetDefinition } from './shared/constants/petLobby.js';
 import { getEquippedPairPetInventoryRow } from './shared/utils/pairEquippedPet.js';
 import { resolvePairPetMetaFromInventoryRow } from './shared/utils/pairPetRoll.js';
@@ -169,10 +169,16 @@ function pairSeatMatchesViewerUser(seat: PairSeat, userId: string): boolean {
     return false;
 }
 
+/** 바둑판 클릭 착수: 현재 좌석이 본인 유저 차례일 때만. 펫·AI 차례에는 소유자/팀원이라도 클릭으로 두지 않음 */
+function pairSeatAllowsViewerStonePlacement(seat: PairSeat, userId: string | undefined): boolean {
+    if (!userId) return false;
+    return seat.kind === 'user' && seat.participantId === userId;
+}
+
 function pairSeatDisplayInfo(session: LiveGameSession, seat: PairSeat): { name: string; avatarUrl: string | null; borderUrl: string | null } {
     const owner = pairSeatOwnerUser(session, seat);
     if (seat.kind === 'user') {
-        const level = Math.max(1, Number(owner?.strategyLevel ?? 1) || 1);
+        const level = Math.max(1, Number(owner?.userLevel ?? 1) || 1);
         return {
             name: `Lv.${level} ${owner?.nickname ?? seat.name}`,
             avatarUrl: owner ? AVATAR_POOL.find((a) => a.id === owner.avatarId)?.url ?? null : null,
@@ -359,7 +365,7 @@ const PairMobileTeamPanel: React.FC<{
         inPairTurnPhase &&
         currentSeat != null &&
         currentSeat.player === player &&
-        pairSeatMatchesViewerUser(currentSeat, viewerUserId);
+        pairSeatAllowsViewerStonePlacement(currentSeat, viewerUserId);
 
     return (
         <div
@@ -1402,7 +1408,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 return false;
             }
             case 'playing': case 'hidden_placing': 
-                if (pairCurrentSeat) return pairSeatMatchesViewerUser(pairCurrentSeat, currentUser.id);
+                if (pairCurrentSeat) return pairSeatAllowsViewerStonePlacement(pairCurrentSeat, currentUser.id);
                 return myPlayerEnum !== Player.None && myPlayerEnum === currentPlayer;
             case 'alkkagi_placement': case 'alkkagi_playing': case 'curling_playing': case 'curling_tiebreaker_playing':
             case 'dice_rolling':
@@ -1925,7 +1931,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         pveLocalStonePlacementLockRef.current = false;
     }, [isMyTurn, gameStatus, session.id]);
 
-    // 온라인 AI 대국 낙관적 착수도 서버 요청 완료가 아니라 턴 사이클 완료 기준으로 잠금을 푼다.
+    // 온라인 AI·페어 바둑 낙관적 착수: 서버 응답 전 잠금은 내 차례가 다시 올 때까지 유지
     useEffect(() => {
         if (!strategicAiStoneLockRef.current) return;
         const isGameOver = ['ended', 'no_contest', 'scoring'].includes(gameStatus);
@@ -1978,6 +1984,48 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return true;
         } catch (e) {
             console.warn('[Game] AI_GAME_CLIENT_MOVE optimistic update skipped:', e);
+            return false;
+        }
+    }, [
+        gameId,
+        handlers,
+        myPlayerEnum,
+        restoredBoardState,
+        session.boardState,
+        session.koInfo,
+        session.moveHistory?.length,
+    ]);
+
+    const applyOptimisticPairUserMove = useCallback((x: number, y: number): boolean => {
+        const boardStateToUse =
+            session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0
+                ? session.boardState
+                : restoredBoardState || session.boardState;
+        if (!boardStateToUse || !Array.isArray(boardStateToUse) || boardStateToUse.length === 0) return false;
+        if (boardStateToUse[y]?.[x] !== Player.None) return false;
+        try {
+            const moveResult = processMoveClient(
+                boardStateToUse,
+                { x, y, player: myPlayerEnum },
+                session.koInfo,
+                session.moveHistory?.length || 0
+            );
+            if (!moveResult.isValid) return false;
+            handlers.handleAction({
+                type: 'PAIR_GAME_CLIENT_MOVE',
+                payload: {
+                    gameId,
+                    x,
+                    y,
+                    newBoardState: moveResult.newBoardState,
+                    capturedStones: moveResult.capturedStones,
+                    newKoInfo: moveResult.newKoInfo,
+                    movePlayer: myPlayerEnum,
+                },
+            } as any);
+            return true;
+        } catch (e) {
+            console.warn('[Game] PAIR_GAME_CLIENT_MOVE optimistic update skipped:', e);
             return false;
         }
     }, [
@@ -2432,9 +2480,19 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
         if (actionType) {
             console.log('[Game] Sending action:', { actionType, payload, isMyTurn, myPlayerEnum, currentPlayer, gameStatus });
+            const isPairClassicOnline = isPairClassicGame(session.settings, mode);
             const optimisticAiStonePlace =
                 actionType === 'PLACE_STONE' &&
+                !isPairClassicOnline &&
                 session.isAiGame &&
+                !session.isSinglePlayer &&
+                session.gameCategory !== 'tower' &&
+                gameStatus === 'playing' &&
+                x >= 0 &&
+                y >= 0;
+            const optimisticPairStonePlace =
+                isPairClassicOnline &&
+                actionType === 'PLACE_STONE' &&
                 !session.isSinglePlayer &&
                 session.gameCategory !== 'tower' &&
                 gameStatus === 'playing' &&
@@ -2449,7 +2507,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 optimisticAiStonePlace &&
                 boardForOptimistic &&
                 boardForOptimistic[y]?.[x] === Player.None;
-            if (canOptimisticAiPlace && applyOptimisticAiUserMove(x, y)) {
+            const canOptimisticPairPlace =
+                optimisticPairStonePlace &&
+                boardForOptimistic &&
+                boardForOptimistic[y]?.[x] === Player.None;
+            if (canOptimisticPairPlace && applyOptimisticPairUserMove(x, y)) {
+                strategicAiStoneLockRef.current = true;
+            } else if (canOptimisticAiPlace && applyOptimisticAiUserMove(x, y)) {
                 strategicAiStoneLockRef.current = true;
             }
             setIsMoveInFlight(true);
@@ -2517,12 +2581,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         showKoRuleFlash,
         myPlayerEnum,
         applyOptimisticAiUserMove,
+        applyOptimisticPairUserMove,
         restrictIntro1OnboardingMove,
         flashBoardRuleMessage,
         session.stageId,
         session.hiddenMoves,
         session.permanentlyRevealedStones,
         session.itemUseDeadline,
+        session.settings,
     ]);
 
     const handleConfirmMove = useCallback(() => {
@@ -2665,9 +2731,19 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
 
         if (actionType) {
+            const isPairClassicOnlineConfirm = isPairClassicGame(session.settings, mode);
             const optimisticAiStonePlaceConfirm =
                 actionType === 'PLACE_STONE' &&
+                !isPairClassicOnlineConfirm &&
                 session.isAiGame &&
+                !session.isSinglePlayer &&
+                session.gameCategory !== 'tower' &&
+                gameStatus === 'playing' &&
+                x >= 0 &&
+                y >= 0;
+            const optimisticPairStonePlaceConfirm =
+                isPairClassicOnlineConfirm &&
+                actionType === 'PLACE_STONE' &&
                 !session.isSinglePlayer &&
                 session.gameCategory !== 'tower' &&
                 gameStatus === 'playing' &&
@@ -2681,7 +2757,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 optimisticAiStonePlaceConfirm &&
                 boardForOptimisticConfirm &&
                 boardForOptimisticConfirm[y]?.[x] === Player.None;
-            if (canOptimisticAiPlaceConfirm && applyOptimisticAiUserMove(x, y)) {
+            const canOptimisticPairPlaceConfirm =
+                optimisticPairStonePlaceConfirm &&
+                boardForOptimisticConfirm &&
+                boardForOptimisticConfirm[y]?.[x] === Player.None;
+            if (canOptimisticPairPlaceConfirm && applyOptimisticPairUserMove(x, y)) {
+                strategicAiStoneLockRef.current = true;
+            } else if (canOptimisticAiPlaceConfirm && applyOptimisticAiUserMove(x, y)) {
                 strategicAiStoneLockRef.current = true;
             }
             setIsMoveInFlight(true);
@@ -2725,12 +2807,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         showKoRuleFlash,
         session.isAiGame,
         applyOptimisticAiUserMove,
+        applyOptimisticPairUserMove,
         restrictIntro1OnboardingMove,
         flashBoardRuleMessage,
         session.stageId,
         session.hiddenMoves,
         session.permanentlyRevealedStones,
         session.itemUseDeadline,
+        session.settings,
     ]);
 
     const handleCancelMove = useCallback(() => setPendingMove(null), []);
@@ -4128,11 +4212,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         );
     }
 
-    // PVP 게임 배경 이미지 결정
+    // PVP 게임 배경: 페어 경기장(`lobbyChannel === 'pair'`)만 전용 이미지, 전략/놀이 페어식 대국은 CSS 배경
     const isPairIngame = Boolean(session.settings.pairGame?.turnOrder?.length);
-    const pairBackgroundImage = session.settings.pairGame ? '/images/bg/pairbg.webp' : null;
+    const pairGameLobbyChannel = session.settings.pairGame?.lobbyChannel ?? 'pair';
+    const usePairArenaBackdrop = Boolean(session.settings.pairGame) && pairGameLobbyChannel === 'pair';
+    const pairBackgroundImage = usePairArenaBackdrop ? '/images/bg/pairbg.webp' : null;
     const pvpBackgroundClass = useMemo(() => {
-        if (isPairIngame) {
+        if (isPairIngame && pairGameLobbyChannel === 'pair') {
             return '';
         }
         if (isGuildWarGame) {
@@ -4145,7 +4231,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return 'bg-playful-background';
         }
         return 'bg-tertiary';
-    }, [mode, isGuildWarGame, isPairIngame]);
+    }, [mode, isGuildWarGame, isPairIngame, pairGameLobbyChannel]);
 
     // AI 게임도 클라이언트 일시 정지 상태 사용 (싱글플레이어와 동일한 방식)
     // isPausableAiGame은 위에서 이미 정의됨

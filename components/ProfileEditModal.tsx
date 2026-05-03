@@ -53,15 +53,22 @@ const pickRingIdle =
 
 const BORDER_CATEGORY_ORDER: BorderCategory[] = ['기본', '레벨제한', '구매테두리', '전시즌보상'];
 
-const formatVipRemaining = (expiresAt: number | undefined, nowMs: number): string => {
-    if (!expiresAt || expiresAt <= nowMs) return '비활성화';
+/** 테두리(링 등)로 시각이 커져도 미리보기 칸(px)은 고정 — `Avatar`의 `size`는 이 값에 맞춰 산출 */
+const PROFILE_PREVIEW_FRAME_PX = { mobile: 112, pc: 136 } as const;
+const PROFILE_PREVIEW_BORDER_SCALE_MAX = 1.52;
 
-    const totalMinutes = Math.max(1, Math.ceil((expiresAt - nowMs) / 60000));
-    const days = Math.floor(totalMinutes / 1440);
-    const hours = Math.floor((totalMinutes % 1440) / 60);
-    const minutes = totalMinutes % 60;
-
-    return `${String(days).padStart(2, '0')}:${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+/** 남은 기간을 시:분:초 형태가 아닌 일반 한국어 문장으로 표시 */
+const formatVipRemainingPlain = (expiresAt: number | undefined, nowMs: number): string => {
+    if (!expiresAt || expiresAt <= nowMs) return '만료됨';
+    const ms = Math.max(0, expiresAt - nowMs);
+    const days = Math.floor(ms / 86400000);
+    const hours = Math.floor((ms % 86400000) / 3600000);
+    const minutes = Math.floor((ms % 3600000) / 60000);
+    const parts: string[] = [];
+    if (days > 0) parts.push(`${days}일`);
+    if (hours > 0) parts.push(`${hours}시간`);
+    if (minutes > 0 || parts.length === 0) parts.push(`${minutes}분`);
+    return `${parts.join(' ')} 남음`;
 };
 
 const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClose, onAction, isTopmost }) => {
@@ -149,37 +156,90 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
 
     const rewardVipExpiresAt = Math.max(currentUser.rewardVipExpiresAt ?? 0, currentUser.vvipExpiresAt ?? 0);
     const functionVipExpiresAt = Math.max(currentUser.functionVipExpiresAt ?? 0, currentUser.vvipExpiresAt ?? 0);
+    const diamondPkgExpiresAt = currentUser.diamondPackageExpiresAt ?? 0;
+    const diamondPkgRoman =
+        diamondPkgExpiresAt > nowMs && currentUser.activeDiamondPackageTier === 1
+            ? 'I'
+            : diamondPkgExpiresAt > nowMs && currentUser.activeDiamondPackageTier === 2
+              ? 'II'
+              : diamondPkgExpiresAt > nowMs && currentUser.activeDiamondPackageTier === 3
+                ? 'III'
+                : null;
     const vipStatusPanel = (
-        <div className={`${panelSurface} flex w-full flex-col justify-center gap-2 px-3 py-3 text-xs sm:w-[14.5rem] sm:px-4`}>
-            <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2">
-                <span className="font-bold text-violet-100">기능 VIP</span>
+        <div
+            className={`${panelSurface} flex w-full min-w-0 flex-col justify-center gap-2 ${
+                isNativeMobile
+                    ? 'max-w-full shrink-0 px-2.5 py-2 text-[11px] leading-snug'
+                    : 'min-w-[16rem] max-w-[22rem] flex-none gap-2.5 px-4 py-3 text-xs sm:min-w-[19rem]'
+            }`}
+        >
+            <div
+                className="flex min-w-0 flex-col gap-0.5 border-b border-white/10 pb-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3"
+            >
+                <span className={`shrink-0 font-bold text-violet-100 ${isNativeMobile ? 'text-[11px]' : ''}`}>기능 VIP</span>
                 <span
-                    className={`font-mono font-bold tabular-nums ${
+                    className={`min-w-0 break-words text-right font-semibold tabular-nums sm:max-w-[11rem] sm:pl-1 ${
                         functionVipExpiresAt > nowMs ? 'text-emerald-300' : 'text-zinc-500'
-                    }`}
+                    } ${isNativeMobile ? 'text-[10px]' : 'text-[13px]'}`}
                 >
-                    {functionVipExpiresAt > nowMs ? `남은 기간 ${formatVipRemaining(functionVipExpiresAt, nowMs)}` : '비활성화'}
+                    {functionVipExpiresAt > nowMs
+                        ? formatVipRemainingPlain(functionVipExpiresAt, nowMs)
+                        : isNativeMobile
+                          ? '비활성'
+                          : '비활성화'}
                 </span>
             </div>
-            <div className="flex items-center justify-between gap-2">
-                <span className="font-bold text-fuchsia-100">보상 VIP</span>
+            <div
+                className={`flex min-w-0 flex-col gap-0.5 border-b border-white/10 pb-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3`}
+            >
+                <span className={`shrink-0 font-bold text-fuchsia-100 ${isNativeMobile ? 'text-[11px]' : ''}`}>보상 VIP</span>
                 <span
-                    className={`font-mono font-bold tabular-nums ${
+                    className={`min-w-0 break-words text-right font-semibold tabular-nums sm:max-w-[11rem] sm:pl-1 ${
                         rewardVipExpiresAt > nowMs ? 'text-emerald-300' : 'text-zinc-500'
-                    }`}
+                    } ${isNativeMobile ? 'text-[10px]' : 'text-[13px]'}`}
                 >
-                    {rewardVipExpiresAt > nowMs ? `남은 기간 ${formatVipRemaining(rewardVipExpiresAt, nowMs)}` : '비활성화'}
+                    {rewardVipExpiresAt > nowMs
+                        ? formatVipRemainingPlain(rewardVipExpiresAt, nowMs)
+                        : isNativeMobile
+                          ? '비활성'
+                          : '비활성화'}
+                </span>
+            </div>
+            <div className={`flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3`}>
+                <span
+                    className={`flex min-w-0 shrink-0 items-center gap-0.5 font-bold text-cyan-100 ${isNativeMobile ? 'text-[11px]' : ''}`}
+                >
+                    <img src="/images/icon/Zem.png" alt="" className="h-3 w-3 shrink-0 object-contain opacity-90" />
+                    <span className="min-w-0 break-words">{diamondPkgRoman ? `다이아 패키지 ${diamondPkgRoman}` : '다이아 패키지'}</span>
+                </span>
+                <span
+                    className={`min-w-0 break-words text-right font-semibold tabular-nums sm:max-w-[11rem] sm:pl-1 ${
+                        diamondPkgRoman && diamondPkgExpiresAt > nowMs ? 'text-emerald-300' : 'text-zinc-500'
+                    } ${isNativeMobile ? 'text-[10px]' : 'text-[13px]'}`}
+                >
+                    {diamondPkgRoman && diamondPkgExpiresAt > nowMs
+                        ? formatVipRemainingPlain(diamondPkgExpiresAt, nowMs)
+                        : isNativeMobile
+                          ? '비활성'
+                          : '비활성화'}
                 </span>
             </div>
         </div>
     );
 
     const renderPreviewRow = (previewPanel: React.ReactNode) => (
-        <div className="flex shrink-0 justify-center">
-            <div className="flex w-full max-w-[34rem] flex-col items-stretch justify-center gap-2 sm:flex-row">
-                {previewPanel}
-                {vipStatusPanel}
-            </div>
+        <div className="flex w-full min-w-0 shrink-0 justify-center">
+            {isNativeMobile ? (
+                <div className="flex w-full min-w-0 max-w-full flex-col items-stretch gap-2">
+                    <div className="flex min-w-0 justify-center">{previewPanel}</div>
+                    <div className="min-w-0 w-full self-stretch">{vipStatusPanel}</div>
+                </div>
+            ) : (
+                <div className="flex w-full min-w-0 max-w-[42rem] flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-start sm:gap-3">
+                    {previewPanel}
+                    {vipStatusPanel}
+                </div>
+            )}
         </div>
     );
 
@@ -321,30 +381,32 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                         className={`grid min-h-0 flex-1 w-full cursor-default gap-2 overflow-y-auto [scrollbar-width:thin] outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 ${
                             isPcMode
                                 ? 'grid-cols-[repeat(auto-fill,minmax(5.25rem,1fr))] auto-rows-min px-3 py-2.5'
-                                : 'grid-cols-[repeat(auto-fill,minmax(5rem,1fr))] auto-rows-min px-3 py-2.5 sm:grid-cols-[repeat(auto-fill,minmax(5.75rem,1fr))] sm:gap-2.5 sm:px-4 sm:py-3'
+                                : 'grid-cols-[repeat(auto-fill,minmax(4.25rem,1fr))] auto-rows-min gap-1.5 px-2 py-2 sm:grid-cols-[repeat(auto-fill,minmax(5.75rem,1fr))] sm:gap-2.5 sm:px-4 sm:py-3'
                         }`}
                     >
                         {AVATAR_POOL.map((avatar: AvatarInfo) => {
                             const isUnlocked =
                                 avatar.type === 'any' ||
-                                (avatar.type === 'strategy' && currentUser.strategyLevel >= avatar.requiredLevel) ||
-                                (avatar.type === 'playful' && currentUser.playfulLevel >= avatar.requiredLevel);
+                                (avatar.type === 'strategy' && currentUser.userLevel >= avatar.requiredLevel) ||
+                                (avatar.type === 'playful' && currentUser.userLevel >= avatar.requiredLevel);
                             const sel = selectedAvatarId === avatar.id;
-                            const thumb = isPcMode ? 48 : 52;
+                            const thumb = isPcMode ? 48 : isNativeMobile ? 40 : 52;
                             return (
                                 <button
                                     key={avatar.id}
                                     type="button"
                                     role="option"
                                     aria-selected={sel}
+                                    aria-label={avatar.name ? `아바타: ${avatar.name}` : '아바타'}
                                     disabled={!isUnlocked}
                                     onClick={() => isUnlocked && setSelectedAvatarId(avatar.id)}
-                                    className={`relative flex min-h-[5.75rem] w-full flex-col items-center justify-center gap-0.5 rounded-xl border p-1 transition-all duration-200 sm:min-h-[6.25rem] ${
-                                        sel ? pickRingSel : pickRingIdle
-                                    } ${!isUnlocked ? 'cursor-not-allowed opacity-45 grayscale' : 'cursor-pointer'}`}
+                                    className={`relative flex w-full flex-col items-center justify-center gap-0.5 rounded-xl border p-0.5 transition-all duration-200 sm:min-h-[6.25rem] sm:p-1 ${
+                                        isNativeMobile ? 'min-h-[4.5rem]' : 'min-h-[5.75rem]'
+                                    } ${sel ? pickRingSel : pickRingIdle} ${
+                                        !isUnlocked ? 'cursor-not-allowed opacity-45 grayscale' : 'cursor-pointer'
+                                    }`}
                                 >
-                                    <Avatar userId="pick" userName={avatar.name} avatarUrl={avatar.url} size={thumb} />
-                                    <span className="w-full truncate text-center text-[8px] font-medium text-zinc-300 sm:text-[9px]">{avatar.name}</span>
+                                    <Avatar userId="pick" userName="" avatarUrl={avatar.url} size={thumb} />
                                     {!isUnlocked && (
                                         <div className="absolute inset-0 flex flex-col items-center justify-center rounded-lg bg-black/75 px-1 text-center">
                                             <span className="text-[8px] font-bold text-amber-100">잠김</span>
@@ -359,40 +421,44 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                     </div>
                 );
 
-                const previewSize = isPcMode ? 88 : 100;
+                const previewFramePx = isPcMode ? PROFILE_PREVIEW_FRAME_PX.pc : PROFILE_PREVIEW_FRAME_PX.mobile;
+                const previewAvatarSize = Math.max(44, Math.floor(previewFramePx / PROFILE_PREVIEW_BORDER_SCALE_MAX));
                 const previewPanel = (
-                    <div className={`${panelSurface} flex w-full max-w-[18rem] flex-col items-center gap-2 px-3 py-3 sm:px-4 sm:py-4`}>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200/70">미리보기</p>
-                        <div className="rounded-full p-1 shadow-[0_0_32px_rgba(245,158,11,0.2)] ring-2 ring-amber-400/35 ring-offset-2 ring-offset-zinc-950">
+                    <div
+                        className={`${panelSurface} flex shrink-0 items-center justify-center ${
+                            isNativeMobile ? 'min-h-0 w-auto px-2 py-2' : 'min-h-0 w-full max-w-[18rem] flex-col gap-2 px-3 py-3 sm:px-4 sm:py-4'
+                        }`}
+                    >
+                        <div
+                            className="flex shrink-0 items-center justify-center overflow-hidden rounded-full shadow-[0_0_24px_rgba(245,158,11,0.18)] ring-2 ring-amber-400/40 ring-inset"
+                            style={{ width: previewFramePx, height: previewFramePx }}
+                        >
                             <Avatar
                                 userId="preview"
                                 userName={currentUser.nickname}
                                 avatarUrl={previewAvatarUrl}
                                 borderUrl={previewBorderUrl}
-                                size={previewSize}
+                                size={previewAvatarSize}
                             />
                         </div>
-                        <p className="max-w-[14rem] text-center text-[10px] leading-snug text-zinc-400 sm:max-w-[16rem] sm:text-[11px]">
-                            탭하여 선택 · 저장 시 프로필에 적용
-                        </p>
                     </div>
                 );
 
                 return (
-                    <div className="flex min-h-0 flex-1 flex-col gap-3 sm:gap-4">
+                    <div className={`flex min-h-0 flex-1 flex-col ${isNativeMobile ? 'gap-2' : 'gap-3 sm:gap-4'}`}>
                         {renderPreviewRow(previewPanel)}
-                        <div className={`${panelSurface} flex min-h-0 flex-1 flex-col overflow-hidden px-2 py-2 sm:px-3 sm:py-3`}>
-                            <p className="mb-2 shrink-0 px-2 text-xs font-semibold text-stone-200 sm:text-sm">아바타 선택</p>
+                        <div className={`${panelSurface} flex min-h-0 flex-1 flex-col overflow-hidden ${isNativeMobile ? 'px-2 py-1.5' : 'px-2 py-2 sm:px-3 sm:py-3'}`}>
+                            <p className={`mb-1.5 shrink-0 px-1 font-semibold text-stone-200 ${isNativeMobile ? 'text-[11px]' : 'px-2 text-xs sm:text-sm'}`}>아바타 선택</p>
                             {avatarGrid}
                         </div>
                     </div>
                 );
             }
             case 'border': {
-                const { ownedBorders, strategyLevel, playfulLevel, previousSeasonTier } = currentUser;
-                const userLevelSum = strategyLevel + playfulLevel;
+                const { ownedBorders, userLevel, previousSeasonTier } = currentUser;
+                const userLevelSum = userLevel;
                 const tierOrder = RANKING_TIERS.map((t) => t.name);
-                const tileAvatarSize = isPcMode ? 48 : 56;
+                const tileAvatarSize = isPcMode ? 48 : isNativeMobile ? 44 : 56;
 
                 const renderBorderTiles = (borders: BorderInfo[], gridClass: string) => (
                     <div className={gridClass}>
@@ -461,17 +527,18 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                                             avatarUrl={previewAvatarUrl}
                                             borderUrl={border.url}
                                             size={tileAvatarSize}
+                                            className="z-0"
                                         />
                                         {!isUnlocked && !isPurchasable && (
                                             <div
-                                                className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full border border-zinc-600 bg-zinc-950/95 text-[9px] shadow-md sm:h-5 sm:w-5 sm:text-[10px]"
+                                                className="absolute -right-0.5 -top-0.5 z-10 flex h-4 w-4 items-center justify-center rounded-full border border-zinc-600 bg-zinc-950/95 text-[9px] shadow-md sm:h-5 sm:w-5 sm:text-[10px]"
                                                 aria-hidden
                                             >
                                                 🔒
                                             </div>
                                         )}
                                         {isPurchasable && shopItem && (
-                                            <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-0.5 rounded-b-full bg-black/80 py-px text-[8px] font-semibold text-amber-100 sm:py-0.5 sm:text-[9px]">
+                                            <div className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-center gap-0.5 rounded-b-full bg-black/80 py-px text-[8px] font-semibold text-amber-100 sm:py-0.5 sm:text-[9px]">
                                                 {shopItem.price.gold ? (
                                                     <img src="/images/icon/Gold.png" alt="" className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
                                                 ) : (
@@ -505,22 +572,26 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                     </div>
                 );
 
-                const borderPreviewSize = isPcMode ? 88 : 100;
+                const borderPreviewFramePx = isPcMode ? PROFILE_PREVIEW_FRAME_PX.pc : PROFILE_PREVIEW_FRAME_PX.mobile;
+                const borderPreviewAvatarSize = Math.max(44, Math.floor(borderPreviewFramePx / PROFILE_PREVIEW_BORDER_SCALE_MAX));
                 const borderPreviewPanel = (
-                    <div className={`${panelSurface} flex w-full max-w-[18rem] flex-col items-center gap-1.5 px-3 py-3 sm:gap-2 sm:px-4 sm:py-4`}>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200/70">테두리 미리보기</p>
-                        <div className="rounded-full p-1 shadow-[0_0_28px_rgba(245,158,11,0.18)] ring-2 ring-amber-400/30 ring-offset-2 ring-offset-zinc-950">
+                    <div
+                        className={`${panelSurface} flex shrink-0 items-center justify-center ${
+                            isNativeMobile ? 'min-h-0 w-auto px-2 py-2' : 'min-h-0 w-full max-w-[18rem] flex-col gap-1.5 px-3 py-3 sm:gap-2 sm:px-4 sm:py-4'
+                        }`}
+                    >
+                        <div
+                            className="flex shrink-0 items-center justify-center overflow-hidden rounded-full shadow-[0_0_24px_rgba(245,158,11,0.18)] ring-2 ring-amber-400/35 ring-inset"
+                            style={{ width: borderPreviewFramePx, height: borderPreviewFramePx }}
+                        >
                             <Avatar
                                 userId="preview"
                                 userName={currentUser.nickname}
                                 avatarUrl={previewAvatarUrl}
                                 borderUrl={previewBorderUrl}
-                                size={borderPreviewSize}
+                                size={borderPreviewAvatarSize}
                             />
                         </div>
-                        <p className="max-w-[13rem] text-center text-[10px] leading-snug text-zinc-400 sm:max-w-[18rem] sm:text-[11px]">
-                            탭하여 적용 · 상점 테두리는 가격 확인 후 구매
-                        </p>
                     </div>
                 );
 
@@ -566,22 +637,24 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                 }
 
                 return (
-                    <div className="flex min-h-0 flex-1 flex-col gap-4">
+                    <div className={`flex min-h-0 flex-1 flex-col ${isNativeMobile ? 'gap-2' : 'gap-4'}`}>
                         {renderPreviewRow(borderPreviewPanel)}
-                        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto [scrollbar-width:thin]">
+                        <div className={`min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin] ${isNativeMobile ? 'space-y-2' : 'space-y-4'}`}>
                             {(Object.keys(categorizedBorders) as BorderCategory[]).map((category) => {
                                 const borders = categorizedBorders[category];
                                 if (borders.length === 0) return null;
 
                                 return (
-                                    <div key={category} className={`${panelSurface} p-3 sm:p-4`}>
-                                        <div className="mb-3 flex items-center gap-2 border-b border-white/10 pb-2">
+                                    <div key={category} className={`${panelSurface} ${isNativeMobile ? 'p-2' : 'p-3 sm:p-4'}`}>
+                                        <div className={`flex items-center gap-2 border-b border-white/10 ${isNativeMobile ? 'mb-2 pb-1.5' : 'mb-3 pb-2'}`}>
                                             <span className="h-1 w-1 rounded-full bg-amber-400/90 shadow-[0_0_8px_rgba(251,191,36,0.6)]" aria-hidden />
-                                            <h3 className="text-sm font-bold tracking-wide text-amber-100/95 sm:text-base">{category}</h3>
+                                            <h3 className={`font-bold tracking-wide text-amber-100/95 ${isNativeMobile ? 'text-xs' : 'text-sm sm:text-base'}`}>{category}</h3>
                                         </div>
                                         {renderBorderTiles(
                                             borders,
-                                            'grid grid-cols-[repeat(auto-fill,minmax(5.25rem,1fr))] gap-2.5 sm:grid-cols-[repeat(auto-fill,minmax(5.75rem,1fr))] sm:gap-3',
+                                            isNativeMobile
+                                                ? 'grid grid-cols-[repeat(auto-fill,minmax(4.25rem,1fr))] gap-1.5'
+                                                : 'grid grid-cols-[repeat(auto-fill,minmax(5.25rem,1fr))] gap-2.5 sm:grid-cols-[repeat(auto-fill,minmax(5.75rem,1fr))] sm:gap-3',
                                         )}
                                     </div>
                                 );
@@ -828,14 +901,16 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
         >
             <div className="relative flex h-full min-h-0 flex-col bg-gradient-to-b from-zinc-950/40 via-zinc-950/80 to-black/90">
                 <div className="pointer-events-none absolute inset-x-8 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-400/35 to-transparent" aria-hidden />
-                <div className="shrink-0 px-1 pb-3 pt-1">
+                <div className={`shrink-0 px-1 ${isNativeMobile ? 'pb-2 pt-0.5' : 'pb-3 pt-1'}`}>
                     <div className="flex gap-1 rounded-xl border border-white/10 bg-black/40 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
                         {tabs.map((tab) => (
                             <button
                                 key={tab.id}
                                 type="button"
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`relative flex-1 rounded-lg px-2 py-2 text-center text-xs font-bold transition-all sm:py-2.5 sm:text-sm ${
+                                className={`relative flex-1 rounded-lg px-2 text-center font-bold transition-all sm:py-2.5 sm:text-sm ${
+                                    isNativeMobile ? 'py-1.5 text-[11px]' : 'py-2 text-xs'
+                                } ${
                                     activeTab === tab.id
                                         ? 'bg-gradient-to-b from-amber-200/95 via-amber-500 to-amber-800 text-amber-950 shadow-[0_4px_16px_rgba(180,83,9,0.35)] ring-1 ring-amber-200/50'
                                         : 'text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200'
@@ -858,20 +933,13 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                 >
                     {renderTabContent()}
                 </div>
-                <div className="shrink-0 border-t border-amber-500/20 bg-gradient-to-t from-black/60 to-transparent px-1 pb-1 pt-3 sm:px-2">
-                    <div className="flex flex-wrap justify-end gap-2 sm:gap-3">
-                        <Button
-                            onClick={onClose}
-                            colorScheme="none"
-                            className="!rounded-xl !border !border-white/18 !bg-white/[0.06] !px-5 !py-2.5 !text-sm !font-bold !text-stone-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:!border-amber-400/35 hover:!bg-white/[0.1]"
-                        >
-                            취소
-                        </Button>
+                <div className="shrink-0 border-t border-amber-500/20 bg-gradient-to-t from-black/60 to-transparent px-1 pb-1.5 pt-2 sm:px-2 sm:pb-2 sm:pt-2.5">
+                    <div className="flex flex-wrap justify-center">
                         <Button
                             onClick={handleSave}
                             colorScheme="none"
                             disabled={isSaveDisabled}
-                            className="!rounded-xl !border !border-emerald-500/40 !bg-gradient-to-b !from-emerald-600/95 !to-emerald-900 !px-6 !py-2.5 !text-sm !font-bold !text-white shadow-[0_6px_20px_rgba(5,150,105,0.35)] disabled:!opacity-40"
+                            className="!rounded-lg !border !border-emerald-500/40 !bg-gradient-to-b !from-emerald-600/95 !to-emerald-900 !px-8 !py-1.5 !text-sm !font-bold !text-white shadow-[0_4px_14px_rgba(5,150,105,0.3)] disabled:!opacity-40 sm:!py-2"
                         >
                             {activeTab === 'nickname' && !canAffordNicknameChange
                                 ? '다이아 부족'

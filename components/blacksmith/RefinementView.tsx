@@ -150,7 +150,7 @@ const ItemDisplay: React.FC<{
     const styles = gradeStyles[item.grade];
 
     const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
-    const userLevelSum = (currentUserWithStatus?.strategyLevel || 0) + (currentUserWithStatus?.playfulLevel || 0);
+    const userLevelSum = currentUserWithStatus?.userLevel ?? 0;
     const canEquip = userLevelSum >= requiredLevel;
 
     if (!item.options) return null;

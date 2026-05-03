@@ -4,6 +4,8 @@ import { Guild as GuildType, ServerAction, InventoryItem, ItemGrade } from '../.
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { GUILD_SHOP_ITEMS, GuildShopItem } from '../../constants/guildConstants.js';
+import { buildInventoryItemPreviewForPurchase } from '../../shared/utils/bagItemDetailHelpers.js';
+import { EquipmentDetailPanel } from '../EquipmentDetailPanel.js';
 import { isDifferentWeekKST, isDifferentMonthKST } from '../../utils/timeUtils.js';
 import { addItemsToInventory } from '../../utils/inventoryUtils.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../../constants/index.js';
@@ -27,10 +29,13 @@ const gradeBackgrounds: Record<ItemGrade, string> = {
 };
 
 
-const ShopItemCard: React.FC<{ item: GuildShopItem; isNativeMobile: boolean }> = ({ item, isNativeMobile }) => {
+const ShopItemCard: React.FC<{ item: GuildShopItem; isNativeMobile: boolean; onShowDetail: (item: GuildShopItem) => void }> = ({
+    item,
+    isNativeMobile,
+    onShowDetail,
+}) => {
     const { handlers, currentUserWithStatus } = useAppContext();
-    const [showDescription, setShowDescription] = useState(false);
-    
+
     const purchaseRecord = currentUserWithStatus?.dailyShopPurchases?.[item.itemId];
     const now = Date.now();
     let purchasesThisPeriod = 0;
@@ -68,24 +73,22 @@ const ShopItemCard: React.FC<{ item: GuildShopItem; isNativeMobile: boolean }> =
             {!isNativeMobile && (
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.35),transparent_65%)] pointer-events-none" />
             )}
-            <div 
+            <button
+                type="button"
+                title="상세 정보"
                 className={`bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent rounded-lg flex items-center justify-center shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] cursor-pointer active:scale-95 transition-transform ${isNativeMobile ? 'w-[3.75rem] h-[3.75rem] mb-1.5' : 'w-16 h-16 mb-2 hover:scale-105'}`}
-                onClick={() => setShowDescription(!showDescription)}
-                onMouseEnter={() => { if (!isNativeMobile) setShowDescription(true); }}
-                onMouseLeave={() => { if (!isNativeMobile) setShowDescription(false); }}
+                onClick={() => onShowDetail(item)}
             >
                 <img src={item.image} alt={item.name} className={`w-full h-full object-contain drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)] ${isNativeMobile ? 'p-1' : 'p-1.5'}`} />
-            </div>
-            <h3 className={`font-semibold tracking-wide text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] line-clamp-2 leading-tight ${isNativeMobile ? 'text-[11px] min-h-[2.5rem]' : 'text-sm line-clamp-1'}`}>
+            </button>
+            <button
+                type="button"
+                className={`w-full text-center font-semibold tracking-wide text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] line-clamp-2 leading-tight hover:text-amber-100/95 ${isNativeMobile ? 'text-[11px] min-h-[2.5rem]' : 'text-sm line-clamp-1'}`}
+                title="상세 정보"
+                onClick={() => onShowDetail(item)}
+            >
                 {item.name}
-            </h3>
-            {showDescription && (
-                <div className={`absolute z-50 left-1/2 -translate-x-1/2 bg-gray-900/95 border border-indigo-400/50 rounded-lg shadow-xl ${isNativeMobile ? 'top-[4.5rem] w-[min(92vw,14rem)] p-2' : 'top-20 w-48 p-2'}`}>
-                    <p className={`text-slate-200/90 leading-relaxed ${isNativeMobile ? 'text-[11px]' : 'text-[10px]'}`}>
-                        {item.description}
-                    </p>
-                </div>
-            )}
+            </button>
             <div className={`flex flex-col items-stretch justify-center w-full ${isNativeMobile ? 'gap-1 mt-1.5' : 'gap-1.5 mt-2'}`}>
                 <Button
                     onClick={handleBuy}
@@ -115,6 +118,19 @@ const GuildShopModal: React.FC<GuildShopModalProps> = ({ onClose, isTopmost }) =
     const { currentUserWithStatus } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const [activeTab, setActiveTab] = useState<ShopTab>('equipment');
+    const [detailItem, setDetailItem] = useState<GuildShopItem | null>(null);
+
+    const guildDetailPreview = useMemo(() => {
+        if (!detailItem) return null;
+        return buildInventoryItemPreviewForPurchase({
+            itemId: detailItem.itemId,
+            name: detailItem.name,
+            type: detailItem.type === 'equipment_box' ? 'consumable' : detailItem.type,
+            image: detailItem.image,
+            description: detailItem.description,
+            gradeHint: detailItem.grade,
+        });
+    }, [detailItem]);
 
     const shopItemsForTab = useMemo(() => {
         const typeMap: Record<ShopTab, GuildShopItem['type'] | 'equipment_box'> = {
@@ -126,6 +142,7 @@ const GuildShopModal: React.FC<GuildShopModalProps> = ({ onClose, isTopmost }) =
     }, [activeTab]);
 
     return (
+        <>
         <DraggableWindow
             title="길드 상점"
             onClose={onClose}
@@ -171,12 +188,44 @@ const GuildShopModal: React.FC<GuildShopModalProps> = ({ onClose, isTopmost }) =
                 <div className={`min-h-0 flex-1 overflow-y-auto ${isNativeMobile ? 'pr-1' : 'pr-2'}`}>
                     <div className={`grid items-start ${isNativeMobile ? 'grid-cols-2 gap-1.5' : 'grid-cols-4 gap-3'}`}>
                         {shopItemsForTab.map(item => (
-                            <ShopItemCard key={item.itemId} item={item} isNativeMobile={isNativeMobile} />
+                            <ShopItemCard
+                                key={item.itemId}
+                                item={item}
+                                isNativeMobile={isNativeMobile}
+                                onShowDetail={setDetailItem}
+                            />
                         ))}
                     </div>
                 </div>
             </div>
         </DraggableWindow>
+        {detailItem && guildDetailPreview ? (
+                <DraggableWindow
+                    title="길드 상점 — 아이템 상세"
+                    onClose={() => setDetailItem(null)}
+                    windowId="guild-shop-item-detail"
+                    initialWidth={460}
+                    isTopmost={isTopmost}
+                    variant="store"
+                    mobileViewportFit={isNativeMobile}
+                    mobileViewportMaxHeightVh={94}
+                >
+                    <div className={`max-h-[min(78vh,28rem)] min-h-0 overflow-y-auto overflow-x-hidden ${isNativeMobile ? 'p-2' : 'p-3'} [scrollbar-width:thin]`}>
+                        <p className="mb-2 rounded-lg border border-amber-500/25 bg-amber-950/20 px-2.5 py-1.5 text-center text-[11px] font-medium leading-snug text-amber-100/90 sm:text-xs">
+                            이 품목은 길드 상점에서 길드 코인으로만 구매할 수 있습니다. 아이콘·이름을 누르면 언제든 이 창을 다시 열 수 있습니다.
+                        </p>
+                        <EquipmentDetailPanel
+                            item={guildDetailPreview}
+                            optionsScrollable={false}
+                            comfortableTypography
+                            showAcquireSources
+                            hideOwnedQuantity
+                            iconSlotPx={72}
+                        />
+                    </div>
+                </DraggableWindow>
+            ) : null}
+        </>
     );
 };
 

@@ -3,15 +3,28 @@
 
 import { randomUUID } from 'crypto';
 import * as db from '../db.js';
-import { type ServerAction, type User, type VolatileState, type LiveGameSession, InventoryItem } from '../../types/index.js';
+import { type ServerAction, type User, type VolatileState, type LiveGameSession, InventoryItem, EquipmentSlot, Mail } from '../../types/index.js';
 import * as shop from '../shop.js';
 import { SHOP_ITEMS } from '../shop.js';
 import { broadcast } from '../socket.js';
-import { isSameDayKST, isDifferentWeekKST } from '../../utils/timeUtils.js';
+import { isSameDayKST, isDifferentWeekKST, isDifferentMonthKST, getTodayKSTDateString } from '../../utils/timeUtils.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, ACTION_POINT_PURCHASE_COSTS_DIAMONDS, MAX_ACTION_POINT_PURCHASES_PER_DAY, ACTION_POINT_PURCHASE_REFILL_AMOUNT, SHOP_BORDER_ITEMS } from '../../constants';
-import { addItemsToInventory } from '../../utils/inventoryUtils.js';
+import { addItemsToInventory, createItemInstancesFromReward } from '../../utils/inventoryUtils.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 import { recordAchievementBoxOpens } from '../achievementBoxOpenProgress.js';
+import { generateNewItem } from './inventoryActions.js';
+import {
+    CASH_SHOP_DIAMOND_PACKAGE_IDS,
+    CASH_SHOP_EQUIPMENT_PACKAGE_IDS,
+    type CashShopDiamondPackageId,
+    type CashShopEquipmentPackageId,
+    DIAMOND_PACKAGE_DURATION_DAYS,
+    DIAMOND_PACKAGE_INSTANT_DIAMONDS,
+    DIAMOND_PACKAGE_DAILY_MAIL_DIAMONDS,
+    EQUIPMENT_PACKAGE_MONTHLY_LIMIT,
+    EQUIPMENT_PACKAGE_BONUS_GRADE,
+    diamondPackageIdToTier,
+} from '../../shared/constants/cashShopPackages.js';
 import * as guildService from '../guildService.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
 
@@ -30,6 +43,32 @@ const addRewardBonus = (value: number | undefined, bonus: number): number => {
     const add = Number(bonus) || 0;
     return Math.max(0, Math.floor(base + add));
 };
+
+const CASH_PACKAGE_EQUIP_SLOTS: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
+
+/** 장비상자 패키지: 미개봉 상자는 인벤에 상자 아이템으로 적재, 확정 장비만 즉시 생성 지급 */
+function collectEquipmentCashPackageLoot(packageId: CashShopEquipmentPackageId): InventoryItem[] {
+    const sealedDefs: { itemId: string; quantity: number }[] =
+        packageId === 'equipment_package_1'
+            ? [
+                  { itemId: '장비 상자 V', quantity: 1 },
+                  { itemId: '재료 상자 VI', quantity: 1 },
+              ]
+            : packageId === 'equipment_package_2'
+              ? [
+                    { itemId: '장비 상자 V', quantity: 2 },
+                    { itemId: '재료 상자 VI', quantity: 2 },
+                ]
+              : [
+                    { itemId: '장비 상자 VI', quantity: 2 },
+                    { itemId: '재료 상자 VI', quantity: 5 },
+                ];
+    const sealed = createItemInstancesFromReward(sealedDefs);
+    const bonusGrade = EQUIPMENT_PACKAGE_BONUS_GRADE[packageId];
+    const slot = CASH_PACKAGE_EQUIP_SLOTS[Math.floor(Math.random() * CASH_PACKAGE_EQUIP_SLOTS.length)];
+    const bonusEquipment = generateNewItem(bonusGrade, slot);
+    return [...sealed, bonusEquipment];
+}
 
 export const handleShopAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
     const { type, payload } = action as any;
@@ -481,9 +520,9 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 'mythic_option_change_ticket': { name: '스페셜 옵션 변경권', price: 500, dailyLimit: 10 },
                 'equipment_unbind_ticket': { name: '귀속 해제권', price: 50, dailyLimit: 10, currency: 'diamonds' },
                 'refinement_charm': { name: '제련의 부적', price: 100, dailyLimit: 1, currency: 'diamonds' },
-                'action_point_10': { name: '행동력 회복제(+10)', dailyLimit: 1, prices: [180] },
-                'action_point_20': { name: '행동력 회복제(+20)', dailyLimit: 1, prices: [540] },
-                'action_point_30': { name: '행동력 회복제(+30)', dailyLimit: 1, prices: [1800] },
+                'action_point_10': { name: '행동력 회복제(+10)', dailyLimit: 1, prices: [1000] },
+                'action_point_20': { name: '행동력 회복제(+20)', dailyLimit: 1, prices: [1500] },
+                'action_point_30': { name: '행동력 회복제(+30)', dailyLimit: 1, prices: [2000] },
             };
 
             const itemInfo = consumableItems[itemId];
@@ -688,6 +727,99 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                     obtainedItemsBulk: obtainedItems,
                 },
             };
+        }
+        case 'BUY_CASH_PACKAGE': {
+            const { packageId } = (payload || {}) as { packageId?: string };
+            if (!packageId || typeof packageId !== 'string') {
+                return { error: '유효하지 않은 패키지입니다.' };
+            }
+            if (!user.isAdmin) {
+                return { error: '아직 구현되지 않았습니다.' };
+            }
+
+            const now = Date.now();
+
+            if ((CASH_SHOP_DIAMOND_PACKAGE_IDS as readonly string[]).includes(packageId)) {
+                const id = packageId as CashShopDiamondPackageId;
+                if (!user.isAdmin && (user.diamondPackageExpiresAt ?? 0) > now) {
+                    return { error: '진행 중인 다이아 패키지가 있을 때는 추가 구매할 수 없습니다.' };
+                }
+                const days = DIAMOND_PACKAGE_DURATION_DAYS[id];
+                const instant = DIAMOND_PACKAGE_INSTANT_DIAMONDS[id];
+                const tier = diamondPackageIdToTier(id);
+
+                user.diamonds = (user.diamonds || 0) + instant;
+                user.activeDiamondPackageTier = tier;
+                user.diamondPackageExpiresAt = now + days * 86400000;
+                user.diamondPackageLastMailDayKST = getTodayKSTDateString(now);
+
+                if (!user.mail) user.mail = [];
+                const dayMail: Mail = {
+                    id: `mail-diamond-pkg-day0-${randomUUID()}`,
+                    from: 'System',
+                    title: '다이아 패키지 일일 보상',
+                    message: `다이아 패키지 혜택으로 다이아 ${DIAMOND_PACKAGE_DAILY_MAIL_DIAMONDS}개를 우편으로 드립니다. 7일 이내 수령해 주세요.`,
+                    attachments: { diamonds: DIAMOND_PACKAGE_DAILY_MAIL_DIAMONDS },
+                    receivedAt: now,
+                    expiresAt: now + 7 * 86400000,
+                    isRead: false,
+                    attachmentsClaimed: false,
+                };
+                user.mail.unshift(dayMail);
+
+                const updatedUser = getSelectiveUserUpdate(user, 'BUY_CASH_PACKAGE', { includeAll: true });
+                db.updateUser(user).catch((err) => console.error(`[BUY_CASH_PACKAGE] Failed to save user ${user.id}:`, err));
+                const { broadcastUserUpdate } = await import('../socket.js');
+                broadcastUserUpdate(user, [
+                    'diamonds',
+                    'mail',
+                    'activeDiamondPackageTier',
+                    'diamondPackageExpiresAt',
+                    'diamondPackageLastMailDayKST',
+                ]);
+                return { clientResponse: { updatedUser } };
+            }
+
+            if ((CASH_SHOP_EQUIPMENT_PACKAGE_IDS as readonly string[]).includes(packageId)) {
+                const id = packageId as CashShopEquipmentPackageId;
+                const monthlyLimit = EQUIPMENT_PACKAGE_MONTHLY_LIMIT[id];
+                if (!user.dailyShopPurchases) user.dailyShopPurchases = {};
+                const rec = user.dailyShopPurchases[packageId];
+                let purchasesThisMonth = 0;
+                if (rec && !isDifferentMonthKST(rec.date, now)) {
+                    purchasesThisMonth = rec.quantity;
+                }
+                if (!user.isAdmin && purchasesThisMonth >= monthlyLimit) {
+                    return { error: '이번 달 구매 한도에 도달했습니다.' };
+                }
+
+                const obtainedItems = collectEquipmentCashPackageLoot(id);
+                if (!user.inventory) user.inventory = [];
+                if (!user.inventorySlots) {
+                    user.inventorySlots = { equipment: 30, consumable: 30, material: 30 };
+                }
+                const { success, updatedInventory } = addItemsToInventory(user.inventory, user.inventorySlots, obtainedItems);
+                if (!success || !updatedInventory) {
+                    return { error: '인벤토리 공간이 부족합니다.' };
+                }
+                user.inventory = JSON.parse(JSON.stringify(updatedInventory));
+
+                if (!user.isAdmin) {
+                    const nextQty = purchasesThisMonth + 1;
+                    user.dailyShopPurchases[packageId] = { quantity: nextQty, date: now };
+                }
+
+                const bonusEquipment = obtainedItems[obtainedItems.length - 1];
+                await guildService.recordGuildEpicPlusEquipmentAcquisition(user, bonusEquipment ? [bonusEquipment] : []);
+
+                const updatedUser = getSelectiveUserUpdate(user, 'BUY_CASH_PACKAGE', { includeAll: true });
+                db.updateUser(user).catch((err) => console.error(`[BUY_CASH_PACKAGE] Failed to save user ${user.id}:`, err));
+                const { broadcastUserUpdate } = await import('../socket.js');
+                broadcastUserUpdate(user, ['inventory', 'dailyShopPurchases', 'quests']);
+                return { clientResponse: { obtainedItemsBulk: obtainedItems, updatedUser } };
+            }
+
+            return { error: '알 수 없는 패키지입니다.' };
         }
         case 'BUY_TOWER_ITEM': {
             const { itemId, quantity, gameId: payloadTowerGameId } = payload as {

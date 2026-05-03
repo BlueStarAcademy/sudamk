@@ -251,7 +251,7 @@ const HelpModal: React.FC<HelpModalProps> = ({ mode, onClose }) => {
                     <div className="space-y-4">
                         {STRATEGIC_LOBBY_HELP.sections.map((section, index) => (
                             <div key={index} className="flex items-start gap-4 bg-gray-900/50 p-4 rounded-lg">
-                                {index === 0 && <img src="/images/bg/strategicbg.png" alt="전략바둑" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
+                                {index === 0 && <img src="/images/bg/strategicbg.webp" alt="전략바둑" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
                                 {index === 1 && <div className="flex flex-wrap gap-2 flex-shrink-0 w-32">
                                     {SPECIAL_GAME_MODES.slice(0, 4).map((gm) => (
                                         <img key={gm.mode} src={gm.image} alt={gm.name} className="w-16 h-16 object-cover rounded-lg" />
@@ -307,7 +307,7 @@ const HelpModal: React.FC<HelpModalProps> = ({ mode, onClose }) => {
                     <div className="space-y-4">
                         {PLAYFUL_LOBBY_HELP.sections.map((section, index) => (
                             <div key={index} className="flex items-start gap-4 bg-gray-900/50 p-4 rounded-lg">
-                                {index === 0 && <img src="/images/bg/playfulbg.png" alt="놀이바둑" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
+                                {index === 0 && <img src="/images/bg/playfulbg.webp" alt="놀이바둑" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
                                 {index === 1 && <div className="flex flex-wrap gap-2 flex-shrink-0 w-32">
                                     {PLAYFUL_GAME_MODES.slice(0, 4).map((gm) => (
                                         <img key={gm.mode} src={gm.image} alt={gm.name} className="w-16 h-16 object-cover rounded-lg" />

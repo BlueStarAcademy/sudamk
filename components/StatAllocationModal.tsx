@@ -25,7 +25,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
     // 기존에 분배한 포인트는 초기화를 해야만 조절 가능하고, 현재 남아있는 보너스 포인트는 바로 조절 가능
     const [isEditing, setIsEditing] = useState(() => {
         // 남은 보너스 포인트가 있으면 항상 편집 모드
-        const levelPoints = (currentUser.strategyLevel - 1) * 2 + (currentUser.playfulLevel - 1) * 2;
+        const levelPoints = (currentUser.userLevel - 1) * 2;
         const bonusPoints = currentUser.bonusStatPoints || 0;
         const totalBonusPoints = levelPoints + bonusPoints;
         const existingSpentPoints = currentUser.spentStatPoints || {};
@@ -67,8 +67,8 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
     }, [currentUser.gold, usedResetsToday, maxDailyResets, resetCost]);
 
     const levelPoints = useMemo(() => {
-        return (currentUser.strategyLevel - 1) * 2 + (currentUser.playfulLevel - 1) * 2;
-    }, [currentUser.strategyLevel, currentUser.playfulLevel]);
+        return (currentUser.userLevel - 1) * 2;
+    }, [currentUser.userLevel]);
     
     const bonusPoints = useMemo(() => {
         return currentUser.bonusStatPoints || 0;
@@ -147,7 +147,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
         }
         
         // isEditing 업데이트: 남은 보너스 포인트가 있으면 편집 모드 활성화
-        const levelPoints = (currentUser.strategyLevel - 1) * 2 + (currentUser.playfulLevel - 1) * 2;
+        const levelPoints = (currentUser.userLevel - 1) * 2;
         const bonusPoints = currentUser.bonusStatPoints || 0;
         const totalBonusPoints = levelPoints + bonusPoints;
         const existingSpentPoints = currentUser.spentStatPoints || {};
@@ -156,7 +156,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
         
         // 남은 보너스 포인트가 있으면 편집 모드 활성화
         setIsEditing(availablePoints > 0);
-    }, [currentUser.spentStatPoints, currentUser.bonusStatPoints, currentUser.strategyLevel, currentUser.playfulLevel]);
+    }, [currentUser.spentStatPoints, currentUser.bonusStatPoints, currentUser.userLevel]);
 
     const handleReset = () => {
         if (!canReset) {

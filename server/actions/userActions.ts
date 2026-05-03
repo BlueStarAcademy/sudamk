@@ -75,6 +75,7 @@ import {
 import { changeSingleRegionalSlotBuff, enhanceSingleRegionalSlotBuff } from '../utils/adventureRegionalBuffReroll.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { isRecognizedAdminUser } from '../../shared/utils/adminRecognition.js';
+import { handleShopAction } from './shopActions.js';
 
 type HandleActionResult = {
     clientResponse?: any;
@@ -690,7 +691,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
         case 'CONFIRM_STAT_ALLOCATION': {
             const { newStatPoints } = payload as { newStatPoints: Record<types.CoreStat, number> };
 
-            const levelPoints = (user.strategyLevel - 1) * 2 + (user.playfulLevel - 1) * 2;
+            const levelPoints = Math.max(0, (user.userLevel ?? 1) - 1) * 2;
             const bonusPoints = user.bonusStatPoints || 0;
             const totalAvailablePoints = levelPoints + bonusPoints;
 
@@ -1352,6 +1353,45 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(user, ['rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt']);
             return { clientResponse: { updatedUser } };
+        }
+        case 'ADMIN_SET_DIAMOND_PACKAGE_TEST': {
+            if (!isRecognizedAdminUser(user)) {
+                return { error: '권한이 없습니다.' };
+            }
+            const p = (payload || {}) as { tier?: unknown; on?: unknown };
+            const tier = Number(p.tier);
+            const on = p.on === true;
+            if (tier !== 1 && tier !== 2 && tier !== 3) {
+                return { error: '유효하지 않은 패키지 티어입니다.' };
+            }
+            const now = Date.now();
+            if (!on) {
+                if ((user.activeDiamondPackageTier ?? 0) === tier && (user.diamondPackageExpiresAt ?? 0) > now) {
+                    user.activeDiamondPackageTier = 0;
+                    user.diamondPackageExpiresAt = 0;
+                    delete user.diamondPackageLastMailDayKST;
+                }
+                const updatedUser = getSelectiveUserUpdate(user, 'ADMIN_SET_DIAMOND_PACKAGE_TEST');
+                try {
+                    await db.updateUser(user);
+                } catch (err) {
+                    console.error(`[UserAction] Failed to save user ${user.id} after ADMIN_SET_DIAMOND_PACKAGE_TEST:`, err);
+                    return { error: '다이아 패키지 테스트 설정 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.' };
+                }
+                const { broadcastUserUpdate } = await import('../socket.js');
+                broadcastUserUpdate(user, ['activeDiamondPackageTier', 'diamondPackageExpiresAt', 'diamondPackageLastMailDayKST']);
+                return { clientResponse: { updatedUser } };
+            }
+            const packageId = `diamond_package_${tier}` as const;
+            const shopRes = await handleShopAction(
+                volatileState,
+                { type: 'BUY_CASH_PACKAGE', payload: { packageId }, userId: user.id } as types.ServerAction & { userId: string },
+                user,
+            );
+            if (shopRes.error) {
+                return { error: shopRes.error };
+            }
+            return { clientResponse: shopRes.clientResponse };
         }
         case 'PURCHASE_EXCHANGE_LISTING': {
             const { listingId, sellerId } = (payload || {}) as { listingId?: string; sellerId?: string };

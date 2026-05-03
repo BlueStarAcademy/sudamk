@@ -69,12 +69,28 @@ export const ResultModalXpRewardBadge: React.FC<{
     hideAmount?: boolean;
     /** 페어 등: 펫 XP +0일 때도 배지 자리를 유지(변동 없음 표시) */
     allowZeroDisplay?: boolean;
-}> = ({ variant, amount, density = 'compact', className = '', title, hideAmount = false, allowZeroDisplay = false }) => {
+    /** 펫 수련 등: 기본 XP와 특화 추가분을 `+기본 (+특화)`로 표시 */
+    petXpSpecSplit?: { base: number; spec: number };
+}> = ({
+    variant,
+    amount,
+    density = 'compact',
+    className = '',
+    title,
+    hideAmount = false,
+    allowZeroDisplay = false,
+    petXpSpecSplit,
+}) => {
     const showPetZero = variant === 'pet' && allowZeroDisplay && amount <= 0;
     if (amount <= 0 && !showPetZero) return null;
     const v = VARIANT[variant];
     const modeLabel = variant === 'strategy' ? '전략' : variant === 'playful' ? '놀이' : '펫';
-    const defaultTitle = showPetZero ? '펫 경험치 변동 없음' : `${modeLabel} 경험치 +${amount.toLocaleString()}`;
+    const defaultTitle =
+        showPetZero
+            ? '펫 경험치 변동 없음'
+            : variant === 'pet' && petXpSpecSplit && petXpSpecSplit.spec > 0
+              ? `펫 경험치 기본 +${petXpSpecSplit.base.toLocaleString()} (특화 +${petXpSpecSplit.spec.toLocaleString()})`
+              : `${modeLabel} 경험치 +${amount.toLocaleString()}`;
 
     const isPreGameInline = density === 'preGameInline';
     const isCompact = density === 'compact' || isPreGameInline;
@@ -114,6 +130,13 @@ export const ResultModalXpRewardBadge: React.FC<{
                 >
                     {showPetZero ? (
                         <span className="whitespace-nowrap text-slate-400">변동 없음</span>
+                    ) : variant === 'pet' && petXpSpecSplit ? (
+                        <span className="flex flex-wrap items-baseline justify-center gap-x-0.5 whitespace-nowrap">
+                            <span>+{petXpSpecSplit.base.toLocaleString()}</span>
+                            {petXpSpecSplit.spec > 0 ? (
+                                <span className="font-semibold text-emerald-300/95">(+{petXpSpecSplit.spec.toLocaleString()})</span>
+                            ) : null}
+                        </span>
                     ) : (
                         <span className="whitespace-nowrap">+{amount.toLocaleString()}</span>
                     )}

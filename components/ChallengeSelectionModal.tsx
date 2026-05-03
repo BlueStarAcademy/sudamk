@@ -297,12 +297,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
   }, [selectedMode, displayOpponent.stats]);
 
   /** NegotiationModal과 동일: 서버 저장 전략/놀이 레벨 필드 사용 (XP/100 가짜 레벨 아님) */
-  const opponentLevel = useMemo(() => {
-    if (lobbyType === 'strategic') {
-      return displayOpponent.strategyLevel ?? 1;
-    }
-    return displayOpponent.playfulLevel ?? 1;
-  }, [displayOpponent.strategyLevel, displayOpponent.playfulLevel, lobbyType]);
+  const opponentLevel = useMemo(() => displayOpponent.userLevel ?? 1, [displayOpponent.userLevel]);
 
   // 선택한 게임 정의
   const selectedGameDefinition = useMemo(() => {
@@ -310,7 +305,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
     return availableGames.find(game => game.mode === selectedMode) || null;
   }, [selectedMode, availableGames]);
 
-  // 60초 응답 창 (수신 모달 ChallengeReceivedModal 과 동일, 서버 deadline 과 일치)
+  // 60초 응답 창 (서버 negotiation deadline 과 일치)
   const negotiationDeadline = currentNegotiation?.deadline;
   const [timeRemaining, setTimeRemaining] = useState<number>(CHALLENGE_NEGOTIATION_WINDOW_SEC);
   
@@ -630,7 +625,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
 
         {showCaptureTarget && (
           <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-            <label className={settingsLabelClass} style={labelStyle}>따내기 목표</label>
+            <label className={settingsLabelClass} style={labelStyle}>목표점수</label>
             <select 
               value={settings.captureTarget} 
               onChange={e => handleSettingChange('captureTarget', parseInt(e.target.value))}
@@ -644,7 +639,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
 
         {showTtamokCaptureTarget && (
           <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-            <label className={settingsLabelClass} style={labelStyle}>따내기 목표</label>
+            <label className={settingsLabelClass} style={labelStyle}>목표점수</label>
             <select 
               value={settings.captureTarget ?? 20} 
               onChange={e => handleSettingChange('captureTarget', parseInt(e.target.value))}

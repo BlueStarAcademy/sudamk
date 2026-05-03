@@ -9,6 +9,8 @@ import { useAppContext } from '../hooks/useAppContext.js';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
+import { buildInventoryItemPreviewForPurchase } from '../shared/utils/bagItemDetailHelpers.js';
+import { EquipmentDetailPanel } from './EquipmentDetailPanel.js';
 
 interface TowerItem {
     itemId: string;
@@ -128,6 +130,17 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
     }, [currentUser.inventory, currentUser.id, updateTrigger]);
 
     const getCurrentOwned = (itemId: string): number => ownedQtyByItemId[itemId] ?? 0;
+
+    const towerPreviewInventoryItem = useMemo(() => {
+        if (!selectedItem) return null;
+        return buildInventoryItemPreviewForPurchase({
+            itemId: selectedItem.itemId,
+            name: selectedItem.name,
+            type: 'consumable',
+            image: selectedItem.icon,
+            description: selectedItem.description,
+        });
+    }, [selectedItem]);
 
     // 오늘(KST) 구매한 개수 계산 — 서버와 동일 키(itemId)·날짜 기준
     const getTodayPurchased = (itemId: string): number => {
@@ -258,17 +271,20 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
                 </div>
 
                 <div className={`flex-1 min-h-0 overflow-hidden ${isNativeMobile ? 'mb-2 overflow-y-auto pr-0.5' : 'mb-4'}`}>
-                    {selectedItem && selectedInfo && isNativeMobile && (
-                        <div className="mb-2 rounded-lg border border-amber-700/35 bg-gray-800/40 p-2">
-                            <div className="flex items-start gap-2">
-                                <img src={selectedItem.icon} alt={selectedItem.name} className="h-14 w-14 shrink-0 object-contain" />
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-bold text-amber-200">{selectedItem.name}</p>
-                                    <p className="text-xs text-amber-300/85">보유제한 {selectedItem.maxOwned}개</p>
-                                    <p className="text-xs text-amber-300/85">구매제한 일일 {selectedItem.dailyPurchaseLimit}개</p>
-                                </div>
+                    {selectedItem && selectedInfo && isNativeMobile && towerPreviewInventoryItem && (
+                        <div className="mb-2 max-h-[min(42vh,18rem)] min-h-0 overflow-y-auto overflow-x-hidden rounded-lg border border-amber-700/35 bg-gray-800/40 p-2 [scrollbar-width:thin]">
+                            <EquipmentDetailPanel
+                                item={towerPreviewInventoryItem}
+                                optionsScrollable={false}
+                                comfortableTypography
+                                showAcquireSources
+                                hideOwnedQuantity
+                                iconSlotPx={64}
+                            />
+                            <div className="mt-2 border-t border-amber-700/30 pt-2 text-[11px] text-amber-300/90">
+                                <p>보유제한 {selectedItem.maxOwned}개</p>
+                                <p>구매제한 일일 {selectedItem.dailyPurchaseLimit}개</p>
                             </div>
-                            <p className="mt-1.5 text-[11px] leading-relaxed text-amber-100/85">{selectedItem.description}</p>
                         </div>
                     )}
 
@@ -405,19 +421,26 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
                                     );
                                 })}
                             </div>
-                            {selectedItem && (
-                                <div className="flex-1 flex flex-col bg-gray-800/40 rounded-lg p-4 border border-amber-700/30">
-                                    <div className="flex items-start gap-4 mb-4">
-                                        <div className="relative w-20 h-20 flex-shrink-0">
-                                            <img src={selectedItem.icon} alt={selectedItem.name} className="w-full h-full object-contain" />
+                            {selectedItem && towerPreviewInventoryItem && (
+                                <div className="flex flex-1 min-h-0 flex-col rounded-lg border border-amber-700/30 bg-gray-800/40 p-4">
+                                    <div className="mb-3 min-h-0 max-h-[min(48vh,20rem)] flex-1 overflow-y-auto overflow-x-hidden pr-0.5 [scrollbar-width:thin]">
+                                        <EquipmentDetailPanel
+                                            item={towerPreviewInventoryItem}
+                                            optionsScrollable={false}
+                                            comfortableTypography
+                                            showAcquireSources
+                                            hideOwnedQuantity
+                                            iconSlotPx={72}
+                                        />
+                                    </div>
+                                    <div className="mb-3 space-y-2 text-xs text-amber-300/85">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-semibold">보유 제한:</span>
+                                            <span>최대 {selectedItem.maxOwned}개 보유 가능</span>
                                         </div>
-                                        <div className="flex-1">
-                                            <h3 className="text-lg font-bold text-amber-200 mb-2">{selectedItem.name}</h3>
-                                            <p className="text-sm text-amber-100/80 leading-relaxed mb-3">{selectedItem.description}</p>
-                                            <div className="space-y-2 text-xs text-amber-300/80">
-                                                <div className="flex items-center gap-2"><span className="font-semibold">보유 제한:</span><span>최대 {selectedItem.maxOwned}개 보유 가능</span></div>
-                                                <div className="flex items-center gap-2"><span className="font-semibold">구매 제한:</span><span>하루 최대 {selectedItem.dailyPurchaseLimit}개 구매 가능</span></div>
-                                            </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-semibold">구매 제한:</span>
+                                            <span>하루 최대 {selectedItem.dailyPurchaseLimit}개 구매 가능</span>
                                         </div>
                                     </div>
                                     <div className="border-t border-amber-700/40 pt-4">

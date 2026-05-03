@@ -123,8 +123,7 @@ export const createBotUser = (league: LeagueTier, tournamentType: TournamentType
     const config = LEAGUE_BOT_CONFIG[league] || LEAGUE_BOT_CONFIG[LeagueTier.Sprout];
     
     // 1. 리그별 레벨 범위에서 랜덤 생성
-    const strategyLevel = getRandomInt(config.minLevel, config.maxLevel);
-    const playfulLevel = getRandomInt(config.minLevel, config.maxLevel);
+    const userLevel = getRandomInt(config.minLevel, config.maxLevel);
     
     // 2. 리그별 장비 등급으로 장비 생성
     const inventory: InventoryItem[] = [];
@@ -172,7 +171,7 @@ export const createBotUser = (league: LeagueTier, tournamentType: TournamentType
         baseStats[stat] = Math.round(baseStatValue * multiplier);
         
         // spentStatPoints는 레벨에 따라 분배 (각 레벨당 2포인트씩)
-        const totalPoints = (strategyLevel + playfulLevel) * 2;
+        const totalPoints = Math.max(0, userLevel - 1) * 2;
         // 각 능력치에 고르게 분배하되 약간의 랜덤 변동 추가
         spentStatPoints[stat] = Math.floor(totalPoints / 6) + getRandomInt(-3, 3);
         spentStatPoints[stat] = Math.max(0, spentStatPoints[stat]);
@@ -184,10 +183,8 @@ export const createBotUser = (league: LeagueTier, tournamentType: TournamentType
         username: `bot_${botId}`,
         nickname: botName,
         isAdmin: false,
-        strategyLevel,
-        strategyXp: 0,
-        playfulLevel,
-        playfulXp: 0,
+        userLevel,
+        userXp: 0,
         blacksmithLevel: 1,
         blacksmithXp: 0,
         baseStats,

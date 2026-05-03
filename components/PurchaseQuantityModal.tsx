@@ -1,13 +1,23 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import DraggableWindow from './DraggableWindow.js';
-import { UserWithStatus, InventoryItemType } from '../types.js';
+import { UserWithStatus, InventoryItemType, InventoryItem, ItemGrade } from '../types.js';
 import { BASE_SLOTS_PER_CATEGORY } from '../constants/items.js';
 import { isActionPointConsumable } from '../constants/items.js';
-import { ITEM_OBTAIN_COUNT_BADGE_CLASS, SingleItemObtainCard } from './game/ItemObtainModalShared.js';
-import { resolvePurchaseModalDescription, resolvePurchaseModalUsageLines } from '../shared/utils/bagItemDetailHelpers.js';
+import { buildInventoryItemPreviewForPurchase } from '../shared/utils/bagItemDetailHelpers.js';
+import {
+    getBagConsumableUsageHint,
+    getMaterialBagUsageLines,
+    resolveBagItemDetailImagePath,
+    apConsumableLightningEmojiPx,
+    apConsumableLightningPlusLabelPx,
+} from '../shared/utils/bagItemDetailHelpers.js';
+import { resolveBagItemAcquireLines } from '../shared/utils/itemAcquireSourceLines.js';
+import { equipmentDetailGradeStyles } from './EquipmentDetailPanel.js';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
+
+const HERO_SLOT_PX = 132;
 
 interface PurchaseQuantityModalProps {
     item: {
@@ -26,6 +36,181 @@ interface PurchaseQuantityModalProps {
     onClose: () => void;
     onConfirm: (itemId: string, quantity: number) => void;
 }
+
+function typeLabelKo(it: InventoryItem): string {
+    if (it.type === 'equipment') return '장비';
+    if (it.type === 'consumable') return '소모품';
+    return '재료';
+}
+
+function usageBlocks(it: InventoryItem): string[] {
+    if (it.type === 'material') {
+        const lines = getMaterialBagUsageLines(it.name);
+        return lines.length > 0 ? lines : ['이 재료는 현재 어떤 장비 강화에도 사용되지 않습니다.'];
+    }
+    if (it.type === 'consumable') {
+        const hint = getBagConsumableUsageHint(it.name);
+        return [hint ?? '가방에서 사용할 수 있습니다.'];
+    }
+    return ['착용·강화·제련 등 캐릭터 성장에 사용합니다.'];
+}
+
+const PurchaseModalItemShowcase: React.FC<{ preview: InventoryItem; shopBadge?: string }> = ({ preview, shopBadge }) => {
+    const styles = equipmentDetailGradeStyles[preview.grade];
+    const isTranscendent = preview.grade === ItemGrade.Transcendent;
+    const imagePath = preview.type === 'equipment' ? preview.image : resolveBagItemDetailImagePath(preview);
+    const acquireLines = resolveBagItemAcquireLines(preview);
+    const usageLines = usageBlocks(preview);
+    const desc = (preview.description || '').trim() || '—';
+
+    const apMatch = isActionPointConsumable(preview.name) ? preview.name.match(/\+(\d+)/) : null;
+    const apValue = apMatch?.[1];
+
+    return (
+        <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#14151f] via-[#0c0d12] to-[#08090e] shadow-[0_20px_50px_-28px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-black/40">
+            <div className={`relative p-[1px] ${styles.frame}`}>
+                <div className="rounded-[15px] bg-zinc-950/92 p-3.5 sm:p-4">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                        {/* Large icon */}
+                        <div className="mx-auto shrink-0 sm:mx-0">
+                            <div
+                                className={`relative overflow-hidden rounded-2xl shadow-[0_12px_40px_-12px_rgba(0,0,0,0.75)] ring-1 ring-black/50 ${
+                                    isTranscendent ? 'transcendent-grade-slot' : ''
+                                }`}
+                                style={{ width: HERO_SLOT_PX, height: HERO_SLOT_PX, containerType: 'size' }}
+                            >
+                                <img src={styles.background} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                                {isActionPointConsumable(preview.name) ? (
+                                    <span
+                                        className="absolute inset-0 z-[2] flex flex-col items-center justify-center overflow-hidden px-[min(6px,8%)] leading-none"
+                                        aria-hidden
+                                        style={{ fontSize: `${apConsumableLightningEmojiPx(HERO_SLOT_PX)}px` }}
+                                    >
+                                        <span className="leading-none drop-shadow-[0_0_12px_rgba(34,211,238,0.55)]">⚡</span>
+                                        {apValue ? (
+                                            <span
+                                                className="mt-1 max-w-full truncate font-bold leading-none text-cyan-200 drop-shadow-[0_0_6px_rgba(34,211,238,0.75)]"
+                                                style={{ fontSize: `${apConsumableLightningPlusLabelPx(HERO_SLOT_PX)}px` }}
+                                            >
+                                                +{apValue}
+                                            </span>
+                                        ) : shopBadge ? (
+                                            <span
+                                                className="mt-1 max-w-full truncate font-bold leading-none text-cyan-200 drop-shadow-[0_0_6px_rgba(34,211,238,0.75)]"
+                                                style={{ fontSize: `${apConsumableLightningPlusLabelPx(HERO_SLOT_PX)}px` }}
+                                            >
+                                                {shopBadge}
+                                            </span>
+                                        ) : null}
+                                    </span>
+                                ) : imagePath ? (
+                                    <img
+                                        src={imagePath}
+                                        alt=""
+                                        className="absolute left-1/2 top-1/2 z-[2] max-h-[82%] max-w-[82%] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_6px_18px_rgba(0,0,0,0.55)]"
+                                    />
+                                ) : null}
+                                {preview.type === 'equipment' && (preview.stars ?? 0) > 0 ? (
+                                    <div className="absolute bottom-1 right-1 z-[3] rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-amber-200 ring-1 ring-white/10">
+                                        ★{preview.stars}
+                                    </div>
+                                ) : null}
+                            </div>
+                        </div>
+
+                        {/* Name + meta + description */}
+                        <div className="min-w-0 flex-1 text-left">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <h2
+                                    className={`min-w-0 max-w-full text-lg font-black leading-tight tracking-tight sm:text-xl ${styles.color}`}
+                                    style={{ letterSpacing: '-0.02em' }}
+                                >
+                                    {preview.name}
+                                </h2>
+                                {shopBadge && !isActionPointConsumable(preview.name) ? (
+                                    <span className="shrink-0 rounded-md border border-cyan-400/35 bg-cyan-950/40 px-2 py-0.5 text-[10px] font-bold text-cyan-100">
+                                        {shopBadge}
+                                    </span>
+                                ) : null}
+                            </div>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <span className="rounded-full border border-white/[0.1] bg-white/[0.04] px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                                    구분 · {typeLabelKo(preview)}
+                                </span>
+                                <span
+                                    className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wide ring-1 ring-inset ${
+                                        isTranscendent
+                                            ? 'border-cyan-400/35 bg-cyan-500/10 text-cyan-100 ring-cyan-400/15'
+                                            : 'border-white/10 bg-black/30 text-slate-200 ring-white/[0.06]'
+                                    }`}
+                                >
+                                    등급 · <span className={styles.color}>{styles.name}</span>
+                                </span>
+                            </div>
+                            <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/30 p-3 ring-1 ring-inset ring-white/[0.03]">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">설명</p>
+                                <p className="mt-1.5 text-[13px] leading-relaxed text-slate-200/95 sm:text-sm">{desc}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Usage + Acquire panels */}
+                    <div className="mt-4 flex flex-col gap-2.5 sm:gap-3">
+                        <div className="group relative overflow-hidden rounded-xl border border-sky-500/20 bg-gradient-to-b from-sky-950/35 via-[#0a1018]/90 to-[#06080c] p-3 shadow-[inset_0_1px_0_rgba(56,189,248,0.08)] ring-1 ring-inset ring-sky-400/10">
+                            <div
+                                className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-sky-400/10 blur-2xl transition-opacity group-hover:opacity-90"
+                                aria-hidden
+                            />
+                            <div className="relative flex items-center gap-2 border-b border-sky-500/15 pb-2">
+                                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-500/20 text-[11px] font-black text-sky-200 ring-1 ring-sky-400/25">
+                                    ◈
+                                </span>
+                                <span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-sky-200/90">사용처</span>
+                            </div>
+                            <ul className="relative mt-2.5 space-y-2 pl-0.5">
+                                {usageLines.map((line, i) => (
+                                    <li
+                                        key={i}
+                                        className="border-l-2 border-sky-400/35 pl-3 text-[12px] leading-snug text-slate-200/95 sm:text-[13px]"
+                                    >
+                                        {line}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        <div className="group relative overflow-hidden rounded-xl border border-amber-500/20 bg-gradient-to-b from-amber-950/30 via-[#120e0a]/92 to-[#080604] p-3 shadow-[inset_0_1px_0_rgba(251,191,36,0.07)] ring-1 ring-inset ring-amber-400/10">
+                            <div
+                                className="pointer-events-none absolute -left-4 -top-10 h-28 w-28 rounded-full bg-amber-400/10 blur-2xl transition-opacity group-hover:opacity-90"
+                                aria-hidden
+                            />
+                            <div className="relative flex items-center gap-2 border-b border-amber-500/15 pb-2">
+                                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-500/20 text-[11px] font-black text-amber-100 ring-1 ring-amber-400/25">
+                                    ✦
+                                </span>
+                                <span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-amber-100/90">획득처</span>
+                            </div>
+                            <ul className="relative mt-2.5 space-y-2 pl-0.5">
+                                {acquireLines.length > 0 ? (
+                                    acquireLines.map((line, i) => (
+                                        <li
+                                            key={i}
+                                            className="border-l-2 border-amber-400/35 pl-3 text-[12px] leading-snug text-slate-200/95 sm:text-[13px]"
+                                        >
+                                            {line}
+                                        </li>
+                                    ))
+                                ) : (
+                                    <li className="border-l-2 border-amber-400/20 pl-3 text-[12px] text-slate-500">안내 문구가 없습니다.</li>
+                                )}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, currentUser, onClose, onConfirm }) => {
     const [quantity, setQuantity] = useState(1);
@@ -111,60 +296,51 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
         onClose();
     };
 
-    const showImage = item.image || isTieredPriceItem;
-    const isActionPoint = isTieredPriceItem || (item.name && isActionPointConsumable(item.name));
-
-    const purchaseDescription = useMemo(
-        () => resolvePurchaseModalDescription({ description: item.description, name: item.name, type: item.type }),
-        [item.description, item.name, item.type]
-    );
-    const purchaseUsageLines = useMemo(
-        () => resolvePurchaseModalUsageLines({ name: item.name, type: item.type }),
-        [item.name, item.type]
-    );
-
-    const previewLeftVisual = (
-        <div className="relative flex h-[4.75rem] w-[4.75rem] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-500/40 bg-slate-800/75 shadow-inner sm:h-[5rem] sm:w-[5rem]">
-            {showImage &&
-                (isActionPoint ? (
-                    <div className="flex flex-col items-center justify-center text-amber-300">
-                        <span className="text-3xl leading-none" aria-hidden>
-                            ⚡
-                        </span>
-                        {item.badge ? <span className="mt-0.5 text-sm font-bold text-amber-200">{item.badge}</span> : null}
-                    </div>
-                ) : (
-                    <img src={item.image!} alt="" className="h-full w-full object-contain p-1.5" />
-                ))}
-            {quantity >= 2 ? <span className={ITEM_OBTAIN_COUNT_BADGE_CLASS}>×{quantity.toLocaleString()}</span> : null}
-        </div>
+    const previewItem = useMemo(
+        () =>
+            buildInventoryItemPreviewForPurchase({
+                itemId: item.itemId,
+                name: item.name,
+                type: item.type,
+                image: item.image,
+                description: item.description,
+            }),
+        [item.itemId, item.name, item.type, item.image, item.description]
     );
 
     return (
-        <DraggableWindow title="수량 선택" onClose={onClose} windowId="purchase-quantity" initialWidth={420}>
-            <div className="flex flex-col items-stretch p-1">
-                <div className="mb-4">
-                    <SingleItemObtainCard
-                        leftVisual={previewLeftVisual}
-                        name={item.name}
-                        description={purchaseDescription}
-                        usageLines={purchaseUsageLines}
-                        regionAriaLabel="구매 상품"
-                    />
+        <DraggableWindow title="수량 선택" onClose={onClose} windowId="purchase-quantity" initialWidth={540}>
+            <div className="flex min-h-0 flex-col items-stretch p-1">
+                <div className="mb-3 min-h-0 shrink-0">
+                    <div
+                        className="max-h-[min(58vh,26rem)] overflow-y-auto overflow-x-hidden pr-0.5 [scrollbar-width:thin]"
+                        role="region"
+                        aria-label="구매 상품 상세"
+                    >
+                        <PurchaseModalItemShowcase preview={previewItem} shopBadge={item.badge} />
+                    </div>
+                    {quantity >= 2 ? (
+                        <p className="mt-1.5 text-center text-[11px] font-medium text-amber-200/80">선택 수량 ×{quantity.toLocaleString()}</p>
+                    ) : null}
                     {remainingDaily !== Infinity && remainingDaily > 0 ? (
-                        <p className="mt-2 text-center text-xs text-slate-400">일일 남은 구매 가능: {remainingDaily}개</p>
+                        <p className="mt-0.5 text-center text-[11px] text-slate-500">일일 남은 구매 가능: {remainingDaily}개</p>
                     ) : null}
                 </div>
 
-                {/* 수량 조절: 고급 스타일 */}
-                <div className="rounded-xl bg-slate-800/50 border border-slate-600/40 p-4 mb-4">
-                    <p className="text-sm font-medium text-slate-300 mb-3">구매 수량</p>
-                    <div className="flex items-center justify-center gap-3">
+                <div className="mb-3 rounded-lg border border-white/[0.07] bg-gradient-to-b from-slate-800/85 to-slate-950/90 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-black/25">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">구매 수량</span>
+                        <span className="font-mono text-[10px] tabular-nums text-slate-500">
+                            1–{Math.max(1, maxQuantity).toLocaleString()}
+                        </span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
                         <button
                             type="button"
                             onClick={() => setQuantity(q => Math.max(1, q - 1))}
                             disabled={quantity <= 1}
-                            className="w-11 h-11 rounded-xl bg-slate-600 hover:bg-slate-500 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-500/50 text-white font-bold text-xl flex items-center justify-center shadow-md transition-all active:scale-95"
+                            aria-label="한 개 줄이기"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-500/35 bg-slate-700/80 text-sm font-semibold text-slate-200 shadow-sm transition-colors hover:border-slate-400/45 hover:bg-slate-600/90 disabled:cursor-not-allowed disabled:opacity-35 active:scale-[0.97]"
                         >
                             −
                         </button>
@@ -176,13 +352,14 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
                             onChange={(e) =>
                                 setQuantity(clampGameInt(Number(e.target.value) || 1, { min: 1, max: Math.max(1, maxQuantity) }))
                             }
-                            className="w-24 h-12 text-center text-2xl font-bold bg-slate-700/80 border border-slate-500/50 rounded-xl text-white focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400/50 outline-none"
+                            className="h-8 min-w-[4.25rem] max-w-[6.5rem] rounded-lg border border-slate-500/40 bg-slate-900/70 px-1 text-center text-base font-semibold tabular-nums text-slate-100 shadow-inner outline-none ring-amber-500/0 transition-[box-shadow,border-color] focus:border-amber-400/40 focus:ring-2 focus:ring-amber-400/20"
                         />
                         <button
                             type="button"
                             onClick={() => setQuantity(q => Math.min(maxQuantity, q + 1))}
                             disabled={quantity >= maxQuantity}
-                            className="w-11 h-11 rounded-xl bg-slate-600 hover:bg-slate-500 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-500/50 text-white font-bold text-xl flex items-center justify-center shadow-md transition-all active:scale-95"
+                            aria-label="한 개 늘리기"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-500/35 bg-slate-700/80 text-sm font-semibold text-slate-200 shadow-sm transition-colors hover:border-slate-400/45 hover:bg-slate-600/90 disabled:cursor-not-allowed disabled:opacity-35 active:scale-[0.97]"
                         >
                             +
                         </button>
@@ -190,36 +367,48 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
                             type="button"
                             onClick={() => setQuantity(maxQuantity)}
                             disabled={maxQuantity <= 0}
-                            className="h-11 px-4 rounded-xl bg-gradient-to-r from-amber-500/90 to-amber-600/90 hover:from-amber-400 hover:to-amber-500 disabled:opacity-40 disabled:cursor-not-allowed border border-amber-400/50 text-slate-900 font-bold text-sm shadow-md transition-all active:scale-95"
+                            className="ml-1 h-8 shrink-0 rounded-lg border border-amber-500/35 bg-gradient-to-b from-amber-500/25 to-amber-950/40 px-2.5 text-[11px] font-bold tracking-tight text-amber-100/95 shadow-sm transition-colors hover:border-amber-400/50 hover:from-amber-400/35 disabled:cursor-not-allowed disabled:opacity-35 active:scale-[0.97]"
                         >
                             Max
                         </button>
                     </div>
-                    <input
-                        type="range"
-                        min="1"
-                        max={Math.max(1, maxQuantity)}
-                        value={quantity}
-                        onChange={e => setQuantity(Number(e.target.value))}
-                        className="w-full h-2 mt-3 rounded-full appearance-none bg-slate-600 accent-amber-500 cursor-pointer"
-                    />
-                </div>
-
-                {/* 총 가격 */}
-                <div className="rounded-xl bg-slate-800/50 border border-slate-600/40 p-4 mb-4 flex items-center justify-between">
-                    <span className="text-slate-300 font-medium">총 가격</span>
-                    <div className="flex items-center gap-2 font-bold text-xl text-amber-300">
-                        <img src={isGold ? '/images/icon/Gold.png' : '/images/icon/Zem.png'} alt={isGold ? '골드' : '다이아'} className="w-7 h-7 object-contain" />
-                        <span>{isGold ? formatGoldAmountKoG(totalPrice) : formatWalletDiamonds(totalPrice)}</span>
+                    <div className="mt-2.5 px-0.5">
+                        <input
+                            type="range"
+                            min="1"
+                            max={Math.max(1, maxQuantity)}
+                            value={quantity}
+                            onChange={e => setQuantity(Number(e.target.value))}
+                            className="h-1 w-full cursor-pointer rounded-full accent-amber-500"
+                        />
                     </div>
                 </div>
 
-                {/* 버튼 */}
-                <div className="flex gap-3">
+                <div className="mb-3 overflow-hidden rounded-lg border border-amber-500/15 bg-gradient-to-r from-amber-950/25 via-slate-900/80 to-slate-950/90 p-3 ring-1 ring-inset ring-white/[0.04]">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-200/55">합계</p>
+                            <p className="mt-0.5 truncate text-[11px] text-slate-500">결제 예정 금액</p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1.5 rounded-md border border-white/[0.06] bg-black/25 px-2 py-1">
+                            <img
+                                src={isGold ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                alt=""
+                                className="h-4 w-4 object-contain opacity-95"
+                                aria-hidden
+                            />
+                            <span className="text-right text-base font-bold tabular-nums text-amber-100/95 sm:text-[1.05rem]">
+                                {isGold ? formatGoldAmountKoG(totalPrice) : formatWalletDiamonds(totalPrice)}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex gap-2">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 py-3 rounded-xl bg-slate-600 hover:bg-slate-500 border border-slate-500/50 text-white font-semibold shadow-md transition-all active:scale-[0.98]"
+                        className="flex-1 rounded-lg border border-slate-500/40 bg-slate-700/50 py-2 text-xs font-semibold text-slate-200 shadow-sm transition-colors hover:border-slate-400/45 hover:bg-slate-600/55 active:scale-[0.99]"
                     >
                         취소
                     </button>
@@ -227,13 +416,13 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
                         type="button"
                         onClick={handleConfirm}
                         disabled={quantity === 0 || quantity > maxQuantity}
-                        className="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-500/90 to-emerald-600/90 hover:from-emerald-400 hover:to-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed border border-emerald-400/50 text-white font-semibold shadow-md transition-all active:scale-[0.98]"
+                        className="flex-1 rounded-lg border border-emerald-500/35 bg-gradient-to-b from-emerald-600/85 to-emerald-950/50 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:border-emerald-400/45 hover:from-emerald-500/90 disabled:cursor-not-allowed disabled:opacity-45 active:scale-[0.99]"
                     >
                         구매
                     </button>
                 </div>
                 {noticeMessage && (
-                    <p className="mt-2 text-center text-sm font-medium text-rose-300">
+                    <p className="mt-2 text-center text-[11px] font-medium text-rose-300/95">
                         {noticeMessage}
                     </p>
                 )}

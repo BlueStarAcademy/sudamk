@@ -33,7 +33,7 @@ import {
 } from '../shared/utils/adventureChapterDirectLoot.js';
 import { ADVENTURE_STRATEGIC_WIN_BASE_GOLD_BY_BOARD_SIZE } from '../shared/constants/adventureStrategicGold.js';
 import { rollAdventureEnhancementStoneQuantity } from '../shared/utils/adventureEnhancementStoneQty.js';
-import { ItemGrade } from '../types/enums.js';
+import { CoreStat, ItemGrade } from '../types/enums.js';
 import { enrichPairRoomsForClientPayload } from './utils/pairRoomClientPayload.js';
 import {
     applyAdventureMonsterDefeatToProfile,
@@ -53,13 +53,19 @@ import { isAdventureChapterBossCodexId } from '../constants/adventureMonstersCod
 import { getEffectiveSinglePlayerStages } from './singlePlayerStageConfigService.js';
 import { reconcileSinglePlayerProgress } from '../shared/utils/singlePlayerProgress.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
-import { resolvePairPetMetaFromInventoryRow, rollSingleLevelUpCoreBonuses } from '../shared/utils/pairPetRoll.js';
+import {
+    resolvePairPetMetaFromInventoryRow,
+    rollSingleLevelUpCoreBonuses,
+    diffPairPetLevelUpCoreBonuses,
+} from '../shared/utils/pairPetRoll.js';
 import {
     effectivePairPetGradeFromRow,
     PAIR_PET_MAX_LEVEL,
     pairPetXpGainBlockedByGrade,
 } from '../shared/constants/pairPetGrade.js';
 import { getXpRequirementForLevel } from '../shared/utils/strategyLevelXp.js';
+import { STRATEGIC_RANKED_STAT_KEY } from '../shared/constants/userRankedStats.js';
+import { readStrategicRankedBlock, readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
 
 function resetPairRoomAfterGame(room: any): void {
     room.matchStartedAt = undefined;
@@ -186,7 +192,7 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
         console.error(`[SP Summary] Could not find stage with id: ${game.stageId}`);
         if (!game.summary) game.summary = {};
         game.summary[user.id] = {
-            xp: { initial: user.strategyXp, change: 0, final: user.strategyXp },
+            xp: { initial: user.userXp, change: 0, final: user.userXp },
             rating: { initial: 1200, change: 0, final: 1200 },
             manner: { initial: user.mannerScore, change: 0, final: user.mannerScore },
             gold: 0,
@@ -197,7 +203,7 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
 
     // Initialize with a base structure
     const summary: GameSummary = {
-        xp: { initial: user.strategyXp, change: 0, final: user.strategyXp },
+        xp: { initial: user.userXp, change: 0, final: user.userXp },
         rating: { initial: 1200, change: 0, final: 1200 }, // Not applicable
         manner: { initial: user.mannerScore, change: 0, final: user.mannerScore },
         gold: 0,
@@ -250,14 +256,14 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
         }
 
         // 골드와 경험치는 항상 지급 (아이템과 독립적)
-        const initialXp = user.strategyXp;
+        const initialXp = user.userXp;
         user.gold += rewards.gold;
-        user.strategyXp += rewards.exp;
+        user.userXp += rewards.exp;
         
         summary.gold = rewards.gold;
-        summary.xp = { initial: initialXp, change: rewards.exp, final: user.strategyXp };
+        summary.xp = { initial: initialXp, change: rewards.exp, final: user.userXp };
         
-        console.log(`[SP Summary] Rewards applied - summary.gold=${summary.gold}, summary.xp.change=${summary.xp.change}, user.gold=${user.gold}, user.strategyXp=${user.strategyXp}`);
+        console.log(`[SP Summary] Rewards applied - summary.gold=${summary.gold}, summary.xp.change=${summary.xp.change}, user.gold=${user.gold}, user.userXp=${user.userXp}`);
         
         // 아이템 보상 처리 (입문-1 첫 클리어 부채 포함, 즉시 지급)
         const itemsToCreate = rewards.items?.length ? createItemInstancesFromReward(rewards.items) : [];
@@ -308,11 +314,11 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
             console.log(`[SP Summary] Stage ${stage.id} - Failure reward (10% of success): gold=${failureRewards.gold}, exp=${failureRewards.exp}`);
             
             user.gold += failureRewards.gold;
-            const initialXp = user.strategyXp;
-            user.strategyXp += failureRewards.exp;
+            const initialXp = user.userXp;
+            user.userXp += failureRewards.exp;
             
             summary.gold = failureRewards.gold;
-            summary.xp = { initial: initialXp, change: failureRewards.exp, final: user.strategyXp };
+            summary.xp = { initial: initialXp, change: failureRewards.exp, final: user.userXp };
             summary.items = [];
         }
     }
@@ -324,23 +330,23 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
     console.log(`[SP Summary] Final summary for user ${user.id}:`, JSON.stringify(summary));
     
     // Handle level up logic after potentially adding XP
-    let currentLevel = user.strategyLevel;
-    let currentXp = user.strategyXp;
+    let currentLevel = user.userLevel;
+    let currentXp = user.userXp;
     let requiredXp = getXpForLevel(currentLevel);
     while (currentXp >= requiredXp) {
         currentXp -= requiredXp;
         currentLevel++;
         requiredXp = getXpForLevel(currentLevel);
     }
-    user.strategyLevel = currentLevel;
-    user.strategyXp = currentXp;
+    user.userLevel = currentLevel;
+    user.userXp = currentXp;
 
     await db.updateUser(user);
     
     // 사용자 업데이트를 클라이언트에 브로드캐스트 (clearedSinglePlayerStages 업데이트 포함)
     // inventory는 크기가 클 수 있으므로 필요한 경우에만 포함
     const { broadcastUserUpdate } = await import('./socket.js');
-    const fieldsToUpdate = ['clearedSinglePlayerStages', 'singlePlayerProgress', 'gold', 'strategyXp', 'strategyLevel'];
+    const fieldsToUpdate = ['clearedSinglePlayerStages', 'singlePlayerProgress', 'gold', 'userXp', 'userLevel'];
     if (grantedBonusStatPoints) {
         fieldsToUpdate.push('bonusStatPoints');
     }
@@ -382,7 +388,7 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
     }
 
     // Initialize with a base structure (경험치 숫자 보장)
-    const initialStrategyXp = Math.max(0, Number(user.strategyXp) || 0);
+    const initialStrategyXp = Math.max(0, Number(user.userXp) || 0);
     const summary: GameSummary = {
         xp: { initial: initialStrategyXp, change: 0, final: initialStrategyXp },
         rating: { initial: 1200, change: 0, final: 1200 }, // Not applicable
@@ -415,13 +421,13 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
         } else {
             // 최초 클리어 시에만 보상 지급 (경험치는 반드시 누적: 기존값 + 보상)
             const rewards = stage.rewards.firstClear;
-            const initialXp = Number(user.strategyXp) || 0;
+            const initialXp = Number(user.userXp) || 0;
             const addedXp = Number(rewards.exp) || 0;
-            user.strategyXp = initialXp + addedXp;
+            user.userXp = initialXp + addedXp;
 
             user.gold += rewards.gold;
             summary.gold = rewards.gold;
-            summary.xp = { initial: initialXp, change: addedXp, final: user.strategyXp };
+            summary.xp = { initial: initialXp, change: addedXp, final: user.userXp };
 
             const grantTowerItemsToInventory = (items: InventoryItem[]): InventoryItem[] => {
                 if (!items.length) return [];
@@ -518,22 +524,22 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
     
     // Handle level up logic after potentially adding XP (승리 시에만, 숫자로 확실히 누적값 사용)
     if (isWinner) {
-        let currentLevel = Math.max(1, Number(user.strategyLevel) || 1);
-        let currentXp = Math.max(0, Number(user.strategyXp) || 0);
+        let currentLevel = Math.max(1, Number(user.userLevel) || 1);
+        let currentXp = Math.max(0, Number(user.userXp) || 0);
         let requiredXp = getXpForLevel(currentLevel);
         while (requiredXp > 0 && currentXp >= requiredXp) {
             currentXp -= requiredXp;
             currentLevel++;
             requiredXp = getXpForLevel(currentLevel);
         }
-        user.strategyLevel = currentLevel;
-        user.strategyXp = currentXp;
+        user.userLevel = currentLevel;
+        user.userXp = currentXp;
     }
 
     // towerFloor 또는 monthlyTowerFloor가 업데이트되었거나, 보상이 지급된 경우 DB 저장
     const towerFloorUpdated = isWinner && (floor > userTowerFloor || floor > ((user as any).monthlyTowerFloor ?? 0));
     const hasRewards = (summary.gold ?? 0) > 0 || summary.xp.change > 0 || (summary.items && summary.items.length > 0);
-    const levelUpOccurred = user.strategyLevel !== (freshUser.strategyLevel ?? 0);
+    const levelUpOccurred = user.userLevel !== (freshUser.userLevel ?? 0);
     
     // towerFloor 업데이트가 있으면 즉시 저장하고 브로드캐스트 (다음 층 도전 버튼 활성화를 위해)
     if (towerFloorUpdated) {
@@ -550,11 +556,11 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
         if (!towerFloorUpdated) {
             await db.updateUser(user);
         }
-        console.log(`[Tower Summary] User ${user.nickname} rewards saved immediately: gold=${user.gold}, xp=${user.strategyXp}, level=${user.strategyLevel}`);
+        console.log(`[Tower Summary] User ${user.nickname} rewards saved immediately: gold=${user.gold}, xp=${user.userXp}, level=${user.userLevel}`);
         
         // 사용자 업데이트를 즉시 브로드캐스트 (보상 지급 확인)
         const { broadcastUserUpdate } = await import('./socket.js');
-        const fieldsToUpdate = ['gold', 'diamonds', 'strategyXp', 'strategyLevel', 'inventory'];
+        const fieldsToUpdate = ['gold', 'diamonds', 'userXp', 'userLevel', 'inventory'];
         if (!towerFloorUpdated) {
             fieldsToUpdate.push('towerFloor', 'monthlyTowerFloor');
         }
@@ -564,10 +570,10 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
     // 레벨업이 있으면 추가로 저장 (towerFloor나 보상이 없었던 경우)
     if (levelUpOccurred && !towerFloorUpdated && !hasRewards) {
         await db.updateUser(user);
-        console.log(`[Tower Summary] User ${user.nickname} level up saved: level=${user.strategyLevel}`);
+        console.log(`[Tower Summary] User ${user.nickname} level up saved: level=${user.userLevel}`);
         
         const { broadcastUserUpdate } = await import('./socket.js');
-        broadcastUserUpdate(user, ['strategyLevel', 'strategyXp']);
+        broadcastUserUpdate(user, ['userLevel', 'userXp']);
     }
     
     if (!towerFloorUpdated && !hasRewards && !levelUpOccurred) {
@@ -953,9 +959,9 @@ type PairGoRewardBand = {
 };
 
 const PAIR_GO_REWARD_BANDS: Record<9 | 13 | 19, PairGoRewardBand> = {
-    9: { gold: [100, 200], petXp: [30, 45], strategyXp: [10, 15] },
-    13: { gold: [300, 500], petXp: [60, 90], strategyXp: [20, 30] },
-    19: { gold: [500, 1000], petXp: [90, 150], strategyXp: [30, 50] },
+    9: { gold: [100, 200], petXp: [60, 90], strategyXp: [10, 15] },
+    13: { gold: [300, 500], petXp: [120, 180], strategyXp: [20, 30] },
+    19: { gold: [500, 1000], petXp: [180, 300], strategyXp: [30, 50] },
 };
 
 const rollInclusive = ([min, max]: [number, number]): number => {
@@ -987,13 +993,23 @@ function getPairGoHumanParticipantIds(game: LiveGameSession): string[] {
     return [...ids];
 }
 
-function applyPairPetRewardXp(user: User, rawGain: number): { xp: StatChange; level: NonNullable<GameSummary['pairPetLevel']> } | undefined {
+function applyPairPetRewardXp(
+    user: User,
+    rawGain: number,
+):
+    | {
+          xp: StatChange;
+          level: NonNullable<GameSummary['pairPetLevel']>;
+          levelUpCoreBonusesDelta?: Partial<Record<CoreStat, number>>;
+      }
+    | undefined {
     const row = getEquippedPairPetInventoryRow(user);
     if (!row) return undefined;
     const idx = user.inventory.findIndex((it) => it.id === row.id);
     if (idx < 0) return undefined;
 
     const meta = { ...resolvePairPetMetaFromInventoryRow(row) };
+    const coreBonusesBefore = { ...(meta.levelUpCoreBonuses ?? {}) };
     const grade = effectivePairPetGradeFromRow(row);
     const oldLevel = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(meta.level) || 1));
     const initialXp = Math.max(0, Math.floor(meta.xp ?? 0));
@@ -1042,22 +1058,42 @@ function applyPairPetRewardXp(user: User, rawGain: number): { xp: StatChange; le
     const finalXp = meta.xp ?? 0;
     const finalLevel = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(meta.level) || 1));
     const maxXpForInitialLevel = getXpRequirementForLevel(oldLevel);
+    const petLeveledUp = finalLevel > oldLevel;
+    const maxXpForBar = petLeveledUp ? getXpRequirementForLevel(finalLevel) : maxXpForInitialLevel;
+    const initialXpForBar = petLeveledUp ? 0 : initialXp;
+    const safePetMax =
+        Number.isFinite(maxXpForBar) && maxXpForBar > 0
+            ? maxXpForBar
+            : petLeveledUp
+              ? 1
+              : Number.isFinite(maxXpForInitialLevel) && maxXpForInitialLevel > 0
+                ? maxXpForInitialLevel
+                : 100;
+    const coreDelta = diffPairPetLevelUpCoreBonuses(coreBonusesBefore, meta.levelUpCoreBonuses);
+    const hasCoreDelta = Object.values(coreDelta).some((v) => typeof v === 'number' && v !== 0);
     return {
         xp: { initial: initialXp, change: rawGain, final: finalXp },
         level: {
             initial: oldLevel,
             final: finalLevel,
             progress: {
-                initial: initialXp,
+                initial: initialXpForBar,
                 final: finalXp,
-                max: Number.isFinite(maxXpForInitialLevel) && maxXpForInitialLevel > 0 ? maxXpForInitialLevel : 0,
+                max: safePetMax,
             },
         },
+        ...(hasCoreDelta ? { levelUpCoreBonusesDelta: coreDelta } : {}),
     };
 }
 
 /** 페어 종료 시 펫 XP가 0이어도 결과 모달에 장착 펫 상태를 표시하기 위한 스냅샷(인벤토리/유저 변경 없음). 반환 형태는 {@link applyPairPetRewardXp}와 동일 */
-function buildPairPetZeroGainSummary(user: User): { xp: StatChange; level: NonNullable<GameSummary['pairPetLevel']> } | undefined {
+function buildPairPetZeroGainSummary(user: User):
+    | {
+          xp: StatChange;
+          level: NonNullable<GameSummary['pairPetLevel']>;
+          levelUpCoreBonusesDelta?: Partial<Record<CoreStat, number>>;
+      }
+    | undefined {
     const row = getEquippedPairPetInventoryRow(user);
     if (!row) return undefined;
     const meta = resolvePairPetMetaFromInventoryRow(row);
@@ -1426,9 +1462,9 @@ const processPlayerSummary = async (
     const isPlayful = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
     /** 기권한 쪽만 완주 실패 처리 — 상대(승자)는 놀이바둑도 골드·경험치 정상 지급 */
     const isPlayfulResignLoser = isPlayful && winReason === 'resign' && !isWinner;
-    const initialLevel = isStrategic ? updatedPlayer.strategyLevel : updatedPlayer.playfulLevel;
-    const opponentLevel = isStrategic ? opponent.strategyLevel : opponent.playfulLevel;
-    const initialXp = isStrategic ? updatedPlayer.strategyXp : updatedPlayer.playfulXp;
+    const initialLevel = updatedPlayer.userLevel;
+    const opponentLevel = opponent.userLevel;
+    const initialXp = updatedPlayer.userXp;
     const isAdventureGame = game.gameCategory === 'adventure';
     const adventureBoardSize = game.adventureBoardSize ?? game.settings.boardSize;
     const isStrategicLobbyAi = !isNoContest && isWaitingRoomAiGame(game) && isStrategic;
@@ -1464,9 +1500,9 @@ const processPlayerSummary = async (
 
     const effects = effectService.calculateUserEffects(updatedPlayer);
 
-    const xpBonusPercent = isStrategic 
-        ? effects.specialStatBonuses[SpecialStat.StrategyXpBonus].percent 
-        : effects.specialStatBonuses[SpecialStat.PlayfulXpBonus].percent;
+    const xpBonusPercent =
+        (isStrategic ? effects.specialStatBonuses[SpecialStat.StrategyXpBonus].percent : 0) +
+        (isPlayful ? effects.specialStatBonuses[SpecialStat.PlayfulXpBonus].percent : 0);
 
     if (xpBonusPercent > 0) {
         xpGain = Math.round(xpGain * (1 + xpBonusPercent / 100));
@@ -1514,6 +1550,23 @@ const processPlayerSummary = async (
     if (!isNoContest && !isDraw && isAdventureGame && player.id !== aiUserId && !isWinner) {
         xpGain = 0;
     }
+    /** 보상 VIP: 전략·놀이바둑 승리 시 골드·경험치(아래 rewards 반영) 2배 — 모험·길드전·타워·싱글 등 제외 */
+    const rewardVipStrategicPlayfulWinDouble =
+        !isNoContest &&
+        !isDraw &&
+        isWinner &&
+        player.id !== aiUserId &&
+        !isGuildWarMatch &&
+        !isAdventureGame &&
+        !game.isSinglePlayer &&
+        (game.gameCategory as string) !== 'tower' &&
+        (game.gameCategory as string) !== 'singleplayer' &&
+        isRewardVipActive(updatedPlayer) &&
+        (isStrategic || isPlayful);
+
+    if (rewardVipStrategicPlayfulWinDouble && xpGain > 0) {
+        xpGain = Math.round(xpGain * 2);
+    }
     // --- END NEW LOGIC ---
 
     let currentXp = initialXp + xpGain;
@@ -1528,48 +1581,72 @@ const processPlayerSummary = async (
     }
     
     const xpSummary: StatChange = { initial: initialXp, change: xpGain, final: currentXp };
+    const leveledUp = currentLevel > initialLevel;
+    const maxForProgress = leveledUp ? getXpForLevel(currentLevel) : requiredXpForInitialLevel;
+    const initialForProgress = leveledUp ? 0 : initialXp;
+    const safeMaxForProgress =
+        Number.isFinite(maxForProgress) && maxForProgress > 0
+            ? maxForProgress
+            : leveledUp
+              ? 1
+              : Number.isFinite(requiredXpForInitialLevel) && requiredXpForInitialLevel > 0
+                ? requiredXpForInitialLevel
+                : 1;
     const levelSummary = {
         initial: initialLevel,
         final: currentLevel,
-        progress: { 
-            initial: initialXp, 
-            final: currentXp, 
-            max: requiredXpForInitialLevel 
-        }
+        progress: {
+            initial: initialForProgress,
+            final: currentXp,
+            max: safeMaxForProgress,
+        },
     };
 
-    if (isStrategic) {
-        updatedPlayer.strategyLevel = currentLevel;
-        updatedPlayer.strategyXp = currentXp;
-    } else {
-        updatedPlayer.playfulLevel = currentLevel;
-        updatedPlayer.playfulXp = currentXp;
-    }
+    updatedPlayer.userLevel = currentLevel;
+    updatedPlayer.userXp = currentXp;
 
-    // --- Rating ---
+    // --- Rating (전략 통합 레이팅만; 놀이·친선 랭킹 점수 없음) ---
     if (!updatedPlayer.stats) updatedPlayer.stats = {};
-    const gameStats = updatedPlayer.stats[mode] ?? { wins: 0, losses: 0, rankingScore: 1200 };
-    
-    const initialRating = gameStats.rankingScore ?? 1200;
-    const opponentStats = opponent.stats?.[mode] ?? { wins: 0, losses: 0, rankingScore: 1200 };
-    const opponentRating = opponent.id === aiUserId ? (initialRating - 50 + Math.random() * 100) : (opponentStats.rankingScore ?? 1200);
-    
+    const gameStatsRow = updatedPlayer.stats[mode] ?? { wins: 0, losses: 0 };
+    const { rankingScore: _dropRs, ...gameStatsRest } = gameStatsRow as {
+        wins?: number;
+        losses?: number;
+        rankingScore?: number;
+        aiWins?: number;
+        aiLosses?: number;
+    };
+    const gameStats = {
+        wins: gameStatsRest.wins ?? 0,
+        losses: gameStatsRest.losses ?? 0,
+        ...(gameStatsRest.aiWins !== undefined ? { aiWins: gameStatsRest.aiWins } : {}),
+        ...(gameStatsRest.aiLosses !== undefined ? { aiLosses: gameStatsRest.aiLosses } : {}),
+    };
+
+    const strategicBefore = readStrategicRankedBlock(updatedPlayer.stats as Record<string, unknown>);
+    const opponentStrategicBefore = readStrategicRankedBlock(opponent.stats as Record<string, unknown>);
+
     let ratingChange = 0;
-    // 랭킹전이 아니면 랭킹 점수 변동 없음 (친선전)
-    if (game.isRankedGame && !isNoContest && !isAiGame) {
-        // 랭킹전에서 조기 종료 시 대폭 하락
+    let strategicRatingAfter = strategicBefore.rankingScore;
+    if (game.isRankedGame && !isNoContest && !isAiGame && isStrategic) {
         const isRankedEarlyTermination = game.isEarlyTermination && game.badMannerPlayerId === player.id;
         if (isRankedEarlyTermination) {
-            ratingChange = -100; // 랭킹전 조기 종료 시 -100점 하락
+            ratingChange = -100;
         } else {
+            const oppR =
+                opponent.id === aiUserId
+                    ? strategicBefore.rankingScore - 50 + Math.random() * 100
+                    : opponentStrategicBefore.rankingScore;
             const result = isWinner ? 'win' : isDraw ? 'draw' : 'loss';
-            ratingChange = calculateEloChange(initialRating, opponentRating, result);
-            
+            ratingChange = calculateEloChange(strategicBefore.rankingScore, oppR, result);
         }
+        strategicRatingAfter = Math.max(0, strategicBefore.rankingScore + ratingChange);
     }
-    
-    gameStats.rankingScore = Math.max(0, initialRating + ratingChange);
-    const ratingSummary: StatChange = { initial: initialRating, change: ratingChange, final: gameStats.rankingScore };
+
+    const ratingSummary: StatChange = {
+        initial: strategicBefore.rankingScore,
+        change: game.isRankedGame && !isNoContest && !isAiGame && isStrategic ? ratingChange : 0,
+        final: strategicRatingAfter,
+    };
     
     // --- Manner Score ---
     const isDisconnectLoss = winReason === 'disconnect' && !isWinner && !isDraw;
@@ -1600,53 +1677,33 @@ const processPlayerSummary = async (
 
     await mannerService.applyMannerRankChange(updatedPlayer, initialMannerBeforeGame);
 
-    // --- Wins/Losses ---
+    // --- Wins/Losses (모드별 전적; 전략 통합 레이팅 행은 별도) ---
     if (!isNoContest) {
         if (isWinner) gameStats.wins++;
         else if (!isDraw) gameStats.losses++;
     }
-    
+
     updatedPlayer.stats[mode] = gameStats;
-    
-    // --- Update cumulativeRankingScore for strategic/playful modes ---
-    if (!isNoContest && !isAiGame) {
+
+    let nextStrategicWins = strategicBefore.wins;
+    let nextStrategicLosses = strategicBefore.losses;
+    if (isStrategic && !isNoContest) {
+        if (isWinner) nextStrategicWins += 1;
+        else if (!isDraw) nextStrategicLosses += 1;
+    }
+    if (isStrategic) {
+        updatedPlayer.stats[STRATEGIC_RANKED_STAT_KEY] = {
+            wins: nextStrategicWins,
+            losses: nextStrategicLosses,
+            rankingScore: strategicRatingAfter,
+        };
+    }
+
+    if (!isNoContest && !isAiGame && isStrategic) {
         if (!updatedPlayer.cumulativeRankingScore) {
             updatedPlayer.cumulativeRankingScore = {};
         }
-        
-        if (isStrategic) {
-            // 전략바둑: 모든 전략바둑 모드의 rankingScore 평균 계산 후 1200에서의 차이를 저장
-            let totalScore = 0;
-            let modeCount = 0;
-            for (const strategicMode of SPECIAL_GAME_MODES) {
-                const modeStats = updatedPlayer.stats?.[strategicMode.mode];
-                if (modeStats && modeStats.rankingScore !== undefined) {
-                    totalScore += modeStats.rankingScore;
-                    modeCount++;
-                }
-            }
-            if (modeCount > 0) {
-                const averageScore = Math.round(totalScore / modeCount);
-                // 1200에서의 차이를 저장 (예: 826점이면 -374점)
-                updatedPlayer.cumulativeRankingScore['standard'] = averageScore - RANKED_ELO_BASE_SCORE;
-            }
-        } else if (isPlayful) {
-            // 놀이바둑: 모든 놀이바둑 모드의 rankingScore 평균 계산 후 1200에서의 차이를 저장
-            let totalScore = 0;
-            let modeCount = 0;
-            for (const playfulMode of PLAYFUL_GAME_MODES) {
-                const modeStats = updatedPlayer.stats?.[playfulMode.mode];
-                if (modeStats && modeStats.rankingScore !== undefined) {
-                    totalScore += modeStats.rankingScore;
-                    modeCount++;
-                }
-            }
-            if (modeCount > 0) {
-                const averageScore = Math.round(totalScore / modeCount);
-                // 1200에서의 차이를 저장 (예: 826점이면 -374점)
-                updatedPlayer.cumulativeRankingScore['playful'] = averageScore - RANKED_ELO_BASE_SCORE;
-            }
-        }
+        updatedPlayer.cumulativeRankingScore['standard'] = strategicRatingAfter - RANKED_ELO_BASE_SCORE;
     }
     
     // Apply rewards
@@ -1759,16 +1816,18 @@ const processPlayerSummary = async (
         }
     }
 
-    // 랭킹전(PVP)은 상대 레이팅 기준으로 보상을 차등 적용
+    // 랭킹전(PVP)은 상대 레이팅 기준으로 보상을 차등 적용 (전략 통합 레이팅만)
     const isRankedSkillRewardContext =
         game.isRankedGame &&
         !isNoContest &&
         !isAiGame &&
         !game.isSinglePlayer &&
         !isGuildWarMatch &&
-        (isStrategic || isPlayful);
+        isStrategic;
+    const preGameSelfStrategicRating = readStrategicRankedBlock(player.stats as Record<string, unknown>).rankingScore;
+    const preGameOppStrategicRating = readStrategicRankedBlock(opponent.stats as Record<string, unknown>).rankingScore;
     if (isRankedSkillRewardContext && ENABLE_PVP_SKILL_REWARD_MULTIPLIER) {
-        const skillMul = getPvpSkillRewardMultiplier(initialRating, opponentRating, isWinner);
+        const skillMul = getPvpSkillRewardMultiplier(preGameSelfStrategicRating, preGameOppStrategicRating, isWinner);
         rewards.gold = Math.round(rewards.gold * skillMul);
         rewards.diamonds = Math.round((rewards.diamonds || 0) * skillMul);
         if (rewards.adventureGoldUnderstandingBonus != null) {
@@ -1864,6 +1923,13 @@ const processPlayerSummary = async (
         rewards.diamonds = 0;
         rewards.items = [];
         delete rewards.adventureGoldUnderstandingBonus;
+    }
+
+    if (rewardVipStrategicPlayfulWinDouble && rewards.gold > 0) {
+        rewards.gold = Math.round(rewards.gold * 2);
+        if (rewards.adventureGoldUnderstandingBonus != null && rewards.adventureGoldUnderstandingBonus > 0) {
+            rewards.adventureGoldUnderstandingBonus = Math.round(rewards.adventureGoldUnderstandingBonus * 2);
+        }
     }
 
     let vipGoldBonus = 0;
@@ -2069,7 +2135,7 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
     if (game.isRankedGame && !game.isAiGame) {
         for (const id of humanIds) {
             const ratingUser = await db.getUser(id);
-            initialRatingByUserId[id] = ratingUser?.stats?.[game.mode]?.rankingScore ?? RANKED_ELO_BASE_SCORE;
+            initialRatingByUserId[id] = readPairRankedBlock(ratingUser?.stats as Record<string, unknown>).rankingScore;
         }
     }
 
@@ -2085,22 +2151,29 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         const isResignLoser = resignLoserColor !== Player.None && seat?.player === resignLoserColor;
         const multiplier = isNoContest || isDraw || isResignLoser ? 0 : isWinner ? 1 : 0.5;
 
-        const initialStrategyLevel = user.strategyLevel;
-        const initialStrategyXp = Math.max(0, Number(user.strategyXp) || 0);
+        const initialStrategyLevel = user.userLevel;
+        const initialStrategyXp = Math.max(0, Number(user.userXp) || 0);
         const initialManner = user.mannerScore;
         if (!user.stats) user.stats = {};
-        const modeStats = user.stats[game.mode] ?? { wins: 0, losses: 0, rankingScore: RANKED_ELO_BASE_SCORE };
-        const pairStats = user.stats['pair'] ?? { wins: 0, losses: 0, rankingScore: RANKED_ELO_BASE_SCORE };
-        const initialRating = initialRatingByUserId[userId] ?? modeStats.rankingScore ?? RANKED_ELO_BASE_SCORE;
+        const modeRow = user.stats[game.mode] ?? { wins: 0, losses: 0 };
+        const { rankingScore: _mrs, ...modeRest } = modeRow as { wins?: number; losses?: number; rankingScore?: number };
+        const modeStats = { wins: modeRest.wins ?? 0, losses: modeRest.losses ?? 0 };
+        const pairStats = { ...readPairRankedBlock(user.stats as Record<string, unknown>) };
+        const initialRating = initialRatingByUserId[userId] ?? pairStats.rankingScore;
         const rankedOpponentId = game.isRankedGame ? humanIds.find((id) => id !== userId) : undefined;
         const opponentRating = rankedOpponentId ? initialRatingByUserId[rankedOpponentId] ?? RANKED_ELO_BASE_SCORE : RANKED_ELO_BASE_SCORE;
 
         const rolledGold = rollInclusive(band.gold);
         const rolledStrategyXp = rollInclusive(band.strategyXp);
         const rolledPetXp = rollInclusive(band.petXp);
-        const goldGain = Math.floor(rolledGold * pairAiDifficultyMul * multiplier);
-        const strategyXpGain = Math.floor(rolledStrategyXp * pairAiDifficultyMul * multiplier);
-        const petXpGain = Math.floor(rolledPetXp * pairAiDifficultyMul * multiplier);
+        let goldGain = Math.floor(rolledGold * pairAiDifficultyMul * multiplier);
+        let strategyXpGain = Math.floor(rolledStrategyXp * pairAiDifficultyMul * multiplier);
+        let petXpGain = Math.floor(rolledPetXp * pairAiDifficultyMul * multiplier);
+        if (isWinner && !isNoContest && !isDraw && isRewardVipActive(user)) {
+            goldGain = Math.round(goldGain * 2);
+            strategyXpGain = Math.round(strategyXpGain * 2);
+            petXpGain = Math.round(petXpGain * 2);
+        }
 
         user.gold += goldGain;
         let currentXp = initialStrategyXp + strategyXpGain;
@@ -2112,8 +2185,8 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
             currentLevel += 1;
             requiredXpForCurrentLevel = getXpForLevel(currentLevel);
         }
-        user.strategyLevel = currentLevel;
-        user.strategyXp = currentXp;
+        user.userLevel = currentLevel;
+        user.userXp = currentXp;
 
         const pairPetGrowthSummary = petXpGain > 0 ? applyPairPetRewardXp(user, petXpGain) : undefined;
         const pairPetDisplaySummary = pairPetGrowthSummary ?? buildPairPetZeroGainSummary(user);
@@ -2122,7 +2195,7 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         if (game.isRankedGame && !game.isAiGame && !isNoContest && rankedOpponentId) {
             const result = isDraw ? 'draw' : isWinner ? 'win' : 'loss';
             ratingChange = calculateEloChange(initialRating, opponentRating, result);
-            modeStats.rankingScore = Math.max(0, initialRating + ratingChange);
+            pairStats.rankingScore = Math.max(0, initialRating + ratingChange);
         }
         if (!isNoContest && !isDraw) {
             if (isWinner) modeStats.wins += 1;
@@ -2140,14 +2213,29 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         user.pairArenaStatsByMode[modeKey] = pas;
         user.stats[game.mode] = modeStats;
         user.stats['pair'] = pairStats;
+        if (game.isRankedGame && !game.isAiGame && !isNoContest) {
+            if (!user.cumulativeRankingScore) user.cumulativeRankingScore = {};
+            user.cumulativeRankingScore['pair'] = pairStats.rankingScore - RANKED_ELO_BASE_SCORE;
+        }
 
         updateQuestProgress(user, 'participate', game.mode, 1, { gameCategory: 'pair' });
         if (isWinner) updateQuestProgress(user, 'win', game.mode, 1, { gameCategory: 'pair' });
 
         const xpSummary: StatChange = { initial: initialStrategyXp, change: strategyXpGain, final: currentXp };
+        const pairLeveledUp = currentLevel > initialStrategyLevel;
+        const maxForPairProgress = pairLeveledUp ? getXpForLevel(currentLevel) : requiredXpForInitialLevel;
+        const initialForPairProgress = pairLeveledUp ? 0 : initialStrategyXp;
+        const safePairMax =
+            Number.isFinite(maxForPairProgress) && maxForPairProgress > 0
+                ? maxForPairProgress
+                : pairLeveledUp
+                  ? 1
+                  : Number.isFinite(requiredXpForInitialLevel) && requiredXpForInitialLevel > 0
+                    ? requiredXpForInitialLevel
+                    : 1;
         game.summary[userId] = {
             xp: xpSummary,
-            rating: { initial: initialRating, change: ratingChange, final: modeStats.rankingScore ?? initialRating },
+            rating: { initial: initialRating, change: ratingChange, final: pairStats.rankingScore },
             manner: { initial: initialManner, change: 0, final: user.mannerScore },
             overallRecord: {
                 wins: modeStats.wins,
@@ -2160,16 +2248,24 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
                 initial: initialStrategyLevel,
                 final: currentLevel,
                 progress: {
-                    initial: initialStrategyXp,
+                    initial: initialForPairProgress,
                     final: currentXp,
-                    max: requiredXpForInitialLevel,
+                    max: safePairMax,
                 },
             },
-            ...(pairPetDisplaySummary ? { pairPetXp: pairPetDisplaySummary.xp, pairPetLevel: pairPetDisplaySummary.level } : {}),
+            ...(pairPetDisplaySummary
+                ? {
+                      pairPetXp: pairPetDisplaySummary.xp,
+                      pairPetLevel: pairPetDisplaySummary.level,
+                      ...(pairPetDisplaySummary.levelUpCoreBonusesDelta
+                          ? { pairPetLevelUpCoreBonuses: pairPetDisplaySummary.levelUpCoreBonusesDelta }
+                          : {}),
+                  }
+                : {}),
         };
 
         await db.updateUser(user);
-        const fields = ['gold', 'strategyXp', 'strategyLevel', 'stats', 'quests', 'pairArenaStatsByMode'];
+        const fields = ['gold', 'userXp', 'userLevel', 'stats', 'quests', 'pairArenaStatsByMode'];
         if (pairPetGrowthSummary) fields.push('inventory', 'equippedPairPetTemplateId', 'equippedPairPetInventoryItemId');
         broadcastUserUpdate(user, fields);
     }
@@ -2326,10 +2422,8 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
             const fieldsToUpdate = [
                 'gold',
                 'diamonds',
-                'strategyXp',
-                'strategyLevel',
-                'playfulXp',
-                'playfulLevel',
+                'userXp',
+                'userLevel',
                 'mannerScore',
                 'rating',
                 'stats',
@@ -2367,10 +2461,8 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
             const fieldsToUpdate = [
                 'gold',
                 'diamonds',
-                'strategyXp',
-                'strategyLevel',
-                'playfulXp',
-                'playfulLevel',
+                'userXp',
+                'userLevel',
                 'mannerScore',
                 'rating',
                 'stats',

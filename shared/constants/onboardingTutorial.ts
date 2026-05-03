@@ -47,7 +47,7 @@ export function isOnboardingTutorialActive(_user: User | null | undefined): bool
 }
 
 export function getOnboardingCombinedLevel(user: User): number {
-    return (user.strategyLevel ?? 1) + (user.playfulLevel ?? 1);
+    return user.userLevel ?? 1;
 }
 
 /** `data-onboarding-target` 값 — 스포트라이트·측정용 */

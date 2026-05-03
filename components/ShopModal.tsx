@@ -5,6 +5,12 @@ import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import { ACTION_POINT_PURCHASE_COSTS_DIAMONDS, MAX_ACTION_POINT_PURCHASES_PER_DAY, ACTION_POINT_PURCHASE_REFILL_AMOUNT } from '../constants';
 import { isDifferentWeekKST } from '../utils/timeUtils.js';
+import { isDifferentMonthKST } from '../shared/utils/timeUtils.js';
+import {
+    CASH_SHOP_DIAMOND_PACKAGE_IDS,
+    CASH_SHOP_EQUIPMENT_PACKAGE_IDS,
+    EQUIPMENT_PACKAGE_MONTHLY_LIMIT,
+} from '../shared/constants/cashShopPackages.js';
 import PurchaseQuantityModal from './PurchaseQuantityModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
@@ -38,15 +44,56 @@ interface PurchasableItem {
     image?: string;
 }
 
+/** 패키지 탭: 다이아(매일+즉시) 또는 장비·재료 상자 구성 시각화 */
+type MiscPackageVisual =
+    | { type: 'diamond_combo'; dailyPerMail: number; durationDays: number; instantDiamonds: number }
+    | {
+          type: 'box_row';
+          boxes: { imageSrc: string; quantity: number; alt: string; displayName: string }[];
+          bonusLine?: string;
+          /** `+ "[등급] 장비"` + 줄바꿈 + `확정지급` (장비상자 패키지) */
+          equipmentBonusGradeWord?: '에픽' | '전설' | '신화';
+      };
+
 interface MiscShopProduct {
     id: string;
     name: string;
     duration?: string;
     priceKRW: number;
     benefits: string[];
+    /** VIP 카드 본문 아래에 별도로 표시 (보상 VIP 슬롯 요약 등) */
+    benefitFooter?: string;
+    /** 패키지 탭 전용: 이미지·수치로 혜택 표시 */
+    packageVisual?: MiscPackageVisual;
 }
 
+const SHOP_DIAMOND_ICON = '/images/icon/Zem.png';
+
+/** 원화(현금) 결제 미연동 — 일반 유저 차단, 관리자만 `BUY_CASH_PACKAGE` 허용 */
+const CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE = '아직 구현되지 않았습니다.';
+
 type ShopAdRewardTab = 'equipment' | 'materials' | 'consumables' | 'diamonds';
+
+/** 서버 `CLAIM_SHOP_AD_REWARD`와 동일 */
+const SHOP_AD_TAB_DAILY_LIMIT = 2;
+const SHOP_AD_GLOBAL_DAILY_LIMIT = 3;
+
+function getShopAdTabClaimsToday(user: UserWithStatus, tab: ShopAdRewardTab): number {
+    const rec = user.dailyShopPurchases?.[`ad_reward_${tab}`];
+    return rec && isSameDayKST(rec.date, Date.now()) ? rec.quantity : 0;
+}
+
+function getShopAdGlobalClaimsToday(user: UserWithStatus): number {
+    const rec = user.dailyShopPurchases?.['ad_reward_global'];
+    return rec && isSameDayKST(rec.date, Date.now()) ? rec.quantity : 0;
+}
+
+/** 이 탭에서 오늘 추가 시청 가능 횟수(탭·전체 한도 중 작은 값) */
+function getShopAdRemainingForTab(user: UserWithStatus, tab: ShopAdRewardTab): number {
+    const tabRem = Math.max(0, SHOP_AD_TAB_DAILY_LIMIT - getShopAdTabClaimsToday(user, tab));
+    const globRem = Math.max(0, SHOP_AD_GLOBAL_DAILY_LIMIT - getShopAdGlobalClaimsToday(user));
+    return Math.min(tabRem, globRem);
+}
 
 const isSameDayKST = (ts1: number, ts2: number): boolean => {
     if (!ts1 || !ts2) return false;
@@ -136,31 +183,64 @@ const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void
 
 const ShopAdRewardCard: React.FC<{
     tab: ShopAdRewardTab;
-    rewardLabel: string;
+    rewardDescription: string;
     remaining: number;
     onClaim: (tab: ShopAdRewardTab) => void;
     mobile?: boolean;
-}> = ({ tab, rewardLabel, remaining, onClaim, mobile = false }) => {
+}> = ({ tab, rewardDescription, remaining, onClaim, mobile = false }) => {
     const exhausted = remaining <= 0;
+    const [showDescription, setShowDescription] = useState(false);
+    const refinedDescription = formatDescription(rewardDescription);
+
     return (
-        <div className={`group relative overflow-hidden rounded-xl border border-emerald-400/35 bg-gradient-to-br from-[#102b24]/95 via-[#0f172a]/95 to-[#06130f]/95 shadow-[0_22px_55px_-30px_rgba(16,185,129,0.6)] transition-transform duration-300 hover:-translate-y-1 ${mobile ? 'p-2.5' : 'p-3'}`}>
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/80 to-transparent pointer-events-none" />
-            <div className="relative mx-auto mb-1.5 flex h-16 w-16 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500/25 via-emerald-500/10 to-transparent shadow-[0_0_20px_-8px_rgba(16,185,129,0.8)]">
-                <span className="text-3xl" role="img" aria-label="광고 보상">🎬</span>
-            </div>
-            <h3 className={`text-center font-bold text-emerald-100 ${mobile ? 'text-[11px]' : 'text-sm'}`}>광고보기 보상</h3>
-            <p className={`mt-1 text-center font-semibold text-cyan-200 ${mobile ? 'text-[10px]' : 'text-xs'}`}>
-                {rewardLabel} ({remaining}/3)
-            </p>
-            <Button
-                onClick={() => onClaim(tab)}
-                disabled={exhausted}
-                colorScheme="none"
-                bare
-                className="mt-2 flex min-h-[2.7rem] w-full items-center justify-center rounded-lg border border-emerald-300/45 bg-gradient-to-r from-emerald-400/90 to-cyan-500/90 px-2 py-1.5 text-xs font-bold text-slate-900 transition-colors hover:from-emerald-300 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+        <div
+            className={`group relative flex min-h-0 flex-col items-center overflow-hidden rounded-xl border border-indigo-400/35 bg-gradient-to-br from-[#1f2239]/95 via-[#0f172a]/95 to-[#060b12]/95 text-center shadow-[0_22px_55px_-30px_rgba(99,102,241,0.65)] transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_30px_70px_-32px_rgba(129,140,248,0.65)] ${mobile ? 'p-2.5' : 'p-3'}`}
+        >
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent" />
+            <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-20 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.35),transparent_65%)]" />
+            <div
+                className="relative mb-1.5 flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] transition-transform hover:scale-105"
+                onClick={() => setShowDescription(!showDescription)}
+                onMouseEnter={() => setShowDescription(true)}
+                onMouseLeave={() => setShowDescription(false)}
             >
-                {exhausted ? '오늘 수령 완료' : '광고보기'}
-            </Button>
+                <span className="text-3xl drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" role="img" aria-label="광고 보상">
+                    🎬
+                </span>
+            </div>
+            <h3
+                className={`w-full min-w-0 shrink-0 px-0 text-center font-semibold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] ${
+                    mobile
+                        ? 'h-[1.1rem] whitespace-nowrap text-[10px] leading-[1.1rem]'
+                        : 'min-h-[2.5rem] break-keep text-[11px] leading-snug sm:min-h-0 sm:text-sm'
+                }`}
+                title="광고 보상"
+            >
+                광고 보상
+            </h3>
+            {showDescription && (
+                <div
+                    className={`absolute z-50 left-1/2 -translate-x-1/2 bg-gray-900/95 border border-indigo-400/50 rounded-lg shadow-xl ${mobile ? 'top-24 w-56 p-2.5' : 'top-20 w-52 p-2'}`}
+                >
+                    <p className={`${mobile ? 'text-[11px]' : 'text-[10px]'} text-left text-slate-200/90 leading-relaxed`}>{refinedDescription}</p>
+                </div>
+            )}
+            <div className="mt-1.5 flex w-full flex-shrink-0 flex-col items-stretch justify-center gap-1">
+                <Button
+                    onClick={() => onClaim(tab)}
+                    disabled={exhausted}
+                    colorScheme="none"
+                    bare
+                    className={`flex w-full flex-col items-center justify-center gap-0.5 rounded-lg border border-emerald-300/45 bg-gradient-to-r from-emerald-400/90 to-cyan-500/90 px-2 py-1.5 text-center font-semibold leading-tight text-slate-900 transition-colors hover:from-emerald-300 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-50 ${mobile ? 'h-[2.95rem] min-h-[2.95rem] max-h-[2.95rem] text-[11px]' : 'min-h-[3.5rem] py-2 text-xs sm:text-sm'}`}
+                >
+                    <span className="flex flex-wrap items-center justify-center gap-x-1">
+                        <span className="font-bold">{exhausted ? '오늘 수령 완료' : '광고 보기'}</span>
+                        <span className="tabular-nums font-extrabold opacity-90">
+                            ({remaining}/{SHOP_AD_GLOBAL_DAILY_LIMIT})
+                        </span>
+                    </span>
+                </Button>
+            </div>
         </div>
     );
 };
@@ -274,25 +354,349 @@ const ShopItemCard: React.FC<{
     );
 };
 
-const MiscShopCard: React.FC<{ product: MiscShopProduct; mobile?: boolean }> = ({ product, mobile = false }) => {
+const PackageDiamondVisual: React.FC<{
+    dailyPerMail: number;
+    durationDays: number;
+    instantDiamonds: number;
+    /** 3열 그리드·모바일 등 좁은 폭용 */
+    compact?: boolean;
+    /** 모바일 2열 패키지 등 초좁은 폭 */
+    denseNested?: boolean;
+}> = ({ dailyPerMail, durationDays, instantDiamonds, compact = false, denseNested = false }) => {
+    const dn = Boolean(compact && denseNested);
+    const gemClass = compact
+        ? dn
+            ? 'h-5 w-5 shrink-0'
+            : 'h-6 w-6 min-[380px]:h-7 min-[380px]:w-7 sm:h-8 sm:w-8'
+        : 'h-12 w-12 sm:h-14 sm:w-14';
+    const underClass = compact
+        ? dn
+            ? 'text-[9px] font-bold tabular-nums'
+            : 'text-[11px] font-bold min-[380px]:text-xs sm:text-sm'
+        : 'text-base font-bold';
+    const daysClass = compact
+        ? dn
+            ? 'text-xs font-bold tabular-nums tracking-tight text-violet-100/95'
+            : 'text-base font-extrabold tracking-tight min-[380px]:text-lg sm:text-xl'
+        : 'text-2xl font-extrabold tracking-tight sm:text-3xl';
+    const plusClass = compact
+        ? dn
+            ? 'text-sm font-semibold text-slate-400/90'
+            : 'text-base font-bold text-slate-400 min-[380px]:text-lg'
+        : 'text-lg font-bold text-slate-400 sm:text-xl';
+    const groupTitleClass = compact
+        ? dn
+            ? 'mb-0 w-full text-center text-[8px] font-semibold leading-none tracking-tight text-violet-200/90'
+            : 'mb-0.5 w-full text-center text-[10px] font-semibold leading-tight text-violet-200/95 min-[380px]:text-[11px] sm:text-xs'
+        : 'mb-1 w-full text-center text-[11px] font-medium leading-tight text-violet-200/90 sm:text-xs';
+    const dailyGroupBoxClass = compact
+        ? dn
+            ? 'flex min-h-0 min-w-0 flex-1 flex-col items-stretch rounded border border-cyan-500/20 bg-cyan-950/15 px-0.5 py-0.5'
+            : 'flex min-h-0 min-w-0 flex-1 flex-col items-stretch rounded-md border border-cyan-500/25 bg-cyan-950/20 px-0.5 py-1'
+        : 'flex min-h-0 min-w-0 flex-1 flex-col items-stretch rounded-lg border border-cyan-500/30 bg-cyan-950/25 px-2 py-2';
+    const instantGroupBoxClass = compact
+        ? dn
+            ? 'flex max-w-[34%] flex-none flex-col items-center rounded border border-cyan-500/20 bg-cyan-950/15 px-0.5 py-0.5'
+            : 'flex max-w-[38%] flex-none flex-col items-center rounded-md border border-cyan-500/25 bg-cyan-950/20 px-0.5 py-1'
+        : 'flex max-w-[30%] flex-none flex-col items-center rounded-lg border border-cyan-500/30 bg-cyan-950/25 px-1.5 py-2 sm:max-w-[28%]';
     return (
-        <div className={`rounded-xl border border-violet-400/35 bg-gradient-to-br from-[#20173a]/95 via-[#131a2f]/95 to-[#090e1a]/95 shadow-[0_18px_45px_-28px_rgba(139,92,246,0.7)] ${mobile ? 'p-3' : 'p-4'}`}>
-            <div className="mb-2 flex items-start justify-between gap-2">
-                <h3 className={`${mobile ? 'text-sm' : 'text-base'} font-bold text-white`}>{product.name}</h3>
-                {product.duration && (
-                    <span className="shrink-0 rounded-md bg-violet-500/25 px-2 py-0.5 text-[10px] font-semibold text-violet-100">
+        <div
+            className={`flex w-full min-w-0 items-stretch justify-center ${
+                !compact ? 'gap-2 py-1' : dn ? 'gap-0 py-0' : 'gap-0.5 py-0.5 sm:gap-1'
+            }`}
+        >
+            <div className={dailyGroupBoxClass}>
+                <p className={groupTitleClass}>매일 우편</p>
+                <div
+                    className={`flex min-h-0 min-w-0 flex-1 flex-row items-center justify-center ${
+                        dn ? 'gap-0' : compact ? 'gap-0.5 sm:gap-1' : 'gap-1'
+                    }`}
+                >
+                    <div className="flex min-w-0 flex-col items-center gap-0">
+                        <img src={SHOP_DIAMOND_ICON} alt="" className={`${gemClass} shrink-0 object-contain drop-shadow-[0_0_12px_rgba(34,211,238,0.45)]`} />
+                        <span className={`tabular-nums text-cyan-200 ${underClass}`}>{dailyPerMail}</span>
+                    </div>
+                    <span className={`shrink-0 text-violet-100 drop-shadow-md ${daysClass}`}>× {durationDays}일</span>
+                </div>
+            </div>
+            <span className={`flex shrink-0 items-center self-center ${plusClass}`}>+</span>
+            <div className={instantGroupBoxClass}>
+                <p className={groupTitleClass}>즉시지급</p>
+                <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0">
+                    <img src={SHOP_DIAMOND_ICON} alt="" className={`${gemClass} shrink-0 object-contain drop-shadow-[0_0_12px_rgba(34,211,238,0.45)]`} />
+                    <span className={`min-w-0 truncate text-center tabular-nums text-cyan-200 ${underClass}`}>{instantDiamonds}</span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const PackageBoxRowVisual: React.FC<{
+    boxes: { imageSrc: string; quantity: number; alt: string; displayName: string }[];
+    bonusLine?: string;
+    equipmentBonusGradeWord?: '에픽' | '전설' | '신화';
+    compact?: boolean;
+    denseNested?: boolean;
+}> = ({ boxes, bonusLine, equipmentBonusGradeWord, compact = false, denseNested = false }) => {
+    const dn = Boolean(compact && denseNested);
+    const imgClass = compact
+        ? dn
+            ? 'h-6 w-6 shrink-0'
+            : 'h-8 w-8 min-[380px]:h-9 min-[380px]:w-9 sm:h-10 sm:w-10'
+        : 'h-12 w-12 sm:h-14 sm:w-14';
+    const boxDisplayNameClass = compact
+        ? dn
+            ? 'text-[7px] leading-none tracking-tight'
+            : 'text-[9px] leading-none tracking-tight min-[380px]:text-[10px] sm:text-[11px]'
+        : 'text-[10px] leading-none sm:text-xs';
+    const gapClass = compact ? (dn ? 'gap-x-0.5 gap-y-0.5 py-0.5' : 'gap-x-1 gap-y-1 py-1 sm:gap-x-2') : 'gap-x-3 gap-y-1.5 py-1.5 sm:gap-x-5 sm:py-2';
+    const padClass = compact ? (dn ? 'p-0' : 'p-0.5') : 'p-1';
+    const plusClass = compact
+        ? dn
+            ? 'text-xs font-semibold text-slate-400/85'
+            : 'text-base font-bold text-slate-400 min-[380px]:text-lg'
+        : 'text-lg font-semibold text-slate-400/90 sm:text-xl';
+    const boxGroupClass = compact
+        ? dn
+            ? 'flex min-h-0 min-w-0 flex-1 flex-col justify-center rounded border border-indigo-500/20 bg-indigo-950/15 px-0 py-0.5'
+            : 'flex min-h-0 min-w-0 flex-1 flex-col justify-center rounded-md border border-indigo-500/25 bg-indigo-950/20 px-0.5 py-1'
+        : 'flex min-h-0 min-w-0 flex-1 flex-col justify-center rounded-lg border border-indigo-500/30 bg-indigo-950/25 px-1.5 py-1.5 sm:px-2 sm:py-2';
+    const bonusGroupClass = compact
+        ? dn
+            ? 'flex min-w-0 max-w-[42%] shrink-0 flex-col items-center justify-center gap-0 rounded border border-emerald-500/25 bg-emerald-950/20 px-0.5 py-0.5'
+            : 'flex min-w-0 max-w-[46%] shrink-0 flex-col items-center justify-center gap-0.5 rounded-md border border-emerald-500/30 bg-emerald-950/25 px-1 py-1'
+        : 'flex min-w-[5.75rem] max-w-[40%] shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-emerald-500/30 bg-emerald-950/25 px-2 py-1.5 sm:min-w-[6.5rem] sm:px-2.5 sm:py-2';
+    const bonusVerticalLineClass = compact
+        ? dn
+            ? 'block text-center text-[8px] font-extrabold leading-[1.05] tracking-tight text-emerald-100'
+            : 'block text-center text-[10px] font-extrabold leading-[1.08] tracking-tight text-emerald-100 min-[380px]:text-[11px] sm:text-xs'
+        : 'block text-center text-xs font-extrabold leading-[1.1] tracking-tight text-emerald-100 sm:text-sm';
+    const qtyBadgeClass = compact
+        ? dn
+            ? 'rounded px-[1px] py-0 text-[6px] font-bold tabular-nums leading-none text-amber-50 shadow ring-1 ring-amber-400/45 bg-amber-950/95'
+            : 'rounded px-0.5 py-px text-[8px] font-bold tabular-nums leading-none text-amber-50 shadow ring-1 ring-amber-400/45 bg-amber-950/95 min-[380px]:text-[9px]'
+        : 'rounded px-0.5 py-0.5 text-[10px] font-bold tabular-nums leading-none text-amber-50 shadow ring-1 ring-amber-400/45 bg-amber-950/95 sm:text-[11px]';
+
+    const boxesGrid = (
+        <div className={`flex flex-wrap items-end justify-center ${gapClass}`}>
+            {boxes.map((b, i) => (
+                <div key={`${b.imageSrc}-${i}`} className={`flex shrink-0 flex-col items-center ${compact ? 'gap-0' : 'gap-0.5'}`}>
+                    <div className={`relative rounded-md bg-gradient-to-br from-indigo-500/20 to-slate-900/60 shadow-[0_0_20px_-6px_rgba(129,140,248,0.5)] ring-1 ring-indigo-400/25 ${padClass}`}>
+                        <span
+                            className={`pointer-events-none absolute right-0 top-0 z-10 -translate-y-px translate-x-px ${qtyBadgeClass}`}
+                            aria-label={`수량 ${b.quantity}`}
+                        >
+                            ×{b.quantity}
+                        </span>
+                        <img src={b.imageSrc} alt={b.alt} className={`${imgClass} object-contain`} />
+                    </div>
+                    <span className={`whitespace-nowrap text-center font-semibold text-violet-100/90 ${boxDisplayNameClass}`} title={b.displayName}>
+                        {b.displayName}
+                    </span>
+                </div>
+            ))}
+        </div>
+    );
+
+    if (equipmentBonusGradeWord) {
+        const bonusLines: [string, string, string] = [equipmentBonusGradeWord, '장비', '획득'];
+        return (
+            <div
+                className={`flex w-full min-w-0 items-stretch justify-center ${
+                    !compact ? 'gap-1.5 py-1 sm:gap-2' : dn ? 'gap-0 py-0' : 'gap-0.5 py-0.5 sm:gap-1'
+                }`}
+            >
+                <div className={boxGroupClass}>{boxesGrid}</div>
+                <span className={`flex shrink-0 items-center self-center ${plusClass}`}>+</span>
+                <div className={bonusGroupClass}>
+                    <div className="flex flex-col items-center justify-center gap-0" role="text" aria-label={`${equipmentBonusGradeWord} 장비 획득`}>
+                        {bonusLines.map((line, idx) => (
+                            <span key={`equip-bonus-${idx}`} className={bonusVerticalLineClass}>
+                                {line}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-col items-stretch gap-1">
+            {boxesGrid}
+            {bonusLine ? (
+                <p
+                    className={`text-center font-bold text-emerald-200/95 ${
+                        compact
+                            ? dn
+                                ? 'rounded border border-emerald-500/25 bg-emerald-950/20 px-0.5 py-0 text-[8px] leading-tight text-emerald-100/95'
+                                : 'rounded border border-emerald-500/30 bg-emerald-950/25 px-1 py-0.5 text-[10px] leading-tight sm:text-xs'
+                            : 'text-xs text-emerald-100/90'
+                    }`}
+                >
+                    {bonusLine}
+                </p>
+            ) : null}
+        </div>
+    );
+};
+
+const MiscShopCard: React.FC<{
+    product: MiscShopProduct;
+    mobile?: boolean;
+    threeColumn?: boolean;
+    currentUser: UserWithStatus;
+    onBuyCashPackage: (packageId: string) => void;
+    setToastMessage: (msg: string | null) => void;
+}> = ({ product, mobile = false, threeColumn = false, currentUser, onBuyCashPackage, setToastMessage }) => {
+    const visual = product.packageVisual;
+    const compact = threeColumn;
+    const denseNested = Boolean(compact && mobile);
+    /** 다이아·장비 패키지 비주얼 영역 높이 통일 */
+    const packageVisualMinHClass = compact
+        ? denseNested
+            ? 'min-h-[5.75rem]'
+            : 'min-h-[6.75rem]'
+        : 'min-h-[9rem] sm:min-h-[9.25rem]';
+    const pad = compact ? (mobile ? 'p-1.5' : 'p-2') : mobile ? 'p-3' : 'p-4';
+    const titleClass = compact
+        ? `line-clamp-2 min-h-0 w-full min-w-0 break-words text-center font-semibold leading-tight tracking-tight text-white/95 ${mobile ? 'text-[10px]' : 'text-xs sm:text-sm'}`
+        : `line-clamp-2 min-h-0 w-full text-center font-semibold leading-snug tracking-tight text-white/95 ${mobile ? 'text-sm' : 'text-base sm:text-lg'}`;
+
+    return (
+        <div
+            className={`flex h-full min-h-0 min-w-0 flex-col border border-violet-400/30 bg-gradient-to-br from-[#20173a]/95 via-[#131a2f]/95 to-[#090e1a]/95 ${
+                denseNested
+                    ? 'rounded-md shadow-[0_10px_28px_-18px_rgba(139,92,246,0.45)]'
+                    : 'rounded-xl shadow-[0_18px_45px_-28px_rgba(139,92,246,0.7)]'
+            } ${pad}`}
+        >
+            <div className={`flex shrink-0 items-start justify-between gap-1 ${compact ? 'mb-1 flex-col items-stretch' : 'mb-2 gap-2'}`}>
+                <h3 className={titleClass} title={product.name}>
+                    {product.name}
+                </h3>
+                {product.duration && !visual && (
+                    <span className="shrink-0 self-center rounded-md bg-violet-500/25 px-1.5 py-0.5 text-[9px] font-semibold text-violet-100">
                         {product.duration}
                     </span>
                 )}
             </div>
-            <p className={`${mobile ? 'text-xs' : 'text-sm'} font-semibold text-amber-300`}>{product.priceKRW.toLocaleString()}원</p>
-            <ul className={`mt-2 space-y-1 text-slate-200/90 ${mobile ? 'text-[11px]' : 'text-xs sm:text-sm'}`}>
-                {product.benefits.map((benefit, index) => (
-                    <li key={`${product.id}-benefit-${index}`}>- {benefit}</li>
-                ))}
-            </ul>
-            <div className="mt-3 rounded-md border border-slate-500/40 bg-slate-900/50 px-2 py-1 text-center text-[10px] text-slate-300/85">
-                이미지 및 구매 기능은 추후 업데이트 예정
+            {visual?.type === 'diamond_combo' && (
+                <div
+                    className={`mb-1 flex min-h-0 w-full min-w-0 shrink-0 items-center justify-center border border-cyan-400/20 bg-black/25 ${packageVisualMinHClass} ${
+                        denseNested ? 'rounded border-cyan-400/15 px-0.5 py-0.5' : compact ? 'rounded-md px-1 py-1' : 'rounded-lg px-2 py-2'
+                    }`}
+                >
+                    <PackageDiamondVisual
+                        dailyPerMail={visual.dailyPerMail}
+                        durationDays={visual.durationDays}
+                        instantDiamonds={visual.instantDiamonds}
+                        compact={compact}
+                        denseNested={denseNested}
+                    />
+                </div>
+            )}
+            {visual?.type === 'box_row' && (
+                <div
+                    className={`mb-1 flex min-h-0 w-full min-w-0 shrink-0 items-center justify-center border border-indigo-400/25 bg-black/25 ${packageVisualMinHClass} ${
+                        denseNested ? 'rounded border-indigo-400/15 px-0 py-0.5' : compact ? 'rounded-md px-0.5 py-0.5' : 'rounded-lg px-2 py-1.5'
+                    }`}
+                >
+                    <PackageBoxRowVisual
+                        boxes={visual.boxes}
+                        bonusLine={visual.bonusLine}
+                        equipmentBonusGradeWord={visual.equipmentBonusGradeWord}
+                        compact={compact}
+                        denseNested={denseNested}
+                    />
+                </div>
+            )}
+            {!visual && (
+                <ul className={`mt-2 space-y-1 text-slate-200/90 ${mobile ? 'text-[11px]' : 'text-xs sm:text-sm'}`}>
+                    {product.benefits.map((benefit, index) => (
+                        <li key={`${product.id}-benefit-${index}`}>- {benefit}</li>
+                    ))}
+                </ul>
+            )}
+            {visual && (
+                <ul className="sr-only" aria-label="포함 혜택">
+                    {product.benefits.map((benefit, index) => (
+                        <li key={`${product.id}-benefit-${index}`}>{benefit}</li>
+                    ))}
+                </ul>
+            )}
+            <div className="mt-auto shrink-0 pt-1.5">
+                {(() => {
+                    const now = Date.now();
+                    const isDiamond = (CASH_SHOP_DIAMOND_PACKAGE_IDS as readonly string[]).includes(product.id);
+                    const isEquipment = (CASH_SHOP_EQUIPMENT_PACKAGE_IDS as readonly string[]).includes(product.id);
+                    const diamondActive = (currentUser.diamondPackageExpiresAt ?? 0) > now;
+                    const diamondBlocked = isDiamond && diamondActive;
+                    let equipBlocked = false;
+                    let equipRemaining = 0;
+                    let equipLimit = 0;
+                    let equipUsedThisMonth = 0;
+                    if (isEquipment) {
+                        equipLimit = EQUIPMENT_PACKAGE_MONTHLY_LIMIT[product.id as keyof typeof EQUIPMENT_PACKAGE_MONTHLY_LIMIT];
+                        const rec = currentUser.dailyShopPurchases?.[product.id];
+                        equipUsedThisMonth = rec && !isDifferentMonthKST(rec.date, now) ? rec.quantity : 0;
+                        equipRemaining = Math.max(0, equipLimit - equipUsedThisMonth);
+                        equipBlocked = !currentUser.isAdmin && equipRemaining <= 0;
+                    }
+                    const disabled = diamondBlocked || equipBlocked;
+                    const onClick = () => {
+                        if (!currentUser.isAdmin) {
+                            setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
+                            return;
+                        }
+                        if (diamondBlocked) {
+                            setToastMessage('진행 중인 다이아 패키지가 있을 때는 추가 구매할 수 없습니다.');
+                            return;
+                        }
+                        if (equipBlocked) {
+                            setToastMessage('이번 달 구매 한도에 도달했습니다.');
+                            return;
+                        }
+                        onBuyCashPackage(product.id);
+                    };
+                    const equipLimitLabel =
+                        isEquipment && equipLimit > 0 ? (
+                            <span
+                                className={`shrink-0 font-medium tabular-nums text-slate-800/88 ${
+                                    compact
+                                        ? denseNested
+                                            ? 'text-[8px] leading-none tracking-tight'
+                                            : 'text-[9px] leading-tight min-[380px]:text-[10px] sm:text-[11px]'
+                                        : 'text-[11px] sm:text-xs'
+                                }`}
+                            >
+                                구매제한 월({equipRemaining}/{equipLimit}회)
+                            </span>
+                        ) : null;
+
+                    return (
+                        <>
+                            <Button
+                                type="button"
+                                disabled={disabled}
+                                disabledWithoutDim
+                                colorScheme="none"
+                                bare
+                                onClick={onClick}
+                                className={`flex w-full flex-wrap items-center justify-center gap-x-1 gap-y-0 rounded-md border border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 font-semibold tabular-nums text-slate-900 shadow-[0_8px_22px_-12px_rgba(251,191,36,0.75)] disabled:cursor-not-allowed disabled:opacity-45 sm:rounded-lg sm:shadow-[0_10px_28px_-14px_rgba(251,191,36,0.85)] ${
+                                    compact
+                                        ? denseNested
+                                            ? 'min-h-[2.1rem] px-1 py-1 text-[10px] leading-tight sm:min-h-[2.35rem] sm:text-xs'
+                                            : 'min-h-[2.35rem] px-1 py-1.5 text-xs leading-tight min-[380px]:text-sm sm:min-h-[2.5rem] sm:text-sm'
+                                        : 'min-h-[2.65rem] px-2 py-2 text-sm sm:min-h-[2.75rem] sm:text-base'
+                                }`}
+                            >
+                                <span className="shrink-0">{product.priceKRW.toLocaleString()}원</span>
+                                {equipLimitLabel}
+                            </Button>
+                        </>
+                    );
+                })()}
             </div>
         </div>
     );
@@ -300,39 +704,85 @@ const MiscShopCard: React.FC<{ product: MiscShopProduct; mobile?: boolean }> = (
 
 const VipShopCard: React.FC<{ product: MiscShopProduct; mobile?: boolean }> = ({ product, mobile = false }) => {
     return (
-        <div className={`rounded-xl border border-yellow-300/40 bg-gradient-to-br from-[#36270d]/95 via-[#21160f]/95 to-[#0d111f]/95 shadow-[0_20px_48px_-28px_rgba(251,191,36,0.8)] ${mobile ? 'p-3' : 'p-4'}`}>
-            <div className="mb-2 flex items-start justify-between gap-2">
-                <h3 className={`${mobile ? 'text-sm' : 'text-base'} font-extrabold text-amber-200`}>{product.name}</h3>
+        <div
+            className={`flex h-full min-h-0 flex-col rounded-xl border border-yellow-300/40 bg-gradient-to-br from-[#36270d]/95 via-[#21160f]/95 to-[#0d111f]/95 shadow-[0_20px_48px_-28px_rgba(251,191,36,0.8)] ${
+                mobile ? 'p-2' : 'p-4'
+            }`}
+        >
+            <div className="mb-1.5 flex shrink-0 items-start justify-between gap-1.5">
+                <h3 className={`${mobile ? 'text-xs font-bold' : 'text-base font-extrabold'} leading-tight text-amber-200`}>{product.name}</h3>
                 {product.duration && (
-                    <span className="shrink-0 rounded-md bg-amber-400/20 px-2 py-0.5 text-[10px] font-semibold text-amber-100">
+                    <span className="shrink-0 rounded bg-amber-400/18 px-1.5 py-px text-[8px] font-semibold leading-tight text-amber-100/95 sm:text-[9px]">
                         {product.duration}
                     </span>
                 )}
             </div>
-            <p className={`${mobile ? 'text-xs' : 'text-sm'} font-semibold text-amber-300`}>{product.priceKRW.toLocaleString()}원</p>
-            <ul className={`mt-2 space-y-1 text-amber-50/90 ${mobile ? 'text-[11px]' : 'text-xs sm:text-sm'}`}>
+            <p className={`shrink-0 ${mobile ? 'text-[11px] font-semibold' : 'text-sm font-semibold'} text-amber-300/95`}>{product.priceKRW.toLocaleString()}원</p>
+            <ul
+                className={`mt-1.5 min-h-0 flex-1 space-y-0.5 text-amber-50/88 ${mobile ? 'text-[10px] leading-snug' : 'text-xs sm:text-sm'}`}
+            >
                 {product.benefits.map((benefit, index) => (
                     <li key={`${product.id}-vip-benefit-${index}`}>- {benefit}</li>
                 ))}
             </ul>
-            <div className="mt-3 rounded-md border border-amber-200/35 bg-black/30 px-2 py-1 text-center text-[10px] text-amber-100/85">
+            {product.benefitFooter ? (
+                <p
+                    className={`mt-1.5 shrink-0 rounded border border-amber-300/22 bg-black/30 px-1.5 py-1 text-left leading-snug text-amber-50/95 ${
+                        mobile ? 'text-[9px]' : 'text-[11px] sm:text-xs'
+                    }`}
+                >
+                    {product.benefitFooter}
+                </p>
+            ) : null}
+            <div
+                className={`mt-1.5 shrink-0 rounded border border-amber-200/30 bg-black/25 px-1 py-1 text-center font-medium leading-none tracking-tight text-amber-100/90 ${
+                    mobile ? 'text-[8px] whitespace-nowrap overflow-hidden text-ellipsis' : 'text-xs sm:text-sm py-1.5 px-2'
+                }`}
+                title="중복 구매 시 기간 연장"
+            >
                 중복 구매 시 기간 연장
             </div>
         </div>
     );
 };
 
-const DiamondShopCard: React.FC<{ product: { id: string; diamonds: number; priceKRW: number }; mobile?: boolean }> = ({ product, mobile = false }) => {
+const DiamondShopCard: React.FC<{
+    product: { id: string; diamonds: number; priceKRW: number };
+    mobile?: boolean;
+    onCashPriceClick: () => void;
+}> = ({ product, mobile = false, onCashPriceClick }) => {
+    const countLabel = product.diamonds.toLocaleString();
     return (
-        <div className={`rounded-xl border border-sky-300/40 bg-gradient-to-br from-[#102744]/95 via-[#111827]/95 to-[#0a111d]/95 shadow-[0_20px_50px_-30px_rgba(56,189,248,0.75)] ${mobile ? 'p-3' : 'p-4'}`}>
-            <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className={`${mobile ? 'text-sm' : 'text-base'} font-extrabold text-cyan-100`}>다이아 {product.diamonds.toLocaleString()}개</h3>
-                <span className="rounded-md bg-cyan-400/20 px-2 py-0.5 text-[10px] font-semibold text-cyan-100">충전</span>
+        <div
+            className={`group relative flex h-full min-h-0 flex-col items-center overflow-hidden rounded-xl border border-indigo-400/35 bg-gradient-to-br from-[#1f2239]/95 via-[#0f172a]/95 to-[#060b12]/95 text-center shadow-[0_22px_55px_-30px_rgba(99,102,241,0.65)] transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_30px_70px_-32px_rgba(129,140,248,0.65)] ${mobile ? 'p-2.5' : 'p-3'}`}
+        >
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent" />
+            <div
+                className="relative mx-auto mb-1.5 flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0 rounded-lg bg-gradient-to-br from-cyan-500/20 via-[#1e1b4b]/25 to-transparent p-0 shadow-[0_0_22px_-8px_rgba(34,211,238,0.55)]"
+                aria-label={`다이아 ${countLabel}개`}
+            >
+                <div className="flex min-h-0 flex-1 w-full items-center justify-center px-0.5 pt-px">
+                    <img
+                        src={SHOP_DIAMOND_ICON}
+                        alt=""
+                        className="h-12 w-12 shrink-0 object-contain drop-shadow-[0_0_14px_rgba(34,211,238,0.55)]"
+                    />
+                </div>
+                <span className="w-full shrink-0 px-0.5 pb-px text-center text-[9px] font-extrabold tabular-nums leading-none text-cyan-100 min-[390px]:text-[10px] sm:text-[11px]">
+                    {countLabel}
+                </span>
             </div>
-            <p className={`${mobile ? 'text-xs' : 'text-sm'} font-semibold text-amber-300`}>{product.priceKRW.toLocaleString()}원</p>
-            <div className="mt-3 rounded-md border border-sky-300/35 bg-black/30 px-2 py-1 text-center text-[10px] text-sky-100/85">
-                결제 연동 예정
-            </div>
+            <div className="min-h-0 w-full flex-1" aria-hidden />
+            <Button
+                type="button"
+                colorScheme="none"
+                bare
+                title={CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE}
+                onClick={onCashPriceClick}
+                className="mt-2 flex min-h-[2.7rem] w-full shrink-0 items-center justify-center rounded-lg border border-amber-400/55 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 px-2 py-1.5 text-xs font-bold tabular-nums text-slate-900 shadow-[0_10px_28px_-14px_rgba(251,191,36,0.85)] transition-all duration-150 hover:from-amber-300 hover:to-amber-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+            >
+                {product.priceKRW.toLocaleString()}원
+            </Button>
         </div>
     );
 };
@@ -365,8 +815,8 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
     }, [initialTab]);
 
     const gridClassName = mobileShop
-        ? 'grid grid-cols-2 gap-1.5 min-[390px]:grid-cols-3 min-[390px]:gap-2'
-        : 'grid grid-cols-4 gap-3';
+        ? 'grid grid-cols-2 gap-1.5 min-[390px]:grid-cols-3 min-[390px]:gap-2 items-stretch [&>*]:min-h-0'
+        : 'grid grid-cols-4 gap-3 items-stretch [&>*]:min-h-0';
     const materialItems = [
         { itemId: "material_box_1", name: "재료 상자 I", description: "하급~상급강화석 5개", price: { gold: 500 }, image: "/images/Box/ResourceBox1.png", dailyLimit: 10, type: 'material' as const },
         { itemId: "material_box_2", name: "재료 상자 II", description: "하급~상급강화석 5개", price: { gold: 1000 }, image: "/images/Box/ResourceBox2.png", dailyLimit: 10, type: 'material' as const },
@@ -403,14 +853,16 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
             duration: '30일 적용',
             priceKRW: 9900,
             benefits: [
-                '[VIP 보상슬롯]',
-                'VIP 보상슬롯 위치 : 전략바둑, 놀이바둑, 모험·길드 전쟁 AI 대국 승리 보상화면, 길드보스전 보상화면',
-                '승리 시 VIP 슬롯: 골드(100~1000), 장비 상자 I~IV, 재료 상자 I~IV, 전설 장비',
-                '길드 코인 획득량 2배(출석,기부,길드보스전)',
+                'VIP 보상슬롯 활성화',
+                '전략바둑 승리 보상 2배',
+                '페어바둑 승리 보상 2배',
+                '놀이바둑 승리 보상 2배',
+                '길드 코인 보상 2배',
                 '일일/주간/월간 퀘스트 보상2배',
                 '퀘스트 활약도 보상2배',
                 '모험 보물상자 2개오픈',
             ],
+            benefitFooter: 'VIP보상슬롯 : 골드/장비상자/재료상자/전설장비 중 1개 획득',
         },
         {
             id: 'function_vip',
@@ -420,13 +872,15 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
             benefits: [
                 '행동력 최대치 +20',
                 '행동력 회복 속도 50% 증가',
-                '행동력 회복제 III 우편으로 매일 1개 지급',
+                '행동력 회복제 III 매일 지급',
                 '대장간 경험치 획득 +50%',
-                '장비 강화 성공확률 +10% (최대 100%)',
-                '장비 합성 대성공 확률 +10% (최대 100%)',
+                '장비 강화 성공확률 +10%',
+                '장비 합성 대성공 확률 +10%',
                 '장비 분해 대박 확률 +10%',
                 '재료 분해/합성 대박 확률 +10%',
                 '거래소 물품등록 가능(3개)',
+                '펫 VIP수련슬롯 개방',
+                '펫 VIP부화슬롯 개방',
                 '챔피언십 경기 SKIP 기능',
             ],
         },
@@ -445,6 +899,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
             duration: '7일 적용',
             priceKRW: 4900,
             benefits: ['매일 우편으로 50다이아 지급 (총 350다이아)', '즉시 100다이아 지급'],
+            packageVisual: { type: 'diamond_combo', dailyPerMail: 50, durationDays: 7, instantDiamonds: 100 },
         },
         {
             id: 'diamond_package_2',
@@ -452,6 +907,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
             duration: '15일 적용',
             priceKRW: 7900,
             benefits: ['매일 우편으로 50다이아 지급 (총 750다이아)', '즉시 250다이아 지급'],
+            packageVisual: { type: 'diamond_combo', dailyPerMail: 50, durationDays: 15, instantDiamonds: 250 },
         },
         {
             id: 'diamond_package_3',
@@ -459,24 +915,79 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
             duration: '30일 적용',
             priceKRW: 12900,
             benefits: ['매일 우편으로 50다이아 지급 (총 1500다이아)', '즉시 750다이아 지급'],
+            packageVisual: { type: 'diamond_combo', dailyPerMail: 50, durationDays: 30, instantDiamonds: 750 },
         },
         {
             id: 'equipment_package_1',
             name: '장비상자패키지 I',
             priceKRW: 2900,
-            benefits: ['장비상자 V 1개', '재료상자 VI 1개'],
+            benefits: ['장비상자 V 1개', '재료상자 VI 1개', '+ "에픽 장비" 확정지급'],
+            packageVisual: {
+                type: 'box_row',
+                equipmentBonusGradeWord: '에픽',
+                boxes: [
+                    {
+                        imageSrc: '/images/Box/EquipmentBox5.png',
+                        quantity: 1,
+                        alt: '장비 상자 V',
+                        displayName: '장비 상자 V',
+                    },
+                    {
+                        imageSrc: '/images/Box/ResourceBox6.png',
+                        quantity: 1,
+                        alt: '재료 상자 VI',
+                        displayName: '재료 상자 VI',
+                    },
+                ],
+            },
         },
         {
             id: 'equipment_package_2',
             name: '장비상자패키지 II',
             priceKRW: 4900,
-            benefits: ['장비상자 V 2개', '재료상자 VI 2개'],
+            benefits: ['장비상자 V 2개', '재료상자 VI 2개', '+ "전설 장비" 확정지급'],
+            packageVisual: {
+                type: 'box_row',
+                equipmentBonusGradeWord: '전설',
+                boxes: [
+                    {
+                        imageSrc: '/images/Box/EquipmentBox5.png',
+                        quantity: 2,
+                        alt: '장비 상자 V',
+                        displayName: '장비 상자 V',
+                    },
+                    {
+                        imageSrc: '/images/Box/ResourceBox6.png',
+                        quantity: 2,
+                        alt: '재료 상자 VI',
+                        displayName: '재료 상자 VI',
+                    },
+                ],
+            },
         },
         {
             id: 'equipment_package_3',
             name: '장비상자패키지 III',
             priceKRW: 7900,
-            benefits: ['장비상자 V 2개', '장비상자 VI 1개', '재료상자 VI 5개'],
+            benefits: ['장비상자 VI 2개', '재료상자 VI 5개', '+ "신화 장비" 확정지급'],
+            packageVisual: {
+                type: 'box_row',
+                equipmentBonusGradeWord: '신화',
+                boxes: [
+                    {
+                        imageSrc: '/images/Box/EquipmentBox6.png',
+                        quantity: 2,
+                        alt: '장비 상자 VI',
+                        displayName: '장비 상자 VI',
+                    },
+                    {
+                        imageSrc: '/images/Box/ResourceBox6.png',
+                        quantity: 5,
+                        alt: '재료 상자 VI',
+                        displayName: '재료 상자 VI',
+                    },
+                ],
+            },
         },
     ];
     const diamondProducts = [
@@ -487,14 +998,8 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         { id: 'diamond_2000', diamonds: 2000, priceKRW: 29900 },
     ] as const;
 
-    const getAdRewardRemaining = (tab: ShopAdRewardTab) => {
-        const rec = currentUser.dailyShopPurchases?.[`ad_reward_${tab}`];
-        const used = rec && isSameDayKST(rec.date, Date.now()) ? rec.quantity : 0;
-        return Math.max(0, 3 - used);
-    };
-
     const handleClaimShopAdReward = (tab: ShopAdRewardTab) => {
-        const remaining = getAdRewardRemaining(tab);
+        const remaining = getShopAdRemainingForTab(currentUser, tab);
         if (remaining <= 0) {
             setToastMessage('오늘 광고 보상 수령이 모두 완료되었습니다.');
             return;
@@ -542,6 +1047,29 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         setToastMessage('행동력 구매 완료!');
     };
 
+    const handleBuyCashPackage = (packageId: string) => {
+        if (!currentUser.isAdmin) {
+            setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
+            return;
+        }
+        const now = Date.now();
+        if ((CASH_SHOP_DIAMOND_PACKAGE_IDS as readonly string[]).includes(packageId)) {
+            if (!currentUser.isAdmin && (currentUser.diamondPackageExpiresAt ?? 0) > now) {
+                setToastMessage('진행 중인 다이아 패키지가 있을 때는 추가 구매할 수 없습니다.');
+                return;
+            }
+        } else if ((CASH_SHOP_EQUIPMENT_PACKAGE_IDS as readonly string[]).includes(packageId)) {
+            const limit = EQUIPMENT_PACKAGE_MONTHLY_LIMIT[packageId as keyof typeof EQUIPMENT_PACKAGE_MONTHLY_LIMIT];
+            const rec = currentUser.dailyShopPurchases?.[packageId];
+            const qty = rec && !isDifferentMonthKST(rec.date, now) ? rec.quantity : 0;
+            if (!currentUser.isAdmin && qty >= limit) {
+                setToastMessage('이번 달 구매 한도에 도달했습니다.');
+                return;
+            }
+        }
+        onAction({ type: 'BUY_CASH_PACKAGE', payload: { packageId } });
+    };
+
     const renderContent = () => {
         const equipmentItems = [
             { itemId: 'equipment_box_1', name: "장비 상자 I", description: "일반~희귀 등급 장비", price: { gold: 500 }, image: "/images/Box/EquipmentBox1.png", type: 'equipment' as const },
@@ -558,8 +1086,8 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                     <div className={gridClassName}>
                         <ShopAdRewardCard
                             tab="equipment"
-                            rewardLabel="장비상자II"
-                            remaining={getAdRewardRemaining('equipment')}
+                            rewardDescription="장비 상자 II를 1회 연 것과 동일한 규칙으로 장비 1개가 지급됩니다. 일반~에픽 등급 장비입니다."
+                            remaining={getShopAdRemainingForTab(currentUser, 'equipment')}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
                         />
@@ -571,8 +1099,8 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                     <div className={gridClassName}>
                         <ShopAdRewardCard
                             tab="materials"
-                            rewardLabel="재료상자II"
-                            remaining={getAdRewardRemaining('materials')}
+                            rewardDescription="재료 상자 II를 1회 연 것과 동일한 규칙으로 강화석 5개가 지급됩니다. 하급~상급 강화석이 포함됩니다."
+                            remaining={getShopAdRemainingForTab(currentUser, 'materials')}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
                         />
@@ -581,30 +1109,51 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                 );
             case 'diamonds':
                 return (
-                    <div className={`${mobileShop ? 'grid grid-cols-1 gap-2.5' : 'grid grid-cols-2 gap-3'}`}>
+                    <div className={gridClassName}>
                         <ShopAdRewardCard
                             tab="diamonds"
-                            rewardLabel="다이아5"
-                            remaining={getAdRewardRemaining('diamonds')}
+                            rewardDescription="다이아몬드가 지급됩니다. 서버 보상 설정에 따라 기본 지급량에 보너스가 더해질 수 있습니다."
+                            remaining={getShopAdRemainingForTab(currentUser, 'diamonds')}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
                         />
                         {diamondProducts.map(product => (
-                            <DiamondShopCard key={product.id} product={product} mobile={mobileShop} />
+                            <DiamondShopCard
+                                key={product.id}
+                                product={product}
+                                mobile={mobileShop}
+                                onCashPriceClick={() => setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE)}
+                            />
                         ))}
                     </div>
                 );
             case 'misc':
                 return (
-                    <div className={`${mobileShop ? 'grid grid-cols-1 gap-2.5' : 'grid grid-cols-2 gap-3'}`}>
+                    <div
+                        className={`grid min-w-0 items-stretch [&>*]:min-h-0 [&>*]:min-w-0 ${
+                            mobileShop ? 'grid-cols-2 gap-1.5' : 'grid-cols-3 gap-1.5 min-[380px]:gap-2 sm:gap-2.5'
+                        }`}
+                    >
                         {miscProducts.map(product => (
-                            <MiscShopCard key={product.id} product={product} mobile={mobileShop} />
+                            <MiscShopCard
+                                key={product.id}
+                                product={product}
+                                mobile={mobileShop}
+                                threeColumn
+                                currentUser={currentUser}
+                                onBuyCashPackage={handleBuyCashPackage}
+                                setToastMessage={setToastMessage}
+                            />
                         ))}
                     </div>
                 );
             case 'vip':
                 return (
-                    <div className={`${mobileShop ? 'grid grid-cols-1 gap-2.5' : 'grid grid-cols-2 gap-3'}`}>
+                    <div
+                        className={`grid items-stretch [&>*]:min-h-0 [&>*]:min-w-0 ${
+                            mobileShop ? 'grid-cols-2 gap-1.5' : 'grid-cols-3 gap-2 sm:gap-3'
+                        }`}
+                    >
                         {vipProducts.map(product => (
                             <VipShopCard key={product.id} product={product} mobile={mobileShop} />
                         ))}
@@ -619,9 +1168,9 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                 ];
                 // 행동력 회복제: 품목별 일일 1개, 고정 골드가 (ShopItemCard)
                 const ACTION_POINT_ITEMS = [
-                    { itemId: 'action_point_10' as const, name: '행동력 회복제(+10)', description: '뭔가 하고싶은 의욕이 생긴다.', dailyLimit: 1, prices: [100], badge: '+10' },
-                    { itemId: 'action_point_20' as const, name: '행동력 회복제(+20)', description: '뭔가 해야 할 것 같다.', dailyLimit: 1, prices: [300], badge: '+20' },
-                    { itemId: 'action_point_30' as const, name: '행동력 회복제(+30)', description: '바로 경기를 하러 가자.', dailyLimit: 1, prices: [1000], badge: '+30' },
+                    { itemId: 'action_point_10' as const, name: '행동력 회복제(+10)', description: '뭔가 하고싶은 의욕이 생긴다.', dailyLimit: 1, prices: [1000], badge: '+10' },
+                    { itemId: 'action_point_20' as const, name: '행동력 회복제(+20)', description: '뭔가 해야 할 것 같다.', dailyLimit: 1, prices: [1500], badge: '+20' },
+                    { itemId: 'action_point_30' as const, name: '행동력 회복제(+30)', description: '바로 경기를 하러 가자.', dailyLimit: 1, prices: [2000], badge: '+30' },
                 ];
                 const actionPointShopItems = ACTION_POINT_ITEMS.map(({ itemId, name, description, dailyLimit, prices, badge }) => {
                     const purchaseRecord = currentUser.dailyShopPurchases?.[itemId];
@@ -646,8 +1195,8 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                     <div className={gridClassName}>
                         <ShopAdRewardCard
                             tab="consumables"
-                            rewardLabel="행동력 회복제(+10)"
-                            remaining={getAdRewardRemaining('consumables')}
+                            rewardDescription="행동력 회복제(+10) 1개가 지급됩니다."
+                            remaining={getShopAdRemainingForTab(currentUser, 'consumables')}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
                         />

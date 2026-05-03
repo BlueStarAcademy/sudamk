@@ -124,6 +124,9 @@ interface DraggableWindowProps {
     /** 본문 패딩 클래스 (지정 시 store/default 패딩 대신 사용) */
     bodyPaddingClassName?: string;
 
+    /** 본문 스크롤 래퍼에 추가 (예: 얇은 스크롤바). `bodyScrollable`일 때 스크롤되는 본문 영역에만 합쳐짐 */
+    bodyScrollClassName?: string;
+
     /**
      * PC 설계 크기(initialWidth/Height) 레이아웃을 유지한 채, 보이는 영역에 맞게 transform scale만 조정합니다.
      * (모바일·스케일 캔버스 안에서도 동일)
@@ -378,6 +381,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     hideFooter = false,
     skipSavedPosition = false,
     bodyPaddingClassName,
+    bodyScrollClassName,
     uniformPcScale = false,
     bodyAvoidVerticalStretch = false,
     headerShowTitle = false,
@@ -1465,7 +1469,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     {useStickyMobileFooter ? (
                         <>
                             <div
-                                className={`flex min-h-0 flex-1 flex-col ${bodyScrollOverflowClass} ${bodyPaddingClass} ${
+                                className={`flex min-h-0 flex-1 flex-col ${bodyScrollOverflowClass} ${bodyPaddingClass} ${bodyScrollClassName ?? ''} ${
                                     uniformLayout ? 'antialiased' : ''
                                 }${mobileBodyClass}`}
                             >
@@ -1479,7 +1483,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                                 bodyInnerNoFlexGrow
                                     ? 'flex w-full min-h-0 flex-shrink-0 flex-col'
                                     : 'flex min-h-0 flex-1 flex-col'
-                            } ${bodyScrollOverflowClass} ${bodyPaddingClass} ${uniformLayout ? 'antialiased' : ''}${
+                            } ${bodyScrollOverflowClass} ${bodyPaddingClass} ${bodyScrollClassName ?? ''} ${uniformLayout ? 'antialiased' : ''}${
                                 mobileBodyClass
                             }`}
                         >

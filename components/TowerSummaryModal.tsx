@@ -195,16 +195,19 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     // (재도전에서 실패해도 한 번 클리어한 층이면 다음 층으로 진행 가능)
     const canTryNext = !!nextStage && (isWinner || isCleared);
     
-    // 입장 시 차감이 0이었으면(이미 클리어한 층 재도전 등) 패배 후에도 재도전 ⚡0 — towerFloor 반영 지연 시 보정. 할인 반영값은 세션 우선
+    // 이미 클리어·이번 판 승리 시 재도전 ⚡0(towerFloor 반영 지연 포함). 미클리어 패배 시 할인 반영값은 세션 우선
     const baseRetryApCost = currentStage?.actionPointCost ?? 0;
     const baseNextFloorApCost = nextStage?.actionPointCost ?? 0;
-    const inferredRetryApCost = isCleared ? 0 : baseRetryApCost;
+    const inferredRetryApCost = isCleared || isWinner ? 0 : baseRetryApCost;
+    // 이미 클리어한 층은 재도전 무료(⚡0). 입장 차감값은 미클리어일 때만 표시(할인·stale 보정).
     const effectiveRetryActionPointCost =
-        session.towerStartActionPointCost === 0
+        inferredRetryApCost === 0
             ? 0
-            : typeof session.towerStartActionPointCost === 'number'
-              ? session.towerStartActionPointCost
-              : inferredRetryApCost;
+            : session.towerStartActionPointCost === 0
+              ? 0
+              : typeof session.towerStartActionPointCost === 'number'
+                ? session.towerStartActionPointCost
+                : inferredRetryApCost;
     const isNextFloorAlreadyCleared = nextFloor != null && userTowerFloor >= nextFloor;
     const effectiveNextFloorActionPointCost = isNextFloorAlreadyCleared ? 0 : baseNextFloorApCost;
 
@@ -342,8 +345,8 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
 
     const avatarUrl = useMemo(() => AVATAR_POOL.find((a: AvatarInfo) => a.id === currentUser.avatarId)?.url, [currentUser.avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find((b: BorderInfo) => b.id === currentUser.borderId)?.url, [currentUser.borderId]);
-    const xpRequirement = getXpRequirementForLevel(Math.max(1, currentUser.strategyLevel));
-    const clampedXp = Math.min(currentUser.strategyXp, xpRequirement);
+    const xpRequirement = getXpRequirementForLevel(Math.max(1, currentUser.userLevel));
+    const clampedXp = Math.min(currentUser.userXp, xpRequirement);
     const xpChange = displaySummary?.xp?.change ?? summary?.xp?.change ?? 0;
     const previousXp = Math.max(0, clampedXp - xpChange);
     const previousXpPercent = Math.min(100, (previousXp / (xpRequirement || 1)) * 100);
@@ -603,7 +606,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                                 {currentUser.nickname}
                                             </p>
                                             <p className="text-amber-200/60" style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px` }}>
-                                                전략 Lv.{currentUser.strategyLevel}
+                                                전략 Lv.{currentUser.userLevel}
                                             </p>
                                         </div>
                                     </div>
@@ -677,7 +680,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                             {currentUser.nickname}
                                         </p>
                                         <p className="text-amber-200/60" style={{ fontSize: '13px' }}>
-                                            전략 Lv.{currentUser.strategyLevel}
+                                            전략 Lv.{currentUser.userLevel}
                                         </p>
                                     </div>
                                 </div>

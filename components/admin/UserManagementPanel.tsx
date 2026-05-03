@@ -24,7 +24,7 @@ const EQUIPMENT_SLOTS: Array<'fan' | 'board' | 'top' | 'bottom' | 'bowl' | 'ston
 
 const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, currentUser, onClose, onAction, onRefreshFullUser }) => {
     const [editedUser, setEditedUser] = useState<User>(JSON.parse(JSON.stringify(user)));
-    const [activeTab, setActiveTab] = useState<'general' | 'strategic' | 'playful' | 'quests' | 'rewards' | 'inventory' | 'danger'>('general');
+    const [activeTab, setActiveTab] = useState<'general' | 'strategic' | 'pair' | 'quests' | 'rewards' | 'inventory' | 'danger'>('general');
     const [invDraft, setInvDraft] = useState<InventoryItem[]>([]);
     const [eqDraft, setEqDraft] = useState<Partial<Record<string, string>>>({});
     const [selectedInvId, setSelectedInvId] = useState<string | null>(null);
@@ -195,7 +195,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
         setEditedUser(prev => ({ ...prev, [name]: checked }));
     };
 
-    const handleCumulativeRankingScoreChange = (key: 'standard' | 'playful', value: string) => {
+    const handleCumulativeRankingScoreChange = (key: 'standard' | 'pair', value: string) => {
         setEditedUser(prev => {
             const newCumulativeRankingScore = { ...(prev.cumulativeRankingScore || {}) };
             const numValue = value === '' ? 0 : Number(value);
@@ -328,7 +328,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
                 <div className="flex flex-wrap gap-1 border-b border-color mb-4">
                     <button type="button" onClick={() => setActiveTab('general')} className={`px-3 py-2 text-sm ${activeTab === 'general' ? 'border-b-2 border-accent text-primary' : 'text-tertiary'}`}>일반</button>
                     <button type="button" onClick={() => setActiveTab('strategic')} className={`px-3 py-2 text-sm ${activeTab === 'strategic' ? 'border-b-2 border-accent text-primary' : 'text-tertiary'}`}>전략 랭킹</button>
-                    <button type="button" onClick={() => setActiveTab('playful')} className={`px-3 py-2 text-sm ${activeTab === 'playful' ? 'border-b-2 border-accent text-primary' : 'text-tertiary'}`}>놀이 랭킹</button>
+                    <button type="button" onClick={() => setActiveTab('pair')} className={`px-3 py-2 text-sm ${activeTab === 'pair' ? 'border-b-2 border-accent text-primary' : 'text-tertiary'}`}>페어 랭킹</button>
                     <button type="button" onClick={() => setActiveTab('quests')} className={`px-3 py-2 text-sm ${activeTab === 'quests' ? 'border-b-2 border-accent text-primary' : 'text-tertiary'}`}>퀘스트</button>
                     <button type="button" onClick={() => setActiveTab('rewards')} className={`px-3 py-2 text-sm ${activeTab === 'rewards' ? 'border-b-2 border-green-500 text-green-400' : 'text-tertiary'}`}>보상 우편</button>
                     <button type="button" onClick={() => setActiveTab('inventory')} className={`px-3 py-2 text-sm ${activeTab === 'inventory' ? 'border-b-2 border-amber-500 text-amber-400' : 'text-tertiary'}`}>인벤·장비</button>
@@ -339,10 +339,8 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
                     {activeTab === 'general' && (
                         <div className="space-y-3">
                             <div className="grid grid-cols-2 gap-2"><label>닉네임</label><input type="text" name="nickname" value={editedUser.nickname} onChange={handleTextInputChange} className="bg-tertiary p-1 rounded" maxLength={6} /></div>
-                            <div className="grid grid-cols-2 gap-2"><label>전략 레벨</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} name="strategyLevel" value={editedUser.strategyLevel} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
-                            <div className="grid grid-cols-2 gap-2"><label>전략 XP</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} name="strategyXp" value={editedUser.strategyXp} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
-                            <div className="grid grid-cols-2 gap-2"><label>놀이 레벨</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} name="playfulLevel" value={editedUser.playfulLevel} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
-                            <div className="grid grid-cols-2 gap-2"><label>놀이 XP</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} name="playfulXp" value={editedUser.playfulXp} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
+                            <div className="grid grid-cols-2 gap-2"><label>유저 레벨</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} name="userLevel" value={editedUser.userLevel} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
+                            <div className="grid grid-cols-2 gap-2"><label>유저 XP</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} name="userXp" value={editedUser.userXp} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
                             <div className="grid grid-cols-2 gap-2"><label>골드</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} name="gold" value={editedUser.gold} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
                             <div className="grid grid-cols-2 gap-2"><label>다이아</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} name="diamonds" value={editedUser.diamonds} onChange={handleInputChange} className="bg-tertiary p-1 rounded" /></div>
                             <div className="grid grid-cols-2 gap-2"><label>행동력 현재</label><input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} value={editedUser.actionPoints?.current ?? 0} onChange={(e) => setEditedUser((p) => ({ ...p, actionPoints: { ...(p.actionPoints || { current: 0, max: 100 }), current: clampGameInt(Number(e.target.value) || 0), max: p.actionPoints?.max ?? 100 } }))} className="bg-tertiary p-1 rounded" /></div>
@@ -382,22 +380,20 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ user, current
                             </p>
                         </div>
                     )}
-                    {activeTab === 'playful' && (
+                    {activeTab === 'pair' && (
                         <div className="space-y-3">
                             <div className="grid grid-cols-2 gap-2 items-center">
-                                <label className="text-secondary">놀이바둑 통합 랭킹 점수</label>
-                                <input 
-                                    type="number" 
+                                <label className="text-secondary">페어 랭킹 델타(1200 기준)</label>
+                                <input
+                                    type="number"
                                     min={0}
                                     max={MAX_GAME_INTEGER_INPUT}
-                                    value={editedUser.cumulativeRankingScore?.['playful'] ?? 0} 
-                                    onChange={e => handleCumulativeRankingScoreChange('playful', e.target.value)} 
-                                    className="bg-tertiary p-1 rounded" 
+                                    value={editedUser.cumulativeRankingScore?.['pair'] ?? 0}
+                                    onChange={(e) => handleCumulativeRankingScoreChange('pair', e.target.value)}
+                                    className="bg-tertiary p-1 rounded"
                                 />
                             </div>
-                            <p className="text-xs text-gray-400">
-                                놀이바둑의 모든 게임 모드(주사위, 도둑, 알까기, 컬링, 오목, 땀옥)가 통합된 랭킹 점수입니다.
-                            </p>
+                            <p className="text-xs text-gray-400">페어(2인) 랭킹전 누적과 동일한 델타 값입니다.</p>
                         </div>
                     )}
                     {activeTab === 'quests' && (
@@ -1182,7 +1178,7 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                                             {user.username}
                                         </td>
                                         <td className="px-4 py-4 max-lg:px-1 max-lg:py-2 sm:px-6 sm:py-5 tabular-nums">
-                                            S.{user.strategyLevel}/P.{user.playfulLevel}
+                                            Lv.{user.userLevel}
                                         </td>
                                         <td className="px-4 py-4 max-lg:px-1 max-lg:py-2 sm:px-6 sm:py-5">
                                             <span className="max-lg:inline-block max-lg:max-w-full max-lg:truncate">

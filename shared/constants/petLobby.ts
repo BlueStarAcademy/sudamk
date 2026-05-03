@@ -35,6 +35,35 @@ export function pairPetLobbyExpandDiamondCost(normalizedCurrentSlots: number): n
     return 100 + expansionsMade * 20;
 }
 
+/** 페어 로비 펫(알 제외) 마릿수 — 레거시 `quantity>1` 한 행도 합산 */
+export function countPairLobbyPetEntriesInInventory(inv: InventoryItem[] | null | undefined): number {
+    if (!Array.isArray(inv)) return 0;
+    let sum = 0;
+    for (const it of inv) {
+        if (!isPairPetMaterial(it) || isPairEggItem(it)) continue;
+        const raw = Number(it.quantity ?? 1);
+        const q = Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
+        sum += Math.max(1, q);
+    }
+    return sum;
+}
+
+export function pairLobbyPetSlotCapacityFromUser(user: {
+    pairPetLobbyPetSlotCount?: number | null;
+    pairPetLobbySlotCount?: number | null;
+}): number {
+    return pairPetLobbyInventorySlots(user.pairPetLobbyPetSlotCount ?? user.pairPetLobbySlotCount);
+}
+
+/** 부화 수령·즉시 완료 등 펫 로비 칸이 꽉 찼는지(서버·클라 동일 판정). 부화 시작은 제외 */
+export function isPairLobbyPetInventoryFull(user: {
+    inventory?: InventoryItem[] | null;
+    pairPetLobbyPetSlotCount?: number | null;
+    pairPetLobbySlotCount?: number | null;
+}): boolean {
+    return countPairLobbyPetEntriesInInventory(user.inventory ?? []) >= pairLobbyPetSlotCapacityFromUser(user);
+}
+
 export const PAIR_EGG_TEMPLATE_ID = 'pair-egg-mystery';
 
 /** 상점 지급·MATERIAL_ITEMS 키와 동일한 알 이름 */
@@ -69,13 +98,16 @@ export const PAIR_SOULSTONE_TEMPLATE_IDS = [
     'pair-soul-5',
 ] as const;
 
-/** 재료·상점·로비 UI 공통: 영혼석 짧은 풍미 설명 */
+/** `PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS` 풍미 문구 뒤에 공통으로 붙는 용도 */
+const PAIR_SOULSTONE_GRADE_UPGRADE_BLURB = ' 펫의 등급 강화에 사용됩니다.';
+
+/** 재료·상점·로비·도감 공통: 영혼석 짧은 풍미 설명 */
 export const PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS: Record<(typeof PAIR_SOULSTONE_NAMES)[number], string> = {
-    새싹영혼석: '막 돋은 영기 한 알. 성장의 첫 스파크!',
-    파동영혼석: '결의 물결이 번져요—다음 층으로 밀어줍니다.',
-    심연영혼석: '깊은 심연에서 건져 올린 결정. 깊이 인증!',
-    화염영혼석: '작열하는 영혼의 숨. 진지 모드, 가동!',
-    천광영혼석: '하늘빛을 머금은 에이스 정수. 정점 각인!',
+    새싹영혼석: `막 돋은 영기 한 알. 성장의 첫 스파크!${PAIR_SOULSTONE_GRADE_UPGRADE_BLURB}`,
+    파동영혼석: `결의 물결이 번져요—다음 층으로 밀어줍니다.${PAIR_SOULSTONE_GRADE_UPGRADE_BLURB}`,
+    심연영혼석: `깊은 심연에서 건져 올린 결정. 깊이 인증!${PAIR_SOULSTONE_GRADE_UPGRADE_BLURB}`,
+    화염영혼석: `작열하는 영혼의 숨. 진지 모드, 가동!${PAIR_SOULSTONE_GRADE_UPGRADE_BLURB}`,
+    천광영혼석: `하늘빛을 머금은 에이스 정수. 정점 각인!${PAIR_SOULSTONE_GRADE_UPGRADE_BLURB}`,
 };
 
 /** 알 수 없는 이름이면 빈 문자열 */
@@ -119,7 +151,7 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         diamonds: 0,
         materialName: PAIR_EGG_MATERIAL_NAME,
         quantity: 1,
-        dailyLimit: 1,
+        dailyLimit: 3,
         image: PAIR_EGG_DISPLAY_IMAGE,
         description: '부화장에서 무작위 AI 펫으로 부화할 수 있는 알입니다.',
     },
@@ -130,7 +162,7 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         diamonds: 50,
         materialName: PAIR_EGG_MATERIAL_NAME,
         quantity: 1,
-        dailyLimit: 1,
+        dailyLimit: 3,
         image: PAIR_EGG_DISPLAY_IMAGE,
         description: '부화장에서 무작위 AI 펫으로 부화할 수 있는 알입니다.',
     },
@@ -190,6 +222,18 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[4]],
     },
 ];
+
+/**
+ * 영혼석 1개 판매 골드 — 페어 상점에서 해당 영혼석을 골드로 살 때의 가격의 10% (`PAIR_PET_SHOP_SKUS`와 동기화).
+ * 골드 구매가가 없는 SKU면 `null`.
+ */
+export function pairSoulStoneMaterialSellGoldPerUnit(materialName: string): number | null {
+    const sku = PAIR_PET_SHOP_SKUS.find((s) => s.id.startsWith('pair_shop_soul_') && s.materialName === materialName);
+    if (!sku) return null;
+    const shopGold = Math.max(0, Math.floor(Number(sku.gold) || 0));
+    if (shopGold <= 0) return null;
+    return Math.floor(shopGold * 0.1);
+}
 
 /** `pair-pet-1` … `pair-pet-24` / `pet1.webp` … 순서에 대응하는 표시 이름 */
 export const PAIR_PET_KIND_NAMES = [

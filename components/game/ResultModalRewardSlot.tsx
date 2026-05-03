@@ -82,14 +82,26 @@ export const ResultModalGoldCurrencySlot: React.FC<{
     understandingBonus?: number;
     /** 모험 결과: 골드 슬롯을 장비·재료와 동일 톤의 공통 배경으로 */
     adventureUnifiedSlot?: boolean;
-}> = ({ amount, compact, dimmed, understandingBonus, adventureUnifiedSlot }) => (
+    /**
+     * true: `amount`는 기본 획득, `understandingBonus`는 특화 등 추가분 → `기본(+추가)`.
+     * false(기본): `amount`를 총액으로 표기(모험 등).
+     */
+    primaryIsBaseAmount?: boolean;
+}> = ({ amount, compact, dimmed, understandingBonus, adventureUnifiedSlot, primaryIsBaseAmount = false }) => {
+    const bonus = understandingBonus ?? 0;
+    const title =
+        primaryIsBaseAmount && bonus > 0
+            ? `획득 골드 합계 ${formatGoldAmountKoG(amount + bonus)} (기본 ${formatGoldAmountKoG(amount)}, 특화 +${formatGoldAmountKoG(bonus)})`
+            : primaryIsBaseAmount
+              ? `획득 골드 ${formatGoldAmountKoG(amount)}`
+              : bonus > 0
+                ? `골드 ${formatGoldAmountKoG(amount)} (모험 이해도·효과 +${formatGoldAmountKoG(bonus)})`
+                : `골드 ${formatGoldAmountKoG(amount)}`;
+
+    return (
     <div
         className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''} ${dimmed ? 'opacity-80' : ''}`}
-        title={
-            understandingBonus != null && understandingBonus > 0
-                ? `골드 ${formatGoldAmountKoG(amount)} (모험 이해도·효과 +${formatGoldAmountKoG(understandingBonus)})`
-                : `골드 ${formatGoldAmountKoG(amount)}`
-        }
+        title={title}
     >
         <div
             className={`${adventureUnifiedSlot ? RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS : BOX_GOLD} ${imageBoxClass(compact)}`}
@@ -107,11 +119,17 @@ export const ResultModalGoldCurrencySlot: React.FC<{
         <span
             className={
                 compact
-                    ? 'flex max-w-[5.5rem] flex-wrap items-baseline justify-center gap-x-0.5 text-center text-[0.72rem] font-bold tabular-nums text-amber-100'
-                    : 'flex max-w-[7rem] flex-wrap items-baseline justify-center gap-x-1 text-center text-sm font-bold tabular-nums text-amber-100 min-[1024px]:max-w-[8rem] min-[1024px]:text-base'
+                    ? `inline-flex max-w-[min(100%,11rem)] flex-nowrap items-baseline justify-center gap-x-0 text-center text-[0.72rem] font-bold tabular-nums text-amber-100 ${
+                          understandingBonus != null && understandingBonus > 0 ? 'whitespace-nowrap' : 'flex-wrap'
+                      }`
+                    : `inline-flex max-w-[min(100%,12rem)] flex-nowrap items-baseline justify-center gap-x-0 text-center text-sm font-bold tabular-nums text-amber-100 min-[1024px]:max-w-[14rem] min-[1024px]:text-base ${
+                          understandingBonus != null && understandingBonus > 0 ? 'whitespace-nowrap' : 'flex-wrap'
+                      }`
             }
         >
-            <span className="whitespace-nowrap">{formatGoldAmountKoG(amount)}</span>
+            <span className={understandingBonus != null && understandingBonus > 0 ? 'whitespace-nowrap' : ''}>
+                {formatGoldAmountKoG(amount)}
+            </span>
             {understandingBonus != null && understandingBonus > 0 && (
                 <span
                     className={
@@ -125,7 +143,8 @@ export const ResultModalGoldCurrencySlot: React.FC<{
             )}
         </span>
     </div>
-);
+    );
+};
 
 /** 소모품/아이템: 이미지가 있으면 아이콘으로 식별 → 하단에는 개수만(×n). 이미지 없을 때만 이름 표시 */
 export const ResultModalItemRewardSlot: React.FC<{
