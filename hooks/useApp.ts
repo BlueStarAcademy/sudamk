@@ -97,7 +97,8 @@ const CONNECTION_OK_STATUS: AppConnectionStatus = {
     updatedAt: 0,
 };
 
-const isTransientServerStatus = (status: number): boolean => status === 0 || status === 503 || status === 504;
+const isTransientServerStatus = (status: number): boolean =>
+    status === 0 || status === 502 || status === 503 || status === 504;
 
 const buildPveEndGameSnapshotPayload = (game: LiveGameSession | null | undefined): Record<string, unknown> => {
     if (!game) return {};
@@ -2684,6 +2685,9 @@ export const useApp = () => {
                     }
                     const wasHiddenMove = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
                     const wasAiInitialHidden = !!aiInitialHiddenStone && aiInitialHiddenStone.x === stone.x && aiInitialHiddenStone.y === stone.y;
+                    const wasRevealedHidden = !!game.permanentlyRevealedStones?.some(
+                        (p) => p.x === stone.x && p.y === stone.y
+                    );
                     const wasBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
                     const wasPatternStone = opponentPlayer === Player.Black
                         ? !!blackPatternStones?.some(p => p.x === stone.x && p.y === stone.y)
@@ -2695,7 +2699,7 @@ export const useApp = () => {
                     if (wasBaseStone) {
                         points = 5;
                         baseStoneCaptures[movePlayer] = (baseStoneCaptures[movePlayer] || 0) + 1;
-                    } else if (wasHiddenMove || wasAiInitialHidden) {
+                    } else if (wasHiddenMove || wasAiInitialHidden || wasRevealedHidden) {
                         points = 5;
                         wasHidden = true;
                         hiddenStoneCaptures[movePlayer] = (hiddenStoneCaptures[movePlayer] || 0) + 1;
@@ -3894,7 +3898,12 @@ export const useApp = () => {
                 ) {
                     // PairPetLobbyPanel 전용 모달로만 안내
                 } else if (!shouldSuppressModalForKoPlaceStone(action, typeof errorMessage === 'string' ? errorMessage : '')) {
-                    showError(errorMessage);
+                    // 길드 정보는 백그라운드 동기화 성격이 강하고, 게이트웨이/DB 지연 시 502·504가 잦음 — 상단 연결 안내만으로 충분
+                    const suppressGuildInfoModal =
+                        action.type === 'GET_GUILD_INFO' && isTransientServerStatus(res.status);
+                    if (!suppressGuildInfoModal) {
+                        showError(errorMessage);
+                    }
                 }
                 if (action.type === 'TOGGLE_EQUIP_ITEM' || action.type === 'USE_ITEM') {
                     setUpdateTrigger(prev => prev + 1);
@@ -9201,7 +9210,10 @@ export const useApp = () => {
                 setIsShopOpen(false);
                 setShopInitialTab(undefined);
             },
-            openExchange: () => setIsExchangeOpen(true),
+            openExchange: () => {
+                void import('../components/ExchangeModal.js').catch(() => {});
+                setIsExchangeOpen(true);
+            },
             closeExchange: () => setIsExchangeOpen(false),
             openActionPointModal: () => setIsActionPointModalOpen(true),
             closeActionPointModal: () => setIsActionPointModalOpen(false),

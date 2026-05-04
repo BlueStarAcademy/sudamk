@@ -21,6 +21,7 @@ import UserNicknameText from '../UserNicknameText.js';
 import { containsProfanity } from '../../profanity.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
+import { formatDiceGoSpecialDiceSummary } from '../../shared/utils/diceGoSettings.js';
 import {
     getGuildWarBoardMode,
     getGuildWarStarConditionLines,
@@ -214,10 +215,7 @@ export const GameInfoPanel: React.FC<{
         
         if (mode === GameMode.Dice) {
             details.push(renderSetting("라운드", `${settings.diceGoRounds}R`));
-            details.push(renderSetting("홀수 아이템", `${settings.oddDiceCount ?? 0}개`));
-            details.push(renderSetting("짝수 아이템", `${settings.evenDiceCount ?? 0}개`));
-            details.push(renderSetting("낮은 수 아이템 (1~3)", `${settings.lowDiceCount ?? 0}개`));
-            details.push(renderSetting("높은 수 아이템 (4~6)", `${settings.highDiceCount ?? 0}개`));
+            details.push(renderSetting("특수주사위", formatDiceGoSpecialDiceSummary(settings)));
         }
         
         if (mode === GameMode.Alkkagi) {
@@ -226,18 +224,18 @@ export const GameInfoPanel: React.FC<{
             details.push(renderSetting("돌 개수", `${settings.alkkagiStoneCount}개`));
             details.push(renderSetting("배치 방식", settings.alkkagiPlacementType));
             details.push(renderSetting("배치 전장", settings.alkkagiLayout));
-            details.push(renderSetting("게이지 속도", speedLabel));
-            details.push(renderSetting("슬로우 아이템", `${settings.alkkagiSlowItemCount}개`));
-            details.push(renderSetting("조준선 아이템", `${settings.alkkagiAimingLineItemCount}개`));
+            details.push(renderSetting("힘 속도", speedLabel));
+            details.push(renderSetting("슬로우", `${settings.alkkagiSlowItemCount}개`));
+            details.push(renderSetting("조준선", `${settings.alkkagiAimingLineItemCount}개`));
         }
         
         if (mode === GameMode.Curling) {
             const speedLabel = CURLING_GAUGE_SPEEDS.find(s => s.value === settings.curlingGaugeSpeed)?.label || '보통';
             details.push(renderSetting("스톤 개수", `${settings.curlingStoneCount}개`));
             details.push(renderSetting("라운드", `${settings.curlingRounds}R`));
-            details.push(renderSetting("게이지 속도", speedLabel));
-            details.push(renderSetting("슬로우 아이템", `${settings.curlingSlowItemCount}개`));
-            details.push(renderSetting("조준선 아이템", `${settings.curlingAimingLineItemCount}개`));
+            details.push(renderSetting("힘 속도", speedLabel));
+            details.push(renderSetting("슬로우", `${settings.curlingSlowItemCount}개`));
+            details.push(renderSetting("조준선", `${settings.curlingAimingLineItemCount}개`));
         }
 
         return details.filter(Boolean);

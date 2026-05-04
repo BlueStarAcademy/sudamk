@@ -327,7 +327,7 @@ const DICE_ROLL_LOCAL_EVENT = 'dice-go-local-roll-start';
 
 export type DiceGoPanelItemKind = 'odd' | 'even' | 'low' | 'high';
 
-/** 주사위 바둑 특수 주사위 아이템 — ImageButton(w-16 md:w-20) 풋프린트 */
+/** 주사위 바둑 특수주사위 아이템 — ImageButton(w-16 md:w-20) 풋프린트 */
 const DiceGoLuxuryItemCard: React.FC<{
     kind: DiceGoPanelItemKind;
     count: number;

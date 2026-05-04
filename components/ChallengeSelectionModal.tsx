@@ -19,6 +19,14 @@ import {
 } from '../constants/gameSettings';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
+import {
+  diceGoUnifiedSpecialDiceCounts,
+  getDiceGoUnifiedSpecialDiceCount,
+} from '../shared/utils/diceGoSettings.js';
+import {
+  getThiefUnifiedSpecialDiceCount,
+  thiefUnifiedSpecialDiceCounts,
+} from '../shared/utils/thiefGoSettings.js';
 
 /** 전략 로비에서 판 크기별 ‘계가까지 턴’ 옵션을 쓰는 모드 (따내기 바둑·따목 등 제외) */
 const STRATEGIC_MODES_WITH_SCORING_TURN: GameMode[] = [
@@ -804,7 +812,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         {showDiceGoSettings && (
           <SettingsSection title="주사위 바둑" scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>라운드 설정</label>
+              <label className={settingsLabelClass} style={labelStyle}>라운드</label>
               <select 
                 value={settings.diceGoRounds ?? 3} 
                 onChange={e => handleSettingChange('diceGoRounds', parseInt(e.target.value, 10) as 1 | 2 | 3)}
@@ -815,47 +823,19 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>홀수 주사위</label>
+              <label className={settingsLabelClass} style={labelStyle}>특수주사위</label>
               <select 
-                value={settings.oddDiceCount ?? 1} 
-                onChange={e => handleSettingChange('oddDiceCount', parseInt(e.target.value, 10))}
+                value={getDiceGoUnifiedSpecialDiceCount(settings)} 
+                onChange={e =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    ...diceGoUnifiedSpecialDiceCounts(parseInt(e.target.value, 10)),
+                  }))
+                }
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
                 style={inputStyle}
               >
-                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
-              </select>
-            </div>
-            <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>짝수 주사위</label>
-              <select 
-                value={settings.evenDiceCount ?? 1} 
-                onChange={e => handleSettingChange('evenDiceCount', parseInt(e.target.value, 10))}
-                className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
-              >
-                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
-              </select>
-            </div>
-            <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>낮은 수 (1~3)</label>
-              <select 
-                value={settings.lowDiceCount ?? 1} 
-                onChange={e => handleSettingChange('lowDiceCount', parseInt(e.target.value, 10))}
-                className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
-              >
-                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
-              </select>
-            </div>
-            <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>높은 수 (4~6)</label>
-              <select 
-                value={settings.highDiceCount ?? 1} 
-                onChange={e => handleSettingChange('highDiceCount', parseInt(e.target.value, 10))}
-                className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
-              >
-                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개 (유형당)</option>)}
               </select>
             </div>
           </SettingsSection>
@@ -864,25 +844,19 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         {showThiefGoItemSettings && (
           <SettingsSection title="도둑 바둑" scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>높은 수 (3~6)</label>
+              <label className={settingsLabelClass} style={labelStyle}>특수주사위</label>
               <select
-                value={settings.thiefHigh36ItemCount ?? 1}
-                onChange={e => handleSettingChange('thiefHigh36ItemCount', parseInt(e.target.value, 10))}
+                value={getThiefUnifiedSpecialDiceCount(settings)}
+                onChange={e =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    ...thiefUnifiedSpecialDiceCounts(parseInt(e.target.value, 10)),
+                  }))
+                }
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
                 style={inputStyle}
               >
-                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
-              </select>
-            </div>
-            <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>1방지 (2~5)</label>
-              <select
-                value={settings.thiefNoOneItemCount ?? 1}
-                onChange={e => handleSettingChange('thiefNoOneItemCount', parseInt(e.target.value, 10))}
-                className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
-              >
-                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개 (유형당)</option>)}
               </select>
             </div>
           </SettingsSection>
@@ -958,7 +932,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>게이지 속도</label>
+              <label className={settingsLabelClass} style={labelStyle}>힘 속도</label>
               <select 
                 value={settings.alkkagiGaugeSpeed ?? 700} 
                 onChange={e => handleSettingChange('alkkagiGaugeSpeed', parseInt(e.target.value))}
@@ -969,7 +943,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>슬로우 아이템</label>
+              <label className={settingsLabelClass} style={labelStyle}>슬로우</label>
               <select 
                 value={settings.alkkagiSlowItemCount ?? 2} 
                 onChange={e => handleSettingChange('alkkagiSlowItemCount', parseInt(e.target.value))}
@@ -980,7 +954,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>조준선 아이템</label>
+              <label className={settingsLabelClass} style={labelStyle}>조준선</label>
               <select 
                 value={settings.alkkagiAimingLineItemCount ?? 2} 
                 onChange={e => handleSettingChange('alkkagiAimingLineItemCount', parseInt(e.target.value))}
@@ -1018,7 +992,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>게이지 속도</label>
+              <label className={settingsLabelClass} style={labelStyle}>힘 속도</label>
               <select 
                 value={settings.curlingGaugeSpeed ?? 700} 
                 onChange={e => handleSettingChange('curlingGaugeSpeed', parseInt(e.target.value))}
@@ -1029,7 +1003,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>슬로우 아이템</label>
+              <label className={settingsLabelClass} style={labelStyle}>슬로우</label>
               <select 
                 value={settings.curlingSlowItemCount ?? 2} 
                 onChange={e => handleSettingChange('curlingSlowItemCount', parseInt(e.target.value))}
@@ -1040,7 +1014,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>조준선 아이템</label>
+              <label className={settingsLabelClass} style={labelStyle}>조준선</label>
               <select 
                 value={settings.curlingAimingLineItemCount ?? 2} 
                 onChange={e => handleSettingChange('curlingAimingLineItemCount', parseInt(e.target.value))}

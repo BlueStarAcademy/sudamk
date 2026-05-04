@@ -139,12 +139,10 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
     }, [gameStatus, alkkagiStones, alkkagiStones_p1, alkkagiStones_p2, currentUser.id, player1.id]);
 
     const myStonesCount = useMemo(() => {
-        const stonesInMainArray = (session.alkkagiStones || []).filter(s => s.player === myPlayerEnum).length;
         if (session.gameStatus === 'alkkagi_simultaneous_placement' || session.gameStatus === 'alkkagi_placement') {
-            const stonesInTempArray = (currentUser.id === session.player1.id ? session.alkkagiStones_p1 : session.alkkagiStones_p2)?.length || 0;
-            return stonesInMainArray + stonesInTempArray;
+            return session.alkkagiStonesPlacedThisRound?.[currentUser.id] ?? 0;
         }
-        return stonesInMainArray;
+        return (session.alkkagiStones || []).filter((s) => s.player === myPlayerEnum && s.onBoard).length;
     }, [session, currentUser.id, myPlayerEnum]);
 
 

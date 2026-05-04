@@ -201,13 +201,13 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
             items.push({ label: '배치 개수', value: `${settings.alkkagiStoneCount}개` });
         }
         if (settings.alkkagiGaugeSpeed) {
-            items.push({ label: '게이지 속도', value: `빠름 ×${settings.alkkagiGaugeSpeed}` });
+            items.push({ label: '힘 속도', value: `빠름 ×${settings.alkkagiGaugeSpeed}` });
         }
         if (settings.alkkagiSlowItemCount) {
-            items.push({ label: '슬로우 아이템', value: `${settings.alkkagiSlowItemCount}개` });
+            items.push({ label: '슬로우', value: `${settings.alkkagiSlowItemCount}개` });
         }
         if (settings.alkkagiAimingLineItemCount) {
-            items.push({ label: '조준선 아이템', value: `${settings.alkkagiAimingLineItemCount}개` });
+            items.push({ label: '조준선', value: `${settings.alkkagiAimingLineItemCount}개` });
         }
         if (settings.curlingRounds) {
             items.push({ label: '라운드', value: `${settings.curlingRounds}라운드` });
@@ -216,13 +216,13 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
             items.push({ label: '스톤 개수', value: `${settings.curlingStoneCount}개` });
         }
         if (settings.curlingGaugeSpeed) {
-            items.push({ label: '게이지 속도', value: `빠름 ×${settings.curlingGaugeSpeed}` });
+            items.push({ label: '힘 속도', value: `빠름 ×${settings.curlingGaugeSpeed}` });
         }
         if (settings.curlingSlowItemCount) {
-            items.push({ label: '슬로우 아이템', value: `${settings.curlingSlowItemCount}개` });
+            items.push({ label: '슬로우', value: `${settings.curlingSlowItemCount}개` });
         }
         if (settings.curlingAimingLineItemCount) {
-            items.push({ label: '조준선 아이템', value: `${settings.curlingAimingLineItemCount}개` });
+            items.push({ label: '조준선', value: `${settings.curlingAimingLineItemCount}개` });
         }
         // 클래식바둑 특별 처리
         if (mode === GameMode.Standard) {

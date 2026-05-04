@@ -1,7 +1,11 @@
 import React, { useCallback, useMemo } from 'react';
 import Avatar from '../Avatar.js';
-import { GameMode } from '../../types.js';
+import { GameMode, type GameSettings } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants.js';
+import {
+    deterministicPairAiOpponentPetDisplayLevelFromSeed,
+    resolveAiLobbyProfileStepFromSettings,
+} from '../../shared/utils/strategicAiDifficulty.js';
 
 export type PairRoomKind = 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'arena_ai';
 
@@ -524,21 +528,29 @@ function resolveArenaAiBotSeat(mode: GameMode | undefined): {
 function resolveDuoTeamBAiSlotPresentation(
     mode: GameMode | undefined,
     slotIdx: 0 | 1,
+    lobby?: { roomId: string; settings: GameSettings },
 ): { displayName: string; portraitSrc: string; subLabel: string } {
     const def =
         (mode && SPECIAL_GAME_MODES.find((d) => d.mode === mode)) ||
         (mode && PLAYFUL_GAME_MODES.find((d) => d.mode === mode)) ||
         SPECIAL_GAME_MODES.find((d) => d.mode === GameMode.Standard) ||
         SPECIAL_GAME_MODES[0];
+    const participantId = slotIdx === 0 ? 'pair-opponent-ai' : 'pair-opponent-pet';
+    let levelPrefix = '';
+    if (lobby?.roomId && lobby.settings) {
+        const step = resolveAiLobbyProfileStepFromSettings(lobby.settings);
+        const lv = deterministicPairAiOpponentPetDisplayLevelFromSeed(`${lobby.roomId}:${participantId}`, step);
+        levelPrefix = `Lv.${lv} `;
+    }
     if (slotIdx === 0) {
         return {
-            displayName: `${def.name}봇`,
+            displayName: `${levelPrefix}${def.name}봇`,
             portraitSrc: def.image,
             subLabel: '카타 AI',
         };
     }
     return {
-        displayName: `${def.name} 펫봇`,
+        displayName: `${levelPrefix}${def.name} 펫봇`,
         portraitSrc: def.image,
         subLabel: '카타 AI',
     };
@@ -621,6 +633,9 @@ export interface PairRoomSeatGridProps {
     oneSlotPerTeam?: boolean;
     /** `arena_ai`·펫 페어 AI 상대 슬롯 — 선택 모드 기준 봇 표시 */
     arenaAiGameMode?: GameMode;
+    /** duo/펫 AI 대전 로비: 방·설정으로 합성 상대 두 슬롯 표시 레벨(게임 시작 전 결정론적) */
+    pairAiLobbyRoomId?: string;
+    pairAiLobbySettings?: GameSettings;
 }
 
 const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
@@ -649,6 +664,8 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     compact = false,
     oneSlotPerTeam = false,
     arenaAiGameMode,
+    pairAiLobbyRoomId,
+    pairAiLobbySettings,
 }) => {
     const viewerPetAiId = `pet-ai-${viewerId}`;
     const isPetPairLobby = roomKind === 'ai_duel';
@@ -688,11 +705,16 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     );
 
     const arenaAiBotSeatPresentation = useMemo(() => resolveArenaAiBotSeat(arenaAiGameMode), [arenaAiGameMode]);
-    const duoTeamBAiPresentations = useMemo(
-        () =>
-            [resolveDuoTeamBAiSlotPresentation(arenaAiGameMode, 0), resolveDuoTeamBAiSlotPresentation(arenaAiGameMode, 1)] as const,
-        [arenaAiGameMode],
-    );
+    const duoTeamBAiPresentations = useMemo(() => {
+        const lobby =
+            pairAiLobbyRoomId && pairAiLobbySettings
+                ? { roomId: pairAiLobbyRoomId, settings: pairAiLobbySettings }
+                : undefined;
+        return [
+            resolveDuoTeamBAiSlotPresentation(arenaAiGameMode, 0, lobby),
+            resolveDuoTeamBAiSlotPresentation(arenaAiGameMode, 1, lobby),
+        ] as const;
+    }, [arenaAiGameMode, pairAiLobbyRoomId, pairAiLobbySettings]);
 
     const renderHumanSlot = (
         cell: GridCell,

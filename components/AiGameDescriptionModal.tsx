@@ -8,6 +8,7 @@ import { useAppContext } from '../hooks/useAppContext.js';
 import { LiveGameSession, GameMode, Player, ServerAction, User } from '../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_KOMI, ALKKAGI_GAUGE_SPEEDS, CURLING_GAUGE_SPEEDS } from '../constants.js';
 import { getPreGameSummaryFour } from '../utils/preGameSummaryFour.js';
+import { formatDiceGoSpecialDiceSummary } from '../shared/utils/diceGoSettings.js';
 import { buildAiPregameRewardVisual } from '../utils/estimateAiPregameRewardSummary.js';
 import { AiPregameRewardVisualStrip } from './game/AiPregameRewardVisualStrip.js';
 import {
@@ -110,10 +111,7 @@ const getSettingsRows = (session: LiveGameSession): { label: string; value: Reac
   }
   if (mode === GameMode.Dice) {
     rows.push({ label: '라운드', value: `${settings.diceGoRounds}R` });
-    rows.push({ label: '홀수 아이템', value: `${settings.oddDiceCount ?? 0}개` });
-    rows.push({ label: '짝수 아이템', value: `${settings.evenDiceCount ?? 0}개` });
-    rows.push({ label: '낮은 수 아이템 (1~3)', value: `${settings.lowDiceCount ?? 0}개` });
-    rows.push({ label: '높은 수 아이템 (4~6)', value: `${settings.highDiceCount ?? 0}개` });
+    rows.push({ label: '특수주사위', value: formatDiceGoSpecialDiceSummary(settings) });
   }
   if (mode === GameMode.Alkkagi) {
     const speedLabel = ALKKAGI_GAUGE_SPEEDS.find((x) => x.value === settings.alkkagiGaugeSpeed)?.label || '보통';
@@ -121,17 +119,17 @@ const getSettingsRows = (session: LiveGameSession): { label: string; value: Reac
     rows.push({ label: '돌 개수', value: `${settings.alkkagiStoneCount}개` });
     rows.push({ label: '배치 방식', value: String(settings.alkkagiPlacementType ?? '-') });
     rows.push({ label: '배치 전장', value: String(settings.alkkagiLayout ?? '-') });
-    rows.push({ label: '게이지 속도', value: speedLabel });
-    rows.push({ label: '슬로우 아이템', value: `${settings.alkkagiSlowItemCount}개` });
-    rows.push({ label: '조준선 아이템', value: `${settings.alkkagiAimingLineItemCount}개` });
+    rows.push({ label: '힘 속도', value: speedLabel });
+    rows.push({ label: '슬로우', value: `${settings.alkkagiSlowItemCount}개` });
+    rows.push({ label: '조준선', value: `${settings.alkkagiAimingLineItemCount}개` });
   }
   if (mode === GameMode.Curling) {
     const speedLabel = CURLING_GAUGE_SPEEDS.find((x) => x.value === settings.curlingGaugeSpeed)?.label || '보통';
     rows.push({ label: '스톤 개수', value: `${settings.curlingStoneCount}개` });
     rows.push({ label: '라운드', value: `${settings.curlingRounds}R` });
-    rows.push({ label: '게이지 속도', value: speedLabel });
-    rows.push({ label: '슬로우 아이템', value: `${settings.curlingSlowItemCount}개` });
-    rows.push({ label: '조준선 아이템', value: `${settings.curlingAimingLineItemCount}개` });
+    rows.push({ label: '힘 속도', value: speedLabel });
+    rows.push({ label: '슬로우', value: `${settings.curlingSlowItemCount}개` });
+    rows.push({ label: '조준선', value: `${settings.curlingAimingLineItemCount}개` });
   }
 
   return rows;

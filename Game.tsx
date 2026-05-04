@@ -63,6 +63,10 @@ import { getPairPetDefinition } from './shared/constants/petLobby.js';
 import { getEquippedPairPetInventoryRow } from './shared/utils/pairEquippedPet.js';
 import { resolvePairPetMetaFromInventoryRow } from './shared/utils/pairPetRoll.js';
 import {
+    isPairAiOpponentSyntheticDisplayParticipant,
+    resolvePairAiOpponentPetSyntheticDisplayLevel,
+} from './shared/utils/strategicAiDifficulty.js';
+import {
     isOnboardingTutorialActive,
     ONBOARDING_INGAME_SP_STEP_EVENT,
     ONBOARDING_INGAME_SP_INTRO1_DEMO_DONE_EVENT,
@@ -198,8 +202,11 @@ function pairSeatDisplayInfo(session: LiveGameSession, seat: PairSeat): { name: 
 
     const fallbackIndex = seat.participantId === 'pair-opponent-pet' ? 1 : 0;
     const fallbackDef = getPairPetDefinition(`pair-pet-${fallbackIndex + 1}`);
+    const syntheticLv = isPairAiOpponentSyntheticDisplayParticipant(seat.participantId)
+        ? resolvePairAiOpponentPetSyntheticDisplayLevel(session.id, session.settings, seat.participantId)
+        : 1;
     return {
-        name: `Lv.1 ${fallbackDef?.displayName ?? seat.name}`,
+        name: `Lv.${syntheticLv} ${fallbackDef?.displayName ?? seat.name}`,
         avatarUrl: fallbackDef?.image ?? '/images/pets/pet1.webp',
         borderUrl: null,
     };
@@ -1376,9 +1383,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (isSpectator) return false;
         const pairCurrentSeat = getCurrentPairTurnSeat(session.settings);
         if (gameStatus === 'alkkagi_simultaneous_placement' && session.settings.alkkagiPlacementType === '일괄 배치') {
-            const myStonesOnBoard = (session.alkkagiStones || []).filter(s => s.player === myPlayerEnum).length;
-            const myStonesInPlacement = (currentUser.id === player1.id ? session.alkkagiStones_p1 : session.alkkagiStones_p2)?.length || 0;
-            return (myStonesOnBoard + myStonesInPlacement) < (session.settings.alkkagiStoneCount || 5);
+            const placedNewThisPhase = session.alkkagiStonesPlacedThisRound?.[currentUser.id] ?? 0;
+            return placedNewThisPhase < (session.settings.alkkagiStoneCount || 5);
         }
         switch (gameStatus) {
             case 'dice_turn_rolling': return session.turnOrderRolls?.[currentUser.id] === null;

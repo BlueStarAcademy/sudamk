@@ -839,6 +839,8 @@ export type GameSettings = {
     petKataStatsByParticipantId?: Record<string, import('../shared/constants/pairArena.js').PairPetCoreStatsSix>;
     /** 고정 KATA 레벨을 쓰는 AI 좌석(펫 페어 AI 대전 상대 등) */
     pairKataFixedLevelByParticipantId?: Record<string, number>;
+    /** 페어 AI 대전 등: 합성 상대 펫 좌석에 보일 레벨(단계별 구간에서 굴림, 인게임·요약 UI용) */
+    pairOpponentPetDisplayLevelByParticipantId?: Record<string, number>;
   };
   
   // Mode-specific settings
@@ -1288,6 +1290,7 @@ export type LiveGameSession = {
   activeAlkkagiItems?: { [playerId: string]: ('slow' | 'aimingLine')[] };
   alkkagiRound?: number;
   alkkagiRefillsUsed?: { [playerId: string]: number };
+  /** 알까기 배치 페이즈 전용: 이번 배치에서 새로 둔 돌 수(이전 라운드에서 남은 판 위 돌은 제외). */
   alkkagiStonesPlacedThisRound?: { [playerId: string]: number };
   alkkagiRoundSummary?: AlkkagiRoundSummary;
   /** 라운드별 기록 (경기 종료 후 결과 모달 표시용) */

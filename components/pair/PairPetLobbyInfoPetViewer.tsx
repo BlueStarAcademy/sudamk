@@ -23,6 +23,10 @@ export interface PairPetLobbyInfoPetViewerProps {
     equippedTemplateId: string | null;
     /** 수련 슬롯에 올라가 있는 펫은 대표로 지정할 수 없음 */
     petInTraining?: boolean;
+    /**
+     * 로비 정보 패널: `panelFit`(기본). 전역 펫 상세 모달 등: `modal` — {@link PairPetDetailCardBody} 타이포를 획득/상세 모달과 동일하게.
+     */
+    embedDetailVariant?: 'modal' | 'panelFit';
     onSetRepresentative: (templateId: string, inventoryItemId: string) => void;
     onClearRepresentative: () => void;
     onSoulConvert: (item: InventoryItem) => void;
@@ -35,6 +39,7 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
     isBusy,
     equippedTemplateId,
     petInTraining = false,
+    embedDetailVariant = 'panelFit',
     onSetRepresentative,
     onClearRepresentative,
     onSoulConvert,
@@ -89,6 +94,7 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                         currentUser={currentUser}
                         item={item}
                         showRepresentativeBadge={isRepresentative}
+                        detailVariant={embedDetailVariant}
                     />
                 </div>
             </div>
@@ -140,11 +146,13 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                 </Button>
                 <Button
                     type="button"
-                    disabled={isBusy || isRepresentative}
+                    disabled={isBusy || isRepresentative || petInTraining}
                     title={
-                        isRepresentative
-                            ? '대표펫으로 장착 중인 펫은 영혼변환할 수 없습니다. 대표펫 해제 후 이용하세요.'
-                            : undefined
+                        petInTraining
+                            ? '수련 중인 펫은 영혼변환할 수 없습니다. 수련을 마친 뒤 이용하세요.'
+                            : isRepresentative
+                              ? '대표펫으로 장착 중인 펫은 영혼변환할 수 없습니다. 대표펫 해제 후 이용하세요.'
+                              : undefined
                     }
                     onClick={() => void onSoulConvert(item)}
                     colorScheme="none"

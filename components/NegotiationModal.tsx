@@ -25,6 +25,14 @@ import { projectActionPointsCurrent } from '../services/effectService.js';
 import { getStrategicBoardSizesByMode } from '../constants/gameSettings.js';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
+import {
+  diceGoUnifiedSpecialDiceCounts,
+  getDiceGoUnifiedSpecialDiceCount,
+} from '../shared/utils/diceGoSettings.js';
+import {
+  getThiefUnifiedSpecialDiceCount,
+  thiefUnifiedSpecialDiceCounts,
+} from '../shared/utils/thiefGoSettings.js';
 
 interface NegotiationModalProps {
   negotiation: Negotiation;
@@ -612,47 +620,43 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                 
                 {showDiceGoSettings && (
                    <>
-                    <SettingRow label="라운드 설정">
+                    <SettingRow label="라운드">
                         <Select value={settings.diceGoRounds ?? 3} onChange={v => handleSettingChange('diceGoRounds', parseInt(v, 10) as 1 | 2 | 3)} disabled={isReadOnly}>
                             {[1, 2, 3].map(r => <option key={r} value={r}>{r}라운드</option>)}
                         </Select>
                     </SettingRow>
-                    <SettingRow label="홀수 주사위">
-                       <Select value={settings.oddDiceCount ?? 1} onChange={v => handleSettingChange('oddDiceCount', parseInt(v, 10))} disabled={isReadOnly}>
-                           {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
-                       </Select>
-                   </SettingRow>
-                   <SettingRow label="짝수 주사위">
-                       <Select value={settings.evenDiceCount ?? 1} onChange={v => handleSettingChange('evenDiceCount', parseInt(v, 10))} disabled={isReadOnly}>
-                           {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
-                       </Select>
-                   </SettingRow>
-                   <SettingRow label="낮은 수 주사위 (1~3)">
-                       <Select value={settings.lowDiceCount ?? 1} onChange={v => handleSettingChange('lowDiceCount', parseInt(v, 10))} disabled={isReadOnly}>
-                           {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
-                       </Select>
-                   </SettingRow>
-                   <SettingRow label="높은 수 주사위 (4~6)">
-                       <Select value={settings.highDiceCount ?? 1} onChange={v => handleSettingChange('highDiceCount', parseInt(v, 10))} disabled={isReadOnly}>
-                           {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                    <SettingRow label="특수주사위">
+                       <Select
+                           value={getDiceGoUnifiedSpecialDiceCount(settings)}
+                           onChange={v =>
+                               setSettings((prev) => ({
+                                   ...prev,
+                                   ...diceGoUnifiedSpecialDiceCounts(parseInt(v, 10)),
+                               }))
+                           }
+                           disabled={isReadOnly}
+                       >
+                           {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개 (유형당)</option>)}
                        </Select>
                    </SettingRow>
                    </>
                 )}
 
                 {showThiefGoItemSettings && (
-                   <>
-                    <SettingRow label="높은 수 주사위 (3~6)">
-                       <Select value={settings.thiefHigh36ItemCount ?? 1} onChange={v => handleSettingChange('thiefHigh36ItemCount', parseInt(v, 10))} disabled={isReadOnly}>
-                           {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                   <SettingRow label="특수주사위">
+                       <Select
+                           value={getThiefUnifiedSpecialDiceCount(settings)}
+                           onChange={v =>
+                               setSettings((prev) => ({
+                                   ...prev,
+                                   ...thiefUnifiedSpecialDiceCounts(parseInt(v, 10)),
+                               }))
+                           }
+                           disabled={isReadOnly}
+                       >
+                           {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개 (유형당)</option>)}
                        </Select>
                    </SettingRow>
-                   <SettingRow label="1방지 주사위 (2~5)">
-                       <Select value={settings.thiefNoOneItemCount ?? 1} onChange={v => handleSettingChange('thiefNoOneItemCount', parseInt(v, 10))} disabled={isReadOnly}>
-                           {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
-                       </Select>
-                   </SettingRow>
-                   </>
                 )}
 
                 {showCaptureTarget && (
@@ -730,17 +734,17 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                                 {ALKKAGI_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </Select>
                         </SettingRow>
-                        <SettingRow label="게이지 속도">
+                        <SettingRow label="힘 속도">
                             <Select value={settings.alkkagiGaugeSpeed} onChange={v => handleSettingChange('alkkagiGaugeSpeed', parseInt(v))} disabled={isReadOnly}>
                                 {ALKKAGI_GAUGE_SPEEDS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                             </Select>
                         </SettingRow>
-                         <SettingRow label="슬로우 아이템">
+                         <SettingRow label="슬로우">
                             <Select value={settings.alkkagiSlowItemCount} onChange={v => handleSettingChange('alkkagiSlowItemCount', parseInt(v))} disabled={isReadOnly}>
                                 {ALKKAGI_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </Select>
                         </SettingRow>
-                         <SettingRow label="조준선 아이템">
+                         <SettingRow label="조준선">
                             <Select value={settings.alkkagiAimingLineItemCount} onChange={v => handleSettingChange('alkkagiAimingLineItemCount', parseInt(v))} disabled={isReadOnly}>
                                 {ALKKAGI_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </Select>
@@ -760,17 +764,17 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                                 {CURLING_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </Select>
                         </SettingRow>
-                        <SettingRow label="게이지 속도">
+                        <SettingRow label="힘 속도">
                             <Select value={settings.curlingGaugeSpeed} onChange={v => handleSettingChange('curlingGaugeSpeed', parseInt(v))} disabled={isReadOnly}>
                                 {CURLING_GAUGE_SPEEDS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                             </Select>
                         </SettingRow>
-                        <SettingRow label="슬로우 아이템">
+                        <SettingRow label="슬로우">
                             <Select value={settings.curlingSlowItemCount} onChange={v => handleSettingChange('curlingSlowItemCount', parseInt(v))} disabled={isReadOnly}>
                                 {CURLING_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </Select>
                         </SettingRow>
-                         <SettingRow label="조준선 아이템">
+                         <SettingRow label="조준선">
                             <Select value={settings.curlingAimingLineItemCount} onChange={v => handleSettingChange('curlingAimingLineItemCount', parseInt(v))} disabled={isReadOnly}>
                                 {CURLING_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </Select>

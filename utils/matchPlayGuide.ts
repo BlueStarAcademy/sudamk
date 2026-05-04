@@ -237,6 +237,7 @@ function diceGuide(session: LiveGameSession): MatchPlayGuide {
     const even = session.settings.evenDiceCount ?? 0;
     const low = session.settings.lowDiceCount ?? 0;
     const high = session.settings.highDiceCount ?? 0;
+    const diceUnified = odd === even && even === low && low === high;
     return {
         title: '주사위 바둑',
         sections: [
@@ -252,7 +253,9 @@ function diceGuide(session: LiveGameSession): MatchPlayGuide {
                 items: pickStrings([
                     '주사위 결과만큼 흑으로 두되, 백의 활로(유효한 빈 점)에만 둘 수 있습니다.',
                     odd || even || low || high
-                        ? `특수 주사위: 홀 ${odd}·짝 ${even}·낮은수(1~3) ${low}·높은수(4~6) ${high}개. 상황에 맞게 쓰세요.`
+                        ? diceUnified && odd > 0
+                            ? `특수주사위(홀·짝·낮은수 1~3·높은수 4~6) 유형당 ${odd}개. 상황에 맞게 쓰세요.`
+                            : `특수주사위: 홀 ${odd}개·짝 ${even}개·낮은수(1~3) ${low}개·높은수(4~6) ${high}개. 상황에 맞게 쓰세요.`
                         : '아이템이 없으면 순수 확률과 판 읽기로 승부합니다.',
                 ]),
             },
@@ -348,6 +351,15 @@ function ttamokGuide(session: LiveGameSession): MatchPlayGuide {
 }
 
 function thiefGuide(session: LiveGameSession): MatchPlayGuide {
+    const h36 = session.settings.thiefHigh36ItemCount ?? 0;
+    const no1 = session.settings.thiefNoOneItemCount ?? 0;
+    const thiefDiceUnified = h36 === no1;
+    const thiefDiceHint =
+        h36 + no1 > 0
+            ? thiefDiceUnified && h36 > 0
+                ? `특수주사위(높은 수 3~6 · 1방지 2~5) 유형당 ${h36}개씩 굴림 단계에서 사용할 수 있습니다.`
+                : `특수주사위: 높은 수(3~6) ${h36}개 · 1방지(2~5) ${no1}개. 굴림 단계에서 사용할 수 있습니다.`
+            : '특수주사위 없이 굴림만으로 진행할 수 있습니다.';
     return {
         title: '도둑과 경찰',
         sections: [
@@ -362,7 +374,7 @@ function thiefGuide(session: LiveGameSession): MatchPlayGuide {
                 items: [
                     '도둑: 살아남은 내 돌을 최대한 많이 남기고, 이어 붙이는 확장을 노립니다.',
                     '경찰: 도둑 돌의 활로를 좁혀 잡아먹는 순서를 설계합니다. 경찰은 턴당 주사위 2개를 사용합니다.',
-                    '놀이 기능: 높은 수(3~6) 주사위·1방지(2~5) 주사위 아이템은 대국 설정 개수만큼 굴림 단계에서 사용할 수 있습니다.',
+                    thiefDiceHint,
                 ],
             },
             {
@@ -409,7 +421,7 @@ function alkkagiGuide(session: LiveGameSession): MatchPlayGuide {
                 subtitle: '조심할 점 (실패하기 쉬한 것)',
                 items: [
                     '너무 세게 치면 내 돌도 위험해질 수 있습니다.',
-                    '슬로우·조준선 아이템을 아끼다 쓸 타이밍을 놓치기 쉽습니다.',
+                    '슬로우·조준선을 아끼다 쓸 타이밍을 놓치기 쉽습니다.',
                 ],
             },
             {

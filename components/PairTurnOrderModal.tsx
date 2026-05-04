@@ -8,6 +8,10 @@ import { AVATAR_POOL, BORDER_POOL } from '../constants.js';
 import { getPairPetDefinition, getPairPetDisplayName } from '../shared/constants/petLobby.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { resolvePairPetMetaFromInventoryRow } from '../shared/utils/pairPetRoll.js';
+import {
+    isPairAiOpponentSyntheticDisplayParticipant,
+    resolvePairAiOpponentPetSyntheticDisplayLevel,
+} from '../shared/utils/strategicAiDifficulty.js';
 
 function pairTurnOrderPetPortrait(session: LiveGameSession, participantId: string): string | null {
     if (!participantId.startsWith('pet-ai-')) return null;
@@ -19,6 +23,11 @@ function pairTurnOrderPetPortrait(session: LiveGameSession, participantId: strin
 }
 
 function pairTurnOrderPetDisplayName(session: LiveGameSession, participantId: string, fallbackName: string): string {
+    if (isPairAiOpponentSyntheticDisplayParticipant(participantId)) {
+        const level = resolvePairAiOpponentPetSyntheticDisplayLevel(session.id, session.settings, participantId);
+        const def = getPairPetDefinition(participantId === 'pair-opponent-pet' ? 'pair-pet-2' : 'pair-pet-1');
+        return `Lv.${level} ${def?.displayName ?? fallbackName}`;
+    }
     if (!participantId.startsWith('pet-ai-')) return fallbackName;
     const uid = participantId.slice('pet-ai-'.length);
     const u = session.player1.id === uid ? session.player1 : session.player2.id === uid ? session.player2 : null;

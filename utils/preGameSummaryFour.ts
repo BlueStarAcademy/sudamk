@@ -5,6 +5,8 @@ import {
   resolveSinglePlayerSurvivalModeForSession,
   resolveSinglePlayerSurvivalTurnCount,
 } from '../shared/utils/singlePlayerStrategicRulePreset.js';
+import { formatDiceGoSpecialDiceSummary } from '../shared/utils/diceGoSettings.js';
+import { formatThiefSpecialDiceSummary } from '../shared/utils/thiefGoSettings.js';
 import { countTowerLobbyItems, getTowerSessionFloor } from './towerPreGameDisplay.js';
 
 export type PreGameSpecialHighlight = {
@@ -170,7 +172,12 @@ function itemLine(settings: GameSettings, mode: GameMode, mix: GameMode[]): stri
     const e = settings.evenDiceCount ?? 0;
     const l = settings.lowDiceCount ?? 0;
     const h = settings.highDiceCount ?? 0;
-    if (o + e + l + h > 0) chunks.push(`주사위 아이템 홀${o}·짝${e}·저${l}·고${h}`);
+    if (o + e + l + h > 0) chunks.push(`특수주사위 ${formatDiceGoSpecialDiceSummary(settings)}`);
+  }
+  if (effectiveModes.includes(GameMode.Thief)) {
+    const th = settings.thiefHigh36ItemCount ?? 0;
+    const tn = settings.thiefNoOneItemCount ?? 0;
+    if (th + tn > 0) chunks.push(`특수주사위 ${formatThiefSpecialDiceSummary(settings)}`);
   }
   if (effectiveModes.includes(GameMode.Alkkagi)) {
     const slow = settings.alkkagiSlowItemCount ?? 0;

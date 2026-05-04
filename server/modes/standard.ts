@@ -622,10 +622,15 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
 };
 
 export const handleStrategicGameAction = async (volatileState: types.VolatileState, game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): Promise<types.HandleActionResult | undefined> => {
-    if ((action as any).type === 'CONFIRM_COLOR_START' && isPairClassicGame(game.settings, game.mode) && game.settings.pairGame?.turnOrder?.length) {
-        if (game.gameStatus !== 'pair_order_reveal') {
-            return {};
-        }
+    // 페어 착수 순서 확인(pair_order_reveal)만 여기서 처리한다.
+    // nigiri_reveal / color_start_confirmation 등은 handleSharedAction으로 넘겨야 한다.
+    // (이전에는 pair_order_reveal가 아닐 때 빈 {}로 조기 return 해 니기리·색 확인이 서버에 반영되지 않음)
+    if (
+        (action as any).type === 'CONFIRM_COLOR_START' &&
+        isPairClassicGame(game.settings, game.mode) &&
+        game.settings.pairGame?.turnOrder?.length &&
+        game.gameStatus === 'pair_order_reveal'
+    ) {
         const humanIds = game.settings.pairGame.turnOrder
             .filter((s) => s.kind === 'user')
             .map((s) => s.participantId);

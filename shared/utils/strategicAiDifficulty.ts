@@ -178,3 +178,62 @@ export function isWaitingRoomAiGame(game: {
   if (c === 'tower' || c === 'singleplayer' || c === 'guildwar' || c === 'adventure') return false;
   return true;
 }
+
+/**
+ * 페어 AI 대전 상대 펫 UI 표시 레벨 구간: 1단계=1~5, 2단계=6~10, …, 10단계=46~50.
+ */
+export function pairAiOpponentPetDisplayLevelBoundsForProfileStep(profileStep: number): { min: number; max: number } {
+  const s = Math.max(1, Math.min(10, Math.round(profileStep)));
+  return { min: (s - 1) * 5 + 1, max: s * 5 };
+}
+
+/** 서버: 단계 구간 안에서 표시용 펫 레벨을 한 번 무작위로 고른다. */
+export function rollPairAiOpponentPetDisplayLevelForProfileStep(profileStep: number): number {
+  const { min, max } = pairAiOpponentPetDisplayLevelBoundsForProfileStep(profileStep);
+  return min + Math.floor(Math.random() * (max - min + 1));
+}
+
+/** 구버전 세션 등 `pairOpponentPetDisplayLevelByParticipantId`가 없을 때: gameId+좌석 기준 결정론적 값 */
+export function deterministicPairAiOpponentPetDisplayLevelFromSeed(seed: string, profileStep: number): number {
+  const { min, max } = pairAiOpponentPetDisplayLevelBoundsForProfileStep(profileStep);
+  const span = max - min + 1;
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return min + (Math.abs(h) % span);
+}
+
+type PairAiOpponentPetDisplaySettings = {
+  pairGame?: { pairOpponentPetDisplayLevelByParticipantId?: Record<string, number> };
+  kataServerLevel?: number;
+  goAiBotLevel?: number;
+  aiDifficulty?: number;
+};
+
+/** 페어 AI 대전 합성 상대 좌석 — 표시용 레벨(실제 카타 레벨과 별개) */
+const PAIR_AI_OPPONENT_DISPLAY_LEVEL_IDS = new Set(['pair-opponent-ai', 'pair-opponent-pet']);
+
+export function isPairAiOpponentSyntheticDisplayParticipant(participantId: string): boolean {
+  return PAIR_AI_OPPONENT_DISPLAY_LEVEL_IDS.has(participantId);
+}
+
+/**
+ * `pair-opponent-ai` / `pair-opponent-pet` 합성 상대의 UI 표시 레벨.
+ * 서버가 `pairOpponentPetDisplayLevelByParticipantId`에 넣은 값이 있으면 우선, 없으면 gameId+좌석으로 복원.
+ */
+export function resolvePairAiOpponentPetSyntheticDisplayLevel(
+  gameId: string,
+  settings: PairAiOpponentPetDisplaySettings | undefined,
+  participantId: string,
+  strategicLobbyKataByStep?: Record<string, number>,
+): number {
+  if (!PAIR_AI_OPPONENT_DISPLAY_LEVEL_IDS.has(participantId)) return 1;
+  const stored = settings?.pairGame?.pairOpponentPetDisplayLevelByParticipantId?.[participantId];
+  if (typeof stored === 'number' && Number.isFinite(stored)) {
+    return Math.max(1, Math.min(50, Math.floor(stored)));
+  }
+  const step = resolveAiLobbyProfileStepFromSettings(settings ?? {}, strategicLobbyKataByStep);
+  return deterministicPairAiOpponentPetDisplayLevelFromSeed(`${gameId}:${participantId}`, step);
+}

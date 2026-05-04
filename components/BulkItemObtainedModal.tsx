@@ -6,7 +6,7 @@ import DraggableWindow, {
 import { InventoryItem } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import { audioService } from '../services/audioService.js';
-import { GRADE_LEVEL_REQUIREMENTS, MATERIAL_ITEMS, isActionPointConsumable } from '../constants/items';
+import { MATERIAL_ITEMS, isActionPointConsumable } from '../constants/items';
 import { RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS, RESULT_MODAL_BOX_GOLD_CLASS } from './game/ResultModalRewardSlot.js';
 import { ITEM_OBTAIN_COUNT_BADGE_CLASS } from './game/ItemObtainModalShared.js';
 import { isPairPetMaterial } from '../shared/constants/petLobby.js';
@@ -28,26 +28,17 @@ const gradeStyles: Record<ItemGrade, { bg: string, text: string, shadow: string,
     transcendent: { bg: 'bg-cyan-900', text: 'text-cyan-200', shadow: 'shadow-cyan-500/50', name: '초월', background: '/images/equipments/transcendentbgi.webp' },
 };
 
-const gradeBorderStyles: Partial<Record<ItemGrade, string>> = {
-    rare: 'border-pulse-rare',
-    epic: 'border-pulse-epic',
-    legendary: 'border-pulse-legendary',
-    mythic: 'border-pulse-mythic',
+/** 일괄 그리드: 펄스·글로우 애니메이션 없이 인접 타일과 겹치지 않도록 고정 테두리만 사용 */
+const BULK_TILE_STATIC_BORDER: Partial<Record<ItemGrade, string>> = {
+    [ItemGrade.Normal]: 'border border-slate-600/50',
+    [ItemGrade.Uncommon]: 'border-2 border-emerald-500/45',
+    [ItemGrade.Rare]: 'border-2 border-sky-500/55',
+    [ItemGrade.Epic]: 'border-2 border-violet-500/55',
+    [ItemGrade.Legendary]: 'border-2 border-rose-500/55',
+    [ItemGrade.Mythic]: 'border-2 border-amber-500/55',
 };
 
 const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, onClose, isTopmost, tournamentScoreChange }) => {
-    const getGlowClass = (grade: ItemGrade | undefined) => {
-        if (!grade) return '';
-        switch (grade) {
-            case 'rare': return 'item-glow-rare';
-            case 'epic': return 'item-glow-epic';
-            case 'legendary': return 'item-glow-legendary';
-            case 'mythic': return 'item-glow-mythic';
-            case 'transcendent': return 'item-glow-transcendent';
-            default: return '';
-        }
-    };
-    
     useEffect(() => {
         if (items && items.length > 0) {
             void audioService.initialize();
@@ -113,20 +104,22 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                     )}
                     {hasItems ? (
                         <div
-                            className="grid max-h-[min(52dvh,22rem)] auto-rows-fr grid-cols-2 gap-2 overflow-y-auto overflow-x-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#151b29]/95 via-[#0f141f] to-[#080b12] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] [scrollbar-width:thin] sm:max-h-[min(58vh,26rem)] sm:grid-cols-3 sm:gap-2.5 sm:p-3 md:grid-cols-4"
+                            className="grid max-h-[min(52dvh,24rem)] grid-cols-3 gap-2.5 overflow-y-auto overflow-x-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#151b29]/95 via-[#0f141f] to-[#080b12] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] [scrollbar-width:thin] min-[400px]:grid-cols-4 sm:max-h-[min(58vh,28rem)] sm:gap-3 sm:p-3 md:grid-cols-5"
                             style={{ scrollbarColor: 'rgba(251,191,36,0.35) transparent' }}
                         >
                             {items.map((item, index) => {
                                 const itemGrade = item.grade || 'normal';
                                 const styles = gradeStyles[itemGrade] || gradeStyles.normal;
-                                const borderClass =
-                                    itemGrade === ItemGrade.Transcendent ? undefined : itemGrade ? gradeBorderStyles[itemGrade] : undefined;
+                                const staticBorderClass =
+                                    itemGrade === ItemGrade.Transcendent
+                                        ? ''
+                                        : BULK_TILE_STATIC_BORDER[itemGrade] ?? BULK_TILE_STATIC_BORDER[ItemGrade.Normal];
                                 const isCurrency = item.image === '/images/icon/Gold.png' || item.image === '/images/icon/Zem.png';
                                 const isGoldIcon = item.image === '/images/icon/Gold.png';
-                                const isHighGrade = ['rare', 'epic', 'legendary', 'mythic', 'transcendent'].includes(itemGrade);
-                                const glowClass = getGlowClass(itemGrade);
                                 const currencyQty =
                                     typeof item.quantity === 'number' && Number.isFinite(item.quantity) ? item.quantity : 0;
+                                const tileWrapClass =
+                                    'group relative aspect-square w-full min-w-0 max-w-[4.85rem] justify-self-center overflow-hidden rounded-2xl min-[400px]:max-w-[5.15rem] sm:max-w-[5.35rem]';
 
                                 let imagePath = item.image;
                                 if (!imagePath && item.name && MATERIAL_ITEMS[item.name]) {
@@ -135,10 +128,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
 
                                 if (isCurrency && isGoldIcon) {
                                     return (
-                                        <div
-                                            key={index}
-                                            className="group relative aspect-square w-full min-w-0 max-w-[6.75rem] justify-self-center sm:max-w-[7.25rem]"
-                                        >
+                                        <div key={item.id ?? `${item.name}-${index}`} className={tileWrapClass}>
                                             <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-b from-amber-400/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                                             <div
                                                 className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl ring-1 ring-amber-400/30 ${RESULT_MODAL_BOX_GOLD_CLASS}`}
@@ -146,7 +136,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                                 <img
                                                     src="/images/icon/Gold.png"
                                                     alt=""
-                                                    className="relative z-[1] h-[58%] w-[58%] object-contain p-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)] sm:h-[56%] sm:w-[56%]"
+                                                    className="relative z-[1] h-[48%] w-[48%] object-contain p-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)] sm:h-[46%] sm:w-[46%]"
                                                 />
                                                 <span className={ITEM_OBTAIN_COUNT_BADGE_CLASS}>+{currencyQty.toLocaleString()}</span>
                                             </div>
@@ -156,10 +146,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
 
                                 if (isCurrency && !isGoldIcon) {
                                     return (
-                                        <div
-                                            key={index}
-                                            className="group relative aspect-square w-full min-w-0 max-w-[6.75rem] justify-self-center sm:max-w-[7.25rem]"
-                                        >
+                                        <div key={item.id ?? `${item.name}-${index}`} className={tileWrapClass}>
                                             <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-b from-sky-400/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                                             <div
                                                 className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl ring-1 ring-sky-400/25 ${RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS}`}
@@ -167,7 +154,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                                 <img
                                                     src="/images/icon/Zem.png"
                                                     alt=""
-                                                    className="relative z-[1] h-[58%] w-[58%] object-contain p-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)] sm:h-[56%] sm:w-[56%]"
+                                                    className="relative z-[1] h-[48%] w-[48%] object-contain p-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)] sm:h-[46%] sm:w-[46%]"
                                                 />
                                                 <span className={ITEM_OBTAIN_COUNT_BADGE_CLASS}>+{currencyQty.toLocaleString()}</span>
                                             </div>
@@ -176,21 +163,22 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                 }
 
                                 return (
-                                    <div
-                                        key={index}
-                                        className="group relative aspect-square w-full min-w-0 max-w-[6.75rem] justify-self-center sm:max-w-[7.25rem]"
-                                    >
+                                    <div key={item.id ?? `${item.name}-${index}`} className={tileWrapClass}>
                                         <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-b from-amber-400/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                                         <div
-                                            className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl ring-1 ring-slate-500/35 ${borderClass || 'border border-slate-600/45'} ${itemGrade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''} ${isHighGrade ? 'item-reveal-animation' : ''} ${glowClass}`}
+                                            className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl ${
+                                                itemGrade === ItemGrade.Transcendent
+                                                    ? 'transcendent-grade-slot'
+                                                    : `ring-1 ring-slate-500/30 ${staticBorderClass}`
+                                            }`}
                                         >
                                             <img src={styles.background} alt="" className="absolute inset-0 h-full w-full object-cover" />
                                             {isActionPointConsumable(item.name) ? (
                                                 <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-1">
-                                                    <span className="text-[clamp(1.1rem,5.5vw,1.45rem)] leading-none" aria-hidden>
+                                                    <span className="text-[clamp(0.85rem,4.2vw,1.1rem)] leading-none" aria-hidden>
                                                         ⚡
                                                     </span>
-                                                    <span className="mt-0.5 max-w-[95%] text-center text-[9px] font-extrabold leading-tight text-amber-100 drop-shadow sm:text-[10px]">
+                                                    <span className="mt-0.5 max-w-[95%] text-center text-[8px] font-extrabold leading-tight text-amber-100 drop-shadow sm:text-[9px]">
                                                         +{item.name.replace(/.*\(\+(\d+)\)/, '$1')}
                                                     </span>
                                                 </div>
@@ -198,10 +186,8 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                                 <img
                                                     src={imagePath}
                                                     alt=""
-                                                    className="absolute object-contain p-[10%]"
+                                                    className="absolute z-[1] max-h-[62%] max-w-[62%] object-contain p-[6%] drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]"
                                                     style={{
-                                                        width: '86%',
-                                                        height: '86%',
                                                         left: '50%',
                                                         top: '50%',
                                                         transform: 'translate(-50%, -50%)',

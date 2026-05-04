@@ -1036,6 +1036,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     if (
                         game.isSinglePlayer ||
                         isStrategicAiGame ||
+                        game.gameCategory === types.GameCategory.Adventure ||
                         (game as any).gameCategory === 'guildwar' ||
                         (game as any).gameCategory === 'tower'
                     ) {

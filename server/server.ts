@@ -4608,13 +4608,17 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
     app.post('/api/action', async (req, res) => {
         const startTime = Date.now();
-        // 요청 타임아웃 설정 (25초)
+        // 길드 동기화·랭킹 등 장시간 액션과 로그인 파이프라인 정렬 (25초는 GET_GUILD_INFO 등에서 504 빈발)
+        const API_ACTION_TIMEOUT_MS = 55_000;
         const timeout = setTimeout(() => {
             if (!res.headersSent) {
-                console.error(`[/api/action] Request timeout after 25s:`, { userId: req.body?.userId, type: req.body?.type });
+                console.error(`[/api/action] Request timeout after ${API_ACTION_TIMEOUT_MS / 1000}s:`, {
+                    userId: req.body?.userId,
+                    type: req.body?.type,
+                });
                 res.status(504).json({ error: 'Request timeout' });
             }
-        }, 25000);
+        }, API_ACTION_TIMEOUT_MS);
 
         /** 타임아웃으로 이미 응답한 뒤 이중 json() 호출 방지 */
         const respondAction = (status: number, body: object) => {

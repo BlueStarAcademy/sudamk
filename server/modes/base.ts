@@ -146,6 +146,75 @@ const wouldBeImmediatelyCaptured = (board: types.BoardState, x: number, y: numbe
     return false;
 };
 
+/** 판 가장자리(1·N선)에서 떨어진 격자 수 — 클수록 중앙에 가깝다. */
+const edgeInset = (x: number, y: number, boardSize: number): number =>
+    Math.min(x, y, boardSize - 1 - x, boardSize - 1 - y);
+
+const distSqToBoardCenter = (x: number, y: number, boardSize: number): number => {
+    const cx = (boardSize - 1) / 2;
+    const cy = (boardSize - 1) / 2;
+    const dx = x - cx;
+    const dy = y - cy;
+    return dx * dx + dy * dy;
+};
+
+type BaseRandCell = { x: number; y: number; d: number; inset: number };
+
+/** interiorOnly: 1~(N-2) 선 안만(가장자리 1·N선 제외). 보드가 너무 작으면 interior 없음. */
+const listBaseRandomCandidates = (
+    boardSize: number,
+    occupied: Set<string>,
+    tempBoard: types.BoardState,
+    playerColor: types.Player,
+    interiorOnly: boolean,
+    requireNonCapture: boolean
+): BaseRandCell[] => {
+    const lo = interiorOnly && boardSize > 2 ? 1 : 0;
+    const hi = interiorOnly && boardSize > 2 ? boardSize - 2 : boardSize - 1;
+    const out: BaseRandCell[] = [];
+    for (let y = lo; y <= hi; y++) {
+        for (let x = lo; x <= hi; x++) {
+            const k = `${x},${y}`;
+            if (occupied.has(k)) continue;
+            if (requireNonCapture && wouldBeImmediatelyCaptured(tempBoard, x, y, playerColor)) continue;
+            out.push({
+                x,
+                y,
+                d: distSqToBoardCenter(x, y, boardSize),
+                inset: edgeInset(x, y, boardSize),
+            });
+        }
+    }
+    return out;
+};
+
+/** 보드 중심에 가깝고, 동률이면 가장자리에서 더 안쪽(inset 큼)을 선호한 뒤 무작위 1칸. */
+const pickBaseStoneRandomCell = (
+    boardSize: number,
+    occupied: Set<string>,
+    tempBoard: types.BoardState,
+    playerColor: types.Player
+): { x: number; y: number } | null => {
+    const tiers: Array<[boolean, boolean]> = [
+        [true, true],
+        [true, false],
+        [false, true],
+        [false, false],
+    ];
+    for (const [interiorOnly, requireNonCapture] of tiers) {
+        const pool = listBaseRandomCandidates(boardSize, occupied, tempBoard, playerColor, interiorOnly, requireNonCapture);
+        if (pool.length === 0) continue;
+        pool.sort((a, b) => (a.d !== b.d ? a.d - b.d : b.inset - a.inset));
+        const bestD = pool[0]!.d;
+        const afterD = pool.filter((c) => c.d === bestD);
+        const bestInset = afterD[0]!.inset;
+        const tier = afterD.filter((c) => c.inset === bestInset);
+        const pick = tier[Math.floor(Math.random() * tier.length)]!;
+        return { x: pick.x, y: pick.y };
+    }
+    return null;
+};
+
 const placeRemainingStonesRandomly = (game: types.LiveGameSession, playerKey: 'baseStones_p1' | 'baseStones_p2') => {
     const target = game.settings.baseStones ?? 4;
     
@@ -173,45 +242,13 @@ const placeRemainingStonesRandomly = (game: types.LiveGameSession, playerKey: 'b
     (game.baseStones_p2 ?? []).forEach(p => tempBoard[p.y][p.x] = types.Player.White);
 
     for (let i = 0; i < stonesToPlace; i++) {
-        let x = 0;
-        let y = 0;
-        let key = '';
-        let picked = false;
-        const maxAttempts = boardSize * boardSize * 10;
-
-        for (let attempts = 0; attempts < maxAttempts && !picked; attempts++) {
-            const rx = Math.floor(Math.random() * boardSize);
-            const ry = Math.floor(Math.random() * boardSize);
-            const k = `${rx},${ry}`;
-            if (!occupied.has(k) && !wouldBeImmediatelyCaptured(tempBoard, rx, ry, playerColor)) {
-                x = rx;
-                y = ry;
-                key = k;
-                picked = true;
-            }
-        }
-
+        const picked = pickBaseStoneRandomCell(boardSize, occupied, tempBoard, playerColor);
         if (!picked) {
-            // 즉시 따임 검사 때문에 무작위가 계속 실패할 수 있음 — 점유만 피해 남은 칸을 채운다.
-            let foundAny = false;
-            outer: for (let ty = 0; ty < boardSize; ty++) {
-                for (let tx = 0; tx < boardSize; tx++) {
-                    const k = `${tx},${ty}`;
-                    if (!occupied.has(k)) {
-                        x = tx;
-                        y = ty;
-                        key = k;
-                        foundAny = true;
-                        break outer;
-                    }
-                }
-            }
-            if (!foundAny) {
-                console.warn(`[BaseGo] No empty cells left for base stone placement (playerKey=${playerKey}).`);
-                return;
-            }
+            console.warn(`[BaseGo] No empty cells left for base stone placement (playerKey=${playerKey}).`);
+            return;
         }
-
+        const { x, y } = picked;
+        const key = `${x},${y}`;
         tempBoard[y][x] = playerColor;
         game[playerKey]!.push({ x, y });
         occupied.add(key);

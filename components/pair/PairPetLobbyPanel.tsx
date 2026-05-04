@@ -1540,7 +1540,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                     </p>
                                                 ) : (
                                                     <p className="text-center text-[0.65rem] font-semibold leading-tight text-amber-200/95">
-                                                        승리 {reqW}회
+                                                        페어 {reqW}승
                                                     </p>
                                                 )}
                                                 {minLv > 1 ? (

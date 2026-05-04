@@ -86,7 +86,10 @@ import {
 } from '../../shared/utils/pairPetRoll.js';
 import { getEquippedPairPetInventoryRow, reconcileEquippedPairPetInventoryItem } from '../../shared/utils/pairEquippedPet.js';
 import { getXpRequirementForLevel } from '../../shared/utils/strategyLevelXp.js';
-import { resolveAiLobbyProfileStepFromSettings } from '../../shared/utils/strategicAiDifficulty.js';
+import {
+    resolveAiLobbyProfileStepFromSettings,
+    rollPairAiOpponentPetDisplayLevelForProfileStep,
+} from '../../shared/utils/strategicAiDifficulty.js';
 import { strategicKataLevelFromSnapshot } from '../../shared/utils/kataServerRuntimeResolvers.js';
 import { getKataServerRuntimeSnapshot } from '../kataServerRuntimeStore.js';
 import { isSameDayKST } from '../../shared/utils/timeUtils.js';
@@ -796,7 +799,8 @@ const buildPairTeams = (room: types.PairRoomState): { teamA: types.PairTeamState
             },
         };
     }
-    if (room.roomKind === 'ai_duel') {
+    /** `ai_duel`·`arena_ai`(전략/놀이 경기장 AI 대결): 팀 A에 유저+내 펫 2슬롯 — `makePairPetAiDuelSettings`가 teamB만 채워도 턴오더가 4인을 만족한다. */
+    if (room.roomKind === 'ai_duel' || room.roomKind === 'arena_ai') {
         const ownerPetLabel =
             room.ownerLobbyPet != null
                 ? `Lv.${room.ownerLobbyPet.level} ${room.ownerLobbyPet.displayName}`
@@ -804,7 +808,7 @@ const buildPairTeams = (room: types.PairRoomState): { teamA: types.PairTeamState
         return {
             teamA: {
                 id: 'teamA',
-                name: '우리 펫 페어',
+                name: room.roomKind === 'arena_ai' ? '우리 팀' : '우리 펫 페어',
                 members: [
                     { id: room.ownerId, name: room.ownerName, kind: 'user', slot: 'owner', ready: ownerReady },
                     { id: `pet-ai-${room.ownerId}`, name: ownerPetLabel, kind: 'pet', slot: 'ownerPet', ready: true },
@@ -1475,6 +1479,10 @@ const makePairPetAiDuelSettings = (room: types.PairRoomState): types.GameSetting
         settings.pairGame.pairKataFixedLevelByParticipantId = {
             'pair-opponent-ai': kataLevel,
         };
+        settings.pairGame.pairOpponentPetDisplayLevelByParticipantId = {
+            'pair-opponent-ai': rollPairAiOpponentPetDisplayLevelForProfileStep(step),
+            'pair-opponent-pet': rollPairAiOpponentPetDisplayLevelForProfileStep(step),
+        };
     }
     return settings;
 };
@@ -1511,6 +1519,10 @@ const makeDuoPairAiDuelSettings = (room: types.PairRoomState): types.GameSetting
         const kataLevel = strategicKataLevelFromSnapshot(snap, step);
         settings.pairGame.pairKataFixedLevelByParticipantId = {
             'pair-opponent-ai': kataLevel,
+        };
+        settings.pairGame.pairOpponentPetDisplayLevelByParticipantId = {
+            'pair-opponent-ai': rollPairAiOpponentPetDisplayLevelForProfileStep(step),
+            'pair-opponent-pet': rollPairAiOpponentPetDisplayLevelForProfileStep(step),
         };
     }
     return settings;
@@ -1581,6 +1593,13 @@ function configurePairClassicGameStart(
     if (pairGame.pairKataFixedLevelByParticipantId) {
         pairGame.pairKataFixedLevelByParticipantId = Object.fromEntries(
             Object.entries(pairGame.pairKataFixedLevelByParticipantId).filter(([participantId]) =>
+                turnOrder.some((seat) => seat.participantId === participantId),
+            ),
+        );
+    }
+    if (pairGame.pairOpponentPetDisplayLevelByParticipantId) {
+        pairGame.pairOpponentPetDisplayLevelByParticipantId = Object.fromEntries(
+            Object.entries(pairGame.pairOpponentPetDisplayLevelByParticipantId).filter(([participantId]) =>
                 turnOrder.some((seat) => seat.participantId === participantId),
             ),
         );
@@ -4481,8 +4500,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 user.diamonds = diamondBal - cost;
                 if (user.guildId && cost > 0) {
                     const guildsIf = (await db.getKV<Record<string, any>>('guilds')) || {};
-                    const { guildService: guildSvcIf } = await import('../guildService.js');
-                    await guildSvcIf.updateGuildMissionProgress(user.guildId, 'diamondsSpent', cost, guildsIf);
+                    const guildSvcMod = await import('../guildService.js');
+                    await guildSvcMod.updateGuildMissionProgress(user.guildId, 'diamondsSpent', cost, guildsIf);
                 }
             }
             user.inventory = mergedIf.updatedInventory;
@@ -4833,8 +4852,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 user.diamonds -= cost;
                 if (user.guildId) {
                     const guilds = await db.getKV<Record<string, any>>('guilds') || {};
-                    const { guildService } = await import('../guildService.js');
-                    await guildService.updateGuildMissionProgress(user.guildId, 'diamondsSpent', cost, guilds);
+                    const guildSvcMod = await import('../guildService.js');
+                    await guildSvcMod.updateGuildMissionProgress(user.guildId, 'diamondsSpent', cost, guilds);
                 }
             }
             const next = Math.min(PAIR_PET_LOBBY_INV_MAX_SLOTS, current + PAIR_PET_LOBBY_INV_EXPAND_STEP);

@@ -44,6 +44,10 @@ import {
 import { GoStoneIcon } from './game/arenaRoundEndShared.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { getPairPetDefinition, getPairPetDisplayName } from '../shared/constants/petLobby.js';
+import {
+    isPairAiOpponentSyntheticDisplayParticipant,
+    resolvePairAiOpponentPetSyntheticDisplayLevel,
+} from '../shared/utils/strategicAiDifficulty.js';
 import PairPetLevelUpCoreDelta from './pair/PairPetLevelUpCoreDelta.js';
 
 interface GameSummaryModalProps {
@@ -1208,7 +1212,7 @@ const MatchPlayersRoster: React.FC<{
                     };
                 }
             }
-            if (kind === 'pet') {
+            if (isPairAiOpponentSyntheticDisplayParticipant(participantId) || kind === 'pet') {
                 const fallbackIndex = participantId === 'pair-opponent-pet' ? 1 : 0;
                 return { src: getPairPetDefinition(`pair-pet-${fallbackIndex + 1}`)?.image ?? '/images/pets/pet1.webp' };
             }
@@ -1218,7 +1222,22 @@ const MatchPlayersRoster: React.FC<{
             order
                 .filter((seat) => seat.player === player)
                 .sort((a, b) => a.order - b.order)
-                .map((seat) => ({ ...seat, avatar: avatarForParticipant(seat.participantId, seat.kind) }));
+                .map((seat) => {
+                    const summarySeatName = isPairAiOpponentSyntheticDisplayParticipant(seat.participantId)
+                        ? (() => {
+                              const lv = resolvePairAiOpponentPetSyntheticDisplayLevel(
+                                  session.id,
+                                  session.settings,
+                                  seat.participantId,
+                              );
+                              const def = getPairPetDefinition(
+                                  seat.participantId === 'pair-opponent-pet' ? 'pair-pet-2' : 'pair-pet-1',
+                              );
+                              return `Lv.${lv} ${def?.displayName ?? seat.name}`;
+                          })()
+                        : seat.name;
+                    return { ...seat, summarySeatName, avatar: avatarForParticipant(seat.participantId, seat.kind) };
+                });
         return {
             black: toTeam(Player.Black),
             white: toTeam(Player.White),
@@ -1251,7 +1270,7 @@ const MatchPlayersRoster: React.FC<{
                             {seat.avatar.user ? (
                                 <Avatar
                                     userId={seat.participantId}
-                                    userName={seat.name}
+                                    userName={seat.summarySeatName}
                                     size={teamAvatarSize}
                                     avatarUrl={seat.avatar.src ?? undefined}
                                     borderUrl={

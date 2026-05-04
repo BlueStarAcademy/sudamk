@@ -25,6 +25,14 @@ import { profileStepFromKataServerLevel } from '../../shared/utils/strategicAiDi
 import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 import {
+    diceGoUnifiedSpecialDiceCounts,
+    getDiceGoUnifiedSpecialDiceCount,
+} from '../../shared/utils/diceGoSettings.js';
+import {
+    getThiefUnifiedSpecialDiceCount,
+    thiefUnifiedSpecialDiceCounts,
+} from '../../shared/utils/thiefGoSettings.js';
+import {
     clampAiLobbyStrategicItemCaps,
     AI_LOBBY_HIDDEN_ITEM_FIXED,
     AI_LOBBY_MISSILE_MAX,
@@ -182,12 +190,12 @@ const GameCard: React.FC<{
 
     return (
         <div
-            className={`bg-panel text-on-panel rounded-lg flex flex-col items-center text-center transition-all transform touch-manipulation ${
+            className={`box-border bg-panel text-on-panel rounded-lg flex flex-col items-center text-center transition-all transform touch-manipulation border-2 ${
                 isSelected
                     ? compact
-                        ? 'cursor-pointer ring-2 ring-violet-400/85 ring-offset-2 ring-offset-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_0_1px_rgba(167,139,250,0.35),0_10px_28px_-8px_rgba(139,92,246,0.45)] active:scale-[0.98]'
-                        : 'ring-2 ring-purple-500 shadow-lg cursor-pointer active:scale-[0.98]'
-                    : 'shadow-lg cursor-pointer active:scale-[0.98] hover:ring-1 hover:ring-purple-400/40'
+                        ? 'cursor-pointer border-violet-400 ring-2 ring-violet-400/70 ring-offset-2 ring-offset-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_10px_28px_-8px_rgba(139,92,246,0.45)] active:scale-[0.98]'
+                        : 'cursor-pointer border-purple-400 shadow-lg ring-2 ring-purple-500/60 active:scale-[0.98]'
+                    : 'border-transparent shadow-lg cursor-pointer active:scale-[0.98] hover:border-purple-400/45 hover:ring-1 hover:ring-purple-400/35'
             }`}
             style={{ padding: `${pad}px`, gap: compact ? '3px' : '4px' }}
             onClick={() => onSelect(mode)}
@@ -1060,25 +1068,34 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                     </div>
                     ) : null}
                     <div className={settingRowClass}>
-                        <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>높은 수 (3~6)</label>
+                        <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>특수주사위</label>
                         <select
-                            value={settings.thiefHigh36ItemCount ?? 1}
-                            onChange={e => handleSettingChange('thiefHigh36ItemCount', parseInt(e.target.value, 10))}
+                            value={getThiefUnifiedSpecialDiceCount(settings)}
+                            onChange={e => {
+                                const count = parseInt(e.target.value, 10);
+                                setSettings((prev) => {
+                                    let newSettings = { ...prev, ...thiefUnifiedSpecialDiceCounts(count) };
+                                    if (newSettings.mixedModes) {
+                                        const isBaseSelected = newSettings.mixedModes.includes(GameMode.Base);
+                                        const isCaptureSelected = newSettings.mixedModes.includes(GameMode.Capture);
+                                        if (isBaseSelected && isCaptureSelected) {
+                                            newSettings.mixedModes = newSettings.mixedModes.filter((m) => m !== GameMode.Base);
+                                        }
+                                    }
+                                    if (selectedGameMode) {
+                                        newSettings = clampAiLobbyStrategicItemCaps(selectedGameMode, newSettings);
+                                        localStorage.setItem(
+                                            `preferredGameSettings_${selectedGameMode}`,
+                                            JSON.stringify(newSettings),
+                                        );
+                                    }
+                                    return newSettings;
+                                });
+                            }}
                             className="w-full bg-gray-700 border border-gray-600 text-center text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
                             style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
                         >
-                            {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
-                        </select>
-                    </div>
-                    <div className={settingRowClass}>
-                        <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>1방지 (2~5)</label>
-                        <select
-                            value={settings.thiefNoOneItemCount ?? 1}
-                            onChange={e => handleSettingChange('thiefNoOneItemCount', parseInt(e.target.value, 10))}
-                            className="w-full bg-gray-700 border border-gray-600 text-center text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
-                            style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
-                        >
-                            {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                            {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개 (유형당)</option>)}
                         </select>
                     </div>
                     </>
@@ -1142,7 +1159,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 {showDiceGoSettings && (
                     <>
                         <div className={settingRowClass}>
-                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>라운드 설정</label>
+                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>라운드</label>
                             <select 
                                 value={settings.diceGoRounds ?? 3} 
                                 onChange={e => handleSettingChange('diceGoRounds', parseInt(e.target.value, 10) as 1 | 2 | 3)}
@@ -1153,47 +1170,34 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>홀수 주사위</label>
+                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>특수주사위</label>
                             <select 
-                                value={settings.oddDiceCount ?? 1} 
-                                onChange={e => handleSettingChange('oddDiceCount', parseInt(e.target.value, 10))}
+                                value={getDiceGoUnifiedSpecialDiceCount(settings)} 
+                                onChange={e => {
+                                    const count = parseInt(e.target.value, 10);
+                                    setSettings((prev) => {
+                                        let newSettings = { ...prev, ...diceGoUnifiedSpecialDiceCounts(count) };
+                                        if (newSettings.mixedModes) {
+                                            const isBaseSelected = newSettings.mixedModes.includes(GameMode.Base);
+                                            const isCaptureSelected = newSettings.mixedModes.includes(GameMode.Capture);
+                                            if (isBaseSelected && isCaptureSelected) {
+                                                newSettings.mixedModes = newSettings.mixedModes.filter((m) => m !== GameMode.Base);
+                                            }
+                                        }
+                                        if (selectedGameMode) {
+                                            newSettings = clampAiLobbyStrategicItemCaps(selectedGameMode, newSettings);
+                                            localStorage.setItem(
+                                                `preferredGameSettings_${selectedGameMode}`,
+                                                JSON.stringify(newSettings),
+                                            );
+                                        }
+                                        return newSettings;
+                                    });
+                                }}
                                 className="w-full bg-gray-700 border border-gray-600 text-center text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
                                 style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
                             >
-                                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
-                            </select>
-                        </div>
-                        <div className={settingRowClass}>
-                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>짝수 주사위</label>
-                            <select 
-                                value={settings.evenDiceCount ?? 1} 
-                                onChange={e => handleSettingChange('evenDiceCount', parseInt(e.target.value, 10))}
-                                className="w-full bg-gray-700 border border-gray-600 text-center text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
-                                style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
-                            >
-                                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
-                            </select>
-                        </div>
-                        <div className={settingRowClass}>
-                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>낮은 수 (1~3)</label>
-                            <select 
-                                value={settings.lowDiceCount ?? 1} 
-                                onChange={e => handleSettingChange('lowDiceCount', parseInt(e.target.value, 10))}
-                                className="w-full bg-gray-700 border border-gray-600 text-center text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
-                                style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
-                            >
-                                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
-                            </select>
-                        </div>
-                        <div className={settingRowClass}>
-                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>높은 수 (4~6)</label>
-                            <select 
-                                value={settings.highDiceCount ?? 1} 
-                                onChange={e => handleSettingChange('highDiceCount', parseInt(e.target.value, 10))}
-                                className="w-full bg-gray-700 border border-gray-600 text-center text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
-                                style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
-                            >
-                                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개 (유형당)</option>)}
                             </select>
                         </div>
                     </>
@@ -1235,7 +1239,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>게이지 속도</label>
+                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>힘 속도</label>
                             <select 
                                 value={settings.alkkagiGaugeSpeed ?? 700} 
                                 onChange={e => handleSettingChange('alkkagiGaugeSpeed', parseInt(e.target.value))}
@@ -1246,7 +1250,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>슬로우 아이템</label>
+                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>슬로우</label>
                             <select 
                                 value={settings.alkkagiSlowItemCount ?? 2} 
                                 onChange={e => handleSettingChange('alkkagiSlowItemCount', parseInt(e.target.value))}
@@ -1257,7 +1261,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>조준선 아이템</label>
+                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>조준선</label>
                             <select 
                                 value={settings.alkkagiAimingLineItemCount ?? 2} 
                                 onChange={e => handleSettingChange('alkkagiAimingLineItemCount', parseInt(e.target.value))}
@@ -1295,7 +1299,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>게이지 속도</label>
+                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>힘 속도</label>
                             <select 
                                 value={settings.curlingGaugeSpeed ?? 700} 
                                 onChange={e => handleSettingChange('curlingGaugeSpeed', parseInt(e.target.value))}
@@ -1306,7 +1310,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>슬로우 아이템</label>
+                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>슬로우</label>
                             <select 
                                 value={settings.curlingSlowItemCount ?? 2} 
                                 onChange={e => handleSettingChange('curlingSlowItemCount', parseInt(e.target.value))}
@@ -1317,7 +1321,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>조준선 아이템</label>
+                            <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>조준선</label>
                             <select 
                                 value={settings.curlingAimingLineItemCount ?? 2} 
                                 onChange={e => handleSettingChange('curlingAimingLineItemCount', parseInt(e.target.value))}

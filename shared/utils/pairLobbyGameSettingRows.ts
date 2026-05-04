@@ -8,6 +8,9 @@ import {
 import { isFischerStyleTimeControl } from './gameTimeControl.js';
 import { getRankedGameSettings } from '../../constants/rankedGameSettings.js';
 import { getAiScoringTurnLimitByBoardSize } from '../constants/gameSettings.js';
+import { formatDiceGoSpecialDiceSummary } from './diceGoSettings.js';
+import { formatThiefSpecialDiceSummary } from './thiefGoSettings.js';
+import { formatAlkkagiCurlingGaugeSpeedForLobbyDisplay } from './alkkagiCurlingGaugeLobbyDisplay.js';
 
 export type PairLobbyChannel = 'pair' | 'strategic' | 'playful';
 
@@ -285,33 +288,27 @@ export function buildPairRoomLobbyGameSettingRows(
     if (mode === GameMode.Dice) {
         if ((!pairArenaInterior || ext) && g.diceGoVariant) rows.push({ label: '주사위 규칙', value: String(g.diceGoVariant) });
         if (typeof g.diceGoRounds === 'number') rows.push({ label: '라운드', value: String(g.diceGoRounds) });
-        if (typeof g.oddDiceCount === 'number') rows.push({ label: '홀 주사위', value: `${g.oddDiceCount}개` });
-        if (typeof g.evenDiceCount === 'number') rows.push({ label: '짝 주사위', value: `${g.evenDiceCount}개` });
-        if (typeof g.lowDiceCount === 'number') rows.push({ label: '저주사위(1~3)', value: `${g.lowDiceCount}개` });
-        if (typeof g.highDiceCount === 'number') rows.push({ label: '고주사위(4~6)', value: `${g.highDiceCount}개` });
+        rows.push({ label: '특수주사위', value: formatDiceGoSpecialDiceSummary(g) });
         if ((!pairArenaInterior || ext) && typeof g.diceGoItemCount === 'number') {
             rows.push({ label: '아이템', value: `${g.diceGoItemCount}개` });
         }
     }
 
     if (mode === GameMode.Thief) {
-        if (typeof g.thiefHigh36ItemCount === 'number') {
-            rows.push({ label: '도둑 주사위(3~6)', value: `${g.thiefHigh36ItemCount}개` });
-        }
-        if (typeof g.thiefNoOneItemCount === 'number') {
-            rows.push({ label: '도둑 주사위(2~5)', value: `${g.thiefNoOneItemCount}개` });
-        }
+        rows.push({ label: '특수주사위', value: formatThiefSpecialDiceSummary(g) });
     }
 
     if (mode === GameMode.Alkkagi) {
-        if (g.alkkagiPlacementType) rows.push({ label: '알까기 배치', value: String(g.alkkagiPlacementType) });
+        if (g.alkkagiPlacementType) rows.push({ label: '배치', value: String(g.alkkagiPlacementType) });
         if ((!pairArenaInterior || ext) && g.alkkagiLayout) rows.push({ label: '알까기 레이아웃', value: String(g.alkkagiLayout) });
-        if (typeof g.alkkagiRounds === 'number') rows.push({ label: '알까기 라운드', value: String(g.alkkagiRounds) });
+        if (typeof g.alkkagiRounds === 'number') rows.push({ label: '라운드', value: String(g.alkkagiRounds) });
         if (typeof g.alkkagiStoneCount === 'number') rows.push({ label: '돌 개수', value: String(g.alkkagiStoneCount) });
-        if (typeof g.alkkagiGaugeSpeed === 'number') rows.push({ label: '게이지 속도', value: String(g.alkkagiGaugeSpeed) });
-        if (typeof g.alkkagiSlowItemCount === 'number') rows.push({ label: '슬로우 아이템', value: `${g.alkkagiSlowItemCount}개` });
+        if (typeof g.alkkagiGaugeSpeed === 'number') {
+            rows.push({ label: '힘 속도', value: formatAlkkagiCurlingGaugeSpeedForLobbyDisplay(g.alkkagiGaugeSpeed) });
+        }
+        if (typeof g.alkkagiSlowItemCount === 'number') rows.push({ label: '슬로우', value: `${g.alkkagiSlowItemCount}개` });
         if (typeof g.alkkagiAimingLineItemCount === 'number') {
-            rows.push({ label: '조준선 아이템', value: `${g.alkkagiAimingLineItemCount}개` });
+            rows.push({ label: '조준선', value: `${g.alkkagiAimingLineItemCount}개` });
         }
         if ((!pairArenaInterior || ext) && typeof g.alkkagiItemCount === 'number') {
             rows.push({ label: '아이템', value: `${g.alkkagiItemCount}개` });
@@ -320,10 +317,12 @@ export function buildPairRoomLobbyGameSettingRows(
 
     if (mode === GameMode.Curling) {
         if (typeof g.curlingStoneCount === 'number') rows.push({ label: '스톤 수', value: String(g.curlingStoneCount) });
-        if (typeof g.curlingGaugeSpeed === 'number') rows.push({ label: '게이지 속도', value: String(g.curlingGaugeSpeed) });
-        if (typeof g.curlingSlowItemCount === 'number') rows.push({ label: '슬로우 아이템', value: `${g.curlingSlowItemCount}개` });
+        if (typeof g.curlingGaugeSpeed === 'number') {
+            rows.push({ label: '힘 속도', value: formatAlkkagiCurlingGaugeSpeedForLobbyDisplay(g.curlingGaugeSpeed) });
+        }
+        if (typeof g.curlingSlowItemCount === 'number') rows.push({ label: '슬로우', value: `${g.curlingSlowItemCount}개` });
         if (typeof g.curlingAimingLineItemCount === 'number') {
-            rows.push({ label: '조준선 아이템', value: `${g.curlingAimingLineItemCount}개` });
+            rows.push({ label: '조준선', value: `${g.curlingAimingLineItemCount}개` });
         }
         if (typeof g.curlingRounds === 'number') rows.push({ label: '라운드', value: String(g.curlingRounds) });
     }

@@ -343,38 +343,23 @@ export interface GoAiBotProfile {
 }
 
 /**
- * 전략 AI 히든 아이템 연출에서 "사용 타이밍"을 고르는 규칙.
- * 요구사항: "전체 수순(유저+AI) 기준"으로,
- * - 계가까지 수순 <= 60: 1회, 전체 수순 번호 1~30 사이에서 랜덤
- * - 계가까지 수순 >= 70: 2회, 전체 수순 번호 1~30 사이 1회 + 31~50 사이 1회 추가
- *
- * 내부 제어는 AI 자신의 턴 index로 되므로,
- * 여기서는 (전체 수순 번호 범위)만 계획하고 planStrategicAiHiddenTurns에서
- * "전체 수순 번호 -> AI 턴 index"로 변환한다.
+ * 전략 AI(대기실 AI·모험 몬스터 등) 히든 아이템 사용 타이밍.
+ * 한 경기 1회만: 계가(수순 제한)까지의 전체 수순 중 **절반 이하** 구간에서,
+ * AI가 둘 수 있는 전역 수순 번호 하나를 무작위로 고른 뒤 AI 턴 index로 변환한다.
  */
 const getStrategicAiHiddenScheduleByTotalMoveCount = (
     game: LiveGameSession
-): { plannedUses: number; firstGlobalMin: number; firstGlobalMax: number; secondGlobalMin?: number; secondGlobalMax?: number } => {
-    const scoringLimit = Number(
-        (game.settings as any)?.autoScoringTurns ?? (game.settings as any)?.scoringTurnLimit ?? 0
-    );
+): { plannedUses: number; firstGlobalMin: number; firstGlobalMax: number } => {
+    const rawLimit = Number((game.settings as any)?.scoringTurnLimit ?? (game.settings as any)?.autoScoringTurns ?? 0);
+    const scoringLimit = Number.isFinite(rawLimit) ? Math.max(0, Math.floor(rawLimit)) : 0;
 
-    // 안전 폴백: 최소 1회만 1~30 중 랜덤
-    if (!Number.isFinite(scoringLimit) || scoringLimit <= 0) {
+    // 수순 제한이 없으면 예전과 동일하게 1~30 구간에서 1회만(폴백)
+    if (scoringLimit <= 0) {
         return { plannedUses: 1, firstGlobalMin: 1, firstGlobalMax: 30 };
     }
 
-    if (scoringLimit >= 70) {
-        const firstGlobalMax = Math.min(30, scoringLimit);
-        const secondGlobalMin = 31;
-        const secondGlobalMax = Math.min(50, scoringLimit);
-        const plannedUses = secondGlobalMax >= secondGlobalMin ? 2 : 1;
-        return { plannedUses, firstGlobalMin: 1, firstGlobalMax, secondGlobalMin, secondGlobalMax };
-    }
-
-    // <= 60 또는 60~69: 1회만
-    const firstGlobalMax = Math.min(30, scoringLimit);
-    return { plannedUses: 1, firstGlobalMin: 1, firstGlobalMax };
+    const firstGlobalMax = Math.max(1, Math.floor(scoringLimit / 2));
+    return { plannedUses: 1, firstGlobalMin: 1, firstGlobalMax: Math.min(firstGlobalMax, scoringLimit) };
 };
 
 const normalizeAiHiddenTurns = (value: unknown): number[] => {
@@ -390,8 +375,11 @@ const planStrategicAiHiddenTurns = (game: LiveGameSession, hiddenCount: number):
     const aiPlayerEnum = game.currentPlayer; // makeGoAiBotMove 호출 시점은 항상 AI 턴
 
     const schedule = getStrategicAiHiddenScheduleByTotalMoveCount(game);
-    const desiredUses = Math.min(schedule.plannedUses, hiddenCount >= 2 ? 2 : hiddenCount > 0 ? 1 : 0);
+    const desiredUses = schedule.plannedUses > 0 && hiddenCount > 0 ? 1 : 0;
     if (desiredUses <= 0) return [];
+
+    const rawScoringCap = Number((game.settings as any)?.scoringTurnLimit ?? (game.settings as any)?.autoScoringTurns ?? 0);
+    const scoringCap = Number.isFinite(rawScoringCap) && rawScoringCap > 0 ? Math.floor(rawScoringCap) : schedule.firstGlobalMax;
 
     // 전체 수순 번호 m(1부터)에서 AI의 턴 index로 변환.
     // - Black: 1,3,5...(홀수)에서 둠 => aiTurnIndex=(m+1)/2
@@ -403,20 +391,25 @@ const planStrategicAiHiddenTurns = (game: LiveGameSession, hiddenCount: number):
     const matchesAiParity = (globalMoveIndex: number) =>
         aiPlaysOdd ? globalMoveIndex % 2 === 1 : globalMoveIndex % 2 === 0;
 
-    const firstGlobalCandidates: number[] = [];
-    for (let m = schedule.firstGlobalMin; m <= schedule.firstGlobalMax; m++) {
-        if (Number.isInteger(m) && m > 0 && matchesAiParity(m)) firstGlobalCandidates.push(m);
-    }
-
-    const secondGlobalCandidates: number[] = [];
-    if (schedule.secondGlobalMin != null && schedule.secondGlobalMax != null) {
-        for (let m = schedule.secondGlobalMin; m <= schedule.secondGlobalMax; m++) {
-            if (Number.isInteger(m) && m > 0 && matchesAiParity(m)) secondGlobalCandidates.push(m);
+    const buildParityGlobals = (from: number, to: number) => {
+        const arr: number[] = [];
+        const lo = Math.max(1, Math.min(from, to));
+        const hi = Math.max(lo, Math.max(from, to));
+        for (let m = lo; m <= hi; m++) {
+            if (matchesAiParity(m)) arr.push(m);
         }
+        return arr;
+    };
+    let firstGlobalCandidates = buildParityGlobals(schedule.firstGlobalMin, schedule.firstGlobalMax);
+    // 절반 구간에 AI 착점이 불가능한 짧은 판이면, 계가 수순 전체에서 동일 패리티만 보충
+    if (firstGlobalCandidates.length === 0 && scoringCap > schedule.firstGlobalMax) {
+        firstGlobalCandidates = buildParityGlobals(schedule.firstGlobalMax + 1, scoringCap);
+    }
+    if (firstGlobalCandidates.length === 0) {
+        firstGlobalCandidates = buildParityGlobals(1, Math.max(schedule.firstGlobalMax, scoringCap));
     }
 
     const candidateAiFirstTurns = firstGlobalCandidates.map(globalMoveToAiTurnIndex);
-    const candidateAiSecondTurns = secondGlobalCandidates.map(globalMoveToAiTurnIndex);
 
     const existingWithLegacy = [...existingTurns];
     const legacyTurn = typeof game.aiHiddenItemTurn === 'number' && game.aiHiddenItemTurn > 0 ? game.aiHiddenItemTurn : undefined;
@@ -424,7 +417,6 @@ const planStrategicAiHiddenTurns = (game: LiveGameSession, hiddenCount: number):
 
     const uniqueExisting = Array.from(new Set(existingWithLegacy)).sort((a, b) => a - b);
     const uniqueAiFirst = Array.from(new Set(candidateAiFirstTurns)).sort((a, b) => a - b);
-    const uniqueAiSecond = Array.from(new Set(candidateAiSecondTurns)).sort((a, b) => a - b);
 
     const pickExistingOrRandom = (existingCandidates: number[], randomCandidates: number[]) => {
         const preserved = uniqueExisting.filter((t) => existingCandidates.includes(t));
@@ -439,26 +431,12 @@ const planStrategicAiHiddenTurns = (game: LiveGameSession, hiddenCount: number):
         if (chosenFirst != null) out.push(chosenFirst);
     }
 
-    if (desiredUses >= 2) {
-        // second는 반드시 first보다 커야 함(여기서는 범위가 31~50이라 자연스럽게 성립하지만 안전하게 강제)
-        const secondCandidatesFiltered = uniqueAiSecond.filter((t) => out.length === 0 || t > out[0]);
-        const chosenSecond = pickExistingOrRandom(secondCandidatesFiltered, secondCandidatesFiltered);
-        if (chosenSecond != null && (out.length === 0 || chosenSecond > out[0])) out.push(chosenSecond);
-    }
-
     out.sort((a, b) => a - b);
     out.splice(desiredUses);
 
     if (out.length < desiredUses) {
-        // 후보가 비거나(짧은 게임) 기존 턴이 범위를 벗어난 경우에도 최소 desiredUses를 맞춘다.
         if (out.length === 0 && uniqueAiFirst.length > 0) {
             out.push(uniqueAiFirst[Math.floor(Math.random() * uniqueAiFirst.length)]!);
-        }
-        if (out.length === 1 && desiredUses === 2 && uniqueAiSecond.length > 0) {
-            const secondFiltered = uniqueAiSecond.filter((t) => t > out[0]);
-            if (secondFiltered.length > 0) {
-                out.push(secondFiltered[Math.floor(Math.random() * secondFiltered.length)]!);
-            }
         }
     }
 
@@ -1652,7 +1630,8 @@ export async function makeGoAiBotMove(
     if (isHiddenMode && isStrategicAiGame && (game as any)[aiHiddenKey] === undefined) {
         const cap = (game.settings as any)?.hiddenStoneCount ?? 0;
         if (cap > 0) {
-            (game as any)[aiHiddenKey] = cap;
+            // 전략 AI 대국: 히든 아이템은 판당 1회만 사용 — 남은 개수도 1로 맞춘다.
+            (game as any)[aiHiddenKey] = 1;
         }
     }
     let aiHiddenLeft = (game as any)[aiHiddenKey] ?? 0;
@@ -1728,8 +1707,8 @@ export async function makeGoAiBotMove(
     if (isHiddenMode && isStrategicAiGame) {
         const cap = (game.settings as any)?.hiddenStoneCount ?? 0;
         if (cap > 0 && (game as any)[aiHiddenKey] === undefined) {
-            (game as any)[aiHiddenKey] = cap;
-            aiHiddenLeft = cap;
+            (game as any)[aiHiddenKey] = 1;
+            aiHiddenLeft = 1;
         }
         planStrategicAiHiddenTurns(game, (game as any)[aiHiddenKey] ?? aiHiddenLeft);
     }
@@ -1747,13 +1726,15 @@ export async function makeGoAiBotMove(
     const usedAiHiddenItems = Math.max(0, Number((game as any).aiHiddenItemsUsedCount ?? 0));
     const currentAiTurnIndex = getCurrentAiTurnIndex(game, aiPlayerEnum);
     const recordedAiHiddenMoves = countRecordedAiHiddenMoves(game, aiPlayerEnum);
+    // 연출 없이 히든만 켜지는 경로 방지: 카운터만 앞선 경우 실제 히든 수순에 맞춰 되돌린다.
     if (
         !game.isSinglePlayer &&
         isHiddenMode &&
+        isStrategicAiGame &&
         usedAiHiddenItems > recordedAiHiddenMoves &&
         !shouldApplyHiddenOnThisMove
     ) {
-        shouldApplyHiddenOnThisMove = true;
+        (game as any).aiHiddenItemsUsedCount = recordedAiHiddenMoves;
     }
     const nextPlannedAiHiddenTurn = plannedAiHiddenTurns[usedAiHiddenItems];
     const shouldUseStrategicAiHiddenItem = isStrategicAiGame && nextPlannedAiHiddenTurn === currentAiTurnIndex;

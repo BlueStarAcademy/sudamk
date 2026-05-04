@@ -1005,6 +1005,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             .filter(roomMatchesPairLobbyListFilters);
     }, [lobbyGridRooms, lobbyChannel, roomMatchesPairLobbyListFilters]);
 
+    /** 그리드 슬롯별 방: 가상 스크롤 구간(`lobbyGridRooms`) + 전체 채널 목록 보강 — 경기 시작 후에도 번호 점유·상태가 보이게 함 */
     const roomBySlotNumberForLobbyGrid = useMemo(() => {
         const m = new Map<number, PairRoom>();
         for (const room of sortedLobbyGridRoomsForPublicList) {
@@ -1012,8 +1013,13 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             if (sn === null) continue;
             if (!m.has(sn)) m.set(sn, room);
         }
+        for (const room of sortedRoomsMatchingFilters) {
+            const sn = pairLobbyGridSlotFromRoomCode(room.code);
+            if (sn === null) continue;
+            if (!m.has(sn)) m.set(sn, room);
+        }
         return m;
-    }, [sortedLobbyGridRoomsForPublicList]);
+    }, [sortedLobbyGridRoomsForPublicList, sortedRoomsMatchingFilters]);
 
     const orphanPairRoomsForLobbyGrid = useMemo(
         () => sortedRoomsMatchingFilters.filter((r) => pairLobbyGridSlotFromRoomCode(r.code) === null),
@@ -2310,6 +2316,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                         const listRoomKind = pairLobbyListDisplayRoomKind(room, lobbyChannel);
                         const roomInMatch =
                             (room.phase ?? 'waiting') === 'in_game' || room.phase === 'match_pending';
+                        const roomInLiveGame = (room.phase ?? 'waiting') === 'in_game';
                         const joinable = getPairLobbyJoinableFromListRoom(room);
                         const gameModeTitle = pairLobbyScheduledGameModeLabel(room.selectedGameMode) || '미정';
                         const visibilityBadgeClass =
@@ -2347,15 +2354,6 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                         <div
                                             className={`flex min-w-0 items-center gap-0.5 sm:gap-1 ${isHandheld ? 'flex-nowrap' : 'flex-wrap'}`}
                                         >
-                                            {roomInMatch ? (
-                                                <span
-                                                    className={`shrink-0 rounded border border-cyan-400/45 bg-cyan-950/65 px-1 py-0.5 font-extrabold leading-none text-cyan-100 sm:px-1.5 sm:text-xs ${
-                                                        isHandheld ? 'text-[10px]' : 'text-[11px]'
-                                                    }`}
-                                                >
-                                                    경기
-                                                </span>
-                                            ) : null}
                                             <span
                                                 className={`shrink-0 rounded border px-1 py-0.5 font-extrabold leading-none sm:px-1.5 sm:text-xs ${visibilityBadgeClass} ${
                                                     isHandheld ? 'text-[10px]' : 'text-[11px]'
@@ -2414,20 +2412,37 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                         </div>
                                     </div>
                                     <div className="flex shrink-0 flex-none items-center justify-center self-stretch py-0.5">
-                                        <button
-                                            type="button"
-                                            disabled={!joinable || isBusy || userParticipatingInAnyPairRoom}
-                                            onClick={() => quickJoin(room.id)}
-                                            aria-label={`${slotNumber}번 방 입장`}
-                                            style={joinButtonBoxStyle}
-                                            className={`flex shrink-0 flex-none items-center justify-center rounded-lg border text-[11px] font-extrabold leading-tight sm:text-sm ${
-                                                joinable
-                                                    ? 'border-cyan-300/55 bg-cyan-900/45 text-cyan-100 hover:brightness-110'
-                                                    : 'cursor-not-allowed border-zinc-700 bg-zinc-900/60 text-zinc-500'
-                                            }`}
-                                        >
-                                            입장
-                                        </button>
+                                        {roomInLiveGame ? (
+                                            <div
+                                                style={joinButtonBoxStyle}
+                                                className="flex shrink-0 flex-none items-center justify-center rounded-lg border border-amber-400/45 bg-amber-950/55 px-0.5 text-center shadow-inner ring-1 ring-amber-500/15"
+                                                aria-label={`${slotNumber}번 방 경기 중`}
+                                                title="경기 진행 중"
+                                            >
+                                                <span
+                                                    className={`max-w-full break-words px-0.5 text-center font-black leading-tight tracking-tight text-amber-100 ${
+                                                        isHandheld ? 'text-[8px]' : 'text-[9px] sm:text-[10px]'
+                                                    }`}
+                                                >
+                                                    경기중
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                disabled={!joinable || isBusy || userParticipatingInAnyPairRoom}
+                                                onClick={() => quickJoin(room.id)}
+                                                aria-label={`${slotNumber}번 방 입장`}
+                                                style={joinButtonBoxStyle}
+                                                className={`flex shrink-0 flex-none items-center justify-center rounded-lg border text-[11px] font-extrabold leading-tight sm:text-sm ${
+                                                    joinable
+                                                        ? 'border-cyan-300/55 bg-cyan-900/45 text-cyan-100 hover:brightness-110'
+                                                        : 'cursor-not-allowed border-zinc-700 bg-zinc-900/60 text-zinc-500'
+                                                }`}
+                                            >
+                                                입장
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -2451,18 +2466,35 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                         번호 1~100 밖의 방
                     </div>
                     <div className={`flex max-h-16 flex-wrap gap-1 overflow-y-auto ${PAIR_LOBBY_ROOM_LIST_SCROLLBAR_CLASS}`}>
-                        {orphanPairRoomsForLobbyGrid.map((room) => (
-                            <button
-                                key={room.id}
-                                type="button"
-                                disabled={isBusy || userParticipatingInAnyPairRoom || !getPairLobbyJoinableFromListRoom(room)}
-                                onClick={() => quickJoin(room.id)}
-                                className="max-w-[10rem] truncate rounded-md border border-cyan-400/35 bg-cyan-950/40 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-100 disabled:opacity-40"
-                                title={room.title}
-                            >
-                                {room.title}
-                            </button>
-                        ))}
+                        {orphanPairRoomsForLobbyGrid.map((room) => {
+                            const orphanInGame = (room.phase ?? 'waiting') === 'in_game';
+                            if (orphanInGame) {
+                                return (
+                                    <div
+                                        key={room.id}
+                                        className="flex max-w-[10rem] min-w-0 items-center gap-1 truncate rounded-md border border-amber-400/40 bg-amber-950/50 px-1.5 py-0.5 text-[10px] font-bold text-amber-100"
+                                        title={`${room.title} — 경기 진행 중`}
+                                    >
+                                        <span className="min-w-0 truncate">{room.title}</span>
+                                        <span className="shrink-0 rounded border border-amber-300/35 bg-black/35 px-1 py-px text-[9px] font-black text-amber-50">
+                                            경기중
+                                        </span>
+                                    </div>
+                                );
+                            }
+                            return (
+                                <button
+                                    key={room.id}
+                                    type="button"
+                                    disabled={isBusy || userParticipatingInAnyPairRoom || !getPairLobbyJoinableFromListRoom(room)}
+                                    onClick={() => quickJoin(room.id)}
+                                    className="max-w-[10rem] truncate rounded-md border border-cyan-400/35 bg-cyan-950/40 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-100 disabled:opacity-40"
+                                    title={room.title}
+                                >
+                                    {room.title}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
             ) : null}
@@ -2824,28 +2856,22 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                                         className={
                                                             useHandheldRoomChrome
                                                                 ? 'grid grid-cols-2 gap-1.5'
-                                                                : 'grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2.5'
+                                                                : 'grid grid-cols-2 gap-1.5 sm:gap-2'
                                                         }
                                                     >
                                                         {scheduledGameDetailRows.map((row) => (
                                                             <div
                                                                 key={`${row.label}:${row.value}`}
-                                                                className={`rounded-lg border border-white/12 bg-black/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
-                                                                    useHandheldRoomChrome
-                                                                        ? 'flex flex-row items-baseline justify-between gap-1 px-1.5 py-1'
-                                                                        : 'flex flex-col gap-1 px-2 py-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3 sm:px-2.5 sm:py-2.5'
-                                                                }`}
+                                                                className={`flex min-h-0 flex-row items-center justify-between gap-2 rounded-lg border border-white/12 bg-black/55 px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:gap-2.5 sm:px-2 sm:py-1.5`}
                                                             >
                                                                 <dt
-                                                                    className={`shrink-0 text-slate-400 break-keep ${useHandheldRoomChrome ? 'text-[10px]' : 'text-sm sm:text-base'}`}
+                                                                    className={`min-w-0 shrink text-slate-400 [overflow-wrap:anywhere] ${useHandheldRoomChrome ? 'max-w-[46%] text-[9px] leading-tight' : 'max-w-[48%] text-[11px] leading-snug sm:text-xs'}`}
                                                                 >
                                                                     {row.label}
                                                                 </dt>
                                                                 <dd
-                                                                    className={`min-w-0 font-bold leading-snug text-slate-100 break-keep [overflow-wrap:anywhere] ${
-                                                                        useHandheldRoomChrome
-                                                                            ? 'pl-1 text-right text-[10px]'
-                                                                            : 'text-left sm:text-right text-base sm:text-lg'
+                                                                    className={`min-w-0 max-w-[52%] text-right font-bold leading-tight text-slate-100 [overflow-wrap:anywhere] sm:leading-snug ${
+                                                                        useHandheldRoomChrome ? 'text-[9px]' : 'text-[11px] sm:text-xs'
                                                                     }`}
                                                                 >
                                                                     {lobbyChannel === 'playful'
@@ -2881,6 +2907,16 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                         myRoom.roomKind === 'duo_match' ||
                                         myRoom.roomKind === 'ai_duel'
                                             ? myRoom.selectedGameMode
+                                            : undefined
+                                    }
+                                    pairAiLobbyRoomId={
+                                        myRoom.roomKind === 'duo_match' || myRoom.roomKind === 'ai_duel'
+                                            ? myRoom.id
+                                            : undefined
+                                    }
+                                    pairAiLobbySettings={
+                                        myRoom.roomKind === 'duo_match' || myRoom.roomKind === 'ai_duel'
+                                            ? myRoom.settings
                                             : undefined
                                     }
                                     roomKind={myRoom.roomKind}
@@ -3797,14 +3833,16 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                             </p>
                                         </div>
                                         {settingRows.length > 0 ? (
-                                            <dl className="mt-2 grid max-h-[min(38vh,15rem)] grid-cols-1 gap-x-3 gap-y-1 overflow-y-auto text-[0.68rem] sm:grid-cols-2 sm:text-xs">
+                                            <dl className="mt-2 grid max-h-[min(42vh,18rem)] grid-cols-2 gap-x-2 gap-y-1 overflow-y-auto text-[0.68rem] leading-tight sm:text-xs sm:leading-snug">
                                                 {settingRows.map((row, idx) => (
                                                     <div
                                                         key={`${idx}:${row.label}`}
-                                                        className="flex justify-between gap-2 border-b border-white/[0.05] py-0.5 last:border-b-0 sm:border-b-0 sm:py-0"
+                                                        className="flex min-h-0 items-center justify-between gap-2 border-b border-white/[0.05] py-1 last:border-b-0"
                                                     >
-                                                        <dt className="shrink-0 text-slate-500">{row.label}</dt>
-                                                        <dd className="min-w-0 text-right font-semibold leading-snug text-slate-100">
+                                                        <dt className="min-w-0 max-w-[48%] shrink text-slate-500 [overflow-wrap:anywhere]">
+                                                            {row.label}
+                                                        </dt>
+                                                        <dd className="min-w-0 max-w-[52%] text-right font-semibold text-slate-100 [overflow-wrap:anywhere]">
                                                             {row.value}
                                                         </dd>
                                                     </div>
