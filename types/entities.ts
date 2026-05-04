@@ -110,6 +110,7 @@ export type Mail = {
     /** 길드 보스전 정산 보상: 길드 연구소 포인트 */
     researchPoints?: number;
     items?: (InventoryItem | { itemId: string; quantity: number })[];
+    cashShopPackages?: { packageId: string; quantity: number }[];
   };
   receivedAt: number;
   expiresAt?: number;

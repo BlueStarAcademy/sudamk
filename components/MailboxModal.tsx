@@ -5,6 +5,7 @@ import Button from './Button.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import MailRewardItemTile from './MailRewardItemTile.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
+import { CASH_SHOP_PACKAGE_KO_LABEL, type CashShopPackageId } from '../shared/constants/cashShopPackages.js';
 
 interface MailboxModalProps {
     currentUser: UserWithStatus;
@@ -242,6 +243,24 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
                                                             </span>
                                                         ) : null}
                                                     </div>
+                                                    {(() => {
+                                                        const pkgs = selectedMail.attachments.cashShopPackages;
+                                                        if (!pkgs?.length) return null;
+                                                        return (
+                                                            <div className="mb-4 flex flex-wrap gap-2 text-sm">
+                                                                {pkgs.map((p, idx) => (
+                                                                    <span
+                                                                        key={`${p.packageId}-${idx}`}
+                                                                        className="inline-flex items-center gap-2 rounded-lg border border-violet-500/25 bg-violet-950/30 px-3 py-2 font-medium text-violet-100"
+                                                                    >
+                                                                        패키지{' '}
+                                                                        {CASH_SHOP_PACKAGE_KO_LABEL[p.packageId as CashShopPackageId] ?? p.packageId}{' '}
+                                                                        × {p.quantity}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                     {(() => {
                                                         const rawItems = selectedMail.attachments.items;
                                                         if (rawItems == null) return null;

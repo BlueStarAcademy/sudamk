@@ -25,6 +25,13 @@ import {
     EQUIPMENT_PACKAGE_BONUS_GRADE,
     diamondPackageIdToTier,
 } from '../../shared/constants/cashShopPackages.js';
+import {
+    VIP_SHOP_PRODUCT_IDS,
+    type VipShopProductId,
+    VIP_SHOP_DURATION_DAYS,
+    getVipShopGrantFlagsForProductId,
+} from '../../shared/constants/vipShopProducts.js';
+import { applyVipDurationExtensionToUser } from '../../shared/utils/vipDurationGrant.js';
 import * as guildService from '../guildService.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
 
@@ -47,7 +54,7 @@ const addRewardBonus = (value: number | undefined, bonus: number): number => {
 const CASH_PACKAGE_EQUIP_SLOTS: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
 
 /** 장비상자 패키지: 미개봉 상자는 인벤에 상자 아이템으로 적재, 확정 장비만 즉시 생성 지급 */
-function collectEquipmentCashPackageLoot(packageId: CashShopEquipmentPackageId): InventoryItem[] {
+export function collectEquipmentCashPackageLoot(packageId: CashShopEquipmentPackageId): InventoryItem[] {
     const sealedDefs: { itemId: string; quantity: number }[] =
         packageId === 'equipment_package_1'
             ? [
@@ -68,6 +75,32 @@ function collectEquipmentCashPackageLoot(packageId: CashShopEquipmentPackageId):
     const slot = CASH_PACKAGE_EQUIP_SLOTS[Math.floor(Math.random() * CASH_PACKAGE_EQUIP_SLOTS.length)];
     const bonusEquipment = generateNewItem(bonusGrade, slot);
     return [...sealed, bonusEquipment];
+}
+
+/** 우편 수령 등: 상점 `BUY_CASH_PACKAGE`(다이아 패키지)와 동일한 유저 상태·즉시 다이아·당일 일일 우편 반영 */
+export function grantDiamondCashShopPackageFromMail(user: User, packageId: CashShopDiamondPackageId, now: number): void {
+    const days = DIAMOND_PACKAGE_DURATION_DAYS[packageId];
+    const instant = DIAMOND_PACKAGE_INSTANT_DIAMONDS[packageId];
+    const tier = diamondPackageIdToTier(packageId);
+
+    user.diamonds = (user.diamonds || 0) + instant;
+    user.activeDiamondPackageTier = tier;
+    user.diamondPackageExpiresAt = now + days * 86400000;
+    user.diamondPackageLastMailDayKST = getTodayKSTDateString(now);
+
+    if (!user.mail) user.mail = [];
+    const dayMail: Mail = {
+        id: `mail-diamond-pkg-day0-${randomUUID()}`,
+        from: 'System',
+        title: '다이아 패키지 일일 보상',
+        message: `다이아 패키지 혜택으로 다이아 ${DIAMOND_PACKAGE_DAILY_MAIL_DIAMONDS}개를 우편으로 드립니다. 7일 이내 수령해 주세요.`,
+        attachments: { diamonds: DIAMOND_PACKAGE_DAILY_MAIL_DIAMONDS },
+        receivedAt: now,
+        expiresAt: now + 7 * 86400000,
+        isRead: false,
+        attachmentsClaimed: false,
+    };
+    user.mail.unshift(dayMail);
 }
 
 export const handleShopAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
@@ -728,6 +761,28 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 },
             };
         }
+        case 'BUY_VIP_PACKAGE': {
+            const { packageId } = (payload || {}) as { packageId?: string };
+            if (!packageId || typeof packageId !== 'string') {
+                return { error: '유효하지 않은 상품입니다.' };
+            }
+            if (!(VIP_SHOP_PRODUCT_IDS as readonly string[]).includes(packageId)) {
+                return { error: '유효하지 않은 VIP 상품입니다.' };
+            }
+            if (!user.isAdmin) {
+                return { error: '아직 구현되지 않았습니다.' };
+            }
+            const id = packageId as VipShopProductId;
+            const days = VIP_SHOP_DURATION_DAYS[id];
+            const flags = getVipShopGrantFlagsForProductId(id);
+            applyVipDurationExtensionToUser(user, flags, days * 86400000, Date.now());
+
+            const updatedUser = getSelectiveUserUpdate(user, 'BUY_VIP_PACKAGE', { includeAll: true });
+            db.updateUser(user).catch((err) => console.error(`[BUY_VIP_PACKAGE] Failed to save user ${user.id}:`, err));
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt']);
+            return { clientResponse: { updatedUser } };
+        }
         case 'BUY_CASH_PACKAGE': {
             const { packageId } = (payload || {}) as { packageId?: string };
             if (!packageId || typeof packageId !== 'string') {
@@ -744,28 +799,7 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 if (!user.isAdmin && (user.diamondPackageExpiresAt ?? 0) > now) {
                     return { error: '진행 중인 다이아 패키지가 있을 때는 추가 구매할 수 없습니다.' };
                 }
-                const days = DIAMOND_PACKAGE_DURATION_DAYS[id];
-                const instant = DIAMOND_PACKAGE_INSTANT_DIAMONDS[id];
-                const tier = diamondPackageIdToTier(id);
-
-                user.diamonds = (user.diamonds || 0) + instant;
-                user.activeDiamondPackageTier = tier;
-                user.diamondPackageExpiresAt = now + days * 86400000;
-                user.diamondPackageLastMailDayKST = getTodayKSTDateString(now);
-
-                if (!user.mail) user.mail = [];
-                const dayMail: Mail = {
-                    id: `mail-diamond-pkg-day0-${randomUUID()}`,
-                    from: 'System',
-                    title: '다이아 패키지 일일 보상',
-                    message: `다이아 패키지 혜택으로 다이아 ${DIAMOND_PACKAGE_DAILY_MAIL_DIAMONDS}개를 우편으로 드립니다. 7일 이내 수령해 주세요.`,
-                    attachments: { diamonds: DIAMOND_PACKAGE_DAILY_MAIL_DIAMONDS },
-                    receivedAt: now,
-                    expiresAt: now + 7 * 86400000,
-                    isRead: false,
-                    attachmentsClaimed: false,
-                };
-                user.mail.unshift(dayMail);
+                grantDiamondCashShopPackageFromMail(user, id, now);
 
                 const updatedUser = getSelectiveUserUpdate(user, 'BUY_CASH_PACKAGE', { includeAll: true });
                 db.updateUser(user).catch((err) => console.error(`[BUY_CASH_PACKAGE] Failed to save user ${user.id}:`, err));

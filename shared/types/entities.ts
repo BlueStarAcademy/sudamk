@@ -112,6 +112,8 @@ export type Mail = {
     /** 길드 보스전 정산 보상: 길드 연구소 포인트 */
     researchPoints?: number;
     items?: (InventoryItem | { itemId: string; quantity: number })[];
+    /** 관리자 우편: 캐시샵 패키지(수령 시 상점 구매와 동일 효과, 월간 한도 미반영) */
+    cashShopPackages?: { packageId: string; quantity: number }[];
   };
   receivedAt: number;
   expiresAt?: number;

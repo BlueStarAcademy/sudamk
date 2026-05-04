@@ -551,6 +551,7 @@ export type ServerAction =
     | { type: 'EXPAND_INVENTORY', payload: { category: InventoryItemType } }
     | { type: 'BUY_BORDER', payload: { borderId: string } }
     | { type: 'BUY_CASH_PACKAGE', payload: { packageId: string } }
+    | { type: 'BUY_VIP_PACKAGE', payload: { packageId: string } }
     // Admin
     | { type: 'ADMIN_APPLY_SANCTION', payload: { targetUserId: string; sanctionType: 'chat' | 'connection'; durationMinutes: number; reason: string; reasonDetail?: string } }
     | { type: 'ADMIN_LIFT_SANCTION', payload: { targetUserId: string; sanctionType: 'chat' | 'connection' } }

@@ -11,6 +11,7 @@ import {
     CASH_SHOP_EQUIPMENT_PACKAGE_IDS,
     EQUIPMENT_PACKAGE_MONTHLY_LIMIT,
 } from '../shared/constants/cashShopPackages.js';
+import { VIP_SHOP_DURATION_DAYS } from '../shared/constants/vipShopProducts.js';
 import PurchaseQuantityModal from './PurchaseQuantityModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
@@ -69,7 +70,7 @@ interface MiscShopProduct {
 
 const SHOP_DIAMOND_ICON = '/images/icon/Zem.png';
 
-/** 원화(현금) 결제 미연동 — 일반 유저 차단, 관리자만 `BUY_CASH_PACKAGE` 허용 */
+/** 원화(현금) 결제 미연동 — 일반 유저 차단, 관리자만 `BUY_CASH_PACKAGE`·`BUY_VIP_PACKAGE` 허용 */
 const CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE = '아직 구현되지 않았습니다.';
 
 type ShopAdRewardTab = 'equipment' | 'materials' | 'consumables' | 'diamonds';
@@ -391,14 +392,14 @@ const PackageDiamondVisual: React.FC<{
         : 'mb-1 w-full text-center text-[11px] font-medium leading-tight text-violet-200/90 sm:text-xs';
     const dailyGroupBoxClass = compact
         ? dn
-            ? 'flex min-h-0 min-w-0 flex-1 flex-col items-stretch rounded border border-cyan-500/20 bg-cyan-950/15 px-0.5 py-0.5'
-            : 'flex min-h-0 min-w-0 flex-1 flex-col items-stretch rounded-md border border-cyan-500/25 bg-cyan-950/20 px-0.5 py-1'
-        : 'flex min-h-0 min-w-0 flex-1 flex-col items-stretch rounded-lg border border-cyan-500/30 bg-cyan-950/25 px-2 py-2';
+            ? 'flex min-h-0 min-w-0 max-w-[56%] flex-[1] flex-col items-stretch rounded border border-cyan-500/20 bg-cyan-950/15 px-0.5 py-0.5'
+            : 'flex min-h-0 min-w-0 max-w-[54%] flex-[1] flex-col items-stretch rounded-md border border-cyan-500/25 bg-cyan-950/20 px-0.5 py-1 min-[380px]:max-w-[52%]'
+        : 'flex min-h-0 min-w-0 max-w-[48%] flex-[1] flex-col items-stretch rounded-lg border border-cyan-500/30 bg-cyan-950/25 px-2 py-2 sm:max-w-[46%]';
     const instantGroupBoxClass = compact
         ? dn
-            ? 'flex max-w-[34%] flex-none flex-col items-center rounded border border-cyan-500/20 bg-cyan-950/15 px-0.5 py-0.5'
-            : 'flex max-w-[38%] flex-none flex-col items-center rounded-md border border-cyan-500/25 bg-cyan-950/20 px-0.5 py-1'
-        : 'flex max-w-[30%] flex-none flex-col items-center rounded-lg border border-cyan-500/30 bg-cyan-950/25 px-1.5 py-2 sm:max-w-[28%]';
+            ? 'flex max-w-[40%] flex-none flex-col items-center rounded border border-cyan-500/20 bg-cyan-950/15 px-0.5 py-0.5'
+            : 'flex max-w-[44%] flex-none flex-col items-center rounded-md border border-cyan-500/25 bg-cyan-950/20 px-0.5 py-1 min-[380px]:max-w-[42%]'
+        : 'flex max-w-[36%] flex-none flex-col items-center rounded-lg border border-cyan-500/30 bg-cyan-950/25 px-1.5 py-2 sm:max-w-[34%]';
     return (
         <div
             className={`flex w-full min-w-0 items-stretch justify-center ${
@@ -458,14 +459,14 @@ const PackageBoxRowVisual: React.FC<{
         : 'text-lg font-semibold text-slate-400/90 sm:text-xl';
     const boxGroupClass = compact
         ? dn
-            ? 'flex min-h-0 min-w-0 flex-1 flex-col justify-center rounded border border-indigo-500/20 bg-indigo-950/15 px-0 py-0.5'
-            : 'flex min-h-0 min-w-0 flex-1 flex-col justify-center rounded-md border border-indigo-500/25 bg-indigo-950/20 px-0.5 py-1'
-        : 'flex min-h-0 min-w-0 flex-1 flex-col justify-center rounded-lg border border-indigo-500/30 bg-indigo-950/25 px-1.5 py-1.5 sm:px-2 sm:py-2';
+            ? 'flex min-h-0 min-w-0 max-w-[56%] flex-1 flex-col justify-center rounded border border-indigo-500/20 bg-indigo-950/15 px-0 py-0.5'
+            : 'flex min-h-0 min-w-0 max-w-[54%] flex-1 flex-col justify-center rounded-md border border-indigo-500/25 bg-indigo-950/20 px-0.5 py-1 min-[380px]:max-w-[52%]'
+        : 'flex min-h-0 min-w-0 max-w-[48%] flex-1 flex-col justify-center rounded-lg border border-indigo-500/30 bg-indigo-950/25 px-1.5 py-1.5 sm:max-w-[46%] sm:px-2 sm:py-2';
     const bonusGroupClass = compact
         ? dn
-            ? 'flex min-w-0 max-w-[42%] shrink-0 flex-col items-center justify-center gap-0 rounded border border-emerald-500/25 bg-emerald-950/20 px-0.5 py-0.5'
-            : 'flex min-w-0 max-w-[46%] shrink-0 flex-col items-center justify-center gap-0.5 rounded-md border border-emerald-500/30 bg-emerald-950/25 px-1 py-1'
-        : 'flex min-w-[5.75rem] max-w-[40%] shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-emerald-500/30 bg-emerald-950/25 px-2 py-1.5 sm:min-w-[6.5rem] sm:px-2.5 sm:py-2';
+            ? 'flex min-w-0 max-w-[48%] shrink-0 flex-col items-center justify-center gap-0 rounded border border-emerald-500/25 bg-emerald-950/20 px-0.5 py-0.5'
+            : 'flex min-w-0 max-w-[52%] shrink-0 flex-col items-center justify-center gap-0.5 rounded-md border border-emerald-500/30 bg-emerald-950/25 px-1 py-1 min-[380px]:max-w-[50%]'
+        : 'flex min-w-[6rem] max-w-[46%] shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-emerald-500/30 bg-emerald-950/25 px-2 py-1.5 sm:min-w-[6.75rem] sm:max-w-[44%] sm:px-2.5 sm:py-2';
     const bonusVerticalLineClass = compact
         ? dn
             ? 'block text-center text-[8px] font-extrabold leading-[1.05] tracking-tight text-emerald-100'
@@ -702,7 +703,18 @@ const MiscShopCard: React.FC<{
     );
 };
 
-const VipShopCard: React.FC<{ product: MiscShopProduct; mobile?: boolean }> = ({ product, mobile = false }) => {
+const VipShopCard: React.FC<{
+    product: MiscShopProduct;
+    mobile?: boolean;
+    currentUser: UserWithStatus;
+    onBuyVip: (packageId: string) => void;
+    setToastMessage: (msg: string | null) => void;
+}> = ({ product, mobile = false, currentUser, onBuyVip, setToastMessage }) => {
+    const durationDays =
+        product.id in VIP_SHOP_DURATION_DAYS
+            ? VIP_SHOP_DURATION_DAYS[product.id as keyof typeof VIP_SHOP_DURATION_DAYS]
+            : 30;
+
     return (
         <div
             className={`flex h-full min-h-0 flex-col rounded-xl border border-yellow-300/40 bg-gradient-to-br from-[#36270d]/95 via-[#21160f]/95 to-[#0d111f]/95 shadow-[0_20px_48px_-28px_rgba(251,191,36,0.8)] ${
@@ -717,7 +729,6 @@ const VipShopCard: React.FC<{ product: MiscShopProduct; mobile?: boolean }> = ({
                     </span>
                 )}
             </div>
-            <p className={`shrink-0 ${mobile ? 'text-[11px] font-semibold' : 'text-sm font-semibold'} text-amber-300/95`}>{product.priceKRW.toLocaleString()}원</p>
             <ul
                 className={`mt-1.5 min-h-0 flex-1 space-y-0.5 text-amber-50/88 ${mobile ? 'text-[10px] leading-snug' : 'text-xs sm:text-sm'}`}
             >
@@ -741,6 +752,27 @@ const VipShopCard: React.FC<{ product: MiscShopProduct; mobile?: boolean }> = ({
                 title="중복 구매 시 기간 연장"
             >
                 중복 구매 시 기간 연장
+            </div>
+            <div className="mt-auto shrink-0 pt-2">
+                <Button
+                    type="button"
+                    colorScheme="none"
+                    bare
+                    onClick={() => {
+                        if (!currentUser.isAdmin) {
+                            setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
+                            return;
+                        }
+                        onBuyVip(product.id);
+                    }}
+                    className={`flex w-full flex-wrap items-center justify-center gap-x-1 gap-y-0 rounded-md border border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 px-1.5 py-2 font-semibold tabular-nums text-slate-900 shadow-[0_8px_22px_-12px_rgba(251,191,36,0.75)] sm:rounded-lg sm:shadow-[0_10px_28px_-14px_rgba(251,191,36,0.85)] ${
+                        mobile ? 'min-h-[2.35rem] text-[10px] leading-tight sm:text-xs' : 'min-h-[2.65rem] text-xs sm:min-h-[2.75rem] sm:text-sm'
+                    }`}
+                >
+                    <span className="min-w-0 text-center leading-tight">
+                        {product.priceKRW.toLocaleString()}원 ({durationDays}일 적용)
+                    </span>
+                </Button>
             </div>
         </div>
     );
@@ -1070,6 +1102,14 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         onAction({ type: 'BUY_CASH_PACKAGE', payload: { packageId } });
     };
 
+    const handleBuyVipPackage = (packageId: string) => {
+        if (!currentUser.isAdmin) {
+            setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
+            return;
+        }
+        onAction({ type: 'BUY_VIP_PACKAGE', payload: { packageId } });
+    };
+
     const renderContent = () => {
         const equipmentItems = [
             { itemId: 'equipment_box_1', name: "장비 상자 I", description: "일반~희귀 등급 장비", price: { gold: 500 }, image: "/images/Box/EquipmentBox1.png", type: 'equipment' as const },
@@ -1155,7 +1195,14 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                         }`}
                     >
                         {vipProducts.map(product => (
-                            <VipShopCard key={product.id} product={product} mobile={mobileShop} />
+                            <VipShopCard
+                                key={product.id}
+                                product={product}
+                                mobile={mobileShop}
+                                currentUser={currentUser}
+                                onBuyVip={handleBuyVipPackage}
+                                setToastMessage={setToastMessage}
+                            />
                         ))}
                     </div>
                 );

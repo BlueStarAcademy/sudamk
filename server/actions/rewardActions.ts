@@ -28,6 +28,16 @@ import { getAdventureUnderstandingTierFromXp } from '../../constants/adventureCo
 import { getAdventureCodexCompletionBreakdown } from '../../utils/adventureCodexCompletion.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig, type RewardConfig } from '../../shared/constants/rewardConfig.js';
 import { isRewardVipActive } from '../../shared/utils/rewardVip.js';
+import {
+    CASH_SHOP_DIAMOND_PACKAGE_IDS,
+    CASH_SHOP_EQUIPMENT_PACKAGE_IDS,
+    type CashShopDiamondPackageId,
+    type CashShopEquipmentPackageId,
+} from '../../shared/constants/cashShopPackages.js';
+import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js';
+import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
+import { collectEquipmentCashPackageLoot, grantDiamondCashShopPackageFromMail } from './shopActions.js';
+import * as guildService from '../guildService.js';
 
 const getRandomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -92,6 +102,31 @@ const getStrategySeasonScoreForAchievements = (user: User): number => {
     return 1200 + diff;
 };
 
+/** 우편 첨부 캐시 패키지: 다이아 패키지는 즉시 반영, 장비 패키지는 인벤에 넣을 아이템 목록으로 반환 */
+async function grantCashShopPackagesFromMailAttachment(user: User, lines: { packageId: string; quantity: number }[] | undefined): Promise<InventoryItem[]> {
+    const equipItems: InventoryItem[] = [];
+    if (!lines?.length) return equipItems;
+    const now = Date.now();
+    for (const line of lines) {
+        const qty = clampGameInt(line.quantity, { min: 1, max: MAX_GAME_INTEGER_INPUT });
+        const pid = line.packageId;
+        if ((CASH_SHOP_DIAMOND_PACKAGE_IDS as readonly string[]).includes(pid)) {
+            for (let i = 0; i < qty; i++) {
+                grantDiamondCashShopPackageFromMail(user, pid as CashShopDiamondPackageId, now);
+            }
+        } else if ((CASH_SHOP_EQUIPMENT_PACKAGE_IDS as readonly string[]).includes(pid)) {
+            const id = pid as CashShopEquipmentPackageId;
+            for (let i = 0; i < qty; i++) {
+                const loot = collectEquipmentCashPackageLoot(id);
+                const bonus = loot[loot.length - 1];
+                if (bonus) await guildService.recordGuildEpicPlusEquipmentAcquisition(user, [bonus]);
+                equipItems.push(...loot);
+            }
+        }
+    }
+    return equipItems;
+}
+
 type HandleActionResult = {
     clientResponse?: any;
     error?: string;
@@ -119,8 +154,20 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             if (!mail) return { error: 'Mail not found.' };
             if (mail.attachmentsClaimed) return { error: 'Attachments already claimed.' };
             if (!mail.attachments) return { error: 'No attachments to claim.' };
+            const a = mail.attachments;
+            const hasStackable =
+                (a.gold || 0) > 0 ||
+                (a.diamonds || 0) > 0 ||
+                (a.actionPoints || 0) > 0 ||
+                (a.guildCoins || 0) > 0 ||
+                (a.researchPoints || 0) > 0;
+            const hasItemList = Array.isArray(a.items) && a.items.length > 0;
+            const hasCashPkgs = Array.isArray(a.cashShopPackages) && a.cashShopPackages.length > 0;
+            if (!hasStackable && !hasItemList && !hasCashPkgs) return { error: 'No attachments to claim.' };
         
             const itemsToCreate: InventoryItem[] = [];
+            const packageItems = await grantCashShopPackagesFromMailAttachment(user, a.cashShopPackages);
+            itemsToCreate.push(...packageItems);
             if (mail.attachments.items) {
                  const createdItems = createItemInstancesFromMailAttachments(
                      mail.attachments.items as InventoryItem[] | { itemId: string; quantity: number }[],
@@ -176,7 +223,17 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화: 변경된 필드만 전송)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory', 'mail', 'gold', 'diamonds', 'actionPoints', 'guildCoins']);
+            broadcastUserUpdate(user, [
+                'inventory',
+                'mail',
+                'gold',
+                'diamonds',
+                'actionPoints',
+                'guildCoins',
+                'activeDiamondPackageTier',
+                'diamondPackageExpiresAt',
+                'diamondPackageLastMailDayKST',
+            ]);
             
             return {
                 clientResponse: {
@@ -199,6 +256,11 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             let totalGuildCoins = 0;
             let totalResearchPoints = 0;
             const allItemsToCreate: InventoryItem[] = [];
+
+            for (const mail of mailsToClaim) {
+                const pkgItems = await grantCashShopPackagesFromMailAttachment(user, mail.attachments!.cashShopPackages);
+                allItemsToCreate.push(...pkgItems);
+            }
 
             for (const mail of mailsToClaim) {
                 totalGold += mail.attachments!.gold || 0;
@@ -252,7 +314,17 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화: 변경된 필드만 전송)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory', 'mail', 'gold', 'diamonds', 'actionPoints', 'guildCoins']);
+            broadcastUserUpdate(user, [
+                'inventory',
+                'mail',
+                'gold',
+                'diamonds',
+                'actionPoints',
+                'guildCoins',
+                'activeDiamondPackageTier',
+                'diamondPackageExpiresAt',
+                'diamondPackageLastMailDayKST',
+            ]);
             
             const reward: QuestReward = {
                 gold: totalGold,

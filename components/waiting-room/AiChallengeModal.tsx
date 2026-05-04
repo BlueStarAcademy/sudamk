@@ -15,7 +15,7 @@ import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS, STRATEGI
 import { 
   BOARD_SIZES, TIME_LIMITS, BYOYOMI_COUNTS, BYOYOMI_TIMES, CAPTURE_BOARD_SIZES, 
   CAPTURE_TARGETS, TTAMOK_CAPTURE_TARGETS, SPEED_BOARD_SIZES, SPEED_TIME_LIMITS, BASE_STONE_COUNTS,
-  HIDDEN_STONE_COUNTS, SCAN_COUNTS, MISSILE_BOARD_SIZES, MISSILE_COUNTS,
+  SCAN_COUNTS, MISSILE_BOARD_SIZES, MISSILE_COUNTS,
   ALKKAGI_STONE_COUNTS, ALKKAGI_ROUNDS, ALKKAGI_GAUGE_SPEEDS, ALKKAGI_ITEM_COUNTS,
   CURLING_STONE_COUNTS, CURLING_ROUNDS, CURLING_GAUGE_SPEEDS, CURLING_ITEM_COUNTS,
   OMOK_BOARD_SIZES, HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getStrategicBoardSizesByMode, getScoringTurnLimitOptionsByBoardSize, getAiScoringTurnLimitByBoardSize
@@ -24,6 +24,12 @@ import Avatar from '../Avatar.js';
 import { profileStepFromKataServerLevel } from '../../shared/utils/strategicAiDifficulty.js';
 import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
+import {
+    clampAiLobbyStrategicItemCaps,
+    AI_LOBBY_HIDDEN_ITEM_FIXED,
+    AI_LOBBY_MISSILE_MAX,
+    AI_LOBBY_SCAN_MAX,
+} from '../../shared/utils/strategicAiLobbyItemCaps.js';
 import { PAIR_LOBBY_DENSE_SETTING_ROW_CLASS } from '../../shared/constants/pairLobbyDenseSettingFieldLayout.js';
 
 interface AiChallengeModalProps {
@@ -77,10 +83,12 @@ interface AiChallengeModalProps {
 
 /** 전략바둑 대기실 「AI와 대결하기」: 베이스돌 최대 4개 */
 const AI_CHALLENGE_BASE_STONE_COUNTS = (BASE_STONE_COUNTS as readonly number[]).filter((count) => count <= 4);
-/** 전략바둑 대기실 「AI와 대결하기」: 히든 아이템 최대 2개 */
-const AI_CHALLENGE_HIDDEN_STONE_COUNTS = (HIDDEN_STONE_COUNTS as readonly number[]).filter((count) => count <= 2);
-/** 전략바둑 대기실 「AI와 대결하기」: 미사일 아이템 최대 10개 */
-const AI_CHALLENGE_MISSILE_COUNTS = (MISSILE_COUNTS as readonly number[]).filter((count) => count <= 10);
+/** 전략·페어 「AI와 대결」: 히든 아이템 1개 고정 */
+const AI_CHALLENGE_HIDDEN_STONE_COUNTS = [AI_LOBBY_HIDDEN_ITEM_FIXED] as const;
+/** 스캔 아이템 최대 3개 */
+const AI_CHALLENGE_SCAN_COUNTS = (SCAN_COUNTS as readonly number[]).filter((count) => count <= AI_LOBBY_SCAN_MAX);
+/** 미사일 아이템 최대 3개 */
+const AI_CHALLENGE_MISSILE_COUNTS = (MISSILE_COUNTS as readonly number[]).filter((count) => count <= AI_LOBBY_MISSILE_MAX);
 
 function getAiChallengeBoardSizes(mode: GameMode, lobbyType: 'strategic' | 'playful'): number[] {
     if (lobbyType === 'strategic') {
@@ -156,13 +164,7 @@ function mergeSeedIntoChallengeSettings(mode: GameMode, sessionSettings: GameSet
     if (newSettings.baseStones != null && !AI_CHALLENGE_BASE_STONE_COUNTS.includes(newSettings.baseStones)) {
         delete (newSettings as any).baseStones;
     }
-    if (newSettings.hiddenStoneCount != null && !AI_CHALLENGE_HIDDEN_STONE_COUNTS.includes(newSettings.hiddenStoneCount)) {
-        delete (newSettings as any).hiddenStoneCount;
-    }
-    if (newSettings.missileCount != null && !AI_CHALLENGE_MISSILE_COUNTS.includes(newSettings.missileCount)) {
-        delete (newSettings as any).missileCount;
-    }
-    return normalizeAiScoringTurnLimit(mode, newSettings);
+    return clampAiLobbyStrategicItemCaps(mode, normalizeAiScoringTurnLimit(mode, newSettings));
 }
 
 const GameCard: React.FC<{
@@ -306,18 +308,23 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 if (parsed.mixedModes && parsed.mixedModes.includes(GameMode.Base) && parsed.mixedModes.includes(GameMode.Capture)) {
                     parsed.mixedModes = parsed.mixedModes.filter((m: GameMode) => m !== GameMode.Base);
                 }
-                if (parsed.hiddenStoneCount != null && !AI_CHALLENGE_HIDDEN_STONE_COUNTS.includes(parsed.hiddenStoneCount)) {
-                    delete (parsed as any).hiddenStoneCount;
-                }
-                if (parsed.missileCount != null && !AI_CHALLENGE_MISSILE_COUNTS.includes(parsed.missileCount)) {
-                    delete (parsed as any).missileCount;
-                }
-                setSettings(normalizeAiScoringTurnLimit(selectedGameMode, { ...DEFAULT_GAME_SETTINGS, ...parsed }));
+                const mergedPrefs = clampAiLobbyStrategicItemCaps(selectedGameMode, { ...DEFAULT_GAME_SETTINGS, ...parsed });
+                setSettings(normalizeAiScoringTurnLimit(selectedGameMode, mergedPrefs));
             } catch {
-                setSettings(normalizeAiScoringTurnLimit(selectedGameMode, { ...DEFAULT_GAME_SETTINGS }));
+                setSettings(
+                    normalizeAiScoringTurnLimit(
+                        selectedGameMode,
+                        clampAiLobbyStrategicItemCaps(selectedGameMode, { ...DEFAULT_GAME_SETTINGS }),
+                    ),
+                );
             }
         } else {
-            setSettings(normalizeAiScoringTurnLimit(selectedGameMode, { ...DEFAULT_GAME_SETTINGS }));
+            setSettings(
+                normalizeAiScoringTurnLimit(
+                    selectedGameMode,
+                    clampAiLobbyStrategicItemCaps(selectedGameMode, { ...DEFAULT_GAME_SETTINGS }),
+                ),
+            );
         }
     }, [selectedGameMode]);
 
@@ -355,6 +362,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 newSettings = normalizeAiScoringTurnLimit(selectedGameMode, newSettings);
             }
             if (selectedGameMode) {
+                newSettings = clampAiLobbyStrategicItemCaps(selectedGameMode, newSettings);
                 localStorage.setItem(`preferredGameSettings_${selectedGameMode}`, JSON.stringify(newSettings));
             }
             return newSettings;
@@ -369,8 +377,9 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             if (nextMixed.includes(GameMode.Base) && nextMixed.includes(GameMode.Capture)) {
                 nextMixed = nextMixed.filter(m => m !== GameMode.Base);
             }
-            const newSettings = normalizeAiScoringTurnLimit(selectedGameMode ?? GameMode.Mix, { ...prev, mixedModes: nextMixed });
+            let newSettings = normalizeAiScoringTurnLimit(selectedGameMode ?? GameMode.Mix, { ...prev, mixedModes: nextMixed });
             if (selectedGameMode) {
+                newSettings = clampAiLobbyStrategicItemCaps(selectedGameMode, newSettings);
                 localStorage.setItem(`preferredGameSettings_${selectedGameMode}`, JSON.stringify(newSettings));
             }
             return newSettings;
@@ -394,7 +403,10 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 prev.mixedModes && prev.mixedModes.length === 1
                     ? [...prev.mixedModes, defaults.find(m => !prev.mixedModes!.includes(m)) ?? GameMode.Hidden]
                     : (defaults.length >= 2 ? defaults : [GameMode.Hidden, GameMode.Speed]);
-            const next = normalizeAiScoringTurnLimit(GameMode.Mix, { ...prev, mixedModes: nextMixed });
+            const next = clampAiLobbyStrategicItemCaps(
+                GameMode.Mix,
+                normalizeAiScoringTurnLimit(GameMode.Mix, { ...prev, mixedModes: nextMixed }),
+            );
             localStorage.setItem(`preferredGameSettings_${GameMode.Mix}`, JSON.stringify(next));
             return next;
         });
@@ -432,7 +444,10 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                   }
                 : {}),
         };
-        const normalizedSettings = normalizeAiScoringTurnLimit(selectedGameMode, mergedSettings);
+        const normalizedSettings = clampAiLobbyStrategicItemCaps(
+            selectedGameMode,
+            normalizeAiScoringTurnLimit(selectedGameMode, mergedSettings),
+        );
         const finalSettings = transformSettingsBeforeStart
             ? transformSettingsBeforeStart(selectedGameMode, normalizedSettings)
             : normalizedSettings;
@@ -712,12 +727,12 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                             <div className={settingRowClass}>
                                                 <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>스캔 개수</label>
                                                 <select
-                                                    value={settings.scanCount ?? 5}
+                                                    value={settings.scanCount ?? AI_LOBBY_SCAN_MAX}
                                                     onChange={(e) => handleSettingChange('scanCount', parseInt(e.target.value, 10))}
                                                     className="w-full bg-gray-700 border border-gray-600 text-center text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
                                                     style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
                                                 >
-                                                    {SCAN_COUNTS.map((c) => (
+                                                    {AI_CHALLENGE_SCAN_COUNTS.map((c) => (
                                                         <option key={c} value={c}>
                                                             {c}개
                                                         </option>
@@ -803,12 +818,12 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                             <div className={settingRowClass}>
                                                 <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>스캔 개수</label>
                                                 <select
-                                                    value={settings.scanCount ?? 5}
+                                                    value={settings.scanCount ?? AI_LOBBY_SCAN_MAX}
                                                     onChange={(e) => handleSettingChange('scanCount', parseInt(e.target.value, 10))}
                                                     className="w-full bg-gray-700 border border-gray-600 text-center text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
                                                     style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
                                                 >
-                                                    {SCAN_COUNTS.map((c) => (
+                                                    {AI_CHALLENGE_SCAN_COUNTS.map((c) => (
                                                         <option key={c} value={c}>
                                                             {c}개
                                                         </option>
@@ -1099,12 +1114,12 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                         <div className={settingRowClass}>
                             <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>스캔아이템</label>
                             <select 
-                                value={settings.scanCount || 5} 
+                                value={settings.scanCount || AI_LOBBY_SCAN_MAX} 
                                 onChange={e => handleSettingChange('scanCount', parseInt(e.target.value))}
                                 className="w-full bg-gray-700 border border-gray-600 text-center text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
                                 style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
                             >
-                                {SCAN_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                                {AI_CHALLENGE_SCAN_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </select>
                         </div>
                     </>

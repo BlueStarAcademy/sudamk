@@ -38,6 +38,7 @@ import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
 import { initializeGame } from '../gameModes.js';
 import { MATERIAL_ITEMS } from '../../shared/constants/items.js';
+import { clampAiLobbyStrategicItemCaps } from '../../shared/utils/strategicAiLobbyItemCaps.js';
 import { addItemsToInventory } from '../../utils/inventoryUtils.js';
 import type { InventoryItem } from '../../types/index.js';
 import {
@@ -1022,6 +1023,10 @@ function mergePairRoomLobbyGameSettings(room: types.PairRoomState, payload: { se
         ...room.settings,
         ...(payload.settings && typeof payload.settings === 'object' ? payload.settings : {}),
     };
+    const rk = room.roomKind;
+    if (rk === 'ai_duel' || rk === 'duo_match' || rk === 'arena_ai') {
+        room.settings = clampAiLobbyStrategicItemCaps(room.selectedGameMode, room.settings);
+    }
 }
 
 const refreshPairRoomTeams = (room: types.PairRoomState): types.PairRoomState => {
@@ -4081,6 +4086,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 scoringTurnLimit: 0,
             };
             delete (target.settings as any).autoScoringTurns;
+            target.settings = clampAiLobbyStrategicItemCaps(selectedMode, target.settings);
 
             const partnerUser = isDuoPairAiDuel
                 ? await db.getUser(target.partnerId!)

@@ -10,6 +10,16 @@ export type CashShopEquipmentPackageId = (typeof CASH_SHOP_EQUIPMENT_PACKAGE_IDS
 export const CASH_SHOP_PACKAGE_IDS = [...CASH_SHOP_DIAMOND_PACKAGE_IDS, ...CASH_SHOP_EQUIPMENT_PACKAGE_IDS] as const;
 export type CashShopPackageId = (typeof CASH_SHOP_PACKAGE_IDS)[number];
 
+/** 관리자 우편·UI 표기용 */
+export const CASH_SHOP_PACKAGE_KO_LABEL: Record<CashShopPackageId, string> = {
+    diamond_package_1: '다이아패키지Ⅰ',
+    diamond_package_2: '다이아패키지Ⅱ',
+    diamond_package_3: '다이아패키지Ⅲ',
+    equipment_package_1: '장비상자패키지Ⅰ',
+    equipment_package_2: '장비상자패키지Ⅱ',
+    equipment_package_3: '장비상자패키지Ⅲ',
+};
+
 export const DIAMOND_PACKAGE_DURATION_DAYS: Record<CashShopDiamondPackageId, number> = {
     diamond_package_1: 7,
     diamond_package_2: 15,

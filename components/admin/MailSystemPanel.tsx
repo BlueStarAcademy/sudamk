@@ -29,6 +29,11 @@ import {
 } from '../../shared/utils/specialOptionGearEffects.js';
 import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
+import {
+    CASH_SHOP_PACKAGE_IDS,
+    type CashShopPackageId,
+    CASH_SHOP_PACKAGE_KO_LABEL,
+} from '../../shared/constants/cashShopPackages.js';
 
 export type MailAttachedItemPayload = {
     name: string;
@@ -38,6 +43,28 @@ export type MailAttachedItemPayload = {
     stars?: number;
     /** 장비: 동일 표시 이름의 신화/초월 등 구분 (EQUIPMENT_POOL 템플릿 매칭용) */
     grade?: ItemGrade;
+};
+
+export type MailAttachedCashShopPackageRow = {
+    kind: 'cash_shop_package';
+    packageId: CashShopPackageId;
+    quantity: number;
+};
+
+export type MailAttachmentPickerRow = MailAttachedItemPayload | MailAttachedCashShopPackageRow;
+
+function isMailAttachedCashPackageRow(row: MailAttachmentPickerRow): row is MailAttachedCashShopPackageRow {
+    return 'kind' in row && row.kind === 'cash_shop_package';
+}
+
+/** 패키지 탭 그리드 썸네일 */
+const MAIL_PACKAGE_THUMB: Record<CashShopPackageId, string> = {
+    diamond_package_1: '/images/icon/Zem.png',
+    diamond_package_2: '/images/icon/Zem.png',
+    diamond_package_3: '/images/icon/Zem.png',
+    equipment_package_1: '/images/Box/EquipmentBox5.png',
+    equipment_package_2: '/images/Box/EquipmentBox5.png',
+    equipment_package_3: '/images/Box/EquipmentBox6.png',
 };
 
 function buildEquipmentAdminTooltip(slot: EquipmentSlot, grade: ItemGrade, description: string): string {
@@ -86,7 +113,7 @@ function buildEquipmentAdminTooltip(slot: EquipmentSlot, grade: ItemGrade, descr
 }
 
 interface ItemSelectionModalProps {
-    onAddItem: (item: MailAttachedItemPayload) => void;
+    onAddItem: (item: MailAttachmentPickerRow) => void;
     onClose: () => void;
 }
 
@@ -108,9 +135,10 @@ function isMailModalItemSelected(
 }
 
 const ItemSelectionModal: React.FC<ItemSelectionModalProps> = ({ onAddItem, onClose }) => {
-    type ItemTab = 'equipment' | 'consumable' | 'material';
+    type ItemTab = 'equipment' | 'consumable' | 'material' | 'package';
     const [activeTab, setActiveTab] = useState<ItemTab>('equipment');
     const [selectedItem, setSelectedItem] = useState<ModalSelectedItem | null>(null);
+    const [selectedPackageId, setSelectedPackageId] = useState<CashShopPackageId | null>(null);
     const [quantity, setQuantity] = useState(1);
     const [equipmentEnhanceStars, setEquipmentEnhanceStars] = useState(0);
     const itemTooltipAnchorRef = useRef<HTMLElement | null>(null);
@@ -121,6 +149,7 @@ const ItemSelectionModal: React.FC<ItemSelectionModalProps> = ({ onAddItem, onCl
             case 'equipment': return EQUIPMENT_POOL;
             case 'consumable': return CONSUMABLE_ITEMS;
             case 'material': return Object.values(MATERIAL_ITEMS);
+            case 'package': return [];
             default: return [];
         }
     }, [activeTab]);
@@ -128,10 +157,19 @@ const ItemSelectionModal: React.FC<ItemSelectionModalProps> = ({ onAddItem, onCl
     const setTab = (tab: ItemTab) => {
         setActiveTab(tab);
         setSelectedItem(null);
+        setSelectedPackageId(null);
         setEquipmentEnhanceStars(0);
     };
 
     const handleAddItem = () => {
+        if (activeTab === 'package') {
+            if (selectedPackageId && quantity > 0) {
+                onAddItem({ kind: 'cash_shop_package', packageId: selectedPackageId, quantity });
+                setSelectedPackageId(null);
+                setQuantity(1);
+            }
+            return;
+        }
         if (selectedItem && quantity > 0) {
             const payload: MailAttachedItemPayload = { ...selectedItem, quantity };
             if (selectedItem.type === 'equipment') {
@@ -143,6 +181,8 @@ const ItemSelectionModal: React.FC<ItemSelectionModalProps> = ({ onAddItem, onCl
             setEquipmentEnhanceStars(0);
         }
     };
+
+    const packageAddDisabled = activeTab === 'package' ? !selectedPackageId || quantity < 1 : !selectedItem || quantity < 1;
 
     const clearItemTooltip = () => {
         setItemTooltipText(null);
@@ -160,13 +200,43 @@ const ItemSelectionModal: React.FC<ItemSelectionModalProps> = ({ onAddItem, onCl
                 {itemTooltipText}
             </PortalHoverBubble>
             <div className="h-[60vh] flex flex-col">
-                <div className="flex bg-tertiary/70 p-1 rounded-lg mb-4 flex-shrink-0">
-                    <button type="button" onClick={() => setTab('equipment')} className={`flex-1 py-2 text-sm font-semibold rounded-md ${activeTab === 'equipment' ? 'bg-accent' : 'text-tertiary'}`}>장비</button>
-                    <button type="button" onClick={() => setTab('consumable')} className={`flex-1 py-2 text-sm font-semibold rounded-md ${activeTab === 'consumable' ? 'bg-accent' : 'text-tertiary'}`}>소모품</button>
-                    <button type="button" onClick={() => setTab('material')} className={`flex-1 py-2 text-sm font-semibold rounded-md ${activeTab === 'material' ? 'bg-accent' : 'text-tertiary'}`}>재료</button>
+                <div className="flex flex-wrap bg-tertiary/70 p-1 rounded-lg mb-4 flex-shrink-0 gap-1">
+                    <button type="button" onClick={() => setTab('equipment')} className={`min-w-0 flex-1 py-2 text-xs sm:text-sm font-semibold rounded-md ${activeTab === 'equipment' ? 'bg-accent' : 'text-tertiary'}`}>장비</button>
+                    <button type="button" onClick={() => setTab('consumable')} className={`min-w-0 flex-1 py-2 text-xs sm:text-sm font-semibold rounded-md ${activeTab === 'consumable' ? 'bg-accent' : 'text-tertiary'}`}>소모품</button>
+                    <button type="button" onClick={() => setTab('material')} className={`min-w-0 flex-1 py-2 text-xs sm:text-sm font-semibold rounded-md ${activeTab === 'material' ? 'bg-accent' : 'text-tertiary'}`}>재료</button>
+                    <button type="button" onClick={() => setTab('package')} className={`min-w-0 flex-1 py-2 text-xs sm:text-sm font-semibold rounded-md ${activeTab === 'package' ? 'bg-accent' : 'text-tertiary'}`}>패키지</button>
                 </div>
                 <div className="flex-grow overflow-y-auto pr-2 grid grid-cols-4 gap-2">
-                    {itemsForTab.map(item => (
+                    {activeTab === 'package'
+                        ? CASH_SHOP_PACKAGE_IDS.map((pid) => (
+                              <div
+                                  key={pid}
+                                  onClick={() => {
+                                      setSelectedPackageId(pid);
+                                      setSelectedItem(null);
+                                  }}
+                                  onMouseEnter={(e) => {
+                                      itemTooltipAnchorRef.current = e.currentTarget;
+                                      setItemTooltipText(
+                                          `${CASH_SHOP_PACKAGE_KO_LABEL[pid]} — 수령 시 상점 패키지 구매와 동일하게 적용됩니다.`,
+                                      );
+                                  }}
+                                  onMouseLeave={clearItemTooltip}
+                                  className={`p-2 rounded-lg border-2 ${
+                                      selectedPackageId === pid ? 'border-accent ring-2 ring-accent' : 'border-color bg-secondary/50'
+                                  } cursor-pointer flex flex-col items-center min-w-0`}
+                              >
+                                  <img
+                                      src={MAIL_PACKAGE_THUMB[pid]}
+                                      alt=""
+                                      className="h-16 w-16 shrink-0 object-contain"
+                                  />
+                                  <span className="mt-1 line-clamp-2 text-center text-[10px] leading-tight text-primary sm:text-[11px]">
+                                      {CASH_SHOP_PACKAGE_KO_LABEL[pid]}
+                                  </span>
+                              </div>
+                          ))
+                        : itemsForTab.map(item => (
                         <div
                             key={item.type === 'equipment' ? `${item.name}::${item.grade}` : item.name}
                             onClick={() => {
@@ -256,7 +326,7 @@ const ItemSelectionModal: React.FC<ItemSelectionModalProps> = ({ onAddItem, onCl
                             </div>
                         )}
                     </div>
-                    <Button onClick={handleAddItem} disabled={!selectedItem}>선택 아이템 추가</Button>
+                    <Button onClick={handleAddItem} disabled={packageAddDisabled}>선택 아이템 추가</Button>
                 </div>
             </div>
         </DraggableWindow>
@@ -286,7 +356,7 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
     const [isSearchingUsers, setIsSearchingUsers] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
     const [isItemModalOpen, setIsItemModalOpen] = useState(false);
-    const [attachedItems, setAttachedItems] = useState<MailAttachedItemPayload[]>([]);
+    const [attachedItems, setAttachedItems] = useState<MailAttachmentPickerRow[]>([]);
     /** 모바일·태블릿: 단계별 화면 (데스크톱 xl+ 에서는 3열 그리드) */
     const [mobileStep, setMobileStep] = useState<1 | 2 | 3>(1);
 
@@ -375,6 +445,11 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
             return;
         }
 
+        const cashShopPackages = attachedItems
+            .filter(isMailAttachedCashPackageRow)
+            .map((x) => ({ packageId: x.packageId, quantity: x.quantity }));
+        const regularAttachedItems = attachedItems.filter((x): x is MailAttachedItemPayload => !isMailAttachedCashPackageRow(x));
+
         onAction({
             type: 'ADMIN_SEND_MAIL',
             payload: {
@@ -383,8 +458,14 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
                 title,
                 message,
                 expiresInDays,
-                attachments: { gold, diamonds, actionPoints, items: attachedItems }
-            }
+                attachments: {
+                    gold,
+                    diamonds,
+                    actionPoints,
+                    items: regularAttachedItems,
+                    ...(cashShopPackages.length > 0 ? { cashShopPackages } : {}),
+                },
+            },
         });
 
         setTitle('');
@@ -559,7 +640,7 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
     const attachedItemsInner = (
         <>
             <h2 className={`${adminCardTitle} shrink-0`}>첨부 아이템</h2>
-            <p className="mb-3 shrink-0 text-xs text-gray-500">모달에서 장비·소모품·재료를 고른 뒤 목록에 쌓입니다.</p>
+            <p className="mb-3 shrink-0 text-xs text-gray-500">모달에서 장비·소모품·재료·패키지를 고른 뒤 목록에 쌓입니다.</p>
             <Button type="button" onClick={() => setIsItemModalOpen(true)} colorScheme="blue" className="mb-3 w-full shrink-0 py-2.5">
                 아이템 첨부 열기
             </Button>
@@ -569,14 +650,23 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
                     <div key={index} className="flex items-center justify-between gap-2 rounded bg-primary/50 p-2 text-xs">
                         <span className="flex min-w-0 items-center gap-1.5 truncate">
                             <span className="min-w-0 truncate">
-                                {item.name} × {item.quantity}
-                                {item.type === 'equipment' && item.grade ? (
-                                    <span className={`font-medium ${gradeStyles[item.grade].color}`}> ({gradeStyles[item.grade].name})</span>
-                                ) : null}
-                                {item.type === 'equipment' && item.stars != null && item.stars > 0 ? (
-                                    <span className="font-medium text-amber-400/90"> +{item.stars}</span>
-                                ) : null}{' '}
-                                <span className="text-gray-500">({item.type})</span>
+                                {isMailAttachedCashPackageRow(item) ? (
+                                    <>
+                                        {CASH_SHOP_PACKAGE_KO_LABEL[item.packageId]} × {item.quantity}{' '}
+                                        <span className="font-medium text-cyan-300/90">(캐시 패키지)</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        {item.name} × {item.quantity}
+                                        {item.type === 'equipment' && item.grade ? (
+                                            <span className={`font-medium ${gradeStyles[item.grade].color}`}> ({gradeStyles[item.grade].name})</span>
+                                        ) : null}
+                                        {item.type === 'equipment' && item.stars != null && item.stars > 0 ? (
+                                            <span className="font-medium text-amber-400/90"> +{item.stars}</span>
+                                        ) : null}{' '}
+                                        <span className="text-gray-500">({item.type})</span>
+                                    </>
+                                )}
                             </span>
                         </span>
                         <button

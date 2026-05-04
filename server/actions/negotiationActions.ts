@@ -8,6 +8,7 @@ import { broadcast } from '../socket.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { applyPassiveActionPointRegenToUser } from '../effectService.js';
 import { maybeDeleteDetachedEndedPvpGame } from '../maybeDeleteDetachedEndedPvpGame.js';
+import { clampAiLobbyStrategicItemCaps } from '../../shared/utils/strategicAiLobbyItemCaps.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -472,7 +473,14 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             try {
                 const { mode, settings: incomingSettings } = payload;
                 const settings = SPECIAL_GAME_MODES.some((m) => m.mode === mode)
-                    ? normalizeStrategicAiScoringSettings(mode, { ...DEFAULT_GAME_SETTINGS, ...incomingSettings, useClientSideAi: false })
+                    ? clampAiLobbyStrategicItemCaps(
+                          mode,
+                          normalizeStrategicAiScoringSettings(mode, {
+                              ...DEFAULT_GAME_SETTINGS,
+                              ...incomingSettings,
+                              useClientSideAi: false,
+                          }),
+                      )
                     : incomingSettings;
                 const cost = getActionPointCost(mode);
                 await applyPassiveActionPointRegenToUser(user, now);

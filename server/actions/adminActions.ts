@@ -39,12 +39,13 @@ import {
 } from '../singlePlayerStageIdMigration.js';
 import { DEFAULT_SINGLE_PLAYER_STAGES } from '../../shared/constants/singlePlayerConstants.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
-import { MAX_PLAYER_DIAMONDS, MAX_PLAYER_GOLD } from '../../shared/constants/numericLimits.js';
+import { MAX_GAME_INTEGER_INPUT, MAX_PLAYER_DIAMONDS, MAX_PLAYER_GOLD } from '../../shared/constants/numericLimits.js';
 import { RANKED_ELO_BASE_SCORE } from '../../shared/constants/rules.js';
 import { STRATEGIC_RANKED_STAT_KEY } from '../../shared/constants/userRankedStats.js';
 import { readStrategicRankedBlock } from '../../shared/utils/unifiedRankedStatsMigration.js';
 import type { KataServerRuntimeOverrides } from '../../shared/types/kataServerRuntime.js';
 import { resetKataServerRuntimeOverrides, saveKataServerRuntimePatch } from '../kataServerRuntimeStore.js';
+import { CASH_SHOP_PACKAGE_IDS, type CashShopPackageId } from '../../shared/constants/cashShopPackages.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -511,6 +512,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                     diamonds: number;
                     actionPoints: number;
                     items: { name: string; quantity: number; type: InventoryItemType; stars?: number; grade?: string }[];
+                    cashShopPackages?: { packageId: string; quantity: number }[];
                 }
             };
             let targetUsers: User[] = [];
@@ -541,6 +543,22 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                     actionPoints: attachments.actionPoints,
                     items: []
                 };
+                const cashLines = (attachments as { cashShopPackages?: unknown }).cashShopPackages;
+                if (Array.isArray(cashLines) && cashLines.length > 0) {
+                    const normalized: { packageId: CashShopPackageId; quantity: number }[] = [];
+                    for (const row of cashLines) {
+                        if (!row || typeof row !== 'object') continue;
+                        const pid = (row as { packageId?: string }).packageId;
+                        const qRaw = (row as { quantity?: number }).quantity;
+                        if (typeof pid !== 'string' || !(CASH_SHOP_PACKAGE_IDS as readonly string[]).includes(pid)) continue;
+                        const q = clampGameInt(qRaw, { min: 1, max: MAX_GAME_INTEGER_INPUT });
+                        if (q < 1) continue;
+                        normalized.push({ packageId: pid as CashShopPackageId, quantity: q });
+                    }
+                    if (normalized.length > 0) {
+                        userAttachments.cashShopPackages = normalized;
+                    }
+                }
 
                 const mailId = `mail-${randomUUID()}`;
                 let attachmentSeq = 0;
