@@ -2197,7 +2197,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             pcViewportMaxHeightCss="min(94dvh, calc(100vh - 24px))"
             uniformPcScale={false}
             mobileViewportFit
-            mobileLockViewportHeight={false}
+            mobileLockViewportHeight={isMobile}
             bodyShrinkToContent
             mobileViewportMaxHeightVh={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH : 86}
             mobileViewportMaxHeightCss={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS : undefined}

@@ -2948,50 +2948,52 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     const dbMembers = await guildRepo.getGuildMembers(user.guildId);
                     const dbSettings = (dbGuild.settings as any) || {};
                     
-                    // 모든 멤버의 nickname 가져오기
-                    const membersWithNicknames = await Promise.all(
-                        dbMembers.map(async (m) => {
-                            const memberUser = await db.getUser(m.userId);
-                            const canonicalUserId = memberUser?.isAdmin ? ADMIN_USER_ID : m.userId;
-                            return {
-                                id: m.id,
-                                guildId: m.guildId,
-                                userId: canonicalUserId,
-                                nickname: memberUser?.nickname || '',
-                                role: m.role as 'leader' | 'officer' | 'member',
-                                joinDate: m.joinDate,
-                                contributionTotal: m.contributionTotal,
-                                weeklyContribution: 0,
-                                lastLoginAt: memberUser?.lastLoginAt,
-                                createdAt: m.createdAt,
-                                updatedAt: m.updatedAt,
-                            };
-                        })
-                    );
+                    const syncIdsDbOnly = [
+                        ...new Set([...dbMembers.map((m) => m.userId), user.id, dbGuild.leaderId].filter(Boolean)),
+                    ];
+                    const userMapDbOnly = await db.getUsersGuildSyncFields(syncIdsDbOnly);
+                    
+                    const membersWithNicknames = dbMembers.map((m) => {
+                        const row = userMapDbOnly.get(m.userId);
+                        const canonicalUserId = row?.isAdmin ? ADMIN_USER_ID : m.userId;
+                        return {
+                            id: m.id,
+                            guildId: m.guildId,
+                            userId: canonicalUserId,
+                            nickname: row?.nickname || '',
+                            role: m.role as 'leader' | 'officer' | 'member',
+                            joinDate: m.joinDate,
+                            contributionTotal: m.contributionTotal,
+                            weeklyContribution: 0,
+                            lastLoginAt: row?.lastLoginAt,
+                            createdAt: m.createdAt,
+                            updatedAt: m.updatedAt,
+                        };
+                    });
                     
                     // DB에는 있지만 Prisma GuildMember에 없는 경우: 현재 사용자(관리자 포함) 추가
                     const hasCurrentUserInDbPath = membersWithNicknames.some((m: any) => m.userId === effectiveUserId);
                     if (!hasCurrentUserInDbPath) {
-                        const memberUser = await db.getUser(user.id);
+                        const curRow = userMapDbOnly.get(user.id);
                         const dbMemberForUser = dbMembers.find(m => m.userId === user.id);
                         membersWithNicknames.push({
                             id: `${dbGuild.id}-member-${effectiveUserId}`,
                             guildId: dbGuild.id,
                             userId: effectiveUserId,
-                            nickname: memberUser?.nickname || memberUser?.username || '알 수 없음',
+                            nickname: curRow?.nickname || curRow?.username || '알 수 없음',
                             role: dbMemberForUser?.role as 'leader' | 'officer' | 'member' || (dbGuild.leaderId === user.id ? 'leader' : 'member'),
                             joinDate: dbMemberForUser?.joinDate ?? Date.now(),
                             contributionTotal: dbMemberForUser ? Number(dbMemberForUser.contributionTotal) : 0,
                             weeklyContribution: 0,
-                            lastLoginAt: memberUser?.lastLoginAt,
+                            lastLoginAt: curRow?.lastLoginAt,
                             createdAt: dbMemberForUser?.createdAt ?? Date.now(),
                             updatedAt: dbMemberForUser?.updatedAt ?? Date.now(),
                         });
                         console.log(`[GET_GUILD_INFO] Added current user ${effectiveUserId} to members (DB-only path, was missing)`);
                     }
                     
-                    const leaderUser = await db.getUser(dbGuild.leaderId);
-                    const canonicalLeaderId = leaderUser?.isAdmin ? ADMIN_USER_ID : dbGuild.leaderId;
+                    const leaderRow = userMapDbOnly.get(dbGuild.leaderId);
+                    const canonicalLeaderId = leaderRow?.isAdmin ? ADMIN_USER_ID : dbGuild.leaderId;
                     // 기본 길드 객체 생성 (createDefaultGuild를 참고한 구조)
                     const now = Date.now();
                     const basicGuild: Guild = {
@@ -3047,10 +3049,16 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 const dbMembers = await guildRepo.getGuildMembers(user.guildId);
                 console.log(`[GET_GUILD_INFO] DB members count: ${dbMembers.length}, KV members count: ${guild.members.length}`);
                 
+                const syncAllIds = new Set<string>();
+                for (const m of dbMembers) syncAllIds.add(m.userId);
+                for (const m of guild.members || []) syncAllIds.add(m.userId);
+                if (guild.leaderId) syncAllIds.add(guild.leaderId);
+                syncAllIds.add(user.id);
+                const userMap = await db.getUsersGuildSyncFields([...syncAllIds]);
+                
                 const dbMemberUserIds = new Set(dbMembers.map(m => m.userId));
                 for (const m of dbMembers) {
-                    const u = await db.getUser(m.userId);
-                    if (u?.isAdmin) dbMemberUserIds.add(ADMIN_USER_ID);
+                    if (userMap.get(m.userId)?.isAdmin) dbMemberUserIds.add(ADMIN_USER_ID);
                 }
                 // 현재 요청 사용자는 길드에 가입되어 있음(user.guildId 있음) - 동기화 이슈 시에도 필터에서 제외되지 않도록 보장 (관리자 포함)
                 dbMemberUserIds.add(effectiveUserId);
@@ -3059,35 +3067,33 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 
                 // 기존 KV 멤버 중 관리자면 userId를 캐노니컬 ID로 정규화
                 for (const member of guild.members || []) {
-                    const memberUser = await db.getUser(member.userId);
-                    if (memberUser?.isAdmin) member.userId = ADMIN_USER_ID;
+                    if (userMap.get(member.userId)?.isAdmin) member.userId = ADMIN_USER_ID;
                 }
                 if (guild.leaderId) {
-                    const leaderUser = await db.getUser(guild.leaderId);
-                    if (leaderUser?.isAdmin) guild.leaderId = ADMIN_USER_ID;
+                    if (userMap.get(guild.leaderId)?.isAdmin) guild.leaderId = ADMIN_USER_ID;
                 }
                 
                 // DB에는 있지만 KV store에는 없는 멤버 추가
                 let addedCount = 0;
                     for (const dbMember of dbMembers) {
-                        const memberUser = await db.getUser(dbMember.userId);
-                        const canonicalUserId = memberUser?.isAdmin ? ADMIN_USER_ID : dbMember.userId;
+                        const row = userMap.get(dbMember.userId);
+                        const canonicalUserId = row?.isAdmin ? ADMIN_USER_ID : dbMember.userId;
                         if (!kvMemberUserIds.has(dbMember.userId) && !kvMemberUserIds.has(canonicalUserId)) {
                             guild.members.push({
                                 id: dbMember.id,
                                 guildId: dbMember.guildId,
                                 userId: canonicalUserId,
-                                nickname: memberUser?.nickname || '',
+                                nickname: row?.nickname || '',
                                 role: dbMember.role as 'leader' | 'officer' | 'member',
                                 joinDate: dbMember.joinDate,
                                 contributionTotal: dbMember.contributionTotal,
                                 weeklyContribution: 0,
-                                lastLoginAt: memberUser?.lastLoginAt,
+                                lastLoginAt: row?.lastLoginAt,
                                 createdAt: dbMember.createdAt,
                                 updatedAt: dbMember.updatedAt,
                             });
                         addedCount++;
-                        console.log(`[GET_GUILD_INFO] Added member ${dbMember.userId} (${memberUser?.nickname || 'unknown'})`);
+                        console.log(`[GET_GUILD_INFO] Added member ${dbMember.userId} (${row?.nickname || 'unknown'})`);
                     }
                 }
                 
@@ -3104,7 +3110,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 // 현재 요청 사용자가 멤버 목록에 없으면 추가 (user.guildId가 있으므로 길드원임이 확실)
                 const hasCurrentUser = guild.members.some(m => m.userId === effectiveUserId);
                 if (!hasCurrentUser) {
-                    const memberUser = await db.getUser(user.id);
+                    const memberUser = userMap.get(user.id);
                     let role: 'leader' | 'officer' | 'member' = 'member';
                     let contributionTotal = 0;
                     let joinDate = Date.now();
@@ -3136,19 +3142,16 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 for (const member of guild.members) {
                     let dbMember = dbMembers.find(m => m.userId === member.userId);
                     if (!dbMember && member.userId === ADMIN_USER_ID) {
-                        for (const m of dbMembers) {
-                            const u = await db.getUser(m.userId);
-                            if (u?.isAdmin) { dbMember = m; break; }
-                        }
+                        dbMember = dbMembers.find(m => userMap.get(m.userId)?.isAdmin);
                     }
                     if (dbMember) {
                         member.contributionTotal = dbMember.contributionTotal;
                         member.joinDate = dbMember.joinDate;
                         member.updatedAt = dbMember.updatedAt;
-                        const memberUser = await db.getUser(dbMember.userId);
-                        if (memberUser) {
-                            if (!member.nickname || member.nickname.trim() === '') member.nickname = memberUser.nickname || '';
-                            member.lastLoginAt = memberUser.lastLoginAt;
+                        const row = userMap.get(dbMember.userId);
+                        if (row) {
+                            if (!member.nickname || member.nickname.trim() === '') member.nickname = row.nickname || '';
+                            member.lastLoginAt = row.lastLoginAt;
                         }
                     }
                 }

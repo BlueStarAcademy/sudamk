@@ -259,6 +259,15 @@ export function getPairHumanParticipantIds(pairGame: NonNullable<GameSettings['p
         .map((s) => s.participantId);
 }
 
+/** 페어 좌석이 해당 유저(본인 펫 슬롯 `pet-ai-{id}` 포함)인지 — `Game.tsx`·컨트롤 아이템 표시와 동일 */
+export function pairSeatMatchesViewerUser(seat: PairGameTurnSeat, userId: string): boolean {
+    if (seat.kind === 'user') return seat.participantId === userId;
+    if (seat.participantId.startsWith('pet-ai-')) {
+        return seat.participantId.slice('pet-ai-'.length) === userId;
+    }
+    return false;
+}
+
 export function pairOrderRevealNeedsConfirmation(settings: Pick<GameSettings, 'pairGame'> | undefined): boolean {
     const pairGame = settings?.pairGame;
     if (!pairGame?.turnOrder?.length) return false;

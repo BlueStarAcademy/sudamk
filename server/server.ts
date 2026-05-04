@@ -3137,11 +3137,14 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             return;
         }
         
-        // 요청 타임아웃 (8초 - 프록시 502 방지, Railway 등)
+        // 전체 로그인 파이프라인 상한 (내부 단계별 타임아웃 합이 8초를 크게 초과함:
+        // getUser 최대 ~11초 + 퀘스트/리그/AP/저장/게임 조회 등 순차 최대 수십 초).
+        // 너무 짧으면 정상 응답 전에 504가 나가므로 일반적인 리버스 프록시(예: 60s) 아래로 설정.
+        const LOGIN_REQUEST_TIMEOUT_MS = 45000;
         const requestTimeout = setTimeout(() => {
             if (!responseSent && !res.headersSent) {
                 responseSent = true;
-                console.error('[/api/auth/login] Request timeout after 8 seconds');
+                console.error(`[/api/auth/login] Request timeout after ${LOGIN_REQUEST_TIMEOUT_MS / 1000} seconds`);
                 try {
                     res.status(504).json({ message: '로그인 요청이 시간 초과되었습니다. 다시 시도해주세요.' });
                 } catch (err) {
@@ -3151,7 +3154,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     }
                 }
             }
-        }, 8000);
+        }, LOGIN_REQUEST_TIMEOUT_MS);
         
         // 요청이 종료되면 타임아웃 정리
         req.on('close', () => {

@@ -100,6 +100,27 @@ const getDatabaseUrl = () => {
       return url;
     }
   }
+
+  // Railway 공개 프록시(proxy.rlwy.net)는 유휴/동시 연결에서 끊김이 잦음. 내부 URL이 있으면 같은 DB로 전환.
+  const privateDbUrl =
+    process.env.POSTGRES_PRIVATE_URL ||
+    process.env.DATABASE_PRIVATE_URL ||
+    '';
+  const canUsePrivate =
+    typeof privateDbUrl === 'string' &&
+    privateDbUrl.length > 12 &&
+    (privateDbUrl.startsWith('postgresql://') || privateDbUrl.startsWith('postgres://'));
+  if (
+    process.env.RAILWAY_ENVIRONMENT &&
+    canUsePrivate &&
+    process.env.PRISMA_USE_PRIVATE_DATABASE !== 'false' &&
+    url.includes('proxy.rlwy.net')
+  ) {
+    console.log(
+      '[Prisma] Using POSTGRES_PRIVATE_URL / DATABASE_PRIVATE_URL instead of public proxy host (fewer dropped connections). Set PRISMA_USE_PRIVATE_DATABASE=false to keep public URL.'
+    );
+    url = privateDbUrl;
+  }
   
   // Supabase URL 감지 및 경고
   if (url.includes('supabase.com') || url.includes('supabase.co')) {
@@ -150,12 +171,14 @@ const getDatabaseUrl = () => {
   const separator = url.includes('?') ? '&' : '?';
   const envLimit = process.env.PRISMA_CONNECTION_LIMIT || process.env.DATABASE_CONNECTION_LIMIT;
   const parsedEnv = envLimit != null && envLimit !== '' ? parseInt(envLimit, 10) : NaN;
-  const defaultLimit = isRailway ? 5 : 15; // Railway(원격 DB): 프로세스당 5권장. 로컬 전용 Postgres만 높게.
+  // Railway: 길드/랭킹 캐시 등 장시간 쿼리와 로그인이 동시에 풀(기본 5)을 고갈시키면 P1017·updateUser timeout 연쇄 발생.
+  // 단일 프로세스 기준 10이면 대부분의 Postgres 플랜에서 여유 있음. 다중 replica면 PRISMA_CONNECTION_LIMIT로 낮춤.
+  const defaultLimit = isRailway ? 10 : 15;
   const connectionLimitNum =
     Number.isFinite(parsedEnv) && parsedEnv > 0 ? Math.min(parsedEnv, 100) : defaultLimit;
   const connectionLimit = String(connectionLimitNum);
-  const poolTimeout = isRailway ? '30' : '20';
-  const connectTimeout = isRailway ? '10' : '5';
+  const poolTimeout = isRailway ? '60' : '20';
+  const connectTimeout = isRailway ? '20' : '5';
   const statementCacheSize = '250';
   return `${url}${separator}connection_limit=${connectionLimit}&pool_timeout=${poolTimeout}&connect_timeout=${connectTimeout}&statement_cache_size=${statementCacheSize}`;
 };

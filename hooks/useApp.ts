@@ -235,8 +235,11 @@ function mergeTowerServerGameWithClientBoardIfStale(
         serverRevision: Math.max(clientGame.serverRevision ?? 0, serverGame.serverRevision ?? 0),
         // 경기 중 상점 구매 등: 응답의 세션 잔여(미사일·히든·스캔)는 판·수순 병합 후에도 서버 값을 유지
         missiles_p1: (serverGame as any).missiles_p1 ?? (clientGame as any).missiles_p1,
+        missiles_p2: (serverGame as any).missiles_p2 ?? (clientGame as any).missiles_p2,
         hidden_stones_p1: (serverGame as any).hidden_stones_p1 ?? (clientGame as any).hidden_stones_p1,
+        hidden_stones_p2: (serverGame as any).hidden_stones_p2 ?? (clientGame as any).hidden_stones_p2,
         scans_p1: (serverGame as any).scans_p1 ?? (clientGame as any).scans_p1,
+        scans_p2: (serverGame as any).scans_p2 ?? (clientGame as any).scans_p2,
         baseStoneCaptures: mergeMonotonicCountRecord(serverGame.baseStoneCaptures, clientGame.baseStoneCaptures),
         hiddenStoneCaptures: mergeMonotonicCountRecord(serverGame.hiddenStoneCaptures, clientGame.hiddenStoneCaptures),
     };

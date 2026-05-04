@@ -197,6 +197,50 @@ export async function getUsersBrief(ids: string[]): Promise<
   }
 }
 
+/** 길드 멤버 동기화용: findMany 1회로 id·닉네임·관리자 여부·lastLoginAt(status 내) 조회 (GET_GUILD_INFO N+1 제거) */
+export type GuildMemberUserSnapshot = {
+  id: string;
+  nickname: string;
+  username: string | null;
+  isAdmin: boolean;
+  lastLoginAt?: number;
+};
+
+export async function getUsersGuildSyncFields(ids: string[]): Promise<Map<string, GuildMemberUserSnapshot>> {
+  const out = new Map<string, GuildMemberUserSnapshot>();
+  if (!ids.length) return out;
+  const uniqueIds = [...new Set(ids.filter(Boolean))].slice(0, 200);
+  try {
+    await ensurePrismaEngineReady();
+    const rows = await prisma.user.findMany({
+      where: { id: { in: uniqueIds } },
+      select: { id: true, nickname: true, username: true, isAdmin: true, status: true },
+    });
+    for (const r of rows) {
+      const status = r.status as Record<string, unknown> | null | undefined;
+      const serialized = status?.serializedUser as { lastLoginAt?: number } | undefined;
+      let lastLoginAt = serialized?.lastLoginAt;
+      if (lastLoginAt == null && status?.leagueMetadata && typeof status.leagueMetadata === 'object') {
+        const lm = status.leagueMetadata as { lastLoginAt?: unknown };
+        if (lm.lastLoginAt != null) lastLoginAt = Number(lm.lastLoginAt);
+      }
+      out.set(r.id, {
+        id: r.id,
+        nickname: r.nickname,
+        username: r.username,
+        isAdmin: r.isAdmin,
+        lastLoginAt:
+          lastLoginAt != null && Number.isFinite(Number(lastLoginAt)) ? Number(lastLoginAt) : undefined,
+      });
+    }
+  } catch (error: any) {
+    const msg = error?.message ?? '';
+    if (msg.includes('Engine is not yet connected') || prismaErrorImpliesEngineNotConnected(error)) return out;
+    console.warn('[userService] getUsersGuildSyncFields error:', msg);
+  }
+  return out;
+}
+
 /** 관리자 UI: 전체 목록(빈 query) 또는 닉네임·아이디 부분 검색 — equipment/inventory 제외, 페이지네이션 */
 export async function searchUsersForAdmin(
   query: string,

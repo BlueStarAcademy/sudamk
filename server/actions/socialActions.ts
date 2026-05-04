@@ -4431,10 +4431,24 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (slotIndexIf < 0 || slotIndexIf >= PAIR_HATCHERY_SESSION_SLOT_COUNT) {
                 return { error: '유효하지 않은 슬롯입니다.' };
             }
+            // getCachedUser TTL로 다이아·인벤·부화 세션이 DB와 어긋나면 잔액 부족 오탐이 날 수 있음
+            const liveSnap = await db.getUser(user.id, { includeInventory: true, includeEquipment: true });
+            if (!liveSnap) return { error: '유효하지 않은 사용자입니다.' };
+            user.diamonds = liveSnap.diamonds;
+            user.pairPetHatcherySessions = liveSnap.pairPetHatcherySessions;
+            user.inventory = liveSnap.inventory;
+            if (liveSnap.inventorySlots) user.inventorySlots = liveSnap.inventorySlots;
+            if (liveSnap.pairPetLobbyPetSlotCount != null) user.pairPetLobbyPetSlotCount = liveSnap.pairPetLobbyPetSlotCount;
+            if (liveSnap.pairPetLobbySlotCount != null) user.pairPetLobbySlotCount = liveSnap.pairPetLobbySlotCount;
+
             user.pairPetHatcherySessions = normalizePairPetHatcherySessions(user.pairPetHatcherySessions);
             const sessIf = user.pairPetHatcherySessions[slotIndexIf];
             if (!sessIf) return { error: '부화 중인 알이 없습니다.' };
-            const endAtIf = hatcheryEndsAt(sessIf.startedAt, slotIndexIf);
+            const startedAtSafe = Math.floor(Number(sessIf.startedAt));
+            if (!Number.isFinite(startedAtSafe) || startedAtSafe <= 0) {
+                return { error: '유효하지 않은 부화 세션입니다.' };
+            }
+            const endAtIf = hatcheryEndsAt(startedAtSafe, slotIndexIf);
             const nowIf = Date.now();
             if (nowIf >= endAtIf) {
                 return { error: '이미 부화가 끝났습니다. 펫 받기를 사용해 주세요.' };
@@ -4442,8 +4456,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (isPairLobbyPetInventoryFull(user)) {
                 return { error: PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE };
             }
-            const remainMsIf = endAtIf - nowIf;
+            const remainMsIf = Math.max(0, endAtIf - nowIf);
             const cost = Math.max(1, Math.ceil(remainMsIf / 60_000));
+            const diamondBal = Math.floor(Number(user.diamonds ?? 0));
             const defIf = getPairHatcherySlotDef(slotIndexIf);
             if (!defIf) return { error: '유효하지 않은 슬롯입니다.' };
             const petLevelIf = rollHatchPetLevelFromRule(defIf.levelRule);
@@ -4453,6 +4468,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (!user.inventorySlots) {
                 user.inventorySlots = { equipment: 30, consumable: 30, material: 30 };
             }
+            if (!user.isAdmin && diamondBal < cost) {
+                return { error: '다이아가 부족합니다.' };
+            }
             const mergedIf = addItemsToInventory(user.inventory, user.inventorySlots, [petItemIf], {
                 allowMaterialSlotOverflow: true,
             });
@@ -4460,10 +4478,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 return { error: PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE };
             }
             if (!user.isAdmin) {
-                if ((user.diamonds ?? 0) < cost) {
-                    return { error: '다이아가 부족합니다.' };
-                }
-                user.diamonds -= cost;
+                user.diamonds = diamondBal - cost;
                 if (user.guildId && cost > 0) {
                     const guildsIf = (await db.getKV<Record<string, any>>('guilds')) || {};
                     const { guildService: guildSvcIf } = await import('../guildService.js');

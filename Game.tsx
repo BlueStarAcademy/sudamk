@@ -52,7 +52,13 @@ import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
 import { replaceAppHash } from './utils/appUtils.js';
 import { getAdventureMapWebpPath } from './constants/adventureConstants.js';
 import { InGameModalLayoutProvider } from './contexts/InGameModalLayoutContext.js';
-import { getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame, PAIR_TURN_SEAT_IDS } from './shared/utils/pairGameTurn.js';
+import {
+    getCurrentPairTurnSeat,
+    isPairAiSeat,
+    isPairClassicGame,
+    pairSeatMatchesViewerUser,
+    PAIR_TURN_SEAT_IDS,
+} from './shared/utils/pairGameTurn.js';
 import { getPairPetDefinition } from './shared/constants/petLobby.js';
 import { getEquippedPairPetInventoryRow } from './shared/utils/pairEquippedPet.js';
 import { resolvePairPetMetaFromInventoryRow } from './shared/utils/pairPetRoll.js';
@@ -158,15 +164,6 @@ function pairSeatOwnerUser(session: LiveGameSession, seat: PairSeat) {
         return session.player1.id === uid ? session.player1 : session.player2.id === uid ? session.player2 : null;
     }
     return null;
-}
-
-/** 페어 좌석이 해당 유저(본인 펫 슬롯 `pet-ai-{id}` 포함)인지 */
-function pairSeatMatchesViewerUser(seat: PairSeat, userId: string): boolean {
-    if (seat.kind === 'user') return seat.participantId === userId;
-    if (seat.participantId.startsWith('pet-ai-')) {
-        return seat.participantId.slice('pet-ai-'.length) === userId;
-    }
-    return false;
 }
 
 /** 바둑판 클릭 착수: 현재 좌석이 본인 유저 차례일 때만. 펫·AI 차례에는 소유자/팀원이라도 클릭으로 두지 않음 */

@@ -37,7 +37,7 @@ import {
 } from './arenaGameRoomStyles.js';
 import BaseGameFooterPanel, { BasePlacementControlStrip, isBaseGameFooterPhase } from './BaseGameFooterPanel.js';
 import IngameMobileFooterAd from './IngameMobileFooterAd.js';
-import { isPairCooperativeTwoHumansVsAi } from '../../shared/utils/pairGameTurn.js';
+import { isPairCooperativeTwoHumansVsAi, pairSeatMatchesViewerUser } from '../../shared/utils/pairGameTurn.js';
 import { canUseBoardItemTurnWindow } from '../../shared/utils/strategicBoardItemTurn.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
@@ -1416,7 +1416,16 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         onAction({ type: actionType, payload: { gameId } }); 
     };
 
-    const myPlayerEnum = currentUser.id === blackPlayerId ? Player.Black : (currentUser.id === whitePlayerId ? Player.White : Player.None);
+    const pairSeatForViewer = session.settings.pairGame?.turnOrder?.find((seat) =>
+        pairSeatMatchesViewerUser(seat, currentUser.id)
+    );
+    const myPlayerEnum = pairSeatForViewer
+        ? pairSeatForViewer.player
+        : currentUser.id === blackPlayerId
+          ? Player.Black
+          : currentUser.id === whitePlayerId
+            ? Player.White
+            : Player.None;
     const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
 
     // 서버 hasOpponentHiddenScanTargets와 동일: 미공개 히든이 수순에 있고, 영구 공개 전이며, 보드에 상대 돌로 남아 있을 때만 스캔 가능.
@@ -1505,17 +1514,25 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         const isHiddenMode = (mode === GameMode.Hidden || (mode === GameMode.Mix && (session.settings.mixedModes || []).includes(GameMode.Hidden))) || (session.isSinglePlayer && hiddenCountSetting > 0);
         // 미사일 모드: 게임 모드가 Missile이거나, 싱글플레이에서 missileCount가 설정된 경우
         const isMissileMode = (mode === GameMode.Missile || (mode === GameMode.Mix && (session.settings.mixedModes || []).includes(GameMode.Missile))) || (session.isSinglePlayer && (missileCountSetting > 0 || (session.settings as any)?.missileCount > 0));
-        const p1Id = session.player1.id;
-        // 히든 아이템 (스캔 아이템처럼 개수 기반)
-        const hiddenLeft = currentUser.id === p1Id 
-            ? (session.hidden_stones_p1 ?? hiddenCountSetting)
-            : (session.hidden_stones_p2 ?? hiddenCountSetting);
-        const myScansLeft = currentUser.id === p1Id
-            ? (session.scans_p1 ?? scanCountSetting)
-            : (session.scans_p2 ?? scanCountSetting);
-        const myMissilesLeft = currentUser.id === p1Id
-            ? (session.missiles_p1 ?? missileCountSetting)
-            : (session.missiles_p2 ?? missileCountSetting);
+        // 서버 hidden/missile.ts: 흑=p1, 백=p2 (player1/player2와 무관). 페어는 turnOrder로 본인 색을 맞춘다.
+        const hiddenLeft =
+            myPlayerEnum === Player.Black
+                ? (session.hidden_stones_p1 ?? hiddenCountSetting)
+                : myPlayerEnum === Player.White
+                  ? (session.hidden_stones_p2 ?? hiddenCountSetting)
+                  : 0;
+        const myScansLeft =
+            myPlayerEnum === Player.Black
+                ? (session.scans_p1 ?? scanCountSetting)
+                : myPlayerEnum === Player.White
+                  ? (session.scans_p2 ?? scanCountSetting)
+                  : 0;
+        const myMissilesLeft =
+            myPlayerEnum === Player.Black
+                ? (session.missiles_p1 ?? missileCountSetting)
+                : myPlayerEnum === Player.White
+                  ? (session.missiles_p2 ?? missileCountSetting)
+                  : 0;
 
         /** 서버 hidden/missile 과 동일: AI 응답 전 창에서도 히든·스캔·미사일 활성 */
         const canItemTurnWindow = canUseBoardItemTurnWindow(session, myPlayerEnum, isMyTurn);

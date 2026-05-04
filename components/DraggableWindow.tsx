@@ -697,11 +697,12 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     /** 실측 scale: 본문이 flex-1에 눌려 잘리지 않도록 자연 높이 (아래 containerBaseClass보다 먼저 선언) */
     const bodyScaleToFitNaturalLayout = useCompactScaleToFitLayout;
 
+    /** `bodyShrinkToContent`+뷰포트 맞춤에서 flex-1을 끄면 본문이 콘텐츠 높이만큼만 커져 스크롤 박스가 생기지 않고 부모 overflow에 잘림(모바일 경기 결과 등) */
     const bodyInnerNoFlexGrow =
         bodyScaleToFitNaturalLayout ||
         useReadableSmallPcViewportPortal ||
         (bodyAvoidVerticalStretch && useUniformPcScaleLayout) ||
-        (Boolean(bodyShrinkToContent) && useMobileViewportFitLayout);
+        (Boolean(bodyShrinkToContent) && useMobileViewportFitLayout && (!bodyScrollable || bodyNoScroll));
 
     const compactFitScaleEstimate = useMemo(() => {
         if (!useCompactScaleToFitLayout) return 1;

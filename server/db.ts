@@ -5,6 +5,7 @@ import { getInitialState } from './initialData.ts';
 import {
     listUsers,
     getUsersBrief as prismaGetUsersBrief,
+    getUsersGuildSyncFields as prismaGetUsersGuildSyncFields,
     getUserById as prismaGetUserById,
     getUserByNickname as prismaGetUserByNickname,
     searchUsersForAdmin as prismaSearchUsersForAdmin,
@@ -450,6 +451,9 @@ export const getUsersBrief = async (
 > => {
     return prismaGetUsersBrief(ids);
 };
+
+/** 길드 GET_GUILD_INFO 등: 여러 유저를 한 번에 조회해 DB 왕복·연결 풀 고갈 완화 */
+export const getUsersGuildSyncFields = prismaGetUsersGuildSyncFields;
 export const getUserByNickname = async (nickname: string): Promise<User | null> => {
     return prismaGetUserByNickname(nickname);
 };
