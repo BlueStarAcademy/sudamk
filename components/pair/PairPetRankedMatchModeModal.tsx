@@ -59,7 +59,7 @@ function resolveMyStrategicRankedTierForMode(user: User | null | undefined, mode
 }
 
 /** 페어 경기장 랭킹전(펫·2인 공용) — `stats.pair` 단일 점수·전적 기준 티어 */
-function resolveMyPairRankedTierForPairArena(user: User | null | undefined): {
+export function resolveMyPairRankedTierForPairArena(user: User | null | undefined): {
     tier: (typeof RANKING_TIERS)[number];
     score: number;
     modePvpGames: number;
@@ -188,6 +188,9 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
     const lobbyContextBracketLabel =
         variant === 'strategic_arena' ? '전략바둑 랭킹전' : variant === 'duo_arena' ? '2인 페어 랭킹전' : '페어 펫 랭킹전';
 
+    /** 1:1 전략 랭킹 큐는 인원, 페어 방 랭킹은 팀 */
+    const queueCountUnitLabel = variant === 'pair_pet' || variant === 'duo_arena' ? '팀' : '명';
+
     const modePickerColumn = (
         <div
             className={`flex shrink-0 flex-col border-b border-gray-700 bg-tertiary/30 text-on-panel sm:p-4 ${
@@ -274,7 +277,8 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                         >
                             매칭 대기{' '}
                             <span className={`block font-bold tabular-nums sm:text-base ${isHandheld ? 'text-sm' : 'text-base'}`}>
-                                {selectedQueue}팀
+                                {selectedQueue}
+                                {queueCountUnitLabel}
                             </span>
                         </span>
                     </div>

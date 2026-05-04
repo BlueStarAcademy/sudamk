@@ -350,3 +350,24 @@ export function buildRankedStrategicMatchLobbySettingRows(mode: GameMode): { lab
         { lobbyChannelFallback: 'strategic', rankedStrategicMatchPreset: true },
     );
 }
+
+/** 페어 경기장 「2인 랭킹전」방 만들기: 유저+유저 팀 vs 유저+유저 팀 — 공식 랭킹 규칙 요약 */
+export function buildPairArenaDuoRankedLobbySettingRows(mode: GameMode): { label: string; value: string }[] {
+    const g: GameSettings = {
+        ...DEFAULT_GAME_SETTINGS,
+        ...getRankedGameSettings(mode),
+    };
+    if (!pairLobbyModeIncludesCaptureRule(mode, g.mixedModes) && SPECIAL_GAME_MODES.some((m) => m.mode === mode)) {
+        g.scoringTurnLimit = getAiScoringTurnLimitByBoardSize(g.boardSize ?? DEFAULT_GAME_SETTINGS.boardSize ?? 19);
+    }
+    return buildPairRoomLobbyGameSettingRows(
+        {
+            selectedGameMode: mode,
+            settings: g,
+            roomKind: 'duo_match',
+            title: '',
+            lobbyChannel: 'pair',
+        },
+        { lobbyChannelFallback: 'pair', rankedStrategicMatchPreset: true },
+    );
+}

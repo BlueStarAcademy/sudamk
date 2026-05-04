@@ -235,6 +235,8 @@ export interface PairRoomState {
     pairRoomKickedUserIds?: string[];
     /** 클라이언트 목록용 — 서버가 브로드캐스트·동기 시 채움 */
     listOccupiedHumans?: number;
+    /** 펫 페어 랭킹전: 상단 패널 큐 전용 껍데기 방 — 슬롯·타인 목록에서 숨김 */
+    pairPetRankedQueueShell?: boolean;
     /** 방이 속한 경기장(미지정=페어) */
     lobbyChannel?: 'pair' | 'strategic' | 'playful';
     ownerLobbyPet?: PairLobbyPetSnapshot;
@@ -330,6 +332,7 @@ export type ServerAction =
               selectedGameMode?: GameMode;
               settings?: GameSettings;
               lobbyChannel?: 'pair' | 'strategic' | 'playful';
+              pairPetRankedQueueShell?: boolean;
           };
       }
     | {

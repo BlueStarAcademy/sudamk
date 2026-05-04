@@ -485,7 +485,6 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     <div
                       className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
                     >
-                      {waitingUserScopeTabs}
                       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                         <PlayerList
                           users={playersForListPanel}
@@ -496,6 +495,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                           lobbyType={isStrategic ? 'strategic' : 'playful'}
                           userCount={playersForListPanel.length}
                           pairAlignedNativeCompact
+                          listScopeTabs={waitingUserScopeTabs}
                         />
                       </div>
                     </div>
@@ -637,7 +637,6 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                       <AiChallengePanel mode={mode} onOpenModal={() => setIsAiChallengeModalOpen(true)} />
                     </div>
                     <div className={`flex min-h-0 flex-1 flex-col overflow-hidden ${waitingLobbyPcShellClass}`}>
-                      {waitingUserScopeTabs}
                       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                         <PlayerList
                           users={playersForListPanel}
@@ -647,6 +646,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                           onViewUser={handlers.openViewingUser}
                           lobbyType={isStrategic ? 'strategic' : 'playful'}
                           userCount={playersForListPanel.length}
+                          listScopeTabs={waitingUserScopeTabs}
                         />
                       </div>
                     </div>

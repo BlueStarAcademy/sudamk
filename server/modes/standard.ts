@@ -970,11 +970,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             }
 
             const { x, y, isHidden, boardState: clientBoardState, moveHistory: clientMoveHistory } = payload;
-            const isHiddenPlacementActive =
-                game.gameStatus === 'hidden_placing' &&
-                typeof (game as any).itemUseDeadline === 'number' &&
-                (game as any).itemUseDeadline > now;
-            const effectiveIsHidden = !!isHidden && isHiddenPlacementActive;
+            // START_HIDDEN_PLACEMENT으로 들어온 착수는 반드시 히든 1회 소모·히든 수로 기록한다.
+            // (아이템 타이머 만료 직후 레이스, 클라 isHidden 불일치 시 재고가 줄지 않고 무한 사용되던 버그 수정)
+            const effectiveIsHidden = game.gameStatus === 'hidden_placing';
             
             // 치명적 버그 방지: 패 위치(-1, -1)에 PLACE_STONE을 보내는 것을 차단
             // (클라이언트 AI 패스는 PASS_TURN 액션으로 처리)

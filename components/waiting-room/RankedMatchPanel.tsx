@@ -2,8 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { GameMode, ServerAction, UserWithStatus } from '../../types.js';
 import type { RankingEntry } from '../../hooks/useRanking.js';
 import Button from '../Button.js';
-import RankedMatchSelectionModal from './RankedMatchSelectionModal.js';
+import PairPetRankedMatchModeModal from '../pair/PairPetRankedMatchModeModal.js';
 import { RANKING_TIERS, SPECIAL_GAME_MODES, STRATEGIC_ACTION_POINT_COST } from '../../constants';
+import { RANKED_STRATEGIC_MODES } from '../../constants/rankedGameSettings.js';
+import { useAppContext } from '../../hooks/useAppContext.js';
 import { useRanking } from '../../hooks/useRanking.js';
 import { getCurrentSeason, getPreviousSeason } from '../../utils/timeUtils.js';
 
@@ -141,6 +143,22 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     const { rankings } = useRanking('strategic', undefined, undefined, true);
+    const { rankedMatchingQueue } = useAppContext();
+
+    const strategicRankedQueueCountsByMode = useMemo(() => {
+        const counts: Partial<Record<GameMode, number>> = {};
+        for (const m of RANKED_STRATEGIC_MODES) counts[m] = 0;
+        const q = rankedMatchingQueue?.strategic as Record<string, { selectedModes?: GameMode[] }> | undefined;
+        if (!q || typeof q !== 'object') return counts;
+        for (const entry of Object.values(q)) {
+            const modes = entry?.selectedModes;
+            if (!Array.isArray(modes)) continue;
+            for (const mode of modes) {
+                if (RANKED_STRATEGIC_MODES.includes(mode)) counts[mode] = (counts[mode] ?? 0) + 1;
+            }
+        }
+        return counts;
+    }, [rankedMatchingQueue]);
 
     const rankedActionPointCost = STRATEGIC_ACTION_POINT_COST;
 
@@ -203,7 +221,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const handleStartMatching = async (selectedModes: GameMode[]) => {
+    const startStrategicRankedMatching = async (selectedModes: GameMode[]) => {
         try {
             const result: any = await onAction({
                 type: 'START_RANKED_MATCHING',
@@ -532,9 +550,14 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
             </div>
 
             {isModalOpen && (
-                <RankedMatchSelectionModal
+                <PairPetRankedMatchModeModal
+                    variant="strategic_arena"
+                    initialMode={GameMode.Standard}
+                    queueCountByMode={strategicRankedQueueCountsByMode}
+                    currentUser={currentUser}
+                    isBusy={false}
                     onClose={() => setIsModalOpen(false)}
-                    onStartMatching={handleStartMatching}
+                    onQueue={(mode) => void startStrategicRankedMatching([mode])}
                 />
             )}
         </>

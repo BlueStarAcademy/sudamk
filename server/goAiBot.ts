@@ -364,10 +364,12 @@ const getStrategicAiHiddenScheduleByTotalMoveCount = (
 
 const normalizeAiHiddenTurns = (value: unknown): number[] => {
     if (!Array.isArray(value)) return [];
-    return value
+    const sorted = value
         .map(turn => Number(turn))
         .filter(turn => Number.isInteger(turn) && turn > 0)
         .sort((a, b) => a - b);
+    // 동일 AI 턴 번호가 중복되면 currentAiTurnIndex >= nextTurn으로 매 AI 턴마다 연출이 재실행될 수 있음
+    return Array.from(new Set(sorted));
 };
 
 const planStrategicAiHiddenTurns = (game: LiveGameSession, hiddenCount: number): number[] => {

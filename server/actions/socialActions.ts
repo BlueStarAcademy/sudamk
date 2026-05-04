@@ -1841,6 +1841,8 @@ async function openPairRankedPetMatchProposal(
         myPartnerAccepted: matchKind === 'duo_human' ? false : undefined,
         peerPartnerAccepted: matchKind === 'duo_human' ? false : undefined,
     };
+    delete roomA.pairPetRankedQueueShell;
+    delete roomB.pairPetRankedQueueShell;
     refreshPairRoomTeams(roomA);
     refreshPairRoomTeams(roomB);
     syncPairRankedPetProposalRoomSnapshots(volatileState, proposalId);
@@ -3158,6 +3160,16 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 payloadLobbyNorm === 'strategic' || payloadLobbyNorm === 'playful' ? payloadLobbyNorm : 'pair';
             const normalizedVisibility = visibility === 'private' ? 'private' : 'public';
             const normalizedKind = roomKind ?? (payloadMode === 'ai' ? 'ai_duel' : 'duo_match');
+            const pairPetRankedQueueShell =
+                rawCreate.pairPetRankedQueueShell === true || rawCreate.pairPetRankedQueueShell === 'true';
+            if (pairPetRankedQueueShell && (normalizedKind !== 'ai_duel' || normalizedChannel !== 'pair')) {
+                return { error: '페어 경기장 펫 랭킹전 대기 방만 이 방식으로 만들 수 있습니다.' };
+            }
+            if (normalizedKind === 'arena_ai' && (normalizedChannel === 'strategic' || normalizedChannel === 'playful')) {
+                return {
+                    error: '전략·놀이 경기장에서는 친선(2인 페어)방만 만들 수 있습니다. 랭킹전·AI 대결은 유저 목록 상단 패널에서 시작해 주세요.',
+                };
+            }
             if (normalizedKind === 'arena_ai' && normalizedChannel !== 'strategic' && normalizedChannel !== 'playful') {
                 return { error: 'AI와 대결 방은 전략·놀이 경기장에서만 만들 수 있습니다.' };
             }
@@ -3182,7 +3194,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 normalizedKind === 'ai_duel' ? equippedPairPetDisplayNameForUser(user) : normalizedKind === 'arena_ai' ? 'AI' : undefined;
 
             const roomId = `pair-room-${randomUUID()}`;
-            const code = allocPairRoomCode(volatileState.pairRooms, normalizedChannel);
+            const code = pairPetRankedQueueShell
+                ? `rq-${randomUUID().replace(/-/g, '').slice(0, 20)}`
+                : allocPairRoomCode(volatileState.pairRooms, normalizedChannel);
             const defaultTitleSuffix =
                 normalizedKind === 'friendly_4p'
                     ? '4인 친선'
@@ -3205,7 +3219,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 passwordProtected: normalizedVisibility === 'private',
                 phase: 'waiting',
                 lobbyChannel: normalizedChannel,
+                ...(pairPetRankedQueueShell ? { pairPetRankedQueueShell: true as const } : {}),
                 title:
+                    (pairPetRankedQueueShell ? clampPairRoomTitle('랭킹전 대기') : undefined) ||
                     clampPairRoomTitle(title) ||
                     clampPairRoomTitle(`${user.nickname}님의 ${defaultTitleSuffix} ${defaultTitleArenaWord}`),
                 ownerId: user.id,
@@ -3947,9 +3963,15 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             }
             if (target.phase !== 'matching') return { error: '매칭 중이 아닙니다.' };
             delete target.pairPetMatchingQueuedAt;
-            target.phase = 'waiting';
-            refreshPairRoomTeams(target);
-            appendPairRankedPetDuoMatchCancelChatLine(volatileState, target, user, now);
+            if (target.pairPetRankedQueueShell) {
+                clearPairInvitesForRoom(volatileState, target.id);
+                clearPairRoomTeamChatStore(volatileState, target.id);
+                delete volatileState.pairRooms![target.id];
+            } else {
+                target.phase = 'waiting';
+                refreshPairRoomTeams(target);
+                appendPairRankedPetDuoMatchCancelChatLine(volatileState, target, user, now);
+            }
             broadcastPairRooms(volatileState);
             return { clientResponse: { pairRooms: enrichPairRoomsForClientPayload(volatileState.pairRooms) } };
         }

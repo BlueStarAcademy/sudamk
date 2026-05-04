@@ -597,8 +597,11 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
             
             const isTargetPermanentlyRevealed = !!game.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
-            // 히든 아이템을 눌렀더라도, 이미 영구 공개된 자리는 일반돌로 취급(히든 재생성 방지)
-            const isHidden = !!isHiddenRequested && !isTargetPermanentlyRevealed;
+            const inHiddenItemPlacement = game.gameStatus === 'hidden_placing';
+            // 히든 아이템을 눌렀더라도, 이미 영구 공개된 자리는 일반돌로 취급(히든 재생성 방지).
+            // hidden_placing에서는 클라 isHidden 누락·타이머 경합이 있어도 반드시 히든 소모로 처리한다.
+            const isHidden =
+                !isTargetPermanentlyRevealed && (!!isHiddenRequested || inHiddenItemPlacement);
             const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : (myPlayerEnum === types.Player.White ? types.Player.Black : types.Player.None);
             const isStrategicAiGame =
                 !!game.isAiGame &&
@@ -838,7 +841,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
             }
             
-            if (isHiddenRequested) {
+            if (isHidden) {
                 // 히든 아이템 개수 확인 및 감소 (스캔 아이템처럼)
                 const hiddenKey = user.id === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
                 const currentHidden = game[hiddenKey] ?? game.settings.hiddenStoneCount ?? 0;

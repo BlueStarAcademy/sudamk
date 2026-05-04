@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { type ReactNode } from 'react';
 import { UserWithStatus, ServerAction, UserStatus, GameMode } from '../../types.js';
 import Avatar from '../Avatar.js';
 import UserNicknameText from '../UserNicknameText.js';
@@ -91,6 +91,8 @@ interface PlayerListProps {
     inviteCooldownTicker?: number;
     /** 페어 방 안일 때 내 상태 드롭다운 비활성화 */
     disableStatusSelect?: boolean;
+    /** 유저 목록 제목(h2) 바로 아래 · 내 정보(본인 행) 위 — 전체/친구/길드원 등 */
+    listScopeTabs?: ReactNode;
 }
 
 const PlayerList: React.FC<PlayerListProps> = ({
@@ -105,6 +107,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
     pairInvite,
     inviteCooldownTicker = 0,
     disableStatusSelect = false,
+    listScopeTabs,
 }) => {
     const { handlers } = useAppContext();
     const isStrategicLobby = lobbyType === 'strategic';
@@ -281,9 +284,9 @@ const PlayerList: React.FC<PlayerListProps> = ({
         >
             {!hideListHeading && (
              <h2
-                className={`mb-2 flex flex-shrink-0 items-center justify-between border-b border-color pb-2 font-semibold ${
-                    pairAlignedNativeCompact ? 'text-sm sm:text-base' : 'text-xl'
-                }`}
+                className={`flex flex-shrink-0 items-center justify-between border-b border-color pb-2 font-semibold ${
+                    listScopeTabs ? 'mb-1.5' : 'mb-2'
+                } ${pairAlignedNativeCompact ? 'text-sm sm:text-base' : 'text-xl'}`}
             >
                 <span className="flex items-center gap-1.5 sm:gap-2">
                     유저 목록
@@ -299,6 +302,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
                 </span>
             </h2>
             )}
+            {listScopeTabs ? <div className="mb-2 shrink-0">{listScopeTabs}</div> : null}
             {me && (
               <div className="flex-shrink-0 mb-2">
                   {renderUserItem(me, true)}

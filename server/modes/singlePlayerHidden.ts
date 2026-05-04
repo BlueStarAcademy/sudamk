@@ -32,11 +32,14 @@ export const initializeSinglePlayerHidden = (game: types.LiveGameSession) => {
         if (!disableAiHiddenItemsByStageSetting) {
             const configuredTurnsRaw = (game.settings as any)?.singlePlayerAiHiddenItemTurns;
             const configuredTurns = Array.isArray(configuredTurnsRaw)
-                ? configuredTurnsRaw
-                    .map((turn: unknown) => Number(turn))
-                    .filter((turn: number) => Number.isInteger(turn) && turn > 0)
-                    .slice(0, 12)
-                    .sort((a: number, b: number) => a - b)
+                ? Array.from(
+                      new Set(
+                          configuredTurnsRaw
+                              .map((turn: unknown) => Number(turn))
+                              .filter((turn: number) => Number.isInteger(turn) && turn > 0)
+                              .slice(0, 12),
+                      ),
+                  ).sort((a: number, b: number) => a - b)
                 : [];
             const withinTurnRaw = Number((game.settings as any)?.singlePlayerAiHiddenItemUseWithinTurn ?? 0);
             const withinTurn = Number.isFinite(withinTurnRaw) ? Math.max(1, Math.min(99, Math.floor(withinTurnRaw))) : 10;
