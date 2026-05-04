@@ -108,6 +108,8 @@ const MAX_SELL_SLOTS = 3;
 const LISTING_MAX_DURATION_MS = 5 * 24 * 60 * 60 * 1000;
 const VERIFICATION_MS = 30 * 1000;
 const TRADE_LISTING_TICKET_NAME = '거래 등록권';
+/** 모달 최초 오픈 시 구매 목록 API와 동시에 보여줄 최소 대기 시간(ms) */
+const EXCHANGE_MODAL_OPENING_LOAD_MS = 3000;
 
 function cloneListedEquipmentSnapshot(item: InventoryItem): InventoryItem {
     try {
@@ -345,6 +347,10 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
     const [marketListingsRemote, setMarketListingsRemote] = useState<ExchangeListing[]>([]);
     const [marketListingsLoaded, setMarketListingsLoaded] = useState(false);
     const [isRefreshingBuyListings, setIsRefreshingBuyListings] = useState(false);
+    /** 구매 탭 수동 새로고침 버튼: 클릭 후 5초간 비활성 (자동 폴링과 무관) */
+    const [buyManualRefreshCooldownUntilMs, setBuyManualRefreshCooldownUntilMs] = useState(0);
+    /** 최초 마운트: API로 목록을 받는 동시 최소 `EXCHANGE_MODAL_OPENING_LOAD_MS` 경과 후 구매 탭 목록 표시 */
+    const [exchangeBuyListingsRevealReady, setExchangeBuyListingsRevealReady] = useState(false);
     const [inventorySortKey, setInventorySortKey] = useState<InventorySortKey>('createdAt');
     const [nowMs, setNowMs] = useState<number>(Date.now());
     const [walletGold, setWalletGold] = useState<number>(currentUser.gold ?? 0);
@@ -435,28 +441,57 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
     const minimumPrice = minPriceByCurrency[saleCurrency];
     const selectedItem = allEquipmentItems.find((entry) => entry.id === selectedItemId);
     const myActiveListings = listings.filter((listing) => listing.sellerId === currentUser.id && listing.status === 'listed');
-    const refreshMarketListings = React.useCallback(async () => {
-        setIsRefreshingBuyListings(true);
+    const pullMarketListingsFromApi = React.useCallback(async (): Promise<boolean> => {
         try {
             const response = await fetch(getApiUrl('/api/exchange/listings'));
-            if (!response.ok) return;
+            if (!response.ok) return false;
             const data = (await response.json()) as { listings?: ExchangeListing[] };
             setMarketListingsRemote(Array.isArray(data?.listings) ? data.listings : []);
             setMarketListingsLoaded(true);
+            return true;
         } catch {
-            // noop: keep previous data on fetch failure
+            return false;
+        }
+    }, []);
+
+    const refreshMarketListings = React.useCallback(async () => {
+        setIsRefreshingBuyListings(true);
+        try {
+            await pullMarketListingsFromApi();
         } finally {
             setIsRefreshingBuyListings(false);
         }
-    }, []);
+    }, [pullMarketListingsFromApi]);
+
+    React.useEffect(() => {
+        let cancelled = false;
+        const minDelay = new Promise<void>((resolve) => {
+            window.setTimeout(resolve, EXCHANGE_MODAL_OPENING_LOAD_MS);
+        });
+        setIsRefreshingBuyListings(true);
+        void (async () => {
+            try {
+                await Promise.all([pullMarketListingsFromApi(), minDelay]);
+            } finally {
+                if (!cancelled) {
+                    setIsRefreshingBuyListings(false);
+                    setExchangeBuyListingsRevealReady(true);
+                }
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [pullMarketListingsFromApi]);
+
     React.useEffect(() => {
         if (activeTab !== 'buy') return;
-        void refreshMarketListings();
+        if (!exchangeBuyListingsRevealReady) return;
         const timer = window.setInterval(() => {
             void refreshMarketListings();
         }, 5000);
         return () => window.clearInterval(timer);
-    }, [activeTab, refreshMarketListings]);
+    }, [activeTab, exchangeBuyListingsRevealReady, refreshMarketListings]);
     const marketListings = useMemo(() => {
         const merged = new Map<string, ExchangeListing>();
         const remoteIds = new Set<string>();
@@ -524,6 +559,8 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
         const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
         return () => window.clearInterval(timer);
     }, []);
+    const buyRefreshButtonDisabled =
+        isRefreshingBuyListings || nowMs < buyManualRefreshCooldownUntilMs;
     const serverListingsSig = useMemo(
         () => JSON.stringify((currentUser.exchangeState?.listings as ExchangeListing[] | undefined) ?? []),
         [currentUser.exchangeState?.listings],
@@ -1875,7 +1912,28 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                         : 'grid h-full min-h-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_340px]'
                                 }
                             >
-                                <div className={`flex h-full min-h-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/40 ${mobileExchange ? 'p-2' : 'p-3'}`}>
+                                {!exchangeBuyListingsRevealReady ? (
+                                    <div
+                                        className={`flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-cyan-500/25 bg-gradient-to-b from-slate-900/55 via-slate-950/85 to-slate-950/95 py-8 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] lg:col-span-2 ${
+                                            mobileExchange ? 'min-h-[min(50dvh,20rem)]' : 'min-h-[16rem]'
+                                        }`}
+                                    >
+                                        <div
+                                            className="h-10 w-10 shrink-0 animate-spin rounded-full border-2 border-cyan-400/30 border-t-cyan-300"
+                                            aria-hidden
+                                        />
+                                        <p className={`font-semibold text-slate-100 ${mobileExchange ? 'text-xs' : 'text-sm'}`}>
+                                            거래 물품 정보를 불러오는 중입니다…
+                                        </p>
+                                        <p
+                                            className={`max-w-[18rem] px-2 text-slate-500 ${mobileExchange ? 'text-[11px] leading-snug' : 'text-xs leading-relaxed'}`}
+                                        >
+                                            서버에서 최신 목록을 받아오는 동안 잠시만 기다려 주세요.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className={`flex h-full min-h-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/40 ${mobileExchange ? 'p-2' : 'p-3'}`}>
                                     <div className="mb-2 flex flex-col gap-2 sm:grid sm:grid-cols-[auto_auto_auto_1fr] sm:items-stretch">
                                         <div className="grid min-w-0 grid-cols-3 gap-1.5 sm:contents">
                                             <select
@@ -1922,11 +1980,14 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                             />
                                             <button
                                                 type="button"
-                                                onClick={() => void refreshMarketListings()}
+                                                onClick={() => {
+                                                    setBuyManualRefreshCooldownUntilMs(Date.now() + 5000);
+                                                    void refreshMarketListings();
+                                                }}
                                                 aria-label="거래소 목록 새로고침"
                                                 title="새로고침"
-                                                className={`shrink-0 rounded border border-slate-600 bg-slate-800 text-slate-200 transition hover:border-slate-400 hover:text-white ${mobileExchange ? 'w-8 text-[13px]' : 'w-9 text-sm'} ${isRefreshingBuyListings ? 'opacity-70' : ''}`}
-                                                disabled={isRefreshingBuyListings}
+                                                className={`shrink-0 rounded border border-slate-600 bg-slate-800 text-slate-200 transition hover:border-slate-400 hover:text-white ${mobileExchange ? 'w-8 text-[13px]' : 'w-9 text-sm'} ${buyRefreshButtonDisabled ? 'opacity-70' : ''}`}
+                                                disabled={buyRefreshButtonDisabled}
                                             >
                                                 ↻
                                             </button>
@@ -2102,6 +2163,8 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                         </div>
                                     </div>
                                 ) : null}
+                                    </>
+                                )}
                             </div>
                         )}
                         {activeTab === 'sell' &&

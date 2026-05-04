@@ -121,7 +121,7 @@ export const defaultStats: User['stats'] = (() => {
     const acc = allGameModes.reduce((a, mode) => {
         a[mode] = { wins: 0, losses: 0 };
         return a;
-    }, {} as Record<string, { wins: number; losses: number }>);
+    }, {} as Record<string, { wins: number; losses: number; rankingScore?: number }>);
     acc[STRATEGIC_RANKED_STAT_KEY] = {
         wins: 0,
         losses: 0,

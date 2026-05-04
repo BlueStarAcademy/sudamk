@@ -85,6 +85,16 @@ const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, 
         }
     };
 
+    const handleResetAllUsersStrategicRankingToBase = () => {
+        if (
+            window.confirm(
+                '모든 유저의 전략바둑 통합 랭킹 점수를 1200점(기준)으로 되돌립니다. 전적(승·패)은 유지됩니다. 계속하시겠습니까?'
+            )
+        ) {
+            onAction({ type: 'ADMIN_RESET_ALL_USERS_STRATEGIC_RANKING_TO_BASE' });
+        }
+    };
+
     const handleGuildWarRechargeToday = () => {
         if (window.confirm(`[${currentUser.nickname}] 님의 길드전 오늘 도전횟수를 초기화(충전)할까요?`)) {
             onAction({
@@ -151,6 +161,18 @@ const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, 
             <p className="text-sm text-gray-400">전체 유저의 챔피언십 단계·관련 점수를 0으로 되돌립니다. 신중히 사용하세요.</p>
             <Button onClick={handleResetAllUsersChampionship} colorScheme="red" variant="outline" className="w-full sm:w-auto">
                 전체 유저 챔피언십 초기화
+            </Button>
+        </section>
+    );
+
+    const strategicRankingSection = (
+        <section className={sectionClass}>
+            <h2 className={adminCardTitle}>전략바둑 랭킹 일괄 초기화</h2>
+            <p className="text-sm text-gray-400">
+                전체 유저의 전략바둑 통합 랭킹 점수를 1200점(기준)으로 맞춥니다. 랭킹전 승·패 통계는 그대로 두고 점수만 초기화합니다.
+            </p>
+            <Button onClick={handleResetAllUsersStrategicRankingToBase} colorScheme="orange" variant="outline" className="w-full sm:w-auto">
+                전체 유저 전략바둑 랭킹 1200점으로 초기화
             </Button>
         </section>
     );
@@ -294,6 +316,7 @@ const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, 
                     {mobileTab === 'ops' && (
                         <>
                             {championshipSection}
+                            {strategicRankingSection}
                             {tournamentSection}
                             {maintenanceSection}
                             {liveGamesSection}
@@ -306,6 +329,7 @@ const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, 
 
             <div className={`hidden lg:flex lg:flex-col ${adminSectionGap}`}>
                 {championshipSection}
+                {strategicRankingSection}
                 {tournamentSection}
                 {maintenanceSection}
                 {guildWarTestSection}

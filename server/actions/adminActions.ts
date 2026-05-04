@@ -40,6 +40,9 @@ import {
 import { DEFAULT_SINGLE_PLAYER_STAGES } from '../../shared/constants/singlePlayerConstants.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 import { MAX_PLAYER_DIAMONDS, MAX_PLAYER_GOLD } from '../../shared/constants/numericLimits.js';
+import { RANKED_ELO_BASE_SCORE } from '../../shared/constants/rules.js';
+import { STRATEGIC_RANKED_STAT_KEY } from '../../shared/constants/userRankedStats.js';
+import { readStrategicRankedBlock } from '../../shared/utils/unifiedRankedStatsMigration.js';
 import type { KataServerRuntimeOverrides } from '../../shared/types/kataServerRuntime.js';
 import { resetKataServerRuntimeOverrides, saveKataServerRuntimePatch } from '../kataServerRuntimeStore.js';
 
@@ -1384,7 +1387,44 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                 }
             };
         }
-        
+
+        case 'ADMIN_RESET_ALL_USERS_STRATEGIC_RANKING_TO_BASE': {
+            db.invalidateUserCache('');
+            const { invalidateRankingCache } = await import('../rankingCache.js');
+            invalidateRankingCache();
+            const now = Date.now();
+            const allUsers = await db.getAllUsers({ includeEquipment: false, includeInventory: false, skipCache: true });
+            let updatedCount = 0;
+            for (const targetUser of allUsers) {
+                if (!targetUser.stats) targetUser.stats = {} as User['stats'];
+                const stats = targetUser.stats as Record<string, unknown>;
+                const blk = readStrategicRankedBlock(stats as any);
+                stats[STRATEGIC_RANKED_STAT_KEY] = {
+                    wins: blk.wins,
+                    losses: blk.losses,
+                    rankingScore: RANKED_ELO_BASE_SCORE,
+                };
+                if (!targetUser.cumulativeRankingScore) targetUser.cumulativeRankingScore = {};
+                targetUser.cumulativeRankingScore.standard = 0;
+                if (!targetUser.dailyRankings) targetUser.dailyRankings = {};
+                targetUser.dailyRankings.strategic = { rank: 9999, score: 0, lastUpdated: now };
+                await db.updateUser(targetUser);
+                invalidateUserCache(targetUser.id);
+                removeUserFromCache(targetUser.id);
+                updateUserCache(targetUser);
+                updatedCount++;
+            }
+            invalidateRankingCache();
+            await createAdminLog(user, 'reset_strategic_ranking_all', { id: 'all', nickname: '전체 유저' }, { updatedCount, totalUsers: allUsers.length });
+            return {
+                clientResponse: {
+                    message: `전체 유저 전략바둑 랭킹 점수를 ${RANKED_ELO_BASE_SCORE}점(기준)으로 맞췄습니다. (${updatedCount}명). 랭킹 보드는 새로고침 후 반영됩니다.`,
+                    updatedCount,
+                    totalUsers: allUsers.length,
+                },
+            };
+        }
+
         case 'ADMIN_CREATE_HOME_BOARD_POST': {
             const { title, content, isPinned } = payload;
             if (!title || !content) {

@@ -1940,15 +1940,8 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             typeof rankedMatchingQueue === 'object' &&
             (rankedMatchingQueue as { strategic?: Record<string, unknown> }).strategic?.[currentUserWithStatus.id],
     );
-    const inPlayfulRankedQueue = Boolean(
-        currentUserWithStatus.id &&
-            rankedMatchingQueue &&
-            typeof rankedMatchingQueue === 'object' &&
-            (rankedMatchingQueue as { playful?: Record<string, unknown> }).playful?.[currentUserWithStatus.id],
-    );
     /** 페어 랭킹전 큐·경기장 단독 랭킹 큐 대기 중에는 준비 해제 불가(서버와 동일 조건) */
-    const rankedMatchingBlocksPartnerUnready =
-        isPairRoomMatching || inStrategicRankedQueue || inPlayfulRankedQueue;
+    const rankedMatchingBlocksPartnerUnready = isPairRoomMatching || inStrategicRankedQueue;
 
     const getPairLobbyJoinableFromListRoom = (room: PairRoom) => {
         const listRoomKind = pairLobbyListDisplayRoomKind(room, lobbyChannel);

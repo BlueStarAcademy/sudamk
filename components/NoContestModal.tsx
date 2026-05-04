@@ -6,6 +6,11 @@ import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { canSaveStrategicPvpGameRecord, GAME_RECORD_SLOT_FULL_MESSAGE } from '../utils/strategicPvpGameRecord.js';
 import { useGameRecordSaveLock } from '../hooks/useGameRecordSaveLock.js';
+import {
+    GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX,
+    GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS,
+    GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH,
+} from './game/gameResultModalViewport.js';
 
 interface NoContestModalProps {
     session: LiveGameSession;
@@ -34,7 +39,10 @@ const NoContestModal: React.FC<NoContestModalProps> = ({ session, currentUser, o
             windowId="no-contest"
             mobileViewportFit={isMobile}
             mobileLockViewportHeight={isMobile}
-            mobileViewportMaxHeightVh={90}
+            mobileViewportMaxHeightVh={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH : 90}
+            mobileViewportMaxHeightCss={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS : undefined}
+            mobileViewportDvhBottomGapPx={isMobile ? GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX : undefined}
+            hideFooter={isMobile}
         >
             <>
             <div className="text-white">

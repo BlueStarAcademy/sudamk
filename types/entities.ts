@@ -581,7 +581,6 @@ export type User = {
   monthlyTowerFloor?: number; // 한 달 동안 클리어한 최고 층수 (매월 1일 리셋)
   dailyRankings?: {
     strategic?: { rank: number; score: number; lastUpdated: number };
-    playful?: { rank: number; score: number; lastUpdated: number };
     pair?: { rank: number; score: number; lastUpdated: number };
     championship?: {
       score?: number;
@@ -1420,6 +1419,7 @@ export type AdminLog = {
     | 'reset_tournament_session'
     | 'reset_dungeon_progress'
     | 'reset_championship_all'
+    | 'reset_strategic_ranking_all'
     | 'clear_user_guild'
     | 'guild_war_recharge_daily_attempts'
     | 'create_home_board_post'

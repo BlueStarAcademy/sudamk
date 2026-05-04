@@ -6,7 +6,7 @@ import { AVATAR_POOL, BORDER_POOL, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 
-type UserListStats = { wins: number; losses: number; winRate: number; score: number };
+type UserListStats = { wins: number; losses: number; winRate: number; score?: number };
 
 function computeUserListStats(user: UserWithStatus, mode: GameMode | 'strategic' | 'playful' | 'pair'): UserListStats | null {
     if (mode === 'pair') {
@@ -33,7 +33,7 @@ function computeUserListStats(user: UserWithStatus, mode: GameMode | 'strategic'
             if (st) {
                 wins += st.wins ?? 0;
                 losses += st.losses ?? 0;
-                if (st.rankingScore !== undefined && st.rankingScore !== null) {
+                if (mode === 'strategic' && st.rankingScore !== undefined && st.rankingScore !== null) {
                     scoreSum += st.rankingScore;
                     scoreCount += 1;
                 }
@@ -41,6 +41,9 @@ function computeUserListStats(user: UserWithStatus, mode: GameMode | 'strategic'
         }
         const total = wins + losses;
         const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
+        if (mode === 'playful') {
+            return { wins, losses, winRate };
+        }
         const score = scoreCount > 0 ? Math.round(scoreSum / scoreCount) : 1200;
         return { wins, losses, winRate, score };
     }
@@ -145,7 +148,9 @@ const PlayerList: React.FC<PlayerListProps> = ({
                             className="flex min-w-0 w-full items-baseline justify-between gap-2 overflow-hidden"
                             title={
                                 listStats
-                                    ? `${user.nickname} ${listStats.score.toLocaleString()}점 · ${listStats.wins}승${listStats.losses}패(${listStats.winRate}%)`
+                                    ? `${user.nickname}${
+                                          listStats.score != null ? ` ${listStats.score.toLocaleString()}점 ·` : ' ·'
+                                      } ${listStats.wins}승${listStats.losses}패(${listStats.winRate}%)`
                                     : undefined
                             }
                         >
@@ -160,7 +165,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
                                     pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-sm lg:text-base' : 'text-sm lg:text-base'
                                 }`}
                             />
-                            {listStats && (
+                            {listStats && listStats.score != null && (
                                 <span
                                     className={`shrink-0 text-right font-semibold tabular-nums text-amber-200 ${
                                         pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs lg:text-sm' : 'text-xs lg:text-sm'

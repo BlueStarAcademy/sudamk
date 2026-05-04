@@ -2,7 +2,11 @@ import React from 'react';
 import { replaceAppHash } from '../utils/appUtils.js';
 import { RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScrollbar.js';
 
-export type MobileRankingGuideVariant = 'game-combat' | 'game-manner' | 'baduk-strategic' | 'baduk-playful';
+export type MobileRankingGuideVariant =
+    | 'game-combat'
+    | 'game-manner'
+    | 'baduk-strategic'
+    | 'baduk-pair';
 
 type ListSection = {
     title: string;
@@ -60,17 +64,17 @@ const GUIDE: Record<MobileRankingGuideVariant, GuideSections> = {
         cta: '전략 대기실',
         hash: '#/waiting/strategic',
     },
-    'baduk-playful': {
+    'baduk-pair': {
         how: {
             title: '점수 올리는 방법',
-            body: '놀이바둑 랭킹전(PVP) 승패로 1200 기준 누적 점수가 변합니다. 같은 모드 10판 이상이면 순위에 반영되며, 강한 상대를 이기면 더 많이 오릅니다.',
+            body: '페어 랭킹전(PVP) 승패로 1200 기준 누적 점수가 변합니다. 최소 대국 수를 채우면 순위에 반영되며, 강한 상대를 이기면 더 많이 오릅니다.',
         },
         where: {
             title: '점수가 오르는 곳',
-            body: '경기장 → 놀이바둑 → 대기실에서 랭킹전 매칭을 이용하세요.',
+            body: '경기장 → 페어바둑에서 랭킹전 매칭을 이용하세요.',
         },
-        cta: '놀이 대기실',
-        hash: '#/waiting/playful',
+        cta: '페어 로비',
+        hash: '#/pair',
     },
 };
 

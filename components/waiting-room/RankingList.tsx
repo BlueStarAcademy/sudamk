@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { User, UserWithStatus, GameMode } from '../../types.js';
 import Avatar from '../Avatar.js';
-import { RANKING_TIERS, AVATAR_POOL, BORDER_POOL, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
+import { RANKING_TIERS, AVATAR_POOL, BORDER_POOL, SPECIAL_GAME_MODES } from '../../constants';
 import { readStrategicRankedBlock, readPairRankedBlock } from '../../shared/utils/unifiedRankedStatsMigration.js';
 import { RANKED_ELO_BASE_SCORE } from '../../shared/constants/rules.js';
 import { RANKING_MODAL_SLIM_SCROLL_Y } from '../../shared/constants/rankingModalScrollbar.js';
@@ -14,8 +14,8 @@ interface RankingListProps {
     mode: GameMode | 'strategic' | 'playful';
     onViewUser: (userId: string) => void;
     onShowTierInfo: () => void;
-    onShowPastRankings: (info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'playful' | 'pair' }) => void;
-    lobbyType: 'strategic' | 'playful' | 'pair';
+    onShowPastRankings: (info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'pair' }) => void;
+    lobbyType: 'strategic' | 'pair';
     /** 네이티브 전략·놀이 대기실: 페어 경기장 모바일과 유사한 글자 크기 */
     pairAlignedNativeCompact?: boolean;
     /** 랭킹 모달 등 상·하 분할: 패딩·타이틀·행 간격을 더 촘촘히 */
@@ -54,7 +54,7 @@ const RankingList: React.FC<RankingListProps> = ({
     pairAlignedNativeCompact = false,
     splitStack = false,
 }) => {
-    const rankingType = lobbyType === 'pair' ? 'pair' : lobbyType === 'strategic' ? 'strategic' : 'playful';
+    const rankingType = lobbyType === 'pair' ? 'pair' : 'strategic';
     /** 페어 시즌 랭킹은 최소 대국 수 기준이 전략과 다를 수 있음 */
     const minGamesForTierList = lobbyType === 'pair' ? 5 : 10;
     // 대기실·랭킹 모달: 시즌별 티어 랭킹 점수 (매 시즌 시작일에 1200점 부여, 랭킹전을 통해 얻거나 잃은 점수)
@@ -544,13 +544,7 @@ const RankingList: React.FC<RankingListProps> = ({
     }, [lobbyType, minGamesForTierList, currentUser.id, currentUser.userLevel, seasonalBadukInlineLayout, getTierForUser, onViewUser, pairAlignedNativeCompact, splitStack]);
 
     const rankingTitle =
-        lobbyType === 'strategic'
-            ? '전략바둑 랭킹'
-            : lobbyType === 'playful'
-              ? '놀이바둑 랭킹'
-              : lobbyType === 'pair'
-                ? '페어 바둑 랭킹'
-                : `${mode} 랭킹`;
+        lobbyType === 'strategic' ? '전략바둑 랭킹' : lobbyType === 'pair' ? '페어 바둑 랭킹' : `${mode} 랭킹`;
 
     const panelTight = pairAlignedNativeCompact || splitStack;
     const headerTitleClass = splitStack
@@ -599,7 +593,7 @@ const RankingList: React.FC<RankingListProps> = ({
                         onClick={() =>
                             onShowPastRankings({
                                 user: currentUser,
-                                mode: lobbyType === 'playful' ? 'playful' : lobbyType === 'pair' ? 'pair' : 'strategic',
+                                mode: lobbyType === 'pair' ? 'pair' : 'strategic',
                             })
                         }
                         colorScheme="none"

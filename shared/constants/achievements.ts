@@ -8,7 +8,6 @@ export type AchievementStageDefinition = {
         | { type: 'championship_cumulative_score'; score: number }
         | { type: 'all_equipment_min_grade'; grade: 'normal' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic' | 'transcendent' }
         | { type: 'strategy_tier'; tier: '루키' | '브론즈' | '실버' | '골드' | '플래티넘' | '다이아' | '마스터' | '챌린저' }
-        | { type: 'playful_tier'; tier: '루키' | '브론즈' | '실버' | '골드' | '플래티넘' | '다이아' | '마스터' | '챌린저' }
         | { type: 'adventure_understanding_tier'; stageId: 'neighborhood_hill' | 'lake_park' | 'aquarium' | 'zoo' | 'amusement_park'; tier: '편함' | '익숙함' | '친숙함' | '정복' }
         | { type: 'adventure_codex_score'; score: number }
         | { type: 'blacksmith_level'; level: number }
@@ -28,7 +27,6 @@ export const STRATEGY_LEVEL_TRACK_ID = 'strategy_level_milestones';
 export const CHAMPIONSHIP_SCORE_TRACK_ID = 'championship_score_milestones';
 export const ALL_EQUIPMENT_GRADE_TRACK_ID = 'all_equipment_grade_milestones';
 export const STRATEGY_TIER_TRACK_ID = 'strategy_tier_milestones';
-export const PLAYFUL_TIER_TRACK_ID = 'playful_tier_milestones';
 export const NEIGHBORHOOD_HILL_EXPLORATION_TRACK_ID = 'adventure_neighborhood_hill_conquest';
 export const LAKE_PARK_EXPLORATION_TRACK_ID = 'adventure_lake_park_conquest';
 export const AQUARIUM_EXPLORATION_TRACK_ID = 'adventure_aquarium_conquest';
@@ -133,20 +131,6 @@ export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
             { id: 'strategy-tier-diamond', title: '시즌 최고 티어 [다이아]', description: '전략바둑 시즌 티어 다이아를 달성하세요.', requirement: { type: 'strategy_tier', tier: '다이아' }, rewardDiamonds: 250 },
             { id: 'strategy-tier-master', title: '시즌 최고 티어 [마스터]', description: '전략바둑 시즌 티어 마스터를 달성하세요.', requirement: { type: 'strategy_tier', tier: '마스터' }, rewardDiamonds: 300 },
             { id: 'strategy-tier-challenger', title: '시즌 최고 티어 [챌린저]', description: '전략바둑 시즌 티어 챌린저를 달성하세요.', requirement: { type: 'strategy_tier', tier: '챌린저' }, rewardDiamonds: 500 },
-        ],
-    },
-    {
-        id: PLAYFUL_TIER_TRACK_ID,
-        title: '놀이바둑 랭커 업적',
-        stages: [
-            { id: 'playful-tier-rookie', title: '시즌 최고 티어 [루키]', description: '놀이바둑 시즌 티어 루키를 달성하세요.', requirement: { type: 'playful_tier', tier: '루키' }, rewardDiamonds: 25 },
-            { id: 'playful-tier-bronze', title: '시즌 최고 티어 [브론즈]', description: '놀이바둑 시즌 티어 브론즈를 달성하세요.', requirement: { type: 'playful_tier', tier: '브론즈' }, rewardDiamonds: 50 },
-            { id: 'playful-tier-silver', title: '시즌 최고 티어 [실버]', description: '놀이바둑 시즌 티어 실버를 달성하세요.', requirement: { type: 'playful_tier', tier: '실버' }, rewardDiamonds: 100 },
-            { id: 'playful-tier-gold', title: '시즌 최고 티어 [골드]', description: '놀이바둑 시즌 티어 골드를 달성하세요.', requirement: { type: 'playful_tier', tier: '골드' }, rewardDiamonds: 150 },
-            { id: 'playful-tier-platinum', title: '시즌 최고 티어 [플래티넘]', description: '놀이바둑 시즌 티어 플래티넘을 달성하세요.', requirement: { type: 'playful_tier', tier: '플래티넘' }, rewardDiamonds: 200 },
-            { id: 'playful-tier-diamond', title: '시즌 최고 티어 [다이아]', description: '놀이바둑 시즌 티어 다이아를 달성하세요.', requirement: { type: 'playful_tier', tier: '다이아' }, rewardDiamonds: 250 },
-            { id: 'playful-tier-master', title: '시즌 최고 티어 [마스터]', description: '놀이바둑 시즌 티어 마스터를 달성하세요.', requirement: { type: 'playful_tier', tier: '마스터' }, rewardDiamonds: 300 },
-            { id: 'playful-tier-challenger', title: '시즌 최고 티어 [챌린저]', description: '놀이바둑 시즌 티어 챌린저를 달성하세요.', requirement: { type: 'playful_tier', tier: '챌린저' }, rewardDiamonds: 500 },
         ],
     },
     {

@@ -3734,7 +3734,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     // 싱글플레이 게임 설명창 표시 여부
     // 결과 모달과 겹치지 않게: 계가/종료 직후 일시적으로 pending이 섞이는 경우에도 설명창이 위를 덮지 않도록 함
     const showGameDescription = isSinglePlayer && gameStatus === 'pending' && !showResultModal;
-    const showTowerGameDescription = isTower && gameStatus === 'pending' && !showResultModal;
+    // CONFIRM 전에만 시작 설명(대기 pending·실제 시작 시각 없음). 계가/종료 직후 잠깐 pending이 섞이면 시작창이 덮이는 간헐 이슈 방지.
+    const showTowerGameDescription =
+        isTower &&
+        gameStatus === 'pending' &&
+        !showResultModal &&
+        (session as { startTime?: number | null }).startTime == null;
     
     // 도전의 탑 배경 이미지 설정
     const towerBackgroundImage = isTower && session.towerFloor 

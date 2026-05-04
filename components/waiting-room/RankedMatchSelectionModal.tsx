@@ -1,12 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
-import { GameMode, ServerAction, GameSettings } from '../../types.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, RANKED_STRATEGIC_MODES, RANKED_PLAYFUL_MODES, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST } from '../../constants/index.js';
+import { GameMode, GameSettings } from '../../types.js';
+import { SPECIAL_GAME_MODES, RANKED_STRATEGIC_MODES, STRATEGIC_ACTION_POINT_COST } from '../../constants/index.js';
 import { RANKED_GAME_SETTINGS } from '../../constants/rankedGameSettings.js';
 
 interface RankedMatchSelectionModalProps {
-    lobbyType: 'strategic' | 'playful';
     onClose: () => void;
     onStartMatching: (selectedModes: GameMode[]) => void;
 }
@@ -75,20 +74,13 @@ const GameCard: React.FC<{
     );
 };
 
-const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ 
-    lobbyType, 
-    onClose, 
-    onStartMatching 
-}) => {
-    const actionPointCost = lobbyType === 'strategic' ? STRATEGIC_ACTION_POINT_COST : PLAYFUL_ACTION_POINT_COST;
-    const availableModes = useMemo(() => {
-        return lobbyType === 'strategic' ? RANKED_STRATEGIC_MODES : RANKED_PLAYFUL_MODES;
-    }, [lobbyType]);
+const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ onClose, onStartMatching }) => {
+    const actionPointCost = STRATEGIC_ACTION_POINT_COST;
+    const availableModes = useMemo(() => RANKED_STRATEGIC_MODES, []);
 
     const availableGameDefinitions = useMemo(() => {
-        const allModes = lobbyType === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
-        return allModes.filter(m => availableModes.includes(m.mode));
-    }, [lobbyType, availableModes]);
+        return SPECIAL_GAME_MODES.filter((m) => availableModes.includes(m.mode));
+    }, [availableModes]);
 
     const [selectedModes, setSelectedModes] = useState<GameMode[]>([]);
     const [selectedMode, setSelectedMode] = useState<GameMode | null>(null);

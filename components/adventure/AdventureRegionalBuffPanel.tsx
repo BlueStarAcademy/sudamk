@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     ADVENTURE_STAGES,
     ADVENTURE_UNDERSTANDING_TIER_LABELS,
-    ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS,
     getAdventureUnderstandingTierFromXp,
 } from '../../constants/adventureConstants.js';
+import type { AdventureChapterUnlockContext } from '../../utils/adventureChapterUnlock.js';
+import { isAdventureStageUnlocked } from '../../utils/adventureChapterUnlock.js';
 import type { AdventureProfile } from '../../types/entities.js';
 import {
     ADVENTURE_REGIONAL_SPECIALTY_KINDS,
@@ -60,8 +61,24 @@ const AdventureRegionalBuffPanel: React.FC<{
     /** 버튼 비활성·표시용 보유 골드 */
     userGold?: number;
     compact?: boolean;
-}> = ({ profile, stageRows, userGold = 0, compact = false }) => {
-    const { handlers } = useAppContext();
+    /** 생략 시 앱 컨텍스트의 유저 레벨·이해도로 지역 잠금을 판별합니다. */
+    chapterUnlockCtx?: AdventureChapterUnlockContext;
+}> = ({ profile, stageRows, userGold = 0, compact = false, chapterUnlockCtx: chapterUnlockCtxProp }) => {
+    const { handlers, currentUserWithStatus } = useAppContext();
+    const chapterUnlockCtx = useMemo<AdventureChapterUnlockContext>(
+        () =>
+            chapterUnlockCtxProp ?? {
+                strategyLevel: Number(currentUserWithStatus?.userLevel ?? 0) || 0,
+                isAdmin: !!currentUserWithStatus?.isAdmin,
+                understandingXpByStage: currentUserWithStatus?.adventureProfile?.understandingXpByStage,
+            },
+        [
+            chapterUnlockCtxProp,
+            currentUserWithStatus?.userLevel,
+            currentUserWithStatus?.isAdmin,
+            currentUserWithStatus?.adventureProfile?.understandingXpByStage,
+        ],
+    );
     const [tabIdx, setTabIdx] = useState(0);
     const [showHelpModal, setShowHelpModal] = useState(false);
     const [rouletteLabelBySlot, setRouletteLabelBySlot] = useState<Record<number, string>>({});
@@ -75,6 +92,7 @@ const AdventureRegionalBuffPanel: React.FC<{
     const stage = ADVENTURE_STAGES[tabIdx] ?? ADVENTURE_STAGES[0]!;
     const stageId = stage.id;
     const understandingRow = stageRows[tabIdx] ?? stageRows[0];
+    const stageChapterUnlocked = isAdventureStageUnlocked(stageId, chapterUnlockCtx);
 
     const p = useMemo(() => normalizeAdventureProfile(profile), [profile]);
     const buffs: (AdventureRegionalSpecialtyBuffEntry | undefined)[] = (p.regionalSpecialtyBuffsByStageId?.[stageId] ?? []).map(
@@ -146,6 +164,7 @@ const AdventureRegionalBuffPanel: React.FC<{
     const anySlotSpinning = useMemo(() => Object.values(spinningSlots).some(Boolean), [spinningSlots]);
 
     const onChange = async (slotIndex: number) => {
+        if (!stageChapterUnlocked) return;
         if (regionalRerollLockedRef.current || anySlotSpinning) return;
         const rawSlot = buffs[slotIndex];
         if (rawSlot) {
@@ -207,6 +226,7 @@ const AdventureRegionalBuffPanel: React.FC<{
     };
 
     const onEnhance = (slotIndex: number) => {
+        if (!stageChapterUnlocked) return;
         startEnhanceFlashAnimation(slotIndex);
         handlers.handleAction({
             type: 'ENHANCE_ADVENTURE_REGIONAL_BUFF',
@@ -271,23 +291,27 @@ const AdventureRegionalBuffPanel: React.FC<{
                     role="tablist"
                     aria-label="지역 탐험도 탭"
                 >
-                    {ADVENTURE_STAGES.map((s, i) => (
-                        <button
-                            key={s.id}
-                            type="button"
-                            role="tab"
-                            aria-selected={i === tabIdx}
-                            onClick={() => setTabIdx(i)}
-                            className={`rounded-md border px-2 py-1 text-[11px] font-bold transition-colors sm:text-xs ${
-                                i === tabIdx
-                                    ? 'border-amber-400/60 bg-amber-500/15 text-amber-100'
-                                    : 'border-white/10 bg-black/25 text-zinc-400 hover:border-white/20 hover:text-zinc-200'
-                            }`}
-                        >
-                            <span className="tabular-nums">{String(i + 1).padStart(2, '0')}</span>
-                            {!compact && <span className="ml-1 hidden sm:inline">{s.title}</span>}
-                        </button>
-                    ))}
+                    {ADVENTURE_STAGES.map((s, i) => {
+                        const tabUnlocked = isAdventureStageUnlocked(s.id, chapterUnlockCtx);
+                        return (
+                            <button
+                                key={s.id}
+                                type="button"
+                                role="tab"
+                                aria-selected={i === tabIdx}
+                                onClick={() => setTabIdx(i)}
+                                className={`rounded-md border px-2 py-1 text-[11px] font-bold transition-colors sm:text-xs ${
+                                    i === tabIdx
+                                        ? 'border-amber-400/60 bg-amber-500/15 text-amber-100'
+                                        : 'border-white/10 bg-black/25 text-zinc-400 hover:border-white/20 hover:text-zinc-200'
+                                }`}
+                            >
+                                <span className="tabular-nums">{String(i + 1).padStart(2, '0')}</span>
+                                {!tabUnlocked ? <span aria-hidden> 🔒</span> : null}
+                                {!compact && <span className="ml-1 hidden sm:inline">{s.title}</span>}
+                            </button>
+                        );
+                    })}
                 </div>
 
                 <div className="mt-2.5 space-y-2.5">
@@ -332,10 +356,22 @@ const AdventureRegionalBuffPanel: React.FC<{
                     )}
 
                     <div className="mt-2 flex min-h-0 w-full min-w-0 flex-col gap-1.5 sm:gap-2">
-                        {Array.from({ length: REGIONAL_SPECIALTY_SLOT_COUNT }, (_, slotIndex) => {
+                        {!stageChapterUnlocked ? (
+                            <div
+                                className={`flex w-full items-center gap-2 rounded-md border border-dashed border-zinc-600/50 bg-black/20 px-2 py-2 ${
+                                    compact ? 'text-[10px] sm:text-[11px]' : 'text-[11px] sm:text-xs'
+                                }`}
+                            >
+                                <span className="shrink-0 text-base leading-none sm:text-lg" aria-hidden>🔒</span>
+                                <p className="min-w-0 flex-1 font-bold text-zinc-500">
+                                    슬롯 1 잠김 · 챕터{stage.stageIndex} 오픈
+                                </p>
+                            </div>
+                        ) : null}
+                        {stageChapterUnlocked
+                            ? Array.from({ length: REGIONAL_SPECIALTY_SLOT_COUNT }, (_, slotIndex) => {
                             const unlocked = slotIndex < maxSlots;
                             if (!unlocked) {
-                                const xpNeed = ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS[slotIndex];
                                 const tierLabel = ADVENTURE_UNDERSTANDING_TIER_LABELS[slotIndex];
                                 return (
                                     <div
@@ -346,7 +382,7 @@ const AdventureRegionalBuffPanel: React.FC<{
                                     >
                                         <span className="shrink-0 text-base leading-none sm:text-lg" aria-hidden>🔒</span>
                                         <p className="min-w-0 flex-1 truncate font-bold text-zinc-500">
-                                            슬롯 {slotIndex + 1} 잠김 · {tierLabel} 이상 · XP {xpNeed.toLocaleString()}+
+                                            슬롯 {slotIndex + 1} 잠김 · {tierLabel} 이상
                                         </p>
                                     </div>
                                 );
@@ -435,7 +471,8 @@ const AdventureRegionalBuffPanel: React.FC<{
                                     </button>
                                 </div>
                             );
-                        })}
+                        })
+                            : null}
                     </div>
                 </div>
             </div>

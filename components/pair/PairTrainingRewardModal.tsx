@@ -349,10 +349,12 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                     className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_75%_55%_at_50%_-18%,rgba(217,70,239,0.28),transparent_55%),linear-gradient(165deg,rgba(24,24,27,0.98)0%,rgba(9,9,11,0.99)48%,rgba(59,7,100,0.28)100%)]"
                     aria-hidden
                 />
-                <div className="relative px-4 pb-5 pt-5 text-center sm:px-6 sm:pb-6 sm:pt-6">
-                    <p className="mb-1 text-[0.7rem] font-bold uppercase tracking-wide text-fuchsia-300/90 sm:text-xs">{slotLabel}</p>
+                <div className="relative px-3 pb-4 pt-4 text-center sm:px-6 sm:pb-6 sm:pt-6">
+                    <p className="mb-1 text-[0.625rem] font-bold uppercase tracking-[0.12em] text-fuchsia-300/85 sm:text-xs sm:tracking-wide">
+                        {slotLabel}
+                    </p>
 
-                    <div className="mx-auto mb-4 flex h-[5.25rem] w-[5.25rem] items-center justify-center rounded-xl border border-fuchsia-400/40 bg-black/35 p-1 shadow-inner sm:h-[5.75rem] sm:w-[5.75rem]">
+                    <div className="mx-auto mb-3 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-xl border border-fuchsia-400/35 bg-black/40 p-1 shadow-inner sm:mb-4 sm:h-[5.75rem] sm:w-[5.75rem] sm:border-fuchsia-400/40">
                         <img
                             src={phase === 'ready' ? petItem.image : (summary?.petImage ?? petItem.image)}
                             alt=""
@@ -362,23 +364,23 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                     </div>
 
                     {phase === 'ready' && autoClaimOnMount ? (
-                        <div className="mx-auto flex min-h-[6.5rem] max-w-sm flex-col items-center justify-center gap-2 py-2">
-                            <p className="text-sm font-bold text-fuchsia-100/90 sm:text-base">보상을 받는 중…</p>
-                            <p className="text-[0.7rem] font-medium text-slate-500 sm:text-xs">잠시만 기다려 주세요.</p>
+                        <div className="mx-auto flex min-h-[5.5rem] max-w-sm flex-col items-center justify-center gap-1.5 py-2 sm:min-h-[6.5rem] sm:gap-2">
+                            <p className="text-xs font-bold text-fuchsia-100/90 sm:text-base">보상을 받는 중…</p>
+                            <p className="text-[0.65rem] font-medium text-slate-500 sm:text-xs">잠시만 기다려 주세요.</p>
                         </div>
                     ) : phase === 'ready' ? (
                         <>
-                            <h3 className="text-base font-black leading-snug text-fuchsia-50 sm:text-lg">
-                                {(petItem.name ?? '펫').replace(/\s+/g, ' ')}
+                            <h3 className="text-sm font-bold leading-snug text-fuchsia-50 sm:text-lg sm:font-black">
+                                <span className="text-white/95">{(petItem.name ?? '펫').replace(/\s+/g, ' ')}</span>
                                 <br />
-                                <span className="text-fuchsia-200/95">수련 보상을 수령할까요?</span>
+                                <span className="text-fuchsia-200/90 sm:text-fuchsia-200/95">수련 보상을 수령할까요?</span>
                             </h3>
-                            <div className="mx-auto mt-5 flex max-w-sm flex-col items-stretch justify-center gap-2.5 sm:flex-row sm:gap-3">
+                            <div className="mx-auto mt-4 flex w-full max-w-sm flex-row items-stretch justify-center gap-2 sm:mt-5 sm:gap-3">
                                 <button
                                     type="button"
                                     onClick={onClose}
                                     disabled={isBusy}
-                                    className="order-2 w-full min-w-[8rem] rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-white/25 hover:bg-white/[0.08] disabled:opacity-45 sm:order-1 sm:w-auto"
+                                    className="min-w-0 flex-1 rounded-full border border-white/15 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-white/25 hover:bg-white/[0.08] disabled:opacity-45 sm:min-w-[8rem] sm:flex-none sm:px-5 sm:py-2.5 sm:text-sm"
                                 >
                                     닫기
                                 </button>
@@ -387,7 +389,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                                     disabled={isBusy}
                                     onClick={() => void handleClaim()}
                                     colorScheme="none"
-                                    className="order-1 w-full min-w-[8rem] !rounded-full !border !border-fuchsia-400/55 !bg-gradient-to-r !from-fuchsia-600 !via-fuchsia-500 !to-violet-600 !px-6 !py-2.5 !text-sm !font-black !text-white !shadow-[0_8px_26px_rgba(192,38,211,0.4),inset_0_1px_0_rgba(255,255,255,0.18)] hover:!from-fuchsia-500 hover:!via-fuchsia-400 hover:!to-violet-500 disabled:!opacity-40 sm:order-2 sm:w-auto"
+                                    className="min-w-0 flex-1 !rounded-full !border !border-fuchsia-400/50 !bg-gradient-to-r !from-fuchsia-600 !via-fuchsia-500 !to-violet-600 !px-3 !py-2 !text-xs !font-bold !text-white !shadow-[0_6px_20px_rgba(192,38,211,0.35),inset_0_1px_0_rgba(255,255,255,0.16)] hover:!from-fuchsia-500 hover:!via-fuchsia-400 hover:!to-violet-500 disabled:!opacity-40 sm:!min-w-[8rem] sm:!flex-none sm:!px-6 sm:!py-2.5 sm:!text-sm sm:!font-black sm:!shadow-[0_8px_26px_rgba(192,38,211,0.4),inset_0_1px_0_rgba(255,255,255,0.18)]"
                                 >
                                     보상 수령
                                 </Button>
@@ -395,13 +397,17 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                         </>
                     ) : summary ? (
                         <>
-                            <h3 className="text-base font-black text-fuchsia-50 sm:text-lg">
-                                {summary.petDisplayName ?? petItem.name}
-                            </h3>
-                            <p className="mt-1 text-xs font-semibold text-slate-400 sm:text-sm">수련 보상이 지급되었습니다.</p>
+                            <div className="mx-auto w-full max-w-md">
+                                <h3 className="text-sm font-bold tracking-tight text-fuchsia-50 sm:text-lg sm:font-black">
+                                    {summary.petDisplayName ?? petItem.name}
+                                </h3>
+                                <p className="mt-0.5 text-[0.65rem] font-medium tracking-wide text-slate-500 sm:mt-1 sm:text-sm sm:font-semibold sm:text-slate-400">
+                                    수련 보상이 지급되었습니다.
+                                </p>
+                            </div>
 
                             <div
-                                className={`mx-auto mt-4 flex w-full max-w-md flex-wrap content-center items-center justify-center gap-2 sm:gap-2.5 ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS}`}
+                                className={`mx-auto mt-3 flex w-full max-w-md flex-wrap content-center items-center justify-center gap-2 rounded-2xl border border-white/[0.06] bg-gradient-to-b from-zinc-900/50 to-black/35 px-2.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-fuchsia-500/[0.08] sm:mt-4 sm:gap-2.5 sm:px-3 sm:py-3.5 ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS}`}
                             >
                                 {summary.goldGain > 0 ? (
                                     <ResultModalGoldCurrencySlot
@@ -442,9 +448,9 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                             </div>
 
                             {summary.pairPetLevel && summary.pairPetXp ? (
-                                <div className="mx-auto mt-4 w-full max-w-md space-y-2">
-                                    <div className="rounded-lg border border-fuchsia-400/25 bg-fuchsia-950/20 px-2 py-2 sm:px-3 sm:py-2.5">
-                                        <p className="mb-2 text-center text-[0.65rem] font-black tracking-tight text-fuchsia-200 sm:text-xs">
+                                <div className="mx-auto mt-3 w-full max-w-md space-y-2 sm:mt-4">
+                                    <div className="rounded-xl border border-fuchsia-400/20 bg-gradient-to-b from-fuchsia-950/40 via-zinc-950/30 to-black/40 px-2.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:px-3 sm:py-2.5">
+                                        <p className="mb-1.5 text-center text-[0.6rem] font-bold uppercase tracking-[0.14em] text-fuchsia-200/90 sm:mb-2 sm:text-xs sm:font-black sm:tracking-tight sm:normal-case">
                                             펫 성장
                                         </p>
                                         <TrainingClaimXpBar
@@ -469,7 +475,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                             <Button
                                 type="button"
                                 colorScheme="none"
-                                className="mx-auto mt-5 !w-full max-w-sm !rounded-xl !border !border-fuchsia-400/45 !bg-gradient-to-b !from-fuchsia-600/90 !to-fuchsia-950/95 !py-2.5 !text-sm !font-black !text-fuchsia-50 hover:!from-fuchsia-500 hover:!to-fuchsia-900"
+                                className="mx-auto mt-4 !w-full max-w-sm !rounded-xl !border !border-fuchsia-400/40 !bg-gradient-to-b !from-fuchsia-600/85 !via-fuchsia-800/50 !to-zinc-950/90 !py-2 !text-xs !font-bold !tracking-wide !text-fuchsia-50/95 !shadow-[0_10px_28px_rgba(0,0,0,0.35)] hover:!from-fuchsia-500 hover:!via-fuchsia-700/45 hover:!to-zinc-950 sm:mt-5 sm:!py-2.5 sm:!text-sm sm:!font-black sm:!tracking-normal"
                                 onClick={onClose}
                             >
                                 확인

@@ -36,6 +36,11 @@ import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 import { VIP_PLAY_REWARD_SLOT_PREVIEW_IMAGE } from '../shared/constants/vipPlayReward.js';
 import { useResilientImgSrc } from '../hooks/useResilientImgSrc.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
+import {
+    GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX,
+    GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS,
+    GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH,
+} from './game/gameResultModalViewport.js';
 import { GoStoneIcon } from './game/arenaRoundEndShared.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { getPairPetDefinition, getPairPetDisplayName } from '../shared/constants/petLobby.js';
@@ -2194,14 +2199,17 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             mobileViewportFit
             mobileLockViewportHeight={false}
             bodyShrinkToContent
-            mobileViewportMaxHeightVh={isMobile ? 96 : 86}
+            mobileViewportMaxHeightVh={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH : 86}
+            mobileViewportMaxHeightCss={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS : undefined}
+            mobileViewportDvhBottomGapPx={isMobile ? GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX : undefined}
+            hideFooter={isMobile}
             windowId="game-summary"
             variant="store"
             modalBackdrop={!adventureResultChrome}
             closeOnOutsideClick={!adventureResultChrome}
             bodyPaddingClassName={
                 isMobile
-                    ? '!p-1.5 !pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] min-[390px]:!p-2'
+                    ? `!p-1.5 !pt-[max(0.5rem,env(safe-area-inset-top,0px))] !pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] min-[390px]:!p-2 min-[390px]:!pt-[max(0.5rem,env(safe-area-inset-top,0px))] min-[390px]:!pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]`
                     : '!p-3 sm:!p-4'
             }
         >

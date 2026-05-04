@@ -330,11 +330,11 @@ type HandleActionResult = {
     error?: string;
 };
 
-type RankedLobbyType = 'strategic' | 'playful';
+type RankedLobbyType = 'strategic';
 type RankedQueueEntry = NonNullable<NonNullable<VolatileState['rankedMatchingQueue']>[RankedLobbyType]>[string];
 
 const GREETINGS = ['안녕', '하이', '헬로', 'hi', 'hello', '반가', '잘 부탁', '잘부탁'];
-const rankedMatchingLocks: Record<RankedLobbyType, boolean> = { strategic: false, playful: false };
+const rankedMatchingLocks: Record<RankedLobbyType, boolean> = { strategic: false };
 const PAIR_MODE_DEFAULT_GAME_MODE: GameMode = GameMode.Standard;
 const pairModeOrDefault = (mode: unknown): GameMode =>
     typeof mode === 'string' && PAIR_GO_GAME_MODES.includes(mode as GameMode)
@@ -427,7 +427,7 @@ function userInActivePairLobbyRoom(room: types.PairRoomState, userId: string): b
 function userInAnyRankedMatchingQueue(volatileState: VolatileState, userId: string): boolean {
     const q = volatileState.rankedMatchingQueue;
     if (!q) return false;
-    return Boolean(q.strategic?.[userId] || q.playful?.[userId]);
+    return Boolean(q.strategic?.[userId]);
 }
 
 /** 방장이 아닌 멤버를 슬롯·팀에서 제거(방장 퇴장 처리에는 사용하지 않음). */
@@ -2760,12 +2760,15 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 lobbyType: 'strategic' | 'playful';
                 selectedModes: GameMode[];
             };
-            const gateKey = lobbyType === 'strategic' ? 'strategicLobby' : 'playfulLobby';
+            if (lobbyType !== 'strategic') {
+                return { error: '놀이바둑 랭킹전은 더 이상 지원되지 않습니다.' };
+            }
+            const gateKey = 'strategicLobby';
             const rankedGate = await requireArenaEntranceOpen(user.isAdmin, gateKey, user);
             if (!rankedGate.ok) return { error: rankedGate.error };
             
             // 이미 매칭 중이면 에러
-            if (volatileState.rankedMatchingQueue?.[lobbyType]?.[user.id]) {
+            if (volatileState.rankedMatchingQueue?.strategic?.[user.id]) {
                 return { error: '이미 매칭 중입니다.' };
             }
             
@@ -2778,6 +2781,12 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (selectedModes.includes(GameMode.Mix)) {
                 return { error: '믹스룰은 랭킹전에서 사용할 수 없습니다.' };
             }
+
+            const { RANKED_STRATEGIC_MODES } = await import('../../constants/rankedGameSettings.js');
+            const strategicRankedSet = new Set(RANKED_STRATEGIC_MODES);
+            if (selectedModes.some((m) => !strategicRankedSet.has(m))) {
+                return { error: '전략바둑 랭킹전 모드만 선택할 수 있습니다.' };
+            }
             
             // 사용자 랭킹 점수 계산: 큐에는 전체 선택 모드별 점수를 함께 저장
             const firstMode = selectedModes[0];
@@ -2789,16 +2798,16 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             
             // 매칭 큐 초기화
             if (!volatileState.rankedMatchingQueue) {
-                volatileState.rankedMatchingQueue = { strategic: {}, playful: {} };
+                volatileState.rankedMatchingQueue = { strategic: {} };
             }
-            if (!volatileState.rankedMatchingQueue[lobbyType]) {
-                volatileState.rankedMatchingQueue[lobbyType] = {};
+            if (!volatileState.rankedMatchingQueue.strategic) {
+                volatileState.rankedMatchingQueue.strategic = {};
             }
             
             // 매칭 큐에 추가
-            volatileState.rankedMatchingQueue[lobbyType][user.id] = {
+            volatileState.rankedMatchingQueue.strategic[user.id] = {
                 userId: user.id,
-                lobbyType,
+                lobbyType: 'strategic',
                 selectedModes,
                 startTime: now,
                 rating: userRating,
@@ -2815,7 +2824,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             broadcast({ type: 'RANKED_MATCHING_UPDATE', payload: { queue: volatileState.rankedMatchingQueue } });
             
             // 즉시 매칭 시도
-            await tryMatchPlayers(volatileState, lobbyType);
+            await tryMatchPlayers(volatileState, 'strategic');
             
             // HTTP 응답에 매칭 정보 포함 (즉시 상태 업데이트를 위해)
             return { 
@@ -2823,7 +2832,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     success: true,
                     matchingInfo: {
                         startTime: now,
-                        lobbyType,
+                        lobbyType: 'strategic' as const,
                         selectedModes
                     }
                 } 
@@ -2832,12 +2841,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
         
         case 'CANCEL_RANKED_MATCHING': {
             // 매칭 큐에서 제거
-            if (volatileState.rankedMatchingQueue) {
-                for (const lobbyType of ['strategic', 'playful'] as const) {
-                    if (volatileState.rankedMatchingQueue[lobbyType]?.[user.id]) {
-                        delete volatileState.rankedMatchingQueue[lobbyType][user.id];
-                    }
-                }
+            if (volatileState.rankedMatchingQueue?.strategic?.[user.id]) {
+                delete volatileState.rankedMatchingQueue.strategic[user.id];
             }
             
             broadcast({ type: 'RANKED_MATCHING_UPDATE', payload: { queue: volatileState.rankedMatchingQueue } });
@@ -4830,7 +4835,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
 };
 
 // 매칭 알고리즘: 실제 공통 모드 기준으로 가장 비슷한 랭킹 점수 유저 매칭
-export const tryMatchPlayers = async (volatileState: VolatileState, lobbyType: 'strategic' | 'playful'): Promise<void> => {
+export const tryMatchPlayers = async (volatileState: VolatileState, lobbyType: RankedLobbyType): Promise<void> => {
     if (rankedMatchingLocks[lobbyType]) return;
     rankedMatchingLocks[lobbyType] = true;
     try {

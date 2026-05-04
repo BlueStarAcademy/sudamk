@@ -166,7 +166,8 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
               })
             : null;
         const userTowerFloor = currentUser.towerFloor ?? 0;
-        const isFloorCleared = floor <= userTowerFloor;
+        const effectiveClearedFloor = Math.max(userTowerFloor, isWinner ? floor : 0);
+        const isFloorCleared = floor <= effectiveClearedFloor;
         // TowerSummaryModal과 동일: 승리했거나 현재 층을 이미 클리어한 적 있으면 다음 층 진행 가능
         const canTryNext = !!nextStageForEnded && (isWinner || isFloorCleared);
 
@@ -182,7 +183,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
                   : typeof session.towerStartActionPointCost === 'number'
                     ? session.towerStartActionPointCost
                     : inferredRetryApCost;
-        const isNextFloorAlreadyCleared = nextFloor != null && userTowerFloor >= nextFloor;
+        const isNextFloorAlreadyCleared = nextFloor != null && effectiveClearedFloor >= nextFloor;
         const effectiveNextFloorApCost = isNextFloorAlreadyCleared ? 0 : baseNextFloorApCost;
 
         const handleShowResults = () => {

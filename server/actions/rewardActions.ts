@@ -87,9 +87,8 @@ const isAllEquipmentAtLeastGrade = (user: User, gradeKey: string): boolean => {
     return true;
 };
 
-const getSeasonScoreByTrack = (user: User, trackType: 'strategy_tier' | 'playful_tier'): number => {
-    const key = trackType === 'strategy_tier' ? 'standard' : 'playful';
-    const diff = user.cumulativeRankingScore?.[key] ?? 0;
+const getStrategySeasonScoreForAchievements = (user: User): number => {
+    const diff = user.cumulativeRankingScore?.['standard'] ?? 0;
     return 1200 + diff;
 };
 
@@ -431,8 +430,8 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 requirementMet = (user.cumulativeTournamentScore ?? 0) >= stage.requirement.score;
             } else if (stage.requirement.type === 'all_equipment_min_grade') {
                 requirementMet = isAllEquipmentAtLeastGrade(user, stage.requirement.grade);
-            } else if (stage.requirement.type === 'strategy_tier' || stage.requirement.type === 'playful_tier') {
-                const score = getSeasonScoreByTrack(user, stage.requirement.type);
+            } else if (stage.requirement.type === 'strategy_tier') {
+                const score = getStrategySeasonScoreForAchievements(user);
                 requirementMet = score >= (TIER_SCORE_REQUIREMENTS[stage.requirement.tier] ?? Number.MAX_SAFE_INTEGER);
             } else if (stage.requirement.type === 'adventure_understanding_tier') {
                 const xp = Math.max(0, Math.floor(user.adventureProfile?.understandingXpByStage?.[stage.requirement.stageId] ?? 0));

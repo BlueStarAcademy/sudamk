@@ -47,21 +47,25 @@ const TrainingQuestStartInfoModal: React.FC<TrainingQuestStartInfoModalProps> = 
             closeOnOutsideClick
             mobileViewportFit
         >
-            <div className="flex flex-col gap-3 rounded-xl bg-[#0a0e14] p-4 text-slate-100 ring-1 ring-inset ring-white/[0.08]">
-                <div className="rounded-xl border border-slate-700/70 bg-[#070a10] p-3 shadow-[inset_0_2px_8px_rgba(0,0,0,0.55)]">
-                    <p className="text-sm leading-relaxed text-slate-100">{missionMessage}</p>
+            <div className="flex flex-col gap-2.5 rounded-xl bg-[#0a0e14] p-3 text-slate-100 ring-1 ring-inset ring-white/[0.08] sm:gap-3 sm:p-4">
+                <div className="rounded-xl border border-slate-700/70 bg-[#070a10] p-2.5 shadow-[inset_0_2px_8px_rgba(0,0,0,0.55)] sm:p-3">
+                    <p className="text-xs leading-relaxed text-slate-100 sm:text-sm">{missionMessage}</p>
                 </div>
 
-                <div className="rounded-xl border border-slate-700/60 bg-slate-900/55 p-3">
+                <div className="rounded-xl border border-slate-700/60 bg-slate-900/55 p-2.5 sm:p-3">
                     <div className="mb-2 flex items-center gap-2 border-b border-white/[0.08] pb-2">
-                        <img src={mission.image} alt={mission.name} className="h-10 w-10 rounded-lg bg-black/40 object-cover" />
+                        <img
+                            src={mission.image}
+                            alt={mission.name}
+                            className="h-9 w-9 rounded-lg bg-black/40 object-cover sm:h-10 sm:w-10"
+                        />
                         <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-slate-100">{mission.name}</p>
-                            <p className="text-xs text-slate-400">초기 생산 정보</p>
+                            <p className="truncate text-xs font-semibold text-slate-100 sm:text-sm">{mission.name}</p>
+                            <p className="text-[0.65rem] text-slate-400 sm:text-xs">초기 생산 정보</p>
                         </div>
                     </div>
 
-                    <div className="space-y-1.5 text-sm">
+                    <div className="space-y-1.5 text-xs sm:text-sm">
                         <div className="flex items-center justify-between rounded-md border border-white/[0.08] bg-black/25 px-2 py-1.5">
                             <span className="text-slate-400">생산</span>
                             <span className="font-semibold tabular-nums text-slate-100">{levelInfo.productionRateMinutes}분</span>
@@ -70,7 +74,7 @@ const TrainingQuestStartInfoModal: React.FC<TrainingQuestStartInfoModalProps> = 
                             <span className="text-slate-400">생산량</span>
                             <span className="flex items-center gap-1 font-semibold tabular-nums text-slate-100">
                                 <span>{levelInfo.rewardAmount.toLocaleString()}</span>
-                                <img src={rewardIcon} alt={rewardAlt} className="h-4 w-4 object-contain" />
+                                <img src={rewardIcon} alt={rewardAlt} className="h-3.5 w-3.5 object-contain sm:h-4 sm:w-4" />
                             </span>
                         </div>
                         <div className="flex items-center justify-between rounded-md border border-white/[0.08] bg-black/25 px-2 py-1.5">
@@ -80,18 +84,18 @@ const TrainingQuestStartInfoModal: React.FC<TrainingQuestStartInfoModalProps> = 
                     </div>
                 </div>
 
-                <div className="mt-1 flex items-center gap-2">
+                <div className="mt-0.5 flex min-w-0 flex-row items-stretch gap-2">
                     <Button
                         onClick={onClose}
                         colorScheme="none"
-                        className="flex-1 rounded-lg border border-slate-500/50 bg-slate-800/85 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-700/85"
+                        className="min-w-0 flex-1 rounded-lg border border-slate-500/50 bg-slate-800/85 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-700/85 sm:py-2 sm:text-sm"
                     >
                         닫기
                     </Button>
                     <Button
                         onClick={onConfirmStart}
                         colorScheme="none"
-                        className={`${PREMIUM_QUEST_BTN.start} !flex-1 !text-sm`}
+                        className={`${PREMIUM_QUEST_BTN.start} !min-w-0 !flex-1 !py-1.5 !text-xs sm:!py-2 sm:!text-sm`}
                     >
                         시작하기
                     </Button>

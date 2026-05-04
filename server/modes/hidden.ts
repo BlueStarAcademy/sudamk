@@ -22,6 +22,7 @@ import {
     hasOpponentHiddenScanTargets,
     recordSoftHiddenScanDiscovery,
 } from './hiddenScanShared.js';
+import { canUseBoardItemTurnWindow, isStrategicAiGoSession } from '../../shared/utils/strategicBoardItemTurn.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -45,12 +46,7 @@ export const initializeHidden = (game: types.LiveGameSession) => {
 };
 
 export const updateHiddenState = async (game: types.LiveGameSession, now: number) => {
-    const isStrategicAiGame =
-        !!game.isAiGame &&
-        !game.isSinglePlayer &&
-        (game as any).gameCategory !== 'tower' &&
-        (game as any).gameCategory !== 'singleplayer' &&
-        (game as any).gameCategory !== 'guildwar';
+    const isStrategicAiGame = isStrategicAiGoSession(game);
     const isItemMode = ['hidden_placing', 'scanning'].includes(game.gameStatus);
 
     // 스캔 연출 중인데 아이템 마감만 남은 경우(AI 대국 등 resumeGameTimer 실패로 deadline 잔존): 본경기로 복구
@@ -360,23 +356,7 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
     const myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
     const isMyTurn = myPlayerEnum === game.currentPlayer;
     // 도전의 탑/싱글: 유저가 방금 둔 직후(턴이 AI로 넘어갔지만 AI가 아직 두기 전)에도 히든/스캔 허용 (싱글플레이와 동일)
-    const lastMove = game.moveHistory?.length ? game.moveHistory[game.moveHistory.length - 1] : null;
-    const lastMoveWasMine = lastMove && (lastMove as { player?: number }).player === myPlayerEnum;
-    const isStrategicAiGame =
-        !!game.isAiGame &&
-        !game.isSinglePlayer &&
-        (game as any).gameCategory !== 'tower' &&
-        (game as any).gameCategory !== 'singleplayer' &&
-        (game as any).gameCategory !== 'guildwar';
-    const allowItemAfterMyMove =
-        (game.isSinglePlayer ||
-            (game as any).gameCategory === 'tower' ||
-            (game as any).gameCategory === 'guildwar' ||
-            isStrategicAiGame) &&
-        game.gameStatus === 'playing' &&
-        lastMoveWasMine &&
-        !isMyTurn;
-    const canUseItem = isMyTurn || allowItemAfterMyMove;
+    const canUseItem = canUseBoardItemTurnWindow(game, myPlayerEnum, isMyTurn);
 
     switch(type) {
         case 'START_HIDDEN_PLACEMENT': {

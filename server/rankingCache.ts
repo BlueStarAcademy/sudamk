@@ -22,15 +22,11 @@ interface RankingEntry {
 
 interface RankingCache {
     strategic: RankingEntry[];
-    /** @deprecated 놀이바둑 랭킹 제거 — 항상 빈 배열 */
-    playful: RankingEntry[];
     pair: RankingEntry[];
     championship: RankingEntry[];
     combat: RankingEntry[];
     manner: RankingEntry[];
     strategicSeason: RankingEntry[]; // 시즌별 티어 랭킹
-    /** @deprecated 항상 빈 배열 */
-    playfulSeason: RankingEntry[];
     pairSeason: RankingEntry[]; // 페어 시즌 랭킹
     timestamp: number;
 }
@@ -111,13 +107,11 @@ export async function buildRankingCache(): Promise<RankingCache> {
                 console.warn('[RankingCache] No users found, returning empty cache');
                 const emptyCache = {
                     strategic: [],
-                    playful: [],
                     pair: [],
                     championship: [],
                     combat: [],
                     manner: [],
                     strategicSeason: [],
-                    playfulSeason: [],
                     pairSeason: [],
                     timestamp: now
                 };
@@ -164,13 +158,11 @@ export async function buildRankingCache(): Promise<RankingCache> {
             
             rankingCache = {
                 strategic: strategicRankings || [],
-                playful: [],
                 pair: pairRankings || [],
                 championship: championshipRankings || [],
                 combat: combatRankings || [],
                 manner: mannerRankings || [],
                 strategicSeason: strategicSeasonRankings || [],
-                playfulSeason: [],
                 pairSeason: pairSeasonRankings || [],
                 timestamp: now
             };
@@ -228,13 +220,11 @@ export async function buildRankingCache(): Promise<RankingCache> {
             const errorNow = Date.now();
             const emptyCache = {
                 strategic: [],
-                playful: [],
                 pair: [],
                 championship: [],
                 combat: [],
                 manner: [],
                 strategicSeason: [],
-                playfulSeason: [],
                 pairSeason: [],
                 timestamp: errorNow
             };
@@ -509,7 +499,6 @@ export function invalidateRankingCache(): void {
 // 특정 사용자의 랭킹 정보만 가져오기 (내 랭킹 확인용)
 export async function getUserRankings(userId: string): Promise<{
     strategic?: { rank: number; score: number; totalPlayers: number };
-    playful?: { rank: number; score: number; totalPlayers: number };
     pair?: { rank: number; score: number; totalPlayers: number };
     championship?: { rank: number; score: number; totalPlayers: number };
     combat?: { rank: number; score: number; totalPlayers: number };
@@ -528,7 +517,6 @@ export async function getUserRankings(userId: string): Promise<{
     
     return {
         strategic: findRank(cache.strategic, userId),
-        playful: findRank(cache.playful, userId),
         pair: findRank(cache.pair, userId),
         championship: findRank(cache.championship, userId),
         combat: findRank(cache.combat, userId),

@@ -3,13 +3,7 @@ import { GameMode, ServerAction, UserWithStatus } from '../../types.js';
 import type { RankingEntry } from '../../hooks/useRanking.js';
 import Button from '../Button.js';
 import RankedMatchSelectionModal from './RankedMatchSelectionModal.js';
-import {
-    RANKING_TIERS,
-    SPECIAL_GAME_MODES,
-    PLAYFUL_GAME_MODES,
-    STRATEGIC_ACTION_POINT_COST,
-    PLAYFUL_ACTION_POINT_COST,
-} from '../../constants';
+import { RANKING_TIERS, SPECIAL_GAME_MODES, STRATEGIC_ACTION_POINT_COST } from '../../constants';
 import { useRanking } from '../../hooks/useRanking.js';
 import { getCurrentSeason, getPreviousSeason } from '../../utils/timeUtils.js';
 
@@ -21,8 +15,7 @@ const getTier = (score: number, rank: number, totalGames: number) => {
     return RANKING_TIERS[RANKING_TIERS.length - 1];
 };
 
-const lobbyModesFor = (lobbyType: 'strategic' | 'playful'): GameMode[] =>
-    lobbyType === 'strategic' ? SPECIAL_GAME_MODES.map((m) => m.mode) : PLAYFUL_GAME_MODES.map((m) => m.mode);
+const STRATEGIC_LOBBY_MODES: GameMode[] = SPECIAL_GAME_MODES.map((m) => m.mode);
 
 /** seasonHistory 한 시즌 객체에서 모드 키 불일치(문자열) 대비 */
 function readTierFromHistorySlice(hist: unknown, mode: GameMode): string | undefined {
@@ -86,10 +79,9 @@ function tierMetaByName(name: string | null | undefined) {
 /** 랭킹 API에 본인이 없을 때(랭킹전 10판 미만 등) stats로 동일 산식 폴백 — rankingCache.calculateSeasonRanking 과 맞춤 */
 function computeSeasonSnapshotFromUserStats(
     user: UserWithStatus,
-    lobbyType: 'strategic' | 'playful',
     rankings: RankingEntry[],
 ): { score: number; rank: number; totalGames: number; wins: number; losses: number } | null {
-    const gameModes = lobbyType === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
+    const gameModes = SPECIAL_GAME_MODES;
     let wins = 0;
     let losses = 0;
     let totalScore = 0;
@@ -122,7 +114,6 @@ function computeSeasonSnapshotFromUserStats(
 }
 
 interface RankedMatchPanelProps {
-    lobbyType: 'strategic' | 'playful';
     currentUser: UserWithStatus;
     onAction: (action: ServerAction) => Promise<any>;
     isMatching?: boolean;
@@ -136,7 +127,6 @@ interface RankedMatchPanelProps {
 }
 
 const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({ 
-    lobbyType, 
     currentUser, 
     onAction,
     isMatching = false,
@@ -150,13 +140,9 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
     const [elapsedTime, setElapsedTime] = useState(0);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    const rankingType = lobbyType === 'strategic' ? 'strategic' : 'playful';
-    const { rankings } = useRanking(rankingType, undefined, undefined, true);
+    const { rankings } = useRanking('strategic', undefined, undefined, true);
 
-    const lobbyModes = useMemo(() => lobbyModesFor(lobbyType), [lobbyType]);
-
-    const rankedActionPointCost =
-        lobbyType === 'strategic' ? STRATEGIC_ACTION_POINT_COST : PLAYFUL_ACTION_POINT_COST;
+    const rankedActionPointCost = STRATEGIC_ACTION_POINT_COST;
 
     const currentSeasonTierAndScore = useMemo(() => {
         const eligible = rankings.filter((r) => (r.totalGames ?? 0) >= 10);
@@ -173,11 +159,11 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                       losses: myEntry.losses ?? 0,
                   };
               })()
-            : computeSeasonSnapshotFromUserStats(currentUser, lobbyType, rankings);
+            : computeSeasonSnapshotFromUserStats(currentUser, rankings);
         if (!fromApi) return null;
         const tier = getTier(fromApi.score, fromApi.rank, fromApi.totalGames);
         return { tier, ...fromApi };
-    }, [rankings, currentUser, lobbyType]);
+    }, [rankings, currentUser]);
 
     const isFirstSeason = useMemo(() => {
         const prevSeason = getPreviousSeason();
@@ -188,14 +174,14 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
 
     /** 역대 최고 티어 + 달성 시즌명(시즌 히스토리 전체 스캔, 없으면 서버 previousSeasonTier + 직전 시즌) */
     const allTimeBestSeason = useMemo(() => {
-        const fromHistory = computeAllTimeBestSeasonRecord(currentUser.seasonHistory, lobbyModes);
+        const fromHistory = computeAllTimeBestSeasonRecord(currentUser.seasonHistory, STRATEGIC_LOBBY_MODES);
         if (fromHistory) return fromHistory;
         const pt = currentUser.previousSeasonTier;
         if (pt && RANKING_TIERS.some((t) => t.name === pt)) {
             return { tierName: pt, seasonName: getPreviousSeason().name };
         }
         return null;
-    }, [currentUser.seasonHistory, currentUser.previousSeasonTier, lobbyModes]);
+    }, [currentUser.seasonHistory, currentUser.previousSeasonTier]);
 
     // 매칭 중일 때 경과 시간 업데이트
     useEffect(() => {
@@ -221,7 +207,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
         try {
             const result: any = await onAction({
                 type: 'START_RANKED_MATCHING',
-                payload: { lobbyType, selectedModes }
+                payload: { lobbyType: 'strategic', selectedModes }
             });
             setIsModalOpen(false);
             
@@ -547,7 +533,6 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
 
             {isModalOpen && (
                 <RankedMatchSelectionModal
-                    lobbyType={lobbyType}
                     onClose={() => setIsModalOpen(false)}
                     onStartMatching={handleStartMatching}
                 />

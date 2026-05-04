@@ -1232,7 +1232,7 @@ export const useApp = () => {
     const [enhancementOutcome, setEnhancementOutcome] = useState<{ message: string; success: boolean; itemBefore: InventoryItem; itemAfter: InventoryItem; xpGained?: number; isRolling?: boolean; } | null>(null);
     const [refinementResult, setRefinementResult] = useState<{ message: string; success: boolean; itemBefore: InventoryItem; itemAfter: InventoryItem; } | null>(null);
     const [enhancementAnimationTarget, setEnhancementAnimationTarget] = useState<{ itemId: string; stars: number } | null>(null);
-    const [pastRankingsInfo, setPastRankingsInfo] = useState<{ user: UserWithStatus; mode: GameMode | 'strategic' | 'playful' | 'pair'; } | null>(null);
+    const [pastRankingsInfo, setPastRankingsInfo] = useState<{ user: UserWithStatus; mode: GameMode | 'strategic' | 'pair'; } | null>(null);
     const [enhancingItem, setEnhancingItem] = useState<InventoryItem | null>(null);
     const [viewingItem, setViewingItem] = useState<{
         item: InventoryItem;
@@ -9236,7 +9236,7 @@ export const useApp = () => {
             closeStatAllocationModal: () => setIsStatAllocationModalOpen(false),
             openProfileEditModal: () => setIsProfileEditModalOpen(true),
             closeProfileEditModal: () => setIsProfileEditModalOpen(false),
-            openPastRankings: (info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'playful' | 'pair'; }) => setPastRankingsInfo(info),
+            openPastRankings: (info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'pair'; }) => setPastRankingsInfo(info),
             closePastRankings: () => setPastRankingsInfo(null),
             openViewingItem,
             openPairPetDetailModal,

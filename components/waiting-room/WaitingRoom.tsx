@@ -108,8 +108,9 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
 
   // 랭킹전 매칭 상태 업데이트는 useApp의 중앙 WebSocket 핸들러가 반영한 상태를 구독한다.
   useEffect(() => {
-    const lobbyType: 'strategic' | 'playful' = isStrategic ? 'strategic' : 'playful';
-    const userEntry = currentUserWithStatus?.id ? rankedMatchingQueue?.[lobbyType]?.[currentUserWithStatus.id] : undefined;
+    const userEntry = currentUserWithStatus?.id
+      ? rankedMatchingQueue?.strategic?.[currentUserWithStatus.id]
+      : undefined;
     if (userEntry) {
       setIsRankedMatching(true);
       setRankedMatchingStartTime(userEntry.startTime);
@@ -117,7 +118,13 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
       setIsRankedMatching(false);
       setRankedMatchingStartTime(0);
     }
-  }, [rankedMatchingQueue, isStrategic, currentUserWithStatus?.id]);
+  }, [rankedMatchingQueue, currentUserWithStatus?.id]);
+
+  useEffect(() => {
+    if (mode === 'playful' && (nativeWaitingTab === 'ranked' || nativeWaitingTab === 'rankingInfo')) {
+      setNativeWaitingTab('users');
+    }
+  }, [mode, nativeWaitingTab]);
 
   useEffect(() => {
     if (!rankedMatchFound) return;
@@ -435,12 +442,17 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
             <div className="relative flex h-full min-h-0 flex-1 flex-col gap-1.5 overflow-hidden px-0.5 pb-0.5">
               <div className="mb-0.5 flex shrink-0 gap-0.5" role="tablist" aria-label="대기실 보기">
                 {(
-                  [
-                    { id: 'users' as const, label: '유저목록' },
-                    { id: 'games' as const, label: '대국실목록' },
-                    { id: 'ranked' as const, label: '랭킹전' },
-                    { id: 'rankingInfo' as const, label: '랭킹정보' },
-                  ]
+                  mode === 'playful'
+                    ? [
+                          { id: 'users' as const, label: '유저목록' },
+                          { id: 'games' as const, label: '대국실목록' },
+                      ]
+                    : [
+                          { id: 'users' as const, label: '유저목록' },
+                          { id: 'games' as const, label: '대국실목록' },
+                          { id: 'ranked' as const, label: '랭킹전' },
+                          { id: 'rankingInfo' as const, label: '랭킹정보' },
+                      ]
                 ).map(({ id, label }) => (
                   <button
                     key={id}
@@ -502,12 +514,11 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     />
                   </div>
                 )}
-                {nativeWaitingTab === 'ranked' && (
+                {nativeWaitingTab === 'ranked' && mode === 'strategic' && (
                   <div
                     className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
                   >
                     <RankedMatchPanel
-                      lobbyType={isStrategic ? 'strategic' : 'playful'}
                       currentUser={currentUserWithStatus}
                       onAction={handlers.handleAction}
                       isMatching={isRankedMatching}
@@ -524,7 +535,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     />
                   </div>
                 )}
-                {nativeWaitingTab === 'rankingInfo' && (
+                {nativeWaitingTab === 'rankingInfo' && mode === 'strategic' && (
                   <div
                     className={`flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
                   >
@@ -534,7 +545,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                       onViewUser={handlers.openViewingUser}
                       onShowTierInfo={() => setIsTierInfoModalOpen(true)}
                       onShowPastRankings={handlers.openPastRankings}
-                      lobbyType={isStrategic ? 'strategic' : 'playful'}
+                      lobbyType="strategic"
                       pairAlignedNativeCompact
                     />
                   </div>
@@ -562,34 +573,46 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                   </h1>
                   {lobbySwitchTabs(true)}
                 </div>
-                <div className={`shrink-0 overflow-hidden ${waitingLobbyPcShellClass}`}>
-                  <RankedMatchPanel
-                    lobbyType={isStrategic ? 'strategic' : 'playful'}
-                    currentUser={currentUserWithStatus}
-                    onAction={handlers.handleAction}
-                    isMatching={isRankedMatching}
-                    matchingStartTime={rankedMatchingStartTime}
-                    shrinkToContent
-                    onMatchingStateChange={(isMatching, startTime) => {
-                      setIsRankedMatching(isMatching);
-                      setRankedMatchingStartTime(startTime);
-                    }}
-                    onCancelMatching={() => {
-                      setIsRankedMatching(false);
-                      setRankedMatchingStartTime(0);
-                    }}
-                  />
-                </div>
-                <div className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${waitingLobbyPcShellClass}`}>
-                  <RankingList
-                    currentUser={currentUserWithStatus}
-                    mode={mode}
-                    onViewUser={handlers.openViewingUser}
-                    onShowTierInfo={() => setIsTierInfoModalOpen(true)}
-                    onShowPastRankings={handlers.openPastRankings}
-                    lobbyType={isStrategic ? 'strategic' : 'playful'}
-                  />
-                </div>
+                {mode === 'strategic' ? (
+                  <>
+                    <div className={`shrink-0 overflow-hidden ${waitingLobbyPcShellClass}`}>
+                      <RankedMatchPanel
+                        currentUser={currentUserWithStatus}
+                        onAction={handlers.handleAction}
+                        isMatching={isRankedMatching}
+                        matchingStartTime={rankedMatchingStartTime}
+                        shrinkToContent
+                        onMatchingStateChange={(isMatching, startTime) => {
+                          setIsRankedMatching(isMatching);
+                          setRankedMatchingStartTime(startTime);
+                        }}
+                        onCancelMatching={() => {
+                          setIsRankedMatching(false);
+                          setRankedMatchingStartTime(0);
+                        }}
+                      />
+                    </div>
+                    <div className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${waitingLobbyPcShellClass}`}>
+                      <RankingList
+                        currentUser={currentUserWithStatus}
+                        mode={mode}
+                        onViewUser={handlers.openViewingUser}
+                        onShowTierInfo={() => setIsTierInfoModalOpen(true)}
+                        onShowPastRankings={handlers.openPastRankings}
+                        lobbyType="strategic"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div
+                    className={`flex min-h-0 min-w-0 flex-1 flex-col justify-center gap-2 overflow-hidden rounded-lg border border-amber-600/30 bg-black/25 p-4 text-center text-sm text-amber-100/90 ${waitingLobbyPcShellClass}`}
+                  >
+                    <p className="font-semibold text-amber-50">놀이바둑 안내</p>
+                    <p className="text-xs leading-relaxed text-amber-100/80">
+                      놀이바둑 경기장에서는 랭킹전·시즌 랭킹 점수를 사용하지 않습니다. 전략바둑 대기실에서만 랭킹전을 이용할 수 있습니다.
+                    </p>
+                  </div>
+                )}
               </div>
               {/* 중앙: 공지 전광판 + 진행 중 대국 */}
               <div className={waitingLobbyPcCenterShellClass}>
@@ -668,21 +691,27 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                   <div
                     className={`flex min-h-0 min-w-0 flex-[0.58] flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg sm:min-w-[25rem] lg:min-w-[30rem] lg:flex-[0.62] ${waitingLobbyGlass}`}
                   >
-                    <RankedMatchPanel
-                      lobbyType={isStrategic ? 'strategic' : 'playful'}
-                      currentUser={currentUserWithStatus}
-                      onAction={handlers.handleAction}
-                      isMatching={isRankedMatching}
-                      matchingStartTime={rankedMatchingStartTime}
-                      onMatchingStateChange={(isMatching, startTime) => {
-                        setIsRankedMatching(isMatching);
-                        setRankedMatchingStartTime(startTime);
-                      }}
-                      onCancelMatching={() => {
-                        setIsRankedMatching(false);
-                        setRankedMatchingStartTime(0);
-                      }}
-                    />
+                    {isStrategic ? (
+                      <RankedMatchPanel
+                        currentUser={currentUserWithStatus}
+                        onAction={handlers.handleAction}
+                        isMatching={isRankedMatching}
+                        matchingStartTime={rankedMatchingStartTime}
+                        onMatchingStateChange={(isMatching, startTime) => {
+                          setIsRankedMatching(isMatching);
+                          setRankedMatchingStartTime(startTime);
+                        }}
+                        onCancelMatching={() => {
+                          setIsRankedMatching(false);
+                          setRankedMatchingStartTime(0);
+                        }}
+                      />
+                    ) : (
+                      <div className="flex h-full min-h-[8rem] flex-col items-center justify-center gap-2 p-4 text-center text-xs text-secondary">
+                        <p className="font-semibold text-primary">랭킹전 없음</p>
+                        <p className="leading-relaxed">전략바둑 대기실에서만 랭킹전을 이용할 수 있습니다.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -717,14 +746,20 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                 <div
                   className={`min-h-0 flex-1 overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
                 >
-                  <RankingList
-                    currentUser={currentUserWithStatus}
-                    mode={mode}
-                    onViewUser={handlers.openViewingUser}
-                    onShowTierInfo={() => setIsTierInfoModalOpen(true)}
-                    onShowPastRankings={handlers.openPastRankings}
-                    lobbyType={isStrategic ? 'strategic' : 'playful'}
-                  />
+                  {isStrategic ? (
+                    <RankingList
+                      currentUser={currentUserWithStatus}
+                      mode={mode}
+                      onViewUser={handlers.openViewingUser}
+                      onShowTierInfo={() => setIsTierInfoModalOpen(true)}
+                      onShowPastRankings={handlers.openPastRankings}
+                      lobbyType="strategic"
+                    />
+                  ) : (
+                    <div className="flex h-full min-h-[6rem] flex-col items-center justify-center p-4 text-center text-xs text-secondary">
+                      시즌 랭킹 목록은 전략바둑 대기실에서 확인할 수 있습니다.
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

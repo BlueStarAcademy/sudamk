@@ -1,10 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import GameRankingBoard from './GameRankingBoard.js';
-import BadukRankingBoard from './BadukRankingBoard.js';
 import ChampionshipRankingPanel from './ChampionshipRankingPanel.js';
-import MobileRankingGuidePanel from './MobileRankingGuidePanel.js';
 import RankingList from './waiting-room/RankingList.js';
+import MobileRankingGuidePanel from './MobileRankingGuidePanel.js';
 import TierInfoModal from './TierInfoModal.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
@@ -12,10 +11,10 @@ import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH } from '../constants/ads.js';
 import { MobileEqualHeightTabPanels } from './game/MobileGameResultTabBar.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { RANKING_MODAL_SLIM_SCROLL_X, RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScrollbar.js';
+import type { MobileRankingGuideVariant } from './MobileRankingGuidePanel.js';
 
-type MobileRankingPanelTab = 'game' | 'baduk' | 'championship';
-type GuideMainTab = 'game' | 'baduk' | 'championship';
-type GameGuideTab = 'combat' | 'manner';
+/** 모바일 랭킹 퀵 모달: 탭당 하나의 랭킹 보드 */
+type RankingMobileTab = 'combat' | 'manner' | 'championship' | 'strategic' | 'pair';
 
 type PcMainTab = 'game' | 'baduk';
 
@@ -24,10 +23,12 @@ interface RankingQuickModalProps {
     isTopmost?: boolean;
 }
 
-const MOBILE_RANKING_TABS: { id: MobileRankingPanelTab; label: string }[] = [
-    { id: 'game', label: '게임' },
-    { id: 'baduk', label: '바둑' },
+const MOBILE_RANKING_TABS: { id: RankingMobileTab; label: string }[] = [
+    { id: 'combat', label: '바둑능력' },
+    { id: 'manner', label: '매너' },
     { id: 'championship', label: '챔피언십' },
+    { id: 'strategic', label: '전략바둑' },
+    { id: 'pair', label: '페어바둑' },
 ];
 
 const PC_MAIN_TAB_BTN =
@@ -38,22 +39,26 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
     const { isNativeMobile } = useNativeMobileShell();
     const { currentUserWithStatus, handlers } = useAppContext();
     const isMobile = isCompactViewport || isNativeMobile;
-    const [mobilePanelTab, setMobilePanelTab] = useState<MobileRankingPanelTab>('game');
+    const [mobilePanelTab, setMobilePanelTab] = useState<RankingMobileTab>('combat');
     const [isTipModalOpen, setIsTipModalOpen] = useState(false);
-    const [guideMainTab, setGuideMainTab] = useState<GuideMainTab>('game');
-    const [gameGuideTab, setGameGuideTab] = useState<GameGuideTab>('combat');
+    const [guideMainTab, setGuideMainTab] = useState<RankingMobileTab>('combat');
     const [pcMainTab, setPcMainTab] = useState<PcMainTab>('game');
     const [tierInfoOpen, setTierInfoOpen] = useState(false);
 
-    const guideVariant = useMemo(() => {
-        if (guideMainTab === 'game') {
-            return gameGuideTab === 'combat' ? 'game-combat' : 'game-manner';
+    const guideVariant = useMemo((): MobileRankingGuideVariant | null => {
+        switch (guideMainTab) {
+            case 'combat':
+                return 'game-combat';
+            case 'manner':
+                return 'game-manner';
+            case 'strategic':
+                return 'baduk-strategic';
+            case 'pair':
+                return 'baduk-pair';
+            default:
+                return null;
         }
-        if (guideMainTab === 'baduk') {
-            return 'baduk-strategic';
-        }
-        return null;
-    }, [guideMainTab, gameGuideTab]);
+    }, [guideMainTab]);
 
     return (
         <DraggableWindow
@@ -145,39 +150,81 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                     fillParentHeight
                                     items={[
                                         {
-                                            tabKey: 'game',
+                                            tabKey: 'combat',
                                             panel: (
-                                                <div className="flex h-full min-h-0 w-full flex-row gap-1 overflow-hidden sm:gap-1.5">
-                                                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
-                                                        <GameRankingBoard
-                                                            lockedTab="combat"
-                                                            mobileSplitLarge
-                                                            hideInlineGuide
-                                                            panelTitle="바둑능력"
-                                                        />
-                                                    </div>
-                                                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
-                                                        <GameRankingBoard
-                                                            lockedTab="manner"
-                                                            mobileSplitLarge
-                                                            hideInlineGuide
-                                                            panelTitle="매너"
-                                                        />
-                                                    </div>
-                                                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
-                                                        <ChampionshipRankingPanel compact lobbyNativeMobile />
-                                                    </div>
+                                                <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
+                                                    <GameRankingBoard
+                                                        lockedTab="combat"
+                                                        mobileSplitLarge
+                                                        hideInlineGuide
+                                                        panelTitle="바둑능력"
+                                                    />
                                                 </div>
                                             ),
                                         },
                                         {
-                                            tabKey: 'baduk',
-                                            panel: <BadukRankingBoard mobileSplitLarge hideInlineGuide />,
+                                            tabKey: 'manner',
+                                            panel: (
+                                                <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
+                                                    <GameRankingBoard
+                                                        lockedTab="manner"
+                                                        mobileSplitLarge
+                                                        hideInlineGuide
+                                                        panelTitle="매너"
+                                                    />
+                                                </div>
+                                            ),
                                         },
                                         {
                                             tabKey: 'championship',
                                             panel: (
-                                                <ChampionshipRankingPanel compact lobbyNativeMobile />
+                                                <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
+                                                    <ChampionshipRankingPanel compact lobbyNativeMobile />
+                                                </div>
+                                            ),
+                                        },
+                                        {
+                                            tabKey: 'strategic',
+                                            panel: (
+                                                <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
+                                                    {currentUserWithStatus ? (
+                                                        <RankingList
+                                                            currentUser={currentUserWithStatus}
+                                                            mode="strategic"
+                                                            onViewUser={handlers.openViewingUser}
+                                                            onShowTierInfo={() => setTierInfoOpen(true)}
+                                                            onShowPastRankings={handlers.openPastRankings}
+                                                            lobbyType="strategic"
+                                                            splitStack
+                                                        />
+                                                    ) : (
+                                                        <div className="flex h-full items-center justify-center px-4 text-center text-sm text-zinc-400">
+                                                            로그인 후 전략바둑 랭킹을 확인할 수 있습니다.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ),
+                                        },
+                                        {
+                                            tabKey: 'pair',
+                                            panel: (
+                                                <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
+                                                    {currentUserWithStatus ? (
+                                                        <RankingList
+                                                            currentUser={currentUserWithStatus}
+                                                            mode="strategic"
+                                                            onViewUser={handlers.openViewingUser}
+                                                            onShowTierInfo={() => setTierInfoOpen(true)}
+                                                            onShowPastRankings={handlers.openPastRankings}
+                                                            lobbyType="pair"
+                                                            splitStack
+                                                        />
+                                                    ) : (
+                                                        <div className="flex h-full items-center justify-center px-4 text-center text-sm text-zinc-400">
+                                                            로그인 후 페어바둑 랭킹을 확인할 수 있습니다.
+                                                        </div>
+                                                    )}
+                                                </div>
                                             ),
                                         },
                                     ]}
@@ -205,18 +252,12 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                     </div>
                                     <div className="flex flex-col gap-2 border-b border-white/10 px-3 py-2">
                                         <div className={`flex items-center gap-1.5 overflow-x-auto ${RANKING_MODAL_SLIM_SCROLL_X}`}>
-                                            {(
-                                                [
-                                                    { id: 'game', label: '게임' },
-                                                    { id: 'baduk', label: '바둑' },
-                                                    { id: 'championship', label: '챔피언십' },
-                                                ] as const
-                                            ).map(({ id, label }) => (
+                                            {MOBILE_RANKING_TABS.map(({ id, label }) => (
                                                 <button
                                                     key={id}
                                                     type="button"
                                                     onClick={() => setGuideMainTab(id)}
-                                                    className={`shrink-0 rounded-lg border px-2.5 py-1 text-xs font-semibold ${
+                                                    className={`shrink-0 rounded-lg border px-2 py-1 text-[11px] font-semibold ${
                                                         guideMainTab === id
                                                             ? 'border-amber-300/50 bg-amber-500/20 text-amber-50'
                                                             : 'border-white/15 bg-white/5 text-zinc-300'
@@ -226,32 +267,6 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                                 </button>
                                             ))}
                                         </div>
-                                        {guideMainTab === 'game' && (
-                                            <div className={`flex items-center gap-1.5 overflow-x-auto ${RANKING_MODAL_SLIM_SCROLL_X}`}>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setGameGuideTab('combat')}
-                                                    className={`shrink-0 rounded-md border px-2 py-1 text-[11px] font-semibold ${
-                                                        gameGuideTab === 'combat'
-                                                            ? 'border-indigo-300/50 bg-indigo-500/20 text-indigo-100'
-                                                            : 'border-white/15 bg-white/5 text-zinc-300'
-                                                    }`}
-                                                >
-                                                    바둑능력
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setGameGuideTab('manner')}
-                                                    className={`shrink-0 rounded-md border px-2 py-1 text-[11px] font-semibold ${
-                                                        gameGuideTab === 'manner'
-                                                            ? 'border-indigo-300/50 bg-indigo-500/20 text-indigo-100'
-                                                            : 'border-white/15 bg-white/5 text-zinc-300'
-                                                    }`}
-                                                >
-                                                    매너
-                                                </button>
-                                            </div>
-                                        )}
                                     </div>
                                     <div className={`min-h-0 flex-1 overflow-y-auto p-2 ${RANKING_MODAL_SLIM_SCROLL_Y}`}>
                                         {guideVariant ? (

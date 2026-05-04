@@ -1770,6 +1770,19 @@ export async function makeGoAiBotMove(
             )
         );
 
+    /** 도전의 탑 21층+: CONFIRM 시 `aiHiddenItemTurns`만 채워지고 `isStrategicAiGame`이 false라 연출이 스킵되던 문제 보완 */
+    const configuredTowerAiHiddenTurns =
+        String((game as any).gameCategory ?? '') === 'tower' && isHiddenMode
+            ? normalizeAiHiddenTurns((game as any).aiHiddenItemTurns)
+            : [];
+    const nextTowerAiHiddenTurn = configuredTowerAiHiddenTurns[usedAiHiddenItems];
+    const shouldUseTowerAiHiddenItem =
+        String((game as any).gameCategory ?? '') === 'tower' &&
+        isHiddenMode &&
+        configuredTowerAiHiddenTurns.length > 0 &&
+        nextTowerAiHiddenTurn != null &&
+        currentAiTurnIndex >= nextTowerAiHiddenTurn;
+
     const goAiProfileLevel = Math.max(1, Math.min(10, aiLevel));
     const kataRuntimeSnap = getKataServerRuntimeSnapshot();
     const forcedAiResponsesForStage = ((game.settings as any)?.singlePlayerForcedAiResponses ?? []) as Array<{
@@ -1877,7 +1890,7 @@ export async function makeGoAiBotMove(
         isHiddenMode &&
         !disableAiHiddenItemsByStageSetting &&
         !shouldApplyHiddenOnThisMove &&
-        (shouldUseStrategicAiHiddenItem || shouldUseSinglePlayerAiHiddenItem)
+        (shouldUseStrategicAiHiddenItem || shouldUseSinglePlayerAiHiddenItem || shouldUseTowerAiHiddenItem)
     ) {
         const appliesToAi = game.isSinglePlayer || (game as any).gameCategory === 'tower' || isStrategicAiGame;
         if (aiHiddenLeft > 0 && appliesToAi) {
@@ -1889,11 +1902,13 @@ export async function makeGoAiBotMove(
             (game as any).aiHiddenItemThinkPlacementDue = true;
             (game as any).aiHiddenItemThinkDueMoveCount = currentMoveCount;
 
-            if (isStrategicAiGame || game.isSinglePlayer) {
+            if (isStrategicAiGame || game.isSinglePlayer || String((game as any).gameCategory ?? '') === 'tower') {
                 (game as any).aiHiddenItemsUsedCount = usedAiHiddenItems + 1;
             }
             if (game.isSinglePlayer && configuredSinglePlayerHiddenTurns.length > 0) {
                 game.aiHiddenItemUsed = usedAiHiddenItems + 1 >= configuredSinglePlayerHiddenTurns.length;
+            } else if (String((game as any).gameCategory ?? '') === 'tower' && configuredTowerAiHiddenTurns.length > 0) {
+                game.aiHiddenItemUsed = usedAiHiddenItems + 1 >= configuredTowerAiHiddenTurns.length;
             } else {
                 game.aiHiddenItemUsed = true;
             }

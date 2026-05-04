@@ -62,6 +62,7 @@ import { sendEmailVerification, verifyEmailCode } from './services/emailVerifica
 import { getKakaoAuthUrl, getKakaoAccessToken, getKakaoUserInfo } from './services/kakaoAuthService.js';
 import { getGoogleAuthUrl, getGoogleAccessToken, getGoogleUserInfo } from './services/googleAuthService.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../shared/constants/rewardConfig.js';
+import { PVP_DISCONNECT_REJOIN_GRACE_MS } from '../shared/utils/pvpDisconnectPolicy.js';
 
 const VERBOSE_ACTION_LOGS = process.env.DEBUG_ACTION_LOGS === '1' || process.env.LOG_ACTIONS === '1';
 
@@ -255,7 +256,7 @@ const processSinglePlayerMissions = (user: types.User): types.User => {
 
 // 타임아웃 상수 정의 (startServer 함수 밖에서도 사용 가능하도록)
 const LOBBY_TIMEOUT_MS = 90 * 1000;
-const GAME_DISCONNECT_TIMEOUT_MS = 90 * 1000;
+const GAME_DISCONNECT_TIMEOUT_MS = PVP_DISCONNECT_REJOIN_GRACE_MS;
 
 /** Testability: refs passed into createApp so health/root handlers can read server state without closing over startServer locals. */
 export interface ServerRef {
@@ -1375,7 +1376,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 if (volatileState.rankedMatchingQueue) {
                     try {
                         const { tryMatchPlayers } = await import('./actions/socialActions.js');
-                        for (const lobbyType of ['strategic', 'playful'] as const) {
+                        for (const lobbyType of ['strategic'] as const) {
                             if (volatileState.rankedMatchingQueue[lobbyType] && Object.keys(volatileState.rankedMatchingQueue[lobbyType]).length >= 2) {
                                 try {
                                     await tryMatchPlayers(volatileState, lobbyType);
@@ -2834,13 +2835,11 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     console.warn('[API/Ranking] Cache is null or undefined, using empty cache');
                     cache = {
                         strategic: [],
-                        playful: [],
                         pair: [],
                         championship: [],
                         combat: [],
                         manner: [],
                         strategicSeason: [],
-                        playfulSeason: [],
                         pairSeason: [],
                         timestamp: Date.now()
                     };
@@ -2864,23 +2863,17 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     case 'strategic':
                         rankings = Array.isArray(cache?.strategicSeason) ? cache.strategicSeason : [];
                         break;
-                    case 'playful':
-                        rankings = Array.isArray(cache?.playfulSeason) ? cache.playfulSeason : [];
-                        break;
                     case 'pair':
                         rankings = Array.isArray(cache?.pairSeason) ? cache.pairSeason : [];
                         break;
                     default:
-                        return res.status(400).json({ error: 'Season ranking only available for strategic/playful/pair' });
+                        return res.status(400).json({ error: 'Season ranking only available for strategic or pair' });
                 }
             } else {
                 // 누적 랭킹 (기본)
                 switch (type) {
                     case 'strategic':
                         rankings = Array.isArray(cache?.strategic) ? cache.strategic : [];
-                        break;
-                    case 'playful':
-                        rankings = Array.isArray(cache?.playful) ? cache.playful : [];
                         break;
                     case 'pair':
                         rankings = Array.isArray(cache?.pair) ? cache.pair : [];
@@ -3646,7 +3639,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                             // 90초 내에 재접속했는지 확인
                             const now = Date.now();
                             const timeSinceDisconnect = now - activeGame.disconnectionState.timerStartedAt;
-                            if (timeSinceDisconnect <= 90000) {
+                            if (timeSinceDisconnect <= GAME_DISCONNECT_TIMEOUT_MS) {
                                 // 재접속 성공: disconnectionState 제거하고 경기 재개
                                 activeGame.disconnectionState = null;
                                 const otherPlayerId = activeGame.player1.id === userForLogin.id ? activeGame.player2.id : activeGame.player1.id;
@@ -4328,7 +4321,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 const now = Date.now();
                 const timerStartedAt = game.disconnectionState?.timerStartedAt ?? now;
                 const timeSinceDisconnect = now - timerStartedAt;
-                if (timeSinceDisconnect <= 90000) {
+                if (timeSinceDisconnect <= GAME_DISCONNECT_TIMEOUT_MS) {
                     game.disconnectionState = null;
                     const otherPlayerId = game.player1?.id === userId ? game.player2?.id : game.player1?.id;
                     if (otherPlayerId && game.canRequestNoContest?.[otherPlayerId]) {

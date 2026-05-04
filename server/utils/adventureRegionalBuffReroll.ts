@@ -14,7 +14,16 @@ import {
     syncRegionalSpecialtySlotsAndPoints,
 } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import { getAdventureUnderstandingTierFromXp } from '../../constants/adventureConstants.js';
+import { isAdventureStageUnlocked } from '../../utils/adventureChapterUnlock.js';
 import { normalizeAdventureProfile } from '../../utils/adventureUnderstanding.js';
+
+function regionalBuffChapterUnlockCtx(user: User) {
+    return {
+        strategyLevel: Math.max(0, Math.floor(Number(user.userLevel) || 0)),
+        isAdmin: !!user.isAdmin,
+        understandingXpByStage: user.adventureProfile?.understandingXpByStage,
+    };
+}
 
 function usedKindsExceptSlot(
     list: (AdventureRegionalSpecialtyBuffEntry | undefined)[],
@@ -39,6 +48,9 @@ function stageTier(user: User, stageId: string): number {
  * 강화가 있었던 경우(stacks>1) 1단계로 초기화하고 사용했던 강화 포인트를 환급한다.
  */
 export function changeSingleRegionalSlotBuff(user: User, stageId: string, slotIndex: number): string | null {
+    if (!isAdventureStageUnlocked(stageId, regionalBuffChapterUnlockCtx(user))) {
+        return '아직 열리지 않은 지역입니다.';
+    }
     let p = normalizeAdventureProfile(user.adventureProfile);
     p = syncRegionalSpecialtySlotsAndPoints(p);
     const rawStageList = [...(p.regionalSpecialtyBuffsByStageId?.[stageId] ?? [])];
@@ -103,6 +115,9 @@ export function changeSingleRegionalSlotBuff(user: User, stageId: string, slotIn
 
 /** 단일 슬롯 강화. 1000 골드 + 강화 포인트 1 */
 export function enhanceSingleRegionalSlotBuff(user: User, stageId: string, slotIndex: number): string | null {
+    if (!isAdventureStageUnlocked(stageId, regionalBuffChapterUnlockCtx(user))) {
+        return '아직 열리지 않은 지역입니다.';
+    }
     let p = normalizeAdventureProfile(user.adventureProfile);
     p = syncRegionalSpecialtySlotsAndPoints(p);
     const rawStageListEnh = [...(p.regionalSpecialtyBuffsByStageId?.[stageId] ?? [])];

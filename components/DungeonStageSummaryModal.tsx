@@ -9,6 +9,11 @@ import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { resolvePublicUrl } from '../utils/publicAssetUrl.js';
 import { formatGoldAmountKoG } from '../shared/utils/walletAmountDisplay.js';
+import {
+    GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX,
+    GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS,
+    GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH,
+} from './game/gameResultModalViewport.js';
 
 export interface DungeonStageSummaryModalProps {
     dungeonType: TournamentType;
@@ -512,8 +517,10 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
             zIndex={isMobile ? 85 : 70}
             modal
             mobileViewportFit={isMobile}
-            mobileViewportMaxHeightCss="92dvh"
-            mobileViewportMaxHeightVh={92}
+            mobileViewportMaxHeightCss={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS : '92dvh'}
+            mobileViewportMaxHeightVh={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH : 92}
+            mobileViewportDvhBottomGapPx={isMobile ? GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX : undefined}
+            hideFooter={isMobile}
             mobileLockViewportHeight={isMobile}
             bodyScrollable={!isMobile}
             bodyNoScroll={isMobile}

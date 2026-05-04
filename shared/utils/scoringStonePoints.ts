@@ -1,5 +1,6 @@
 import type { Point } from '../types/enums.js';
 import { Player } from '../types/enums.js';
+import { isStrategicAiGoSession } from './strategicBoardItemTurn.js';
 
 /**
  * 계가·사석 집계 시 사용: 착수 중 따냈을 때와 동일한 규칙으로, 해당 교차점 돌의 집 점수 가중치를 반환한다.
@@ -71,15 +72,8 @@ export function getStoneCapturePointValueForScoring(game: ScoringStoneSessionSli
     const revealedHidden = wasRevealedHiddenStone(game, stone);
     const pattern = isPatternStoneForOwner(game, stone, stoneOwner);
 
-    const isStrategicAiGame =
-        !!game.isAiGame &&
-        !game.isSinglePlayer &&
-        game.gameCategory !== 'tower' &&
-        game.gameCategory !== 'singleplayer' &&
-        game.gameCategory !== 'guildwar';
-
     const pvePatternFirst =
-        !!game.isSinglePlayer || isStrategicAiGame || game.gameCategory === 'guildwar';
+        !!game.isSinglePlayer || isStrategicAiGoSession(game) || game.gameCategory === 'guildwar';
 
     if (pvePatternFirst) {
         if (pattern) return 2;

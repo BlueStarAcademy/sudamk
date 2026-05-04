@@ -17,7 +17,6 @@ export const volatileState: VolatileState = {
     // 랭킹전 매칭 큐
     rankedMatchingQueue: {
         strategic: {},
-        playful: {}
     },
     pairRooms: {},
     pairPartnerInvites: {},

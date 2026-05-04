@@ -56,7 +56,8 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
     const isStrategic =
         statsType === 'playful' ? false : statsType === 'strategic' ? true : statsType === 'both' ? combinedTab === 'strategic' : true;
     const showUnifiedRanking = isStrategic;
-    const rankingCategory: 'strategic' | 'playful' = statsType === 'playful' ? 'playful' : 'strategic';
+    /** 카테고리 일괄 초기화: 놀이는 전적만, 전략은 시즌 랭킹 연동 초기화 */
+    const categoryResetTarget: 'strategic' | 'playful' = statsType === 'playful' ? 'playful' : 'strategic';
     const { isNativeMobile } = useNativeMobileShell();
     const title =
         statsType === 'both' ? 'PVP 경기장 상세 전적' : isStrategic ? '전략 바둑 상세 전적' : '놀이 바둑 상세 전적';
@@ -99,9 +100,11 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
     );
 
     const unifiedRanking = useMemo(() => {
-        const drKey = rankingCategory === 'strategic' ? 'strategic' : 'playful';
-        const dr = currentUser.dailyRankings?.[drKey];
-        const modeList = rankingCategory === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
+        if (!isStrategic) {
+            return { score: SEASON_BASE_SCORE, rank: null as number | null, totalGames: 0 };
+        }
+        const dr = currentUser.dailyRankings?.strategic;
+        const modeList = SPECIAL_GAME_MODES;
         let totalGames = 0;
         for (const m of modeList) {
             const s = currentUser.stats?.[m.mode];
@@ -131,17 +134,17 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
             rank: null as number | null,
             totalGames,
         };
-    }, [currentUser.dailyRankings, currentUser.stats, rankingCategory]);
+    }, [currentUser.dailyRankings, currentUser.stats, isStrategic]);
 
     const strategicSeasonTier = useMemo(() => {
-        if (rankingCategory !== 'strategic') return null;
+        if (!isStrategic) return null;
         const rank = unifiedRanking.rank ?? 99_999;
         return {
             tier: getTier(unifiedRanking.score, rank, unifiedRanking.totalGames),
             seasonLabel: getCurrentSeason().name,
             rank: unifiedRanking.rank,
         };
-    }, [rankingCategory, unifiedRanking]);
+    }, [isStrategic, unifiedRanking]);
 
     const statsResetConfirmMessage = useMemo(() => {
         if (!statsResetConfirm) return '';
@@ -161,7 +164,7 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
 
     const handleResetAll = () => {
         if (!canAffordCategory) return;
-        setStatsResetConfirm({ type: 'category', category: rankingCategory });
+        setStatsResetConfirm({ type: 'category', category: categoryResetTarget });
     };
 
     const executeStatsResetConfirm = () => {
@@ -174,7 +177,7 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
         }
     };
 
-    const unifiedLabel = rankingCategory === 'strategic' ? '전략 바둑 통합 랭킹' : '놀이 바둑 통합 랭킹';
+    const unifiedLabel = '전략 바둑 통합 랭킹';
 
     return (
         <>
@@ -254,7 +257,7 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
                                     disabled={!canAffordCategory}
                                     title={
                                         canAffordCategory
-                                            ? `다이아 ${CATEGORY_RESET_COST.toLocaleString()} — ${rankingCategory === 'strategic' ? '전략' : '놀이'} 전체`
+                                            ? `다이아 ${CATEGORY_RESET_COST.toLocaleString()} — 전략 전체`
                                             : `다이아 부족 (필요 ${CATEGORY_RESET_COST.toLocaleString()})`
                                     }
                                     onClick={handleResetAll}

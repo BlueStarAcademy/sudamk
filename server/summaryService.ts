@@ -468,40 +468,59 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
                 summary.items = [...(summary.items ?? []), ...grantedStageItems];
             }
 
-            // 도전의 탑 전용 아이템 랜덤 드랍 (5%)
-            if (Math.random() < 0.05) {
-                const towerItems = [
-                    { name: '턴 추가', weight: 10, maxOwned: 3 },
-                    { name: '미사일', weight: 10, maxOwned: 2 },
-                    { name: '히든', weight: 5, maxOwned: 2 },
-                    { name: '스캔', weight: 30, maxOwned: 5 },
-                    { name: '배치변경', weight: 45, maxOwned: 5 },
-                ];
-                const { countTowerLobbyInventoryQty } = await import('./modes/towerPlayerHidden.js');
-                const availableItems = towerItems.filter((towerItem) => {
+            // 도전의 탑 전용 아이템 랜덤 드랍: 최초 클리어이면서 이번 입장에 행동력이 실제 소모된 경기에서만(재도전 ⚡0 등 제외)
+            const paidTowerAttempt = Number((game as any).towerStartActionPointCost ?? 0) > 0;
+            if (!paidTowerAttempt) {
+                console.log(`[Tower Summary] Floor ${floor} - Skipping consumable item roll (no action point cost on this run)`);
+            }
+            // 도전의 탑 전용 아이템 랜덤 드랍: 1~19층 20%「턴 추가」 / 20~99층 히든 10%·스캔 30%·미사일 20%(나머지 40%는 없음)
+            const { countTowerLobbyInventoryQty } = await import('./modes/towerPlayerHidden.js');
+            const tryGrantRandomTowerDrop = async (
+                candidates: { name: string; weight: number; maxOwned: number }[],
+                roll: number,
+                logLabel: string
+            ) => {
+                const availableItems = candidates.filter((towerItem) => {
                     const currentQuantity = countTowerLobbyInventoryQty(user.inventory, [towerItem.name]);
                     return currentQuantity < towerItem.maxOwned;
                 });
-
-                if (availableItems.length > 0) {
-                    const totalWeight = availableItems.reduce((sum, item) => sum + item.weight, 0);
-                    let random = Math.random() * totalWeight;
-                    let selectedItem = availableItems[0];
-                    for (const item of availableItems) {
-                        random -= item.weight;
-                        if (random <= 0) {
-                            selectedItem = item;
-                            break;
-                        }
+                if (availableItems.length === 0) return;
+                const totalWeight = availableItems.reduce((sum, item) => sum + item.weight, 0);
+                if (!(totalWeight > 0)) return;
+                let random = roll * totalWeight;
+                let selectedItem = availableItems[0]!;
+                for (const item of availableItems) {
+                    random -= item.weight;
+                    if (random <= 0) {
+                        selectedItem = item;
+                        break;
                     }
+                }
+                const towerItemInstance = createConsumableItemInstance(selectedItem.name);
+                if (!towerItemInstance) return;
+                (towerItemInstance as InventoryItem & { source?: string }).source = 'tower';
+                const grantedTowerDrop = grantTowerItemsToInventory([towerItemInstance]);
+                if (grantedTowerDrop.length > 0) {
+                    summary.items = [...(summary.items ?? []), ...grantedTowerDrop];
+                    console.log(`[Tower Summary] Floor ${floor} - Tower item dropped (${logLabel}): ${selectedItem.name}`);
+                }
+            };
 
-                    const towerItemInstance = createConsumableItemInstance(selectedItem.name);
-                    if (towerItemInstance) {
-                        (towerItemInstance as InventoryItem & { source?: string }).source = 'tower';
-                        const grantedTowerDrop = grantTowerItemsToInventory([towerItemInstance]);
-                        if (grantedTowerDrop.length > 0) {
-                            summary.items = [...(summary.items ?? []), ...grantedTowerDrop];
-                            console.log(`[Tower Summary] Floor ${floor} - Tower item dropped (5%): ${selectedItem.name}`);
+            if (paidTowerAttempt) {
+                const u = Math.random();
+                if (floor >= 1 && floor <= 19) {
+                    if (u < 0.2) {
+                        await tryGrantRandomTowerDrop([{ name: '턴 추가', weight: 1, maxOwned: 3 }], Math.random(), '20% turn add');
+                    }
+                } else if (floor >= 20 && floor <= 99) {
+                    if (u < 0.6) {
+                        const sub = Math.random();
+                        if (sub < 10 / 60) {
+                            await tryGrantRandomTowerDrop([{ name: '히든', weight: 1, maxOwned: 2 }], Math.random(), '10% hidden');
+                        } else if (sub < 40 / 60) {
+                            await tryGrantRandomTowerDrop([{ name: '스캔', weight: 1, maxOwned: 2 }], Math.random(), '30% scan');
+                        } else {
+                            await tryGrantRandomTowerDrop([{ name: '미사일', weight: 1, maxOwned: 2 }], Math.random(), '20% missile');
                         }
                     }
                 }

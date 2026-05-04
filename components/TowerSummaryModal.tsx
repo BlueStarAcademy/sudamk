@@ -28,6 +28,11 @@ import {
     RESULT_MODAL_REWARDS_ROW_MOBILE_COMPACT_CLASS,
 } from './game/ResultModalRewardSlot.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
+import {
+    GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX,
+    GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS,
+    GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH,
+} from './game/gameResultModalViewport.js';
 import { RESULT_MODAL_SCORE_MOBILE_PX } from './game/resultModalScoreTypography.js';
 
 interface TowerSummaryModalProps {
@@ -182,7 +187,9 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     }) : null;
     
     const userTowerFloor = currentUser.towerFloor ?? 0;
-    const isCleared = currentFloor <= userTowerFloor;
+    // 이번 판 최초 클리어 직후 USER_STATUS가 늦으면 잠깐 잠금으로 오인될 수 있어, 종료·승리 상태면 현재 층까지는 클리어로 간주
+    const effectiveClearedFloor = Math.max(userTowerFloor, isEnded && isWinner ? currentFloor : 0);
+    const isCleared = currentFloor <= effectiveClearedFloor;
     // 결과창은 서버가 확정한 실제 지급 내역(summary)만 표시한다.
     const displaySummary = summary;
     const hasRewardSlots =
@@ -208,7 +215,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
               : typeof session.towerStartActionPointCost === 'number'
                 ? session.towerStartActionPointCost
                 : inferredRetryApCost;
-    const isNextFloorAlreadyCleared = nextFloor != null && userTowerFloor >= nextFloor;
+    const isNextFloorAlreadyCleared = nextFloor != null && effectiveClearedFloor >= nextFloor;
     const effectiveNextFloorActionPointCost = isNextFloorAlreadyCleared ? 0 : baseNextFloorApCost;
 
     const failureReason = useMemo(() => {
@@ -310,6 +317,8 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             onClose();
         } catch (error) {
             console.error('[TowerSummaryModal] Failed to retry floor:', error);
+            window.alert('재도전 시작에 실패했습니다. 잠시 후 다시 시도해주세요.');
+        } finally {
             setIsProcessing(false);
         }
     };
@@ -324,6 +333,8 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             onClose();
         } catch (error) {
             console.error('[TowerSummaryModal] Failed to start next floor:', error);
+            window.alert('다음 층 시작에 실패했습니다. 잠시 후 다시 시도해주세요.');
+        } finally {
             setIsProcessing(false);
         }
     };
@@ -501,7 +512,10 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             uniformPcScale={false}
             mobileViewportFit
             mobileLockViewportHeight={isMobile}
-            mobileViewportMaxHeightVh={97}
+            mobileViewportMaxHeightVh={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH : 97}
+            mobileViewportMaxHeightCss={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS : undefined}
+            mobileViewportDvhBottomGapPx={isMobile ? GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX : undefined}
+            hideFooter={isMobile}
             bodyPaddingClassName={isMobile ? 'p-2 pb-0 sm:p-3 sm:pb-0' : 'p-3 sm:p-4'}
             modal={!modalLayerUsesDesignPixels}
             closeOnOutsideClick={!modalLayerUsesDesignPixels}

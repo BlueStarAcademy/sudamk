@@ -152,24 +152,7 @@ export const RANKED_GAME_SETTINGS: Record<GameMode, GameSettings> = {
     },
 };
 
-// 랭킹전에서 사용 가능한 게임 모드 (믹스룰 제외)
-export const RANKED_AVAILABLE_MODES: GameMode[] = [
-    GameMode.Standard,
-    GameMode.Capture,
-    GameMode.Speed,
-    GameMode.Base,
-    GameMode.Hidden,
-    GameMode.Missile,
-    // 믹스룰 제외
-    GameMode.Dice,
-    GameMode.Omok,
-    GameMode.Ttamok,
-    GameMode.Thief,
-    GameMode.Alkkagi,
-    GameMode.Curling,
-];
-
-// 전략바둑 랭킹전 모드
+// 전략바둑 랭킹전 모드 (놀이바둑 랭킹전은 폐지됨)
 export const RANKED_STRATEGIC_MODES: GameMode[] = [
     GameMode.Standard,
     GameMode.Capture,
@@ -179,15 +162,8 @@ export const RANKED_STRATEGIC_MODES: GameMode[] = [
     GameMode.Missile,
 ];
 
-// 놀이바둑 랭킹전 모드
-export const RANKED_PLAYFUL_MODES: GameMode[] = [
-    GameMode.Dice,
-    GameMode.Omok,
-    GameMode.Ttamok,
-    GameMode.Thief,
-    GameMode.Alkkagi,
-    GameMode.Curling,
-];
+/** 랭킹전에서 선택 가능한 모드 — 전략바둑만 (믹스룰 제외) */
+export const RANKED_AVAILABLE_MODES: GameMode[] = [...RANKED_STRATEGIC_MODES];
 
 // 랭킹전 설정 가져오기
 export const getRankedGameSettings = (mode: GameMode): GameSettings => {

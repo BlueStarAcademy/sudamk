@@ -210,7 +210,9 @@ export function getLastWeeklyLeagueUpdateTimestamp(): number | null {
 
 const processRewardsForSeason = async (season: SeasonInfo) => {
     console.log(`[Scheduler] Processing rewards for ${season.name}...`);
-    const allGameModes = [...SPECIAL_GAME_MODES, ...PLAYFUL_GAME_MODES].map(m => m.mode);
+    /** 시즌 티어·우편 보상 집계: 전략바둑(랭킹전) 모드만 — 놀이바둑 랭킹은 폐지됨 */
+    const seasonTierRankingModes = SPECIAL_GAME_MODES.map((m) => m.mode);
+    const allGameModesForStatReset = [...SPECIAL_GAME_MODES, ...PLAYFUL_GAME_MODES].map((m) => m.mode);
     const rewards = SEASONAL_TIER_REWARDS;
 
     const allUsers = await db.getAllUsers();
@@ -219,7 +221,7 @@ const processRewardsForSeason = async (season: SeasonInfo) => {
 
     // Pre-calculate rankings for all modes to avoid repeated sorting
     const rankingsByMode: Record<string, { user: types.User, rank: number }[]> = {};
-    for (const mode of allGameModes) {
+    for (const mode of seasonTierRankingModes) {
         const eligibleUsers = allUsers
             .filter(u => u.stats?.[mode] && (u.stats[mode].wins + u.stats[mode].losses) >= 20)
             .sort((a, b) => (b.stats![mode].rankingScore || 0) - (a.stats![mode].rankingScore || 0));
@@ -232,7 +234,7 @@ const processRewardsForSeason = async (season: SeasonInfo) => {
         let bestTierRank = Infinity;
 
         // Find user's best tier across all modes (랭킹 집계: 모드당 랭킹전 20판 이상만 eligible)
-        for (const mode of allGameModes) {
+        for (const mode of seasonTierRankingModes) {
             const modeRanking = rankingsByMode[mode];
             const userRankInfo = modeRanking.find(r => r.user.id === user.id);
 
@@ -300,21 +302,21 @@ const processRewardsForSeason = async (season: SeasonInfo) => {
                 user.mail.unshift(mail); // Add to the top
             }
         } else {
-            // 랭킹 미참여(전략·놀이 모두 집계 대상 아님) — 시즌 보상·프로필 "직전 시즌 티어" 갱신 없음
+            // 랭킹 미참여(전략 집계 대상 아님) — 시즌 보상·프로필 "직전 시즌 티어" 갱신 없음
             user.previousSeasonTier = null;
         }
 
         // 3. Reset game mode stats for the new season
-        // 놀이바둑만 1200점으로 초기화, 전략바둑은 점수 유지
+        // 놀이바둑: 승패·모드별 점수 초기화(랭킹전 없음). 전략바둑: 점수 유지·승패만 초기화
         if (user.stats) {
             const playfulModes = PLAYFUL_GAME_MODES.map(m => m.mode);
             const strategicModes = SPECIAL_GAME_MODES.map(m => m.mode);
             
-            for (const mode of allGameModes) {
+            for (const mode of allGameModesForStatReset) {
                 if (user.stats[mode]) {
                     if (playfulModes.includes(mode)) {
-                        // 놀이바둑: 매 시즌 1200점으로 초기화
-                        user.stats[mode] = { wins: 0, losses: 0, rankingScore: 1200 };
+                        // 놀이바둑: 시즌마다 전적·모드 점수 초기화(랭킹 점수 미사용)
+                        user.stats[mode] = { wins: 0, losses: 0 };
                     } else if (strategicModes.includes(mode)) {
                         // 전략바둑: 점수 유지, 승패만 초기화
                         const currentScore = user.stats[mode].rankingScore || 1200;
@@ -1432,7 +1434,7 @@ export async function fixBotYesterdayScores(): Promise<void> {
     console.log(`[OneTimeFix] Fixed yesterday scores for ${updatedCount} users. Total bots fixed: ${totalBotsFixed}`);
 }
 
-// 매일 0시에 랭킹 정산 (전략바둑, 놀이바둑, 챔피언십)
+// 매일 0시에 랭킹 정산 (전략바둑·페어·챔피언십 등)
 export async function processDailyRankings(): Promise<void> {
     const now = Date.now();
     const kstHours = getKSTHours(now);

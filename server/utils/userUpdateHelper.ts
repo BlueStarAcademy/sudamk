@@ -119,6 +119,7 @@ export function getSelectiveUserUpdate(
         'ADMIN_RESET_DUNGEON_PROGRESS': ['dungeonProgress'],
         'ADMIN_RESET_CHAMPIONSHIP_ALL': ['dungeonProgress', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament', 'lastNeighborhoodPlayedDate', 'lastNationalPlayedDate', 'lastWorldPlayedDate', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed'],
         'ADMIN_RESET_ALL_USERS_CHAMPIONSHIP': [],
+        'ADMIN_RESET_ALL_USERS_STRATEGIC_RANKING_TO_BASE': [],
         'CLAIM_TOURNAMENT_REWARD': ['inventory', 'gold', 'diamonds', 'tournamentScore', 'cumulativeTournamentScore', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament', 'dungeonProgress'],
         'START_DUNGEON_STAGE': ['dungeonProgress', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament'],
         'COMPLETE_DUNGEON_STAGE': ['dungeonProgress', 'inventory', 'gold', 'diamonds', 'tournamentScore', 'cumulativeTournamentScore', 'dailyDungeonScore', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodPlayedDate', 'lastNationalPlayedDate', 'lastWorldPlayedDate'],

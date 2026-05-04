@@ -12,6 +12,8 @@ import {
 } from './towerPlayerHidden.js';
 import { applyMissileCaptureProcessResult } from '../../shared/utils/missileLandingCapture.js';
 import { recordPatternStoneConsumed, stripPatternStonesAtConsumedIntersections } from '../../shared/utils/patternStoneConsume.js';
+import { getCurrentPairTurnSeat, isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
+import { canUseBoardItemTurnWindow } from '../../shared/utils/strategicBoardItemTurn.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -529,30 +531,26 @@ export const updateMissileState = (game: types.LiveGameSession, now: number): bo
 export const handleMissileAction = (game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): HandleActionResult | null => {
     const { type, payload } = action as any;
     const now = Date.now();
-    let myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
+    const pairClassicGame = isPairClassicGame(game.settings, game.mode);
+    const pairCurrentSeat = pairClassicGame ? getCurrentPairTurnSeat(game.settings) : null;
+    let myPlayerEnum = pairCurrentSeat
+        ? user.id === pairCurrentSeat.participantId
+            ? pairCurrentSeat.player
+            : types.Player.None
+        : user.id === game.blackPlayerId
+          ? types.Player.Black
+          : user.id === game.whitePlayerId
+            ? types.Player.White
+            : types.Player.None;
     // 탑/PVE: 일부 세션에서 player1(인간)과 blackPlayerId 불일치 시 None → LAUNCH가 "Not your stone"으로 400
     if (myPlayerEnum === types.Player.None && game.player1?.id === user.id) {
         myPlayerEnum = types.Player.Black;
     }
-    const isMyTurn = myPlayerEnum === game.currentPlayer;
+    const isMyTurn = pairCurrentSeat
+        ? user.id === pairCurrentSeat.participantId && pairCurrentSeat.player === game.currentPlayer
+        : myPlayerEnum === game.currentPlayer;
     // 도전의 탑/싱글: 유저가 방금 둔 직후(턴이 AI로 넘어갔지만 AI가 아직 두기 전)에도 미사일 허용 (싱글플레이와 동일)
-    const lastMove = game.moveHistory?.length ? game.moveHistory[game.moveHistory.length - 1] : null;
-    const lastMoveWasMine = lastMove && (lastMove as { player?: number }).player === myPlayerEnum;
-    const isStrategicAiGame =
-        !!game.isAiGame &&
-        !game.isSinglePlayer &&
-        (game as any).gameCategory !== 'tower' &&
-        (game as any).gameCategory !== 'singleplayer' &&
-        (game as any).gameCategory !== 'guildwar';
-    const allowItemAfterMyMove =
-        (game.isSinglePlayer ||
-            (game as any).gameCategory === 'tower' ||
-            (game as any).gameCategory === 'guildwar' ||
-            isStrategicAiGame) &&
-        game.gameStatus === 'playing' &&
-        lastMoveWasMine &&
-        !isMyTurn;
-    const canUseMissile = isMyTurn || allowItemAfterMyMove;
+    const canUseMissile = canUseBoardItemTurnWindow(game, myPlayerEnum, isMyTurn);
 
     switch (type) {
         case 'START_MISSILE_SELECTION': {
@@ -562,7 +560,7 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
             }
             
             // 미사일 아이템 개수 확인 (게임별 missiles_p1/p2 또는 설정 상한)
-            const missileKey = user.id === game.player1.id ? 'missiles_p1' : 'missiles_p2';
+            const missileKey = myPlayerEnum === types.Player.Black ? 'missiles_p1' : 'missiles_p2';
             let myMissilesLeft = game[missileKey];
             if (game.gameCategory === 'tower' && user.id === game.player1?.id) {
                 if (myMissilesLeft == null || myMissilesLeft <= 0) {
@@ -705,9 +703,8 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
                 }
             }
             
-            // 싱글플레이에서 baseStones_p1, baseStones_p2도 확인
-            const playerId = myPlayerEnum === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
-            const baseStonesKey = playerId === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
+            // 싱글플레이에서 baseStones_p1, baseStones_p2도 확인 (페어는 blackPlayerId가 participantId라 p1 비교가 깨질 수 있음 → 색 기준)
+            const baseStonesKey = myPlayerEnum === types.Player.Black ? 'baseStones_p1' : 'baseStones_p2';
             const baseStonesArray = (game as any)[baseStonesKey] as types.Point[] | undefined;
             if (baseStonesArray) {
                 const baseStoneIndex = baseStonesArray.findIndex(bs => bs.x === from.x && bs.y === from.y);
@@ -764,8 +761,8 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
             game.gameStatus = 'missile_animating';
             
             // 미사일 아이템 개수 감소
-            const missileKey = user.id === game.player1.id ? 'missiles_p1' : 'missiles_p2';
-            game[missileKey] = (game[missileKey] ?? 0) - 1;
+            const launchMissileKey = myPlayerEnum === types.Player.Black ? 'missiles_p1' : 'missiles_p2';
+            game[launchMissileKey] = (game[launchMissileKey] ?? 0) - 1;
 
             if (game.gameCategory === 'tower' && user.id === game.player1?.id) {
                 if (consumeOneTowerLobbyInventoryItem(user, TOWER_LOBBY_MISSILE_NAMES)) {

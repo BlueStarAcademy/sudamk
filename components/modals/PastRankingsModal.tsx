@@ -1,26 +1,21 @@
 import React, { useMemo } from 'react';
 import { UserWithStatus, GameMode } from '../../types.js';
 import DraggableWindow from '../DraggableWindow.js';
-import { RANKING_TIERS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
+import { RANKING_TIERS, SPECIAL_GAME_MODES } from '../../constants';
 import { getCompletedTrackedRankingSeasonsNewestFirst } from '../../utils/timeUtils.js';
 import { RANKING_MODAL_SLIM_SCROLL_Y } from '../../shared/constants/rankingModalScrollbar.js';
 
 interface PastRankingsModalProps {
-    info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'playful' | 'pair'; };
+    info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'pair' };
     onClose: () => void;
     isTopmost?: boolean;
 }
 
 const EMPTY_RANKING_LABEL = '시즌 랭킹 정보 없음';
 
-function getBestLobbyTierName(
-    history: Partial<Record<GameMode, string>> | undefined,
-    lobbyType: 'strategic' | 'playful'
-): string | null {
+function getBestStrategicLobbyTierName(history: Partial<Record<GameMode, string>> | undefined): string | null {
     if (!history || typeof history !== 'object') return null;
-    const modes = lobbyType === 'strategic'
-        ? SPECIAL_GAME_MODES.map((m) => m.mode)
-        : PLAYFUL_GAME_MODES.map((m) => m.mode);
+    const modes = SPECIAL_GAME_MODES.map((m) => m.mode);
     const tierOrder = RANKING_TIERS.map((t) => t.name);
     let bestTier: string | null = null;
     let bestIndex = tierOrder.length;
@@ -79,8 +74,8 @@ const PastRankingsModal: React.FC<PastRankingsModalProps> = ({ info, onClose, is
         );
     }, [history, mode, trackedPastSeasons]);
 
-    const strategicOrPlayfulBody = useMemo(() => {
-        if (mode !== 'strategic' && mode !== 'playful') return null;
+    const strategicSeasonBody = useMemo(() => {
+        if (mode !== 'strategic') return null;
         if (trackedPastSeasons.length === 0) {
             return (
                 <p className="text-center text-gray-500 py-6">{EMPTY_RANKING_LABEL}</p>
@@ -89,7 +84,7 @@ const PastRankingsModal: React.FC<PastRankingsModalProps> = ({ info, onClose, is
         return (
             <ul className="space-y-2">
                 {trackedPastSeasons.map((season) => {
-                    const tierName = getBestLobbyTierName(history[season.name], mode);
+                    const tierName = getBestStrategicLobbyTierName(history[season.name]);
                     const tierInfo = tierName ? RANKING_TIERS.find((t) => t.name === tierName) : undefined;
                     return (
                         <li
@@ -112,14 +107,13 @@ const PastRankingsModal: React.FC<PastRankingsModalProps> = ({ info, onClose, is
         );
     }, [history, mode, trackedPastSeasons]);
 
-    // strategic/playful 모드: 로비(통합) 기준 시즌별 최고 티어
-    if (mode === 'strategic' || mode === 'playful') {
-        const lobbyTitle = mode === 'strategic' ? '전략바둑' : '놀이바둑';
+    // 전략 로비(통합) 기준 시즌별 최고 티어 — 놀이바둑 시즌 랭킹은 폐지됨
+    if (mode === 'strategic') {
         return (
             <DraggableWindow title="지난 시즌 랭킹" onClose={onClose} windowId="past-rankings" initialWidth={450} isTopmost={isTopmost}>
                 <div className={`max-h-[calc(var(--vh,1vh)*60)] overflow-y-auto pr-2 ${RANKING_MODAL_SLIM_SCROLL_Y}`}>
-                    <h3 className="text-lg font-bold text-center mb-4">{lobbyTitle}</h3>
-                    {strategicOrPlayfulBody}
+                    <h3 className="text-lg font-bold text-center mb-4">전략바둑</h3>
+                    {strategicSeasonBody}
                 </div>
             </DraggableWindow>
         );

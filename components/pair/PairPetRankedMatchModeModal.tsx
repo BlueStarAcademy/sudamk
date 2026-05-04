@@ -402,7 +402,6 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
             shrinkHeightToContent
             bodyScrollable={false}
             bodyPaddingClassName="!p-2 sm:!p-3"
-            bodyScrollClassName="sudamr-mobile-modal-body--dense-copy"
             closeOnOutsideClick={false}
             isTopmost
             zIndex={84}

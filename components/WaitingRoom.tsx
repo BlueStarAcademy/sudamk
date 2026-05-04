@@ -298,7 +298,22 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     </div>
                 </div>
                 <div className="flex-1 min-h-0"><PlayerList users={usersInThisRoom} mode={mode} onAction={handlers.handleAction} currentUser={currentUserWithStatus} onViewUser={handlers.openViewingUser} lobbyType={lobbyType} /></div>
-                <div className="flex-1 min-h-0 border-t border-color"><RankingList mode={mode} onShowTierInfo={() => setIsTierInfoModalOpen(true)} currentUser={currentUserWithStatus} onViewUser={handlers.openViewingUser} onShowPastRankings={handlers.openPastRankings} lobbyType={lobbyType} /></div>
+                <div className="flex-1 min-h-0 border-t border-color">
+                    {isStrategic ? (
+                        <RankingList
+                            mode={mode}
+                            onShowTierInfo={() => setIsTierInfoModalOpen(true)}
+                            currentUser={currentUserWithStatus}
+                            onViewUser={handlers.openViewingUser}
+                            onShowPastRankings={handlers.openPastRankings}
+                            lobbyType="strategic"
+                        />
+                    ) : (
+                        <div className="flex h-full items-center justify-center p-3 text-center text-xs text-secondary">
+                            놀이 모드 랭킹 목록은 제공하지 않습니다.
+                        </div>
+                    )}
+                </div>
             </div>
             {isMobileSidebarOpen && <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setIsMobileSidebarOpen(false)}></div>}
           </>
@@ -334,7 +349,20 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
               </div>
 
               <div className={`min-h-0 rounded-xl border p-1 ${theme.panelSoft} ${theme.glow}`}>
-                <RankingList currentUser={currentUserWithStatus} mode={mode} onViewUser={handlers.openViewingUser} onShowTierInfo={() => setIsTierInfoModalOpen(true)} onShowPastRankings={handlers.openPastRankings} lobbyType={lobbyType} />
+                {isStrategic ? (
+                    <RankingList
+                        currentUser={currentUserWithStatus}
+                        mode={mode}
+                        onViewUser={handlers.openViewingUser}
+                        onShowTierInfo={() => setIsTierInfoModalOpen(true)}
+                        onShowPastRankings={handlers.openPastRankings}
+                        lobbyType="strategic"
+                    />
+                ) : (
+                    <div className="flex h-full min-h-[6rem] items-center justify-center p-3 text-center text-xs text-secondary">
+                        놀이 모드 랭킹 목록은 제공하지 않습니다.
+                    </div>
+                )}
               </div>
             </div>
           </div>

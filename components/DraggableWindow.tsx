@@ -1267,7 +1267,11 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const scrollRegionAllowsVerticalScroll = useStickyMobileFooter || bodyAllowsVerticalScroll;
     const useSmallPcScaledBodyContent = useReadableSmallPcViewportPortal;
     const smallPcChromeScale = useReadableSmallPcViewportPortal ? smallPcBodyContentScale : 1;
-    const mobileBodyClass = isMobileModalShell && !useReadableSmallPcViewportPortal ? ' sudamr-mobile-modal-body' : '';
+    /** 모바일 셸: 예전 기본(`sudamr-mobile-modal-body`만)은 text-sm 등을 키워 한 화면에 넘치기 쉬움 → dense-copy를 함께 둔다 */
+    const mobileBodyClass =
+        isMobileModalShell && !useReadableSmallPcViewportPortal
+            ? ' sudamr-mobile-modal-body sudamr-mobile-modal-body--dense-copy'
+            : '';
     const renderSmallPcScaledBodyContent = (node: React.ReactNode) => {
         if (!useSmallPcScaledBodyContent) return node;
         const measuredH = smallPcObservedContentHeightPx > 0 ? smallPcObservedContentHeightPx : smallPcContentDesignHeight * smallPcBodyContentScale;
@@ -1426,7 +1430,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     {headerShowTitle ? (
                         <h2
                             className={`min-w-0 flex-1 pr-2 select-none font-bold leading-tight tracking-tight text-amber-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] ${
-                                uniformLayout ? 'text-xl' : isMobileModalShell ? 'text-xl' : 'text-lg'
+                                uniformLayout ? 'text-xl' : isMobileModalShell ? 'text-base sm:text-xl' : 'text-lg'
                             }`}
                         >
                             {titleContent ?? title}

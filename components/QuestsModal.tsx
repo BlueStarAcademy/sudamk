@@ -131,7 +131,7 @@ const AchievementTrackPanel: React.FC<{
                 return idx >= requiredIndex;
             });
         }
-        if (stage.requirement.type === 'strategy_tier' || stage.requirement.type === 'playful_tier') {
+        if (stage.requirement.type === 'strategy_tier') {
             const tierScoreMap: Record<string, number> = {
                 루키: 1300,
                 브론즈: 1400,
@@ -142,9 +142,7 @@ const AchievementTrackPanel: React.FC<{
                 마스터: 3000,
                 챌린저: 3500,
             };
-            const scoreDiff = stage.requirement.type === 'strategy_tier'
-                ? (currentUser.cumulativeRankingScore?.standard ?? 0)
-                : (currentUser.cumulativeRankingScore?.playful ?? 0);
+            const scoreDiff = currentUser.cumulativeRankingScore?.standard ?? 0;
             const seasonScore = 1200 + scoreDiff;
             return seasonScore >= (tierScoreMap[stage.requirement.tier] ?? Number.MAX_SAFE_INTEGER);
         }
@@ -826,11 +824,9 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
                     const idx = gradeOrder.indexOf(String(item.grade).toLowerCase());
                     return idx >= requiredIdx;
                 });
-            } else if (requirement.type === 'strategy_tier' || requirement.type === 'playful_tier') {
+            } else if (requirement.type === 'strategy_tier') {
                 const tierScoreMap: Record<string, number> = { 루키: 1300, 브론즈: 1400, 실버: 1500, 골드: 1700, 플래티넘: 2000, 다이아: 2400, 마스터: 3000, 챌린저: 3500 };
-                const scoreDiff = requirement.type === 'strategy_tier'
-                    ? (currentUser.cumulativeRankingScore?.standard ?? 0)
-                    : (currentUser.cumulativeRankingScore?.playful ?? 0);
+                const scoreDiff = currentUser.cumulativeRankingScore?.standard ?? 0;
                 met = 1200 + scoreDiff >= (tierScoreMap[requirement.tier] ?? Number.MAX_SAFE_INTEGER);
             } else if (requirement.type === 'adventure_understanding_tier') {
                 const tierMap: Record<string, number> = { 편함: 1, 익숙함: 2, 친숙함: 3, 정복: 4 };

@@ -2069,8 +2069,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                     className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_75%_55%_at_50%_-18%,rgba(139,92,246,0.32),transparent_55%),linear-gradient(165deg,rgba(24,24,27,0.98)0%,rgba(9,9,11,0.99)48%,rgba(59,7,100,0.32)100%)]"
                                     aria-hidden
                                 />
-                                <div className="relative px-4 pb-5 pt-5 text-center sm:px-5 sm:pb-6 sm:pt-6">
-                                    <h3 className="text-base font-black leading-snug text-violet-50 sm:text-lg">
+                                <div className="relative px-3 pb-4 pt-4 text-center sm:px-5 sm:pb-6 sm:pt-6">
+                                    <h3 className="text-sm font-bold leading-snug text-violet-50 sm:text-lg sm:font-black">
                                         <span className="text-white">{petName}</span> 펫을
                                         <br />
                                         <span className="text-violet-200">{slotLabel}</span>에 보낼까요?
@@ -2087,16 +2087,16 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             />
                                         </div>
                                     ) : null}
-                                    <p className="mx-auto mt-4 max-w-sm text-left text-[0.7rem] font-semibold leading-relaxed text-slate-300 sm:text-xs">
+                                    <p className="mx-auto mt-3 max-w-sm text-left text-[0.65rem] font-medium leading-relaxed text-slate-400 sm:mt-4 sm:text-xs sm:font-semibold sm:text-slate-300">
                                         수련이 진행되는 동안 이 펫은 페어바둑에 출전할 수 없습니다. 대표 펫으로 지정된 펫은 수련에 보낼 수 없으며, 수련 중에는
                                         대표 펫으로 바꿀 수 없습니다.
                                     </p>
-                                    <div className="mx-auto mt-5 flex max-w-sm flex-col items-stretch justify-center gap-2.5 sm:flex-row sm:gap-3">
+                                    <div className="mx-auto mt-4 flex max-w-sm flex-row items-stretch justify-center gap-2 sm:mt-5 sm:gap-3">
                                         <button
                                             type="button"
                                             onClick={() => setTrainingStartConfirm(null)}
                                             disabled={isBusy}
-                                            className="order-2 w-full min-w-[8rem] rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-white/25 hover:bg-white/[0.08] disabled:opacity-45 sm:order-1 sm:w-auto"
+                                            className="min-w-0 flex-1 rounded-full border border-white/15 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-white/25 hover:bg-white/[0.08] disabled:opacity-45 sm:min-w-[8rem] sm:flex-none sm:px-5 sm:py-2.5 sm:text-sm"
                                         >
                                             취소
                                         </button>
@@ -2113,7 +2113,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                 setTrainingStartConfirm(null);
                                             }}
                                             colorScheme="none"
-                                            className="order-1 w-full min-w-[8rem] !rounded-full !border !border-violet-400/55 !bg-gradient-to-r !from-violet-600 !via-violet-500 !to-fuchsia-600 !px-6 !py-2.5 !text-sm !font-black !text-white !shadow-[0_8px_26px_rgba(124,58,237,0.4),inset_0_1px_0_rgba(255,255,255,0.18)] hover:!from-violet-500 hover:!via-violet-400 hover:!to-fuchsia-500 disabled:!opacity-40 sm:order-2 sm:w-auto"
+                                            className="min-w-0 flex-1 !rounded-full !border !border-violet-400/50 !bg-gradient-to-r !from-violet-600 !via-violet-500 !to-fuchsia-600 !px-3 !py-2 !text-xs !font-bold !text-white !shadow-[0_6px_20px_rgba(124,58,237,0.35),inset_0_1px_0_rgba(255,255,255,0.16)] hover:!from-violet-500 hover:!via-violet-400 hover:!to-fuchsia-500 disabled:!opacity-40 sm:!min-w-[8rem] sm:!flex-none sm:!px-6 sm:!py-2.5 sm:!text-sm sm:!font-black sm:!shadow-[0_8px_26px_rgba(124,58,237,0.4),inset_0_1px_0_rgba(255,255,255,0.18)]"
                                         >
                                             수련 보내기
                                         </Button>
@@ -2144,24 +2144,24 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_75%_55%_at_50%_-18%,rgba(244,63,94,0.22),transparent_55%),linear-gradient(165deg,rgba(24,24,27,0.98)0%,rgba(9,9,11,0.99)48%,rgba(59,7,20,0.28)100%)]"
                             aria-hidden
                         />
-                        <div className="relative px-5 pb-5 pt-6 text-center sm:px-6 sm:pb-6 sm:pt-7">
-                            <p className="mx-auto max-w-sm text-[0.75rem] font-semibold leading-relaxed text-slate-200 sm:text-sm">
+                        <div className="relative px-3 pb-4 pt-5 text-center sm:px-6 sm:pb-6 sm:pt-7">
+                            <p className="mx-auto max-w-sm text-[0.7rem] font-medium leading-relaxed text-slate-300 sm:text-sm sm:font-semibold sm:text-slate-200">
                                 수련을 취소하면{' '}
-                                <span className="font-black text-rose-200">진행 중인 시간이 초기화</span>되고 슬롯이 비워집니다.
+                                <span className="font-bold text-rose-200 sm:font-black">진행 중인 시간이 초기화</span>되고 슬롯이 비워집니다.
                                 펫은 가방에 그대로 남습니다.
                             </p>
-                            <p className="mx-auto mt-2 max-w-sm text-[0.65rem] leading-relaxed text-slate-500 sm:text-xs">
+                            <p className="mx-auto mt-1.5 max-w-sm text-[0.6rem] leading-relaxed text-slate-500 sm:mt-2 sm:text-xs">
                                 슬롯:{' '}
                                 <span className="font-bold text-violet-200/95">
                                     {getPairTrainingSlotDisplayName(trainingCancelConfirmSlotIndex)}
                                 </span>
                             </p>
-                            <div className="mx-auto mt-5 flex max-w-sm flex-col items-stretch justify-center gap-2.5 sm:flex-row sm:gap-3">
+                            <div className="mx-auto mt-4 flex max-w-sm flex-row items-stretch justify-center gap-2 sm:mt-5 sm:gap-3">
                                 <button
                                     type="button"
                                     onClick={() => setTrainingCancelConfirmSlotIndex(null)}
                                     disabled={isBusy}
-                                    className="order-2 w-full min-w-[8rem] rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-white/25 hover:bg-white/[0.08] disabled:opacity-45 sm:order-1 sm:w-auto"
+                                    className="min-w-0 flex-1 rounded-full border border-white/15 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-white/25 hover:bg-white/[0.08] disabled:opacity-45 sm:min-w-[8rem] sm:flex-none sm:px-5 sm:py-2.5 sm:text-sm"
                                 >
                                     유지
                                 </button>
@@ -2170,7 +2170,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                     disabled={isBusy}
                                     onClick={() => void confirmPairTrainingCancel()}
                                     colorScheme="none"
-                                    className="order-1 w-full min-w-[8rem] !rounded-full !border !border-rose-400/55 !bg-gradient-to-r !from-rose-600 !via-rose-500 !to-orange-600 !px-6 !py-2.5 !text-sm !font-black !text-white !shadow-[0_8px_26px_rgba(225,29,72,0.35),inset_0_1px_0_rgba(255,255,255,0.18)] hover:!from-rose-500 hover:!via-rose-400 hover:!to-orange-500 disabled:!opacity-40 sm:order-2 sm:w-auto"
+                                    className="min-w-0 flex-1 !rounded-full !border !border-rose-400/50 !bg-gradient-to-r !from-rose-600 !via-rose-500 !to-orange-600 !px-3 !py-2 !text-xs !font-bold !text-white !shadow-[0_6px_20px_rgba(225,29,72,0.3),inset_0_1px_0_rgba(255,255,255,0.16)] hover:!from-rose-500 hover:!via-rose-400 hover:!to-orange-500 disabled:!opacity-40 sm:!min-w-[8rem] sm:!flex-none sm:!px-6 sm:!py-2.5 sm:!text-sm sm:!font-black sm:!shadow-[0_8px_26px_rgba(225,29,72,0.35),inset_0_1px_0_rgba(255,255,255,0.18)]"
                                 >
                                     취소
                                 </Button>

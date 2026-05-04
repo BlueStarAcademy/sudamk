@@ -81,7 +81,7 @@ export interface AppState {
 
 export interface RankedMatchingEntry {
     userId: string;
-    lobbyType: 'strategic' | 'playful';
+    lobbyType: 'strategic';
     selectedModes: GameMode[];
     startTime: number;
     rating: number;
@@ -122,7 +122,6 @@ export interface VolatileState {
     // 랭킹전 매칭 큐
     rankedMatchingQueue?: {
         strategic?: Record<string, RankedMatchingEntry>;
-        playful?: Record<string, RankedMatchingEntry>;
     };
     pairRooms?: Record<string, PairRoomState>;
     pairPartnerInvites?: Record<string, PairPartnerInvite>;
@@ -318,7 +317,7 @@ export type ServerAction =
     | { type: 'RESUME_AI_GAME', payload: { gameId: string } }
     | { type: 'REQUEST_REMATCH', payload: { opponentId: string, originalGameId: string } }
     // Ranked Matching
-    | { type: 'START_RANKED_MATCHING', payload: { lobbyType: 'strategic' | 'playful'; selectedModes: GameMode[] } }
+    | { type: 'START_RANKED_MATCHING', payload: { lobbyType: 'strategic'; selectedModes: GameMode[] } }
     | { type: 'CANCEL_RANKED_MATCHING', payload?: never }
     | {
           type: 'PAIR_CREATE_ROOM';
@@ -575,6 +574,7 @@ export type ServerAction =
     | { type: 'ADMIN_RESET_DUNGEON_PROGRESS', payload: { targetUserId: string; dungeonType?: TournamentType } }
     | { type: 'ADMIN_RESET_CHAMPIONSHIP_ALL', payload: { targetUserId: string } }
     | { type: 'ADMIN_RESET_ALL_USERS_CHAMPIONSHIP', payload?: Record<string, never> }
+    | { type: 'ADMIN_RESET_ALL_USERS_STRATEGIC_RANKING_TO_BASE', payload?: Record<string, never> }
     | { type: 'ADMIN_CLEAR_USER_GUILD', payload: { targetUserId: string } }
     | { type: 'ADMIN_GUILD_WAR_RECHARGE_DAILY_ATTEMPTS', payload: { targetUserId: string } }
     | { type: 'ADMIN_CREATE_HOME_BOARD_POST', payload: { title: string; content: string; isPinned: boolean } }

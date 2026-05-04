@@ -1262,9 +1262,12 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         if (stage.blackTurnLimit) {
             const blackMovesCount = moveHistory.filter(m => m.player === Player.Black && m.x !== -1 && m.y !== -1).length;
             // 도전의 탑에서 턴 추가 아이템으로 증가한 턴을 반영
-            const blackTurnLimitBonus = (session as any).blackTurnLimitBonus || 0;
+            const blackTurnLimitBonus = Number((session as any).blackTurnLimitBonus) || 0;
             const settingsTurnLimit = Number((session.settings as any)?.blackTurnLimit ?? 0);
-            const effectiveBlackTurnLimit = settingsTurnLimit > 0 ? settingsTurnLimit : (stage.blackTurnLimit + blackTurnLimitBonus);
+            // settings.blackTurnLimit가 있어도 보너스는 반드시 더한다(이전 분기에서 보너스가 무시되어 아이템이 안 먹히는 것처럼 보이던 버그 수정)
+            const baseBlackTurnLimit =
+                settingsTurnLimit > 0 ? settingsTurnLimit : Number(stage.blackTurnLimit) || 0;
+            const effectiveBlackTurnLimit = baseBlackTurnLimit + blackTurnLimitBonus;
             const markedRemainingRaw = Number((session as any).blackTurnLimitRemaining);
             const markedRemaining = Number.isFinite(markedRemainingRaw) ? Math.max(0, Math.floor(markedRemainingRaw)) : null;
             const calculatedRemaining = Math.max(0, effectiveBlackTurnLimit - blackMovesCount);

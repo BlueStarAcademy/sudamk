@@ -26,6 +26,7 @@ import {
     isPairClassicGame,
     isPairCooperativeTwoHumansVsAi,
 } from '../shared/utils/pairGameTurn.js';
+import { PVP_DISCONNECT_REJOIN_GRACE_MS } from '../shared/utils/pvpDisconnectPolicy.js';
 
 // 정확한 계가 결과는 1회만 표시한다는 전제 하에,
 // (특히 히든돌 최종 공개 애니메이션 동안) KataGo 분석을 백그라운드로 미리 시작해
@@ -1364,7 +1365,7 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             if (
                 isPvpDisconnectRecovery &&
                 game.disconnectionState &&
-                now - game.disconnectionState.timerStartedAt > 90000
+                now - game.disconnectionState.timerStartedAt > PVP_DISCONNECT_REJOIN_GRACE_MS
             ) {
                 // 90초 내에 재접속하지 못하면 시간패배 처리
                 game.winner = game.blackPlayerId === game.disconnectionState.disconnectedPlayerId ? types.Player.White : types.Player.Black;

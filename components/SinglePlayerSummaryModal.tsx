@@ -21,6 +21,11 @@ import {
     RESULT_MODAL_REWARDS_ROW_MOBILE_SP_SLIM_CLASS,
 } from './game/ResultModalRewardSlot.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
+import {
+    GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX,
+    GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS,
+    GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH,
+} from './game/gameResultModalViewport.js';
 import { RESULT_MODAL_SCORE_MOBILE_PX } from './game/resultModalScoreTypography.js';
 /** 게임 설명 모달과 동일한 패널 박스 */
 const SP_SUMMARY_PANEL_CLASS =
@@ -463,7 +468,10 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             uniformPcScale={false}
             mobileViewportFit
             mobileLockViewportHeight={isMobile}
-            mobileViewportMaxHeightVh={97}
+            mobileViewportMaxHeightVh={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH : 97}
+            mobileViewportMaxHeightCss={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS : undefined}
+            mobileViewportDvhBottomGapPx={isMobile ? GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX : undefined}
+            hideFooter={isMobile}
             modal={!modalLayerUsesDesignPixels}
             closeOnOutsideClick={!modalLayerUsesDesignPixels}
             containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"

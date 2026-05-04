@@ -540,8 +540,8 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 className={
                     pairRoomDenseSettingsGrid
                         ? pairRoomEmbeddedRightSlot
-                            ? 'grid w-full min-h-0 auto-rows-min min-w-0 content-center justify-center gap-x-2.5 gap-y-2 overflow-y-auto pr-1 [grid-template-columns:repeat(auto-fill,minmax(14rem,14rem))] [&>div]:min-w-0'
-                            : 'grid h-full auto-rows-min min-w-0 justify-center gap-x-2.5 gap-y-2 overflow-y-auto pr-1 [grid-template-columns:repeat(auto-fill,minmax(14rem,14rem))] [&>div]:min-w-0'
+                            ? 'grid w-full min-h-0 auto-rows-min min-w-0 content-center justify-center gap-x-2.5 gap-y-2 overflow-y-auto pr-1 grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(14rem,14rem))] [&>div]:min-w-0'
+                            : 'grid h-full auto-rows-min min-w-0 justify-center gap-x-2.5 gap-y-2 overflow-y-auto pr-1 grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(14rem,14rem))] [&>div]:min-w-0'
                         : 'flex h-full flex-col gap-2 overflow-y-auto pr-2'
                 }
             >

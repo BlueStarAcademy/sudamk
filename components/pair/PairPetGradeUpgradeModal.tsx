@@ -88,8 +88,10 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
             variant="store"
             mobileViewportFit
             mobileViewportMaxHeightCss="min(92dvh, calc(100dvh - 16px))"
+            hideFooter
+            bodyPaddingClassName="!p-0"
         >
-            <div className="flex max-h-[min(78vh,36rem)] flex-col gap-3 px-1 pb-2 pt-1 sm:px-2">
+            <div className="flex max-h-[min(72dvh,32rem)] flex-col gap-2 overflow-y-auto overflow-x-hidden px-1 pb-2 pt-1 sm:max-h-[min(78vh,36rem)] sm:gap-3 sm:px-2">
                 <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-b from-zinc-900/95 via-violet-950/40 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(0,0,0,0.4)] ring-1 ring-amber-400/10">
                     <div
                         className="pointer-events-none absolute -right-8 -top-12 h-40 w-40 rounded-full bg-amber-400/10 blur-3xl"
@@ -100,16 +102,18 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                         aria-hidden
                     />
 
-                    <div className="relative flex flex-col gap-4 p-3 sm:p-4">
-                        <div className="flex items-center gap-3">
+                    <div className="relative flex flex-col gap-2.5 p-2 sm:gap-4 sm:p-4">
+                        <div className="flex items-start gap-2 sm:items-center sm:gap-3">
                             <div
-                                className={`relative h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-xl border border-white/15 shadow-lg ${mainGradeStored === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''}`}
+                                className={`relative h-[3.5rem] w-[3.5rem] shrink-0 overflow-hidden rounded-lg border border-white/15 shadow-lg sm:h-[4.5rem] sm:w-[4.5rem] sm:rounded-xl ${mainGradeStored === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''}`}
                             >
                                 <img src={mainBg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-95" />
-                                <img src={mainItem.image} alt="" className="relative z-[1] h-full w-full object-contain p-1.5" />
+                                <img src={mainItem.image} alt="" className="relative z-[1] h-full w-full object-contain p-1 sm:p-1.5" />
                             </div>
-                            <div className="min-w-0 flex-1">
-                                <p className={`truncate text-base font-black tracking-tight ${mainSt.color}`}>
+                            <div className="min-w-0 flex-1 text-left">
+                                <p
+                                    className={`break-words text-sm font-black leading-snug tracking-tight sm:text-base ${mainSt.color}`}
+                                >
                                     <span className="mr-1.5 font-black tabular-nums text-amber-200">Lv.{levelSafe}</span>
                                     {getPairPetDisplayName(mainItem)}
                                 </p>
@@ -184,7 +188,7 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                                         <dd className="tabular-nums font-mono text-right font-black text-amber-200">+10%</dd>
                                     </div>
                                     <div className="flex items-center justify-between gap-2 pt-0.5">
-                                        <dt className="min-w-0 text-slate-400">다음등급 구간 펫 레벨업 시 자동 분배 능력치</dt>
+                                        <dt className="min-w-0 break-words text-slate-400">다음등급 구간 펫 레벨업 시 자동 분배 능력치</dt>
                                         <dd className="shrink-0 tabular-nums font-mono text-right font-black text-violet-200">+{budgetNext}</dd>
                                     </div>
                                 </dl>

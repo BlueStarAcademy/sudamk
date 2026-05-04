@@ -53,7 +53,7 @@ describe('ranked matching', () => {
             gameChats: {},
             userLastChatMessage: {},
             activeTournamentViewers: new Set<string>(),
-            rankedMatchingQueue: { strategic: {}, playful: {} },
+            rankedMatchingQueue: { strategic: {} },
         };
         const db = await import('../../db.js');
         vi.mocked(db.getUser).mockImplementation((id: string) => {
