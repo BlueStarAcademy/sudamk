@@ -237,61 +237,75 @@ if (!sudamrG.__SUDAMR_PRISMA_SETUP__) {
   });
 }
 
-// 연결 끊김 시 재연결 시도
-let isReconnecting = false;
+// 연결 끊김 시 재연결 시도 (동시 호출은 같은 in-flight 재연결을 공유)
+let reconnectInFlight: Promise<boolean> | null = null;
 let consecutiveConnectionFailures = 0;
 const MAX_CONSECUTIVE_FAILURES = 5;
 
 const reconnectPrisma = async (): Promise<boolean> => {
-  if (isReconnecting) return false;
-  isReconnecting = true;
-  
-  try {
-    console.log('[Prisma] Attempting to reconnect...');
+  if (reconnectInFlight) return reconnectInFlight;
+
+  reconnectInFlight = (async (): Promise<boolean> => {
     try {
-      await prisma.$disconnect();
-    } catch (disconnectError) {
-      // 연결이 이미 끊어진 경우 무시
-    }
-    
-    await prisma.$connect();
-    // 엔진/네트워크가 안정될 때까지 충분히 대기 후 프로브 (Railway 등에서 지연 발생)
-    await new Promise((r) => setTimeout(r, 1000));
-    const probeTimeout = 5000;
-    for (let attempt = 0; attempt < 12; attempt++) {
+      console.log('[Prisma] Attempting to reconnect...');
       try {
-        await Promise.race([
-          prisma.$queryRaw`SELECT 1`,
-          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), probeTimeout)),
-        ]);
-        // gameService 쪽 캐시 무효화 (재연결 후 ensurePrismaEngineReady가 다시 probe 하도록)
-        const g = globalThis as any;
-        if (g.__prismaEngineReadyState && typeof g.__prismaEngineReadyState === 'object') {
-          g.__prismaEngineReadyState.readyAt = 0;
-        }
-        console.log('[Prisma] Reconnected successfully');
-        consecutiveConnectionFailures = 0;
-        return true;
-      } catch (_) {
-        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+        await prisma.$disconnect();
+      } catch {
+        // 연결이 이미 끊어진 경우 무시
       }
+
+      await prisma.$connect();
+
+      const isRailway =
+        Boolean(process.env.RAILWAY_ENVIRONMENT) ||
+        Boolean(process.env.RAILWAY_PROJECT_ID) ||
+        (typeof process.env.DATABASE_URL === 'string' && process.env.DATABASE_URL.includes('railway'));
+      // 엔진이 쿼리를 받을 때까지 대기 (Linux/Railway에서 $connect 직후 $queryRaw가 자주 실패)
+      await new Promise((r) => setTimeout(r, isRailway ? 2000 : 800));
+      const probeTimeout = isRailway ? 8000 : 5000;
+      const maxAttempts = isRailway ? 24 : 12;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          await Promise.race([
+            prisma.$queryRaw`SELECT 1`,
+            new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), probeTimeout)),
+          ]);
+          const g = globalThis as any;
+          if (g.__prismaEngineReadyState && typeof g.__prismaEngineReadyState === 'object') {
+            g.__prismaEngineReadyState.readyAt = 0;
+          }
+          console.log('[Prisma] Reconnected successfully');
+          consecutiveConnectionFailures = 0;
+          return true;
+        } catch (e: any) {
+          const msg = typeof e?.message === 'string' ? e.message : String(e);
+          const engineLag =
+            msg.includes('Engine is not yet connected') || msg.includes('timeout');
+          const backoffMs = engineLag ? 300 + 180 * attempt : 500 * (attempt + 1);
+          await new Promise((r) => setTimeout(r, backoffMs));
+        }
+      }
+      console.warn('[Prisma] Reconnect: $connect ok but probe failed (DB may be sleeping or unreachable)');
+      return false;
+    } catch (error: any) {
+      consecutiveConnectionFailures++;
+      console.error(
+        `[Prisma] Reconnection failed (attempt ${consecutiveConnectionFailures}/${MAX_CONSECUTIVE_FAILURES}):`,
+        error?.message || error
+      );
+
+      if (consecutiveConnectionFailures >= MAX_CONSECUTIVE_FAILURES) {
+        console.error('[Prisma] CRITICAL: Multiple reconnection failures. Database may be unavailable.');
+        process.stderr.write(`[CRITICAL] Prisma reconnection failed ${consecutiveConnectionFailures} times\n`);
+      }
+
+      return false;
+    } finally {
+      reconnectInFlight = null;
     }
-    console.warn('[Prisma] Reconnect: $connect ok but probe failed (DB may be sleeping or unreachable)');
-    return false;
-  } catch (error: any) {
-    consecutiveConnectionFailures++;
-    console.error(`[Prisma] Reconnection failed (attempt ${consecutiveConnectionFailures}/${MAX_CONSECUTIVE_FAILURES}):`, error?.message || error);
-    
-    // 연속 실패가 너무 많으면 경고
-    if (consecutiveConnectionFailures >= MAX_CONSECUTIVE_FAILURES) {
-      console.error('[Prisma] CRITICAL: Multiple reconnection failures. Database may be unavailable.');
-      process.stderr.write(`[CRITICAL] Prisma reconnection failed ${consecutiveConnectionFailures} times\n`);
-    }
-    
-    return false;
-  } finally {
-    isReconnecting = false;
-  }
+  })();
+
+  return reconnectInFlight;
 };
 
 /** MainLoop 등에서 연결 실패 시 수동 재연결 트리거 (재시도 간격 내 한 번만 유의미) */
@@ -319,14 +333,19 @@ export function prismaErrorImpliesEngineNotConnected(e: unknown): boolean {
  * 실패 시 $connect() 후 대기·프로브 재시도 (재연결 직후 MainLoop가 "engine not ready"로 무한 스킵하는 버그 방지).
  */
 export const ensurePrismaConnected = async (): Promise<boolean> => {
+  const isRailway =
+    Boolean(process.env.RAILWAY_ENVIRONMENT) ||
+    Boolean(process.env.RAILWAY_PROJECT_ID) ||
+    (typeof process.env.DATABASE_URL === 'string' && process.env.DATABASE_URL.includes('railway'));
+  const probeMs = isRailway ? 6000 : 3000;
   const probe = async (): Promise<boolean> => {
     try {
       await Promise.race([
         prisma.$queryRaw`SELECT 1`,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), probeMs)),
       ]);
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   };
@@ -335,10 +354,11 @@ export const ensurePrismaConnected = async (): Promise<boolean> => {
 
   try {
     await prisma.$connect();
-    await new Promise((r) => setTimeout(r, 800));
-    for (let attempt = 0; attempt < 8; attempt++) {
+    await new Promise((r) => setTimeout(r, isRailway ? 1500 : 800));
+    const warmAttempts = isRailway ? 12 : 8;
+    for (let attempt = 0; attempt < warmAttempts; attempt++) {
       if (await probe()) return true;
-      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+      await new Promise((r) => setTimeout(r, 350 + 200 * attempt));
     }
     // 마지막 시도: 완전 재연결 (disconnect + connect + 긴 프로브)
     return await tryReconnect();

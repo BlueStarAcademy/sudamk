@@ -180,21 +180,15 @@ const ensureAdminAccount = async () => {
 // 데이터베이스 연결 상태 확인 함수
 // isInitialized가 false여도 실제 연결을 시도하여 확인
 export const isDatabaseConnected = async (): Promise<boolean> => {
-    const isRailway =
-        Boolean(process.env.RAILWAY_ENVIRONMENT) ||
-        Boolean(process.env.RAILWAY_PROJECT_ID) ||
-        (typeof process.env.DATABASE_URL === 'string' && process.env.DATABASE_URL.includes('railway'));
-    // Railway Postgres는 배포 직후·부하 시 2초 안에 응답하지 못하는 경우가 있어 503이 과다하게 날 수 있음
-    const probeMs = isRailway ? 8000 : 3000;
+    // $queryRaw만 호출하면 $connect 직후·재연결 직후 "Engine is not yet connected"로 자주 실패함.
+    // prismaClient.ensurePrismaConnected는 $connect + 엔진 준비 대기 + 필요 시 전체 재연결까지 수행.
     try {
-        const prisma = (await import('./prismaClient.js')).default;
-        await Promise.race([
-            prisma.$queryRaw`SELECT 1`,
-            new Promise((_, reject) =>
-                setTimeout(() => reject(new Error(`isDatabaseConnected probe timeout (${probeMs}ms)`)), probeMs)
-            )
-        ]);
-        // 연결 성공 시 isInitialized 업데이트 (Railway 환경에서 재연결 시)
+        const { ensurePrismaConnected } = await import('./prismaClient.js');
+        const ok = await ensurePrismaConnected();
+        if (!ok) {
+            console.warn('[DB] isDatabaseConnected: failed — ensurePrismaConnected returned false');
+            return false;
+        }
         if (!isInitialized) {
             console.log('[DB] Database connection established! Marking as initialized.');
             isInitialized = true;
