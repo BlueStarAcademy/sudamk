@@ -1,12 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { GameMode, LiveGameSession, ServerAction, User, GameStatus } from '../../types.js';
 import KomiBiddingPanel from '../KomiBiddingPanel.js';
+import BaseStoneColorChoicePanel from '../BaseStoneColorChoicePanel.js';
+import BaseSameColorPointsBidPanel from '../BaseSameColorPointsBidPanel.js';
 import { BaseColorRouletteContent } from '../BaseColorRouletteModal.js';
+import { getEffectivePairLobbyOwnerId } from '../../shared/utils/effectivePairLobbyOwnerId.js';
 
 const BASE_PLACEMENT_TIME_LIMIT_SEC = 30;
 
 const BASE_FOOTER_PHASES: readonly GameStatus[] = [
     'base_placement',
+    'base_stone_color_choice',
+    'base_same_color_points_bid',
     'komi_bidding',
     'base_color_roulette',
     'base_komi_result',
@@ -46,72 +51,85 @@ export const BasePlacementControlStrip: React.FC<{
     const baseStoneCount = session.settings.baseStones ?? 4;
     const { player1, player2 } = session;
     const viewerUserId = currentUser.id;
-    const myPlacements =
-        viewerUserId === player1.id
-            ? session.baseStones_p1?.length ?? 0
-            : viewerUserId === player2.id
-              ? session.baseStones_p2?.length ?? 0
-              : null;
+    const pairLobbyOwnerId = getEffectivePairLobbyOwnerId(session);
+    const isPairHostPlacement = Boolean(pairLobbyOwnerId && viewerUserId === pairLobbyOwnerId);
+    const n1s = session.baseStones_p1?.length ?? 0;
+    const n2s = session.baseStones_p2?.length ?? 0;
+    const myPlacements = pairLobbyOwnerId
+        ? isPairHostPlacement
+            ? n1s < baseStoneCount
+                ? n1s
+                : n2s
+            : null
+        : viewerUserId === player1.id
+          ? n1s
+          : viewerUserId === player2.id
+            ? n2s
+            : null;
 
     if (myPlacements === null) return null;
 
-    const isDonePlacing = myPlacements >= baseStoneCount;
-    const myReady = Boolean(session.basePlacementReady?.[viewerUserId]);
+    const stripBasePlacementComplete = pairLobbyOwnerId
+        ? n1s >= baseStoneCount && n2s >= baseStoneCount
+        : myPlacements >= baseStoneCount;
+    const myReady = pairLobbyOwnerId
+        ? Boolean(session.basePlacementReady?.[player1.id] && session.basePlacementReady?.[player2.id])
+        : Boolean(session.basePlacementReady?.[viewerUserId]);
     const showPlacementTools = true;
-    const canRandomFill = showPlacementTools && myPlacements < baseStoneCount;
-    const canResetOrUndo = showPlacementTools && myPlacements > 0;
+    const canRandomFill =
+        showPlacementTools &&
+        (pairLobbyOwnerId ? n1s < baseStoneCount || n2s < baseStoneCount : myPlacements < baseStoneCount);
+    const canResetPlacement = showPlacementTools && (pairLobbyOwnerId ? n1s + n2s > 0 : myPlacements > 0);
 
     const btnBase = `rounded-lg border text-center font-bold transition-colors ${
         isSinglePlayer
             ? 'border-amber-500/50 bg-amber-900/40 text-amber-50 hover:bg-amber-800/45'
             : 'border-cyan-400/45 bg-cyan-950/50 text-cyan-50 hover:bg-cyan-900/45'
-    } ${isMobile ? 'min-h-[2.35rem] px-2 py-2 text-[11px] leading-tight' : 'min-h-[2.5rem] px-2.5 py-2 text-xs sm:text-sm'}`;
+    } ${isMobile ? 'min-h-[2rem] px-2 py-1.5 text-[10px] leading-tight' : 'min-h-[2.15rem] px-2 py-1.5 text-[11px] sm:text-xs'}`;
 
     return (
         <div className="flex min-w-0 max-w-full flex-1 flex-wrap items-stretch justify-center gap-1.5 gap-y-2">
-            {canRandomFill && (
-                <button
-                    type="button"
-                    onClick={() => onAction({ type: 'PLACE_REMAINING_BASE_STONES_RANDOMLY', payload: { gameId } })}
-                    className={`${btnBase} min-w-0 flex-1 basis-[42%] sm:basis-auto sm:min-w-[7rem]`}
-                    title="남은 돌 무작위 배치"
-                >
-                    무작위 배치
-                </button>
-            )}
-            {canResetOrUndo && (
-                <>
-                    <button
-                        type="button"
-                        onClick={() => onAction({ type: 'RESET_MY_BASE_STONE_PLACEMENTS', payload: { gameId } })}
-                        className={`${btnBase} min-w-[3.75rem] flex-1 sm:flex-none`}
-                    >
-                        재배치
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => onAction({ type: 'UNDO_LAST_BASE_STONE_PLACEMENT', payload: { gameId } })}
-                        className={`${btnBase} min-w-[3.75rem] flex-1 sm:flex-none`}
-                    >
-                        취소
-                    </button>
-                </>
-            )}
             <button
                 type="button"
-                disabled={!isDonePlacing || myReady}
+                disabled={!canRandomFill}
                 onClick={() =>
-                    isDonePlacing &&
+                    canRandomFill && onAction({ type: 'PLACE_REMAINING_BASE_STONES_RANDOMLY', payload: { gameId } })
+                }
+                className={`${btnBase} min-w-0 flex-1 basis-[42%] sm:basis-auto sm:min-w-[7rem] ${
+                    !canRandomFill ? 'cursor-not-allowed opacity-55' : ''
+                }`}
+                title={canRandomFill ? '남은 돌 무작위 배치' : '남은 베이스돌이 없습니다'}
+            >
+                랜덤 배치
+            </button>
+            <button
+                type="button"
+                disabled={!canResetPlacement}
+                onClick={() =>
+                    canResetPlacement && onAction({ type: 'RESET_MY_BASE_STONE_PLACEMENTS', payload: { gameId } })
+                }
+                className={`${btnBase} min-w-[3.75rem] flex-1 sm:flex-none ${
+                    !canResetPlacement ? 'cursor-not-allowed opacity-55' : ''
+                }`}
+                title={canResetPlacement ? '배치한 베이스돌을 모두 치웁니다' : '칠 베이스돌이 없습니다'}
+            >
+                재배치
+            </button>
+            <button
+                type="button"
+                disabled={!stripBasePlacementComplete || myReady}
+                onClick={() =>
+                    stripBasePlacementComplete &&
                     !myReady &&
                     onAction({ type: 'CONFIRM_BASE_PLACEMENT_COMPLETE', payload: { gameId } })
                 }
                 className={`${btnBase} min-w-[5.5rem] flex-1 sm:min-w-[6.5rem] ${
-                    !isDonePlacing || myReady ? 'cursor-not-allowed opacity-55' : ''
+                    !stripBasePlacementComplete || myReady ? 'cursor-not-allowed opacity-55' : ''
                 }`}
                 title={
                     myReady
                         ? '상대의 배치 완료를 기다리는 중입니다.'
-                        : isDonePlacing
+                        : stripBasePlacementComplete
                           ? '배치를 마쳤다면 눌러 다음 단계로 진행합니다.'
                           : '베이스돌을 모두 놓은 뒤 눌러 주세요.'
                 }
@@ -131,6 +149,50 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
     hideBasePlacementActions = false,
 }) => {
     const { gameStatus, id: gameId } = session;
+    /** 싱글·PVP 인간 대국은 동일한 베이스 전 플로우 UI(앰버 톤); 로비 AI전만 기존 시안 톤 유지 */
+    const unifiedBasePrePlayChrome = isSinglePlayer || !session.isAiGame;
+
+    const [basePlacementSecondsLeft, setBasePlacementSecondsLeft] = useState(0);
+    useEffect(() => {
+        if (gameStatus !== 'base_placement' || !session.basePlacementDeadline) {
+            setBasePlacementSecondsLeft(0);
+            return;
+        }
+        const tick = () => {
+            setBasePlacementSecondsLeft(Math.max(0, Math.ceil((session.basePlacementDeadline! - Date.now()) / 1000)));
+        };
+        tick();
+        const id = setInterval(tick, 250);
+        return () => clearInterval(id);
+    }, [gameStatus, session.basePlacementDeadline]);
+
+    if (gameStatus === 'base_stone_color_choice') {
+        return (
+            <div className="flex w-full min-w-0 flex-col gap-1">
+                <BaseStoneColorChoicePanel
+                    session={session}
+                    currentUser={currentUser}
+                    onAction={onAction as (a: ServerAction) => void}
+                    layout="inline"
+                    isSinglePlayer={unifiedBasePrePlayChrome}
+                />
+            </div>
+        );
+    }
+
+    if (gameStatus === 'base_same_color_points_bid') {
+        return (
+            <div className="flex w-full min-w-0 flex-col gap-1">
+                <BaseSameColorPointsBidPanel
+                    session={session}
+                    currentUser={currentUser}
+                    onAction={onAction as (a: ServerAction) => void}
+                    layout="inline"
+                    isSinglePlayer={unifiedBasePrePlayChrome}
+                />
+            </div>
+        );
+    }
 
     if (gameStatus === 'komi_bidding') {
         return (
@@ -159,29 +221,22 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
     const baseStoneCount = session.settings.baseStones ?? 4;
     const { player1, player2 } = session;
     const viewerUserId = currentUser.id;
-    const myPlacements =
-        viewerUserId === player1.id
-            ? session.baseStones_p1?.length ?? 0
-            : viewerUserId === player2.id
-              ? session.baseStones_p2?.length ?? 0
-              : null;
+    const pairLobbyOwnerId = getEffectivePairLobbyOwnerId(session);
+    const isPairHostPlacement = Boolean(pairLobbyOwnerId && viewerUserId === pairLobbyOwnerId);
+    const n1c = session.baseStones_p1?.length ?? 0;
+    const n2c = session.baseStones_p2?.length ?? 0;
+    const myPlacements = pairLobbyOwnerId
+        ? isPairHostPlacement
+            ? n1c < baseStoneCount
+                ? n1c
+                : n2c
+            : null
+        : viewerUserId === player1.id
+          ? n1c
+          : viewerUserId === player2.id
+            ? n2c
+            : null;
 
-    const [basePlacementSecondsLeft, setBasePlacementSecondsLeft] = useState(0);
-    useEffect(() => {
-        if (!session.basePlacementDeadline) {
-            setBasePlacementSecondsLeft(0);
-            return;
-        }
-        const tick = () => {
-            setBasePlacementSecondsLeft(Math.max(0, Math.ceil((session.basePlacementDeadline! - Date.now()) / 1000)));
-        };
-        tick();
-        const id = setInterval(tick, 250);
-        return () => clearInterval(id);
-    }, [session.basePlacementDeadline]);
-
-    const isDonePlacing = myPlacements !== null && myPlacements >= baseStoneCount;
-    const myReady = Boolean(viewerUserId && session.basePlacementReady?.[viewerUserId]);
     const hasDeadline = Boolean(session.basePlacementDeadline);
     const secLeft = hasDeadline ? basePlacementSecondsLeft : null;
     const barPct =
@@ -208,18 +263,56 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
         );
     }
 
+    if (pairLobbyOwnerId && !isPairHostPlacement) {
+        return (
+            <div className={`flex w-full min-w-0 flex-col gap-2 ${isMobile ? 'px-0.5' : 'px-1'}`}>
+                <p className="text-center text-[11px] font-semibold text-sky-200/95 sm:text-xs">방장이 양쪽 베이스돌을 배치합니다.</p>
+                {barPct !== null && (
+                    <div
+                        className={`relative w-full flex-shrink-0 overflow-hidden rounded-full border-2 border-white/25 bg-slate-800/80 ${
+                            isMobile ? 'h-1.5' : 'h-2'
+                        }`}
+                    >
+                        <div
+                            className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-emerald-400 via-lime-400 to-amber-300"
+                            style={{ width: `${barPct}%`, transition: 'width 0.35s linear' }}
+                        />
+                    </div>
+                )}
+            </div>
+        );
+    }
+
     const isAdventureVsAi = session.gameCategory === 'adventure' && session.isAiGame;
 
+    const footerBasePlacementComplete = pairLobbyOwnerId
+        ? n1c >= baseStoneCount && n2c >= baseStoneCount
+        : myPlacements !== null && myPlacements >= baseStoneCount;
+    const myReady = pairLobbyOwnerId
+        ? Boolean(session.basePlacementReady?.[player1.id] && session.basePlacementReady?.[player2.id])
+        : Boolean(viewerUserId && session.basePlacementReady?.[viewerUserId]);
+
     let primaryLine: string;
-    if (myPlacements === null) {
+    if (myPlacements === null && !pairLobbyOwnerId) {
         primaryLine = '베이스돌 배치 단계입니다.';
-    } else if (isDonePlacing && !myReady) {
+    } else if (pairLobbyOwnerId && isPairHostPlacement && !footerBasePlacementComplete) {
+        const side = n1c < baseStoneCount ? player1.nickname : player2.nickname;
+        const cur = n1c < baseStoneCount ? n1c : n2c;
+        const parts = [
+            `방장 배치: ${side} 측 베이스돌`,
+            `남은 베이스돌 (${Math.max(0, baseStoneCount - cur)}/${baseStoneCount})`,
+        ];
+        if (hasDeadline && secLeft !== null && session.gameCategory !== 'adventure') parts.push(`남은 시간 ${secLeft}초`);
+        primaryLine = parts.join(' · ');
+    } else if (footerBasePlacementComplete && !myReady) {
         primaryLine = `남은 베이스돌 (0/${baseStoneCount}) · 배치 완료를 눌러 주세요`;
-    } else if (isDonePlacing && myReady) {
-        primaryLine = `남은 베이스돌 (0/${baseStoneCount}) · 상대 확인 대기 중…`;
+    } else if (footerBasePlacementComplete && myReady) {
+        primaryLine = pairLobbyOwnerId
+            ? `남은 베이스돌 (0/${baseStoneCount}) · 다음 단계로 진행 중…`
+            : `남은 베이스돌 (0/${baseStoneCount}) · 상대 확인 대기 중…`;
     } else {
         const hint = isAdventureVsAi ? '베이스돌을 바둑판에 놓으세요' : '상대에게 보이지 않게 베이스돌을 바둑판에 놓으세요';
-        const remain = Math.max(0, baseStoneCount - myPlacements);
+        const remain = Math.max(0, baseStoneCount - (myPlacements ?? 0));
         const parts = [hint, `남은 베이스돌 (${remain}/${baseStoneCount})`];
         if (hasDeadline && secLeft !== null && session.gameCategory !== 'adventure') {
             parts.push(`남은 시간 ${secLeft}초`);
@@ -227,15 +320,15 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
         primaryLine = parts.join(' · ');
     }
 
-    const showPlacementTools = myPlacements !== null;
-    const canRandomFill = showPlacementTools && myPlacements! < baseStoneCount;
-    const canResetOrUndo = showPlacementTools && myPlacements! > 0;
+    const showPlacementTools = pairLobbyOwnerId ? isPairHostPlacement : myPlacements !== null;
+    const canRandomFill = showPlacementTools && (pairLobbyOwnerId ? (n1c < baseStoneCount || n2c < baseStoneCount) : (myPlacements ?? 0) < baseStoneCount);
+    const canResetPlacement = showPlacementTools && (pairLobbyOwnerId ? n1c + n2c > 0 : (myPlacements ?? 0) > 0);
 
     const btnBase = `rounded-lg border text-center font-bold transition-colors ${
         isSinglePlayer
             ? 'border-amber-500/50 bg-amber-900/40 text-amber-50 hover:bg-amber-800/45'
             : 'border-cyan-400/45 bg-cyan-950/50 text-cyan-50 hover:bg-cyan-900/45'
-    } ${isMobile ? 'min-h-[2.45rem] px-2 py-2 text-[11px]' : 'min-h-[2.65rem] px-3 py-2.5 text-xs sm:text-sm'}`;
+    } ${isMobile ? 'min-h-[2.05rem] px-2 py-1.5 text-[10px]' : 'min-h-[2.25rem] px-2.5 py-2 text-[11px] sm:text-xs'}`;
 
     return (
         <div className={`flex w-full min-w-0 flex-col gap-2 ${isMobile ? 'px-0.5' : 'px-1'}`}>
@@ -259,48 +352,47 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
                 </div>
             )}
             <div className="flex w-full flex-wrap items-stretch justify-center gap-1.5 gap-y-2">
-                {canRandomFill && (
-                    <button
-                        type="button"
-                        onClick={() => onAction({ type: 'PLACE_REMAINING_BASE_STONES_RANDOMLY', payload: { gameId } })}
-                        className={`${btnBase} min-w-0 flex-1 basis-[44%] sm:min-w-[7.5rem]`}
-                    >
-                        남은 돌 무작위 배치
-                    </button>
-                )}
-                {canResetOrUndo && (
-                    <>
-                        <button
-                            type="button"
-                            onClick={() => onAction({ type: 'RESET_MY_BASE_STONE_PLACEMENTS', payload: { gameId } })}
-                            className={`${btnBase} min-w-[4rem] flex-1 sm:flex-none`}
-                        >
-                            재배치
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => onAction({ type: 'UNDO_LAST_BASE_STONE_PLACEMENT', payload: { gameId } })}
-                            className={`${btnBase} min-w-[4rem] flex-1 sm:flex-none`}
-                        >
-                            마지막 취소
-                        </button>
-                    </>
-                )}
                 <button
                     type="button"
-                    disabled={!isDonePlacing || myReady}
+                    disabled={!canRandomFill}
                     onClick={() =>
-                        isDonePlacing &&
+                        canRandomFill && onAction({ type: 'PLACE_REMAINING_BASE_STONES_RANDOMLY', payload: { gameId } })
+                    }
+                    className={`${btnBase} min-w-0 flex-1 basis-[44%] sm:min-w-[7.5rem] ${
+                        !canRandomFill ? 'cursor-not-allowed opacity-55' : ''
+                    }`}
+                    title={canRandomFill ? '남은 돌 무작위 배치' : '남은 베이스돌이 없습니다'}
+                >
+                    랜덤 배치
+                </button>
+                <button
+                    type="button"
+                    disabled={!canResetPlacement}
+                    onClick={() =>
+                        canResetPlacement && onAction({ type: 'RESET_MY_BASE_STONE_PLACEMENTS', payload: { gameId } })
+                    }
+                    className={`${btnBase} min-w-[4rem] flex-1 sm:flex-none ${
+                        !canResetPlacement ? 'cursor-not-allowed opacity-55' : ''
+                    }`}
+                    title={canResetPlacement ? '배치한 베이스돌을 모두 치웁니다' : '칠 베이스돌이 없습니다'}
+                >
+                    재배치
+                </button>
+                <button
+                    type="button"
+                    disabled={!footerBasePlacementComplete || myReady}
+                    onClick={() =>
+                        footerBasePlacementComplete &&
                         !myReady &&
                         onAction({ type: 'CONFIRM_BASE_PLACEMENT_COMPLETE', payload: { gameId } })
                     }
                     className={`${btnBase} min-w-[5.5rem] flex-1 sm:min-w-[6.5rem] ${
-                        !isDonePlacing || myReady ? 'cursor-not-allowed opacity-55' : ''
+                        !footerBasePlacementComplete || myReady ? 'cursor-not-allowed opacity-55' : ''
                     }`}
                     title={
                         myReady
                             ? '상대의 배치 완료를 기다리는 중입니다.'
-                            : isDonePlacing
+                            : footerBasePlacementComplete
                               ? '배치를 마쳤다면 눌러 다음 단계로 진행합니다.'
                               : '베이스돌을 모두 놓은 뒤 눌러 주세요.'
                     }

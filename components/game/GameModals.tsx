@@ -7,9 +7,10 @@ import NigiriModal from '../NigiriModal.js';
 import CaptureBidModal from '../CaptureBidModal.js';
 import CaptureTiebreakerModal from '../CaptureTiebreakerModal.js';
 import RPSMinigame from '../RPSMinigame.js';
-import ThiefRoleSelection from '../ThiefRoleSelection.js';
 import ThiefRoleConfirmedModal from '../ThiefRoleConfirmedModal.js';
+import ThiefDeathmatchRoleRouletteModal from '../ThiefDeathmatchRoleRouletteModal.js';
 import TurnPreferenceSelection from '../TurnPreferenceSelection.js';
+import TurnPreferenceRouletteModal from '../TurnPreferenceRouletteModal.js';
 import NoContestModal from '../NoContestModal.js';
 import ThiefRoundSummary from '../ThiefRoundSummary.js';
 import CurlingRoundSummary from '../CurlingRoundSummary.js';
@@ -17,6 +18,8 @@ import Button from '../Button.js';
 import DiceRoundSummary from '../DiceRoundSummary.js';
 import AlkkagiRoundSummary from '../AlkkagiRoundSummary.js';
 import KomiBiddingPanel from '../KomiBiddingPanel.js';
+import BaseStoneColorChoicePanel from '../BaseStoneColorChoicePanel.js';
+import BaseSameColorPointsBidPanel from '../BaseSameColorPointsBidPanel.js';
 import NegotiationModal from '../NegotiationModal.js';
 import DiceGoTurnSelectionModal from '../DiceGoTurnSelectionModal.js';
 import BaseStartConfirmationModal from '../BaseStartConfirmationModal.js';
@@ -59,6 +62,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
 
     const baseUsesBottomStrip =
         mode === GameMode.Base || (mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Base)));
+    const unifiedBasePrePlayChrome = session.isSinglePlayer || !session.isAiGame;
 
     const renderModals = () => {
         // AI 봇 대전(대기실의 "AI와 대결하기"로 시작된 일반/로비 AI 경기만):
@@ -100,13 +104,16 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         const playerOnlyStates: GameStatus[] = [
             'nigiri_choosing', 'nigiri_guessing',
             'base_placement',
+            'base_stone_color_choice',
+            'base_same_color_points_bid',
             'komi_bidding',
             'capture_bidding',
             'dice_rps', 'thief_rps', 'alkkagi_rps', 'curling_rps', 'omok_rps', 'ttamok_rps',
             'color_start_confirmation',
             'base_komi_result',
             'turn_preference_selection',
-            'thief_role_selection',
+            'turn_preference_roulette',
+            'thief_deathmatch_role_roulette',
             'dice_turn_rolling',
             
         ];
@@ -120,9 +127,38 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         if (gameStatus === 'dice_turn_rolling' || gameStatus === 'dice_turn_rolling_animating' || gameStatus === 'dice_turn_choice') return <DiceGoTurnSelectionModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'dice_start_confirmation') return <DiceGoStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'color_start_confirmation') return <ColorStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
+        if (gameStatus === 'turn_preference_roulette') return <TurnPreferenceRouletteModal session={session} />;
         if (gameStatus === 'turn_preference_selection') return <TurnPreferenceSelection session={session} currentUser={currentUser} onAction={onAction} tiebreaker={session.turnSelectionTiebreaker} />;
         if (gameStatus === 'capture_bidding') return <CaptureBidModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (['capture_tiebreaker', 'capture_reveal'].includes(gameStatus)) return <CaptureTiebreakerModal session={session} currentUser={currentUser} onAction={onAction} />;
+        if (gameStatus === 'base_stone_color_choice') {
+            if (baseUsesBottomStrip) return null;
+            return (
+                <div className="pointer-events-auto mx-auto flex w-full max-w-md justify-center px-2">
+                    <BaseStoneColorChoicePanel
+                        session={session}
+                        currentUser={currentUser}
+                        onAction={onAction}
+                        layout="inline"
+                        isSinglePlayer={unifiedBasePrePlayChrome}
+                    />
+                </div>
+            );
+        }
+        if (gameStatus === 'base_same_color_points_bid') {
+            if (baseUsesBottomStrip) return null;
+            return (
+                <div className="pointer-events-auto mx-auto flex w-full max-w-md justify-center px-2">
+                    <BaseSameColorPointsBidPanel
+                        session={session}
+                        currentUser={currentUser}
+                        onAction={onAction}
+                        layout="inline"
+                        isSinglePlayer={unifiedBasePrePlayChrome}
+                    />
+                </div>
+            );
+        }
         if (gameStatus === 'komi_bidding') {
             if (baseUsesBottomStrip && gameStatus === 'komi_bidding') return null;
             return <KomiBiddingPanel session={session} currentUser={currentUser} onAction={onAction} />;
@@ -138,7 +174,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         if (rpsStates.includes(gameStatus)) return <RPSMinigame session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'alkkagi_start_confirmation') return <AlkkagiStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'curling_start_confirmation') return <CurlingStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
-        if (gameStatus === 'thief_role_selection') return <ThiefRoleSelection session={session} currentUser={currentUser} onAction={onAction} />;
+        if (gameStatus === 'thief_deathmatch_role_roulette') return <ThiefDeathmatchRoleRouletteModal session={session} />;
         if (gameStatus === 'thief_role_confirmed') return <ThiefRoleConfirmedModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'thief_round_end') return <ThiefRoundSummary session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'curling_round_end') return <CurlingRoundSummary session={session} currentUser={currentUser} onAction={onAction} />;
@@ -149,9 +185,13 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         // 게임이 종료되었을 때만 결과 모달 표시
         // scoring 상태일 때는 분석 결과가 준비될 때까지 게임 화면을 유지 (바둑판 초기화 방지)
         // 도전의 탑과 싱글플레이어는 이미 위에서 처리했으므로 제외
-        // 확인 버튼을 눌렀을 때 모달이 닫히도록 하기 위해 showResultModal이 명시적으로 false일 때는 모달을 표시하지 않음
-        if ((showResultModal !== false && (showResultModal || gameStatus === 'ended' || gameStatus === 'no_contest')) && 
-            !session.isSinglePlayer && session.gameCategory !== 'tower') {
+        // 싱글/탑과 동일: `ended`만으로는 모달을 띄우지 않음 — 확인으로 showResultModal을 false로 내린 뒤 ended여도 다시 뜨는 무한 루프 방지
+        if (
+            showResultModal &&
+            (gameStatus === 'ended' || gameStatus === 'no_contest') &&
+            !session.isSinglePlayer &&
+            session.gameCategory !== 'tower'
+        ) {
             if (gameStatus === 'ended') return (
                 <GameSummaryModal
                     session={session}

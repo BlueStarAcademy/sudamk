@@ -6,8 +6,18 @@ import {
     deterministicPairAiOpponentPetDisplayLevelFromSeed,
     resolveAiLobbyProfileStepFromSettings,
 } from '../../shared/utils/strategicAiDifficulty.js';
+import {
+    type WaitingLobbyPanelTone,
+    pairAggregateRoomSeatDelegateBtnToneClass,
+} from '../waiting-room/waitingLobbyHomePanelStyles.js';
 
 export type PairRoomKind = 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'arena_ai';
+
+function seatGridPetMutedHeadingClass(lobby: WaitingLobbyPanelTone): string {
+    if (lobby === 'strategic') return 'text-cyan-200/95';
+    if (lobby === 'playful') return 'text-amber-200/95';
+    return 'text-violet-200/95';
+}
 
 type SeatTone = 'open' | 'filled' | 'locked';
 
@@ -32,8 +42,7 @@ function HostHomeBadge({ compact }: { compact?: boolean }) {
             className={`pointer-events-none absolute z-[2] flex items-center justify-center rounded-md border border-amber-400/50 bg-amber-950/90 shadow-[0_0_8px_rgba(251,191,36,0.25)] ${
                 compact ? 'right-0.5 top-0.5 h-4 w-4' : 'right-1 top-1 h-5 w-5'
             }`}
-            title="방장"
-            aria-label="방장"
+            aria-label="주최"
         >
             <svg width={compact ? 10 : 12} height={compact ? 10 : 12} viewBox="0 0 24 24" fill="none" className="text-amber-200" aria-hidden>
                 <path
@@ -85,6 +94,7 @@ function SeatTile({
     petLineName,
     avatarUrl,
     borderUrl,
+    lobbyChromeTone = 'pair',
 }: {
     tone: SeatTone;
     label: string;
@@ -114,11 +124,22 @@ function SeatTile({
     petLineName?: string | null;
     avatarUrl?: string | null;
     borderUrl?: string | null;
+    lobbyChromeTone?: WaitingLobbyPanelTone;
 }) {
     const locked = tone === 'locked';
     const open = tone === 'open';
     const ally = accent === 'ally';
     const enemy = accent === 'enemy';
+    const ch = lobbyChromeTone ?? 'pair';
+
+    const neutralBorder =
+        ch === 'strategic' ? 'border-cyan-400/38' : ch === 'playful' ? 'border-amber-400/38' : 'border-violet-400/35';
+    const neutralBg =
+        ch === 'strategic'
+            ? 'bg-gradient-to-b from-cyan-950/38 to-black'
+            : ch === 'playful'
+              ? 'bg-gradient-to-b from-amber-950/40 to-black'
+              : 'bg-gradient-to-b from-violet-950/40 to-black';
 
     const baseBorder = locked
         ? 'border-zinc-600/40'
@@ -128,7 +149,7 @@ function SeatTile({
             ? open
               ? 'border-cyan-400/45'
               : 'border-emerald-400/45'
-            : 'border-violet-400/35';
+            : neutralBorder;
 
     const baseBg = locked
         ? 'bg-gradient-to-b from-zinc-950/95 to-black'
@@ -138,7 +159,7 @@ function SeatTile({
             ? open
               ? 'bg-gradient-to-b from-cyan-950/35 via-slate-950/60 to-black/90'
               : 'bg-gradient-to-b from-emerald-950/45 via-slate-950/70 to-black/90'
-            : 'bg-gradient-to-b from-violet-950/40 to-black';
+            : neutralBg;
 
     const innerGlow =
         !locked && ally
@@ -149,17 +170,21 @@ function SeatTile({
 
     const interactive = open && typeof onOpenClick === 'function';
     const droppable = typeof onDropUser === 'function' && dropTeam !== undefined && dropIndex !== undefined;
+    /** 펫 슬롯: 레벨(있으면)·이름 — `tileH`보다 먼저 선언(TDZ 방지) */
+    const usePetNameLines = Boolean(petLineName);
+    const compactPetFilled = Boolean(compact && usePetNameLines && tone === 'filled');
+    /** 모바일은 세로 스택(이미지→레벨→이름); 가로 인라인은 패널 밖으로 넘치기 쉬워 compact에서는 끔 */
+    const filledInline = Boolean(profileInline && tone === 'filled' && !compact);
     const tileH = actionFooter
         ? compact
             ? 'min-h-[6.75rem] px-1.5 py-1'
             : 'min-h-[9.25rem] px-2 py-2'
         : compact
-          ? 'h-[5.25rem] min-h-[5.25rem] px-1.5 py-1'
+          ? compactPetFilled
+              ? 'min-h-[6.75rem] max-h-[9rem] px-1.5 py-1'
+              : 'h-[5.25rem] min-h-[5.25rem] px-1.5 py-1'
           : 'h-[7.5rem] min-h-[7.5rem] px-2 py-2';
     const avSize = compact ? 32 : 40;
-    const filledInline = Boolean(profileInline && tone === 'filled');
-    /** 펫 슬롯: 레벨(있으면)·이름(한 줄, 폭에 따라 폰트 축소, 줄임표 없음) */
-    const usePetNameLines = Boolean(petLineName);
 
     return (
         <div
@@ -193,7 +218,7 @@ function SeatTile({
                 const dragged = e.dataTransfer.getData('text/pair-user-id');
                 if (dragged) onDropUser(dropTeam, dropIndex, dragged);
             }}
-            className={`relative flex ${tileH} flex-col rounded-lg border transition sm:rounded-xl ${baseBorder} ${baseBg} ${innerGlow} ${
+            className={`relative flex min-w-0 ${tileH} flex-col overflow-hidden rounded-lg border transition sm:rounded-xl ${baseBorder} ${baseBg} ${innerGlow} ${
                 interactive ? 'cursor-pointer hover:border-cyan-300/55 hover:brightness-[1.03] active:scale-[0.99]' : ''
             } ${tone === 'filled' && onProfileClick ? 'cursor-pointer' : ''} ${droppable && isDropTarget ? 'ring-2 ring-cyan-400/50 ring-offset-2 ring-offset-black/40' : ''} ${
                 draggable && tone === 'filled' ? 'cursor-grab active:cursor-grabbing' : ''
@@ -203,8 +228,8 @@ function SeatTile({
             <div
                 className={
                     filledInline
-                        ? 'flex min-h-0 w-full flex-1 flex-row items-center gap-1 text-left'
-                        : 'flex min-h-0 w-full flex-1 flex-col items-center justify-center text-center'
+                        ? 'flex min-h-0 w-full min-w-0 flex-1 flex-row items-center gap-1 overflow-hidden text-left'
+                        : 'flex min-h-0 w-full min-w-0 flex-1 flex-col items-center justify-center overflow-hidden px-0.5 text-center'
                 }
             >
             {locked ? (
@@ -269,7 +294,7 @@ function SeatTile({
                             <>
                                 {petLineLevel ? (
                                     <span
-                                        className={`w-full whitespace-nowrap font-extrabold leading-none text-violet-200/95 ${compact ? 'text-[9px]' : 'text-[11px]'}`}
+                                        className={`w-full whitespace-nowrap font-extrabold leading-none ${seatGridPetMutedHeadingClass(ch)} ${compact ? 'text-[9px]' : 'text-[11px]'}`}
                                     >
                                         {petLineLevel}
                                     </span>
@@ -346,16 +371,26 @@ function SeatTile({
                     </div>
                     {usePetNameLines ? (
                         <div
-                            className={`@container mt-0.5 flex min-w-0 max-w-full flex-col items-center gap-0.5 px-0.5 ${compact ? 'text-[11px]' : 'text-sm'}`}
+                            className={`@container mt-0.5 flex min-h-0 min-w-0 max-w-full flex-col items-center justify-center gap-0.5 overflow-hidden px-0.5 ${
+                                compact ? 'text-[10px]' : 'text-sm'
+                            }`}
                         >
                             {petLineLevel ? (
-                                <span className={`whitespace-nowrap font-extrabold leading-none text-violet-200/95 ${compact ? 'text-[9px]' : 'text-xs'}`}>
+                                <span
+                                    className={`max-w-full text-center font-extrabold leading-none ${seatGridPetMutedHeadingClass(ch)} ${
+                                        compact
+                                            ? 'text-[clamp(7px,3.1vw,10px)] leading-tight [overflow-wrap:anywhere]'
+                                            : 'whitespace-nowrap text-xs'
+                                    }`}
+                                >
                                     {petLineLevel}
                                 </span>
                             ) : null}
                             <span
-                                className={`block min-w-0 max-w-full whitespace-nowrap text-center font-extrabold leading-none text-white ${
-                                    compact ? '[font-size:clamp(5.5px,9.5cqw,0.75rem)]' : '[font-size:clamp(6px,10.5cqw,0.875rem)]'
+                                className={`block min-w-0 max-w-full text-center font-extrabold leading-tight text-white ${
+                                    compact
+                                        ? 'line-clamp-3 max-h-[3.4rem] text-[clamp(7px,3.4vw,11px)] [overflow-wrap:anywhere] hyphens-auto'
+                                        : 'whitespace-nowrap [font-size:clamp(6px,10.5cqw,0.875rem)] leading-none'
                                 }`}
                             >
                                 {petLineName}
@@ -368,13 +403,21 @@ function SeatTile({
                     )}
                     {subLabel && usePetNameLines ? (
                         <span
-                            className={`max-w-full truncate font-bold uppercase tracking-wider text-emerald-200/65 ${compact ? 'text-[8px] leading-tight' : 'text-[10px]'}`}
+                            className={`max-w-full text-center font-bold uppercase leading-tight tracking-wider text-emerald-200/65 ${
+                                compact
+                                    ? 'line-clamp-2 text-[clamp(6px,2.9vw,9px)] [overflow-wrap:anywhere]'
+                                    : 'truncate text-[10px]'
+                            }`}
                         >
                             {subLabel}
                         </span>
                     ) : (subLabel || label) && (subLabel || label) !== (userName || label) && !usePetNameLines ? (
                         <span
-                            className={`max-w-full truncate font-bold uppercase tracking-wider text-emerald-200/65 ${compact ? 'text-[8px] leading-tight' : 'text-[10px]'}`}
+                            className={`max-w-full text-center font-bold uppercase leading-tight tracking-wider text-emerald-200/65 ${
+                                compact
+                                    ? 'line-clamp-2 text-[clamp(6px,2.9vw,9px)] [overflow-wrap:anywhere]'
+                                    : 'truncate text-[10px]'
+                            }`}
                         >
                             {subLabel || label}
                         </span>
@@ -436,7 +479,9 @@ function TeamPanel({
                     ) : null}
                 </div>
             )}
-            <div className={`grid ${seatColumns === 1 ? 'grid-cols-1' : 'grid-cols-2'} ${compact ? 'gap-1.5' : 'gap-2'}`}>
+            <div
+                className={`grid min-w-0 ${seatColumns === 1 ? 'grid-cols-1' : 'grid-cols-2'} ${compact ? 'gap-1.5' : 'gap-2'} [&>*]:min-w-0`}
+            >
                 {children}
             </div>
         </div>
@@ -455,6 +500,21 @@ type GridCell = {
     petLineLevel?: string | null;
     petLineName?: string | null;
 };
+
+function pairSeatMemberToGridCell(m: PairSeatMember): GridCell {
+    return {
+        userId: m.id,
+        name: m.name,
+        kind: m.kind,
+        ready: m.ready,
+        subLabel: m.subLabel,
+        portraitSrc: m.portraitSrc,
+        avatarUrl: m.avatarUrl,
+        borderUrl: m.borderUrl,
+        petLineLevel: m.petLineLevel,
+        petLineName: m.petLineName,
+    };
+}
 
 function membersToTwoSlots(members: PairSeatMember[] | undefined): [GridCell, GridCell] {
     const users = (members || []).filter((m) => m.kind === 'user' || m.kind === 'pet');
@@ -494,15 +554,30 @@ function membersToSlotIds(members: PairSeatMember[] | undefined): [string | null
     return [u[0] ?? null, u[1] ?? null];
 }
 
-/** 서버 teamA/teamB와 무관하게, 보는 사람 기준으로 아군 팀 열을 고릅니다(내 id 또는 pet-ai-나). */
-function pickViewerAllyTeam(
-    viewerId: string,
+/** 팀당 1칸 UI: 해당 유저 칸을 우선(같은 팀에 주최·게스트만 있어도 1·2번 슬롯 구분) */
+function preferCellForUserInPair(g: [GridCell, GridCell], userId: string): GridCell {
+    if (g[0].userId === userId) return g[0];
+    if (g[1].userId === userId) return g[1];
+    if (g[0].userId) return g[0];
+    if (g[1].userId) return g[1];
+    return g[0];
+}
+
+function preferCellForOtherHumanInPair(g: [GridCell, GridCell], excludeUserId: string): GridCell | null {
+    if (g[0].userId && g[0].userId !== excludeUserId) return g[0];
+    if (g[1].userId && g[1].userId !== excludeUserId) return g[1];
+    return null;
+}
+
+/** 방장이 앉은 서버 팀(teamA 왼쪽 / teamB 오른쪽). 모든 참가자가 동일한 좌우·톤을 보도록 고정. */
+function pickOwnerHomeTeam(
+    ownerId: string,
     teamAMembers: PairSeatMember[] | undefined,
     teamBMembers: PairSeatMember[] | undefined,
 ): 'teamA' | 'teamB' {
-    const isMine = (m: PairSeatMember) => m.id === viewerId || m.id === `pet-ai-${viewerId}`;
-    if ((teamAMembers ?? []).some(isMine)) return 'teamA';
-    if ((teamBMembers ?? []).some(isMine)) return 'teamB';
+    const isOwnerSeat = (m: PairSeatMember) => m.id === ownerId || m.id === `pet-ai-${ownerId}`;
+    if ((teamAMembers ?? []).some(isOwnerSeat)) return 'teamA';
+    if ((teamBMembers ?? []).some(isOwnerSeat)) return 'teamB';
     return 'teamA';
 }
 
@@ -629,6 +704,8 @@ export interface PairRoomSeatGridProps {
     kickUiDisabled?: boolean;
     /** 모바일 페어 대기실: 슬롯·프로필 축소 */
     compact?: boolean;
+    /** 집계 로비 방 안: 좌석·위임 버튼 톤(전략·페어·놀이) */
+    seatChromeTone?: WaitingLobbyPanelTone;
     /** 전략/놀이 1:1 등 팀당 착석 슬롯 1개만 표시(화면에 슬롯 2개) */
     oneSlotPerTeam?: boolean;
     /** `arena_ai`·펫 페어 AI 상대 슬롯 — 선택 모드 기준 봇 표시 */
@@ -662,6 +739,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     onDelegateRoomOwnershipRequest,
     kickUiDisabled = false,
     compact = false,
+    seatChromeTone = 'pair',
     oneSlotPerTeam = false,
     arenaAiGameMode,
     pairAiLobbyRoomId,
@@ -672,7 +750,6 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     const isFriendlyTwoPet = roomKind === 'friendly_2p';
     const isFriendly = roomKind === 'friendly_4p';
 
-    const ownerLabel = viewerId === ownerId ? '방장 (나)' : '방장';
     const partnerSlotFilled = Boolean(partnerId && !String(partnerId).startsWith('pet-ai-'));
     const partnerDisplayId = partnerSlotFilled ? partnerId : undefined;
     const partnerDisplayName = partnerSlotFilled ? partnerName || '파트너' : undefined;
@@ -767,6 +844,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                     isRoomHost={false}
                     showReady
                     compact={compact}
+                    lobbyChromeTone={seatChromeTone}
                     actionFooter={emptySeatKickReserveFooter}
                 />
             );
@@ -828,7 +906,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                                         e.stopPropagation();
                                         onDelegateRoomOwnershipRequest(uid);
                                     }}
-                                    className={`${kickStripBtnClass} border border-violet-400/55 bg-violet-950/70 text-violet-100 hover:border-violet-300/60 hover:bg-violet-900/55 disabled:pointer-events-none disabled:opacity-45`}
+                                    className={`${kickStripBtnClass} ${pairAggregateRoomSeatDelegateBtnToneClass(seatChromeTone)} disabled:pointer-events-none disabled:opacity-45`}
                                 >
                                     위임
                                 </button>
@@ -868,6 +946,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                     petLineName={cell.petLineName ?? undefined}
                     avatarUrl={cell.avatarUrl ?? undefined}
                     borderUrl={cell.borderUrl ?? undefined}
+                    lobbyChromeTone={seatChromeTone}
                 />
             );
         }
@@ -884,6 +963,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                 dropIndex={slotIdx}
                 isDropTarget={canDragAssign}
                 compact={compact}
+                lobbyChromeTone={seatChromeTone}
                 actionFooter={emptySeatKickReserveFooter}
             />
         );
@@ -893,20 +973,20 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
 
     /** 전략/놀이 AI방: 팀당 1칸이 아니라 방장 vs AI 두 칸(데이터상 AI 자리는 teamA 슬롯 1) */
     if (oneSlotPerTeam && roomKind === 'arena_ai') {
-        const allyTeam = pickViewerAllyTeam(viewerId, teamAMembers, teamBMembers);
-        const accentHuman = allyTeam === 'teamA' ? 'ally' : 'enemy';
-        const accentAi = allyTeam === 'teamA' ? 'enemy' : 'ally';
+        const hostHomeTeam = pickOwnerHomeTeam(ownerId, teamAMembers, teamBMembers);
+        const accentHuman = hostHomeTeam === 'teamA' ? 'ally' : 'enemy';
+        const accentAi = hostHomeTeam === 'teamA' ? 'enemy' : 'ally';
         return (
             <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
                 <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
-                    <TeamPanel title="" subtitle="" variant={allyTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={1}>
+                    <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={1}>
                         {renderHumanSlot(gridA[0], 0, 'teamA', accentHuman, {
                             emptyLabel: '빈 슬롯',
                             emptySub: inviteOpen('teamA', 0) ? '터치하여 초대' : undefined,
                             onOpen: inviteOpen('teamA', 0),
                         })}
                     </TeamPanel>
-                    <TeamPanel title="" subtitle="" variant={allyTeam === 'teamA' ? 'enemy' : 'ally'} compact={compact} seatColumns={1}>
+                    <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamA' ? 'enemy' : 'ally'} compact={compact} seatColumns={1}>
                         {renderHumanSlot(gridA[1], 1, 'teamA', accentAi, {
                             emptyLabel: 'AI',
                             emptySub: '카타 AI',
@@ -920,13 +1000,13 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     }
 
     if (isFriendly) {
-        const allyTeam = pickViewerAllyTeam(viewerId, teamAMembers, teamBMembers);
-        const accentA = allyTeam === 'teamA' ? 'ally' : 'enemy';
-        const accentB = allyTeam === 'teamB' ? 'ally' : 'enemy';
+        const hostHomeTeam = pickOwnerHomeTeam(ownerId, teamAMembers, teamBMembers);
+        const accentA = hostHomeTeam === 'teamA' ? 'ally' : 'enemy';
+        const accentB = hostHomeTeam === 'teamB' ? 'ally' : 'enemy';
         return (
             <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
                 <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
-                    <TeamPanel title="" subtitle="" variant={allyTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={2}>
+                    <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridA[0], 0, 'teamA', accentA, {
                             emptyLabel: '빈 슬롯',
                             emptySub: inviteOpen('teamA', 0) ? '터치하여 초대' : undefined,
@@ -938,7 +1018,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                             onOpen: inviteOpen('teamA', 1),
                         })}
                     </TeamPanel>
-                    <TeamPanel title="" subtitle="" variant={allyTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact} seatColumns={2}>
+                    <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridB[0], 0, 'teamB', accentB, {
                             emptyLabel: '빈 슬롯',
                             emptySub: inviteOpen('teamB', 0) ? '터치하여 초대' : undefined,
@@ -957,21 +1037,53 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
 
     /** 놀이바둑 친선 등: 팀당 유저 1슬롯(화면 2칸), AI 플레이스홀더 없음 */
     if (oneSlotPerTeam && roomKind === 'duo_match' && !isFriendly) {
-        const allyTeam = pickViewerAllyTeam(viewerId, teamAMembers, teamBMembers);
-        const accentA = allyTeam === 'teamA' ? 'ally' : 'enemy';
-        const accentB = allyTeam === 'teamB' ? 'ally' : 'enemy';
+        const hostHomeTeam = pickOwnerHomeTeam(ownerId, teamAMembers, teamBMembers);
+        const accentA = hostHomeTeam === 'teamA' ? 'ally' : 'enemy';
+        const accentB = hostHomeTeam === 'teamB' ? 'ally' : 'enemy';
+        /** `syncDuoMatchPairSeatAssignments` 등으로 상대 팀 유저가 `teamB` 페이로드에 없을 때 — 상대 열에 표시 */
+        const humanMembers = [...(teamAMembers ?? []), ...(teamBMembers ?? [])].filter(
+            (m) => String(m.kind).toLowerCase() === 'user' && !String(m.id).startsWith('pet-ai-'),
+        );
+        /** 같은 팀 열 멤버 전부를 아군으로 잡으면, 상대만 `teamA`에 있어도 아군으로 오인됨 → 주최·인간 파트너를 코어 아군으로 둠 */
+        const coreAllyUserIds = new Set<string>([ownerId]);
+        if (partnerId && !String(partnerId).startsWith('pet-ai-')) {
+            coreAllyUserIds.add(partnerId);
+        }
+        const hostTeamMemberList = hostHomeTeam === 'teamA' ? teamAMembers : teamBMembers;
+        const rosterHostTeamUserIds = new Set(
+            (hostTeamMemberList ?? [])
+                .filter((m) => String(m.kind).toLowerCase() === 'user' && !String(m.id).startsWith('pet-ai-'))
+                .map((m) => m.id),
+        );
+        const allyUserIdsForOpponentPick = coreAllyUserIds.has(ownerId) ? coreAllyUserIds : rosterHostTeamUserIds;
+        const firstOpponentMember = humanMembers.find((m) => !allyUserIdsForOpponentPick.has(m.id));
+        const ownerGrid = hostHomeTeam === 'teamA' ? gridA : gridB;
+        const otherGrid = hostHomeTeam === 'teamA' ? gridB : gridA;
+        /** 인원이 한쪽 팀 배열에만 있어도(전략·놀이 `sync…`) 양 열에 주최·상대가 나뉘어 보이게 */
+        let slotHostSide = preferCellForUserInPair(ownerGrid, ownerId);
+        let slotOther =
+            preferCellForOtherHumanInPair(otherGrid, ownerId) ?? preferCellForOtherHumanInPair(ownerGrid, ownerId);
+        const emptyCell: GridCell = { userId: null, name: null, kind: 'empty', ready: false };
+        if (!slotOther) {
+            slotOther = emptyCell;
+        }
+        if (!slotOther.userId && firstOpponentMember) {
+            slotOther = pairSeatMemberToGridCell(firstOpponentMember);
+        }
+        const slotA0 = hostHomeTeam === 'teamA' ? slotHostSide : slotOther;
+        const slotB0 = hostHomeTeam === 'teamA' ? slotOther : slotHostSide;
         return (
             <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
                 <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
-                    <TeamPanel title="" subtitle="" variant={allyTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={1}>
-                        {renderHumanSlot(gridA[0], 0, 'teamA', accentA, {
+                    <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={1}>
+                        {renderHumanSlot(slotA0, 0, 'teamA', accentA, {
                             emptyLabel: '빈 슬롯',
                             emptySub: inviteOpen('teamA', 0) ? '터치하여 초대' : undefined,
                             onOpen: inviteOpen('teamA', 0),
                         })}
                     </TeamPanel>
-                    <TeamPanel title="" subtitle="" variant={allyTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact} seatColumns={1}>
-                        {renderHumanSlot(gridB[0], 0, 'teamB', accentB, {
+                    <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact} seatColumns={1}>
+                        {renderHumanSlot(slotB0, 0, 'teamB', accentB, {
                             emptyLabel: '상대',
                             emptySub: inviteOpen('teamB', 0) ? '터치하여 초대' : '대기 중',
                             onOpen: inviteOpen('teamB', 0),
@@ -987,13 +1099,13 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
      * AI 대전 시 상대는 `pair-opponent-ai` / `pair-opponent-pet`에 대응하는 봇 프로필을 미리 표시(대기 중 teamB 비어 있을 때).
      */
     if (roomKind === 'duo_match' && !isFriendly) {
-        const allyTeam = pickViewerAllyTeam(viewerId, teamAMembers, teamBMembers);
-        const accentA = allyTeam === 'teamA' ? 'ally' : 'enemy';
-        const accentB = allyTeam === 'teamB' ? 'ally' : 'enemy';
+        const hostHomeTeam = pickOwnerHomeTeam(ownerId, teamAMembers, teamBMembers);
+        const accentA = hostHomeTeam === 'teamA' ? 'ally' : 'enemy';
+        const accentB = hostHomeTeam === 'teamB' ? 'ally' : 'enemy';
         return (
             <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
                 <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
-                    <TeamPanel title="" subtitle="" variant={allyTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={2}>
+                    <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridA[0], 0, 'teamA', accentA, {
                             emptyLabel: '빈 슬롯',
                             emptySub: inviteOpen('teamA', 0) ? '터치하여 초대' : undefined,
@@ -1006,7 +1118,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                             onOpen: canClickPartnerSlot ? onInvitePartnerSlot : inviteOpen('teamA', 1),
                         })}
                     </TeamPanel>
-                    <TeamPanel title="" subtitle="" variant={allyTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact} seatColumns={2}>
+                    <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridB[0], 0, 'teamB', accentB, {
                             emptyLabel: 'AI',
                             emptySub: '카타 AI',
@@ -1032,7 +1144,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                 <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
                     <TeamPanel title="" subtitle="" variant="ally" compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridA[0], 0, 'teamA', 'ally', {
-                            emptyLabel: '방장',
+                            emptyLabel: '빈 슬롯',
                             emptySub: undefined,
                             onOpen: undefined,
                         })}
@@ -1067,7 +1179,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                 <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
                     <TeamPanel title="" subtitle="" variant="ally" compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridA[0], 0, 'teamA', 'ally', {
-                            emptyLabel: '방장',
+                            emptyLabel: '빈 슬롯',
                             emptySub: undefined,
                             onOpen: undefined,
                         })}
@@ -1093,13 +1205,13 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
         );
     }
 
-    const allyTeam = pickViewerAllyTeam(viewerId, teamAMembers, teamBMembers);
-    const accentA = allyTeam === 'teamA' ? 'ally' : 'enemy';
-    const accentB = allyTeam === 'teamB' ? 'ally' : 'enemy';
+    const hostHomeTeam = pickOwnerHomeTeam(ownerId, teamAMembers, teamBMembers);
+    const accentA = hostHomeTeam === 'teamA' ? 'ally' : 'enemy';
+    const accentB = hostHomeTeam === 'teamB' ? 'ally' : 'enemy';
     return (
         <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
             <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
-                <TeamPanel title="" subtitle="" variant={allyTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={teamSeatCols}>
+                <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={teamSeatCols}>
                     {renderHumanSlot(gridA[0], 0, 'teamA', accentA, {
                         emptyLabel: '빈 슬롯',
                         emptySub: inviteOpen('teamA', 0) ? '터치하여 초대' : undefined,
@@ -1118,7 +1230,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                           })
                         : null}
                 </TeamPanel>
-                <TeamPanel title="" subtitle="" variant={allyTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact} seatColumns={teamSeatCols}>
+                <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact} seatColumns={teamSeatCols}>
                     {renderHumanSlot(gridB[0], 0, 'teamB', accentB, {
                         emptyLabel: '빈 슬롯',
                         emptySub: inviteOpen('teamB', 0) ? '터치하여 초대' : undefined,

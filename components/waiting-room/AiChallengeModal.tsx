@@ -1,17 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
-import {
-    LOBBY_MOBILE_BTN_PRIMARY_CLASS,
-    LOBBY_MOBILE_BTN_SECONDARY_CLASS,
-    LOBBY_MOBILE_HEADER_BACK_BTN_CLASS,
-    LOBBY_MOBILE_MODAL_FOOTER_CLASS,
-} from '../game/PreGameDescriptionLayout.js';
+import { LOBBY_MOBILE_HEADER_BACK_BTN_CLASS } from '../game/PreGameDescriptionLayout.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH } from '../../constants/ads.js';
 import { GameMode, ServerAction, GameSettings, Player, AlkkagiPlacementType } from '../../types.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST, aiUserId } from '../../constants';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST } from '../../constants';
 import { 
   BOARD_SIZES, TIME_LIMITS, BYOYOMI_COUNTS, BYOYOMI_TIMES, CAPTURE_BOARD_SIZES, 
   CAPTURE_TARGETS, TTAMOK_CAPTURE_TARGETS, SPEED_BOARD_SIZES, SPEED_TIME_LIMITS, BASE_STONE_COUNTS,
@@ -20,18 +15,9 @@ import {
   CURLING_STONE_COUNTS, CURLING_ROUNDS, CURLING_GAUGE_SPEEDS, CURLING_ITEM_COUNTS,
   OMOK_BOARD_SIZES, HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getStrategicBoardSizesByMode, getScoringTurnLimitOptionsByBoardSize, getAiScoringTurnLimitByBoardSize
 } from '../../constants/gameSettings.js';
-import Avatar from '../Avatar.js';
 import { profileStepFromKataServerLevel } from '../../shared/utils/strategicAiDifficulty.js';
 import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
-import {
-    diceGoUnifiedSpecialDiceCounts,
-    getDiceGoUnifiedSpecialDiceCount,
-} from '../../shared/utils/diceGoSettings.js';
-import {
-    getThiefUnifiedSpecialDiceCount,
-    thiefUnifiedSpecialDiceCounts,
-} from '../../shared/utils/thiefGoSettings.js';
 import {
     clampAiLobbyStrategicItemCaps,
     AI_LOBBY_HIDDEN_ITEM_FIXED,
@@ -45,14 +31,52 @@ import {
 } from '../../shared/constants/pairLobbyDenseSettingFieldLayout.js';
 import { getRankedGameSettings } from '../../constants/rankedGameSettings.js';
 import { buildPairArenaDuoRankedLobbySettingRows } from '../../shared/utils/pairLobbyGameSettingRows.js';
+import { mixSubRuleDisplayName } from '../../shared/utils/mixSubRuleDisplayName.js';
+import { stableStringify } from '../../utils/appUtils.js';
+import {
+    type AiChallengeModalChromeKind,
+    aiChallengeFeatureTopHairlineClass,
+    aiChallengeModalBodyFrameClass,
+    aiChallengeModalChromeFromBucket,
+    aiChallengeModalDenseSettingsHeadingClass,
+    aiChallengeModalGameCardSurfaceClass,
+    aiChallengeModalHandheldModeStepShellClass,
+    aiChallengeModalHandheldSettingsScrollShellClass,
+    aiChallengeModalHandheldSummaryOuterClass,
+    aiChallengeModalModePickerColumnClass,
+    aiChallengeModalModeTitleTextClass,
+    aiChallengeModalMobileNextCtaClass,
+    aiChallengeModalPairHandheldNextButtonClass,
+} from './waitingLobbyHomePanelStyles.js';
+
+/** AI 로비 모달·방 만들기 임베드별로 분리된 대국 설정 저장 버킷 — NegotiationModal(`preferredGameSettings_${mode}`)과 무관 */
+export type AiLobbyPreferredGameSettingsBucket =
+    | 'strategic_ai_challenge'
+    | 'strategic_room_create_duo_match'
+    | 'strategic_room_create_arena_ai'
+    | 'playful_ai_challenge'
+    | 'playful_room_create_duo_match'
+    | 'playful_room_create_arena_ai'
+    | 'pair_ai_match_modal'
+    | 'pair_start_match_modal'
+    | 'pair_room_create_friendly_4p'
+    | 'pair_room_create_friendly_2p'
+    | 'pair_room_create_duo_match'
+    | 'pair_room_create_ai_duel'
+    | 'pair_room_create_arena_ai';
 
 interface AiChallengeModalProps {
     lobbyType: 'strategic' | 'playful';
     onClose: () => void;
     /** `configureOnly`일 때는 생략 가능 — 설정만 부모로 넘길 때 사용 */
     onAction?: (action: ServerAction) => void | Promise<unknown>;
-    /** 인게임 AI 재대결: 직전 대국 모드·설정을 그대로 반영하고 preferredGameSettings에도 저장 */
-    seedFromSession?: { mode: GameMode; settings: GameSettings };
+    /** 인게임 AI 재대결: 직전 대국 모드·설정을 그대로 반영하고 스코프별 preferredGameSettings에도 저장 */
+    /** `settingsByMode`: 방 만들기 임베드 시 모드별 초안 — 없으면 `mode`+`settings`만 사용 */
+    seedFromSession?: {
+        mode: GameMode;
+        settings: GameSettings;
+        settingsByMode?: Partial<Record<GameMode, GameSettings>>;
+    };
     /** 페어 경기장 등에서 같은 설정 UI를 쓰되 시작 액션만 바꿔야 하는 경우 */
     startActionType?: 'START_AI_GAME' | 'PAIR_START_AI_MATCH' | 'PAIR_START_MATCH';
     transformSettingsBeforeStart?: (mode: GameMode, settings: GameSettings) => GameSettings;
@@ -69,19 +93,19 @@ interface AiChallengeModalProps {
      */
     embeddedPanel?: boolean;
     /**
-     * 페어 방 만들기: 좌측=게임 종류, 우측은 이 함수로 감싼 `대국 설정` 블록 위에 방 이름·종류·공개 등 배치.
+     * 페어 방 만들기: 좌측=게임 모드, 우측은 이 함수로 감싼 `대국 설정` 블록 위에 방 이름·종류·공개 등 배치.
      * `configureOnly` + `embeddedPanel` + 전략 로비에서만 사용한다.
      */
     pairRoomEmbeddedRightSlot?: (gameSettingsBlock: ReactNode) => ReactNode;
     /**
      * 페어/전략 방 모달: 우측 열(방 이름·대국 설정) 하단에 고정되는 푸터(취소·만들기 등).
-     * 핸드헬드「방 만들기」1단계(게임 종류만)에서는 렌더하지 않는다.
+     * 핸드헬드「방 만들기」1단계(게임 모드만)에서는 렌더하지 않는다.
      */
     pairRoomEmbeddedColumnFooter?: ReactNode;
     /** 페어 방 만들기: 대국 설정 필드를 한 줄에 최대한 많이(다열 그리드) */
     pairRoomDenseSettingsGrid?: boolean;
     /**
-     * 페어 방 만들기·방 설정 변경(모바일): 1단계=게임 종류, 2단계=방 이름·종류·대국 설정. true면 하단에 취소/다음·뒤로/저장 푸터를 렌더한다.
+     * 페어 방 만들기·방 설정 변경(모바일): 1단계=게임 모드, 2단계=방 이름·종류·대국 설정. true면 하단에 취소/다음·뒤로/저장 푸터를 렌더한다.
      * `configureOnly` + `embeddedPanel` + `pairRoomEmbeddedRightSlot` + 좁은 뷰포트와 함께 쓴다.
      */
     pairRoomHandheldCreateStackedFooter?: boolean;
@@ -95,11 +119,45 @@ interface AiChallengeModalProps {
     pairRoomHidePlayerOrderRole?: boolean;
     /** 페어 경기장 2인 랭킹전 방: 공식 랭킹 규칙만 표시·적용(대국 설정 필드 수정 불가) */
     pairDuoRankedLobbyReadOnly?: boolean;
+    /**
+     * 손님의 방 대국 설정 변경 제안: 게임 모드는 고정(좌측 읽기 전용), 모바일은 설정·방 메타만 단일 단계로 표시.
+     */
+    pairRoomLobbyChangePropose?: boolean;
+    /** 페어 4·2인 친선 + 전략·놀이 친선전(duo_match): 사람 대국 시 제한시간·초읽기 UI 및 저장 시 시계 유지(AI 무제한 덮어쓰기 방지) */
+    pairFriendlyHumanClock?: boolean;
+    /** 모달 용도·방 종류별 localStorage 분리(전략 「AI와 대결」vs「방 만들기」, 페어 종류별 등) */
+    preferredGameSettingsBucket: AiLobbyPreferredGameSettingsBucket;
 }
 
 /** `PairPetRankedMatchModeModal` 랭킹 규칙 표와 동일한 모바일 밀집 행 */
 const HANDHELD_PAIR_DUO_RANKED_RULE_ROW_EXTRA_CLASS =
-    '!py-1 !px-1.5 gap-x-1 [&>label]:text-[10px] [&>label]:leading-tight [&>div:nth-child(2)]:!h-8 [&>div:nth-child(2)]:!min-h-8 [&>div:nth-child(2)]:!px-1 [&>div:nth-child(2)]:!text-[11px]';
+    '!py-1 !px-1.5 gap-x-1 [&>label]:text-[10px] [&>label]:!leading-none [&>div:nth-child(2)]:!h-8 [&>div:nth-child(2)]:!min-h-8 [&>div:nth-child(2)]:!px-1 [&>div:nth-child(2)]:!text-[11px] [&>div:nth-child(2)]:!leading-none';
+
+/** 모바일 「AI와 대결」2단계: 한 줄에 설정 카드 2개 — 컨트롤 높이·패딩만 밀집 */
+const HANDHELD_STANDALONE_AI_SETTING_ROW_EXTRA_CLASS =
+    '!py-1 !px-1.5 gap-x-0.5 [&_select]:!h-8 [&_select]:!min-h-8 [&_select]:!pl-2 [&_select]:!pr-8 [&_select]:!text-[11px] [&_select]:!leading-tight [&_input[type=number]]:!h-8 [&_input[type=number]]:!min-h-8 [&_input[type=number]]:!text-[11px] [&_input[type=number]]:!px-1.5 [&_input[type=number]]:!leading-tight';
+
+/** 핸드헬드 「방 만들기」2단계(임베드): 설정 행·컨트롤을 한 단계 더 밀집(드롭다운 화살표·글자 잘림 완화) */
+const HANDHELD_PAIR_ROOM_CREATE_DETAILS_SETTING_ROW_EXTRA_CLASS =
+    '!py-0.5 !px-1 gap-x-0.5 [&_select]:!h-7 [&_select]:!min-h-7 [&_select]:!pl-2 [&_select]:!pr-9 [&_select]:!text-left [&_select]:!text-[11px] [&_select]:!leading-tight [&_input[type=number]]:!h-7 [&_input[type=number]]:!min-h-7 [&_input[type=number]]:!text-[10px] [&_input[type=number]]:!px-1 [&_input[type=number]]:!leading-tight';
+
+/**
+ * 손님 「조건 변경 제안」모바일: 좌우 2열 그리드 안에서 라벨 열이 찌그러짐 → 라벨을 드롭다운 위(왼쪽) 작은 글씨로만 표시.
+ */
+const PAIR_LOBBY_CHANGE_PROPOSE_HANDHELD_ROW_CLASS =
+    'flex min-w-0 w-full flex-col items-stretch gap-0.5 rounded-lg border border-white/12 bg-zinc-900/45 py-1.5 px-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] [&_select]:!h-8 [&_select]:!min-h-8 [&_select]:!w-full [&_select]:!pl-2 [&_select]:!pr-9 [&_select]:!text-left [&_select]:!text-[12px] [&_select]:!font-semibold [&_select]:!leading-tight [&_input[type=number]]:!h-8 [&_input[type=number]]:!min-h-8 [&_input[type=number]]:!w-full [&_input[type=number]]:!px-2 [&_input[type=number]]:!text-[12px] [&_input[type=number]]:!font-semibold';
+
+/** AI/랭킹 모달 우측 상단: 긴 게임 설명을 짧게 표기 */
+function lobbyGameModeBriefDescription(description: string | undefined, fallback: string): string {
+    const t = (description || '').trim().replace(/\s+/g, ' ');
+    if (!t) return fallback;
+    const max = 132;
+    if (t.length <= max) return t;
+    const slice = t.slice(0, max);
+    const sp = slice.lastIndexOf(' ');
+    if (sp > 72) return `${slice.slice(0, sp)}…`;
+    return `${slice}…`;
+}
 
 /** 전략바둑 대기실 「AI와 대결하기」: 베이스돌 최대 4개 */
 const AI_CHALLENGE_BASE_STONE_COUNTS = (BASE_STONE_COUNTS as readonly number[]).filter((count) => count <= 4);
@@ -109,6 +167,36 @@ const AI_CHALLENGE_HIDDEN_STONE_COUNTS = [AI_LOBBY_HIDDEN_ITEM_FIXED] as const;
 const AI_CHALLENGE_SCAN_COUNTS = (SCAN_COUNTS as readonly number[]).filter((count) => count <= AI_LOBBY_SCAN_MAX);
 /** 미사일 아이템 최대 3개 */
 const AI_CHALLENGE_MISSILE_COUNTS = (MISSILE_COUNTS as readonly number[]).filter((count) => count <= AI_LOBBY_MISSILE_MAX);
+
+function aiLobbyPreferredSettingsBucketStorageKey(bucket: AiLobbyPreferredGameSettingsBucket, mode: GameMode): string {
+    return `preferredGameSettings_aiLobby_${bucket}_${mode}`;
+}
+
+/** 신규 버킷 키 → 과거 공유 스코프 키까지 순차 폴백(방 만들기 전용 버킷은 폴백 없음 — 기존 혼선 방지) */
+function readAiLobbyPreferredSettingsJson(bucket: AiLobbyPreferredGameSettingsBucket, mode: GameMode): string | null {
+    const primary = localStorage.getItem(aiLobbyPreferredSettingsBucketStorageKey(bucket, mode));
+    if (primary != null && primary !== '') return primary;
+
+    if (bucket === 'strategic_ai_challenge') {
+        const scoped = localStorage.getItem(`preferredGameSettings_strategic_${mode}`);
+        if (scoped != null && scoped !== '') return scoped;
+        return localStorage.getItem(`preferredGameSettings_${mode}`);
+    }
+    if (bucket === 'playful_ai_challenge') {
+        const scoped = localStorage.getItem(`preferredGameSettings_playful_${mode}`);
+        if (scoped != null && scoped !== '') return scoped;
+        return localStorage.getItem(`preferredGameSettings_${mode}`);
+    }
+    if (bucket === 'pair_ai_match_modal' || bucket === 'pair_start_match_modal') {
+        const pairScoped = localStorage.getItem(`preferredGameSettings_pair_${mode}`);
+        if (pairScoped != null && pairScoped !== '') return pairScoped;
+    }
+    return null;
+}
+
+function writeAiLobbyPreferredSettingsJson(bucket: AiLobbyPreferredGameSettingsBucket, mode: GameMode, json: string): void {
+    localStorage.setItem(aiLobbyPreferredSettingsBucketStorageKey(bucket, mode), json);
+}
 
 function getAiChallengeBoardSizes(mode: GameMode, lobbyType: 'strategic' | 'playful'): number[] {
     if (lobbyType === 'strategic') {
@@ -148,7 +236,11 @@ function normalizeAiScoringTurnLimit(mode: GameMode, settings: GameSettings): Ga
 }
 
 /** 종료된 대국 session.settings → AI 도전 모달 초기값 (NegotiationModal과 유사 검증) */
-function mergeSeedIntoChallengeSettings(mode: GameMode, sessionSettings: GameSettings): GameSettings {
+function mergeSeedIntoChallengeSettings(
+    mode: GameMode,
+    sessionSettings: GameSettings,
+    lobbyType: 'strategic' | 'playful',
+): GameSettings {
     let newSettings: GameSettings = { ...DEFAULT_GAME_SETTINGS, ...sessionSettings };
     if (mode === GameMode.Base) {
         newSettings.komi = 0.5;
@@ -159,9 +251,19 @@ function mergeSeedIntoChallengeSettings(mode: GameMode, sessionSettings: GameSet
     if (!newSettings.player1Color) {
         newSettings.player1Color = Player.Black;
     }
-    const validBoardSizes = getStrategicBoardSizesByMode(mode);
-    if (!validBoardSizes.includes(newSettings.boardSize)) {
+    /** UI·보드 크기 보정 이펙트와 동일 목록 — `getStrategicBoardSizesByMode`만 쓰면 11줄 등이 남아 셀렉트와 충돌해 값이 번갈아 보임 */
+    const validBoardSizes = getAiChallengeBoardSizes(mode, lobbyType);
+    const rawBs = newSettings.boardSize as unknown;
+    const bsNum =
+        typeof rawBs === 'number' && Number.isFinite(rawBs)
+            ? rawBs
+            : typeof rawBs === 'string' && rawBs.trim() !== ''
+              ? Number.parseInt(rawBs, 10)
+              : NaN;
+    if (!Number.isFinite(bsNum) || !validBoardSizes.includes(bsNum)) {
         newSettings.boardSize = validBoardSizes[0] as GameSettings['boardSize'];
+    } else {
+        newSettings.boardSize = bsNum as GameSettings['boardSize'];
     }
     if (mode === GameMode.Alkkagi) {
         const validSpeeds = ALKKAGI_GAUGE_SPEEDS.map(s => s.value);
@@ -187,6 +289,83 @@ function mergeSeedIntoChallengeSettings(mode: GameMode, sessionSettings: GameSet
     return clampAiLobbyStrategicItemCaps(mode, normalizeAiScoringTurnLimit(mode, newSettings));
 }
 
+/**
+ * 비-2인랭킹전 `buildFinalSettingsForApply`와 동일 파이프라인.
+ * 임베드 방 만들기에서 시드를 `mergeSeed`만 반영하면 로컬 `settings`와 부모로 푸시되는 값이 달라
+ * `onConfigureApply` ↔ `seedFromSession` 이 매 렌더 반복된다.
+ */
+function finalizeNonDuoLobbyDraftForApply(
+    mode: GameMode,
+    draft: GameSettings,
+    lobbyType: 'strategic' | 'playful',
+    pairFriendlyHumanClock: boolean,
+    transformSettingsBeforeStart?: (m: GameMode, s: GameSettings) => GameSettings,
+): GameSettings {
+    const useClientSideAi = false;
+    const timeUnlimitedSettings: Partial<GameSettings> = {
+        timeLimit: 0,
+        byoyomiTime: 0,
+        byoyomiCount: 0,
+        timeIncrement: 0,
+    };
+    const defaultKataWhenUnset = -12;
+    const kataResolved =
+        typeof draft.kataServerLevel === 'number' && Number.isFinite(draft.kataServerLevel)
+            ? draft.kataServerLevel
+            : defaultKataWhenUnset;
+    const aiProfileStep =
+        profileStepFromKataServerLevel(kataResolved) ??
+        (lobbyType === 'strategic' ? 5 : (draft.goAiBotLevel ?? draft.aiDifficulty ?? 5));
+    const mergedSettings: GameSettings = {
+        ...draft,
+        ...(pairFriendlyHumanClock ? {} : timeUnlimitedSettings),
+        useClientSideAi,
+        ...(lobbyType === 'strategic'
+            ? {
+                  kataServerLevel: kataResolved,
+                  goAiBotLevel: aiProfileStep,
+                  aiDifficulty: aiProfileStep,
+              }
+            : {}),
+    };
+    const normalizedSettings = clampAiLobbyStrategicItemCaps(
+        mode,
+        normalizeAiScoringTurnLimit(mode, mergedSettings),
+    );
+    return transformSettingsBeforeStart ? transformSettingsBeforeStart(mode, normalizedSettings) : normalizedSettings;
+}
+
+/** 임베드 방 만들기: `settingsByMode`·시드에서 대상 모드의 대국 설정을 `buildFinalSettingsForApply`와 동일 파이프라인으로 결정 */
+function resolveEmbeddedConfigureSeedSettings(
+    targetMode: GameMode,
+    live: { mode?: GameMode; settings?: GameSettings; settingsByMode?: Partial<Record<GameMode, GameSettings>> } | undefined,
+    lobbyType: 'strategic' | 'playful',
+    pairFriendlyHumanClock: boolean,
+    transformSettingsBeforeStart?: (m: GameMode, s: GameSettings) => GameSettings,
+): GameSettings {
+    const perMode = live?.settingsByMode?.[targetMode];
+    const seedSettingsForMode =
+        perMode ?? (live?.mode === targetMode && live.settings ? live.settings : undefined);
+    if (seedSettingsForMode) {
+        const cleaned = mergeSeedIntoChallengeSettings(targetMode, seedSettingsForMode, lobbyType);
+        return finalizeNonDuoLobbyDraftForApply(
+            targetMode,
+            cleaned,
+            lobbyType,
+            pairFriendlyHumanClock,
+            transformSettingsBeforeStart,
+        );
+    }
+    const cleaned = mergeSeedIntoChallengeSettings(targetMode, { ...DEFAULT_GAME_SETTINGS }, lobbyType);
+    return finalizeNonDuoLobbyDraftForApply(
+        targetMode,
+        cleaned,
+        lobbyType,
+        pairFriendlyHumanClock,
+        transformSettingsBeforeStart,
+    );
+}
+
 const GameCard: React.FC<{
     mode: GameMode;
     image: string;
@@ -194,44 +373,39 @@ const GameCard: React.FC<{
     onSelect: (mode: GameMode) => void;
     isSelected: boolean;
     compact?: boolean;
-}> = ({ mode, image, displayName, onSelect, isSelected, compact }) => {
+    chromeKind: AiChallengeModalChromeKind;
+}> = ({ mode, image, displayName, onSelect, isSelected, compact, chromeKind }) => {
     const [imgError, setImgError] = useState(false);
-    const imgH = compact ? 68 : 100;
-    const pad = compact ? 6 : 8;
-    const titlePx = compact ? 12 : 14;
+    /** `PairPetRankedMatchModeModal`의 `ModePickCard`와 동일 높이·간격(이름 아래 불필요한 flex-grow 공간 제거) */
+    const imgH = compact ? 70 : 88;
 
     return (
         <div
-            className={`box-border bg-panel text-on-panel rounded-lg flex flex-col items-center text-center transition-all transform touch-manipulation border-2 ${
-                isSelected
-                    ? compact
-                        ? 'cursor-pointer border-violet-400 ring-2 ring-violet-400/70 ring-offset-2 ring-offset-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_10px_28px_-8px_rgba(139,92,246,0.45)] active:scale-[0.98]'
-                        : 'cursor-pointer border-purple-400 shadow-lg ring-2 ring-purple-500/60 active:scale-[0.98]'
-                    : 'border-transparent shadow-lg cursor-pointer active:scale-[0.98] hover:border-purple-400/45 hover:ring-1 hover:ring-purple-400/35'
-            }`}
-            style={{ padding: `${pad}px`, gap: compact ? '3px' : '4px' }}
+            className={aiChallengeModalGameCardSurfaceClass(chromeKind, isSelected, Boolean(compact))}
             onClick={() => onSelect(mode)}
         >
             <div
-                className="w-full flex-shrink-0 bg-tertiary rounded-md flex items-center justify-center text-tertiary overflow-hidden shadow-inner relative"
-                style={{ height: `${imgH}px`, marginBottom: compact ? '2px' : '4px', padding: '4px' }}
+                className="bg-tertiary text-tertiary relative flex w-full flex-shrink-0 items-center justify-center overflow-hidden rounded-md p-1 shadow-inner"
+                style={{ height: `${imgH}px` }}
             >
                 {!imgError ? (
                     <img
                         src={image}
                         alt={displayName}
-                        className="w-full h-full object-contain"
+                        className="h-full w-full object-contain"
                         onError={() => setImgError(true)}
                     />
                 ) : (
-                    <span style={{ fontSize: compact ? '11px' : '13px' }}>{displayName}</span>
+                    <span className={compact ? 'text-xs' : 'text-sm'}>{displayName}</span>
                 )}
             </div>
-            <div className="flex-grow flex flex-col w-full min-w-0">
-                <h3 className="font-bold leading-tight text-primary truncate px-0.5" style={{ fontSize: `${titlePx}px`, marginBottom: '2px' }}>
-                    {displayName}
-                </h3>
-            </div>
+            <h3
+                className={`text-primary w-full min-w-0 shrink-0 truncate px-0.5 font-bold leading-snug ${
+                    compact ? 'text-xs' : 'text-sm sm:text-base'
+                }`}
+            >
+                {displayName}
+            </h3>
         </div>
     );
 };
@@ -260,8 +434,25 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     pairRoomHideGoAiLevel = false,
     pairRoomHidePlayerOrderRole = false,
     pairDuoRankedLobbyReadOnly = false,
+    pairRoomLobbyChangePropose = false,
+    pairFriendlyHumanClock = false,
+    preferredGameSettingsBucket,
 }) => {
-    const availableGameModes = lobbyType === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
+    const prefsBucket = preferredGameSettingsBucket;
+    const modalChrome = useMemo(
+        () => aiChallengeModalChromeFromBucket(preferredGameSettingsBucket),
+        [preferredGameSettingsBucket],
+    );
+    const embeddedShellClass = aiChallengeModalBodyFrameClass(modalChrome);
+    const modePickerColumnClassName = aiChallengeModalModePickerColumnClass(modalChrome);
+    const modeTitleToneClass = aiChallengeModalModeTitleTextClass(modalChrome);
+    const denseSettingsHeadingToneClass = aiChallengeModalDenseSettingsHeadingClass(modalChrome);
+    const mobileNextCtaChromeClass = aiChallengeModalMobileNextCtaClass(modalChrome);
+    const pairHandheldNextChromeClass = aiChallengeModalPairHandheldNextButtonClass(modalChrome);
+    const availableGameModes = useMemo(
+        () => (lobbyType === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES),
+        [lobbyType],
+    );
     const [selectedGameMode, setSelectedGameMode] = useState<GameMode | null>(() => {
         if (seedFromSession?.mode && availableGameModes.some(m => m.mode === seedFromSession.mode)) {
             return seedFromSession.mode;
@@ -271,14 +462,23 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     const [settings, setSettings] = useState<GameSettings>(DEFAULT_GAME_SETTINGS);
     const prevSelectedGameModeRef = useRef<GameMode | null>(null);
     const [mobileStep, setMobileStep] = useState<'pickMode' | 'settings'>(() => (seedFromSession ? 'settings' : 'pickMode'));
-    /** 페어 방 만들기(핸드헬드): 게임 종류 → 방 이름·설정 */
-    const [pairEmbedMobileStep, setPairEmbedMobileStep] = useState<'game' | 'details'>('game');
+    /** 페어 방 만들기(핸드헬드): 게임 모드 → 방 이름·설정 — 손님 변경 제안은 details만 */
+    const [pairEmbedMobileStep, setPairEmbedMobileStep] = useState<'game' | 'details'>(() =>
+        pairRoomLobbyChangePropose ? 'details' : 'game',
+    );
     const seedHydratedRef = useRef(false);
     /** 부모(Game)가 매 프레임 새 객체를 넘겨도 시드 적용·localStorage 로직이 중복 실행되지 않게 첫 렌더 값만 사용 */
     const frozenSeedRef = useRef<typeof seedFromSession>(undefined);
     if (frozenSeedRef.current === undefined) {
         frozenSeedRef.current = seedFromSession;
     }
+    /** 임베드 방 만들기: 부모 시드 객체 참조가 매 렌더 바뀌어도 내용이 같으면 이펙트가 도지 않게 fingerprint 사용 */
+    const embeddedSeedLiveRef = useRef(seedFromSession);
+    embeddedSeedLiveRef.current = seedFromSession;
+    const embeddedParentDraftFingerprint =
+        embeddedPanel && configureOnly
+            ? `${seedFromSession?.mode ?? ''}\0${stableStringify(seedFromSession?.settings ?? {})}\0${stableStringify(seedFromSession?.settingsByMode ?? {})}`
+            : '__no_embed_parent_sync__';
 
     const actionPointCost = useMemo(() => {
         if (!selectedGameMode) return STRATEGIC_ACTION_POINT_COST;
@@ -290,11 +490,14 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     const { isNativeMobile } = useNativeMobileShell();
     const isCompactViewport = useIsHandheldDevice(1024);
     const isMobile = isNativeMobile || isCompactViewport;
-    /** 부모 모달에 끼워 넣을 때는 PC용 2열 레이아웃을 써서 한 화면에 종류+설정을 둔다 */
+    /** 부모 모달에 끼워 넣을 때는 PC용 2열 레이아웃을 써서 한 화면에 모드+설정을 둔다 */
     const layoutMobile = isMobile && !embeddedPanel && !pairRoomEmbeddedRightSlot;
-    /** PC: 캔버스(scale) 내 고정 프레임. 모바일: 뷰포트 맞춤으로 별도 레이아웃 */
-    const calculatedWidth = isMobile ? 720 : 900;
-    const calculatedHeight = isMobile ? 720 : 780;
+    /**
+     * 모바일: `DraggableWindow` + `mobileViewportFit`일 때 실제 폭은 min(initialWidth, 뷰포트 상한).
+     * 방 만들기 전면 시트(`w-full` + max vw)와 같이 가로를 최대한 쓰려면 설계 폭을 충분히 크게 두어 상한만 적용되게 한다.
+     */
+    const calculatedWidth = isMobile ? 1600 : 928;
+    const calculatedHeight = isMobile ? 680 : 803;
     const mobileTextScale = 1.0;
 
     /** 방 만들기 우측과 동일한 밀집 대국 설정 그리드·행 스타일(독립 AI 모달은 자동 적용) */
@@ -310,20 +513,37 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         if (!selectedGameMode) return;
         if (pairDuoRankedLobbyReadOnly) return;
 
+        /**
+         * 페어/전략·놀이 「방 만들기」임베드: 부모 `createModalDraftGame`이 단일 출처.
+         * 선택 모드와 `seed.mode`가 달라도 `settingsByMode[선택모드]`가 있으면 그걸 써야 모드 전환 시 설정이 롤링되지 않음.
+         */
+        if (embeddedPanel && configureOnly && !pairDuoRankedLobbyReadOnly) {
+            const live = embeddedSeedLiveRef.current;
+            const canonical = resolveEmbeddedConfigureSeedSettings(
+                selectedGameMode,
+                live ?? undefined,
+                lobbyType,
+                pairFriendlyHumanClock,
+                transformSettingsBeforeStart,
+            );
+            setSettings((prev) => (stableStringify(prev) === stableStringify(canonical) ? prev : canonical));
+            return;
+        }
+
         const seed = frozenSeedRef.current;
         if (seed && selectedGameMode === seed.mode && !seedHydratedRef.current) {
             seedHydratedRef.current = true;
-            const merged = mergeSeedIntoChallengeSettings(seed.mode, seed.settings);
+            const merged = mergeSeedIntoChallengeSettings(seed.mode, seed.settings, lobbyType);
             setSettings(merged);
             try {
-                localStorage.setItem(`preferredGameSettings_${selectedGameMode}`, JSON.stringify(merged));
+                writeAiLobbyPreferredSettingsJson(prefsBucket, selectedGameMode, JSON.stringify(merged));
             } catch (e) {
                 console.error('Failed to persist AI rematch seed settings', e);
             }
             return;
         }
 
-        const savedSettings = localStorage.getItem(`preferredGameSettings_${selectedGameMode}`);
+        const savedSettings = readAiLobbyPreferredSettingsJson(prefsBucket, selectedGameMode);
         if (savedSettings) {
             try {
                 const parsed = JSON.parse(savedSettings);
@@ -352,29 +572,49 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 ),
             );
         }
-    }, [selectedGameMode, pairDuoRankedLobbyReadOnly]);
+    }, [
+        selectedGameMode,
+        pairDuoRankedLobbyReadOnly,
+        embeddedPanel,
+        configureOnly,
+        embeddedParentDraftFingerprint,
+        transformSettingsBeforeStart,
+        lobbyType,
+        pairFriendlyHumanClock,
+        prefsBucket,
+    ]);
 
     useEffect(() => {
-        if (!pairDuoRankedLobbyReadOnly || !seedFromSession?.mode) return;
-        const m = seedFromSession.mode;
+        if (!pairDuoRankedLobbyReadOnly || !embeddedSeedLiveRef.current?.mode) return;
+        const m = embeddedSeedLiveRef.current.mode;
         if (availableGameModes.some((a) => a.mode === m) && selectedGameMode !== m) {
             setSelectedGameMode(m);
         }
-    }, [pairDuoRankedLobbyReadOnly, seedFromSession?.mode, availableGameModes, selectedGameMode]);
+    }, [pairDuoRankedLobbyReadOnly, embeddedParentDraftFingerprint, availableGameModes, selectedGameMode]);
 
     useEffect(() => {
         if (!pairDuoRankedLobbyReadOnly || !selectedGameMode) return;
         const base: GameSettings = { ...DEFAULT_GAME_SETTINGS, ...getRankedGameSettings(selectedGameMode) };
         const next = transformSettingsBeforeStart?.(selectedGameMode, base) ?? base;
-        setSettings((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
-    }, [pairDuoRankedLobbyReadOnly, selectedGameMode, transformSettingsBeforeStart, seedFromSession]);
+        setSettings((prev) => (stableStringify(prev) === stableStringify(next) ? prev : next));
+    }, [pairDuoRankedLobbyReadOnly, selectedGameMode, transformSettingsBeforeStart]);
 
     useEffect(() => {
         if (!selectedGameMode) return;
         if (pairDuoRankedLobbyReadOnly) return;
         const boardSizeOptions = getAiChallengeBoardSizes(selectedGameMode, lobbyType);
-        if (!boardSizeOptions.includes(settings.boardSize)) {
+        const rawCur = settings.boardSize as unknown;
+        const curNum =
+            typeof rawCur === 'number' && Number.isFinite(rawCur)
+                ? rawCur
+                : typeof rawCur === 'string' && String(rawCur).trim() !== ''
+                  ? Number.parseInt(String(rawCur), 10)
+                  : NaN;
+        /** 비정규 타입(문자열 boardSize 등)만 숫자로 통일. `19 !== "19"`로 매번 `handleSettingChange`가 돌면 부모 시드↔푸시 루프로 셀렉트가 깜빡인다 */
+        if (!Number.isFinite(curNum) || !boardSizeOptions.includes(curNum)) {
             handleSettingChange('boardSize', boardSizeOptions[0] as GameSettings['boardSize']);
+        } else if (typeof rawCur === 'string') {
+            handleSettingChange('boardSize', curNum as GameSettings['boardSize']);
         }
     }, [selectedGameMode, settings.boardSize, lobbyType, pairDuoRankedLobbyReadOnly]);
 
@@ -407,7 +647,13 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             }
             if (selectedGameMode) {
                 newSettings = clampAiLobbyStrategicItemCaps(selectedGameMode, newSettings);
-                localStorage.setItem(`preferredGameSettings_${selectedGameMode}`, JSON.stringify(newSettings));
+                if (!(embeddedPanel && configureOnly)) {
+                    try {
+                        writeAiLobbyPreferredSettingsJson(prefsBucket, selectedGameMode, JSON.stringify(newSettings));
+                    } catch {
+                        /* ignore quota / private mode */
+                    }
+                }
             }
             return newSettings;
         });
@@ -425,7 +671,13 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             let newSettings = normalizeAiScoringTurnLimit(selectedGameMode ?? GameMode.Mix, { ...prev, mixedModes: nextMixed });
             if (selectedGameMode) {
                 newSettings = clampAiLobbyStrategicItemCaps(selectedGameMode, newSettings);
-                localStorage.setItem(`preferredGameSettings_${selectedGameMode}`, JSON.stringify(newSettings));
+                if (!(embeddedPanel && configureOnly)) {
+                    try {
+                        writeAiLobbyPreferredSettingsJson(prefsBucket, selectedGameMode, JSON.stringify(newSettings));
+                    } catch {
+                        /* ignore */
+                    }
+                }
             }
             return newSettings;
         });
@@ -453,61 +705,83 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 GameMode.Mix,
                 normalizeAiScoringTurnLimit(GameMode.Mix, { ...prev, mixedModes: nextMixed }),
             );
-            localStorage.setItem(`preferredGameSettings_${GameMode.Mix}`, JSON.stringify(next));
+            if (!(embeddedPanel && configureOnly)) {
+                try {
+                    writeAiLobbyPreferredSettingsJson(prefsBucket, GameMode.Mix, JSON.stringify(next));
+                } catch {
+                    /* ignore */
+                }
+            }
             return next;
         });
-    }, [selectedGameMode, pairDuoRankedLobbyReadOnly]);
+    }, [selectedGameMode, pairDuoRankedLobbyReadOnly, embeddedPanel, configureOnly, prefsBucket]);
 
     const buildFinalSettingsForApply = useCallback((): { mode: GameMode; settings: GameSettings } | null => {
         if (!selectedGameMode) return null;
         if (selectedGameMode === GameMode.Mix && (!settings.mixedModes || settings.mixedModes.length < 2)) {
             return null;
         }
-        const useClientSideAi = false;
-        const timeUnlimitedSettings: Partial<GameSettings> = {
-            timeLimit: 0,
-            byoyomiTime: 0,
-            byoyomiCount: 0,
-            timeIncrement: 0,
+        /** 2인 랭킹전 방 만들기: UI·부모 초안과 동일하게 공식 프리셋만 사용 (`normalizeAiScoringTurnLimit` 등으로 점수가 왔다갔다 하지 않게) */
+        if (pairDuoRankedLobbyReadOnly) {
+            const base: GameSettings = { ...DEFAULT_GAME_SETTINGS, ...getRankedGameSettings(selectedGameMode) };
+            const rankedSettings = transformSettingsBeforeStart?.(selectedGameMode, base) ?? base;
+            return { mode: selectedGameMode, settings: { ...rankedSettings, useClientSideAi: false } };
+        }
+        return {
+            mode: selectedGameMode,
+            settings: finalizeNonDuoLobbyDraftForApply(
+                selectedGameMode,
+                settings,
+                lobbyType,
+                pairFriendlyHumanClock,
+                transformSettingsBeforeStart,
+            ),
         };
-        const defaultKataWhenUnset = -12;
-        const kataResolved =
-            typeof settings.kataServerLevel === 'number' && Number.isFinite(settings.kataServerLevel)
-                ? settings.kataServerLevel
-                : defaultKataWhenUnset;
-        const aiProfileStep =
-            profileStepFromKataServerLevel(kataResolved) ??
-            (lobbyType === 'strategic' ? 5 : (settings.goAiBotLevel ?? settings.aiDifficulty ?? 5));
-        const mergedSettings: GameSettings = pairDuoRankedLobbyReadOnly
-            ? { ...settings, useClientSideAi }
-            : {
-                  ...settings,
-                  ...timeUnlimitedSettings,
-                  useClientSideAi,
-                  ...(lobbyType === 'strategic'
-                      ? {
-                            kataServerLevel: kataResolved,
-                            goAiBotLevel: aiProfileStep,
-                            aiDifficulty: aiProfileStep,
-                        }
-                      : {}),
-              };
-        const normalizedSettings = clampAiLobbyStrategicItemCaps(
+    }, [selectedGameMode, settings, transformSettingsBeforeStart, lobbyType, pairDuoRankedLobbyReadOnly, pairFriendlyHumanClock]);
+
+    /** 방 만들기 임베드: 모드 전환 직전 부모에 현재 모드 초안을 밀어 넣고, 다음 모드 설정을 같은 틱에 반영해 셀렉트 롤링·한 프레임 어긋남 방지 */
+    const selectGameModeForLobby = useCallback(
+        (mode: GameMode) => {
+            if (pairDuoRankedLobbyReadOnly) {
+                setSelectedGameMode(mode);
+                return;
+            }
+            if (embeddedPanel && configureOnly && onConfigureApply && selectedGameMode && selectedGameMode !== mode) {
+                const built = buildFinalSettingsForApply();
+                if (built) onConfigureApply(built.mode, built.settings);
+            }
+            const liveSnapshot = embeddedPanel && configureOnly ? embeddedSeedLiveRef.current : undefined;
+            setSelectedGameMode(mode);
+            if (embeddedPanel && configureOnly && !pairDuoRankedLobbyReadOnly) {
+                const canonical = resolveEmbeddedConfigureSeedSettings(
+                    mode,
+                    liveSnapshot ?? undefined,
+                    lobbyType,
+                    pairFriendlyHumanClock,
+                    transformSettingsBeforeStart,
+                );
+                setSettings((prev) => (stableStringify(prev) === stableStringify(canonical) ? prev : canonical));
+            }
+        },
+        [
+            pairDuoRankedLobbyReadOnly,
+            embeddedPanel,
+            configureOnly,
+            onConfigureApply,
             selectedGameMode,
-            normalizeAiScoringTurnLimit(selectedGameMode, mergedSettings),
-        );
-        const finalSettings = transformSettingsBeforeStart
-            ? transformSettingsBeforeStart(selectedGameMode, normalizedSettings)
-            : normalizedSettings;
-        return { mode: selectedGameMode, settings: finalSettings };
-    }, [selectedGameMode, settings, transformSettingsBeforeStart, lobbyType, pairDuoRankedLobbyReadOnly]);
+            buildFinalSettingsForApply,
+            lobbyType,
+            pairFriendlyHumanClock,
+            transformSettingsBeforeStart,
+        ],
+    );
 
     const lastEmbeddedPushKeyRef = useRef('');
     useEffect(() => {
         if (!embeddedPanel || !configureOnly || !onConfigureApply) return;
         const built = buildFinalSettingsForApply();
         if (!built) return;
-        const key = `${built.mode}\0${JSON.stringify(built.settings)}`;
+        const key = `${built.mode}\0${stableStringify(built.settings)}`;
         if (key === lastEmbeddedPushKeyRef.current) return;
         lastEmbeddedPushKeyRef.current = key;
         onConfigureApply(built.mode, built.settings);
@@ -539,6 +813,17 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         onClose();
     };
 
+    /** 방 만들기 임베드(핸드헬드)·「방 정보·대국 설정」단계에서만 그리드·타이포 추가 축소 */
+    const handheldPairRoomDetailsCompact = Boolean(
+        useLobbyDenseGameSettingsLayout &&
+            pairRoomEmbeddedRightSlot &&
+            isMobile &&
+            pairRoomHandheldCreateStackedFooter &&
+            pairEmbedMobileStep === 'details',
+    );
+    /** 손님 조건 변경 제안 모달(모바일): 라벨·드롭다운 가로 2분할 대신 세로 스택 + 바깥은 1열 그리드 */
+    const proposeMobileStackedLayout = Boolean(pairRoomLobbyChangePropose && isMobile && pairRoomEmbeddedRightSlot);
+
     // 게임 모드별 설정 UI 렌더링
     const renderGameSettings = () => {
         if (!selectedGameMode) {
@@ -547,7 +832,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             }
             return (
                 <div className="text-center text-gray-400 py-8">
-                    좌측에서 게임 종류를 선택하세요
+                    좌측에서 게임 모드를 선택하세요
                 </div>
             );
         }
@@ -569,7 +854,9 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                 className={
                                     handheldCompact
                                         ? 'mt-1.5 grid w-full min-w-0 grid-cols-2 content-start gap-x-1.5 gap-y-1.5 sm:mt-2 [&>div]:min-w-0'
-                                        : `mt-1.5 sm:mt-2 ${PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS}`
+                                        : pairRoomEmbeddedRightSlot
+                                          ? 'mt-1.5 grid w-full min-w-0 grid-cols-2 content-start justify-center gap-x-2.5 gap-y-2 sm:mt-2 [&>div]:min-w-0'
+                                          : `mt-1.5 sm:mt-2 ${PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS}`
                                 }
                             >
                                 {ruleRows.map((row, idx) => (
@@ -597,20 +884,48 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         }
 
         const denseSettings = useLobbyDenseGameSettingsLayout;
-        const gameSettingsSelectClass = denseSettings
-            ? 'h-9 min-h-9 w-full box-border rounded-lg border border-white/15 bg-black/35 px-2 text-center text-sm font-semibold text-slate-100 outline-none ring-0 focus:border-cyan-400/50 disabled:opacity-50'
-            : 'w-full bg-gray-700 border border-gray-600 text-center text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2';
-        const gameSettingsSelectFlexClass = denseSettings
-            ? 'h-9 min-h-9 flex-1 box-border rounded-lg border border-white/15 bg-black/35 px-2 text-center text-sm font-semibold text-slate-100 outline-none ring-0 focus:border-cyan-400/50'
-            : 'flex-1 bg-gray-700 border border-gray-600 text-center text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2';
-        const gameSettingsLabelClass = denseSettings
-            ? 'min-w-0 w-full text-center text-xs font-bold leading-tight text-cyan-100'
-            : 'font-semibold text-gray-300 flex-shrink-0';
+        /** 단독 AI 모달(모바일): `PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS`의 14rem 열 때문에 1열로 붕괴하지 않도록 2열 고정 */
+        const handheldStandaloneAiSettingsGrid = Boolean(denseSettings && layoutMobile);
+        /** 핸드헬드 「방 만들기」2단계: 드롭다운·라벨을 단독 AI 모달 본문과 동일한 본문 크기(text-sm)에 맞춤 */
+        const handheldRoomCreateDenseTypography = Boolean(denseSettings && isMobile && pairRoomHandheldCreateStackedFooter);
+        const gameSettingsSelectClass = proposeMobileStackedLayout
+            ? 'h-8 min-h-8 w-full box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[12px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50 disabled:opacity-50'
+            : denseSettings
+              ? handheldPairRoomDetailsCompact
+                  ? 'h-7 min-h-7 w-full min-w-[5rem] box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[11px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50 disabled:opacity-50'
+                  : handheldStandaloneAiSettingsGrid
+                    ? 'h-8 min-h-8 w-full min-w-[5.25rem] box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[11px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50 disabled:opacity-50'
+                    : 'h-9 min-h-9 w-full min-w-[5.5rem] box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-10 text-left text-sm font-semibold text-slate-100 outline-none ring-0 focus:border-cyan-400/50 disabled:opacity-50'
+              : 'w-full bg-gray-700 border border-gray-600 text-center text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2';
+        const gameSettingsSelectFlexClass = proposeMobileStackedLayout
+            ? 'h-8 min-h-8 w-full flex-1 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[12px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50'
+            : denseSettings
+              ? handheldPairRoomDetailsCompact
+                  ? 'h-7 min-h-7 w-full min-w-[5rem] flex-1 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[11px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50'
+                  : handheldStandaloneAiSettingsGrid
+                    ? 'h-8 min-h-8 w-full min-w-[5.25rem] flex-1 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[11px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50'
+                    : 'h-9 min-h-9 w-full min-w-[5.5rem] flex-1 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-10 text-left text-sm font-semibold text-slate-100 outline-none ring-0 focus:border-cyan-400/50'
+              : 'flex-1 bg-gray-700 border border-gray-600 text-center text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2';
+        const denseLobbyAccentLabelClass = lobbyType === 'playful' ? 'text-amber-100' : 'text-cyan-100';
+        const gameSettingsLabelClass = proposeMobileStackedLayout
+            ? lobbyType === 'playful'
+                ? 'pl-0.5 text-left text-[10px] font-bold leading-snug text-amber-100/90'
+                : 'pl-0.5 text-left text-[10px] font-bold leading-snug text-cyan-100/90'
+            : denseSettings
+              ? handheldPairRoomDetailsCompact
+                  ? `min-w-0 w-full text-left text-[10px] font-bold leading-tight ${denseLobbyAccentLabelClass}`
+                  : handheldRoomCreateDenseTypography
+                    ? `min-w-0 w-full text-left text-sm font-bold leading-tight ${denseLobbyAccentLabelClass}`
+                    : handheldStandaloneAiSettingsGrid
+                      ? `min-w-0 w-full text-left text-[10px] font-bold leading-tight ${denseLobbyAccentLabelClass}`
+                      : `min-w-0 w-full text-left text-xs font-bold leading-tight ${denseLobbyAccentLabelClass}`
+              : 'font-semibold text-gray-300 flex-shrink-0';
 
         const showBoardSize = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice].includes(selectedGameMode);
         const showKomi = ![GameMode.Capture, GameMode.Omok, GameMode.Ttamok, GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief, GameMode.Base].includes(selectedGameMode);
-        // AI 대국은 모두 시간 무제한이므로, 제한시간/초읽기 관련 UI는 항상 숨긴다.
-        const showTimeControls = false;
+        /** 알까기·컬링·주사위·도둑은 시계 UI 없음. 페어 4인·2인 친선은 사람 대전이므로 시계 표시 */
+        const modesWithoutClockUi = [GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief];
+        const showTimeControls = pairFriendlyHumanClock && !modesWithoutClockUi.includes(selectedGameMode);
         const showCaptureTarget = selectedGameMode === GameMode.Capture;
         const showTtamokCaptureTarget = selectedGameMode === GameMode.Ttamok;
         const showBaseStones = selectedGameMode === GameMode.Base;
@@ -643,7 +958,8 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             { value: 5,   label: '10단계' },
         ];
 
-        const boardSizeOptions = selectedGameMode != null ? getAiChallengeBoardSizes(selectedGameMode, lobbyType) : BOARD_SIZES;
+        const boardSizeOptions =
+            selectedGameMode != null ? getAiChallengeBoardSizes(selectedGameMode, lobbyType) : BOARD_SIZES;
         const requiredScoringTurnLimit = getAiScoringTurnLimitByBoardSize(settings.boardSize);
         const scoringTurnLimitOptions = getScoringTurnLimitOptionsByBoardSize(settings.boardSize);
         const nonZeroScoringTurnLimitOptions = scoringTurnLimitOptions.includes(requiredScoringTurnLimit)
@@ -651,15 +967,31 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             : [requiredScoringTurnLimit];
 
         const defaultSettingRowClass = 'grid grid-cols-2 gap-2 items-center';
-        const settingRowClass = denseSettings ? PAIR_LOBBY_DENSE_SETTING_ROW_CLASS : defaultSettingRowClass;
+        const settingRowClass = proposeMobileStackedLayout
+            ? PAIR_LOBBY_CHANGE_PROPOSE_HANDHELD_ROW_CLASS
+            : denseSettings
+              ? `${PAIR_LOBBY_DENSE_SETTING_ROW_CLASS}${
+                    handheldPairRoomDetailsCompact
+                        ? ` ${HANDHELD_PAIR_ROOM_CREATE_DETAILS_SETTING_ROW_EXTRA_CLASS}`
+                        : handheldStandaloneAiSettingsGrid
+                          ? ` ${HANDHELD_STANDALONE_AI_SETTING_ROW_EXTRA_CLASS}`
+                          : ''
+                }`
+              : defaultSettingRowClass;
 
         return (
             <div
                 className={
                     denseSettings
                         ? pairRoomEmbeddedRightSlot
-                            ? 'grid w-full min-h-0 auto-rows-min min-w-0 content-center justify-center gap-x-2.5 gap-y-2 overflow-y-auto pr-1 grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(14rem,14rem))] [&>div]:min-w-0'
-                            : `${PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS} h-full max-h-full overflow-y-auto overflow-x-hidden pr-1`
+                            ? proposeMobileStackedLayout
+                                ? 'grid w-full min-h-0 auto-rows-min min-w-0 grid-cols-1 content-start gap-y-1.5 overflow-y-auto overflow-x-hidden pr-1 [&>div]:min-w-0'
+                                : handheldPairRoomDetailsCompact
+                                  ? 'grid w-full min-h-0 auto-rows-min min-w-0 content-start justify-center gap-x-1 gap-y-0.5 overflow-y-auto overflow-x-hidden pr-1 grid-cols-2 [&>div]:min-w-0'
+                                  : 'grid w-full min-h-0 auto-rows-min min-w-0 content-start justify-center gap-x-2.5 gap-y-2 overflow-y-auto overflow-x-hidden pr-1 grid-cols-2 [&>div]:min-w-0'
+                            : handheldStandaloneAiSettingsGrid
+                              ? 'grid h-full max-h-full min-h-0 w-full auto-rows-min min-w-0 grid-cols-2 content-start gap-x-1.5 gap-y-1.5 overflow-y-auto overflow-x-hidden pr-1 [&>div]:min-w-0'
+                              : `${PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS} h-full max-h-full overflow-y-auto overflow-x-hidden pr-1`
                         : 'flex h-full flex-col gap-2 overflow-y-auto pr-2'
                 }
             >
@@ -727,14 +1059,18 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                         return (
                             <label
                                 key={m.mode}
-                                className={`flex items-center gap-1.5 rounded-md text-gray-200 ${
+                                className={`flex items-center rounded-md text-gray-200 ${
                                     denseSettings
-                                        ? `h-7 shrink-0 flex-nowrap whitespace-nowrap py-0.5 pl-1 pr-1.5 sm:gap-2 sm:pl-1.5 sm:pr-2 ${isDisabledByConflict ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} bg-gray-700/50`
+                                        ? handheldStandaloneAiSettingsGrid
+                                            ? `min-h-[2rem] w-full flex-wrap gap-1 border border-white/12 bg-gray-800/55 px-1.5 py-1 ${isDisabledByConflict ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`
+                                            : `h-7 shrink-0 flex-nowrap gap-1.5 whitespace-nowrap py-0.5 pl-1 pr-1.5 sm:gap-2 sm:pl-1.5 sm:pr-2 ${isDisabledByConflict ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} bg-gray-700/50`
                                         : `gap-2 p-2 ${isDisabledByConflict ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} bg-gray-700/50`
                                 }`}
                                 style={{
                                     fontSize: denseSettings
-                                        ? `${Math.max(10, Math.round(11 * mobileTextScale))}px`
+                                        ? handheldStandaloneAiSettingsGrid
+                                            ? `${Math.max(10, Math.round(10 * mobileTextScale))}px`
+                                            : `${Math.max(10, Math.round(11 * mobileTextScale))}px`
                                         : `${Math.max(12, Math.round(14 * mobileTextScale))}px`,
                                 }}
                             >
@@ -743,9 +1079,15 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                     checked={settings.mixedModes?.includes(m.mode) ?? false}
                                     onChange={(e) => handleMixedModeChange(m.mode, e.target.checked)}
                                     disabled={isDisabledByConflict}
-                                    className={`flex-shrink-0 ${denseSettings ? 'h-3.5 w-3.5 sm:h-4 sm:w-4' : 'h-4 w-4'}`}
+                                    className={`flex-shrink-0 ${
+                                        denseSettings
+                                            ? handheldStandaloneAiSettingsGrid
+                                                ? 'h-3 w-3'
+                                                : 'h-3.5 w-3.5 sm:h-4 sm:w-4'
+                                            : 'h-4 w-4'
+                                    }`}
                                 />
-                                <span className="leading-tight">{m.name}</span>
+                                <span className="leading-tight">{mixSubRuleDisplayName(m.name)}</span>
                             </label>
                         );
                     });
@@ -774,7 +1116,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                         >
                                             믹스룰 조합 (2개 이상 선택)
                                         </h3>
-                                        {!pairRoomEmbeddedRightSlot ? (
+                                        {!pairRoomEmbeddedRightSlot && !handheldStandaloneAiSettingsGrid ? (
                                             <p className="text-gray-500 text-xs leading-snug">
                                                 PVP 신청 화면과 같이, 함께 적용할 규칙을 고릅니다. (클래식 바둑은 기본으로 포함됩니다.)
                                             </p>
@@ -783,7 +1125,9 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                     <div
                                         className={
                                             denseSettings
-                                                ? 'flex min-w-0 flex-nowrap gap-1 overflow-x-auto overscroll-x-contain pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+                                                ? handheldStandaloneAiSettingsGrid
+                                                    ? 'grid min-w-0 grid-cols-2 gap-1'
+                                                    : 'flex min-w-0 flex-nowrap gap-1 overflow-x-auto overscroll-x-contain pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
                                                 : 'grid grid-cols-2 gap-2 text-sm'
                                         }
                                     >
@@ -792,12 +1136,15 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                 </>
                             )}
                             {denseSettings ? (
-                                <div className="grid min-w-0 grid-cols-2 gap-2">
+                                <div
+                                    className={`grid min-w-0 ${proposeMobileStackedLayout ? 'grid-cols-1' : 'grid-cols-2'} ${handheldStandaloneAiSettingsGrid ? 'gap-1.5' : 'gap-2'}`}
+                                >
                                     {settings.mixedModes?.includes(GameMode.Base) && (
                                         <div className={settingRowClass}>
                                             <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>베이스돌 개수</label>
                                             <select
                                                 value={settings.baseStones}
+                                                disabled={pairRoomLobbyChangePropose}
                                                 onChange={(e) => handleSettingChange('baseStones', parseInt(e.target.value, 10))}
                                                 className={gameSettingsSelectClass}
                                                 style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
@@ -866,6 +1213,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                             <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>목표점수</label>
                                             <select
                                                 value={settings.captureTarget}
+                                                disabled={pairRoomLobbyChangePropose}
                                                 onChange={(e) => handleSettingChange('captureTarget', parseInt(e.target.value, 10))}
                                                 className={gameSettingsSelectClass}
                                                 style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
@@ -889,6 +1237,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                             <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>베이스돌 개수</label>
                                             <select
                                                 value={settings.baseStones}
+                                                disabled={pairRoomLobbyChangePropose}
                                                 onChange={(e) => handleSettingChange('baseStones', parseInt(e.target.value, 10))}
                                                 className={gameSettingsSelectClass}
                                                 style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
@@ -957,6 +1306,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                             <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>목표점수</label>
                                             <select
                                                 value={settings.captureTarget}
+                                                disabled={pairRoomLobbyChangePropose}
                                                 onChange={(e) => handleSettingChange('captureTarget', parseInt(e.target.value, 10))}
                                                 className={gameSettingsSelectClass}
                                                 style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
@@ -987,6 +1337,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                 step="1" 
                                 min={0}
                                 max={MAX_GAME_INTEGER_INPUT}
+                                disabled={pairRoomLobbyChangePropose}
                                 value={Math.floor(settings.komi)} 
                                 onChange={(e) =>
                                     handleSettingChange(
@@ -1017,11 +1368,17 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                         </div>
                         <div className={settingRowClass}>
                             <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>초읽기</label>
-                            <div className="flex gap-2">
+                            <div
+                                className={
+                                    denseSettings
+                                        ? 'grid w-full min-w-0 grid-cols-2 gap-x-2 gap-y-0'
+                                        : 'flex w-full min-w-0 gap-2'
+                                }
+                            >
                                 <select 
                                     value={settings.byoyomiTime} 
                                     onChange={e => handleSettingChange('byoyomiTime', parseInt(e.target.value))}
-                                    className={gameSettingsSelectFlexClass}
+                                    className={denseSettings ? gameSettingsSelectClass : gameSettingsSelectFlexClass}
                                     style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
                                 >
                                     {BYOYOMI_TIMES.map(t => <option key={t} value={t}>{t}초</option>)}
@@ -1029,7 +1386,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                 <select 
                                     value={settings.byoyomiCount} 
                                     onChange={e => handleSettingChange('byoyomiCount', parseInt(e.target.value))}
-                                    className={gameSettingsSelectFlexClass}
+                                    className={denseSettings ? gameSettingsSelectClass : gameSettingsSelectFlexClass}
                                     style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
                                 >
                                     {BYOYOMI_COUNTS.map(c => <option key={c} value={c}>{c}회</option>)}
@@ -1044,6 +1401,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                         <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>포획 목표</label>
                         <select 
                             value={settings.captureTarget} 
+                            disabled={pairRoomLobbyChangePropose}
                             onChange={e => handleSettingChange('captureTarget', parseInt(e.target.value))}
                             className={gameSettingsSelectClass}
                             style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
@@ -1058,6 +1416,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                         <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>포획 목표</label>
                         <select 
                             value={settings.captureTarget || 5} 
+                            disabled={pairRoomLobbyChangePropose}
                             onChange={e => handleSettingChange('captureTarget', parseInt(e.target.value))}
                             className={gameSettingsSelectClass}
                             style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
@@ -1079,7 +1438,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             />
                         </div>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>육목 이상 금지</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>장목 금지</label>
                             <input 
                                 type="checkbox" 
                                 checked={settings.hasOverlineForbidden ?? true} 
@@ -1102,7 +1461,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             />
                         </div>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>육목 이상 금지</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>장목 금지</label>
                             <input 
                                 type="checkbox" 
                                 checked={settings.hasOverlineForbidden ?? true} 
@@ -1163,34 +1522,33 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                     </div>
                     ) : null}
                     <div className={settingRowClass}>
-                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>특수주사위</label>
+                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>(고)주사위</label>
                         <select
-                            value={getThiefUnifiedSpecialDiceCount(settings)}
-                            onChange={e => {
-                                const count = parseInt(e.target.value, 10);
-                                setSettings((prev) => {
-                                    let newSettings = { ...prev, ...thiefUnifiedSpecialDiceCounts(count) };
-                                    if (newSettings.mixedModes) {
-                                        const isBaseSelected = newSettings.mixedModes.includes(GameMode.Base);
-                                        const isCaptureSelected = newSettings.mixedModes.includes(GameMode.Capture);
-                                        if (isBaseSelected && isCaptureSelected) {
-                                            newSettings.mixedModes = newSettings.mixedModes.filter((m) => m !== GameMode.Base);
-                                        }
-                                    }
-                                    if (selectedGameMode) {
-                                        newSettings = clampAiLobbyStrategicItemCaps(selectedGameMode, newSettings);
-                                        localStorage.setItem(
-                                            `preferredGameSettings_${selectedGameMode}`,
-                                            JSON.stringify(newSettings),
-                                        );
-                                    }
-                                    return newSettings;
-                                });
-                            }}
+                            value={settings.thiefHigh36ItemCount ?? 1}
+                            onChange={(e) => handleSettingChange('thiefHigh36ItemCount', parseInt(e.target.value, 10))}
                             className={gameSettingsSelectClass}
                             style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
                         >
-                            {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개 (유형당)</option>)}
+                            {DICE_GO_ITEM_COUNTS.map((c) => (
+                                <option key={c} value={c}>
+                                    {c}개
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className={settingRowClass}>
+                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>방지주사위</label>
+                        <select
+                            value={settings.thiefNoOneItemCount ?? 1}
+                            onChange={(e) => handleSettingChange('thiefNoOneItemCount', parseInt(e.target.value, 10))}
+                            className={gameSettingsSelectClass}
+                            style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                        >
+                            {DICE_GO_ITEM_COUNTS.map((c) => (
+                                <option key={c} value={c}>
+                                    {c}개
+                                </option>
+                            ))}
                         </select>
                     </div>
                     </>
@@ -1201,6 +1559,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                         <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>베이스 돌</label>
                         <select 
                             value={settings.baseStones} 
+                            disabled={pairRoomLobbyChangePropose}
                             onChange={e => handleSettingChange('baseStones', parseInt(e.target.value))}
                             className={gameSettingsSelectClass}
                             style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
@@ -1265,34 +1624,63 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>특수주사위</label>
-                            <select 
-                                value={getDiceGoUnifiedSpecialDiceCount(settings)} 
-                                onChange={e => {
-                                    const count = parseInt(e.target.value, 10);
-                                    setSettings((prev) => {
-                                        let newSettings = { ...prev, ...diceGoUnifiedSpecialDiceCounts(count) };
-                                        if (newSettings.mixedModes) {
-                                            const isBaseSelected = newSettings.mixedModes.includes(GameMode.Base);
-                                            const isCaptureSelected = newSettings.mixedModes.includes(GameMode.Capture);
-                                            if (isBaseSelected && isCaptureSelected) {
-                                                newSettings.mixedModes = newSettings.mixedModes.filter((m) => m !== GameMode.Base);
-                                            }
-                                        }
-                                        if (selectedGameMode) {
-                                            newSettings = clampAiLobbyStrategicItemCaps(selectedGameMode, newSettings);
-                                            localStorage.setItem(
-                                                `preferredGameSettings_${selectedGameMode}`,
-                                                JSON.stringify(newSettings),
-                                            );
-                                        }
-                                        return newSettings;
-                                    });
-                                }}
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>홀수주사위</label>
+                            <select
+                                value={settings.oddDiceCount ?? 1}
+                                onChange={(e) => handleSettingChange('oddDiceCount', parseInt(e.target.value, 10))}
                                 className={gameSettingsSelectClass}
                                 style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
                             >
-                                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개 (유형당)</option>)}
+                                {DICE_GO_ITEM_COUNTS.map((c) => (
+                                    <option key={c} value={c}>
+                                        {c}개
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className={settingRowClass}>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>짝수주사위</label>
+                            <select
+                                value={settings.evenDiceCount ?? 1}
+                                onChange={(e) => handleSettingChange('evenDiceCount', parseInt(e.target.value, 10))}
+                                className={gameSettingsSelectClass}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                            >
+                                {DICE_GO_ITEM_COUNTS.map((c) => (
+                                    <option key={c} value={c}>
+                                        {c}개
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className={settingRowClass}>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>(고)주사위</label>
+                            <select
+                                value={settings.highDiceCount ?? 1}
+                                onChange={(e) => handleSettingChange('highDiceCount', parseInt(e.target.value, 10))}
+                                className={gameSettingsSelectClass}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                            >
+                                {DICE_GO_ITEM_COUNTS.map((c) => (
+                                    <option key={c} value={c}>
+                                        {c}개
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className={settingRowClass}>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>(저)주사위</label>
+                            <select
+                                value={settings.lowDiceCount ?? 1}
+                                onChange={(e) => handleSettingChange('lowDiceCount', parseInt(e.target.value, 10))}
+                                className={gameSettingsSelectClass}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                            >
+                                {DICE_GO_ITEM_COUNTS.map((c) => (
+                                    <option key={c} value={c}>
+                                        {c}개
+                                    </option>
+                                ))}
                             </select>
                         </div>
                     </>
@@ -1432,42 +1820,93 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         );
     };
 
-    const opponentSubtitle = selectedGameDefinition ? `${selectedGameDefinition.name} 봇` : '게임 종류를 선택하세요';
+    const modeBriefFallback =
+        lobbyType === 'strategic'
+            ? '왼쪽에서 게임 모드를 고른 뒤, 아래에서 판 크기·시간·AI 난이도 등을 설정합니다.'
+            : '왼쪽에서 놀이 모드를 고른 뒤, 아래에서 대국 옵션을 설정합니다.';
 
-    const mobileHeaderBack =
-        layoutMobile && mobileStep === 'settings' ? (
-            <button
-                type="button"
-                className={LOBBY_MOBILE_HEADER_BACK_BTN_CLASS}
-                onClick={(e) => {
-                    e.stopPropagation();
-                    setMobileStep('pickMode');
-                }}
-            >
-                뒤로
-            </button>
-        ) : undefined;
+    /** 모바일 단독 AI 모달 상단과 동일: 선택 모드 아이콘 + 간략 설명 */
+    const selectedModeBriefSummaryPanel = (
+        <div className="relative z-[1] shrink-0 rounded-xl border border-white/10 bg-black/25 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+            <div className="flex items-stretch gap-2.5">
+                <div className="flex w-[4.5rem] shrink-0 flex-col items-center gap-1 self-start sm:w-[5.25rem]">
+                    {selectedGameDefinition ? (
+                        <>
+                            <div className="flex h-14 w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-zinc-800/85 p-1 shadow-inner sm:h-16">
+                                <img src={selectedGameDefinition.image} alt="" className="max-h-full max-w-full object-contain" />
+                            </div>
+                            <span
+                                className={`w-full text-center text-[11px] font-extrabold leading-tight line-clamp-2 ${modeTitleToneClass}`}
+                            >
+                                {selectedGameDefinition.name}
+                            </span>
+                        </>
+                    ) : (
+                        <span className="text-center text-[10px] leading-snug text-zinc-500">모드를 선택하세요</span>
+                    )}
+                </div>
+                <div className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-2">
+                    <p className="text-[11px] leading-snug text-zinc-300 line-clamp-5">
+                        {lobbyGameModeBriefDescription(selectedGameDefinition?.description, modeBriefFallback)}
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
 
-    const embeddedShellClass =
-        'flex min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-xl border border-violet-400/40 bg-gradient-to-br from-zinc-900/95 via-zinc-950/98 to-black/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-violet-500/15';
+    /** PC 방 만들기 임베드 우측 열 상단 — `innerBody` 우측과 동일한 타이포·레이아웃 */
+    const embeddedPcRightColumnModeBriefPanel = (
+        <div className="shrink-0 rounded-xl border border-white/10 bg-black/25 p-3">
+            <div className="flex items-stretch gap-4">
+                <div className="flex w-[5.5rem] shrink-0 flex-col items-center gap-2 sm:w-28">
+                    {selectedGameDefinition ? (
+                        <>
+                            <div className="flex h-[4.5rem] w-full items-center justify-center overflow-hidden rounded-xl border border-white/12 bg-zinc-800/90 p-1.5 shadow-inner sm:h-24">
+                                <img src={selectedGameDefinition.image} alt="" className="max-h-full max-w-full object-contain" />
+                            </div>
+                            <h4
+                                className={`w-full text-center font-bold leading-snug line-clamp-3 ${modeTitleToneClass}`}
+                                style={{ fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
+                            >
+                                {selectedGameDefinition.name}
+                            </h4>
+                        </>
+                    ) : (
+                        <span
+                            className="text-center text-zinc-500"
+                            style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                        >
+                            게임 모드를 선택하세요
+                        </span>
+                    )}
+                </div>
+                <div className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 py-2.5">
+                    <p
+                        className="text-tertiary leading-relaxed"
+                        style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                    >
+                        {lobbyGameModeBriefDescription(selectedGameDefinition?.description, modeBriefFallback)}
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
 
     const desktopModePickerInner = (
         <>
-            <h3
-                className="mb-3 shrink-0 font-bold text-purple-300"
-                style={{ fontSize: `${Math.max(15, Math.round(19 * mobileTextScale))}px` }}
-            >
-                게임 종류 선택
+            <h3 className="mb-2 shrink-0 text-sm font-bold tracking-tight text-amber-100/95 sm:mb-3 sm:text-base">
+                게임 모드 선택
             </h3>
-            <div className="grid min-h-0 flex-1 touch-pan-y grid-cols-2 gap-2 overflow-y-auto overscroll-y-contain pr-2 [-webkit-overflow-scrolling:touch]">
+            <div className="grid min-h-0 flex-1 touch-pan-y grid-cols-2 gap-2 overflow-y-auto overscroll-y-contain pr-2 sm:gap-3 [-webkit-overflow-scrolling:touch]">
                 {availableGameModes.map((game) => (
                     <GameCard
                         key={game.mode}
                         mode={game.mode}
                         image={game.image}
                         displayName={game.name ?? String(game.mode)}
-                        onSelect={setSelectedGameMode}
+                        onSelect={selectGameModeForLobby}
                         isSelected={selectedGameMode === game.mode}
+                        chromeKind={modalChrome}
                     />
                 ))}
             </div>
@@ -1479,7 +1918,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             {!(useLobbyDenseGameSettingsLayout && pairRoomEmbeddedRightSlot) ? (
                 <h4
                     className={`mb-2 flex-shrink-0 font-semibold ${
-                        useLobbyDenseGameSettingsLayout ? 'text-cyan-100' : 'text-gray-300'
+                        useLobbyDenseGameSettingsLayout ? denseSettingsHeadingToneClass : 'text-gray-300'
                     }`}
                     style={{ fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                 >
@@ -1488,7 +1927,11 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             ) : null}
             <div
                 className={`min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 ${
-                    useLobbyDenseGameSettingsLayout && pairRoomEmbeddedRightSlot ? 'flex flex-col justify-center' : ''
+                    useLobbyDenseGameSettingsLayout && pairRoomEmbeddedRightSlot
+                        ? handheldPairRoomDetailsCompact
+                            ? 'flex flex-col justify-start'
+                            : 'flex flex-col justify-center'
+                        : ''
                 }`}
             >
                 {renderGameSettings()}
@@ -1496,98 +1939,109 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         </div>
     );
 
+    /** 방 만들기 임베드(`embeddedShellClass`)와 동일한 본문 테두리·배경 */
+    const standaloneLobbyFrameClass = embeddedShellClass;
+
+    /** 페어 핸드헬드 「방 만들기」2단계 푸터(`handheldPairCreateFooterClass`)와 동일 */
+    const handheldAiDetailsFooterClass =
+        'grid shrink-0 grid-cols-2 gap-1.5 border-t border-white/10 bg-black/50 px-3 pt-2 pb-[max(0.65rem,env(safe-area-inset-bottom))]';
+    const handheldStackedFooterBtnClass =
+        '!justify-center rounded-xl !py-2 !text-xs disabled:cursor-not-allowed disabled:opacity-60';
+
     const innerBody = layoutMobile ? (
                 <div
-                    className="relative flex min-h-0 max-h-[min(94dvh,880px)] flex-1 flex-col gap-2 overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-br from-zinc-900/92 via-zinc-950/96 to-black/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_24px_64px_-28px_rgba(0,0,0,0.85)] ring-1 ring-white/[0.06] sm:gap-3 sm:p-3"
+                    className={`${standaloneLobbyFrameClass} relative flex min-h-0 max-h-[min(94dvh,880px)] flex-1 flex-col gap-2 overflow-hidden p-2 sm:gap-2.5 sm:p-2.5`}
                 >
-                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" aria-hidden />
-                    {/* 상대(AI) 프로필 — 항상 표시 */}
-                    <div className="relative z-[1] shrink-0 rounded-xl border border-purple-500/35 bg-gray-900/65 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                        <div className="flex items-start gap-2.5">
-                            <Avatar userId={aiUserId} userName="AI" size={52} className="shrink-0 border-2 border-purple-500" />
-                            <div className="min-w-0 flex-1">
-                                <h3 className="font-bold text-purple-200 text-base leading-tight">AI</h3>
-                                <p className="text-xs text-gray-400 mt-0.5 leading-snug">{opponentSubtitle}</p>
-                                {selectedGameDefinition ? (
-                                    <div className="mt-2 border-t border-white/10 pt-2">
-                                        <p className="text-[11px] font-semibold text-gray-400 mb-0.5">게임 설명</p>
-                                        <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-4">
-                                            {selectedGameDefinition.description || '선택된 게임에 대한 설명이 없습니다.'}
-                                        </p>
-                                    </div>
-                                ) : null}
-                            </div>
-                        </div>
-                    </div>
+                    {modalChrome === 'ai_feature' ? (
+                        <span className={aiChallengeFeatureTopHairlineClass} aria-hidden />
+                    ) : null}
+                    <div className={aiChallengeModalHandheldSummaryOuterClass(modalChrome)}>{selectedModeBriefSummaryPanel}</div>
 
                     {mobileStep === 'pickMode' ? (
-                        <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-                            <h3 className="shrink-0 text-sm font-bold tracking-tight text-amber-100/95">게임 종류 선택</h3>
-                            <p className="shrink-0 text-[11px] leading-snug text-zinc-500">항목을 눌러 선택한 뒤 아래에서 대국 설정으로 이동하세요.</p>
-                            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-0.5 -mr-0.5">
-                                <div className="grid grid-cols-2 gap-2 pb-1">
+                        <div className={aiChallengeModalHandheldModeStepShellClass(modalChrome)}>
+                            <div className="flex shrink-0 flex-col gap-1 border-b border-white/10 pb-2">
+                                <h3 className={`text-sm font-extrabold tracking-tight ${modeTitleToneClass}`}>게임 모드 선택</h3>
+                                <p className="text-[11px] font-medium leading-snug text-zinc-400/95">
+                                    항목을 눌러 선택한 뒤 「다음」에서 대국 설정으로 이동합니다.
+                                </p>
+                            </div>
+                            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain py-2 [-webkit-overflow-scrolling:touch]">
+                                <div className="grid grid-cols-2 gap-1.5 pb-0.5 sm:gap-2">
                                     {availableGameModes.map((game) => (
                                         <GameCard
                                             key={game.mode}
                                             mode={game.mode}
                                             image={game.image}
                                             displayName={game.name ?? String(game.mode)}
-                                            onSelect={setSelectedGameMode}
+                                            onSelect={selectGameModeForLobby}
                                             isSelected={selectedGameMode === game.mode}
                                             compact
+                                            chromeKind={modalChrome}
                                         />
                                     ))}
                                 </div>
                             </div>
-                            <div
-                                className={`shrink-0 -mx-2 -mb-2 mt-1 flex flex-col gap-2.5 rounded-b-2xl sm:-mx-3 sm:-mb-3 ${LOBBY_MOBILE_MODAL_FOOTER_CLASS}`}
-                            >
-                                <Button
-                                    bare
-                                    colorScheme="none"
-                                    onClick={() => setMobileStep('settings')}
-                                    disabled={!selectedGameMode}
-                                    className={`${LOBBY_MOBILE_BTN_PRIMARY_CLASS} ${!selectedGameMode ? '!cursor-not-allowed !opacity-45 !hover:brightness-100' : ''}`}
-                                >
-                                    다음 — 대국 설정
-                                </Button>
+                            <div className={handheldAiDetailsFooterClass}>
+                                <div className="col-span-2 flex justify-center px-0.5">
+                                    <Button
+                                        bare
+                                        colorScheme="none"
+                                        onClick={() => setMobileStep('settings')}
+                                        disabled={!selectedGameMode}
+                                        className={`${mobileNextCtaChromeClass} w-full max-w-[min(20rem,92vw)]`}
+                                    >
+                                        다음 — 대국 설정
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     ) : (
-                        <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-                            <h3
-                                className={`shrink-0 text-sm font-bold tracking-tight ${
-                                    useLobbyDenseGameSettingsLayout ? 'text-cyan-100' : 'text-amber-100/95'
-                                }`}
-                            >
-                                대국 설정
-                            </h3>
-                            <div
-                                className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 -mr-0.5 rounded-lg border p-1.5 sm:p-2 ${
-                                    useLobbyDenseGameSettingsLayout
-                                        ? 'border-white/10 bg-black/25'
-                                        : 'border-white/5 bg-black/20'
-                                }`}
-                            >
-                                {renderGameSettings()}
+                        <div
+                            className="relative z-[2] isolate flex min-h-0 flex-1 flex-col overflow-hidden bg-[#070708]"
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="relative z-[1] flex shrink-0 items-center gap-1.5 border-b border-white/10 bg-black/30 px-2.5 py-1.5">
+                                <button
+                                    type="button"
+                                    className={LOBBY_MOBILE_HEADER_BACK_BTN_CLASS}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setMobileStep('pickMode');
+                                    }}
+                                >
+                                    뒤로
+                                </button>
+                                <span
+                                    className={`min-w-0 flex-1 text-sm font-extrabold leading-tight ${
+                                        useLobbyDenseGameSettingsLayout ? denseSettingsHeadingToneClass : modeTitleToneClass
+                                    }`}
+                                >
+                                    대국 설정
+                                </span>
                             </div>
-                            <div
-                                className={`shrink-0 -mx-2 -mb-2 mt-1 flex flex-col gap-2.5 rounded-b-2xl sm:flex-row sm:-mx-3 sm:-mb-3 ${LOBBY_MOBILE_MODAL_FOOTER_CLASS}`}
-                            >
+                            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-3 pb-1 pt-2">
+                                <div className={`min-h-0 min-w-0 flex-1 ${aiChallengeModalHandheldSettingsScrollShellClass(modalChrome)}`}>
+                                    {renderGameSettings()}
+                                </div>
+                            </div>
+                            <div className={handheldAiDetailsFooterClass}>
                                 <Button
+                                    type="button"
                                     bare
                                     colorScheme="none"
                                     onClick={onClose}
-                                    className={LOBBY_MOBILE_BTN_SECONDARY_CLASS}
+                                    className={`${handheldStackedFooterBtnClass} border border-white/20 bg-zinc-800/60 !font-bold !text-zinc-200`}
                                 >
                                     취소
                                 </Button>
                                 <Button
+                                    type="button"
                                     bare
                                     colorScheme="none"
                                     onClick={handleChallenge}
                                     disabled={!selectedGameMode}
-                                    className={`${LOBBY_MOBILE_BTN_PRIMARY_CLASS} sm:flex-[1.35] ${!selectedGameMode ? '!cursor-not-allowed !opacity-45 !hover:brightness-100' : ''}`}
+                                    className={`${handheldStackedFooterBtnClass} ${pairHandheldNextChromeClass}`}
                                 >
                                     {showActionPointCost ? `${submitLabel} (⚡${actionPointCost})` : submitLabel}
                                 </Button>
@@ -1596,82 +2050,92 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                     )}
                 </div>
             ) : (
-                <div className="flex h-full">
-                    <div className="flex w-1/3 min-w-0 flex-col rounded-l-lg border-r border-gray-700 bg-tertiary/30 p-4 text-on-panel">
-                        {desktopModePickerInner}
-                    </div>
+                <div
+                    className={
+                        embeddedPanel
+                            ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'
+                            : `${standaloneLobbyFrameClass} flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden`
+                    }
+                >
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:max-h-[min(82vh,760px)] lg:flex-row">
+                        <div className={modePickerColumnClassName}>
+                            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{desktopModePickerInner}</div>
+                        </div>
 
-                    <div className="flex w-2/3 min-w-0 flex-col rounded-r-lg bg-primary p-4">
-                        {!(embeddedPanel && configureOnly) ? (
-                            <div className="mb-4 flex-shrink-0 rounded-lg border border-gray-700 bg-gray-900/50 p-3">
-                                <div className="mb-3 flex items-center gap-3">
-                                    <Avatar userId={aiUserId} userName="AI" size={54} className="border-2 border-purple-500" />
-                                    <div>
-                                        <h3
-                                            className="font-bold text-purple-300"
-                                            style={{ fontSize: `${Math.max(15, Math.round(19 * mobileTextScale))}px` }}
-                                        >
-                                            AI
-                                        </h3>
-                                        <p className="text-gray-400" style={{ fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>
-                                            {selectedGameDefinition ? `${selectedGameDefinition.name} 봇` : 'AI 봇'}
-                                        </p>
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-primary text-on-panel">
+                            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-hidden p-3 sm:p-4">
+                                {!(embeddedPanel && configureOnly) ? (
+                                    <div className="mb-3 shrink-0 rounded-xl border border-white/10 bg-black/25 p-3">
+                                        <div className="flex items-stretch gap-4">
+                                            <div className="flex w-[5.5rem] shrink-0 flex-col items-center gap-2 sm:w-28">
+                                                {selectedGameDefinition ? (
+                                                    <>
+                                                        <div className="flex h-[4.5rem] w-full items-center justify-center overflow-hidden rounded-xl border border-white/12 bg-zinc-800/90 p-1.5 shadow-inner sm:h-24">
+                                                            <img
+                                                                src={selectedGameDefinition.image}
+                                                                alt=""
+                                                                className="max-h-full max-w-full object-contain"
+                                                            />
+                                                        </div>
+                                                        <h4
+                                                            className={`w-full text-center font-bold leading-snug line-clamp-3 ${modeTitleToneClass}`}
+                                                            style={{ fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
+                                                        >
+                                                            {selectedGameDefinition.name}
+                                                        </h4>
+                                                    </>
+                                                ) : (
+                                                    <span
+                                                        className="text-center text-zinc-500"
+                                                        style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                                    >
+                                                        게임 모드를 선택하세요
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 py-2.5">
+                                                <p
+                                                    className="text-tertiary leading-relaxed"
+                                                    style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                                >
+                                                    {lobbyGameModeBriefDescription(selectedGameDefinition?.description, modeBriefFallback)}
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                                {selectedGameDefinition && (
-                                    <div className="mt-3 border-t border-gray-700 pt-3">
-                                        <h4
-                                            className="mb-2 font-semibold text-gray-300"
-                                            style={{ fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
-                                        >
-                                            게임 설명
-                                        </h4>
-                                        <p
-                                            className="text-tertiary leading-relaxed"
-                                            style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
-                                        >
-                                            {selectedGameDefinition.description || '선택된 게임에 대한 설명이 없습니다.'}
-                                        </p>
+                                ) : null}
+
+                                {useLobbyDenseGameSettingsLayout && !pairRoomEmbeddedRightSlot && !(embeddedPanel && configureOnly) ? (
+                                    <div className="mt-0 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-t border-white/10 pt-2 sm:pt-2.5">
+                                        {desktopGameSettingsBlock}
                                     </div>
+                                ) : (
+                                    desktopGameSettingsBlock
                                 )}
-                            </div>
-                        ) : null}
 
-                        {useLobbyDenseGameSettingsLayout && !pairRoomEmbeddedRightSlot && !(embeddedPanel && configureOnly) ? (
-                            <div className="mt-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-t border-white/10 pt-2 sm:mt-2.5 sm:pt-2.5">
-                                {desktopGameSettingsBlock}
+                                {!(embeddedPanel && configureOnly) ? (
+                                    <div className="mt-3 flex shrink-0 justify-end gap-2 border-t border-white/10 pt-3 sm:mt-4 sm:gap-3 sm:pt-4">
+                                        <Button
+                                            type="button"
+                                            onClick={onClose}
+                                            colorScheme="none"
+                                            className="min-h-[2.75rem] rounded-xl border border-white/20 bg-zinc-800/60 px-5 py-2.5 text-sm font-bold text-zinc-200 sm:min-h-[2.85rem] sm:text-base"
+                                        >
+                                            취소
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            onClick={handleChallenge}
+                                            colorScheme="none"
+                                            disabled={!selectedGameMode}
+                                            className="min-h-[2.75rem] rounded-xl border border-emerald-400/50 bg-emerald-900/55 px-5 py-2.5 text-sm font-extrabold text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] sm:min-h-[2.85rem] sm:text-base disabled:cursor-not-allowed disabled:opacity-45"
+                                        >
+                                            {showActionPointCost ? `${submitLabel} (⚡${actionPointCost})` : submitLabel}
+                                        </Button>
+                                    </div>
+                                ) : null}
                             </div>
-                        ) : (
-                            desktopGameSettingsBlock
-                        )}
-
-                        {!(embeddedPanel && configureOnly) ? (
-                            <div
-                                className={`mt-4 flex flex-shrink-0 justify-end gap-3 border-t pt-4 ${
-                                    useLobbyDenseGameSettingsLayout && !pairRoomEmbeddedRightSlot
-                                        ? 'border-white/10'
-                                        : 'border-gray-700'
-                                }`}
-                            >
-                                <Button
-                                    onClick={onClose}
-                                    colorScheme="gray"
-                                    className="min-h-[2.75rem] px-5 py-2.5 font-semibold"
-                                    style={{ fontSize: `${Math.max(15, Math.round(17 * mobileTextScale))}px` }}
-                                >
-                                    취소
-                                </Button>
-                                <Button
-                                    onClick={handleChallenge}
-                                    colorScheme="purple"
-                                    disabled={!selectedGameMode}
-                                    className="min-h-[2.75rem] px-5 py-2.5 font-semibold"
-                                    style={{ fontSize: `${Math.max(15, Math.round(17 * mobileTextScale))}px` }}
-                                >
-                                    {showActionPointCost ? `${submitLabel} (⚡${actionPointCost})` : submitLabel}
-                                </Button>
-                            </div>
-                        ) : null}
+                        </div>
                     </div>
                 </div>
             );
@@ -1685,29 +2149,47 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         const showPairEmbeddedColumnFooter =
             Boolean(pairRoomEmbeddedColumnFooter) && !(handheldStackedCreate && pairEmbedMobileStep === 'game');
 
+        /** 손님 변경 제안: 모바일에서 게임 모드 단계 생략(고정 모드 요약 + 설정 폼만) */
+        if (handheldStackedCreate && pairRoomLobbyChangePropose) {
+            return (
+                <div className={`${embeddedShellClass} relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}>
+                    <div className="shrink-0 px-2.5 pt-2.5">{selectedModeBriefSummaryPanel}</div>
+                    <div className="relative z-[2] isolate flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#070708]">
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden pt-2">
+                            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
+                                {pairRoomEmbeddedRightSlot(desktopGameSettingsBlock)}
+                            </div>
+                            {pairRoomEmbeddedColumnFooter ? (
+                                <div className={handheldPairCreateFooterClass}>{pairRoomEmbeddedColumnFooter}</div>
+                            ) : null}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
         if (handheldStackedCreate) {
             return (
-                <div className={`${embeddedShellClass} flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}>
+                <div className={`${embeddedShellClass} relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}>
+                    <div className={`shrink-0 px-2.5 pt-2.5 ${pairEmbedMobileStep === 'details' ? 'pointer-events-none' : ''}`}>
+                        {selectedModeBriefSummaryPanel}
+                    </div>
                     {pairEmbedMobileStep === 'game' ? (
                         <>
-                            <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-b border-gray-700 bg-tertiary/30 p-2.5 text-on-panel sm:p-4">
-                                <h3 className="mb-1.5 shrink-0 text-xs font-bold tracking-tight text-amber-100/95 sm:text-base">
-                                    게임 종류 선택
-                                </h3>
-                                <p className="mb-1.5 shrink-0 text-[10px] leading-snug text-zinc-500">
-                                    항목을 눌러 선택한 뒤 다음으로 이동하세요.
-                                </p>
+                            <div className={`${modePickerColumnClassName} p-2.5 sm:p-4`}>
+                                <h3 className="mb-2 shrink-0 text-sm font-bold tracking-tight text-amber-100/95">게임 모드 선택</h3>
                                 <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
-                                    <div className="grid grid-cols-2 gap-1.5 pb-0.5">
+                                    <div className="grid grid-cols-2 gap-1.5 pb-0.5 sm:gap-2">
                                         {availableGameModes.map((game) => (
                                             <GameCard
                                                 key={game.mode}
                                                 mode={game.mode}
                                                 image={game.image}
                                                 displayName={game.name ?? String(game.mode)}
-                                                onSelect={setSelectedGameMode}
+                                                onSelect={selectGameModeForLobby}
                                                 isSelected={selectedGameMode === game.mode}
                                                 compact
+                                                chromeKind={modalChrome}
                                             />
                                         ))}
                                     </div>
@@ -1728,19 +2210,23 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                     colorScheme="none"
                                     disabled={pairRoomHandheldBusy || !selectedGameMode}
                                     onClick={() => setPairEmbedMobileStep('details')}
-                                    className={`${handheldStackedFooterBtn} border border-violet-400/50 bg-violet-900/55 !font-extrabold !text-violet-50`}
+                                    className={`${handheldStackedFooterBtn} ${pairHandheldNextChromeClass}`}
                                 >
                                     다음
                                 </Button>
                             </div>
                         </>
                     ) : (
-                        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                            <div className="flex shrink-0 items-center gap-1.5 border-b border-white/10 bg-black/30 px-2.5 py-1.5">
+                        <div
+                            className="relative z-[2] isolate flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#070708]"
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="relative z-[1] flex shrink-0 items-center gap-1.5 border-b border-white/10 bg-black/30 px-2.5 py-1.5">
                                 <button type="button" className={LOBBY_MOBILE_HEADER_BACK_BTN_CLASS} onClick={() => setPairEmbedMobileStep('game')}>
                                     뒤로
                                 </button>
-                                <span className="min-w-0 flex-1 text-xs font-extrabold leading-tight text-cyan-100">
+                                <span className={`min-w-0 flex-1 text-sm font-extrabold leading-tight ${modeTitleToneClass}`}>
                                     방 정보·대국 설정
                                 </span>
                             </div>
@@ -1762,12 +2248,28 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             <div className={`${embeddedShellClass} min-h-0 flex-1`}>
                 <div className="flex min-h-0 min-w-0 max-h-[min(78vh,740px)] flex-1 flex-col overflow-hidden lg:max-h-[min(82vh,760px)] lg:flex-row">
                     {/* 모바일 세로 레이아웃: shrink-0만 있으면 열 높이가 콘텐츠 전체로 늘어나 overflow-y-auto가 동작하지 않음 */}
-                    <div className="flex min-h-0 max-h-[min(50dvh,28rem)] flex-col overflow-hidden border-b border-gray-700 bg-tertiary/30 p-3 text-on-panel sm:p-4 lg:max-h-none lg:min-h-[11rem] lg:w-[min(42%,24rem)] lg:min-w-[18rem] lg:max-w-[24rem] lg:shrink-0 lg:border-b-0 lg:border-r">
+                    <div className={modePickerColumnClassName}>
                         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                            {desktopModePickerInner}
+                            {pairRoomLobbyChangePropose ? (
+                                <>
+                                    <h3 className="mb-2 shrink-0 px-3 pt-3 text-sm font-bold tracking-tight text-amber-100/95 sm:mb-3 sm:px-4 sm:pt-4 sm:text-base">
+                                        게임 모드 (방장 설정·변경 불가)
+                                    </h3>
+                                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 pb-3 sm:px-4 sm:pb-4">
+                                        {embeddedPcRightColumnModeBriefPanel}
+                                    </div>
+                                </>
+                            ) : (
+                                desktopModePickerInner
+                            )}
                         </div>
                     </div>
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                        {!pairRoomLobbyChangePropose ? (
+                            <div className="shrink-0 border-b border-white/10 px-3 pb-3 pt-3 sm:px-4 sm:pb-4">
+                                {embeddedPcRightColumnModeBriefPanel}
+                            </div>
+                        ) : null}
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain lg:overflow-hidden lg:min-h-0">
                             {pairRoomEmbeddedRightSlot(desktopGameSettingsBlock)}
                         </div>
@@ -1803,12 +2305,13 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             bodyScrollable={!isMobile}
             bodyNoScroll={isMobile}
             isTopmost
-            variant={isMobile ? 'store' : undefined}
-            headerShowTitle={isMobile}
-            headerContent={mobileHeaderBack}
+            variant="store"
+            containerExtraClassName="rounded-2xl"
+            headerShowTitle={isMobile && mobileStep === 'pickMode'}
+            headerContent={undefined}
             mobileViewportFit={isMobile}
             mobileViewportMaxHeightVh={isMobile ? NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH : undefined}
-            bodyPaddingClassName={isMobile ? '!p-2' : undefined}
+            bodyPaddingClassName="!p-2 sm:!p-2.5"
         >
             {innerBody}
         </DraggableWindow>

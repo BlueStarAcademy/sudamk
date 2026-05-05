@@ -710,7 +710,12 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
 
     const { type, payload } = action as any;
     const now = Date.now();
-    const myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
+    let myPlayerEnum =
+        user.id === game.blackPlayerId ? types.Player.Black : user.id === game.whitePlayerId ? types.Player.White : types.Player.None;
+    // 탑/PVE와 동일: 세션에서 blackPlayerId와 player1 불일치 시 None → 미사일 액션 전부 400
+    if (myPlayerEnum === types.Player.None && game.player1?.id === user.id) {
+        myPlayerEnum = types.Player.Black;
+    }
     const isMyTurn = myPlayerEnum === game.currentPlayer;
 
     switch (type) {
@@ -765,11 +770,7 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
                 await db.saveGame(game);
             }
             
-            // 도전의 탑/싱글: 유저가 방금 둔 직후(턴이 AI로 넘어갔지만 AI가 아직 두기 전)에도 미사일 허용
-            const lastMove = game.moveHistory?.length ? game.moveHistory[game.moveHistory.length - 1] : null;
-            const lastMoveWasMine = lastMove && (lastMove as { player?: number }).player === myPlayerEnum;
-            const allowMissileAfterMyMove = (game.isSinglePlayer || (game as any).gameCategory === 'tower') && game.gameStatus === 'playing' && lastMoveWasMine && !isMyTurn;
-            const canUseMissile = isMyTurn || allowMissileAfterMyMove;
+            const canUseMissile = isMyTurn;
             if (!canUseMissile || game.gameStatus !== 'playing') {
                 console.warn(`[SinglePlayer Missile] START_MISSILE_SELECTION failed: isMyTurn=${isMyTurn}, gameStatus=${game.gameStatus}, gameId=${game.id}`);
                 return { error: "Not your turn to use an item." };

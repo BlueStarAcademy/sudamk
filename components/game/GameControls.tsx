@@ -2,9 +2,13 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 're
 import { useGameRecordSaveLock } from '../../hooks/useGameRecordSaveLock.js';
 import { GameMode, LiveGameSession, ServerAction, GameProps, Player, User, Point, GameStatus, AppSettings } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST } from '../../constants';
+import {
+    PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY,
+    POST_GAME_PAIR_ROOM_RESTORE_SESSION_KEY,
+} from '../../shared/constants/pairArena.js';
 import { aiUserId } from '../../constants/auth.js';
 import { canSaveStrategicPvpGameRecord, GAME_RECORD_SLOT_FULL_MESSAGE } from '../../utils/strategicPvpGameRecord.js';
-import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
+import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js';
 import Button from '../Button.js';
 import Dice from '../Dice.js';
 import { audioService } from '../../services/audioService.js';
@@ -40,6 +44,9 @@ import IngameMobileFooterAd from './IngameMobileFooterAd.js';
 import { isPairCooperativeTwoHumansVsAi, pairSeatMatchesViewerUser } from '../../shared/utils/pairGameTurn.js';
 import { canUseBoardItemTurnWindow } from '../../shared/utils/strategicBoardItemTurn.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
+import { pairPetKataPhaseFromTotalPly } from '../../shared/constants/pairArena.js';
+import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
+import { getPairPetDefinition } from '../../shared/constants/petLobby.js';
 
 interface ImageButtonProps {
     src: string;
@@ -54,18 +61,27 @@ interface ImageButtonProps {
 }
 
 /** 모바일에서 아이콘을 가리지 않도록 버튼 밖 모서리(우하단)에 배치 */
-const ItemCountBadge: React.FC<{ count: number; disabled?: boolean }> = ({ count, disabled = false }) => (
+const ItemCountBadge: React.FC<{ count: number; disabled?: boolean; compact?: boolean }> = ({ count, disabled = false, compact = false }) => (
     <span
-        className={`pointer-events-none absolute -bottom-1 -right-1 z-[3] flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center rounded-md border border-gray-900/90 bg-gray-950/95 px-1 text-[11px] font-bold leading-none text-white shadow-md tabular-nums ${disabled ? 'opacity-60' : ''}`}
+        className={`pointer-events-none absolute z-[3] flex items-center justify-center rounded-md border border-gray-900/90 bg-gray-950/95 font-bold leading-none text-white shadow-md tabular-nums ${disabled ? 'opacity-60' : ''} ${
+            compact
+                ? '-bottom-0.5 -right-0.5 min-h-[0.9rem] min-w-[0.9rem] px-0.5 text-[8px]'
+                : '-bottom-1 -right-1 min-h-[1.25rem] min-w-[1.25rem] px-1 text-[11px]'
+        }`}
     >
         {count > 99 ? '99+' : count}
     </span>
 );
 
-const CountOverlay: React.FC<{ count: number; disabled?: boolean; children: React.ReactNode }> = ({ count, disabled = false, children }) => (
+const CountOverlay: React.FC<{ count: number; disabled?: boolean; compact?: boolean; children: React.ReactNode }> = ({
+    count,
+    disabled = false,
+    compact = false,
+    children,
+}) => (
     <div className="relative inline-flex shrink-0">
         {children}
-        <ItemCountBadge count={count} disabled={disabled} />
+        <ItemCountBadge count={count} disabled={disabled} compact={compact} />
     </div>
 );
 
@@ -84,8 +100,8 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
         ? 'border-red-500/55 shadow-[0_0_26px_-10px_rgba(248,113,113,0.4)] ring-1 ring-inset ring-red-400/18 focus:ring-red-400'
         : 'border-amber-400/50 shadow-[0_0_24px_-10px_rgba(251,191,36,0.28)] ring-1 ring-inset ring-amber-300/14 focus:ring-amber-300';
     const sizeClass = compact
-        ? 'h-16 w-16 sm:h-[4.25rem] sm:w-[4.25rem] md:h-[4.5rem] md:w-[4.5rem] rounded-xl md:rounded-xl'
-        : 'h-[4.25rem] w-[4.25rem] rounded-xl min-[1025px]:h-16 min-[1025px]:w-16';
+        ? 'h-10 w-10 rounded-md sm:h-10 sm:w-10 md:h-10 md:w-10'
+        : 'h-[3.65rem] w-[3.65rem] rounded-lg min-[1025px]:h-14 min-[1025px]:w-14';
 
     const clearLongPressTimer = () => {
         if (longPressTimerRef.current) {
@@ -175,7 +191,7 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
                     {title}
                 </div>
             )}
-            {count !== undefined && <ItemCountBadge count={count} disabled={disabled} />}
+            {count !== undefined && <ItemCountBadge count={count} disabled={disabled} compact={compact} />}
         </div>
     );
 };
@@ -191,7 +207,7 @@ const LabeledControlButton: React.FC<LabeledControlButtonProps> = ({ label, capt
         <div className={`flex min-w-0 max-w-full flex-col items-center gap-0.5 ${compact ? '' : 'min-w-0 min-[1025px]:min-w-0'}`}>
             <ImageButton {...buttonProps} compact={compact} />
             <span
-                className={`text-center font-semibold leading-none tracking-wide whitespace-nowrap ${compact ? 'text-[10px]' : 'text-[11px] min-[1025px]:text-[10px] tracking-wide'} ${disabled ? 'text-slate-500' : 'text-amber-100/95 drop-shadow-[0_0_10px_rgba(251,191,36,0.2)]'}`}
+                className={`text-center font-semibold leading-none tracking-wide ${compact ? 'max-w-[3.5rem] truncate text-[8px]' : 'whitespace-nowrap text-[10px] min-[1025px]:text-[9px] tracking-wide'} ${disabled ? 'text-slate-500' : 'text-amber-100/95 drop-shadow-[0_0_10px_rgba(251,191,36,0.2)]'}`}
             >
                 {label}
             </span>
@@ -227,6 +243,8 @@ interface GameControlsProps {
     onLeaveOrResign?: () => void;
     /** 모험 등 결과 모달 표시 여부(푸터 버튼 라벨·토글용) */
     showResultModal?: boolean;
+    /** 전략 펫 힌트: 바둑판이 아닌 푸터 버튼 위 말풍선 */
+    strategicPetHintFooterBubble?: { message: string; visible: boolean } | null;
 }
 
 const formatCooldown = (ms: number) => {
@@ -309,7 +327,7 @@ const ActionButtonsPanel: React.FC<ActionButtonsPanelProps> = ({ session, isSpec
 
     return (
         <div className={`flex min-w-0 items-center gap-2 ${isMobile ? 'w-full py-0.5' : ''}`}>
-            <ArenaControlStrip className="min-w-0 flex-1" gapClass={isMobile ? 'gap-2' : 'gap-3'}>
+            <ArenaControlStrip className="min-w-0 flex-1" gapClass={isMobile ? 'gap-1' : 'gap-2'}>
                 {actionNodes}
             </ArenaControlStrip>
             <span
@@ -407,9 +425,9 @@ const DiceGoLuxuryItemCard: React.FC<{
     })();
 
     const innerFrame = usable ? meta.innerActive : meta.innerInactive;
-    const effectiveDiceSize = compact ? 28 : diceSize;
+    const effectiveDiceSize = compact ? 22 : diceSize;
     const outerSizeClass = compact
-        ? 'aspect-square w-full max-w-[min(100%,2.85rem)] min-h-0 shrink rounded-lg'
+        ? 'aspect-square w-full max-w-[min(100%,2.35rem)] min-h-0 shrink rounded-md'
         : 'h-[4.25rem] w-[4.25rem] rounded-xl min-[1025px]:h-16 min-[1025px]:w-16';
 
     return (
@@ -432,7 +450,7 @@ const DiceGoLuxuryItemCard: React.FC<{
                 />
 
                 <div className="relative z-[1] flex items-center justify-center p-0.5">
-                    <CountOverlay count={count} disabled={!usable}>
+                    <CountOverlay count={count} disabled={!usable} compact={compact}>
                         <Dice
                             displayText={meta.displayText}
                             color={meta.diceColor}
@@ -768,7 +786,7 @@ const AlkkagiItemPanel: React.FC<{
 
     if (totalRounds <= 1) {
         return (
-            <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-3' : 'gap-5'} className={compact ? 'min-w-0' : ''}>
+            <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-1.5' : 'gap-5'} className={compact ? 'min-w-0' : ''}>
                 <LabeledControlButton
                     src="/images/button/slow.png"
                     alt="슬로우"
@@ -796,7 +814,7 @@ const AlkkagiItemPanel: React.FC<{
     }
     
     return (
-        <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-3' : 'gap-5'} className="min-w-0">
+        <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-1.5' : 'gap-5'} className="min-w-0">
             <LabeledControlButton
                 src="/images/button/slow.png"
                 alt="슬로우"
@@ -884,9 +902,9 @@ const ThiefGoLuxuryItemCard: React.FC<{
     })();
 
     const innerFrame = usable ? meta.innerActive : meta.innerInactive;
-    const effectiveDiceSize = compact ? 28 : diceSize;
+    const effectiveDiceSize = compact ? 22 : diceSize;
     const outerSizeClass = compact
-        ? 'aspect-square w-full max-w-[min(100%,2.85rem)] min-h-0 shrink rounded-lg'
+        ? 'aspect-square w-full max-w-[min(100%,2.35rem)] min-h-0 shrink rounded-md'
         : 'h-[4.25rem] w-[4.25rem] rounded-xl min-[1025px]:h-16 min-[1025px]:w-16';
 
     return (
@@ -905,7 +923,7 @@ const ThiefGoLuxuryItemCard: React.FC<{
                     aria-hidden
                 />
                 <div className="relative z-[1] flex items-center justify-center p-0.5">
-                    <CountOverlay count={count} disabled={!usable}>
+                    <CountOverlay count={count} disabled={!usable} compact={compact}>
                         <Dice
                             displayText={meta.displayText}
                             color={meta.diceColor}
@@ -1211,7 +1229,7 @@ const CurlingItemPanel: React.FC<{
     const isAimActive = myActiveItems.includes('aimingLine');
     const canUse = isMyTurn && (gameStatus === 'curling_playing' || gameStatus === 'curling_tiebreaker_playing');
     return (
-        <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-3' : 'gap-5'} className={compact ? 'min-w-0' : ''}>
+        <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-1.5' : 'gap-5'} className={compact ? 'min-w-0' : ''}>
             <LabeledControlButton
                 src="/images/button/slow.png"
                 alt="슬로우"
@@ -1262,6 +1280,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         onOpenGameRecordList,
         onLeaveOrResign,
         showResultModal = false,
+        strategicPetHintFooterBubble = null,
     } = props;
     const { negotiations } = useAppContext();
     const { id: gameId, mode, gameStatus, blackPlayerId, whitePlayerId, player1, player2 } = session;
@@ -1301,6 +1320,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         session.gameCategory !== 'guildwar';
     const rematchRequested = gameStatus === 'rematch_pending';
     const [isRematchModalOpen, setIsRematchModalOpen] = useState(false);
+    const [petHintBusy, setPetHintBusy] = useState(false);
     const rematchTarget = useMemo(() => {
         const opponentId = currentUser.id === player1.id ? player2.id : player1.id;
         const online = onlineUsers.find(u => u.id === opponentId);
@@ -1394,7 +1414,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         }
         // 기권은 본인의 차례가 아니더라도 사용 가능하도록 변경
         // 게임이 종료되지 않았고, pending 상태가 아니면 기권 가능 (AI 게임 포함)
-        if (gameStatus === 'ended' || gameStatus === 'no_contest' || gameStatus === 'pending') {
+        if (gameStatus === 'ended' || gameStatus === 'no_contest' || gameStatus === 'pending' || gameStatus === 'scoring') {
             console.log('[GameControls] handleResign: Game is not in a resignable state', gameStatus);
             return;
         }
@@ -1427,6 +1447,115 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             ? Player.White
             : Player.None;
     const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
+
+    const renderStrategicPetHintSlot = (): React.ReactNode | null => {
+        if (isSpectator || !isStrategic || isPairGame) return null;
+        const cat = String(session.gameCategory ?? '');
+        if (session.isSinglePlayer || cat === 'tower' || cat === 'singleplayer') {
+            return null;
+        }
+        if (isGameEnded) return null;
+
+        const petRow = getEquippedPairPetInventoryRow(currentUser);
+        const bs = session.settings.boardSize || 19;
+        const totalPly =
+            (session.moveHistory || []).filter((m) => m && m.x !== -1 && m.y !== -1).length + 1;
+        const phase = pairPetKataPhaseFromTotalPly(bs, totalPly);
+        const used = ((session.settings as { strategicPetHintByUserId?: Record<string, Partial<Record<string, boolean>>> })
+            .strategicPetHintByUserId?.[currentUser.id] ?? {}) as Record<string, boolean>;
+        const phaseLabel = phase === 'opening' ? '초반' : phase === 'midgame' ? '중반' : '종반';
+
+        const canAttempt =
+            effectiveGameStatus === 'playing' &&
+            isMyTurn &&
+            myPlayerEnum !== Player.None &&
+            !!petRow &&
+            !used[phase];
+
+        let title = `${phaseLabel}에 한 번 — 대표 펫이 좋은 자리를 표시해 줘요.`;
+        if (!petRow) {
+            title = '대표 펫을 장착하면 힌트를 사용할 수 있어요.';
+        } else if (effectiveGameStatus !== 'playing') {
+            title = '대국이 진행 중일 때 사용할 수 있어요.';
+        } else if (!isMyTurn || myPlayerEnum === Player.None) {
+            title = '내 차례에만 사용할 수 있어요.';
+        } else if (used[phase]) {
+            title = `${phaseLabel} 구간에서 이미 힌트를 사용했어요.`;
+        }
+
+        const img = petRow
+            ? ((petRow as { image?: string }).image ??
+                  (petRow.templateId ? getPairPetDefinition(petRow.templateId)?.image : null) ??
+                  '/images/button/hidden.png')
+            : null;
+
+        const bubble = strategicPetHintFooterBubble;
+        const showBubble = Boolean(bubble?.visible && bubble?.message);
+
+        const emptySlotSize = isMobile
+            ? 'h-10 w-10 rounded-md'
+            : 'h-[3.65rem] w-[3.65rem] rounded-lg min-[1025px]:h-14 min-[1025px]:w-14';
+
+        return (
+            <div
+                key="pet-hint-slot"
+                className={`relative flex shrink-0 flex-col items-center overflow-visible ${isMobile ? 'z-[80]' : 'z-[45]'}`}
+            >
+                {showBubble && bubble?.message ? (
+                    <div
+                        className="pointer-events-none absolute bottom-full left-1/2 z-[81] mb-2 w-max max-w-[min(17rem,78vw)] -translate-x-1/2 px-0.5"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        <div className="relative rounded-xl border border-sky-400/45 bg-slate-950/96 px-2.5 pb-2 pt-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)] ring-1 ring-sky-500/25">
+                            <p className="line-clamp-2 break-words text-center text-[10px] font-medium leading-snug text-sky-50 sm:text-[11px]">
+                                {bubble.message}
+                            </p>
+                            <div
+                                className="absolute left-1/2 top-full -mt-px h-0 w-0 -translate-x-1/2 border-x-[7px] border-x-transparent border-t-[8px] border-t-slate-950/96 drop-shadow-[0_1px_0_rgba(56,189,248,0.35)]"
+                                aria-hidden
+                            />
+                        </div>
+                    </div>
+                ) : null}
+                {petRow && img ? (
+                    <LabeledControlButton
+                        key="pet-hint-btn"
+                        src={img}
+                        alt="펫 힌트"
+                        label="펫 힌트"
+                        onClick={() => {
+                            if (!canAttempt || petHintBusy) return;
+                            setPetHintBusy(true);
+                            void Promise.resolve(onAction({ type: 'REQUEST_STRATEGIC_PET_HINT', payload: { gameId } })).finally(() =>
+                                setPetHintBusy(false),
+                            );
+                        }}
+                        disabled={!canAttempt || petHintBusy}
+                        title={title}
+                        compact={isMobile}
+                    />
+                ) : (
+                    <div className={`flex min-w-0 max-w-full flex-col items-center gap-0.5 ${isMobile ? '' : 'min-w-0'}`}>
+                        <button
+                            type="button"
+                            disabled
+                            className={`relative flex shrink-0 items-center justify-center border-2 border-dashed border-slate-500/55 bg-slate-950/55 ring-1 ring-inset ring-slate-600/20 ${emptySlotSize}`}
+                            title={title}
+                            aria-label="펫 힌트 (대표 펫 미장착)"
+                        />
+                        <span
+                            className={`text-center font-semibold leading-none tracking-wide text-slate-500 ${
+                                isMobile ? 'max-w-[3.5rem] truncate text-[8px]' : 'whitespace-nowrap text-[10px] min-[1025px]:text-[9px]'
+                            }`}
+                        >
+                            펫 힌트
+                        </span>
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     // 서버 hasOpponentHiddenScanTargets와 동일: 미공개 히든이 수순에 있고, 영구 공개 전이며, 보드에 상대 돌로 남아 있을 때만 스캔 가능.
     // (aiHiddenItemUsed만으로 true를 주면 전체 공개 후에도 스캔이 켜지는 버그가 난다)
@@ -1619,9 +1748,10 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
 
     if (isSinglePlayer) {
         const stageId = session.stageId;
-        const currentStageIndex = stageId ? SINGLE_PLAYER_STAGES.findIndex(s => s.id === stageId) : -1;
-        const currentStage = stageId ? SINGLE_PLAYER_STAGES.find(s => s.id === stageId) : undefined;
-        const nextStage = currentStageIndex >= 0 ? SINGLE_PLAYER_STAGES[currentStageIndex + 1] : undefined;
+        const stagesList = getSinglePlayerStages();
+        const currentStageIndex = stageId ? stagesList.findIndex(s => s.id === stageId) : -1;
+        const currentStage = stageId ? stagesList.find(s => s.id === stageId) : undefined;
+        const nextStage = currentStageIndex >= 0 ? stagesList[currentStageIndex + 1] : undefined;
         const isWinner = session.winner === Player.Black;
         const clearedStages = (currentUser as { clearedSinglePlayerStages?: string[] }).clearedSinglePlayerStages || [];
         const singlePlayerProgress = (currentUser as { singlePlayerProgress?: number }).singlePlayerProgress ?? 0;
@@ -1692,6 +1822,10 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
 
         const canResign = isGameActive && !isSpectator && !isGameEnded && !isPaused;
         const handleResignClick = () => {
+            if (gameStatus === 'scoring') {
+                window.alert('계가 집계 중에는 기권할 수 없습니다.');
+                return;
+            }
             if (!canResign) {
                 if (isPaused) {
                     window.alert('일시 정지 상태에서는 기권할 수 없습니다.');
@@ -1728,7 +1862,23 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             } else if (session.gameCategory === 'tower') {
                 redirectHash = '#/tower';
             } else if (session.settings?.pairGame) {
-                redirectHash = '#/pair';
+                const pairCh = session.settings.pairGame?.lobbyChannel ?? 'pair';
+                if (pairCh === 'strategic') {
+                    redirectHash = '#/waiting/strategic';
+                } else if (pairCh === 'playful') {
+                    redirectHash = '#/waiting/playful';
+                } else {
+                    redirectHash = '#/pair';
+                }
+                const rid = session.settings.pairGame?.roomId;
+                if (rid && (pairCh === 'strategic' || pairCh === 'playful')) {
+                    try {
+                        sessionStorage.setItem(POST_GAME_PAIR_ROOM_RESTORE_SESSION_KEY, rid);
+                        sessionStorage.setItem(PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY, '1');
+                    } catch {
+                        /* ignore */
+                    }
+                }
             } else if (session.isAiGame && (SPECIAL_GAME_MODES.some(m => m.mode === session.mode) || PLAYFUL_GAME_MODES.some(m => m.mode === session.mode))) {
                 const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const : 'playful' as const;
                 redirectHash = `#/waiting/${waitingRoomMode}`;
@@ -1868,9 +2018,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     <ImageButton
                         src="/images/button/giveup.png"
                         alt="기권"
-                        title="기권하기"
+                        title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'}
                         onClick={handleResignClick}
-                        disabled={!canResign}
+                        disabled={!canResign || gameStatus === 'scoring'}
                         variant="danger"
                         compact={isMobile}
                     />
@@ -2136,14 +2286,15 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             compact={isMobile}
                         />
                     )}
+                    {renderStrategicPetHintSlot()}
                     <LabeledControlButton
                         key="resign"
                         src="/images/button/giveup.png"
                         alt="기권"
                         label="기권"
                         onClick={handleResign}
-                        disabled={isSpectator || isGameEnded || gameStatus === 'pending'}
-                        title="기권하기"
+                        disabled={isSpectator || isGameEnded || gameStatus === 'pending' || gameStatus === 'scoring'}
+                        title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'}
                         variant="danger"
                         compact={isMobile}
                     />
@@ -2156,8 +2307,8 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         ? null
         : isStrategic
           ? (() => {
-                if (!hasItems) return null;
                 const itemButtons = renderItemButtons();
+                if (!hasItems) return null;
                 if (itemButtons.length === 0) {
                     return <span className={`text-slate-500 ${isMobile ? 'text-[9px] shrink-0' : 'text-[10px]'}`}>사용 가능한 기능 없음</span>;
                 }
@@ -2181,16 +2332,16 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
 
     return (
         <footer
-            className={`${arenaGameRoomControlsFooterCompactClass} ${isMobilePairGame ? '!gap-1 !p-1' : onlineGameControlsCompactFooterMinHeightClass(!!isMobile)}`}
+            className={`${arenaGameRoomControlsFooterCompactClass} ${isMobile ? '!gap-0.5 !p-0.5' : ''} ${isMobilePairGame ? '' : onlineGameControlsCompactFooterMinHeightClass(!!isMobile)}`}
         >
             {/* Row 1: 매너 액션 — 팀 간 경쟁(PvP)에서만. 2인 페어 AI 협동전에서는 비표시(모바일도 동일). */}
             {showMannerActionRow ? (
                 <div
-                    className={`flex w-full min-w-0 min-h-[3.25rem] flex-row items-center py-1 ${arenaGameRoomControlsInnerPanelClass} ${
-                        isMobile ? 'gap-2 sm:min-h-[3.5rem]' : 'gap-3 min-[1025px]:gap-2 min-[1025px]:min-h-[2.85rem]'
+                    className={`flex w-full min-w-0 min-h-[2.2rem] flex-row items-center py-0.5 ${arenaGameRoomControlsInnerPanelClass} ${
+                        isMobile ? 'gap-1 sm:min-h-[2.35rem]' : 'gap-2 min-[1025px]:gap-1.5 min-[1025px]:min-h-[2.35rem]'
                     }`}
                 >
-                    <h3 className={`shrink-0 font-bold whitespace-nowrap text-slate-400 ${isMobile ? 'text-[9px]' : 'text-xs min-[1025px]:text-[11px]'}`}>
+                    <h3 className={`shrink-0 font-bold whitespace-nowrap text-slate-400 ${isMobile ? 'text-[8px]' : 'text-[11px] min-[1025px]:text-[10px]'}`}>
                         매너 액션 {usesLeftText}
                     </h3>
                     <div className="min-w-0 flex-1">
@@ -2198,16 +2349,16 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     </div>
                 </div>
             ) : showMannerAiLobbyHintRow ? (
-                <div className={`${arenaGameRoomControlsInnerPanelClass} flex flex-row items-center justify-center gap-4 w-full min-w-0 min-[1025px]:py-1 min-[1025px]:px-1.5`}>
-                    <p className="text-xs min-[1025px]:text-[11px] text-slate-500 italic whitespace-nowrap truncate">매너 액션 버튼은 PVP모드에서만 생성됩니다.</p>
+                <div className={`${arenaGameRoomControlsInnerPanelClass} flex flex-row items-center justify-center gap-3 w-full min-w-0 min-[1025px]:py-0.5 min-[1025px]:px-1`}>
+                    <p className="text-[11px] min-[1025px]:text-[10px] text-slate-500 italic whitespace-nowrap truncate">매너 액션 버튼은 PVP모드에서만 생성됩니다.</p>
                 </div>
             ) : null}
 
             {/* Row 2: Game and Special/Playful Functions */}
             {showBaseGameFooterStrip ? (
-                <div className={`flex w-full min-w-0 flex-col gap-1 py-1 ${arenaGameRoomControlsInnerPanelClass}`}>
+                <div className={`flex w-full min-w-0 flex-col gap-0.5 py-0.5 ${arenaGameRoomControlsInnerPanelClass}`}>
                     {gameStatus === 'base_placement' && !isSpectator ? (
-                        <div className="flex w-full min-w-0 min-h-[2.75rem] flex-row items-center justify-center px-1 min-[1025px]:min-h-[2.5rem] min-[1025px]:px-2">
+                        <div className="flex w-full min-w-0 min-h-[2.35rem] flex-row items-center justify-center px-1 min-[1025px]:min-h-[2.1rem] min-[1025px]:px-1.5">
                             <ArenaControlStrip layout="cluster" className="max-w-full min-w-0" gapClass="gap-1 min-[1025px]:gap-2">
                                 <BasePlacementControlStrip
                                     session={session}
@@ -2231,48 +2382,51 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             ) : isMobile ? (
                 isGameEnded ? (
                     <div
-                        className={`flex ${isMobilePairGame ? 'min-h-[3.15rem]' : 'min-h-[5.35rem]'} w-full min-w-0 items-center justify-center ${arenaGameRoomControlsInnerPanelClass}`}
+                        className={`flex ${isMobilePairGame ? 'min-h-[2.35rem]' : 'min-h-[3.5rem]'} w-full min-w-0 items-center justify-center ${arenaGameRoomControlsInnerPanelClass}`}
                     >
                         <div className={`${arenaPostGameIngameEndedRowClass} max-w-full`}>{primaryControlsInner}</div>
                     </div>
                 ) : (
-                    <div className={`flex w-full min-w-0 max-w-full overflow-hidden ${isMobilePairGame ? 'gap-1' : 'gap-2'}`}>
-                        <div className={`flex ${isMobilePairGame ? 'min-h-[3.15rem] !p-1' : 'min-h-[5.35rem]'} min-w-0 flex-1 flex-col justify-center overflow-hidden ${arenaGameRoomControlsInnerPanelClass}`}>
-                            <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden">
-                                <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass={isMobilePairGame ? 'gap-1.5' : 'gap-2 sm:gap-4'}>
+                    <>
+                    {/* overflow-visible: 펫 힌트 말풍선(bottom-full)이 위로 나가도 잘리지 않게 함(모바일) */}
+                    <div className={`flex w-full min-w-0 max-w-full overflow-visible ${isMobilePairGame ? 'gap-1' : 'gap-2'}`}>
+                        <div className={`flex ${isMobilePairGame ? 'min-h-[2.35rem] !p-0.5' : 'min-h-[3.5rem]'} min-w-0 flex-1 flex-col justify-center overflow-visible ${arenaGameRoomControlsInnerPanelClass}`}>
+                            <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-visible">
+                                <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass={isMobilePairGame ? 'gap-1' : 'gap-1.5 sm:gap-2'}>
                                     {primaryControlsInner}
                                 </ArenaControlStrip>
                             </div>
                         </div>
                         <div className={`${arenaGameRoomControlsDividerClass} w-0.5 shrink-0`} aria-hidden />
-                        <div className={`flex ${isMobilePairGame ? 'min-h-[3.15rem] !p-1' : 'min-h-[5.35rem]'} min-w-0 flex-1 flex-col justify-center overflow-hidden ${arenaGameRoomControlsInnerPanelAccentClass}`}>
-                            <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden">
-                                <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass={isMobilePairGame ? 'gap-1.5' : 'gap-2 sm:gap-4'}>
+                        <div className={`flex ${isMobilePairGame ? 'min-h-[2.35rem] !p-0.5' : 'min-h-[3.5rem]'} min-w-0 flex-1 flex-col justify-center overflow-visible ${arenaGameRoomControlsInnerPanelAccentClass}`}>
+                            <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-visible">
+                                <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass={isMobilePairGame ? 'gap-1' : 'gap-1.5 sm:gap-2'}>
                                     {specialControlsInner}
                                 </ArenaControlStrip>
                             </div>
                         </div>
                     </div>
+                    </>
                 )
             ) : isGameEnded ? (
                 <div
-                    className={`flex min-h-[4.75rem] w-full min-w-0 items-center justify-center ${arenaGameRoomControlsInnerPanelClass}`}
+                    className={`flex min-h-[3.85rem] w-full min-w-0 items-center justify-center ${arenaGameRoomControlsInnerPanelClass}`}
                 >
                     <div className={`${arenaPostGameIngameEndedRowClass} max-w-full`}>{primaryControlsInner}</div>
                 </div>
             ) : (
-                <div className="flex w-full min-w-0 flex-row gap-2 min-[1025px]:gap-1.5">
+                <div className="flex w-full min-w-0 flex-row gap-1.5 min-[1025px]:gap-1">
                     <div className={`flex min-w-0 flex-1 flex-col gap-0.5 min-[1025px]:gap-0 ${arenaGameRoomControlsInnerPanelClass} min-[1025px]:!p-1`}>
-                        <h3 className={`${arenaGameRoomControlsSectionTitleClass} min-[1025px]:text-[10px] leading-none`}>대국 기능</h3>
-                        <div className="flex min-h-[3.25rem] w-full min-w-0 flex-1 items-center justify-center min-[1025px]:min-h-[2.5rem]">
+                        <h3 className={`${arenaGameRoomControlsSectionTitleClass} min-[1025px]:text-[9px] leading-none`}>대국 기능</h3>
+                        <div className="flex min-h-[2.65rem] w-full min-w-0 flex-1 items-center justify-center min-[1025px]:min-h-[2.1rem]">
                             <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4 min-[1025px]:gap-5">
                                 {primaryControlsInner}
                             </ArenaControlStrip>
                         </div>
                     </div>
                     <div className={`flex min-w-0 flex-1 flex-col gap-0.5 min-[1025px]:gap-0 ${arenaGameRoomControlsInnerPanelAccentClass} min-[1025px]:!p-1`}>
-                        <h3 className={`${arenaGameRoomControlsSectionTitleClass} min-[1025px]:text-[10px] leading-none`}>{isStrategic ? '특수 기능' : '놀이 기능'}</h3>
-                        <div className="flex min-h-[3.25rem] w-full min-w-0 flex-1 items-center justify-center min-[1025px]:min-h-[2.5rem]">
+                        <h3 className={`${arenaGameRoomControlsSectionTitleClass} min-[1025px]:text-[9px] leading-none`}>{isStrategic ? '특수 기능' : '놀이 기능'}</h3>
+                        <div className="flex min-h-[2.65rem] w-full min-w-0 flex-1 items-center justify-center min-[1025px]:min-h-[2.1rem]">
                             <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4 min-[1025px]:gap-5">
                                 {specialControlsInner}
                             </ArenaControlStrip>

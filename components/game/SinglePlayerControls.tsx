@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { GameProps, Player, GameMode } from '../../types.js';
 import Button from '../Button.js';
-import { SINGLE_PLAYER_STAGES } from '../../constants';
+import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js';
+import { resolveLiveSessionSinglePlayerStageRow } from '../../shared/utils/liveSessionSinglePlayerStage.js';
 import AlertModal from '../AlertModal.js';
 import ConfirmModal from '../ConfirmModal.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
@@ -16,20 +17,24 @@ import {
     formatSinglePlayerNextFooterLabel,
 } from './arenaPostGameButtonStyles.js';
 import {
+    arenaGameRoomControlsInnerPanelClass,
     arenaGameRoomIngameBottomBarShellClass,
     arenaGameRoomIngameInnerItemSurfaceClass,
     arenaGameRoomIngameInnerNeutralSurfaceClass,
     pveIngameFooterReservedHeightClass,
 } from './arenaGameRoomStyles.js';
+import BaseGameFooterPanel, { BasePlacementControlStrip, isBaseGameFooterPhase } from './BaseGameFooterPanel.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
-interface SinglePlayerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
+interface SinglePlayerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser' | 'isSpectator'> {
     setShowResultModal?: (show: boolean) => void;
     isMoveInFlight?: boolean;
     isBoardLocked?: boolean;
     isMobile?: boolean;
     /** Game.tsx에서 gameControlsProps 일괄 전달 시 무시 */
     onLeaveOrResign?: () => void;
+    /** Game.tsx gameControlsProps 일괄 전달 시 무시 */
+    strategicPetHintFooterBubble?: { message: string; visible: boolean } | null;
 }
 
 interface ImageButtonProps {
@@ -48,7 +53,7 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
         ? 'border-red-400 shadow-red-500/40 focus:ring-red-400'
         : 'border-amber-400 shadow-amber-500/30 focus:ring-amber-300';
     const sizeClass = compact
-        ? 'h-16 w-16 shrink-0 rounded-xl sm:h-[4.25rem] sm:w-[4.25rem]'
+        ? 'h-10 w-10 shrink-0 rounded-md sm:h-10 sm:w-10'
         : 'h-[4.25rem] w-[4.25rem] rounded-xl min-[1025px]:h-16 min-[1025px]:w-16';
     
     return (
@@ -62,8 +67,12 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
             <img src={src} alt={alt} className="absolute inset-0 w-full h-full object-contain pointer-events-none p-1" />
             {/* 개수 표시 우측 하단 (옵션) */}
             {count !== undefined && (
-                <span className={`absolute bottom-0.5 right-0.5 bg-black/80 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border border-amber-600 ${disabled ? 'opacity-60' : ''}`}>
-                    {count}
+                <span
+                    className={`absolute flex items-center justify-center rounded-full border border-amber-600 bg-black/80 font-bold text-white ${disabled ? 'opacity-60' : ''} ${
+                        compact ? 'bottom-0 right-0 h-3.5 min-w-[0.875rem] px-0.5 text-[8px]' : 'bottom-0.5 right-0.5 h-5 w-5 text-[10px]'
+                    }`}
+                >
+                    {count > 99 ? '99+' : count}
                 </span>
             )}
         </button>
@@ -82,7 +91,7 @@ interface ItemImageButtonProps {
 
 const ItemImageButton: React.FC<ItemImageButtonProps> = ({ src, alt, onClick, disabled = false, title, count, compact = false }) => {
     const sizeClass = compact
-        ? 'h-16 w-16 shrink-0 rounded-xl sm:h-[4.25rem] sm:w-[4.25rem]'
+        ? 'h-10 w-10 shrink-0 rounded-md sm:h-10 sm:w-10'
         : 'h-[4.25rem] w-[4.25rem] rounded-xl min-[1025px]:h-16 min-[1025px]:w-16';
     return (
         <button
@@ -94,14 +103,27 @@ const ItemImageButton: React.FC<ItemImageButtonProps> = ({ src, alt, onClick, di
         >
             <img src={src} alt={alt} className="absolute inset-0 w-full h-full object-contain pointer-events-none p-1.5" />
             {/* 개수 표시 우측 하단 */}
-            <span className={`absolute bottom-0.5 right-0.5 bg-black/80 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border border-amber-600 ${disabled ? 'opacity-60' : ''}`}>
-                {count}
+            <span
+                className={`absolute flex items-center justify-center rounded-full border border-amber-600 bg-black/80 font-bold text-white ${disabled ? 'opacity-60' : ''} ${
+                    compact ? 'bottom-0 right-0 h-3.5 min-w-[0.875rem] px-0.5 text-[8px]' : 'bottom-0.5 right-0.5 h-5 w-5 text-[10px]'
+                }`}
+            >
+                {count > 99 ? '99+' : count}
             </span>
         </button>
     );
 };
 
-const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, onAction, currentUser, setShowResultModal, isMoveInFlight = false, isBoardLocked = false, isMobile = false }) => {
+const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
+    session,
+    onAction,
+    currentUser,
+    isSpectator = false,
+    setShowResultModal,
+    isMoveInFlight = false,
+    isBoardLocked = false,
+    isMobile = false,
+}) => {
     const myUserId = currentUser?.id;
     const [alertModal, setAlertModal] = useState<{ title?: string; message: string } | null>(null);
     const [confirmModal, setConfirmModal] = useState<{ title?: string; message: string; onConfirm: () => void } | null>(null);
@@ -110,7 +132,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     // 게임 모드별 아이템 로직 (hooks 규칙 준수를 위해 early return 전에 선언)
     const refreshesUsed = session.singlePlayerPlacementRefreshesUsed || 0;
     const remainingRefreshes = Math.max(0, 5 - refreshesUsed);
-    const currentStageConfig = session.stageId ? SINGLE_PLAYER_STAGES.find(s => s.id === session.stageId) : undefined;
+    const currentStageConfig = session.stageId ? resolveLiveSessionSinglePlayerStageRow(session) : undefined;
     const placementRefreshAllowed =
         session.settings.singlePlayerPlacementRefreshAllowed !== false &&
         currentStageConfig?.allowPlacementRefresh !== false;
@@ -223,11 +245,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
         ? Math.max(0, Number(session.missiles_p1))
         : 0;
     
-    const lastMove = session.moveHistory?.length ? session.moveHistory[session.moveHistory.length - 1] : null;
-    const lastMoveWasMine = !!lastMove && lastMove.player === Player.Black;
-    // 서버는 싱글플레이에서 "내 착수 직후(턴은 AI로 넘어갔지만 AI 아직 미착수)"에도 미사일 허용한다.
-    const allowMissileAfterMyMove = session.isSinglePlayer && gameStatus === 'playing' && lastMoveWasMine && !isMyTurn;
-    const canUseMissile = isMyTurn || allowMissileAfterMyMove;
+    const canUseMissile = isMyTurn;
     
     const missileDisabled =
         isMoveInFlight ||
@@ -267,6 +285,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     }, [placementRefreshAllowed, refreshDisabled, canAfford, nextCost, remainingRefreshes, session.id, onAction]);
 
     const handleForfeit = React.useCallback(() => {
+        if (session.gameStatus === 'scoring') return;
         setConfirmModal({
             title: '기권 확인',
             message: '경기를 포기하시겠습니까?',
@@ -274,13 +293,14 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
                 onAction({ type: 'RESIGN_GAME', payload: { gameId: session.id } });
             }
         });
-    }, [session.id, onAction]);
+    }, [session.id, session.gameStatus, onAction]);
     
     if (session.gameStatus === 'ended' || session.gameStatus === 'no_contest') {
         const isWinner = session.winner === Player.Black;
-        const currentStageIndex = SINGLE_PLAYER_STAGES.findIndex(s => s.id === session.stageId);
-        const currentStage = SINGLE_PLAYER_STAGES.find(s => s.id === session.stageId);
-        const nextStage = SINGLE_PLAYER_STAGES[currentStageIndex + 1];
+        const stagesList = getSinglePlayerStages();
+        const currentStageIndex = stagesList.findIndex(s => s.id === session.stageId);
+        const currentStage = stagesList.find(s => s.id === session.stageId);
+        const nextStage = stagesList[currentStageIndex + 1];
         const clearedStages = (currentUser as { clearedSinglePlayerStages?: string[] }).clearedSinglePlayerStages || [];
         const singlePlayerProgress = (currentUser as { singlePlayerProgress?: number }).singlePlayerProgress ?? 0;
         const sid = session.stageId;
@@ -388,8 +408,43 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
         );
     }
 
-    const colClass = isMobile ? 'flex flex-col items-center gap-1 shrink-0' : 'flex flex-col items-center gap-1.5';
-    const lblBase = isMobile ? 'text-[10px]' : 'text-[12px]';
+    /** 베이스·믹스(베이스 포함): 온라인 대국과 동일한 하단 스트립(배치/선호색/동색 덤 등). GameControls 대신 이 컴포넌트만 쓰는 싱글 전용. */
+    if (isBaseGameFooterPhase(session) && currentUser) {
+        const gs = session.gameStatus;
+        const showBasePlacementStrip = gs === 'base_placement' && !isSpectator;
+        return (
+            <footer
+                className={`${arenaGameRoomIngameBottomBarShellClass} flex w-full flex-shrink-0 flex-col items-stretch justify-center ${pveIngameFooterReservedHeightClass(isMobile)}`}
+            >
+                <div className={`flex w-full min-w-0 flex-col gap-0.5 py-0.5 ${arenaGameRoomControlsInnerPanelClass}`}>
+                    {showBasePlacementStrip ? (
+                        <div className="flex w-full min-w-0 min-h-[2.35rem] flex-row items-center justify-center px-1 min-[1025px]:min-h-[2.1rem] min-[1025px]:px-1.5">
+                            <ArenaControlStrip layout="cluster" className="max-w-full min-w-0" gapClass="gap-1 min-[1025px]:gap-2">
+                                <BasePlacementControlStrip
+                                    session={session}
+                                    currentUser={currentUser}
+                                    onAction={onAction}
+                                    isMobile={isMobile}
+                                    isSinglePlayer
+                                />
+                            </ArenaControlStrip>
+                        </div>
+                    ) : null}
+                    <BaseGameFooterPanel
+                        session={session}
+                        currentUser={currentUser}
+                        onAction={onAction}
+                        isMobile={isMobile}
+                        isSinglePlayer
+                        hideBasePlacementActions={showBasePlacementStrip}
+                    />
+                </div>
+            </footer>
+        );
+    }
+
+    const colClass = isMobile ? 'flex flex-col items-center gap-0.5 shrink-0' : 'flex flex-col items-center gap-1.5';
+    const lblBase = isMobile ? 'text-[8px]' : 'text-[12px]';
 
     const coreZoneSp = (
         <>
@@ -398,7 +453,8 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
                     src="/images/button/giveup.png"
                     alt="기권"
                     onClick={handleForfeit}
-                    title="기권하기"
+                    disabled={gameStatus === 'scoring'}
+                    title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'}
                     variant="danger"
                     compact={isMobile}
                 />
@@ -476,17 +532,17 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
         <div
             className={`${arenaGameRoomIngameBottomBarShellClass} w-full ${
                 isMobile
-                    ? 'flex h-[164px] w-full min-w-0 flex-row items-stretch gap-3 p-2'
+                    ? 'flex h-[104px] w-full min-w-0 flex-row items-stretch gap-1.5 p-1'
                     : 'flex min-h-[124px] flex-row items-stretch gap-6 p-2 min-[1025px]:gap-7 min-[1025px]:py-1.5 min-[1025px]:px-2.5'
             }`}
         >
             {isMobile ? (
                 <>
                     <div
-                        className={`flex min-w-0 flex-1 flex-col justify-center px-1 py-2 ${arenaGameRoomIngameInnerNeutralSurfaceClass}`}
+                        className={`flex min-w-0 flex-1 flex-col justify-center px-0.5 py-1 ${arenaGameRoomIngameInnerNeutralSurfaceClass}`}
                     >
                         <div className="flex min-h-0 w-full flex-1 items-center justify-center">
-                            <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-3">
+                            <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
                                 {coreZoneSp}
                             </ArenaControlStrip>
                         </div>
@@ -495,10 +551,10 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
                         <>
                             <div className="w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-600/20 via-stone-500/50 to-stone-600/20" aria-hidden />
                             <div
-                                className={`flex min-w-0 flex-1 flex-col justify-center px-1 py-2 ${arenaGameRoomIngameInnerItemSurfaceClass}`}
+                                className={`flex min-w-0 flex-1 flex-col justify-center px-0.5 py-1 ${arenaGameRoomIngameInnerItemSurfaceClass}`}
                             >
                                 <div className="flex min-h-0 w-full flex-1 items-center justify-center">
-                                    <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-3">
+                                    <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
                                         {itemZoneSp}
                                     </ArenaControlStrip>
                                 </div>

@@ -28,12 +28,27 @@ import {
 } from './useIsMobileLayout.js';
 import { syncDocumentViewportHeightVar } from '../utils/layoutViewportCss.js';
 import { getPanelEdgeImages } from '../constants/panelEdges.js';
-import { SINGLE_PLAYER_STAGES, setSinglePlayerStagesFromServer } from '../constants/singlePlayerConstants.js';
+import {
+    SINGLE_PLAYER_STAGES,
+    getSinglePlayerStages,
+    setSinglePlayerStagesFromServer,
+    subscribeSinglePlayerStagesListUpdate,
+} from '../constants/singlePlayerConstants.js';
+import {
+    resolveLiveSessionSinglePlayerStageRow,
+    resolveSinglePlayerAutoScoringCapForClientSession,
+} from '../shared/utils/liveSessionSinglePlayerStage.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { coerceSpecialStatType } from '../shared/utils/specialStatMilestones.js';
 import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
-import { aiUserId, OTHER_DEVICE_LOGIN_MAINTENANCE_REASON, OTHER_DEVICE_LOGIN_SHARED_PC_REASON } from '../shared/constants/auth.js';
+import {
+    aiUserId,
+    OTHER_DEVICE_LOGIN_ADMIN_FORCE_REASON,
+    OTHER_DEVICE_LOGIN_MAINTENANCE_REASON,
+    OTHER_DEVICE_LOGIN_SHARED_PC_REASON,
+    WEBSOCKET_ADMIN_FORCE_LOGOUT_CLOSE_CODE,
+} from '../shared/constants/auth.js';
 import {
     mergeArenaEntranceAvailability,
     ARENA_ENTRANCE_CLOSED_MESSAGE,
@@ -62,6 +77,7 @@ import { isClientAdmin } from '../utils/clientAdmin.js';
 import { processMoveClient } from '../client/goLogicClient.js';
 import { applyMissileCaptureProcessResult } from '../shared/utils/missileLandingCapture.js';
 import { isIntersectionRecordedAsBaseStone } from '../shared/utils/removeCapturedBaseStoneMarkers.js';
+import { buildWeightedJustCapturedForStones } from '../shared/utils/sumWeightedCapturePointsForCapturedStones.js';
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from '../client/logic/goLogic.js';
 import { normalizeInventoryAfterLoad } from '../utils/inventoryUtils.js';
 import { mergeAdventureProfileForPersistence } from '../utils/adventureProfileMerge.js';
@@ -705,9 +721,17 @@ export const useApp = () => {
     const isLoggingOut = useRef(false);
     // 강제 리렌더링을 위한 카운터
     const [updateTrigger, setUpdateTrigger] = useState(0);
+    /** 관리자 스테이지 KV 갱신 시 스테이지 그리드·모달 등이 번들 상수가 아닌 최신 목록을 쓰도록 */
+    const [singlePlayerStagesListRevision, setSinglePlayerStagesListRevision] = useState(0);
     const currentUserRef = useRef<User | null>(null);
     /** useEffect보다 먼저 도는 자식 effect(GuildWar의 GET_GUILD_WAR_DATA 등)에서도 id를 쓰려면 렌더와 동기화 필요 */
     currentUserRef.current = currentUser;
+
+    useLayoutEffect(() => {
+        return subscribeSinglePlayerStagesListUpdate(() => {
+            setSinglePlayerStagesListRevision((n) => n + 1);
+        });
+    }, []);
     const currentUserStatusRef = useRef<UserWithStatus | null>(null);
     // HTTP 응답 후 일정 시간 내 WebSocket 업데이트 무시 (중복 방지)
     const lastHttpUpdateTime = useRef<number>(0);
@@ -1937,7 +1961,18 @@ export const useApp = () => {
                     if (!game || game.gameStatus !== 'base_placement') return currentGames;
 
                     const baseStonesTarget = game.settings?.baseStones ?? 4;
-                    const myKey = uid === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
+                    const pairHostId = (game.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)
+                        ?.pairGame?.pairLobbyOwnerId;
+                    const n1 = (game as any).baseStones_p1?.length ?? 0;
+                    const n2 = (game as any).baseStones_p2?.length ?? 0;
+                    const myKey =
+                        pairHostId && uid === pairHostId
+                            ? n1 < baseStonesTarget
+                                ? 'baseStones_p1'
+                                : 'baseStones_p2'
+                            : uid === game.player1.id
+                              ? 'baseStones_p1'
+                              : 'baseStones_p2';
 
                     const myArr = (game as any)[myKey] as Point[] | undefined;
                     const nextArr = Array.isArray(myArr) ? [...myArr] : [];
@@ -1948,12 +1983,16 @@ export const useApp = () => {
 
                     nextArr.push({ x, y });
                     const prevReady = ((game as any).basePlacementReady ?? {}) as Record<string, boolean>;
+                    const nextReady =
+                        pairHostId && uid === pairHostId
+                            ? { ...prevReady, [game.player1.id]: false, [game.player2.id]: false }
+                            : { ...prevReady, [uid]: false };
                     return {
                         ...currentGames,
                         [gameId]: {
                             ...game,
                             [myKey]: nextArr,
-                            basePlacementReady: { ...prevReady, [uid]: false },
+                            basePlacementReady: nextReady,
                         } as any
                     };
                 });
@@ -1969,9 +2008,84 @@ export const useApp = () => {
                     const game = currentGames[gameId];
                     if (!game || game.gameStatus !== 'base_placement') return currentGames;
                     const prevReady = ((game as any).basePlacementReady ?? {}) as Record<string, boolean>;
+                    const pairHostId = (game.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)
+                        ?.pairGame?.pairLobbyOwnerId;
+                    const nextReady =
+                        pairHostId && uid === pairHostId
+                            ? { ...prevReady, [game.player1.id]: true, [game.player2.id]: true }
+                            : { ...prevReady, [uid]: true };
                     return {
                         ...currentGames,
-                        [gameId]: { ...game, basePlacementReady: { ...prevReady, [uid]: true } } as any,
+                        [gameId]: { ...game, basePlacementReady: nextReady } as any,
+                    };
+                });
+            }
+        }
+
+        // PVP·공통: 선호 돌 선택은 WS 왕복 전에 본인 칸만 낙관 반영 (싱글과 동일한 즉시성)
+        if ((action as any).type === 'SUBMIT_BASE_STONE_COLOR_CHOICE') {
+            const payload = (action as any).payload as { gameId?: string; color?: Player; choiceForUserId?: string } | undefined;
+            const gameId = payload?.gameId;
+            const color = payload?.color;
+            const uid = currentUserRef.current?.id;
+            const choiceFor = typeof payload?.choiceForUserId === 'string' ? payload.choiceForUserId : undefined;
+            if (gameId && uid != null && (color === Player.Black || color === Player.White)) {
+                setLiveGames((currentGames) => {
+                    const game = currentGames[gameId];
+                    if (!game || game.gameStatus !== 'base_stone_color_choice') return currentGames;
+                    const pairHostId = (game.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)?.pairGame
+                        ?.pairLobbyOwnerId;
+                    const subjectId =
+                        pairHostId === uid && choiceFor && (choiceFor === game.player1.id || choiceFor === game.player2.id)
+                            ? choiceFor
+                            : uid;
+                    if (pairHostId === uid && choiceFor && choiceFor !== uid && subjectId !== choiceFor) return currentGames;
+                    if (!(pairHostId === uid && choiceFor) && choiceFor && choiceFor !== uid) return currentGames;
+                    const prev = { ...(game.baseStoneColorChoices ?? {}) } as Record<string, Player | null>;
+                    if (prev[subjectId] != null) return currentGames;
+                    prev[subjectId] = color;
+                    return {
+                        ...currentGames,
+                        [gameId]: { ...game, baseStoneColorChoices: prev } as any,
+                    };
+                });
+            }
+        }
+
+        if ((action as any).type === 'UPDATE_KOMI_BID') {
+            const payload = (action as any).payload as {
+                gameId?: string;
+                bid?: { color: Player; komi: number };
+                bidForUserId?: string;
+            } | undefined;
+            const gameId = payload?.gameId;
+            const bid = payload?.bid;
+            const uid = currentUserRef.current?.id;
+            const bidFor = typeof payload?.bidForUserId === 'string' ? payload.bidForUserId : undefined;
+            if (gameId && uid != null && bid && (bid.color === Player.Black || bid.color === Player.White)) {
+                setLiveGames((currentGames) => {
+                    const game = currentGames[gameId];
+                    if (
+                        !game ||
+                        (game.gameStatus !== 'base_same_color_points_bid' && game.gameStatus !== 'komi_bidding')
+                    ) {
+                        return currentGames;
+                    }
+                    const pairHostId = (game.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)?.pairGame
+                        ?.pairLobbyOwnerId;
+                    const subjectId =
+                        pairHostId === uid && bidFor && (bidFor === game.player1.id || bidFor === game.player2.id)
+                            ? bidFor
+                            : uid;
+                    if (pairHostId === uid && bidFor && bidFor !== uid && subjectId !== bidFor) return currentGames;
+                    if (!(pairHostId === uid && bidFor) && bidFor && bidFor !== uid) return currentGames;
+                    const prevBids = { ...(game.komiBids ?? {}) } as Record<string, { color: Player; komi: number } | null>;
+                    if (prevBids[subjectId] != null) return currentGames;
+                    const k = Math.floor(Number(bid.komi));
+                    prevBids[subjectId] = { color: bid.color, komi: Number.isFinite(k) ? Math.max(0, Math.min(100, k)) : 0 };
+                    return {
+                        ...currentGames,
+                        [gameId]: { ...game, komiBids: prevBids } as any,
                     };
                 });
             }
@@ -1985,14 +2099,28 @@ export const useApp = () => {
                 setLiveGames((currentGames) => {
                     const game = currentGames[gameId];
                     if (!game || game.gameStatus !== 'base_placement') return currentGames;
-                    const myKey = uid === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
+                    const pairHostId = (game.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)
+                        ?.pairGame?.pairLobbyOwnerId;
+                    const n2 = ((game as any).baseStones_p2 as Point[] | undefined)?.length ?? 0;
+                    const myKey =
+                        pairHostId && uid === pairHostId
+                            ? n2 > 0
+                                ? 'baseStones_p2'
+                                : 'baseStones_p1'
+                            : uid === game.player1.id
+                              ? 'baseStones_p1'
+                              : 'baseStones_p2';
                     const prevReady = ((game as any).basePlacementReady ?? {}) as Record<string, boolean>;
+                    const nextReady =
+                        pairHostId && uid === pairHostId
+                            ? { ...prevReady, [game.player1.id]: false, [game.player2.id]: false }
+                            : { ...prevReady, [uid]: false };
                     return {
                         ...currentGames,
                         [gameId]: {
                             ...game,
                             [myKey]: [],
-                            basePlacementReady: { ...prevReady, [uid]: false },
+                            basePlacementReady: nextReady,
                         } as any,
                     };
                 });
@@ -2007,16 +2135,30 @@ export const useApp = () => {
                 setLiveGames((currentGames) => {
                     const game = currentGames[gameId];
                     if (!game || game.gameStatus !== 'base_placement') return currentGames;
-                    const myKey = uid === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
+                    const pairHostId = (game.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)
+                        ?.pairGame?.pairLobbyOwnerId;
+                    const n2 = ((game as any).baseStones_p2 as Point[] | undefined)?.length ?? 0;
+                    const myKey =
+                        pairHostId && uid === pairHostId
+                            ? n2 > 0
+                                ? 'baseStones_p2'
+                                : 'baseStones_p1'
+                            : uid === game.player1.id
+                              ? 'baseStones_p1'
+                              : 'baseStones_p2';
                     const myArr = ((game as any)[myKey] as Point[] | undefined) ?? [];
                     if (myArr.length === 0) return currentGames;
                     const prevReady = ((game as any).basePlacementReady ?? {}) as Record<string, boolean>;
+                    const nextReadyUndo =
+                        pairHostId && uid === pairHostId
+                            ? { ...prevReady, [game.player1.id]: false, [game.player2.id]: false }
+                            : { ...prevReady, [uid]: false };
                     return {
                         ...currentGames,
                         [gameId]: {
                             ...game,
                             [myKey]: myArr.slice(0, -1),
-                            basePlacementReady: { ...prevReady, [uid]: false },
+                            basePlacementReady: nextReadyUndo,
                         } as any,
                     };
                 });
@@ -2032,9 +2174,15 @@ export const useApp = () => {
                     const game = currentGames[gameId];
                     if (!game || game.gameStatus !== 'base_placement') return currentGames;
                     const prevReady = ((game as any).basePlacementReady ?? {}) as Record<string, boolean>;
+                    const pairHostId = (game.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)
+                        ?.pairGame?.pairLobbyOwnerId;
+                    const nextReadyRand =
+                        pairHostId && uid === pairHostId
+                            ? { ...prevReady, [game.player1.id]: false, [game.player2.id]: false }
+                            : { ...prevReady, [uid]: false };
                     return {
                         ...currentGames,
-                        [gameId]: { ...game, basePlacementReady: { ...prevReady, [uid]: false } } as any,
+                        [gameId]: { ...game, basePlacementReady: nextReadyRand } as any,
                     };
                 });
             }
@@ -2348,9 +2496,10 @@ export const useApp = () => {
                 if (!game || game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') return currentGames;
 
                 const movePlayer: Player = (payloadMovePlayer ?? game.currentPlayer) as Player;
+                const weighted = buildWeightedJustCapturedForStones(game, capturedStones || [], movePlayer);
                 const newCaptures = {
                     ...game.captures,
-                    [movePlayer]: (game.captures[movePlayer] || 0) + (capturedStones?.length || 0),
+                    [movePlayer]: (game.captures[movePlayer] || 0) + weighted.totalPoints,
                 };
 
                 const updatedGame: LiveGameSession = {
@@ -2360,6 +2509,7 @@ export const useApp = () => {
                     lastMove: { x, y },
                     moveHistory: [...(game.moveHistory || []), { x, y, player: movePlayer }],
                     captures: newCaptures,
+                    justCaptured: weighted.entries,
                     currentPlayer: movePlayer === Player.Black ? Player.White : Player.Black,
                     hiddenMoves: game.hiddenMoves,
                     gameStatus: 'playing',
@@ -2389,9 +2539,10 @@ export const useApp = () => {
                     ...(pairSeat ? { actorId: pairSeat.participantId, pairSeatId: pairSeat.seatId } : {}),
                 };
 
+                const weighted = buildWeightedJustCapturedForStones(game, capturedStones || [], movePlayer);
                 const newCaptures = {
                     ...game.captures,
-                    [movePlayer]: (game.captures[movePlayer] || 0) + (capturedStones?.length || 0),
+                    [movePlayer]: (game.captures[movePlayer] || 0) + weighted.totalPoints,
                 };
 
                 const settingsWithPair = {
@@ -2418,6 +2569,7 @@ export const useApp = () => {
                     lastMove: { x, y },
                     moveHistory: [...(game.moveHistory || []), moveEntry],
                     captures: newCaptures,
+                    justCaptured: weighted.entries,
                     currentPlayer: nextCurrentPlayer,
                     hiddenMoves: game.hiddenMoves,
                     gameStatus: 'playing',
@@ -2582,9 +2734,10 @@ export const useApp = () => {
             } = { current: null };
 
             const queueAutoScoringAfterReveal = (nextGame: LiveGameSession) => {
-                const autoScoringTurns = gameType === 'singleplayer' && nextGame.stageId
-                    ? SINGLE_PLAYER_STAGES.find((s: any) => s.id === nextGame.stageId)?.autoScoringTurns
-                    : (nextGame.settings as any)?.autoScoringTurns;
+                const autoScoringTurns =
+                    gameType === 'singleplayer'
+                        ? resolveSinglePlayerAutoScoringCapForClientSession(nextGame as any)
+                        : (nextGame.settings as any)?.autoScoringTurns;
                 if (!autoScoringTurns || nextGame.gameStatus !== 'playing') return;
                 const validMoves = (nextGame.moveHistory || []).filter((m: any) => m.x !== -1 && m.y !== -1);
                 const totalTurns = nextGame.totalTurns ?? validMoves.length;
@@ -2893,8 +3046,8 @@ export const useApp = () => {
                     py >= 0
                 ) {
                     let moveLimit: number | undefined =
-                        gameType === 'singleplayer' && game.stageId
-                            ? SINGLE_PLAYER_STAGES.find((s: any) => s.id === game.stageId)?.autoScoringTurns
+                        gameType === 'singleplayer'
+                            ? resolveSinglePlayerAutoScoringCapForClientSession(game as any)
                             : (game.settings as any)?.autoScoringTurns;
                     if (
                         gameType === 'tower' &&
@@ -2949,8 +3102,8 @@ export const useApp = () => {
                         !updateResult.updatedGame.isSinglePlayer &&
                         (updateResult.updatedGame as any).gameCategory !== 'tower';
                     let autoScoringTurns: number | undefined =
-                        gameType === 'singleplayer' && game.stageId
-                            ? SINGLE_PLAYER_STAGES.find((s: any) => s.id === game.stageId)?.autoScoringTurns
+                        gameType === 'singleplayer'
+                            ? resolveSinglePlayerAutoScoringCapForClientSession(updateResult.updatedGame as any)
                             : (updateResult.updatedGame.settings as any)?.autoScoringTurns;
                     if (gameType === 'tower' && (autoScoringTurns === undefined || autoScoringTurns === null) && (game.stageId || game.towerFloor != null)) {
                         const stage = game.stageId
@@ -3222,9 +3375,17 @@ export const useApp = () => {
                     game.gameStatus === 'playing' &&
                     !(gameType === 'singleplayer' && (game.settings as any)?.isSurvivalMode === true)
                 ) {
-                    const stages = gameType === 'tower' ? TOWER_STAGES : SINGLE_PLAYER_STAGES;
-                    const stage = stages.find((s: { id: string }) => s.id === game.stageId) as { blackTurnLimit?: number } | undefined;
-                    const blackTurnLimit = stage?.blackTurnLimit;
+                    const stage =
+                        gameType === 'tower'
+                            ? TOWER_STAGES.find((s: { id: string }) => s.id === game.stageId)
+                            : resolveLiveSessionSinglePlayerStageRow(game as any);
+                    const settingsBt = (game.settings as any)?.blackTurnLimit;
+                    const blackTurnLimit =
+                        gameType === 'singleplayer' &&
+                        typeof settingsBt === 'number' &&
+                        settingsBt > 0
+                            ? settingsBt
+                            : (stage as { blackTurnLimit?: number } | undefined)?.blackTurnLimit;
                     if (blackTurnLimit !== undefined) {
                         const updatedGame = updateResult.updatedGame as LiveGameSession;
                         const moveHistory = updatedGame.moveHistory || [];
@@ -5415,6 +5576,8 @@ export const useApp = () => {
                     result.donationResult ||
                     result.clientResponse?.donationResult ||
                     result.guilds ||
+                    /** `/api/action` 평탄화: `clientResponse`만 스프레드되어 최상위로만 오는 필드 */
+                    (result as any).strategicPetHint ||
                     /** `/api/action` 평탄화: `updatedUser`만 최상위에 있는 응답(페어 부화 수령 등)도 호출부에 전달 */
                     !!(result as any).updatedUser ||
                     /** 페어 펫 수련 수령: `pairTrainingClaimSummary`만 추가로 오는 경우에도 호출부(모달)로 전달 */
@@ -6849,6 +7012,12 @@ export const useApp = () => {
                                     game.mode === GameMode.Dice &&
                                     !!existingForThrottle &&
                                     (game.round ?? 1) > (existingForThrottle.round ?? 1);
+                                // 놀이바둑 PVP: 오목(색 확인)·주사위/도둑 일부 단계 등은 moveHistory가 비거나
+                                // 동일 길이로 유지되는 업데이트가 연속으로 오며, 100ms 쓰로틀에 걸리면 턴·종료·대기실 복귀 UI가 고착된다.
+                                const playfulGameThrottleBypass =
+                                    PLAYFUL_GAME_MODES.some((m) => m.mode === game.mode) ||
+                                    (!!existingForThrottle &&
+                                        PLAYFUL_GAME_MODES.some((m) => m.mode === existingForThrottle.mode));
                                 // 흑선 가져오기(capture bidding/reveal/tiebreaker) 종료 후 playing 전환은
                                 // 이동 수(moveHistory)가 없더라도 반드시 모달을 닫고 다음 화면으로 넘어가야 함.
                                 const isCaptureBidExitToPlaying =
@@ -6877,6 +7046,7 @@ export const useApp = () => {
                                             row.some((c: any) => c !== 0 && c != null)
                                     );
                                 if (
+                                    !playfulGameThrottleBypass &&
                                     !hasNewMoves &&
                                     !isPlayfulBoardUpdate &&
                                     !isDiceRollAnimationUpdate &&
@@ -6980,9 +7150,13 @@ export const useApp = () => {
                                                 }
 
                                                 const finalTotalTurns = (game.totalTurns !== undefined && game.totalTurns !== null) ? game.totalTurns : (existingGame.totalTurns !== undefined && existingGame.totalTurns !== null ? existingGame.totalTurns : game.totalTurns);
-                                                const finalCaptures = (game.captures && typeof game.captures === 'object' && Object.keys(game.captures).length > 0)
-                                                    ? game.captures
-                                                    : (existingGame.captures && typeof existingGame.captures === 'object' ? existingGame.captures : game.captures);
+                                                const finalCaptures =
+                                                    mergeMonotonicCountRecord(
+                                                        existingGame.captures as LiveGameSession['captures'],
+                                                        game.captures as LiveGameSession['captures']
+                                                    ) ??
+                                                    game.captures ??
+                                                    existingGame.captures;
 
                                                 const preservedGame = {
                                                     ...game,
@@ -7010,14 +7184,15 @@ export const useApp = () => {
                                             const preservedTotalTurns = existingGame?.totalTurns !== undefined && existingGame?.totalTurns !== null
                                                 ? existingGame.totalTurns
                                                 : (game.totalTurns !== undefined && game.totalTurns !== null ? game.totalTurns : undefined);
-                                            
-                                            const preservedCaptures = existingGame?.captures && 
-                                                typeof existingGame.captures === 'object' &&
-                                                Object.keys(existingGame.captures).length > 0
-                                                ? existingGame.captures
-                                                : (game.captures && typeof game.captures === 'object' && Object.keys(game.captures).length > 0
-                                                    ? game.captures
-                                                    : existingGame?.captures || game.captures || { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 });
+                                            /** 서버 GAME_UPDATE가 따내기 점수만 갱신해도 기존 객체가 우선되던 버그 방지 — 타워와 동일하게 플레이어별 max 병합 */
+                                            const preservedCaptures =
+                                                mergeMonotonicCountRecord(
+                                                    existingGame?.captures as LiveGameSession['captures'],
+                                                    game.captures as LiveGameSession['captures']
+                                                ) ??
+                                                existingGame?.captures ??
+                                                game.captures ??
+                                                { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 };
                                             
                                             if (isItemMode) {
                                                 const existingBoardStateValid = existingGame?.boardState && 
@@ -7148,8 +7323,8 @@ export const useApp = () => {
                                             ) {
                                                 // GAME_UPDATE를 받았을 때 자동계가 체크 (AI 수를 둔 경우 등)
                                                 try {
-                                                    const autoScoringTurns = game.isSinglePlayer && game.stageId
-                                                        ? SINGLE_PLAYER_STAGES.find((s: any) => s.id === game.stageId)?.autoScoringTurns
+                                                    const autoScoringTurns = game.isSinglePlayer
+                                                        ? resolveSinglePlayerAutoScoringCapForClientSession(game as any)
                                                         : (game.settings as any)?.autoScoringTurns;
                                                     
                                                     if (autoScoringTurns != null && autoScoringTurns > 0) {
@@ -7196,9 +7371,13 @@ export const useApp = () => {
                                                                 const preservedTotalTurns = totalTurns;
                                                                 const preservedBlackTimeLeft = game.blackTimeLeft ?? existingGame?.blackTimeLeft;
                                                                 const preservedWhiteTimeLeft = game.whiteTimeLeft ?? existingGame?.whiteTimeLeft;
-                                                                const preservedCaptures = (game.captures && typeof game.captures === 'object' && Object.keys(game.captures).length > 0)
-                                                                    ? game.captures
-                                                                    : (existingGame?.captures && typeof existingGame.captures === 'object' ? existingGame.captures : game.captures);
+                                                                const preservedCaptures =
+                                                                    mergeMonotonicCountRecord(
+                                                                        existingGame?.captures as LiveGameSession['captures'],
+                                                                        game.captures as LiveGameSession['captures']
+                                                                    ) ??
+                                                                    game.captures ??
+                                                                    existingGame?.captures;
                                                                 const preservedHiddenMovesWs = existingGame?.hiddenMoves ?? game.hiddenMoves;
                                                                 const autoScoringAction = {
                                                                     type: 'PLACE_STONE',
@@ -7718,7 +7897,17 @@ export const useApp = () => {
                                         const hasNewMoves = incomingMoveCount > existingMoveCount;
                                         const isScoringTransition =
                                             game.gameStatus === 'scoring' && existingGame?.gameStatus !== 'scoring';
-                                        if (!hasNewMoves && !isScoringTransition) {
+                                        const isPlayfulLiveGameInner =
+                                            PLAYFUL_GAME_MODES.some((m) => m.mode === game.mode) ||
+                                            (!!existingGame &&
+                                                PLAYFUL_GAME_MODES.some((m) => m.mode === existingGame.mode));
+                                        const playfulTurnOrPhaseChanged =
+                                            isPlayfulLiveGameInner &&
+                                            !!existingGame &&
+                                            (existingGame.currentPlayer !== game.currentPlayer ||
+                                                existingGame.gameStatus !== game.gameStatus ||
+                                                (game.serverRevision ?? 0) !== (existingGame.serverRevision ?? 0));
+                                        if (!hasNewMoves && !isScoringTransition && !playfulTurnOrPhaseChanged) {
                                             const signature = stableStringify(game);
                                             const previousSignature = liveGameSignaturesRef.current[gameId];
                                             if (previousSignature === signature) {
@@ -8015,6 +8204,28 @@ export const useApp = () => {
                                                     : [],
                                             };
                                         }
+                                        // 종료·무효 GAME_UPDATE가 보드만 실어 오고 summary가 빠지면 병합 결과에서 정산(골드·경험치 등)이 사라짐 → 기존 스냅샷 유지
+                                        const incomingSummaryKeys =
+                                            game.summary && typeof game.summary === 'object'
+                                                ? Object.keys(game.summary as object)
+                                                : [];
+                                        if (
+                                            (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') &&
+                                            incomingSummaryKeys.length === 0 &&
+                                            existingGame?.summary &&
+                                            typeof existingGame.summary === 'object' &&
+                                            Object.keys(existingGame.summary as object).length > 0
+                                        ) {
+                                            mergedGame = { ...mergedGame, summary: existingGame.summary };
+                                        }
+                                        /** 로비 AI 등: 슬림 패킷·낙관적 상태 편차 시 따내기 점수가 클라에서 내려가거나 멈춘 것처럼 보이는 현상 방지 */
+                                        mergedGame = {
+                                            ...mergedGame,
+                                            captures: mergeMonotonicCountRecord(
+                                                existingGame?.captures as LiveGameSession['captures'],
+                                                mergedGame.captures as LiveGameSession['captures']
+                                            ) ?? mergedGame.captures,
+                                        };
                                         updatedGames[gameId] = mergedGame;
 
                                         // 전략바둑 AI(KATA 등) 수: 짧은 지연 후 표시 (바로 두면 연출·턴 표시가 어색함)
@@ -8130,6 +8341,22 @@ export const useApp = () => {
                                         ? message.payload.message
                                         : '서버 점검 중입니다. 잠시 후 다시 접속해주세요.';
                                 setServerReconnectNotice(maintenanceMsg);
+                                replaceAppHash('#/login');
+                                return;
+                            }
+                            if (message.payload?.reason === OTHER_DEVICE_LOGIN_ADMIN_FORCE_REASON) {
+                                try {
+                                    sessionStorage.removeItem('currentUser');
+                                } catch {
+                                    // ignore
+                                }
+                                setCurrentUser(null);
+                                setShowOtherDeviceLoginModal(false);
+                                const adminMsg =
+                                    typeof message.payload?.message === 'string' && message.payload.message.trim()
+                                        ? message.payload.message.trim()
+                                        : '관리자에 의해 접속이 종료되었습니다.';
+                                setServerReconnectNotice(adminMsg);
                                 replaceAppHash('#/login');
                                 return;
                             }
@@ -8412,6 +8639,23 @@ export const useApp = () => {
                         codeMeaning: getCloseCodeMeaning(event.code),
                         wasIntentional: isIntentionalClose
                     });
+
+                    // 서버 관리자 강제 로그아웃: 메시지가 늦게 오거나 렌더 루프로 처리 못 해도 재연결하지 않음
+                    if (event.code === WEBSOCKET_ADMIN_FORCE_LOGOUT_CLOSE_CODE) {
+                        shouldReconnect = false;
+                        try {
+                            sessionStorage.removeItem('currentUser');
+                        } catch {
+                            // ignore
+                        }
+                        if (currentUserRef.current) {
+                            setCurrentUser(null);
+                            setShowOtherDeviceLoginModal(false);
+                            setServerReconnectNotice('관리자에 의해 접속이 종료되었습니다.');
+                            replaceAppHash('#/login');
+                        }
+                        return;
+                    }
                     
                     // 1001 (Going Away)는 브라우저가 페이지를 떠날 때 발생할 수 있으므로
                     // 의도적인 종료가 아닌 경우에만 재연결
@@ -8619,7 +8863,8 @@ export const useApp = () => {
             !['ended', 'no_contest', 'scoring', 'hidden_final_reveal', 'rematch_pending'].includes(
                 currentGame.gameStatus || '',
             );
-        if (isCurrentlyViewingSameGame && isLiveMatchNow) return;
+        // INITIAL_STATE는 boardState를 보내지 않으므로, 스토어에만 있고 판이 비면 rejoin이 필요하다.
+        if (isCurrentlyViewingSameGame && isLiveMatchNow && hasHydratedBoardGridForRejoin(currentGame)) return;
 
         const gid = inGameRecoveryGameId;
         if (rejoinRequestedRef.current.has(gid)) return;
@@ -8634,7 +8879,7 @@ export const useApp = () => {
                     liveGamesRef.current[gid] ||
                     singlePlayerGamesRef.current[gid] ||
                     towerGamesRef.current[gid];
-                if (inStore) return;
+                if (inStore && hasHydratedBoardGridForRejoin(inStore)) return;
 
                 const res = await fetch(getApiUrl('/api/game/rejoin'), {
                     method: 'POST',
@@ -8694,8 +8939,8 @@ export const useApp = () => {
             setGameRejoinFailure(prev => (prev?.gameId === gameId ? null : prev));
             return;
         }
-        // 경기 중에는 현재 판이 비지 않았더라도 강제 rejoin 재요청을 막아 불필요한 상태 재병합을 피한다.
-        if (isLiveMatchNow) {
+        // 경기 중이어도 INITIAL_STATE는 boardState가 없을 수 있어, 격자가 채워진 뒤에만 rejoin 스킵한다.
+        if (isLiveMatchNow && hasHydratedBoardGridForRejoin(gameInStore)) {
             setGameRejoinFailure(prev => (prev?.gameId === gameId ? null : prev));
             return;
         }
@@ -9103,6 +9348,7 @@ export const useApp = () => {
         setCurrentUserAndRoute,
         currentUserWithStatus,
         updateTrigger,
+        singlePlayerStagesListRevision,
         currentRoute,
         error,
         allUsers,

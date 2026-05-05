@@ -26,6 +26,9 @@ jobs:
         env:
           DATABASE_URL: 'postgresql://dummy:dummy@localhost:5432/dummy'
 
+      - name: TypeScript (client + server)
+        run: npm run typecheck
+
       - name: Run unit tests
         run: npm run test:unit
 

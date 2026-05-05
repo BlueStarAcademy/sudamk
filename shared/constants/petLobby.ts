@@ -1,5 +1,5 @@
 import { ItemGrade } from '../types/enums.js';
-import type { InventoryItem } from '../types/entities.js';
+import type { InventoryItem, PairPetLobbyInventorySortMode } from '../types/entities.js';
 
 /** 페어 펫·알 로비 인벤: 기본 슬롯 수(빈 칸 포함 표시) */
 export const PAIR_PET_LOBBY_INV_BASE_SLOTS = 10;
@@ -7,6 +7,20 @@ export const PAIR_PET_LOBBY_INV_BASE_SLOTS = 10;
 export const PAIR_PET_LOBBY_INV_EXPAND_STEP = 5;
 /** 펫·알 로비 인벤 최대 슬롯 */
 export const PAIR_PET_LOBBY_INV_MAX_SLOTS = 50;
+
+const PAIR_PET_LOBBY_INVENTORY_SORT_SET = new Set<string>([
+    'recent',
+    'oldest',
+    'name',
+    'petLevel',
+    'gradeHigh',
+]);
+
+/** 서버·클라 공통: 저장된 정렬 값 검증 */
+export function normalizePairPetLobbyInventorySort(raw: unknown): PairPetLobbyInventorySortMode | undefined {
+    if (typeof raw !== 'string' || !PAIR_PET_LOBBY_INVENTORY_SORT_SET.has(raw)) return undefined;
+    return raw as PairPetLobbyInventorySortMode;
+}
 
 export function pairPetLobbyInventorySlots(stored?: number | null): number {
     if (typeof stored !== 'number' || !Number.isFinite(stored)) {

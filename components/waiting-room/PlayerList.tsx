@@ -5,21 +5,23 @@ import UserNicknameText from '../UserNicknameText.js';
 import { AVATAR_POOL, BORDER_POOL, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { readPairRankedBlock } from '../../shared/utils/unifiedRankedStatsMigration.js';
+import { RANKED_ELO_BASE_SCORE } from '../../shared/constants/rules.js';
 
 type UserListStats = { wins: number; losses: number; winRate: number; score?: number };
 
 function computeUserListStats(user: UserWithStatus, mode: GameMode | 'strategic' | 'playful' | 'pair'): UserListStats | null {
     if (mode === 'pair') {
-        const st = user.stats?.['pair'];
-        const wins = st?.wins ?? 0;
-        const losses = st?.losses ?? 0;
+        const blk = readPairRankedBlock(user.stats as Record<string, { wins?: number; losses?: number; rankingScore?: number }>);
+        const wins = blk.wins;
+        const losses = blk.losses;
         const total = wins + losses;
         const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
-        const fromStats = st?.rankingScore;
+        const dr = user.dailyRankings?.pair;
         const score =
-            fromStats !== undefined && fromStats !== null
-                ? fromStats
-                : Number(user.dailyRankings?.pair?.score ?? user.cumulativeRankingScore?.['pair'] ?? 1200);
+            dr && typeof dr.rank === 'number'
+                ? RANKED_ELO_BASE_SCORE + (typeof dr.score === 'number' ? dr.score : 0)
+                : blk.rankingScore;
         return { wins, losses, winRate, score };
     }
     if (mode === 'strategic' || mode === 'playful') {
@@ -62,7 +64,7 @@ const statusDisplay: Record<UserStatus, { text: string; color: string; }> = {
   'waiting': { text: '대기 중', color: 'text-green-400' },
   'resting': { text: '휴식 중', color: 'text-gray-400' },
   'negotiating': { text: '협상 중', color: 'text-yellow-400' },
-  'in-game': { text: '대국 중', color: 'text-blue-400' },
+  'in-game': { text: '경기중', color: 'text-red-500 font-semibold' },
   'spectating': { text: '관전 중', color: 'text-purple-400' },
   'offline': { text: '오프라인', color: 'text-gray-500' },
 };
@@ -122,7 +124,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
     const isPairArenaList = mode === 'pair' && !pairInvite;
 
     const renderUserItem = (user: UserWithStatus, isCurrentUser: boolean) => {
-        const statusInfo = statusDisplay[user.status];
+        const statusInfo = statusDisplay[user.status] ?? statusDisplay.offline;
         const isDiceGo = mode === GameMode.Dice;
 
         const listStats = computeUserListStats(user, mode);
@@ -233,7 +235,9 @@ const PlayerList: React.FC<PlayerListProps> = ({
                             <option value="waiting">대기 중</option>
                             <option value="resting">휴식 중</option>
                             {!['waiting', 'resting'].includes(currentUser.status) && (
-                                <option value={currentUser.status} disabled>{statusDisplay[currentUser.status].text}</option>
+                                <option value={currentUser.status} disabled>
+                                    {(statusDisplay[currentUser.status] ?? statusDisplay.offline).text}
+                                </option>
                             )}
                         </select>
                     </div>

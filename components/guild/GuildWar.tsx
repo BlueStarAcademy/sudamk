@@ -204,6 +204,19 @@ type MyGuildWarAttemptLogRow = {
     detailSummary?: string;
 };
 
+type MyGuildWarBoardParticipationRow = {
+    boardId: string;
+    boardName: string;
+    modeLabel: string;
+    gamesPlayed: number;
+    wins: number;
+    losses: number;
+    draws: number;
+    starsEarnedSum: number;
+    inProgress: boolean;
+    boardRecordLine?: string;
+};
+
 const GuildWar = () => {
     const { currentUserWithStatus, currentUser, guilds, handlers, allUsers } = useAppContext();
     /** 세션/WS 타이밍으로 WithStatus에만 늦게 붙는 경우 대비 */
@@ -226,6 +239,7 @@ const GuildWar = () => {
     const [myAttemptLogOpen, setMyAttemptLogOpen] = useState(false);
     const [myAttemptLogLoading, setMyAttemptLogLoading] = useState(false);
     const [myAttemptLogRows, setMyAttemptLogRows] = useState<MyGuildWarAttemptLogRow[]>([]);
+    const [myBoardParticipation, setMyBoardParticipation] = useState<MyGuildWarBoardParticipationRow[]>([]);
     const [myAttemptLogUsed, setMyAttemptLogUsed] = useState(0);
     const [myAttemptLogMax, setMyAttemptLogMax] = useState(GUILD_WAR_PERSONAL_DAILY_LIMIT);
     const [isDemoMode, setIsDemoMode] = useState(false);
@@ -660,16 +674,21 @@ const GuildWar = () => {
             const result = (await handlers.handleAction({ type: 'GET_MY_GUILD_WAR_ATTEMPT_LOG' })) as any;
             if (result?.error) {
                 setMyAttemptLogRows([]);
+                setMyBoardParticipation([]);
                 alert(String(result.error));
                 return;
             }
             const cr = result?.clientResponse ?? result;
             setMyAttemptLogRows(Array.isArray(cr?.myGuildWarAttemptLog) ? cr.myGuildWarAttemptLog : []);
+            setMyBoardParticipation(
+                Array.isArray(cr?.myGuildWarBoardParticipation) ? cr.myGuildWarBoardParticipation : []
+            );
             setMyAttemptLogUsed(Number(cr?.attemptsUsedInWar ?? 0) || 0);
             setMyAttemptLogMax(Number(cr?.attemptsMax ?? GUILD_WAR_PERSONAL_DAILY_LIMIT) || GUILD_WAR_PERSONAL_DAILY_LIMIT);
         } catch (e) {
             console.error('[GuildWar] GET_MY_GUILD_WAR_ATTEMPT_LOG', e);
             setMyAttemptLogRows([]);
+            setMyBoardParticipation([]);
             alert('기록을 불러오지 못했습니다.');
         } finally {
             setMyAttemptLogLoading(false);
@@ -960,7 +979,7 @@ const GuildWar = () => {
                                 {onOpenMyAttemptLog ? (
                                     <button
                                         type="button"
-                                        title={myAttemptLogDisabled ? '데모 모드에서는 이용할 수 없습니다.' : '내가 사용한 도전권 기록'}
+                                        title={myAttemptLogDisabled ? '데모 모드에서는 이용할 수 없습니다.' : '이번 길드전 나의 경기장·성적'}
                                         disabled={!!myAttemptLogDisabled || !!myAttemptLogBusy}
                                         onClick={() => onOpenMyAttemptLog()}
                                         className={`shrink-0 rounded-md border px-2.5 py-1 text-xs font-bold transition sm:text-sm ${
@@ -1577,17 +1596,22 @@ const GuildWar = () => {
                         aria-labelledby="guild-war-my-attempt-log-title"
                         className="fixed left-1/2 top-1/2 z-[10061] flex max-h-[min(85dvh,32rem)] w-[min(96vw,26rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-amber-500/35 bg-gradient-to-b from-stone-950 via-stone-900 to-black shadow-[0_20px_60px_rgba(0,0,0,0.65)] ring-1 ring-white/10"
                     >
-                        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
-                            <h2 id="guild-war-my-attempt-log-title" className="sr-only">
-                                길드전 종료 대국 기록
-                            </h2>
-                            <div className="flex min-w-0 items-center gap-2 rounded-lg border border-amber-500/25 bg-black/40 px-2.5 py-1.5">
-                                <img src={GUILD_WAR_TICKET_IMG} alt="" className="h-5 w-5 shrink-0 object-contain opacity-95" />
-                                <span className="text-xs font-semibold text-slate-400">도전권</span>
-                                <span className="font-black tabular-nums text-amber-100 sm:text-base">
-                                    {myAttemptLogUsed}/{myAttemptLogMax}
-                                </span>
+                        <div className="flex shrink-0 flex-col gap-2 border-b border-white/10 px-4 py-3">
+                            <div className="flex items-center justify-between gap-2">
+                                <h2 id="guild-war-my-attempt-log-title" className="min-w-0 text-sm font-bold leading-tight text-amber-50 sm:text-base">
+                                    이번 길드전 · 나의 경기장
+                                </h2>
+                                <div className="flex shrink-0 items-center gap-2 rounded-lg border border-amber-500/25 bg-black/40 px-2.5 py-1.5">
+                                    <img src={GUILD_WAR_TICKET_IMG} alt="" className="h-5 w-5 shrink-0 object-contain opacity-95" />
+                                    <span className="text-xs font-semibold text-slate-400">도전권</span>
+                                    <span className="font-black tabular-nums text-amber-100 sm:text-base">
+                                        {myAttemptLogUsed}/{myAttemptLogMax}
+                                    </span>
+                                </div>
                             </div>
+                            <p className="text-[11px] leading-snug text-slate-400 sm:text-xs">
+                                아래는 이번 전쟁에서 칸별로 플레이한 종료 대국 요약입니다. 진행 중인 판은 종료 후 상세 목록에 반영됩니다.
+                            </p>
                             <button
                                 type="button"
                                 disabled={myAttemptLogLoading}
@@ -1598,18 +1622,67 @@ const GuildWar = () => {
                             </button>
                         </div>
                         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 py-3">
-                            {myAttemptLogLoading && myAttemptLogRows.length === 0 ? (
+                            {myAttemptLogLoading && myAttemptLogRows.length === 0 && myBoardParticipation.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center gap-3 py-12 text-slate-400">
                                     <div className="h-9 w-9 animate-spin rounded-full border-2 border-amber-400/60 border-t-transparent" aria-hidden />
                                     <p className="text-sm font-medium">불러오는 중…</p>
                                 </div>
-                            ) : myAttemptLogRows.length === 0 ? (
-                                <p className="py-8 text-center text-sm text-slate-400">
-                                    아직 종료된 길드전 대국 기록이 없습니다.
-                                    <br />
-                                    <span className="text-xs text-slate-500">진행 중인 판은 끝난 뒤 여기에 반영됩니다.</span>
-                                </p>
                             ) : (
+                                <div className="flex flex-col gap-4">
+                                    {myBoardParticipation.length > 0 ? (
+                                        <div>
+                                            <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">경기장별 성적</h3>
+                                            <ul className="flex flex-col gap-1.5">
+                                                {myBoardParticipation.map((row) => {
+                                                    const hasPlay =
+                                                        row.gamesPlayed > 0 || row.inProgress || !!row.boardRecordLine;
+                                                    return (
+                                                        <li
+                                                            key={row.boardId}
+                                                            className="rounded-lg border border-white/10 bg-black/40 px-2.5 py-2 text-left text-xs sm:text-sm"
+                                                        >
+                                                            <div className="flex flex-wrap items-center justify-between gap-1.5">
+                                                                <span className="font-bold text-white">
+                                                                    {row.boardName}{' '}
+                                                                    <span className="font-semibold text-sky-200/85">· {row.modeLabel}</span>
+                                                                </span>
+                                                                {row.inProgress ? (
+                                                                    <span className="shrink-0 rounded border border-amber-400/50 bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-black text-amber-100">
+                                                                        진행 중
+                                                                    </span>
+                                                                ) : null}
+                                                            </div>
+                                                            {hasPlay ? (
+                                                                <>
+                                                                    <p className="mt-1 text-[11px] text-slate-300 sm:text-xs">
+                                                                        종료 {row.gamesPlayed}판 · 승 {row.wins} · 무 {row.draws} · 패 {row.losses}
+                                                                        {row.starsEarnedSum > 0 ? ` · 획득 별 합 ${row.starsEarnedSum}` : ''}
+                                                                    </p>
+                                                                    {row.boardRecordLine ? (
+                                                                        <p className="mt-0.5 text-[10px] font-semibold text-amber-200/90 sm:text-[11px]">
+                                                                            {row.boardRecordLine}
+                                                                        </p>
+                                                                    ) : null}
+                                                                </>
+                                                            ) : (
+                                                                <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">이번 전쟁에서 이 칸 기록 없음</p>
+                                                            )}
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        </div>
+                                    ) : null}
+
+                                    <div>
+                                        <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">종료 대국 상세</h3>
+                                        {myAttemptLogRows.length === 0 ? (
+                                            <p className="py-4 text-center text-sm text-slate-400">
+                                                아직 종료된 길드전 대국이 없습니다.
+                                                <br />
+                                                <span className="text-xs text-slate-500">진행 중인 판은 끝난 뒤 여기에 표시됩니다.</span>
+                                            </p>
+                                        ) : (
                                 <ul className="flex flex-col gap-2">
                                     {myAttemptLogRows.map((row) => {
                                         const when = new Intl.DateTimeFormat('ko-KR', {
@@ -1671,6 +1744,9 @@ const GuildWar = () => {
                                         );
                                     })}
                                 </ul>
+                                        )}
+                                    </div>
+                                </div>
                             )}
                         </div>
                     </div>

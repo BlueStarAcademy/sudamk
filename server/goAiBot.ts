@@ -59,6 +59,7 @@ import {
 import { bumpGuildWarMaxSingleCapturePointsForPlayer } from '../shared/utils/guildWarMaxSingleCapturePoints.js';
 import { reconcileStrategicAiBoardSizeWithGroundTruth } from './utils/effectiveBoardSize.js';
 import { getEffectiveSinglePlayerStages } from './singlePlayerStageConfigService.js';
+import { resolveSinglePlayerAutoScoringTurnCap } from '../shared/utils/singlePlayerStrategicRulePreset.js';
 
 /** 싱글·탑·로비 AI 등: 마지막 AI 수가 판에 보이고 착수음이 난 뒤 계가 — 클라 렌더·오디오 여유 */
 const PVE_DEFERRED_AUTO_SCORING_AFTER_LAST_AI_MS = 1200;
@@ -124,7 +125,10 @@ async function runDeferredPveAutoScoring(gameId: string): Promise<void> {
             !modeIncludesCaptureRule(g) && scoringLimit != null && scoringLimit > 0;
         const autoScoringTurns =
             g.isSinglePlayer && g.stageId
-                ? (await getEffectiveSinglePlayerStages()).find((s) => s.id === g.stageId)?.autoScoringTurns
+                ? resolveSinglePlayerAutoScoringTurnCap(
+                      g.settings as any,
+                      (await getEffectiveSinglePlayerStages()).find((s) => s.id === g.stageId)
+                  )
                 : String((g as any).gameCategory ?? '') === 'tower' ||
                     String((g as any).gameCategory ?? '') === 'singleplayer'
                   ? (g.settings as any)?.autoScoringTurns
@@ -281,6 +285,64 @@ export function composeKataSessionTagForGame(game: types.LiveGameSession, hidden
     if (hiddenRevealTag && String(hiddenRevealTag).trim()) parts.push(String(hiddenRevealTag).trim());
     if (parts.length === 0) return undefined;
     return parts.join('-');
+}
+
+/**
+ * 전략바둑 대표펫 힌트: 인간 차례 색으로 Kata 1수(합법 수·히든 AI대국 마스킹 규칙은 AI 착수와 동일).
+ */
+export async function computeStrategicPetKataHintMove(
+    game: types.LiveGameSession,
+    humanPlayerEnum: types.Player,
+    kataLevel: number,
+): Promise<Point | null> {
+    if (!isKataServerAvailable()) return null;
+    const opponentPlayerEnum = humanPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
+    const rawMoveHistory = getMoveHistoryForKataServer(game, opponentPlayerEnum);
+    const moveHistory = buildKataMoveHistory(game, rawMoveHistory, humanPlayerEnum);
+    const isHiddenMode =
+        game.mode === types.GameMode.Hidden ||
+        (game.mode === types.GameMode.Mix && !!game.settings.mixedModes?.includes(types.GameMode.Hidden));
+    const guildWarKataRetries = String((game as any).gameCategory ?? '') === 'guildwar' ? 2 : 0;
+    const kataParamsBase = {
+        boardSize: game.settings.boardSize || 19,
+        player: (humanPlayerEnum === types.Player.White ? 'white' : 'black') as 'white' | 'black',
+        moveHistory,
+        level: kataLevel,
+        komi: game.settings.komi,
+        gameId: game.id,
+        kataSessionTag: composeKataSessionTagForGame(game, `hint-${Date.now()}`),
+        allowPass: false,
+        moveApiRetries: guildWarKataRetries,
+    };
+    let kataCandidates: Point[] = [];
+    try {
+        const kataDetails = await generateKataServerMoveCandidateDetails(kataParamsBase);
+        kataCandidates = kataDetails.candidates;
+    } catch {
+        return null;
+    }
+    for (const cand of kataCandidates) {
+        if (cand.x === -1 && cand.y === -1) continue;
+        const trial = processMove(
+            game.boardState,
+            { ...cand, player: humanPlayerEnum },
+            game.koInfo,
+            game.moveHistory.length,
+        );
+        if (trial.isValid) return cand;
+        if (isHiddenMode && shouldMaskUserHiddenFromAi(game)) {
+            const stoneAt = game.boardState[cand.y]?.[cand.x];
+            if (
+                stoneAt === opponentPlayerEnum &&
+                isCurrentUnrevealedHiddenStoneAt(game, cand.x, cand.y, opponentPlayerEnum)
+            ) {
+                return cand;
+            }
+        }
+    }
+    const logicFb = getGoLogic(game);
+    const legalFb = findAllValidMoves(game, logicFb, humanPlayerEnum);
+    return legalFb[0] ?? null;
 }
 
 /** 전략 AI 대국: 히든 개수는 player1/player2 좌석 기준(hidden_stones_p1/p2). AI가 항상 p2라는 가정은 길드전·색 배정에 깨질 수 있음 */
@@ -1031,7 +1093,9 @@ function isMissileStrategicPve(game: types.LiveGameSession): boolean {
         (game.mode === types.GameMode.Mix && !!game.settings.mixedModes?.includes(types.GameMode.Missile));
     if (!missileMode) return false;
     const cat = String((game as any).gameCategory ?? '');
-    return game.isSinglePlayer || cat === 'tower' || cat === 'guildwar' || cat === 'adventure';
+    // 길드전(온라인)은 미사일 이동 후에도 moveHistory 좌표가 보드와 함께 갱신되므로
+    // "판 스냅샷만 Kata에 넣는" PVE 경로를 쓰면 차례·합법수가 어긋져 패스/무수 처리로 이어질 수 있다.
+    return game.isSinglePlayer || cat === 'tower' || cat === 'adventure';
 }
 
 /**
@@ -1687,11 +1751,15 @@ export async function makeGoAiBotMove(
         game.aiHiddenItemAnimationEndTime = undefined;
         // 6초 만료 직후에도 클라·전광판에 연출 유지 → Kata 히든 착수 반영 뒤 finally에서 animation 정리
         // 연출 종료 후 "다음 착수는 히든으로 처리" 플래그를 영속 저장한다.
-        // aiHiddenLeft만 보면 클라 동기화·좌석 키 불일치로 0이 되어 일반돌로 두는 경우가 있어,
-        // 방금 끝난 연출이 ai_thinking(히든 아이템)이면 남은 개수와 무관하게 히든 착수로 간다.
+        // 연출 시작 시점에 aiHiddenItemsUsedCount가 +1 되므로, 아직 실제 히든 수가 기록되지 않았을 때만 pending을 켠다.
+        // (재고 0인데 wasAiThinking만으로 pending이 켜지면 다음 수가 히든으로 오표시되어 판·UI가 깨짐)
+        const usedAfterAnim = Math.max(0, Number((game as any).aiHiddenItemsUsedCount ?? 0));
+        const recordedAfterAnim = countRecordedAiHiddenMoves(game, aiPlayerEnum);
+        const owesHiddenStoneFromAnimation = recordedAfterAnim < usedAfterAnim;
         (game as any).pendingAiHiddenPlacement = Boolean(
             isHiddenMode &&
-                (aiHiddenLeft > 0 || wasAiThinkingHiddenReveal || thinkPlacementDue)
+                (wasAiThinkingHiddenReveal || thinkPlacementDue) &&
+                (aiHiddenLeft > 0 || owesHiddenStoneFromAnimation)
         );
         shouldApplyHiddenOnThisMove = !!(game as any).pendingAiHiddenPlacement;
     }
@@ -1765,6 +1833,19 @@ export async function makeGoAiBotMove(
         configuredTowerAiHiddenTurns.length > 0 &&
         nextTowerAiHiddenTurn != null &&
         currentAiTurnIndex >= nextTowerAiHiddenTurn;
+
+    /** 싱글/탑: 예정 횟수를 이미 모두 "연출 시작(+1)" 한 뒤면 추가 연출을 막는다 */
+    const singlePlayerPlannedHiddenUsesCap =
+        game.isSinglePlayer && isHiddenMode && !disableAiHiddenItemsByStageSetting
+            ? Math.max(
+                  configuredSinglePlayerHiddenTurns.length,
+                  normalizeAiHiddenTurns((game as any).aiHiddenItemTurns).length,
+              )
+            : 0;
+    const atOrOverSinglePlayerHiddenSchedule =
+        singlePlayerPlannedHiddenUsesCap > 0 && usedAiHiddenItems >= singlePlayerPlannedHiddenUsesCap;
+    const atOrOverTowerHiddenSchedule =
+        configuredTowerAiHiddenTurns.length > 0 && usedAiHiddenItems >= configuredTowerAiHiddenTurns.length;
 
     const goAiProfileLevel = Math.max(1, Math.min(10, aiLevel));
     const kataRuntimeSnap = getKataServerRuntimeSnapshot();
@@ -1873,7 +1954,9 @@ export async function makeGoAiBotMove(
         isHiddenMode &&
         !disableAiHiddenItemsByStageSetting &&
         !shouldApplyHiddenOnThisMove &&
-        (shouldUseStrategicAiHiddenItem || shouldUseSinglePlayerAiHiddenItem || shouldUseTowerAiHiddenItem)
+        (shouldUseStrategicAiHiddenItem || shouldUseSinglePlayerAiHiddenItem || shouldUseTowerAiHiddenItem) &&
+        !atOrOverSinglePlayerHiddenSchedule &&
+        !atOrOverTowerHiddenSchedule
     ) {
         const appliesToAi = game.isSinglePlayer || (game as any).gameCategory === 'tower' || isStrategicAiGame;
         if (aiHiddenLeft > 0 && appliesToAi) {
@@ -1908,6 +1991,10 @@ export async function makeGoAiBotMove(
                 playerId: aiPlayerId,
             };
             game.aiHiddenItemAnimationEndTime = now + AI_HIDDEN_ITEM_THINKING_DURATION_MS;
+            // 연출 구간에는 turnDeadline이 흘러 AI 시계/타임아웃·스피드 추정이 꼬이지 않도록 마감을 연출 길이만큼 연장한다.
+            if (game.turnDeadline != null && Number.isFinite(game.turnDeadline)) {
+                game.turnDeadline += AI_HIDDEN_ITEM_THINKING_DURATION_MS;
+            }
             await db.saveGame(game);
             const { broadcastToGameParticipants } = await import('./socket.js');
             const gameToBroadcast = { ...game };
@@ -1967,7 +2054,8 @@ export async function makeGoAiBotMove(
             .filter((p: Point) => Number.isInteger(p.x) && Number.isInteger(p.y))
         : [];
     if (game.isSinglePlayer && shouldApplyHiddenOnThisMove && configuredAiHiddenPlacements.length > 0) {
-        const placementByOrder = configuredAiHiddenPlacements[usedAiHiddenItems];
+        // 연출 직전에 used가 +1 되므로 N번째 히든 착수는 recorded(0-based)로 고른다.
+        const placementByOrder = configuredAiHiddenPlacements[recordedAiHiddenMoves];
         const fallbackPlacement = configuredAiHiddenPlacements[0];
         const preferredPlacement = placementByOrder ?? fallbackPlacement;
         if (
@@ -2454,6 +2542,12 @@ export async function makeGoAiBotMove(
         }
     }
 
+    const usedHiddenCounterForMark = Math.max(0, Number((game as any).aiHiddenItemsUsedCount ?? 0));
+    const recordedHiddenBeforePush = countRecordedAiHiddenMoves(game, aiPlayerEnum);
+    const treatAsAiHiddenStone =
+        shouldApplyHiddenOnThisMove &&
+        (aiHiddenLeft > 0 || recordedHiddenBeforePush < usedHiddenCounterForMark);
+
     // 5. 최종 수 적용
     game.boardState = result.newBoardState;
     game.lastMove = { x: selectedMove.x, y: selectedMove.y };
@@ -2467,7 +2561,7 @@ export async function makeGoAiBotMove(
         appendPairPetGameChat(game, pendingPairPetKataChatMessage);
         pendingPairPetKataChatMessage = null;
     }
-    if (shouldApplyHiddenOnThisMove) {
+    if (treatAsAiHiddenStone) {
         if (!game.hiddenMoves) game.hiddenMoves = {};
         game.hiddenMoves[game.moveHistory.length - 1] = true;
         if (aiHiddenLeft > 0) {
@@ -2483,8 +2577,16 @@ export async function makeGoAiBotMove(
         (game as any).aiHiddenItemThinkPlacementDue = false;
         (game as any).aiHiddenItemThinkDueMoveCount = undefined;
         pendingAiHiddenKataMoveByGameId.delete(hiddenKataCacheKey(game.id));
+    } else if (shouldApplyHiddenOnThisMove) {
+        // stale pending: 일반돌 착수로만 반영하고 사용 카운터·플래그를 수순에 맞게 되돌림
+        (game as any).aiHiddenItemsUsedCount = countRecordedAiHiddenMoves(game, aiPlayerEnum);
+        (game as any).pendingAiHiddenPlacement = false;
+        (game as any).aiHiddenPlacementArmed = false;
+        (game as any).aiHiddenItemThinkPlacementDue = false;
+        (game as any).aiHiddenItemThinkDueMoveCount = undefined;
+        pendingAiHiddenKataMoveByGameId.delete(hiddenKataCacheKey(game.id));
     }
-    if (!shouldApplyHiddenOnThisMove && game.permanentlyRevealedStones?.length) {
+    if (!treatAsAiHiddenStone && game.permanentlyRevealedStones?.length) {
         game.permanentlyRevealedStones = game.permanentlyRevealedStones.filter(
             (p) => !(p.x === selectedMove.x && p.y === selectedMove.y)
         );
@@ -2512,7 +2614,7 @@ export async function makeGoAiBotMove(
         aiPlayerEnum,
         opponentPlayerEnum,
         !!isHiddenMode,
-        shouldApplyHiddenOnThisMove,
+        treatAsAiHiddenStone,
         now
     );
     if (startedRevealAnimation) {
@@ -2577,7 +2679,10 @@ export async function makeGoAiBotMove(
         const useScoringLimitAsAuto =
             !modeIncludesCaptureRule(game) && scoringLimit != null && scoringLimit > 0;
         const autoScoringTurns = game.isSinglePlayer && game.stageId
-            ? (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId)?.autoScoringTurns
+            ? resolveSinglePlayerAutoScoringTurnCap(
+                  game.settings as any,
+                  (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId)
+              )
             : (game as any).gameCategory === 'tower'
                 ? (game.settings as any)?.autoScoringTurns
                 : (useScoringLimitAsAuto ? scoringLimit : undefined);
@@ -2698,7 +2803,7 @@ export async function makeGoAiBotMove(
             let skipTurnLimitFail = false;
             if (game.stageId) {
                 const stage = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId);
-                const autoScoringTurns = stage?.autoScoringTurns;
+                const autoScoringTurns = resolveSinglePlayerAutoScoringTurnCap(game.settings as any, stage);
                 if (autoScoringTurns != null) {
                     const totalTurnsNow = game.moveHistory.filter(m => m.x !== -1 && m.y !== -1).length;
                     if (totalTurnsNow >= autoScoringTurns) skipTurnLimitFail = true;

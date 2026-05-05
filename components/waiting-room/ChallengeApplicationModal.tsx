@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
-import { GameMode, ServerAction, UserWithStatus } from '../../types.js'; // Import UserWithStatus
-import { SPECIAL_GAME_MODES } from '../../constants';
+import { GameMode, GameSettings, ServerAction, UserWithStatus } from '../../types.js'; // Import UserWithStatus
+import { SPECIAL_GAME_MODES, DEFAULT_GAME_SETTINGS } from '../../constants';
+import { getRankedGameSettings } from '../../constants/rankedGameSettings.js';
 import Avatar from '../Avatar.js'; // Import Avatar
 import { AVATAR_POOL, BORDER_POOL } from '../../constants'; // Import AVATAR_POOL, BORDER_POOL
 
@@ -28,7 +29,12 @@ const ChallengeApplicationModal: React.FC<ChallengeApplicationModalProps> = ({ o
             alert(`상대방이 ${selectedGameMode}을(를) 거부한 상태입니다.`);
             return;
         }
-        onAction({ type: 'CHALLENGE_USER', payload: { opponentId: opponentUser.id, mode: selectedGameMode } });
+        const ranked = getRankedGameSettings(selectedGameMode);
+        const settings: GameSettings = { ...DEFAULT_GAME_SETTINGS, ...ranked };
+        onAction({
+            type: 'CHALLENGE_USER',
+            payload: { opponentId: opponentUser.id, mode: selectedGameMode, settings },
+        });
         onClose();
     };
 

@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { LiveGameSession, User, ServerAction, Player } from '../types.js';
-import Avatar from './Avatar.js';
+import { LiveGameSession, User, ServerAction } from '../types.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import PreGameColorRoulette from './PreGameColorRoulette.js';
-import { AVATAR_POOL, BORDER_POOL } from '../constants';
 
 interface CurlingStartConfirmationModalProps {
     session: LiveGameSession;
@@ -31,11 +29,6 @@ const CurlingStartConfirmationModal: React.FC<CurlingStartConfirmationModalProps
     
     const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
     const whitePlayer = player1.id === whitePlayerId ? player1 : player2;
-    
-    const blackAvatarUrl = AVATAR_POOL.find(a => a.id === blackPlayer.avatarId)?.url;
-    const blackBorderUrl = BORDER_POOL.find(b => b.id === blackPlayer.borderId)?.url;
-    const whiteAvatarUrl = AVATAR_POOL.find(a => a.id === whitePlayer.avatarId)?.url;
-    const whiteBorderUrl = BORDER_POOL.find(b => b.id === whitePlayer.borderId)?.url;
 
     return (
         <DraggableWindow
@@ -55,20 +48,9 @@ const CurlingStartConfirmationModal: React.FC<CurlingStartConfirmationModalProps
                     title="룰렛으로 선공/후공이 결정되었습니다"
                     subtitle="가위바위보 대신 자동 룰렛으로 흑과 백이 배정됩니다."
                 />
-                <p className="text-center text-gray-400 mb-4 text-sm">아래 시작 버튼을 누르거나 30초 후 대국이 자동으로 시작됩니다.</p>
-
-                <div className="flex gap-4 mt-4">
-                    <div className="w-1/2 flex flex-col items-center p-4 bg-gray-900/50 rounded-lg border border-gray-700">
-                        <Avatar userId={blackPlayer.id} userName={blackPlayer.nickname} size={64} avatarUrl={blackAvatarUrl} borderUrl={blackBorderUrl} />
-                        <p className="mt-2 font-bold">{blackPlayer.nickname}</p>
-                        <p className="font-semibold">선공 (흑)</p>
-                    </div>
-                    <div className="w-1/2 flex flex-col items-center p-4 bg-gray-900/50 rounded-lg border border-gray-700">
-                        <Avatar userId={whitePlayer.id} userName={whitePlayer.nickname} size={64} avatarUrl={whiteAvatarUrl} borderUrl={whiteBorderUrl} />
-                        <p className="mt-2 font-bold">{whitePlayer.nickname}</p>
-                        <p className="font-semibold">후공 (백)</p>
-                    </div>
-                </div>
+                <p className="mt-5 text-center text-sm leading-relaxed text-stone-400">
+                    대국 시작을 누르거나, 30초가 지나면 자동으로 시작됩니다.
+                </p>
 
                 <Button
                     onClick={() => onAction({ type: 'CONFIRM_CURLING_START', payload: { gameId }})} 

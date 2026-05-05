@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import type { User, InventoryItem, Equipment, Mail, QuestLog, EquipmentSlot } from "../../types/index.js";
 import { createDefaultBaseStats, createDefaultSpentStatPoints, createDefaultQuests } from "../initialData.ts";
 import { ItemGrade, LeagueTier } from "../../types/enums.js";
-import { SINGLE_PLAYER_STAGES } from "../../shared/constants/singlePlayerConstants.js";
+import { DEFAULT_SINGLE_PLAYER_STAGES } from "../../shared/constants/singlePlayerConstants.js";
 import { EQUIPMENT_POOL, MATERIAL_ITEMS, CONSUMABLE_ITEMS, resolveEquipmentTemplateLookupName } from "../../shared/constants/index.js";
 import {
   normalizeLegacyDivineMythicInventoryItem,
@@ -16,7 +16,11 @@ import { normalizeAdventureProfile } from "../../utils/adventureUnderstanding.js
 import { ADVENTURE_STAGES } from "../../constants/adventureConstants.js";
 import { isRecognizedAdminUser } from "../../shared/utils/adminRecognition.js";
 import { PAIR_PET_MAX_LEVEL } from "../../shared/constants/pairPetGrade.js";
-import { getPairPetDefinition, pairPetLobbyInventorySlots } from "../../shared/constants/petLobby.js";
+import {
+  getPairPetDefinition,
+  normalizePairPetLobbyInventorySort,
+  pairPetLobbyInventorySlots,
+} from "../../shared/constants/petLobby.js";
 import { reconcileEquippedPairPetInventoryItem } from "../../shared/utils/pairEquippedPet.js";
 import { normalizePairPetTrainingSlots } from "../../shared/constants/pairTraining.js";
 import {
@@ -42,7 +46,7 @@ const DEFAULT_INVENTORY_SLOTS: User["inventorySlots"] = {
   material: 30
 };
 
-const ALL_SINGLE_PLAYER_STAGE_IDS = SINGLE_PLAYER_STAGES.map((stage) => stage.id);
+const ALL_SINGLE_PLAYER_STAGE_IDS = DEFAULT_SINGLE_PLAYER_STAGES.map((stage) => stage.id);
 const MAX_SINGLE_PLAYER_PROGRESS = ALL_SINGLE_PLAYER_STAGE_IDS.length;
 
 type SerializedUserStatus = {
@@ -521,6 +525,9 @@ const applyDefaults = (
     ),
     pairPetHatcherySessions: normalizePairPetHatcherySessions(
         user.pairPetHatcherySessions ?? (status?.serializedUser as User | undefined)?.pairPetHatcherySessions
+    ),
+    pairPetLobbyInventorySort: normalizePairPetLobbyInventorySort(
+        user.pairPetLobbyInventorySort ?? (status?.serializedUser as User | undefined)?.pairPetLobbyInventorySort
     ),
     adventureProfile: normalizeAdventureProfile(
       user.adventureProfile ??

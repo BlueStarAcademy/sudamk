@@ -425,8 +425,8 @@ const PlayerProfilePanel: React.FC<{
         const result = { wins: 0, losses: 0 };
         if (fullUserData?.stats) {
             Object.values(fullUserData.stats).forEach(s => {
-                result.wins += s.wins;
-                result.losses += s.losses;
+                result.wins += s.wins ?? 0;
+                result.losses += s.losses ?? 0;
             });
         }
         return result;
@@ -1206,8 +1206,8 @@ const MobileChampionshipPlayersCompare: React.FC<{
         let losses = 0;
         if (full?.stats) {
             Object.values(full.stats).forEach((s) => {
-                wins += s.wins;
-                losses += s.losses;
+                wins += s.wins ?? 0;
+                losses += s.losses ?? 0;
             });
         }
         const total = wins + losses;

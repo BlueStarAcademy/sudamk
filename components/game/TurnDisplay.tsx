@@ -12,6 +12,7 @@ import { audioService } from '../../services/audioService.js';
 import { arenaGameRoomTurnDisplayBgClass } from './arenaGameRoomStyles.js';
 import { getSessionPlayerDisplayName } from '../../utils/gameDisplayNames.js';
 import { getCurrentPairTurnSeat } from '../../shared/utils/pairGameTurn.js';
+import { getEffectivePairLobbyOwnerId } from '../../shared/utils/effectivePairLobbyOwnerId.js';
 
 const AI_HIDDEN_ITEM_MESSAGE = 'AI봇이 히든 아이템을 사용했습니다!';
 const MONSTER_HIDDEN_ITEM_MESSAGE = '몬스터가 히든 아이템을 사용했습니다!';
@@ -137,6 +138,10 @@ const getGameStatusText = (session: LiveGameSession): string => {
                 : '돌 가리기 진행 중...';
         case 'base_placement':
             return `베이스돌 배치 · 각 ${settings.baseStones ?? 4}개`;
+        case 'base_stone_color_choice':
+            return '선호하는 돌(흑/백)을 선택하세요.';
+        case 'base_same_color_points_bid':
+            return '같은 돌 선택 — 상대에게 줄 점수를 정하세요.';
         case 'komi_bidding':
         case 'komi_bid_reveal':
             return '원하는 돌 색과 추가 덤을 정하세요.';
@@ -226,8 +231,8 @@ function BaseKomiGuideTicker({
     const [overflow, setOverflow] = useState(false);
 
     const fontClass = isMobile
-        ? 'text-[clamp(0.78rem,2.6vmin,0.95rem)]'
-        : 'text-[clamp(0.92rem,3.2vmin,1.2rem)] min-[1025px]:text-[clamp(1rem,2.8vmin,1.28rem)]';
+        ? 'text-[clamp(0.72rem,2.35vmin,0.88rem)]'
+        : 'text-[clamp(0.85rem,2.85vmin,1.08rem)] min-[1025px]:text-[clamp(0.92rem,2.5vmin,1.15rem)]';
 
     useLayoutEffect(() => {
         const check = () => {
@@ -394,7 +399,9 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             (session.mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Base))));
 
     const isKomiBiddingScoreboard =
-        session.gameStatus === 'komi_bidding' &&
+        (session.gameStatus === 'komi_bidding' ||
+            session.gameStatus === 'base_stone_color_choice' ||
+            session.gameStatus === 'base_same_color_points_bid') &&
         (session.mode === GameMode.Base ||
             (session.mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Base))));
 
@@ -534,7 +541,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
 
     const isSinglePlayer = session.isSinglePlayer;
     const baseClasses = `flex-shrink-0 rounded-lg flex flex-col items-center justify-center border shadow-inner ${
-        isMobile ? 'min-h-[2.6rem] px-1.5 py-1' : 'min-h-[3.25rem] py-2 px-3 min-[1025px]:min-h-[3.5rem] min-[1025px]:px-4'
+        isMobile ? 'min-h-[2.15rem] px-1.5 py-0.5' : 'min-h-[2.65rem] py-1.5 px-2.5 min-[1025px]:min-h-[2.85rem] min-[1025px]:px-3'
     }`;
     const themeClasses = isSinglePlayer
         ? 'bg-stone-800/85 backdrop-blur-sm border-stone-600/55'
@@ -550,7 +557,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
         <button
             type="button"
             onClick={onOpenSidebar}
-            className={`group absolute top-1/2 right-1.5 z-10 flex h-[2.85rem] w-[2.65rem] -translate-y-1/2 flex-col items-center justify-center gap-0.5 rounded-l-2xl border border-r-0 border-white/18 bg-gradient-to-br from-white/[0.14] via-white/[0.05] to-black/45 backdrop-blur-md shadow-[0_10px_36px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(0,0,0,0.25)] transition-all duration-300 ease-out hover:scale-[1.03] hover:border-white/28 hover:shadow-[0_14px_44px_rgba(0,0,0,0.52)] active:scale-[0.96] motion-reduce:transition-none motion-reduce:hover:scale-100 sm:h-[3.375rem] sm:w-[3rem] sm:gap-1 ${
+            className={`group absolute top-1/2 right-1.5 z-10 flex h-[2.45rem] w-[2.35rem] -translate-y-1/2 flex-col items-center justify-center gap-0.5 rounded-l-2xl border border-r-0 border-white/18 bg-gradient-to-br from-white/[0.14] via-white/[0.05] to-black/45 backdrop-blur-md shadow-[0_10px_36px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(0,0,0,0.25)] transition-all duration-300 ease-out hover:scale-[1.03] hover:border-white/28 hover:shadow-[0_14px_44px_rgba(0,0,0,0.52)] active:scale-[0.96] motion-reduce:transition-none motion-reduce:hover:scale-100 sm:h-[2.95rem] sm:w-[2.75rem] sm:gap-0.5 ${
                 isSinglePlayer
                     ? 'hover:from-amber-400/18 hover:via-stone-900/82 hover:to-stone-950 hover:border-amber-400/35'
                     : 'hover:from-cyan-400/14 hover:via-slate-900/88 hover:to-slate-950 hover:border-cyan-400/32'
@@ -601,9 +608,9 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
 
     if (boardRuleFlashMessage) {
         return wrapContent(
-            `${baseClasses} ${themeClasses} ${isMobile ? 'gap-1 px-2 min-h-[2.5rem]' : 'gap-1.5 px-4 min-h-[3rem]'} border-2 border-amber-400/55`,
+            `${baseClasses} ${themeClasses} ${isMobile ? 'gap-0.5 px-2 min-h-[2.05rem]' : 'gap-1 px-3 min-h-[2.45rem]'} border-2 border-amber-400/55`,
             <div
-                className={`w-full overflow-hidden flex-shrink-0 relative flex items-center justify-center ${isMobile ? 'min-h-[1.15rem]' : 'min-h-[1.5rem]'}`}
+                className={`w-full overflow-hidden flex-shrink-0 relative flex items-center justify-center ${isMobile ? 'min-h-[1rem]' : 'min-h-[1.25rem]'}`}
             >
                 <div
                     className={`font-bold tracking-wider text-center px-1 text-amber-100 whitespace-nowrap overflow-hidden text-ellipsis ${
@@ -629,10 +636,10 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                   : AI_HIDDEN_ITEM_MESSAGE;
         // AI/몬스터 히든 연출: 전광판에 대형 안내(바둑판 테두리 반짝임과 병행)
         return wrapContent(
-            `${baseClasses} ${themeClasses} border-[3px] border-fuchsia-400/75 shadow-[0_0_28px_rgba(217,70,239,0.35)] ${isMobile ? 'gap-1 px-2 min-h-[3.25rem]' : 'gap-1.5 px-4 min-h-[3.75rem]'}`,
+            `${baseClasses} ${themeClasses} border-[3px] border-fuchsia-400/75 shadow-[0_0_28px_rgba(217,70,239,0.35)] ${isMobile ? 'gap-0.5 px-2 min-h-[2.65rem]' : 'gap-1 px-3 min-h-[3.05rem]'}`,
             <div
                 className={`w-full flex-shrink-0 overflow-hidden flex items-center justify-center ${
-                    isMobile ? 'min-h-[2rem] py-1' : 'min-h-[2.35rem]'
+                    isMobile ? 'min-h-[1.65rem] py-0.5' : 'min-h-[1.9rem]'
                 }`}
             >
                 <div
@@ -654,7 +661,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     if (foulMessage) {
         return wrapContent(
             `flex-shrink-0 bg-danger rounded-lg flex items-center justify-center shadow-inner animate-pulse border-2 border-red-500 ${
-                isMobile ? 'py-0.5 min-h-[2.25rem]' : 'py-1 h-12'
+                isMobile ? 'py-0.5 min-h-[1.85rem]' : 'py-0.5 h-10'
             }`,
             <p
                 className={`px-1 text-center font-bold text-white tracking-wider whitespace-nowrap overflow-hidden text-ellipsis ${
@@ -699,15 +706,15 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                   : null;
 
         return wrapContent(
-            `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-1 px-2 min-h-[2.5rem]' : 'gap-1.5 px-3 min-h-[3rem]'}`,
+            `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-0.5 px-2 min-h-[2.05rem]' : 'gap-1 px-2.5 min-h-[2.45rem]'}`,
             <>
-                <div className="flex w-full flex-col items-center justify-center gap-0.5 min-w-0 sm:gap-1">
+                <div className="flex w-full flex-col items-center justify-center gap-0.5 min-w-0 sm:gap-0.5">
                     <div
-                        className={`w-full overflow-hidden flex-shrink-0 relative flex items-center justify-center px-0.5 ${isMobile ? 'min-h-[1.1rem]' : 'min-h-[1.35rem]'}`}
+                        className={`w-full overflow-hidden flex-shrink-0 relative flex items-center justify-center px-0.5 ${isMobile ? 'min-h-[0.95rem]' : 'min-h-[1.15rem]'}`}
                     >
                         <p
                             className={`font-bold ${textClass} text-center leading-snug tracking-wide whitespace-nowrap overflow-hidden text-ellipsis ${
-                                isMobile ? 'text-[clamp(0.58rem,1.65vmin,0.68rem)]' : 'text-[clamp(0.68rem,1.9vmin,0.82rem)]'
+                                isMobile ? 'text-[clamp(0.54rem,1.5vmin,0.64rem)]' : 'text-[clamp(0.62rem,1.75vmin,0.76rem)]'
                             }`}
                             style={{
                                 textShadow: isSinglePlayer
@@ -767,9 +774,9 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                 : `다음 라운드 자동 시작까지 ${alkkagiRoundEndSecLeft}초`;
 
         return wrapContent(
-            `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-1.5 px-2 py-1.5' : 'gap-2 px-3 py-2'}`,
+            `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-1 px-2 py-1' : 'gap-1.5 px-2.5 py-1.5'}`,
             <>
-                <div className="flex w-full min-w-0 flex-col items-center gap-1">
+                <div className="flex w-full min-w-0 flex-col items-center gap-0.5">
                     <p
                         className={`text-center font-bold leading-snug ${textClass} whitespace-nowrap overflow-hidden text-ellipsis ${
                             isMobile ? 'text-[clamp(0.6rem,1.7vmin,0.78rem)]' : 'text-sm min-[1025px]:text-base'
@@ -837,15 +844,15 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     if (session.mode === GameMode.Dice && session.gameStatus === 'dice_placing' && session.dice) {
         const diceGuidance = '상대보다 더 많은 돌을 따내기 위해 돌을 놓아보세요.';
         return wrapContent(
-            `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-1 px-2 min-h-[2.5rem]' : 'gap-1.5 px-3 min-h-[3rem]'}`,
+            `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-0.5 px-2 min-h-[2.05rem]' : 'gap-1 px-2.5 min-h-[2.45rem]'}`,
             <>
-                <div className="flex w-full flex-col items-center justify-center gap-0.5 min-w-0 sm:gap-1">
+                <div className="flex w-full flex-col items-center justify-center gap-0.5 min-w-0 sm:gap-0.5">
                     <div
-                        className={`w-full overflow-hidden flex-shrink-0 relative flex items-center justify-center px-0.5 ${isMobile ? 'min-h-[1.1rem]' : 'min-h-[1.35rem]'}`}
+                        className={`w-full overflow-hidden flex-shrink-0 relative flex items-center justify-center px-0.5 ${isMobile ? 'min-h-[0.95rem]' : 'min-h-[1.15rem]'}`}
                     >
                         <p
                             className={`font-bold ${textClass} text-center leading-snug tracking-wide whitespace-nowrap overflow-hidden text-ellipsis ${
-                                isMobile ? 'text-[clamp(0.58rem,1.65vmin,0.68rem)]' : 'text-[clamp(0.68rem,1.9vmin,0.82rem)]'
+                                isMobile ? 'text-[clamp(0.54rem,1.5vmin,0.64rem)]' : 'text-[clamp(0.62rem,1.75vmin,0.76rem)]'
                             }`}
                             style={{
                                 textShadow: isSinglePlayer
@@ -899,14 +906,14 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
         const tickerText = `${itemText} ${timeLeft}초`;
 
         return wrapContent(
-            `${baseClasses} ${themeClasses} ${isMobile ? 'gap-1 px-2 min-h-[2.45rem]' : 'gap-1.5 px-4 min-h-[3rem]'}`,
+            `${baseClasses} ${themeClasses} ${isMobile ? 'gap-0.5 px-2 min-h-[2rem]' : 'gap-1 px-3 min-h-[2.45rem]'}`,
             <>
                 {/* 전광판 스타일 텍스트 */}
                 <div
                     className={`w-full flex-shrink-0 overflow-hidden ${
                         isMobile
-                            ? 'flex min-h-[1.15rem] items-center justify-center py-0.5'
-                            : 'relative h-6'
+                            ? 'flex min-h-[1rem] items-center justify-center py-0.5'
+                            : 'relative h-5'
                     }`}
                 >
                     <div
@@ -938,7 +945,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
 
     if (isKomiBiddingScoreboard) {
         return wrapContent(
-            `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-0 px-1 min-h-[2.65rem] py-1' : 'gap-0 px-2 min-h-[3.1rem] py-1.5'}`,
+            `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-0 px-1 min-h-[2.15rem] py-0.5' : 'gap-0 px-2 min-h-[2.55rem] py-1'}`,
             <BaseKomiGuideTicker
                 text={BASE_KOMI_SCOREBOARD_GUIDE}
                 isMobile={isMobile}
@@ -950,23 +957,33 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     if (isBasePlacementScoreboard) {
         const baseStoneCount = session.settings.baseStones ?? 4;
         const { player1, player2 } = session;
-        const myPlacements =
-            viewerUserId === player1.id
-                ? session.baseStones_p1?.length ?? 0
-                : viewerUserId === player2.id
-                  ? session.baseStones_p2?.length ?? 0
-                  : null;
-        const isDonePlacing = myPlacements !== null && myPlacements >= baseStoneCount;
+        const pairHostId = getEffectivePairLobbyOwnerId(session);
+        const isPairHostViewer = Boolean(pairHostId && viewerUserId === pairHostId);
+        const n1Placed = session.baseStones_p1?.length ?? 0;
+        const n2Placed = session.baseStones_p2?.length ?? 0;
+        const myPlacements = isPairHostViewer
+            ? n1Placed < baseStoneCount
+                ? n1Placed
+                : n2Placed
+            : viewerUserId === player1.id
+              ? n1Placed
+              : viewerUserId === player2.id
+                ? n2Placed
+                : null;
+        const isDonePlacing = pairHostId
+            ? isPairHostViewer && n1Placed >= baseStoneCount && n2Placed >= baseStoneCount
+            : myPlacements !== null && myPlacements >= baseStoneCount;
         const myReady = viewerUserId != null && Boolean(session.basePlacementReady?.[viewerUserId]);
         const hasDeadline = Boolean(session.basePlacementDeadline);
         const secLeft = hasDeadline ? basePlacementSecondsLeft : null;
         const remainingStones =
             myPlacements !== null ? Math.max(0, baseStoneCount - myPlacements) : null;
 
-        const p1Placed = session.baseStones_p1?.length ?? 0;
-        const p2Placed = session.baseStones_p2?.length ?? 0;
+        const p1Placed = n1Placed;
+        const p2Placed = n2Placed;
         const isParticipant =
-            viewerUserId != null && (viewerUserId === player1.id || viewerUserId === player2.id);
+            viewerUserId != null &&
+            (viewerUserId === player1.id || viewerUserId === player2.id || isPairHostViewer);
 
         let primaryLine: string;
         if (!isParticipant) {
@@ -987,7 +1004,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
         }
 
         return wrapContent(
-            `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-0 px-2 min-h-[2rem]' : 'gap-0 px-3 min-h-[2.25rem]'}`,
+            `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-0 px-2 min-h-[1.65rem]' : 'gap-0 px-3 min-h-[1.9rem]'}`,
             <div className="flex w-full min-w-0 items-center justify-center">
                 <p
                     className={`max-w-full text-center font-bold leading-snug tracking-wide ${textClass} whitespace-nowrap overflow-hidden text-ellipsis ${
@@ -1017,8 +1034,8 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     /** 모험: 전광판 줄 수·문구 길이에 따라 높이가 변하면 flex 안 바둑판 영역이 매 수 흔들리므로 상한 고정 */
     const adventureTurnDisplayLockClass = isAdventureCategory
         ? isMobile
-            ? ' max-h-[4rem] overflow-hidden sm:max-h-[4.25rem]'
-            : ' max-h-[4.5rem] overflow-hidden min-[1025px]:max-h-[4.75rem]'
+            ? ' max-h-[3.35rem] overflow-hidden sm:max-h-[3.55rem]'
+            : ' max-h-[3.75rem] overflow-hidden min-[1025px]:max-h-[3.95rem]'
         : '';
 
     return wrapContent(
@@ -1039,15 +1056,15 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             <p
                 className={`text-center font-bold tracking-wider ${textClass} whitespace-nowrap overflow-hidden text-ellipsis ${
                     isMobile
-                        ? 'px-0.5 text-[0.6875rem] leading-tight sm:text-sm sm:leading-snug'
-                        : 'px-2 text-[clamp(0.88rem,2.7vmin,1.08rem)] min-[1025px]:text-[clamp(0.95rem,2.2vmin,1.15rem)]'
+                        ? 'px-0.5 text-[0.625rem] leading-tight sm:text-[0.8125rem] sm:leading-snug'
+                        : 'px-2 text-[clamp(0.8rem,2.4vmin,1rem)] min-[1025px]:text-[clamp(0.88rem,2vmin,1.05rem)]'
                 }`}
                 style={statusTextShadow}
             >
                 {statusText}
             </p>
             {isPlayfulTurn && (
-                <div className="mt-0.5 h-0.5 w-11/12 rounded-full bg-tertiary sm:mt-1 sm:h-1">
+                <div className="mt-0.5 h-0.5 w-11/12 rounded-full bg-tertiary sm:mt-0.5 sm:h-0.5">
                     <div className="h-full rounded-full bg-red-500" style={{ width: `${percentage}%` }} />
                 </div>
             )}

@@ -50,7 +50,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                 onBoardClick={handleBoardClick}
                 lastMove={lastMove}
                 lastTurnStones={lastTurnStones}
-                isBoardDisabled={!isMyTurn || isSpectator}
+                isBoardDisabled={(!isMyTurn && gameStatus !== 'base_placement') || isSpectator}
                 stoneColor={myPlayerEnum}
                 winningLine={winningLine}
                 mode={session.mode}

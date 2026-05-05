@@ -75,7 +75,7 @@ const TurnPreferenceSelection: React.FC<TurnPreferenceSelectionProps> = (props) 
 
         return (
             <div className="text-center">
-                <p className="text-gray-300 mb-6">원하는 순서를 선택하세요. 순서가 겹치면 미니게임으로 결정됩니다.</p>
+                <p className="text-gray-300 mb-6">원하는 순서를 선택하세요. 순서가 같으면 룰렛으로 무작위 정해집니다.</p>
                 {!isAdventure && (
                     <div className="my-4 text-center">
                         <div className="w-full bg-gray-700 rounded-full h-2.5 mb-2 overflow-hidden">

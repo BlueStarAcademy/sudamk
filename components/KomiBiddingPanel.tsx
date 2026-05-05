@@ -35,6 +35,11 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
     const { session, currentUser, onAction, layout = 'window' } = props;
     const { id: gameId, player1, player2, komiBids, komiBiddingDeadline, komiBiddingRound, gameCategory } = session;
     const isAdventure = gameCategory === GameCategory.Adventure;
+    const pairLobbyOwnerId = (session.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)?.pairGame
+        ?.pairLobbyOwnerId;
+    const isPairHostKomi = Boolean(pairLobbyOwnerId && currentUser.id === pairLobbyOwnerId);
+    const bidP1 = komiBids?.[player1.id];
+    const bidP2 = komiBids?.[player2.id];
     const [selectedColor, setSelectedColor] = useState<Player>(Player.Black);
     const [komiValue, setKomiValue] = useState<number>(0);
     const [timer, setTimer] = useState(KOMI_BID_TIME_SEC);
@@ -48,30 +53,45 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
     const opponent = currentUser.id === player1.id ? player2 : player1;
     const myBid = komiBids?.[currentUser.id];
     const opponentBid = opponent ? komiBids?.[opponent.id] : undefined;
+    const pairHostBidSubjectId = isPairHostKomi ? (!bidP1 ? player1.id : !bidP2 ? player2.id : null) : null;
 
     const handleBidSubmit = useCallback(() => {
         const { session: currentSession, onAction: currentOnAction, currentUser: cu } = latestProps.current;
-        const myCurrentBid = currentSession.komiBids?.[cu.id];
+        const ownerId = (currentSession.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)?.pairGame
+            ?.pairLobbyOwnerId;
+        const isHost = Boolean(ownerId && cu.id === ownerId);
+        const bp1 = currentSession.komiBids?.[currentSession.player1.id];
+        const bp2 = currentSession.komiBids?.[currentSession.player2.id];
+        const subjectId = isHost ? (!bp1 ? currentSession.player1.id : !bp2 ? currentSession.player2.id : null) : cu.id;
+        const myCurrentBid = isHost ? (subjectId ? currentSession.komiBids?.[subjectId] : true) : currentSession.komiBids?.[cu.id];
         if (myCurrentBid || isSubmitting) return;
         if (selectedColor === Player.None) return;
+        if (isHost && !subjectId) return;
 
         setIsSubmitting(true);
         const bid: KomiBid = { color: selectedColor, komi: komiValue };
-        currentOnAction({ type: 'UPDATE_KOMI_BID', payload: { gameId: currentSession.id, bid } });
+        currentOnAction({
+            type: 'UPDATE_KOMI_BID',
+            payload: {
+                gameId: currentSession.id,
+                bid,
+                ...(isHost && subjectId ? { bidForUserId: subjectId } : {}),
+            },
+        });
         setTimeout(() => setIsSubmitting(false), 5000);
     }, [isSubmitting, selectedColor, komiValue]);
 
     useEffect(() => {
         setSelectedColor(Player.Black);
         setKomiValue(0);
-    }, [komiBiddingRound]);
+    }, [komiBiddingRound, pairHostBidSubjectId]);
 
     useEffect(() => {
         if (myBid) {
             setTimer(0);
             return;
         }
-        if (isAdventure || !komiBiddingDeadline) {
+        if (isAdventure || !komiBiddingDeadline || isPairHostKomi) {
             setTimer(KOMI_BID_TIME_SEC);
             return;
         }
@@ -83,7 +103,7 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
             }
         }, 1000);
         return () => clearInterval(intervalId);
-    }, [myBid, komiBiddingDeadline, handleBidSubmit, isAdventure]);
+    }, [myBid, komiBiddingDeadline, handleBidSubmit, isAdventure, isPairHostKomi]);
 
     const adjustKomi = (amount: number) => {
         setKomiValue((prev) => Math.max(0, Math.min(100, prev + amount)));
@@ -116,7 +136,24 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
         containerExtraClassName: '!max-w-[min(100vw,360px)]',
     };
 
-    if (myBid) {
+    const pairHostBothBidsDone = isPairHostKomi && bidP1 && bidP2;
+    if (pairLobbyOwnerId && !isPairHostKomi) {
+        const waitGuest = (
+            <div className={`${komiWindowShell} px-4 py-5 text-center`}>
+                <p className="text-sm font-semibold text-sky-200/95">방장이 덤 입찰을 진행합니다</p>
+                <p className="mt-2 text-xs text-stone-400">잠시만 기다려 주세요.</p>
+            </div>
+        );
+        return layout === 'inline' ? (
+            <div className="w-full min-w-0 max-w-full overflow-x-auto">{waitGuest}</div>
+        ) : (
+            <DraggableWindow title="덤 설정" {...panelProps}>
+                {waitGuest}
+            </DraggableWindow>
+        );
+    }
+
+    if (myBid && !isPairHostKomi) {
         const waitingBody = (
             <div className={`${komiWindowShell} px-4 py-6 text-center`}>
                 <p className="text-sm font-semibold text-emerald-300/95">설정을 전송했습니다</p>
@@ -135,14 +172,38 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
         );
     }
 
-    const buttonsDisabled = !!myBid;
+    if (pairHostBothBidsDone) {
+        const waitHostDone = (
+            <div className={`${komiWindowShell} px-4 py-5 text-center`}>
+                <p className="text-sm font-semibold text-emerald-300/95">양쪽 덤 입찰을 전송했습니다</p>
+                <p className="mt-2 text-xs text-stone-400">다음 단계로 진행 중입니다.</p>
+            </div>
+        );
+        return layout === 'inline' ? (
+            <div className="w-full min-w-0 max-w-full overflow-x-auto">{waitHostDone}</div>
+        ) : (
+            <DraggableWindow title="덤 설정" {...panelProps}>
+                {waitHostDone}
+            </DraggableWindow>
+        );
+    }
+
+    const buttonsDisabled = !!myBid && !isPairHostKomi;
 
     if (layout === 'inline') {
         return (
             <div className="w-full min-w-0 max-w-full">
                 <div
-                    className={`${komiWindowShell} flex min-h-[3.35rem] w-full min-w-0 items-stretch gap-1 px-1 py-1.5 sm:gap-1.5 sm:px-1.5`}
+                    className={`${komiWindowShell} flex min-h-[3.35rem] w-full min-w-0 flex-col gap-1 px-1 py-1.5 sm:gap-1.5 sm:px-1.5`}
                 >
+                    {isPairHostKomi && pairHostBidSubjectId && (
+                        <p className="w-full text-center text-[9px] font-bold text-amber-200/90 sm:text-[10px]">
+                            {pairHostBidSubjectId === player1.id
+                                ? `${player1.nickname} 측 덤 입찰`
+                                : `${player2.nickname} 측 덤 입찰`}
+                        </p>
+                    )}
+                    <div className="flex min-h-0 w-full min-w-0 flex-1 items-stretch gap-1 sm:gap-1.5">
                     <div className="flex min-w-0 flex-[0.85] flex-col items-center justify-center rounded-lg border border-amber-500/30 bg-black/45 px-1 py-1 sm:flex-1 sm:px-2">
                         <span className="text-[9px] font-semibold uppercase tracking-wider text-stone-500 sm:text-[10px]">
                             추가 덤
@@ -219,6 +280,7 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
                     >
                         완료
                     </Button>
+                    </div>
                 </div>
             </div>
         );

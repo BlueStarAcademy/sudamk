@@ -296,7 +296,7 @@ export const AiPregameRewardVisualStrip: React.FC<{
             key: `xpc-${idx}`,
             image: null as string | null,
             isExp: true,
-            expTopLabel: slot.xpVariant === 'playful' ? '놀이' : '전략',
+            expTopLabel: slot.xpVariant === 'playful' ? '놀이' : undefined,
             line: `+${slot.mainXp.toLocaleString()}${slot.bonusXp != null && slot.bonusXp > 0 ? `(+${slot.bonusXp.toLocaleString()})` : ''}`,
           };
         case 'xp_win_loss':
@@ -304,7 +304,7 @@ export const AiPregameRewardVisualStrip: React.FC<{
             key: `xpwl-${idx}`,
             image: null as string | null,
             isExp: true,
-            expTopLabel: slot.xpVariant === 'playful' ? '놀이' : '전략',
+            expTopLabel: slot.xpVariant === 'playful' ? '놀이' : undefined,
             line: `+${Math.max(slot.winXp, slot.lossXp).toLocaleString()}`,
           };
         case 'xp_adventure_win':
@@ -312,7 +312,7 @@ export const AiPregameRewardVisualStrip: React.FC<{
             key: `xpaw-${idx}`,
             image: null as string | null,
             isExp: true,
-            expTopLabel: '전략',
+            expTopLabel: undefined,
             line: `+${slot.winXp.toLocaleString()}`,
           };
         case 'gold_range':
@@ -413,11 +413,23 @@ export const AiPregameRewardVisualStrip: React.FC<{
                       <span className="mt-px text-[0.52rem] font-black tracking-[0.1em] text-fuchsia-50 sm:text-[0.56rem]">보상</span>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center leading-none">
-                      <span className="text-[0.52rem] font-black tracking-[0.06em] text-emerald-100 sm:text-[0.56rem]">
-                        {slot.expTopLabel ?? '전략'}
-                      </span>
-                      <span className="mt-px text-[0.52rem] font-black tracking-[0.06em] text-emerald-50 sm:text-[0.56rem]">EXP</span>
+                    <div
+                      className={`flex flex-col items-center leading-none ${
+                        slot.expTopLabel ? '' : 'h-full justify-center'
+                      }`}
+                    >
+                      {slot.expTopLabel ? (
+                        <>
+                          <span className="text-[0.52rem] font-black tracking-[0.06em] text-emerald-100 sm:text-[0.56rem]">
+                            {slot.expTopLabel}
+                          </span>
+                          <span className="mt-px text-[0.52rem] font-black tracking-[0.06em] text-emerald-50 sm:text-[0.56rem]">
+                            EXP
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-[0.58rem] font-black tracking-[0.08em] text-emerald-50 sm:text-[0.62rem]">EXP</span>
+                      )}
                     </div>
                   )}
                 </div>

@@ -272,14 +272,14 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
 
                 <div className={`flex-1 min-h-0 overflow-hidden ${isNativeMobile ? 'mb-2 overflow-y-auto pr-0.5' : 'mb-4'}`}>
                     {selectedItem && selectedInfo && isNativeMobile && towerPreviewInventoryItem && (
-                        <div className="mb-2 max-h-[min(42vh,18rem)] min-h-0 overflow-y-auto overflow-x-hidden rounded-lg border border-amber-700/35 bg-gray-800/40 p-2 [scrollbar-width:thin]">
+                        <div className="mb-2 min-h-0 overflow-x-hidden rounded-lg border border-amber-700/35 bg-gray-800/40 p-2">
                             <EquipmentDetailPanel
                                 item={towerPreviewInventoryItem}
                                 optionsScrollable={false}
-                                comfortableTypography
+                                comfortableTypography={false}
                                 showAcquireSources
                                 hideOwnedQuantity
-                                iconSlotPx={64}
+                                iconSlotPx={56}
                             />
                             <div className="mt-2 border-t border-amber-700/30 pt-2 text-[11px] text-amber-300/90">
                                 <p>보유제한 {selectedItem.maxOwned}개</p>
@@ -422,15 +422,15 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
                                 })}
                             </div>
                             {selectedItem && towerPreviewInventoryItem && (
-                                <div className="flex flex-1 min-h-0 flex-col rounded-lg border border-amber-700/30 bg-gray-800/40 p-4">
-                                    <div className="mb-3 min-h-0 max-h-[min(48vh,20rem)] flex-1 overflow-y-auto overflow-x-hidden pr-0.5 [scrollbar-width:thin]">
+                                <div className="flex flex-1 min-h-0 flex-col rounded-lg border border-amber-700/30 bg-gray-800/40 p-3">
+                                    <div className="mb-2 min-h-0 flex-1 overflow-x-hidden pr-0.5">
                                         <EquipmentDetailPanel
                                             item={towerPreviewInventoryItem}
                                             optionsScrollable={false}
-                                            comfortableTypography
+                                            comfortableTypography={false}
                                             showAcquireSources
                                             hideOwnedQuantity
-                                            iconSlotPx={72}
+                                            iconSlotPx={60}
                                         />
                                     </div>
                                     <div className="mb-3 space-y-2 text-xs text-amber-300/85">

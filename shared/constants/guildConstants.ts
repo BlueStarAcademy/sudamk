@@ -28,12 +28,20 @@ const GUILD_WAR_ARENA_INITIAL_MID: GuildWarCaptureInitialStoneCounts = {
     blackMarked: 5,
     whiteMarked: 5,
 };
-/** 우열(우상귀·우변·우하귀) */
+/** 우열(우상귀·우변·우하귀) — 우상귀만 공통 우열값 사용, 우변·우하는 아래 전용값 */
 const GUILD_WAR_ARENA_INITIAL_RIGHT: GuildWarCaptureInitialStoneCounts = {
     blackPlain: 10,
     whitePlain: 10,
     blackMarked: 5,
     whiteMarked: 5,
+};
+
+/** 우변(미사일)·우하귀(히든): 배치 흑·백 각 15개(일반만) */
+const GUILD_WAR_ARENA_INITIAL_MID_RIGHT_AND_BOTTOM_RIGHT: GuildWarCaptureInitialStoneCounts = {
+    blackPlain: 15,
+    whitePlain: 15,
+    blackMarked: 0,
+    whiteMarked: 0,
 };
 
 function getGuildWarArenaColumnForBoardId(boardId: string): 'left' | 'mid' | 'right' {
@@ -66,6 +74,9 @@ function getGuildWarArenaColumnForBoardId(boardId: string): 'left' | 'mid' | 'ri
  * 따내기·미사일·히든 경기장 모두 동일 규칙으로 KV·인게임 배치에 사용.
  */
 export function getGuildWarCaptureInitialStones(boardId: string): GuildWarCaptureInitialStoneCounts {
+    if (boardId === 'mid-right' || boardId === 'bottom-right') {
+        return { ...GUILD_WAR_ARENA_INITIAL_MID_RIGHT_AND_BOTTOM_RIGHT };
+    }
     const col = getGuildWarArenaColumnForBoardId(boardId);
     if (col === 'mid') return { ...GUILD_WAR_ARENA_INITIAL_MID };
     if (col === 'right') return { ...GUILD_WAR_ARENA_INITIAL_RIGHT };
@@ -93,11 +104,12 @@ export const GUILD_WAR_CAPTURE_INITIAL_STONES_BY_BOARD_ID: Record<
     'top-right': { ...GUILD_WAR_ARENA_INITIAL_RIGHT },
 };
 
-/** 길드전 따내기(상단) 흑(유저) 턴 제한 — 좌상귀·상변·우상귀 공통 */
+/** 길드전 따내기(상단) 흑(유저) 턴 제한 — 좌상귀·상변 공통 (우상귀는 {@link getGuildWarCaptureTurnLimitByBoardId}) */
 export const GUILD_WAR_CAPTURE_BLACK_TURN_LIMIT = 25;
 
-/** 상단 따내기 칸 턴 제한 표시·START_GUILD_WAR_GAME 공통 */
-export function getGuildWarCaptureTurnLimitByBoardId(_boardId: string): number {
+/** 상단 따내기 칸 턴 제한 표시·START_GUILD_WAR_GAME */
+export function getGuildWarCaptureTurnLimitByBoardId(boardId: string): number {
+    if (boardId === 'top-right') return 30;
     return GUILD_WAR_CAPTURE_BLACK_TURN_LIMIT;
 }
 
@@ -110,7 +122,7 @@ export const GUILD_WAR_CAPTURE_AI_TARGET = 5;
  */
 export function getGuildWarCaptureBlackTargetByBoardId(boardId: string): number {
     if (boardId === 'top-mid') return 12;
-    if (boardId === 'top-right') return 15;
+    if (boardId === 'top-right') return 10;
     if (boardId === 'top-left') return 10;
     return 10;
 }
@@ -435,7 +447,7 @@ export const GUILD_RESEARCH_PROJECTS: Record<GuildResearchId, GuildResearchProje
     [GuildResearchId.stat_stability]: { image: '/images/guild/lab/statlab6.png', category: GuildResearchCategory.stats, name: '안정감 증가', description: '모든 길드원의 안정감 능력치를 증가시킵니다.', maxLevel: 10, baseCost: 30000, costMultiplier: 1.2, baseEffect: 5, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(10) },
     [GuildResearchId.reward_strategic_gold]: { image: '/images/guild/lab/gamelab1.png', category: GuildResearchCategory.rewards, name: '전략 바둑 골드보상 증가', description: '모든 길드원의 전략 바둑 골드 보상을 증가시킵니다.', maxLevel: 5, baseCost: 30000, costMultiplier: 1.2, baseEffect: 10, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(5) },
     [GuildResearchId.reward_playful_gold]: { image: '/images/guild/lab/gamelab2.png', category: GuildResearchCategory.rewards, name: '놀이 바둑 골드보상 증가', description: '모든 길드원의 놀이 바둑 골드 보상을 증가시킵니다.', maxLevel: 5, baseCost: 30000, costMultiplier: 1.2, baseEffect: 10, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(5) },
-    [GuildResearchId.reward_strategic_xp]: { image: '/images/guild/lab/gamelab3.png', category: GuildResearchCategory.rewards, name: '전략 바둑 경험치보상 증가', description: '모든 길드원의 전략 바둑 경험치 보상을 증가시킵니다.', maxLevel: 5, baseCost: 30000, costMultiplier: 1.2, baseEffect: 10, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(5) },
+    [GuildResearchId.reward_strategic_xp]: { image: '/images/guild/lab/gamelab3.png', category: GuildResearchCategory.rewards, name: '전략 바둑 EXP 보상 증가', description: '모든 길드원의 전략 바둑 EXP 보상을 증가시킵니다.', maxLevel: 5, baseCost: 30000, costMultiplier: 1.2, baseEffect: 10, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(5) },
     [GuildResearchId.reward_playful_xp]: { image: '/images/guild/lab/gamelab4.png', category: GuildResearchCategory.rewards, name: '놀이 바둑 경험치보상 증가', description: '모든 길드원의 놀이 바둑 경험치 보상을 증가시킵니다.', maxLevel: 5, baseCost: 30000, costMultiplier: 1.2, baseEffect: 10, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(5) },
 };
 

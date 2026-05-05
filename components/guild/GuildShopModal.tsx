@@ -204,23 +204,26 @@ const GuildShopModal: React.FC<GuildShopModalProps> = ({ onClose, isTopmost }) =
                     title="길드 상점 — 아이템 상세"
                     onClose={() => setDetailItem(null)}
                     windowId="guild-shop-item-detail"
-                    initialWidth={460}
+                    initialWidth={480}
                     isTopmost={isTopmost}
                     variant="store"
                     mobileViewportFit={isNativeMobile}
                     mobileViewportMaxHeightVh={94}
+                    hideFooter
+                    shrinkHeightToContent
+                    bodyScrollable={false}
                 >
-                    <div className={`max-h-[min(78vh,28rem)] min-h-0 overflow-y-auto overflow-x-hidden ${isNativeMobile ? 'p-2' : 'p-3'} [scrollbar-width:thin]`}>
-                        <p className="mb-2 rounded-lg border border-amber-500/25 bg-amber-950/20 px-2.5 py-1.5 text-center text-[11px] font-medium leading-snug text-amber-100/90 sm:text-xs">
+                    <div className={`min-h-0 overflow-x-hidden ${isNativeMobile ? 'p-2' : 'p-2.5'}`}>
+                        <p className="mb-1.5 rounded-lg border border-amber-500/25 bg-amber-950/20 px-2 py-1 text-center text-[10px] font-medium leading-snug text-amber-100/90">
                             이 품목은 길드 상점에서 길드 코인으로만 구매할 수 있습니다. 아이콘·이름을 누르면 언제든 이 창을 다시 열 수 있습니다.
                         </p>
                         <EquipmentDetailPanel
                             item={guildDetailPreview}
                             optionsScrollable={false}
-                            comfortableTypography
+                            comfortableTypography={false}
                             showAcquireSources
                             hideOwnedQuantity
-                            iconSlotPx={72}
+                            iconSlotPx={60}
                         />
                     </div>
                 </DraggableWindow>

@@ -132,6 +132,8 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             || session.turnChoiceDeadline
             || session.guessDeadline
             || session.basePlacementDeadline
+            || session.baseColorChoiceDeadline
+            || session.komiBiddingDeadline
             || session.captureBidDeadline;
             // || session.itemUseDeadline; // 아이템 사용시간은 선수패널에 표시하지 않음
 
@@ -251,6 +253,8 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
 
         const isSharedDeadlinePhase = [
             'base_placement',
+            'base_stone_color_choice',
+            'base_same_color_points_bid',
             'komi_bidding',
             'capture_bidding',
             'alkkagi_simultaneous_placement'
@@ -262,8 +266,13 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             const nowInLoop = Date.now();
             let newTimeLeft = Math.max(0, (baseDeadline - nowInLoop) / 1000);
 
-            // 제한시간이 0이 된 직후: 서버 업데이트 없이 즉시 초읽기 마감으로 이어서 카운트다운
-            if (newTimeLeft <= 0 && hasByoyomi && (curPlayer === Player.Black || curPlayer === Player.White)) {
+            // 제한시간이 0이 된 직후: 서버 업데이트 없이 즉시 초읽기 마감으로 이어서 카운트다운 (베이스·덤 등 공유 마감 단계는 제외)
+            if (
+                newTimeLeft <= 0 &&
+                hasByoyomi &&
+                !isSharedDeadlinePhase &&
+                (curPlayer === Player.Black || curPlayer === Player.White)
+            ) {
                 const existing = byoyomiDeadlineRef.current?.gameId === session.id && byoyomiDeadlineRef.current?.player === curPlayer
                     ? byoyomiDeadlineRef.current
                     : null;
@@ -322,6 +331,8 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
         session.turnChoiceDeadline,
         session.guessDeadline,
         session.basePlacementDeadline,
+        session.baseColorChoiceDeadline,
+        session.komiBiddingDeadline,
         session.captureBidDeadline,
         session.itemUseDeadline,
         session.currentPlayer,

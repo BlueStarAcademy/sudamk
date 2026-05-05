@@ -14,11 +14,11 @@ import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import PurchaseQuantityModal from '../PurchaseQuantityModal.js';
 import SellItemConfirmModal from '../SellItemConfirmModal.js';
-import type { User, UserWithStatus, InventoryItem, ServerAction } from '../../types.js';
+import type { User, UserWithStatus, InventoryItem, ServerAction, PairPetLobbyInventorySortMode } from '../../types.js';
 import { MATERIAL_ITEMS, gradeBackgrounds } from '../../shared/constants/items.js';
 import { ItemGrade } from '../../types/enums.js';
 import { isSameDayKST } from '../../utils/timeUtils.js';
-import { effectivePairPetGradeFromRow, PAIR_PET_MAX_LEVEL } from '../../shared/constants/pairPetGrade.js';
+import { effectivePairPetGradeFromRow, PAIR_PET_MAX_LEVEL, pairPetGradeIndex } from '../../shared/constants/pairPetGrade.js';
 import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../../shared/utils/walletAmountDisplay.js';
 import {
@@ -38,6 +38,7 @@ import {
     pairPetLobbyExpandDiamondCost,
     countPairLobbyPetEntriesInInventory,
     isPairLobbyPetInventoryFull,
+    normalizePairPetLobbyInventorySort,
 } from '../../shared/constants/petLobby.js';
 import {
     PAIR_TRAINING_SLOT_DEFS,
@@ -68,7 +69,6 @@ type AiTab = 'info' | 'training' | 'hatchery' | 'shop';
 type InvFilter = 'pet' | 'soul';
 type ShopSkuTab = 'egg' | 'soul';
 type PairExpandCategory = 'pet';
-type InvSortMode = 'recent' | 'oldest' | 'name';
 
 type PairTrainingRewardModalOpen = { slotIndex: number; petItem: InventoryItem; autoClaimOnMount?: boolean };
 
@@ -435,7 +435,14 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     const [invFilter, setInvFilter] = useState<InvFilter>('pet');
     const [expandTarget, setExpandTarget] = useState<PairExpandCategory | null>(null);
     const [selectedLobbyItemId, setSelectedLobbyItemId] = useState<string | null>(null);
-    const [invSort, setInvSort] = useState<InvSortMode>('recent');
+    const [invSort, setInvSort] = useState<PairPetLobbyInventorySortMode>(() =>
+        normalizePairPetLobbyInventorySort(currentUser.pairPetLobbyInventorySort) ?? 'recent',
+    );
+
+    useEffect(() => {
+        const persisted = normalizePairPetLobbyInventorySort(currentUser.pairPetLobbyInventorySort);
+        if (persisted !== undefined) setInvSort(persisted);
+    }, [currentUser.pairPetLobbyInventorySort]);
     const [trainingTick, setTrainingTick] = useState(0);
     const [hatcheryTick, setHatcheryTick] = useState(0);
     /** 수련·부화 탭 붉은점: 다른 탭에 있어도 완료 시각이 지나면 갱신 */
@@ -526,14 +533,34 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
     const sortedFilteredInv = useMemo(() => {
         const arr = [...filteredInv];
+        const byRecent = (a: InventoryItem, b: InventoryItem) => (b.createdAt ?? 0) - (a.createdAt ?? 0);
+        const petLevel = (it: InventoryItem) => resolvePairPetMetaFromInventoryRow(it).level;
+        const petGradeRank = (it: InventoryItem) => pairPetGradeIndex(effectivePairPetGradeFromRow(it));
+
         switch (invSort) {
             case 'oldest':
                 return arr.sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
             case 'name':
                 return arr.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'));
+            case 'petLevel':
+                return arr.sort((a, b) => {
+                    const ld = petLevel(b) - petLevel(a);
+                    if (ld !== 0) return ld;
+                    const gd = petGradeRank(b) - petGradeRank(a);
+                    if (gd !== 0) return gd;
+                    return byRecent(a, b);
+                });
+            case 'gradeHigh':
+                return arr.sort((a, b) => {
+                    const gd = petGradeRank(b) - petGradeRank(a);
+                    if (gd !== 0) return gd;
+                    const ld = petLevel(b) - petLevel(a);
+                    if (ld !== 0) return ld;
+                    return byRecent(a, b);
+                });
             case 'recent':
             default:
-                return arr.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+                return arr.sort(byRecent);
         }
     }, [filteredInv, invSort]);
 
@@ -1630,7 +1657,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                     ? trainingMobilePickSlotIndex === i
                                                         ? '펫 선택'
                                                         : '터치'
-                                                    : '펫 드롭'}
+                                                    : '펫 끌어넣기'}
                                             </span>
                                         ) : null}
                                     </div>
@@ -1901,15 +1928,25 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                         <span className="sr-only">정렬</span>
                                         <select
                                             value={invSort}
-                                            onChange={(e) => setInvSort(e.target.value as InvSortMode)}
+                                            onChange={(e) => {
+                                                const next = normalizePairPetLobbyInventorySort(e.target.value);
+                                                if (!next) return;
+                                                setInvSort(next);
+                                                void applyPetAction({
+                                                    type: 'UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT',
+                                                    payload: { sortMode: next },
+                                                });
+                                            }}
                                             disabled={isBusy || effectiveInvFilter === 'soul'}
-                                            className={`max-w-[8.5rem] rounded-md border border-white/15 bg-black/50 py-1 pl-1.5 pr-6 text-[0.7rem] font-bold text-slate-100 shadow-inner shadow-black/30 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/35 disabled:cursor-not-allowed disabled:opacity-45 sm:max-w-[9.5rem] sm:py-1.5 sm:pl-2 sm:pr-7 sm:text-sm ${
+                                            className={`max-w-[10.5rem] rounded-md border border-white/15 bg-black/50 py-1 pl-1.5 pr-6 text-[0.7rem] font-bold text-slate-100 shadow-inner shadow-black/30 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/35 disabled:cursor-not-allowed disabled:opacity-45 sm:max-w-[11rem] sm:py-1.5 sm:pl-2 sm:pr-7 sm:text-sm ${
                                                 effectiveInvFilter === 'pet' ? 'cursor-pointer' : ''
                                             }`}
                                         >
                                             <option value="recent">최근 획득순</option>
                                             <option value="oldest">오래된순</option>
                                             <option value="name">이름순</option>
+                                            <option value="petLevel">펫 레벨순</option>
+                                            <option value="gradeHigh">높은 등급순</option>
                                         </select>
                                     </label>
                                     <div

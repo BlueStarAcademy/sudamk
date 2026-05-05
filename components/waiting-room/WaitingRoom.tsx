@@ -19,6 +19,9 @@ import { mergeArenaEntranceAvailability } from '../../constants/arenaEntrance.js
 import { isClientAdmin } from '../../utils/clientAdmin.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import {
+  aiChallengeFeatureShellClass,
+  aiChallengeFeatureTopHairlineClass,
+  aiChallengePanelInnerGradientClass,
   waitingLobbyPcCenterColumnClass,
   waitingLobbyPcPanelShellClass,
   waitingLobbyPcPanelTopHairlineClassFor,
@@ -26,7 +29,7 @@ import {
   waitingLobbyPairAlignedMobileTabButtonClass,
 } from './waitingLobbyHomePanelStyles.js';
 import { WaitingLobbyAnnouncementBoard, WAITING_LOBBY_PANEL_GLASS } from './WaitingLobbyAnnouncementBoard.js';
-import { userMatchesAggregateWaitingLobby } from './aggregateWaitingLobbyUserFilter.js';
+import { userInUnifiedArenaLobbyUserList } from './aggregateWaitingLobbyUserFilter.js';
 
 interface WaitingRoomComponentProps {
     mode: GameMode | 'strategic' | 'playful';
@@ -44,7 +47,9 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
 
   const [isTierInfoModalOpen, setIsTierInfoModalOpen] = useState(false);
   const [isAiChallengeModalOpen, setIsAiChallengeModalOpen] = useState(false);
-  const [nativeWaitingTab, setNativeWaitingTab] = useState<'users' | 'games' | 'ranked' | 'rankingInfo'>('users');
+  const [nativeWaitingTab, setNativeWaitingTab] = useState<
+    'users' | 'ai' | 'games' | 'ranked' | 'rankingInfo' | 'rankedAi'
+  >('users');
   const [isRankedMatching, setIsRankedMatching] = useState(false);
   const [rankedMatchingStartTime, setRankedMatchingStartTime] = useState(0);
   const [matchFoundData, setMatchFoundData] = useState<{ gameId: string; player1: any; player2: any } | null>(null);
@@ -121,8 +126,19 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   }, [rankedMatchingQueue, currentUserWithStatus?.id]);
 
   useEffect(() => {
-    if (mode === 'playful' && (nativeWaitingTab === 'ranked' || nativeWaitingTab === 'rankingInfo')) {
+    if (
+      mode === 'playful' &&
+      (nativeWaitingTab === 'ranked' || nativeWaitingTab === 'rankingInfo' || nativeWaitingTab === 'rankedAi')
+    ) {
       setNativeWaitingTab('users');
+    }
+  }, [mode, nativeWaitingTab]);
+
+  /** 이전 분리 탭(ai / ranked) 상태를 합친 탭으로 이월 */
+  useEffect(() => {
+    if (mode !== 'strategic') return;
+    if (nativeWaitingTab === 'ai' || nativeWaitingTab === 'ranked') {
+      setNativeWaitingTab('rankedAi');
     }
   }, [mode, nativeWaitingTab]);
 
@@ -176,14 +192,10 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         const isStrategicLobby = mode === 'strategic';
         const isPlayfulLobby = mode === 'playful';
 
-        // 전략/놀이바둑 대기실의 경우: mode가 정확히 일치하는 유저만 포함 (완전 분리)
-        // 단일 게임 모드 대기실의 경우: mode가 정확히 일치하는 유저만 포함
+        // 전략/놀이 집계 대기실: 전략·놀이·페어 대국실 연동 유저 풀 공통
         const all = onlineUsers.filter((u) => {
             if (isStrategicLobby || isPlayfulLobby) {
-                return (
-                    userMatchesAggregateWaitingLobby(u, isStrategicLobby) &&
-                    (u.status === UserStatus.Waiting || u.status === UserStatus.Resting)
-                );
+                return userInUnifiedArenaLobbyUserList(u);
             }
             return u.mode === mode;
         });
@@ -445,12 +457,13 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                   mode === 'playful'
                     ? [
                           { id: 'users' as const, label: '유저목록' },
+                          { id: 'ai' as const, label: 'AI대결' },
                           { id: 'games' as const, label: '대국실목록' },
                       ]
                     : [
                           { id: 'users' as const, label: '유저목록' },
+                          { id: 'rankedAi' as const, label: '랭킹전/AI대결' },
                           { id: 'games' as const, label: '대국실목록' },
-                          { id: 'ranked' as const, label: '랭킹전' },
                           { id: 'rankingInfo' as const, label: '랭킹정보' },
                       ]
                 ).map(({ id, label }) => (
@@ -472,31 +485,59 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
               </div>
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden" role="tabpanel">
                 {nativeWaitingTab === 'users' && (
-                  <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-                    <div
-                      className={`shrink-0 rounded-lg border border-color bg-panel p-2 shadow-lg ${waitingLobbyGlass}`}
-                    >
-                      <AiChallengePanel
+                  <div
+                    className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
+                  >
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                      <PlayerList
+                        users={playersForListPanel}
                         mode={mode}
-                        onOpenModal={() => setIsAiChallengeModalOpen(true)}
-                        pairAlignedTypography
+                        onAction={handlers.handleAction}
+                        currentUser={currentUserWithStatus}
+                        onViewUser={handlers.openViewingUser}
+                        lobbyType={isStrategic ? 'strategic' : 'playful'}
+                        userCount={playersForListPanel.length}
+                        pairAlignedNativeCompact
+                        listScopeTabs={waitingUserScopeTabs}
                       />
                     </div>
+                  </div>
+                )}
+                {nativeWaitingTab === 'ai' && mode === 'playful' && (
+                  <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
+                    <div className={`${aiChallengeFeatureShellClass} relative shrink-0 overflow-hidden p-2`}>
+                      <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
+                      <div className={aiChallengePanelInnerGradientClass}>
+                        <AiChallengePanel mode={mode} noOuterShell onOpenModal={() => setIsAiChallengeModalOpen(true)} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {nativeWaitingTab === 'rankedAi' && mode === 'strategic' && (
+                  <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden pb-0.5">
                     <div
-                      className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
+                      className={`flex min-h-0 shrink-0 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
                     >
-                      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                        <PlayerList
-                          users={playersForListPanel}
-                          mode={mode}
-                          onAction={handlers.handleAction}
-                          currentUser={currentUserWithStatus}
-                          onViewUser={handlers.openViewingUser}
-                          lobbyType={isStrategic ? 'strategic' : 'playful'}
-                          userCount={playersForListPanel.length}
-                          pairAlignedNativeCompact
-                          listScopeTabs={waitingUserScopeTabs}
-                        />
+                      <RankedMatchPanel
+                        currentUser={currentUserWithStatus}
+                        onAction={handlers.handleAction}
+                        isMatching={isRankedMatching}
+                        matchingStartTime={rankedMatchingStartTime}
+                        variant="nativeNarrow"
+                        onMatchingStateChange={(isMatching, startTime) => {
+                          setIsRankedMatching(isMatching);
+                          setRankedMatchingStartTime(startTime);
+                        }}
+                        onCancelMatching={() => {
+                          setIsRankedMatching(false);
+                          setRankedMatchingStartTime(0);
+                        }}
+                      />
+                    </div>
+                    <div className={`${aiChallengeFeatureShellClass} relative shrink-0 overflow-hidden p-2`}>
+                      <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
+                      <div className={aiChallengePanelInnerGradientClass}>
+                        <AiChallengePanel mode={mode} noOuterShell onOpenModal={() => setIsAiChallengeModalOpen(true)} />
                       </div>
                     </div>
                   </div>
@@ -509,29 +550,9 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                       games={ongoingGames}
                       onAction={handlers.handleAction}
                       currentUser={currentUserWithStatus}
+                      lobbyTone={mode === 'strategic' ? 'strategic' : 'playful'}
                       panelExtraClassName={waitingLobbyGlass}
                       pairAlignedNativeCompact
-                    />
-                  </div>
-                )}
-                {nativeWaitingTab === 'ranked' && mode === 'strategic' && (
-                  <div
-                    className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
-                  >
-                    <RankedMatchPanel
-                      currentUser={currentUserWithStatus}
-                      onAction={handlers.handleAction}
-                      isMatching={isRankedMatching}
-                      matchingStartTime={rankedMatchingStartTime}
-                      variant="nativeNarrow"
-                      onMatchingStateChange={(isMatching, startTime) => {
-                        setIsRankedMatching(isMatching);
-                        setRankedMatchingStartTime(startTime);
-                      }}
-                      onCancelMatching={() => {
-                        setIsRankedMatching(false);
-                        setRankedMatchingStartTime(0);
-                      }}
                     />
                   </div>
                 )}
@@ -625,6 +646,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     games={ongoingGames}
                     onAction={handlers.handleAction}
                     currentUser={currentUserWithStatus}
+                    lobbyTone={mode === 'strategic' ? 'strategic' : 'playful'}
                     embedInHomeLobbyPanel
                   />
                 </div>
@@ -632,11 +654,14 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
               {/* 우: 유저 목록(하단까지) + 퀵 메뉴 — shrink-0으로 중앙 대국 열이 유저 폭을 과도하게 잡아먹지 않도록 */}
               <div className="flex h-full min-h-0 shrink-0 flex-row gap-1.5 overflow-hidden sm:gap-2">
                 <div className="flex h-full min-h-0 min-w-0 w-[min(100%,40rem)] max-w-2xl flex-1 flex-col overflow-hidden sm:min-w-[30rem]">
-                  <div className="flex h-full min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-                    <div className={`shrink-0 overflow-hidden ${waitingLobbyPcShellClass}`}>
-                      <AiChallengePanel mode={mode} onOpenModal={() => setIsAiChallengeModalOpen(true)} />
+                  <div className="flex h-full min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+                    <div className={`${aiChallengeFeatureShellClass} relative shrink-0 overflow-hidden p-2`}>
+                      <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
+                      <div className={aiChallengePanelInnerGradientClass}>
+                        <AiChallengePanel mode={mode} noOuterShell onOpenModal={() => setIsAiChallengeModalOpen(true)} />
+                      </div>
                     </div>
-                    <div className={`flex min-h-0 flex-1 flex-col overflow-hidden ${waitingLobbyPcShellClass}`}>
+                    <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/15 ${waitingLobbyPcShellClass}`}>
                       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                         <PlayerList
                           users={playersForListPanel}
@@ -673,6 +698,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     games={ongoingGames}
                     onAction={handlers.handleAction}
                     currentUser={currentUserWithStatus}
+                    lobbyTone={isStrategic ? 'strategic' : 'playful'}
                     panelExtraClassName={waitingLobbyGlass}
                   />
                 </div>
@@ -717,14 +743,15 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
               </div>
               <div className="col-span-2 flex min-h-0 flex-col gap-4 overflow-hidden">
                 <div className="flex min-h-0 flex-1 flex-row items-stretch gap-4 overflow-hidden">
-                  <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden">
-                    <div
-                      className={`shrink-0 overflow-hidden rounded-lg border border-color bg-panel p-2 shadow-lg ${waitingLobbyGlass}`}
-                    >
-                      <AiChallengePanel mode={mode} onOpenModal={() => setIsAiChallengeModalOpen(true)} />
+                  <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
+                    <div className={`${aiChallengeFeatureShellClass} relative shrink-0 overflow-hidden p-2`}>
+                      <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
+                      <div className={aiChallengePanelInnerGradientClass}>
+                        <AiChallengePanel mode={mode} noOuterShell onOpenModal={() => setIsAiChallengeModalOpen(true)} />
+                      </div>
                     </div>
                     <div
-                      className={`min-h-0 min-w-0 flex-1 overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
+                      className={`min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-white/10 bg-panel shadow-lg ring-1 ring-white/[0.06] ${waitingLobbyGlass}`}
                     >
                       <PlayerList
                         users={usersInThisRoom}
@@ -769,6 +796,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
       {isAiChallengeModalOpen && (
         <AiChallengeModal 
           lobbyType={isStrategic ? 'strategic' : 'playful'} 
+          preferredGameSettingsBucket={mode === 'playful' ? 'playful_ai_challenge' : 'strategic_ai_challenge'}
           onClose={() => setIsAiChallengeModalOpen(false)} 
           onAction={handlers.handleAction}
         />

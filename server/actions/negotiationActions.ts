@@ -189,12 +189,17 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             }
         
             const negotiationId = `neg-${randomUUID()}`;
+            const mergedSettings = settings ? { ...DEFAULT_GAME_SETTINGS, ...settings } : { ...DEFAULT_GAME_SETTINGS };
+            // 1:1 대국 신청에는 페어 방 메타(`pairGame`)가 들어가면 인게임이 페어 UI로 분기할 수 있어 제거한다.
+            if (opponentId !== aiUserId) {
+                delete (mergedSettings as { pairGame?: unknown }).pairGame;
+            }
             const newNegotiation: Negotiation = {
                 id: negotiationId,
                 challenger: user,
                 opponent: opponent,
                 mode: mode,
-                settings: settings ? { ...DEFAULT_GAME_SETTINGS, ...settings } : { ...DEFAULT_GAME_SETTINGS },
+                settings: mergedSettings,
                 proposerId: user.id,
                 status: 'draft',
                 turnCount: 0,
@@ -482,6 +487,8 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                           }),
                       )
                     : incomingSettings;
+                // 대기실 AI 대국은 페어 전용 `pairGame` 메타와 무관 — 잔존 시 인게임 분기 오류 방지
+                delete (settings as { pairGame?: unknown }).pairGame;
                 const cost = getActionPointCost(mode);
                 await applyPassiveActionPointRegenToUser(user, now);
                 if (user.actionPoints.current < cost && !user.isAdmin) {

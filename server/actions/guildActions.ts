@@ -21,6 +21,7 @@ import {
     MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES,
     userMeetsGuildFeatureLevelRequirement,
     getGuildWarBoardDisplayName,
+    GUILD_WAR_BOARD_ORDER,
 } from '../../shared/constants/guildConstants.js';
 import { EquipmentSlot, ItemGrade, GameMode, Player } from '../../types/enums.js';
 import { generateNewItem } from './inventoryActions.js';
@@ -116,7 +117,65 @@ function mergeLatestGuildKvExceptMembers(guild: Guild, latestGuilds: Record<stri
     guild.members = syncedMembers;
 }
 
-/** 출전 명단 기준 길드원 총 도전권(당일 사용/총량) — 상황판용 */
+function guildMemberIdSet(g: Guild | undefined): Set<string> {
+    return new Set(
+        (g?.members ?? [])
+            .map((m: GuildMember) => m.userId)
+            .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    );
+}
+
+function rosterFromParticipantIdsOrGuild(participantIdsRaw: unknown, g: Guild | undefined): string[] {
+    const fromP = Array.isArray(participantIdsRaw)
+        ? [
+              ...new Set(
+                  (participantIdsRaw as unknown[]).filter((x): x is string => typeof x === 'string' && x.length > 0)
+              ),
+          ]
+        : [];
+    if (fromP.length > 0) return fromP;
+    return (g?.members || []).map((m) => m.userId).filter((id): id is string => typeof id === 'string' && id.length > 0).slice(0, GUILD_WAR_MAX_PARTICIPANTS);
+}
+
+/**
+ * 출전 명단 + 실제 도전 기록이 있는 동일 길드 소속 유저를 합산.
+ * `userAttempts` 키가 명단에 없거나, 명단이 비어 멤버 폴백만 있을 때도 사용량이 누락되지 않게 한다.
+ */
+function computeGuildWarSideTicketUsage(
+    war: any,
+    rosterIds: string[],
+    todayKST: string,
+    sideMemberIds: Set<string>
+): { used: number; total: number } {
+    const ua = (war.userAttempts || {}) as Record<string, unknown>;
+    const da = war.dailyAttempts || {};
+    const idSet = new Set<string>();
+    for (const id of rosterIds) {
+        if (sideMemberIds.has(id)) idSet.add(id);
+    }
+    for (const k of Object.keys(ua)) {
+        if (sideMemberIds.has(k)) idSet.add(k);
+    }
+    for (const k of Object.keys(da)) {
+        if (sideMemberIds.has(k)) idSet.add(k);
+    }
+    let used = 0;
+    for (const id of idSet) {
+        const cumulativeUsed = Number(ua[id] ?? 0) || 0;
+        if (cumulativeUsed > 0) {
+            used += cumulativeUsed;
+            continue;
+        }
+        const dayMap = da[id] as Record<string, number> | undefined;
+        used += Number(dayMap?.[todayKST] ?? 0) || 0;
+    }
+    const rosterOnSide = rosterIds.filter((x) => sideMemberIds.has(x)).length;
+    const capacityMembers = Math.max(rosterOnSide, idSet.size, 1);
+    const total = capacityMembers * GUILD_WAR_PERSONAL_DAILY_ATTEMPTS;
+    return { used, total };
+}
+
+/** 출전 명단 기준 길드원 총 도전권(사용/총량) — 상황판용 */
 function buildGuildWarTicketSummary(
     war: any,
     viewerGuildId: string,
@@ -130,59 +189,33 @@ function buildGuildWarTicketSummary(
     const oppGuildId = isG1 ? war.guild2Id : war.guild1Id;
     const myIdsRaw = isG1 ? war.guild1ParticipantIds : war.guild2ParticipantIds;
     const oppIdsRaw = isG1 ? war.guild2ParticipantIds : war.guild1ParticipantIds;
-    const da = war.dailyAttempts || {};
-    const userAttempts = war.userAttempts || {};
-    const sumFor = (roster: string[]) => {
-        let u = 0;
-        for (const id of roster) {
-            const cumulativeUsed = Number(userAttempts[id] ?? 0) || 0;
-            if (cumulativeUsed > 0) {
-                u += cumulativeUsed;
-                continue;
-            }
-            // 구버전/호환 데이터는 일자별 사용량만 남아있을 수 있어 todayKST 값을 보조로 사용.
-            u += Number(da[id]?.[todayKST] ?? 0) || 0;
-        }
-        return u;
-    };
-    let myRoster = Array.isArray(myIdsRaw)
-        ? [...new Set(myIdsRaw.filter((x: unknown) => typeof x === 'string' && (x as string).length > 0) as string[])]
-        : [];
-    if (myRoster.length === 0) {
-        const g = guildsMap[viewerGuildId];
-        myRoster = (g?.members || []).map((m) => m.userId).slice(0, GUILD_WAR_MAX_PARTICIPANTS);
-    }
-    const myUsed = sumFor(myRoster);
-    const myTotal = myRoster.length * GUILD_WAR_PERSONAL_DAILY_ATTEMPTS;
 
-    let oppRoster = Array.isArray(oppIdsRaw)
-        ? [...new Set(oppIdsRaw.filter((x: unknown) => typeof x === 'string' && (x as string).length > 0) as string[])]
-        : [];
+    const myGuild = guildsMap[viewerGuildId];
+    const myMemberIds = guildMemberIdSet(myGuild);
+    const myRoster = rosterFromParticipantIdsOrGuild(myIdsRaw, myGuild);
+    const mySide = computeGuildWarSideTicketUsage(war, myRoster, todayKST, myMemberIds);
+
     const oppIsBot = oppGuildId === GUILD_WAR_BOT_GUILD_ID || war.isBotGuild === true;
-    if (oppRoster.length === 0 && oppIsBot) {
-        const botUsed = Number(
-            isG1
-                ? (war.guild2TotalAttempts ?? 0)
-                : (war.guild1TotalAttempts ?? 0)
-        ) || 0;
+    if (oppIsBot) {
+        const botUsed = Number(isG1 ? (war.guild2TotalAttempts ?? 0) : (war.guild1TotalAttempts ?? 0)) || 0;
         const botTotal =
             Number((war as any).botPlannedTotalAttempts) ||
             Number(war.maxAttemptsPerGuild ?? 0) ||
             botUsed;
         return {
-            myRoster: { used: myUsed, total: myTotal },
+            myRoster: { used: mySide.used, total: mySide.total },
             opponentRoster: { used: botUsed, total: botTotal, unknown: false },
         };
     }
-    if (oppRoster.length === 0) {
-        const g = guildsMap[oppGuildId];
-        oppRoster = (g?.members || []).map((m) => m.userId).slice(0, GUILD_WAR_MAX_PARTICIPANTS);
-    }
-    const oppUsed = sumFor(oppRoster);
-    const oppTotal = oppRoster.length * GUILD_WAR_PERSONAL_DAILY_ATTEMPTS;
+
+    const oppGuild = guildsMap[oppGuildId];
+    const oppMemberIds = guildMemberIdSet(oppGuild);
+    const oppRoster = rosterFromParticipantIdsOrGuild(oppIdsRaw, oppGuild);
+    const oppSide = computeGuildWarSideTicketUsage(war, oppRoster, todayKST, oppMemberIds);
+
     return {
-        myRoster: { used: myUsed, total: myTotal },
-        opponentRoster: { used: oppUsed, total: oppTotal },
+        myRoster: { used: mySide.used, total: mySide.total },
+        opponentRoster: { used: oppSide.used, total: oppSide.total },
     };
 }
 
@@ -2588,11 +2621,19 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     (w.guild1Id === user.guildId || w.guild2Id === user.guildId) && guildWarIsChronologicallyActive(w, now),
             );
             if (!warInProgress?.id) {
-                return { clientResponse: { myGuildWarAttemptLog: [], warId: null, attemptsUsedInWar: 0, attemptsMax: GUILD_WAR_PERSONAL_DAILY_ATTEMPTS } };
+                return {
+                    clientResponse: {
+                        myGuildWarAttemptLog: [],
+                        myGuildWarBoardParticipation: [],
+                        warId: null,
+                        attemptsUsedInWar: 0,
+                        attemptsMax: GUILD_WAR_PERSONAL_DAILY_ATTEMPTS,
+                    },
+                };
             }
             const acceptedIds = user.isAdmin ? [ADMIN_USER_ID, user.id] : [user.id];
             const { listEndedGuildWarGamesForWar } = await import('../prisma/gameService.js');
-            const rows = await listEndedGuildWarGamesForWar(String(warInProgress.id), acceptedIds, 60);
+            const rows = await listEndedGuildWarGamesForWar(String(warInProgress.id), acceptedIds, 80);
             const AI_USER_ID = 'ai-player-01';
 
             const modeLabel = (mode: GameMode | string | undefined): string => {
@@ -2659,11 +2700,68 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 });
             }
 
+            const boardModeLabelByBoardId = (bid: string) => {
+                const m = getGuildWarBoardMode(bid);
+                if (m === 'capture') return '따내기';
+                if (m === 'missile') return '미사일';
+                return '히든';
+            };
+
+            const aggByBoard = new Map<string, { wins: number; losses: number; draws: number; games: number; stars: number }>();
+            for (const row of log) {
+                const bid = row.boardId;
+                if (!bid || bid === '—') continue;
+                const cur = aggByBoard.get(bid) ?? { wins: 0, losses: 0, draws: 0, games: 0, stars: 0 };
+                cur.games += 1;
+                cur.stars += Number(row.stars ?? 0) || 0;
+                if (row.outcome === 'win') cur.wins += 1;
+                else if (row.outcome === 'lose') cur.losses += 1;
+                else cur.draws += 1;
+                aggByBoard.set(bid, cur);
+            }
+
+            const isG1War = warInProgress.guild1Id === user.guildId;
+            const myGuildWarBoardParticipation = GUILD_WAR_BOARD_ORDER.filter((bid) => !!(warInProgress.boards as any)?.[bid]).map(
+                (boardId) => {
+                    const b = (warInProgress.boards as any)[boardId];
+                    const agg = aggByBoard.get(boardId) ?? { wins: 0, losses: 0, draws: 0, games: 0, stars: 0 };
+                    const challenging =
+                        b?.challenging && typeof b.challenging === 'object' && !!(b.challenging as Record<string, unknown>)[effectiveUserId];
+                    const best = isG1War ? b?.guild1BestResult : b?.guild2BestResult;
+                    const bestUid = best?.userId != null ? String(best.userId) : '';
+                    const isMyBoardRecord =
+                        !!best &&
+                        (bestUid === String(user.id) || (user.isAdmin && bestUid === ADMIN_USER_ID));
+                    let boardRecordLine: string | undefined;
+                    if (isMyBoardRecord && best) {
+                        const st = Number(best.stars ?? 0) || 0;
+                        if (getGuildWarBoardMode(boardId) === 'capture') {
+                            boardRecordLine = `이 칸 직위 최고: ${st}★ · 따낸돌 ${Number(best.captures ?? 0)}개`;
+                        } else {
+                            boardRecordLine = `이 칸 직위 최고: ${st}★ · 집차이 ${typeof best.scoreDiff === 'number' ? best.scoreDiff : 0}집`;
+                        }
+                    }
+                    return {
+                        boardId,
+                        boardName: getGuildWarBoardDisplayName(boardId),
+                        modeLabel: boardModeLabelByBoardId(boardId),
+                        gamesPlayed: agg.games,
+                        wins: agg.wins,
+                        losses: agg.losses,
+                        draws: agg.draws,
+                        starsEarnedSum: agg.stars,
+                        inProgress: !!challenging,
+                        boardRecordLine,
+                    };
+                }
+            );
+
             const attemptsUsedInWar = user.isAdmin ? 0 : (Number(warInProgress.userAttempts?.[effectiveUserId] ?? 0) || 0);
 
             return {
                 clientResponse: {
                     myGuildWarAttemptLog: log,
+                    myGuildWarBoardParticipation,
                     warId: String(warInProgress.id),
                     attemptsUsedInWar,
                     attemptsMax: GUILD_WAR_PERSONAL_DAILY_ATTEMPTS,

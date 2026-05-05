@@ -3,6 +3,7 @@ import * as db from './db.js';
 import { prismaErrorImpliesEngineNotConnected } from './prismaClient.js';
 import { ensurePrismaEngineReady } from './prisma/gameService.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants/index.js';
+import { RANKED_ELO_BASE_SCORE } from '../shared/constants/rules.js';
 import { readStrategicRankedBlock, readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
 
 interface RankingEntry {
@@ -397,10 +398,10 @@ function calculateStrategicSeasonRanking(allUsers: any[]): RankingEntry[] {
     for (const user of allUsers) {
         if (!user || !user.id) continue;
 
-        const totalGames = calculateTotalGames(user, SPECIAL_GAME_MODES);
+        const blk = readStrategicRankedBlock(user.stats);
+        const totalGames = blk.wins + blk.losses;
         if (totalGames < 10) continue;
 
-        const blk = readStrategicRankedBlock(user.stats);
         rankings.push({
             id: user.id,
             nickname: user.nickname || user.username,
@@ -424,9 +425,9 @@ function calculatePairRanking(allUsers: any[]): RankingEntry[] {
     const rankings: RankingEntry[] = [];
     for (const user of allUsers) {
         if (!user || !user.id) continue;
-        const pairStats = user.stats?.[String('pair')];
-        const wins = pairStats?.wins || 0;
-        const losses = pairStats?.losses || 0;
+        const blk = readPairRankedBlock(user.stats);
+        const wins = blk.wins;
+        const losses = blk.losses;
         const totalGames = wins + losses;
         if (totalGames < 5) continue;
         const score = user.cumulativeRankingScore?.['pair'] ?? 0;
@@ -452,12 +453,16 @@ function calculatePairSeasonRanking(allUsers: any[]): RankingEntry[] {
     const rankings: RankingEntry[] = [];
     for (const user of allUsers) {
         if (!user || !user.id) continue;
-        const pairStats = user.stats?.[String('pair')];
-        const wins = pairStats?.wins || 0;
-        const losses = pairStats?.losses || 0;
+        const blk = readPairRankedBlock(user.stats);
+        const wins = blk.wins;
+        const losses = blk.losses;
         const totalGames = wins + losses;
         if (totalGames < 5) continue;
-        const score = Number(user.dailyRankings?.pair?.score ?? 1200);
+        const dr = user.dailyRankings?.pair;
+        const score =
+            dr && typeof dr.score === 'number' && Number.isFinite(dr.score)
+                ? RANKED_ELO_BASE_SCORE + dr.score
+                : blk.rankingScore;
         rankings.push({
             id: user.id,
             nickname: user.nickname || user.username,

@@ -10,6 +10,7 @@ import { useAppContext } from '../hooks/useAppContext.js';
 import type { ServerAction } from '../types.js';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
+import { readStrategicRankedBlock, readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
 
 // Re-using components from Profile.tsx for consistency.
 const getXpRequirementForLevel = (level: number): number => {
@@ -142,11 +143,11 @@ interface UserProfileModalProps {
   isTopmost?: boolean;
 }
 
-/** 페어: 랭킹전 통합(`stats.pair`) + 경기장 전략 모드별(`pairArenaStatsByMode`) */
+/** 페어: 랭킹전 전적(`pairRankedMatchRecord`) + 경기장 전략 모드별(`pairArenaStatsByMode`) */
 const PairStatsTab: React.FC<{ user: UserWithStatus }> = ({ user }) => {
-    const pairAgg = user.stats?.pair as { wins?: number; losses?: number } | undefined;
-    const totalWins = pairAgg?.wins ?? 0;
-    const totalLosses = pairAgg?.losses ?? 0;
+    const pairRanked = readPairRankedBlock(user.stats as Record<string, { wins?: number; losses?: number; rankingScore?: number }>);
+    const totalWins = pairRanked.wins;
+    const totalLosses = pairRanked.losses;
     const totalGames = totalWins + totalLosses;
     const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
     const byMode = user.pairArenaStatsByMode;
@@ -189,8 +190,8 @@ const StatsTab: React.FC<{ user: UserWithStatus, type: 'strategic' | 'playful' }
     const gameStats = modes.map(m => {
         const s = stats[m.mode];
         if (s) {
-            totalWins += s.wins;
-            totalLosses += s.losses;
+            totalWins += s.wins ?? 0;
+            totalLosses += s.losses ?? 0;
             return { mode: m.mode, ...s };
         }
         return { mode: m.mode, wins: 0, losses: 0, rankingScore: 1200 };
@@ -206,12 +207,14 @@ const StatsTab: React.FC<{ user: UserWithStatus, type: 'strategic' | 'playful' }
             </div>
             <div className="space-y-1">
                 {gameStats.map(stat => {
-                    const gameTotal = stat.wins + stat.losses;
-                    const gameWinRate = gameTotal > 0 ? Math.round((stat.wins / gameTotal) * 100) : 0;
+                    const gameTotal = (stat.wins ?? 0) + (stat.losses ?? 0);
+                    const gameWinRate = gameTotal > 0 ? Math.round(((stat.wins ?? 0) / gameTotal) * 100) : 0;
                     return (
                         <div key={stat.mode} className="bg-gray-900/40 rounded px-1.5 py-0.5 flex items-center justify-between gap-1.5">
                             <span className="font-semibold text-gray-200 truncate">{stat.mode}</span>
-                            <span className="text-right text-gray-300 whitespace-nowrap">{stat.wins}승 {stat.losses}패 ({gameWinRate}%)</span>
+                            <span className="text-right text-gray-300 whitespace-nowrap">
+                                {stat.wins ?? 0}승 {stat.losses ?? 0}패 ({gameWinRate}%)
+                            </span>
                         </div>
                     );
                 })}
@@ -309,11 +312,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
         const dr = user.dailyRankings?.strategic;
         let seasonScore: number; // 1200 기준 현재 시즌 점수 (대기실 표시와 동일)
         let rank: number;
-        let totalGames = 0;
-        for (const m of SPECIAL_GAME_MODES) {
-            const s = user.stats?.[m.mode];
-            if (s) totalGames += (s.wins || 0) + (s.losses || 0);
-        }
+        const stratBlk = readStrategicRankedBlock(user.stats as Record<string, { wins?: number; losses?: number; rankingScore?: number }>);
+        const totalGames = stratBlk.wins + stratBlk.losses;
         if (dr && typeof dr.rank === 'number') {
             // dailyRankings.score는 1200에서의 차이(델타)로 저장됨 → 시즌점수 = 1200 + delta
             const delta = typeof dr.score === 'number' ? dr.score : 0;
@@ -340,20 +340,19 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
         const dr = user.dailyRankings?.pair;
         let seasonScore: number;
         let rank: number;
-        const pairS = user.stats?.pair;
-        const totalGames = (pairS?.wins ?? 0) + (pairS?.losses ?? 0);
+        const pairBlk = readPairRankedBlock(user.stats as Record<string, { wins?: number; losses?: number; rankingScore?: number }>);
+        const totalGames = pairBlk.wins + pairBlk.losses;
         if (dr && typeof dr.rank === 'number') {
             const delta = typeof dr.score === 'number' ? dr.score : 0;
             seasonScore = SEASON_BASE_SCORE + delta;
             rank = dr.rank;
         } else {
-            seasonScore =
-                pairS && typeof pairS.rankingScore === 'number' ? pairS.rankingScore : SEASON_BASE_SCORE;
+            seasonScore = pairBlk.rankingScore;
             rank = 9999;
         }
         const tier = getTier(seasonScore, rank, totalGames);
         return { tier, score: Math.round(seasonScore) };
-    }, [user.dailyRankings?.pair, user.stats?.pair]);
+    }, [user.dailyRankings?.pair, user.stats]);
 
     // equipment 필드와 inventory를 매칭하여 장착된 아이템 찾기
     const equippedItems = useMemo(() => {

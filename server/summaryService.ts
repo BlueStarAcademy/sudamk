@@ -3,7 +3,25 @@
 import { LiveGameSession, Player, User, GameSummary, StatChange, GameMode, InventoryItem, SpecialStat, WinReason, SinglePlayerStageInfo, QuestReward, Mail } from '../types/index.js';
 import * as db from './db.js';
 import { clearAiSession } from './aiSessionManager.js';
-import { SPECIAL_GAME_MODES, NO_CONTEST_MOVE_THRESHOLD, NO_CONTEST_MANNER_PENALTY, NO_CONTEST_RANKING_PENALTY, CONSUMABLE_ITEMS, MATERIAL_ITEMS, PLAYFUL_GAME_MODES, STRATEGIC_LOOT_TABLE, PLAYFUL_LOOT_TABLES_BY_ROUNDS, ENABLE_PVP_SKILL_REWARD_MULTIPLIER, getPvpSkillRewardMultiplier, RANKED_ELO_BASE_SCORE, RANKED_ELO_K_FACTOR, RANKED_ELO_MIN_CHANGE, RANKED_ELO_MAX_CHANGE } from '../constants';
+import {
+    SPECIAL_GAME_MODES,
+    NO_CONTEST_MOVE_THRESHOLD,
+    NO_CONTEST_MANNER_PENALTY,
+    NO_CONTEST_RANKING_PENALTY,
+    CONSUMABLE_ITEMS,
+    MATERIAL_ITEMS,
+    PLAYFUL_GAME_MODES,
+    STRATEGIC_LOOT_TABLE,
+    PLAYFUL_LOOT_TABLES_BY_ROUNDS,
+    ENABLE_PVP_SKILL_REWARD_MULTIPLIER,
+    getPvpSkillRewardMultiplier,
+    RANKED_ELO_BASE_SCORE,
+    RANKED_ELO_K_FACTOR,
+    RANKED_ELO_MIN_CHANGE,
+    RANKED_ELO_MAX_CHANGE,
+    STRATEGIC_ACTION_POINT_COST,
+    PLAYFUL_ACTION_POINT_COST,
+} from '../constants';
 import { TOWER_AI_BOT_DISPLAY_NAME, TOWER_STAGES } from '../constants/towerConstants.js';
 import { updateQuestProgress } from './questService.js';
 import { getSelectiveUserUpdate } from './utils/userUpdateHelper.js';
@@ -64,7 +82,12 @@ import {
     pairPetXpGainBlockedByGrade,
 } from '../shared/constants/pairPetGrade.js';
 import { getXpRequirementForLevel } from '../shared/utils/strategyLevelXp.js';
-import { STRATEGIC_RANKED_STAT_KEY } from '../shared/constants/userRankedStats.js';
+import {
+    STRATEGIC_RANKED_STAT_KEY,
+    PAIR_RANKED_STAT_KEY,
+    STRATEGIC_RANKED_MATCH_RECORD_KEY,
+    PAIR_RANKED_MATCH_RECORD_KEY,
+} from '../shared/constants/userRankedStats.js';
 import { readStrategicRankedBlock, readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
 
 function resetPairRoomAfterGame(room: any): void {
@@ -755,24 +778,23 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
     }
 };
 
+/** 랭킹전·친선 등 PVP 입장에 소모되는 행동력(조기 종료 환불 안내·환불액과 동일) */
+function getPvpEntryActionPointCost(mode: GameMode): number {
+    if (SPECIAL_GAME_MODES.some((m) => m.mode === mode)) {
+        return STRATEGIC_ACTION_POINT_COST;
+    }
+    if (PLAYFUL_GAME_MODES.some((m) => m.mode === mode)) {
+        return PLAYFUL_ACTION_POINT_COST;
+    }
+    return STRATEGIC_ACTION_POINT_COST;
+}
+
 // 행동력 환불 함수
 const refundActionPointsForEarlyTermination = async (
     game: LiveGameSession, 
     badMannerPlayerId: string | null
 ): Promise<void> => {
-    const { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST } = await import('../constants');
-    
-    const getActionPointCost = (mode: GameMode): number => {
-        if (SPECIAL_GAME_MODES.some(m => m.mode === mode)) {
-            return STRATEGIC_ACTION_POINT_COST;
-        }
-        if (PLAYFUL_GAME_MODES.some(m => m.mode === mode)) {
-            return PLAYFUL_ACTION_POINT_COST;
-        }
-        return STRATEGIC_ACTION_POINT_COST;
-    };
-    
-    const cost = getActionPointCost(game.mode);
+    const cost = getPvpEntryActionPointCost(game.mode);
     const player1 = await db.getUser(game.player1.id);
     const player2 = await db.getUser(game.player2.id);
     
@@ -807,6 +829,29 @@ const refundActionPointsForEarlyTermination = async (
     }
 };
 
+/** 조기 종료 비매너 메일용: 사유 한 줄(핵심만) */
+function buildShortBadMannerPenaltyReason(game: LiveGameSession): string {
+    if (game.winReason === 'disconnect') {
+        return '- 강제 접속 종료';
+    }
+    if (game.winReason === 'resign') {
+        const moveCount = game.moveHistory?.filter((m) => m.x !== -1 && m.y !== -1).length || 0;
+        const gameStartTime = game.gameStartTime || game.createdAt || Date.now();
+        const gameDuration = Date.now() - gameStartTime;
+        if (moveCount <= 10 && gameDuration < 60000) {
+            return '- 게임 시작 후 10수 이내·1분 이내 기권';
+        }
+        if (moveCount <= 10) {
+            return '- 게임 시작 후 10수 이내 기권';
+        }
+        if (gameDuration < 60000) {
+            return '- 게임 시작 후 1분 이내 기권';
+        }
+        return '- 기권';
+    }
+    return '- 조기 종료';
+}
+
 // 패널티 메일 발송 함수
 const sendBadMannerPenaltyMail = async (
     game: LiveGameSession,
@@ -814,60 +859,66 @@ const sendBadMannerPenaltyMail = async (
 ): Promise<void> => {
     const badMannerPlayer = await db.getUser(badMannerPlayerId);
     if (!badMannerPlayer) return;
-    
-    const opponent = game.player1.id === badMannerPlayerId ? 
-                     await db.getUser(game.player2.id) : 
-                     await db.getUser(game.player1.id);
-    
+
+    const opponent =
+        game.player1.id === badMannerPlayerId ? await db.getUser(game.player2.id) : await db.getUser(game.player1.id);
+
     if (!opponent) return;
-    
-    const moveCount = game.moveHistory?.filter(m => m.x !== -1 && m.y !== -1).length || 0;
-    const gameStartTime = game.gameStartTime || game.createdAt || Date.now();
-    const gameDuration = Date.now() - gameStartTime;
-    
-    let penaltyReason = '';
-    if (moveCount <= 10) {
-        penaltyReason = `게임 시작 후 10턴 이내에 종료하여`;
-    } else if (gameDuration < 60000) {
-        penaltyReason = `게임 시작 후 1분 이내에 종료하여`;
-    }
-    
-    if (game.winReason === 'resign') {
-        penaltyReason += ' 기권';
-    } else if (game.winReason === 'disconnect') {
-        penaltyReason += ' 접속 끊김';
-    }
-    
+
     const isRanked = game.isRankedGame ?? false;
     const title = isRanked ? '랭킹전 비매너 행동 패널티 안내' : '비매너 행동 패널티 안내';
-    const penaltyDescription = isRanked 
-        ? `- 랭킹 점수 대폭 하락\n- 매너 점수 감소\n- 행동력 환불 불가 (상대방에게만 환불됨)`
-        : `- 매너 점수 감소\n- 행동력 환불 불가 (상대방에게만 환불됨)`;
-    
+
+    const summary = game.summary?.[badMannerPlayerId] as GameSummary | undefined;
+    const rankDelta = summary?.rating?.change;
+    const mannerDelta = summary?.manner?.change;
+    const apCost = getPvpEntryActionPointCost(game.mode);
+
+    const penaltyLines: string[] = [];
+    if (isRanked) {
+        let rankLoss = typeof rankDelta === 'number' && rankDelta < 0 ? Math.abs(rankDelta) : 0;
+        if (rankLoss === 0 && game.isEarlyTermination && game.badMannerPlayerId === badMannerPlayerId) {
+            const pairGo = isPairGoRewardGame(game);
+            if (!pairGo) {
+                rankLoss = 100;
+            }
+        }
+        if (rankLoss > 0) {
+            penaltyLines.push(`- 랭킹 점수 ${rankLoss}점 하락`);
+        }
+    }
+    if (typeof mannerDelta === 'number' && mannerDelta < 0) {
+        penaltyLines.push(`- 매너 점수 ${Math.abs(mannerDelta)}점 감소`);
+    }
+    penaltyLines.push(`- 행동력 ${apCost} 환불 불가`);
+
+    const reasonBlock = buildShortBadMannerPenaltyReason(game);
+    const penaltyBlock = penaltyLines.join('\n');
+
     const penaltyMail: Mail = {
         id: `mail-penalty-${randomUUID()}`,
         from: '시스템',
         title: title,
-        message: `안녕하세요, ${badMannerPlayer.nickname}님.\n\n` +
-                 `대국 중 비매너 행동으로 인해 패널티가 적용되었습니다.\n\n` +
-                 `[패널티 사유]\n` +
-                 `${penaltyReason}로 인해 게임이 조기 종료되었습니다.\n\n` +
-                 `[적용된 패널티]\n` +
-                 `${penaltyDescription}\n\n` +
-                 `정상적인 게임 진행을 위해 협조 부탁드립니다.`,
+        message:
+            `안녕하세요, ${badMannerPlayer.nickname}님.\n\n` +
+            `대국 중 비매너 행동으로 인해 패널티가 적용되었습니다.\n\n` +
+            `[패널티 사유]\n` +
+            `${reasonBlock}\n\n` +
+            `[적용된 패널티]\n` +
+            `${penaltyBlock}\n\n` +
+            `정상적인 게임 진행을 위해 협조 부탁드립니다.`,
         receivedAt: Date.now(),
         expiresAt: undefined, // 무제한
         isRead: false,
         attachmentsClaimed: false,
     };
-    
+
     if (!badMannerPlayer.mail) {
         badMannerPlayer.mail = [];
     }
     badMannerPlayer.mail.unshift(penaltyMail);
-    
+
     await db.updateUser(badMannerPlayer);
-    
+
     const { broadcastUserUpdate } = await import('./socket.js');
     broadcastUserUpdate(badMannerPlayer, ['mannerScore', 'mail']);
 };
@@ -1479,7 +1530,7 @@ const processPlayerSummary = async (
     // --- XP and Level ---
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
     const isPlayful = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
-    /** 기권한 쪽만 완주 실패 처리 — 상대(승자)는 놀이바둑도 골드·경험치 정상 지급 */
+    /** 기권한 쪽만 완주 실패 처리 — 상대(승자)는 놀이바둑도 골드·아이템 등은 정상 지급(EXP는 놀이바둑 전부 0) */
     const isPlayfulResignLoser = isPlayful && winReason === 'resign' && !isWinner;
     const initialLevel = updatedPlayer.userLevel;
     const opponentLevel = opponent.userLevel;
@@ -1487,12 +1538,20 @@ const processPlayerSummary = async (
     const isAdventureGame = game.gameCategory === 'adventure';
     const adventureBoardSize = game.adventureBoardSize ?? game.settings.boardSize;
     const isStrategicLobbyAi = !isNoContest && isWaitingRoomAiGame(game) && isStrategic;
+    /** 휴먼 vs 휴먼 PVP에서 기권으로 끝난 경우: 골드·아이템·경험치·VIP 슬롯 등 대국 보상 없음(랭킹 레이팅·전적은 유지) */
+    const isPvpHumanResign =
+        !isNoContest &&
+        !isDraw &&
+        winReason === 'resign' &&
+        !isAiGame &&
+        !isGuildWarMatch &&
+        !isAdventureGame &&
+        !game.isSinglePlayer &&
+        (game.gameCategory as string) !== 'tower' &&
+        (game.gameCategory as string) !== 'singleplayer' &&
+        (isStrategic || isPlayful);
 
     let xpGain = isNoContest ? 0 : (isWinner ? 100 : (isDraw ? 0 : 25)); // Strategic defaults
-    if (!isNoContest && isPlayful) {
-        // 놀이바둑은 시간/수순 길이와 무관한 고정 경험치 (승패 차이를 크게 유지)
-        xpGain = isWinner ? 90 : (isDraw ? 0 : 18);
-    }
     // 모험은 `isWaitingRoomAiGame`에서 제외되지만, 분기 순서상 모험을 먼저 고정해 대기실 AI EXP와 겹치지 않게 한다.
     if (!isNoContest && isAdventureGame) {
         if (isWinner) {
@@ -1561,11 +1620,7 @@ const processPlayerSummary = async (
         const tierMul = aiLobbyRewardMultiplierFromProfileStep(step);
         xpGain = Math.round(xpGain * tierMul);
     }
-    // 놀이바둑에서 기권한 플레이어만 경험치 없음(승자는 지급)
-    if (isPlayfulResignLoser) {
-        xpGain = 0;
-    }
-    // 모험 몬스터 대전에서 패배한 유저는 전략 경험치·보상 경로가 얽여도 0으로 고정
+    // 모험 몬스터 대전에서 패배한 유저는 EXP·보상 경로가 얽여도 0으로 고정
     if (!isNoContest && !isDraw && isAdventureGame && player.id !== aiUserId && !isWinner) {
         xpGain = 0;
     }
@@ -1573,6 +1628,7 @@ const processPlayerSummary = async (
     const rewardVipStrategicPlayfulWinDouble =
         !isNoContest &&
         !isDraw &&
+        !isPvpHumanResign &&
         isWinner &&
         player.id !== aiUserId &&
         !isGuildWarMatch &&
@@ -1585,6 +1641,13 @@ const processPlayerSummary = async (
 
     if (rewardVipStrategicPlayfulWinDouble && xpGain > 0) {
         xpGain = Math.round(xpGain * 2);
+    }
+    /** 놀이바둑(PLAYFUL 모드): 유저 EXP 없음 — 모험·대기실 AI 등 위 분기 이후에도 최종 0으로 고정 */
+    if (!isNoContest && isPlayful) {
+        xpGain = 0;
+    }
+    if (isPvpHumanResign) {
+        xpGain = 0;
     }
     // --- END NEW LOGIC ---
 
@@ -1668,19 +1731,14 @@ const processPlayerSummary = async (
     };
     
     // --- Manner Score ---
-    const isDisconnectLoss = winReason === 'disconnect' && !isWinner && !isDraw;
+    /** 접속 끊김(disconnect)으로 패배한 경우에만 정산 시 매너 -50. 기권·조기 종료(기권 포함)는 매너 차감 없음 */
+    const isDisconnectLoss = winReason === 'disconnect' && !isWinner && !isDraw && !isNoContest;
     const mannerChangeFromActions = game.mannerScoreChanges?.[player.id] || 0;
     const initialMannerBeforeGame = player.mannerScore - mannerChangeFromActions;
 
     let mannerChangeFromGameEnd = 0;
-    // 랭킹전에서 조기 종료 시 추가 매너 점수 하락
-    const isRankedEarlyTermination = game.isRankedGame && game.isEarlyTermination && game.badMannerPlayerId === player.id;
-    if (isRankedEarlyTermination) {
-        mannerChangeFromGameEnd = -50; // 랭킹전 조기 종료 시 더 큰 패널티
-    } else if (isDisconnectLoss) {
-        mannerChangeFromGameEnd = -20;
-    } else if (!isNoContest) {
-        // mannerChangeFromGameEnd = 2; // +2 for completing a game (win, loss, or draw)
+    if (isDisconnectLoss) {
+        mannerChangeFromGameEnd = -50;
     }
 
     const finalMannerScore = player.mannerScore + mannerChangeFromGameEnd;
@@ -1706,14 +1764,17 @@ const processPlayerSummary = async (
 
     let nextStrategicWins = strategicBefore.wins;
     let nextStrategicLosses = strategicBefore.losses;
-    if (isStrategic && !isNoContest) {
+    /** 통합 랭킹 행 승/패는 랭킹전(PvP)만 집계 — 친선·로비 AI 대국은 모드별 전적에만 반영 */
+    if (isStrategic && !isNoContest && game.isRankedGame && !isAiGame) {
         if (isWinner) nextStrategicWins += 1;
         else if (!isDraw) nextStrategicLosses += 1;
     }
     if (isStrategic) {
-        updatedPlayer.stats[STRATEGIC_RANKED_STAT_KEY] = {
+        updatedPlayer.stats[STRATEGIC_RANKED_MATCH_RECORD_KEY] = {
             wins: nextStrategicWins,
             losses: nextStrategicLosses,
+        };
+        updatedPlayer.stats[STRATEGIC_RANKED_STAT_KEY] = {
             rankingScore: strategicRatingAfter,
         };
     }
@@ -1926,6 +1987,7 @@ const processPlayerSummary = async (
     const vipWinEligible =
         qualifiesVipPlayRewardSurface &&
         !isPlayfulResignLoser &&
+        !isPvpHumanResign &&
         isWinner &&
         !isDraw &&
         (!isAdventureGame || isAdventureWin);
@@ -1936,8 +1998,8 @@ const processPlayerSummary = async (
         rewards.items = [];
         delete rewards.adventureGoldUnderstandingBonus;
     }
-    // 놀이바둑에서 기권한 플레이어만 재화/아이템 없음(승자는 지급)
-    if (isPlayfulResignLoser) {
+    // 놀이바둑에서 기권한 플레이어만 재화/아이템 없음(승자는 지급) — 휴먼 PVP 기권은 양쪽 모두 보상 없음
+    if (isPlayfulResignLoser || isPvpHumanResign) {
         rewards.gold = 0;
         rewards.diamonds = 0;
         rewards.items = [];
@@ -2084,6 +2146,25 @@ const processPlayerSummary = async (
         };
     }
 
+    const strategicPetXpBonusEligible =
+        isStrategic &&
+        !isPlayful &&
+        !isPairGoRewardGame(game) &&
+        !isNoContest &&
+        xpGain > 0 &&
+        player.id !== aiUserId &&
+        !game.isSinglePlayer &&
+        String((game as any).gameCategory ?? '') !== 'tower' &&
+        String((game as any).gameCategory ?? '') !== 'singleplayer';
+
+    let pairPetStrategicBonusSummary: ReturnType<typeof applyPairPetRewardXp> | undefined;
+    if (strategicPetXpBonusEligible) {
+        const petRaw = Math.max(0, Math.round(xpGain * 0.5));
+        if (petRaw > 0) {
+            pairPetStrategicBonusSummary = applyPairPetRewardXp(updatedPlayer, petRaw);
+        }
+    }
+
     const summary: GameSummary = {
         xp: xpSummary,
         rating: ratingSummary,
@@ -2119,6 +2200,15 @@ const processPlayerSummary = async (
               }
             : {}),
         ...(vipInventoryItemGranted ? { vipInventoryItemGranted: true } : {}),
+        ...(pairPetStrategicBonusSummary
+            ? {
+                  pairPetXp: pairPetStrategicBonusSummary.xp,
+                  pairPetLevel: pairPetStrategicBonusSummary.level,
+                  ...(pairPetStrategicBonusSummary.levelUpCoreBonusesDelta
+                      ? { pairPetLevelUpCoreBonuses: pairPetStrategicBonusSummary.levelUpCoreBonusesDelta }
+                      : {}),
+              }
+            : {}),
     };
 
     return { summary, updatedPlayer };
@@ -2168,7 +2258,16 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         const seat = seats.find((s) => s.participantId === userId);
         const isWinner = !isDraw && !isNoContest && seat?.player === game.winner;
         const isResignLoser = resignLoserColor !== Player.None && seat?.player === resignLoserColor;
-        const multiplier = isNoContest || isDraw || isResignLoser ? 0 : isWinner ? 1 : 0.5;
+        /** 페어 휴먼 대전(pvp)에서 기권 시 양측 보상 없음 — 페어 AI전(pairMode ai)은 기존처럼 패자만 0 */
+        const pvpPairResignNoRewards =
+            !isNoContest && !isDraw && game.winReason === 'resign' && game.settings.pairGame?.pairMode === 'pvp';
+        const multiplier = pvpPairResignNoRewards
+            ? 0
+            : isNoContest || isDraw || isResignLoser
+              ? 0
+              : isWinner
+                ? 1
+                : 0.5;
 
         const initialStrategyLevel = user.userLevel;
         const initialStrategyXp = Math.max(0, Number(user.userXp) || 0);
@@ -2177,8 +2276,11 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         const modeRow = user.stats[game.mode] ?? { wins: 0, losses: 0 };
         const { rankingScore: _mrs, ...modeRest } = modeRow as { wins?: number; losses?: number; rankingScore?: number };
         const modeStats = { wins: modeRest.wins ?? 0, losses: modeRest.losses ?? 0 };
-        const pairStats = { ...readPairRankedBlock(user.stats as Record<string, unknown>) };
-        const initialRating = initialRatingByUserId[userId] ?? pairStats.rankingScore;
+        const pairBlk = readPairRankedBlock(user.stats as Record<string, unknown>);
+        let pairRankingScore = pairBlk.rankingScore;
+        let nextPairRankedWins = pairBlk.wins;
+        let nextPairRankedLosses = pairBlk.losses;
+        const initialRating = initialRatingByUserId[userId] ?? pairRankingScore;
         const rankedOpponentId = game.isRankedGame ? humanIds.find((id) => id !== userId) : undefined;
         const opponentRating = rankedOpponentId ? initialRatingByUserId[rankedOpponentId] ?? RANKED_ELO_BASE_SCORE : RANKED_ELO_BASE_SCORE;
 
@@ -2194,7 +2296,20 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
             petXpGain = Math.round(petXpGain * 2);
         }
 
-        user.gold += goldGain;
+        /** 전략/놀이 정산과 동일: 승리·보상 VIP 활성 시 VIP 슬롯(골드/상자/전설) 1회 */
+        const vipSlotWinEligible =
+            !isNoContest && !isDraw && !pvpPairResignNoRewards && !isResignLoser && isWinner && userId !== aiUserId;
+        let vipGoldBonus = 0;
+        let vipGrant: InventoryItem | null = null;
+        let vipGrantedDisplay: { name: string; quantity: number; image?: string } | undefined;
+        if (vipSlotWinEligible && isRewardVipActive(user)) {
+            const vip = rollAndResolveRewardVipPlayGrant();
+            vipGoldBonus = vip.goldBonus;
+            vipGrant = vip.inventoryItem;
+            vipGrantedDisplay = vip.grantedDisplay;
+        }
+
+        user.gold += goldGain + vipGoldBonus;
         let currentXp = initialStrategyXp + strategyXpGain;
         let currentLevel = initialStrategyLevel;
         const requiredXpForInitialLevel = getXpForLevel(currentLevel);
@@ -2210,17 +2325,45 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         const pairPetGrowthSummary = petXpGain > 0 ? applyPairPetRewardXp(user, petXpGain) : undefined;
         const pairPetDisplaySummary = pairPetGrowthSummary ?? buildPairPetZeroGainSummary(user);
 
+        let vipInventoryItemGranted = false;
+        if (vipGrant) {
+            const { success, updatedInventory } = addItemsToInventory(user.inventory, user.inventorySlots, [vipGrant]);
+            if (success) {
+                user.inventory = updatedInventory;
+                vipInventoryItemGranted = true;
+                await guildService.recordGuildEpicPlusEquipmentAcquisition(user, [vipGrant]);
+            } else {
+                console.error(`[PairGo Summary] Insufficient inventory for user ${user.id}; forcing VIP item.`);
+                const vipQty = Math.max(1, vipGrant.quantity ?? 1);
+                const forcedInventory = [...user.inventory];
+                const stack = forcedInventory.find(
+                    (it) => it.name === vipGrant.name && (it.source ?? null) === (vipGrant.source ?? null)
+                );
+                if (stack) {
+                    stack.quantity = Math.max(1, stack.quantity ?? 1) + vipQty;
+                } else {
+                    forcedInventory.push({ ...vipGrant, quantity: vipQty });
+                }
+                user.inventory = forcedInventory;
+                vipInventoryItemGranted = true;
+                await guildService.recordGuildEpicPlusEquipmentAcquisition(user, [vipGrant]);
+            }
+        }
+
         let ratingChange = 0;
         if (game.isRankedGame && !game.isAiGame && !isNoContest && rankedOpponentId) {
             const result = isDraw ? 'draw' : isWinner ? 'win' : 'loss';
             ratingChange = calculateEloChange(initialRating, opponentRating, result);
-            pairStats.rankingScore = Math.max(0, initialRating + ratingChange);
+            pairRankingScore = Math.max(0, initialRating + ratingChange);
         }
         if (!isNoContest && !isDraw) {
             if (isWinner) modeStats.wins += 1;
             else modeStats.losses += 1;
-            if (isWinner) pairStats.wins += 1;
-            else pairStats.losses += 1;
+        }
+        /** 랭킹전 전적은 `pairRankedMatchRecord`에만 — 친선·페어 AI 등은 모드·pairArenaStatsByMode만 증가 */
+        if (game.isRankedGame && !game.isAiGame && !isNoContest && rankedOpponentId && !isDraw) {
+            if (isWinner) nextPairRankedWins += 1;
+            else nextPairRankedLosses += 1;
         }
         const modeKey = String(game.mode);
         if (!user.pairArenaStatsByMode) user.pairArenaStatsByMode = {};
@@ -2231,10 +2374,11 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         }
         user.pairArenaStatsByMode[modeKey] = pas;
         user.stats[game.mode] = modeStats;
-        user.stats['pair'] = pairStats;
+        user.stats[PAIR_RANKED_MATCH_RECORD_KEY] = { wins: nextPairRankedWins, losses: nextPairRankedLosses };
+        user.stats[PAIR_RANKED_STAT_KEY] = { rankingScore: pairRankingScore };
         if (game.isRankedGame && !game.isAiGame && !isNoContest) {
             if (!user.cumulativeRankingScore) user.cumulativeRankingScore = {};
-            user.cumulativeRankingScore['pair'] = pairStats.rankingScore - RANKED_ELO_BASE_SCORE;
+            user.cumulativeRankingScore['pair'] = pairRankingScore - RANKED_ELO_BASE_SCORE;
         }
 
         updateQuestProgress(user, 'participate', game.mode, 1, { gameCategory: 'pair' });
@@ -2252,16 +2396,23 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
                   : Number.isFinite(requiredXpForInitialLevel) && requiredXpForInitialLevel > 0
                     ? requiredXpForInitialLevel
                     : 1;
+        let mannerDisconnectDelta = 0;
+        if (!isNoContest && !isDraw && game.winReason === 'disconnect' && game.badMannerPlayerId === userId) {
+            mannerDisconnectDelta = -50;
+            user.mannerScore = Math.max(0, (user.mannerScore ?? 200) + mannerDisconnectDelta);
+            await mannerService.applyMannerRankChange(user, initialManner);
+        }
         game.summary[userId] = {
             xp: xpSummary,
-            rating: { initial: initialRating, change: ratingChange, final: pairStats.rankingScore },
-            manner: { initial: initialManner, change: 0, final: user.mannerScore },
+            rating: { initial: initialRating, change: ratingChange, final: pairRankingScore },
+            manner: { initial: initialManner, change: mannerDisconnectDelta, final: user.mannerScore },
             overallRecord: {
                 wins: modeStats.wins,
                 losses: modeStats.losses,
             },
-            gold: goldGain,
+            gold: goldGain + vipGoldBonus,
             matchGold: goldGain,
+            ...(vipGoldBonus > 0 ? { vipGoldBonus } : {}),
             items: [],
             level: {
                 initial: initialStrategyLevel,
@@ -2281,11 +2432,23 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
                           : {}),
                   }
                 : {}),
+            vipPlayRewardSlot: {
+                locked: !isRewardVipActive(user),
+                ...(vipGrantedDisplay ? { grantedItem: vipGrantedDisplay } : {}),
+            },
+            ...(vipInventoryItemGranted ? { vipInventoryItemGranted: true } : {}),
         };
 
         await db.updateUser(user);
         const fields = ['gold', 'userXp', 'userLevel', 'stats', 'quests', 'pairArenaStatsByMode'];
-        if (pairPetGrowthSummary) fields.push('inventory', 'equippedPairPetTemplateId', 'equippedPairPetInventoryItemId');
+        if (mannerDisconnectDelta !== 0) {
+            fields.push('mannerScore');
+        }
+        if (pairPetGrowthSummary) {
+            fields.push('inventory', 'equippedPairPetTemplateId', 'equippedPairPetInventoryItemId');
+        } else if (vipInventoryItemGranted) {
+            fields.push('inventory');
+        }
         broadcastUserUpdate(user, fields);
     }
 
@@ -2454,6 +2617,9 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
             if ((p1Summary as GameSummary & { vipInventoryItemGranted?: boolean }).vipInventoryItemGranted) {
                 fieldsToUpdate.push('inventory');
             }
+            if ((p1Summary as GameSummary).pairPetXp != null && ((p1Summary as GameSummary).pairPetXp?.change ?? 0) !== 0) {
+                fieldsToUpdate.push('inventory', 'equippedPairPetTemplateId', 'equippedPairPetInventoryItemId');
+            }
             if (
                 game.gameCategory === 'adventure' &&
                 p1.id !== aiUserId &&
@@ -2492,6 +2658,9 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
             }
             if ((p2Summary as GameSummary & { vipInventoryItemGranted?: boolean }).vipInventoryItemGranted) {
                 fieldsToUpdate.push('inventory');
+            }
+            if ((p2Summary as GameSummary).pairPetXp != null && ((p2Summary as GameSummary).pairPetXp?.change ?? 0) !== 0) {
+                fieldsToUpdate.push('inventory', 'equippedPairPetTemplateId', 'equippedPairPetInventoryItemId');
             }
             if (
                 game.gameCategory === 'adventure' &&

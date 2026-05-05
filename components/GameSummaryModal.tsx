@@ -8,7 +8,7 @@ import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS, EQUIPMENT_POOL, MATERIAL_ITEMS, aiUserId } from '../constants';
 import { getAdventureCodexMonsterById } from '../constants/adventureMonstersCodex.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
-import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
+import { resolveLiveSessionSinglePlayerStageRow } from '../shared/utils/liveSessionSinglePlayerStage.js';
 import { getMannerRank as getMannerRankShared } from '../services/manner.js';
 import {
     getGuildWarBoardMode,
@@ -1184,6 +1184,9 @@ const MatchPlayersRoster: React.FC<{
     const whiteIsMonster = !!(adventureMonster && whitePlayer.id === aiUserId);
     const winnerEnum = session && (session.winner === Player.Black || session.winner === Player.White) ? session.winner : null;
     const showWinLoseBadge = !!session && PLAYFUL_GAME_MODES.some((m) => m.mode === session.mode) && winnerEnum != null;
+    /** 테두리 PNG(z-[1])보다 위에 승·패 리본이 오도록 */
+    const winLoseRibbonClass =
+        'pointer-events-none absolute inset-x-0 bottom-0 z-[35] flex justify-center rounded-b-md py-[2px] text-[10px] font-black leading-none text-white shadow-[0_-1px_10px_rgba(0,0,0,0.55)] ring-1 ring-black/50';
 
     const pairTeams = useMemo(() => {
         const pairGame = session?.settings?.pairGame;
@@ -1366,7 +1369,9 @@ const MatchPlayersRoster: React.FC<{
                             />
                         )}
                         {showWinLoseBadge && (
-                            <span className={`pointer-events-none absolute inset-x-0 bottom-0 flex justify-center rounded-b-md py-[2px] text-[10px] font-black leading-none text-white shadow-[0_-1px_6px_rgba(0,0,0,0.45)] ${winnerEnum === Player.Black ? 'bg-blue-600/95' : 'bg-red-600/95'}`}>
+                            <span
+                                className={`${winLoseRibbonClass} ${winnerEnum === Player.Black ? 'bg-blue-600/95' : 'bg-red-600/95'}`}
+                            >
                                 {winnerEnum === Player.Black ? '승' : '패'}
                             </span>
                         )}
@@ -1400,7 +1405,9 @@ const MatchPlayersRoster: React.FC<{
                             />
                         )}
                         {showWinLoseBadge && (
-                            <span className={`pointer-events-none absolute inset-x-0 bottom-0 flex justify-center rounded-b-md py-[2px] text-[10px] font-black leading-none text-white shadow-[0_-1px_6px_rgba(0,0,0,0.45)] ${winnerEnum === Player.White ? 'bg-blue-600/95' : 'bg-red-600/95'}`}>
+                            <span
+                                className={`${winLoseRibbonClass} ${winnerEnum === Player.White ? 'bg-blue-600/95' : 'bg-red-600/95'}`}
+                            >
                                 {winnerEnum === Player.White ? '승' : '패'}
                             </span>
                         )}
@@ -1442,7 +1449,9 @@ const MatchPlayersRoster: React.FC<{
                             />
                         )}
                         {showWinLoseBadge && (
-                            <span className={`pointer-events-none absolute inset-x-0 bottom-0 flex justify-center rounded-b-md py-[2px] text-[10px] font-black leading-none text-white shadow-[0_-1px_6px_rgba(0,0,0,0.45)] ${winnerEnum === Player.Black ? 'bg-blue-600/95' : 'bg-red-600/95'}`}>
+                            <span
+                                className={`${winLoseRibbonClass} ${winnerEnum === Player.Black ? 'bg-blue-600/95' : 'bg-red-600/95'}`}
+                            >
                                 {winnerEnum === Player.Black ? '승' : '패'}
                             </span>
                         )}
@@ -1499,7 +1508,9 @@ const MatchPlayersRoster: React.FC<{
                             />
                         )}
                         {showWinLoseBadge && (
-                            <span className={`pointer-events-none absolute inset-x-0 bottom-0 flex justify-center rounded-b-md py-[2px] text-[10px] font-black leading-none text-white shadow-[0_-1px_6px_rgba(0,0,0,0.45)] ${winnerEnum === Player.White ? 'bg-blue-600/95' : 'bg-red-600/95'}`}>
+                            <span
+                                className={`${winLoseRibbonClass} ${winnerEnum === Player.White ? 'bg-blue-600/95' : 'bg-red-600/95'}`}
+                            >
                                 {winnerEnum === Player.White ? '승' : '패'}
                             </span>
                         )}
@@ -1552,6 +1563,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
 
     const isWinner = getIsWinner(session, currentUser);
     const mySummary = session.summary?.[currentUser.id];
+    const isPlayful = useMemo(() => PLAYFUL_GAME_MODES.some((m) => m.mode === session.mode), [session.mode]);
     const isPairGoSession = useMemo(
         () => Boolean(session.settings?.pairGame?.turnOrder?.length),
         [session.settings?.pairGame?.turnOrder],
@@ -1571,10 +1583,12 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
         mySummary != null &&
         mySummary.pairPetLevel != null &&
         mySummary.pairPetXp != null;
-    const showPairPetProfileAside = isPairGoSession && (!!pairPetPortraitUrl || pairPetSummaryReady);
-    /** 대국 결과 패널: 프로필 카드 우측에 붙는 경험치 바(레벨은 바에만 표시해 중복 제거) */
+    const isStrategicMode = useMemo(() => SPECIAL_GAME_MODES.some((m) => m.mode === session.mode), [session.mode]);
+    const showPairPetProfileAside =
+        (isPairGoSession || (!isPlayful && isStrategicMode)) && (!!pairPetPortraitUrl || pairPetSummaryReady);
+    /** 대국 결과 패널: 프로필 카드 우측에 붙는 경험치 바(레벨은 바에만 표시해 중복 제거). 놀이바둑은 EXP 없음 */
     const userLevelXpAside = mySummary?.level;
-    const showUserXpAside = Boolean(userLevelXpAside);
+    const showUserXpAside = Boolean(userLevelXpAside && !isPlayful);
     const pairPetXpAside =
         mySummary?.pairPetLevel && mySummary?.pairPetXp != null
             ? { level: mySummary.pairPetLevel, xp: mySummary.pairPetXp }
@@ -1652,16 +1666,20 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
         if (!mySummary) return false;
         if (sessionShowsVipPlayRewardSlot && vipSlotEffective) return true;
         if (isAdventureGame) {
-            return !!mySummary.adventureRewardSlots;
+            return (
+                !!mySummary.adventureRewardSlots ||
+                (!isPlayful && (mySummary.pairPetXp?.change ?? 0) > 0)
+            );
         }
+        const xpSlotCounts = !isPlayful && (mySummary.xp?.change ?? 0) > 0;
         return (
             (mySummary.gold ?? 0) > 0 ||
-            (mySummary.xp?.change ?? 0) > 0 ||
+            xpSlotCounts ||
             (mySummary.pairPetXp?.change ?? 0) > 0 ||
             mySummary.pairPetXp != null ||
             (mySummary.items?.length ?? 0) > 0
         );
-    }, [mySummary, isAdventureGame, sessionShowsVipPlayRewardSlot, vipSlotEffective]);
+    }, [mySummary, isAdventureGame, sessionShowsVipPlayRewardSlot, vipSlotEffective, isPlayful]);
 
     const displayedMatchGold = useMemo(() => {
         if (!mySummary) return 0;
@@ -1704,7 +1722,6 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
         blackTurnLimit > 0 &&
         blackMoves >= blackTurnLimit &&
         winner === Player.White;
-    const isPlayful = PLAYFUL_GAME_MODES.some((m: {mode: GameMode}) => m.mode === session.mode);
     const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
     const whitePlayer = player1.id === whitePlayerId ? player1 : player2;
     const [mobileResultTab, setMobileResultTab] = useState<MobileGameResultTab>('match');
@@ -1843,12 +1860,13 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                         }
                     } else if (session.isSinglePlayer) {
                         try {
-                            const currentStage = SINGLE_PLAYER_STAGES.find((s: any) => s.id === session.stageId);
-                            if (currentStage?.blackTurnLimit) {
+                            const currentStage = resolveLiveSessionSinglePlayerStageRow(session);
+                            const bt = (session.settings as any)?.blackTurnLimit ?? currentStage?.blackTurnLimit;
+                            if (bt) {
                                 return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg min-[1024px]:text-xl min-[1280px]:text-2xl'} text-red-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>제한 턴이 다 되어 패배했습니다.</p>;
                             }
                         } catch (e) {
-                            console.error('[GameSummaryModal] Error loading SINGLE_PLAYER_STAGES:', e);
+                            console.error('[GameSummaryModal] Error resolving single-player stage:', e);
                         }
                     }
                 }
@@ -2091,14 +2109,17 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                 ) : (
                     <>
                         {isAdventureGame && mySummary.adventureRewardSlots ? (
-                            <AdventureBattleRewardRowWithReveal
-                                slots={mySummary.adventureRewardSlots}
-                                xpChange={mySummary.xp?.change ?? 0}
-                                isPlayful={isPlayful}
-                                compact={useCompactRewardSlots}
-                                vipPlayRewardSlot={vipSlotForRender}
-                                onVipLockedClick={() => handlers.openShop('vip')}
-                            />
+                            <div className="min-w-0 w-full max-w-full">
+                                <AdventureBattleRewardRowWithReveal
+                                    slots={mySummary.adventureRewardSlots}
+                                    xpChange={mySummary.xp?.change ?? 0}
+                                    pairPetXpChange={mySummary.pairPetXp?.change ?? 0}
+                                    isPlayful={isPlayful}
+                                    compact={useCompactRewardSlots}
+                                    vipPlayRewardSlot={vipSlotForRender}
+                                    onVipLockedClick={() => handlers.openShop('vip')}
+                                />
+                            </div>
                         ) : (
                             <>
                         {displayedMatchGold > 0 && (
@@ -2108,10 +2129,10 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                 understandingBonus={mySummary.adventureGoldUnderstandingBonus}
                             />
                         )}
-                        {(mySummary.xp?.change ?? 0) > 0 && (
+                        {!isPlayful && (mySummary.xp?.change ?? 0) > 0 && (
                             <div className="flex shrink-0 flex-col items-center justify-center">
                                 <ResultModalXpRewardBadge
-                                    variant={isPlayful ? 'playful' : 'strategy'}
+                                    variant="strategy"
                                     amount={mySummary.xp!.change}
                                     density={useCompactRewardSlots ? 'compact' : 'comfortable'}
                                 />
@@ -2363,7 +2384,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                             </p>
                                                         ) : null}
                                                     </div>
-                                                    {userLevelXpAside ? (
+                                                    {showUserXpAside && userLevelXpAside ? (
                                                         <div className="min-w-0 w-[min(52%,11.5rem)] shrink-0">
                                                             <XpBar
                                                                 initial={userLevelXpAside.progress.initial}
@@ -2467,7 +2488,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                 </div>
                                             ) : null}
                                         </div>
-                                        {!mySummary || (!showUserXpAside && !showPetXpAside) ? (
+                                        {!mySummary || (!showUserXpAside && !showPetXpAside && (!isPlayful || !mySummary)) ? (
                                             <div className="flex min-h-[2rem] flex-shrink-0 flex-col justify-center">
                                                 <div className="flex items-center gap-1.5">
                                                     <span
@@ -2654,7 +2675,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                     </p>
                                                 ) : null}
                                             </div>
-                                            {userLevelXpAside ? (
+                                            {showUserXpAside && userLevelXpAside ? (
                                                 <div className="min-w-0 flex-1 self-center">
                                                     <XpBar
                                                         initial={userLevelXpAside.progress.initial}
@@ -2668,7 +2689,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                         compact
                                                     />
                                                 </div>
-                                            ) : (
+                                            ) : !showUserXpAside && (!mySummary || !isPlayful) ? (
                                                 <div className="min-w-0 flex-1 self-center">
                                                     <div className="flex items-center gap-2">
                                                         <span className="w-14 shrink-0 text-right text-xs font-bold text-slate-400">경험치</span>
@@ -2678,7 +2699,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                         <span className="w-14 shrink-0 whitespace-nowrap text-xs font-bold text-slate-500">+0 XP</span>
                                                     </div>
                                                 </div>
-                                            )}
+                                            ) : null}
                                         </div>
                                     </div>
                                     {showPairPetProfileAside ? (

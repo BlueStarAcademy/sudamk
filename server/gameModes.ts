@@ -1,6 +1,6 @@
 
 import { getGoLogic } from './goLogic.js';
-import { NO_CONTEST_MOVE_THRESHOLD, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_BUTTONS_EARLY, STRATEGIC_ACTION_BUTTONS_MID, STRATEGIC_ACTION_BUTTONS_LATE, PLAYFUL_ACTION_BUTTONS_EARLY, PLAYFUL_ACTION_BUTTONS_MID, PLAYFUL_ACTION_BUTTONS_LATE, RANDOM_DESCRIPTIONS, ALKKAGI_TURN_TIME_LIMIT, ALKKAGI_PLACEMENT_TIME_LIMIT, getScoringTurnLimitOptionsByBoardSize, PLAYFUL_AI_BATCH_STONE_INTERVAL_MS } from '../constants';
+import { NO_CONTEST_MOVE_THRESHOLD, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_BUTTONS_EARLY, STRATEGIC_ACTION_BUTTONS_MID, STRATEGIC_ACTION_BUTTONS_LATE, PLAYFUL_ACTION_BUTTONS_EARLY, PLAYFUL_ACTION_BUTTONS_MID, PLAYFUL_ACTION_BUTTONS_LATE, RANDOM_DESCRIPTIONS, ALKKAGI_TURN_TIME_LIMIT, ALKKAGI_PLACEMENT_TIME_LIMIT, getScoringTurnLimitOptionsByBoardSize, PLAYFUL_AI_BATCH_STONE_INTERVAL_MS, MANNER_ACTION_BUTTON_CHOICE_COUNT } from '../constants';
 import * as types from '../types/index.js';
 import { analyzeGame, getScoringKataGoLimits } from './kataGoService.js';
 import type { LiveGameSession, AppState, Negotiation, ActionButton, GameMode } from '../types/index.js';
@@ -151,14 +151,19 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
         const committedBlackConsumed = Math.max(0, Number(speedConsumed.black ?? 0));
         const committedWhiteConsumed = Math.max(0, Number(speedConsumed.white ?? 0));
         const nowMs = Date.now();
-        const liveBlackTurnUsed =
+        let liveBlackTurnUsed =
             session.currentPlayer === types.Player.Black && typeof session.turnDeadline === 'number'
                 ? Math.max(0, Math.max(0, Number(session.blackTimeLeft ?? 0)) - Math.max(0, (session.turnDeadline - nowMs) / 1000))
                 : 0;
-        const liveWhiteTurnUsed =
+        let liveWhiteTurnUsed =
             session.currentPlayer === types.Player.White && typeof session.turnDeadline === 'number'
                 ? Math.max(0, Math.max(0, Number(session.whiteTimeLeft ?? 0)) - Math.max(0, (session.turnDeadline - nowMs) / 1000))
                 : 0;
+        // AI 대국: AI 좌석의 "라이브 턴 사용분"은 스피드 보너스(상대 헌납)에 넣지 않는다. (계가 스냅샷이 AI 차례일 때 봇 생각 시간이 유저 사용으로 잡히는 것 방지)
+        if (session.isAiGame) {
+            if (session.blackPlayerId === aiUserId) liveBlackTurnUsed = 0;
+            if (session.whitePlayerId === aiUserId) liveWhiteTurnUsed = 0;
+        }
         // 핵심 원칙: 사용 시간 누적치는 절대 감소하지 않는다.
         // 피셔 증분으로 남은 시간이 늘어나도 committed는 줄지 않고, 현재 턴 실시간 사용분만 추가한다.
         const blackConsumed = committedBlackConsumed + liveBlackTurnUsed;
@@ -931,25 +936,27 @@ export const getNewActionButtons = (game: types.LiveGameSession): ActionButton[]
         }
     }
 
+    const total = MANNER_ACTION_BUTTON_CHOICE_COUNT;
     const shuffledButtons = [...sourceDeck].sort(() => 0.5 - Math.random());
     const manners = shuffledButtons.filter(b => b.type === 'manner');
     const unmanners = shuffledButtons.filter(b => b.type === 'unmannerly');
 
-    const mannerCount = Math.random() > 0.5 ? 1 : 2;
-    const selectedManners = manners.slice(0, mannerCount);
-    
-    const neededUnmanners = 3 - selectedManners.length;
-    const selectedUnmanners = unmanners.slice(0, neededUnmanners);
+    /** 2~3개는 매너, 나머지는 비매너로 구성해 선택지를 풍부하게 유지 */
+    const mannerCount = Math.random() > 0.5 ? 2 : 3;
+    const selectedManners = manners.slice(0, Math.min(mannerCount, manners.length));
+
+    const neededUnmanners = total - selectedManners.length;
+    const selectedUnmanners = unmanners.slice(0, Math.min(neededUnmanners, unmanners.length));
 
     let result = [...selectedManners, ...selectedUnmanners];
-    
-    if (result.length < 3) {
+
+    if (result.length < total) {
         const existingNames = new Set(result.map(b => b.name));
         const filler = shuffledButtons.filter(b => !existingNames.has(b.name));
-        result.push(...filler.slice(0, 3 - result.length));
+        result.push(...filler.slice(0, total - result.length));
     }
-    
-    return result.slice(0, 3).sort(() => 0.5 - Math.random());
+
+    return result.slice(0, total).sort(() => 0.5 - Math.random());
 };
 
 export const initializeGame = async (neg: Negotiation): Promise<LiveGameSession> => {
@@ -1133,6 +1140,8 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                     // 베이스/니기리/따내기 등 사전 단계: 모험·길드전은 isPVEGame 때문에 루프에서 빠지면
                     // updateStrategicGameState가 호출되지 않아 배치 완료 후 멈춤(komi_bidding 미진입 등)이 난다.
                     game.gameStatus === 'base_placement' ||
+                    game.gameStatus === 'base_stone_color_choice' ||
+                    game.gameStatus === 'base_same_color_points_bid' ||
                     game.gameStatus === 'komi_bidding' ||
                     game.gameStatus === 'komi_bid_reveal' ||
                     game.gameStatus === 'base_color_roulette' ||
@@ -1143,6 +1152,22 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                     game.gameStatus === 'capture_bidding' ||
                     game.gameStatus === 'capture_reveal' ||
                     game.gameStatus === 'capture_tiebreaker');
+            /** 싱글 베이스(또는 믹스에 베이스): 메인 루프에서 제외되면 updateBaseState가 안 돌아 덤 입찰·타임아웃 전환이 멈춤 */
+            const needsSinglePlayerBasePrePlayTick =
+                game.isSinglePlayer &&
+                (game.mode === types.GameMode.Base ||
+                    (game.mode === types.GameMode.Mix &&
+                        Boolean((game.settings as { mixedModes?: types.GameMode[] } | undefined)?.mixedModes?.includes(types.GameMode.Base)))) &&
+                [
+                    'base_placement',
+                    'base_stone_color_choice',
+                    'base_same_color_points_bid',
+                    'komi_bidding',
+                    'komi_bid_reveal',
+                    'base_color_roulette',
+                    'base_komi_result',
+                    'base_game_start_confirmation',
+                ].includes(game.gameStatus);
             // 싱글/타워 등 PVE는 기본적으로 메인 루프에서 제외되나, 주사위·도둑은 update*State / AI 턴이
             // 여기서 돌지 않으면 새로고침·WS 공백 시 굴림 애니·연속 착수가 영구 정지한다.
             const pveDiceThiefCurrentPid =
@@ -1169,6 +1194,7 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                 needsRevealTransition ||
                 needsItemModeTransition ||
                 needsPveServerGoAiTick ||
+                needsSinglePlayerBasePrePlayTick ||
                 needsPveDiceThiefPlayfulTick
             ) {
                 multiPlayerGames.push(game);

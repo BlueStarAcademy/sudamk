@@ -175,19 +175,6 @@ const LevelUpCelebrationModal: React.FC<LevelUpCelebrationModalProps> = ({ user,
                                     barFillClass="from-emerald-400 to-teal-300"
                                 />
                             )}
-                            {payload.playful && (
-                                <BranchCard
-                                    title="놀이 바둑"
-                                    subtitle="Play"
-                                    from={payload.playful.from}
-                                    to={payload.playful.to}
-                                    currentXp={user.userXp ?? 0}
-                                    glowClass="bg-sky-400/35"
-                                    levelToClass="text-sky-200"
-                                    panelClass="border-sky-500/35 from-indigo-950/85 via-[#0c101c] to-black/80 ring-sky-400/15"
-                                    barFillClass="from-sky-400 to-violet-300"
-                                />
-                            )}
                         </div>
 
                         {hasFeatureUnlocks && (

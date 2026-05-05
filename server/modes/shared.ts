@@ -22,15 +22,6 @@ import {
 // - 서버 재시작 시 맵은 초기화되며, 그 경우 재개를 즉시 허용(UX 우선)
 const aiManualPauseResumeAvailableAt = new Map<string, number>();
 
-// FIX: Corrected the type definition for `rpsStatusMap`. `Partial` takes one type argument, and the original code provided two. This also fixes a typo with an extra '>' and resolves subsequent parsing errors on the following lines.
-const rpsStatusMap: Partial<Record<types.GameMode, types.GameStatus>> = {
-    [types.GameMode.Alkkagi]: 'alkkagi_rps',
-    [types.GameMode.Curling]: 'curling_rps',
-    [types.GameMode.Omok]: 'omok_rps',
-    [types.GameMode.Ttamok]: 'ttamok_rps',
-    [types.GameMode.Thief]: 'thief_rps',
-};
-
 /** 초읽기 횟수 최소값 (0회 불가) */
 const MIN_BYOYOMI_COUNT = 1;
 
@@ -243,38 +234,54 @@ export const resumeGameTimer = (game: types.LiveGameSession, now: number, player
     return true;
 };
 
+/** 선공(흑)·후공(백) 플레이어 id가 이미 정해진 뒤, 모드별로 시작 확인 또는 본편으로 진입 */
+export const finalizePlayfulColorsAfterTurnOrder = (game: types.LiveGameSession, now: number) => {
+    const p1Id = game.player1.id;
+    const p2Id = game.player2.id;
+    if (game.mode === types.GameMode.Alkkagi) {
+        game.gameStatus = 'alkkagi_start_confirmation';
+        game.revealEndTime = now + 30000;
+        game.preGameConfirmations = { [p1Id]: false, [p2Id]: false };
+        if (game.isAiGame) game.preGameConfirmations[aiUserId] = true;
+    } else if (game.mode === types.GameMode.Curling) {
+        game.gameStatus = 'curling_start_confirmation';
+        game.revealEndTime = now + 30000;
+        game.preGameConfirmations = { [p1Id]: false, [p2Id]: false };
+        if (game.isAiGame) game.preGameConfirmations[aiUserId] = true;
+    } else if (game.mode === types.GameMode.Thief) {
+        game.thiefPlayerId = game.blackPlayerId!;
+        game.policePlayerId = game.whitePlayerId!;
+        game.gameStatus = 'thief_role_confirmed';
+        game.revealEndTime = now + 10000;
+        if (game.isAiGame) game.preGameConfirmations = { [aiUserId]: true };
+    } else {
+        transitionToPlaying(game, now);
+    }
+};
 
 const transitionFromTurnPreference = (game: LiveGameSession, p1Choice: 'first' | 'second', p2Choice: 'first' | 'second', now: number) => {
     const p1Id = game.player1.id;
     const p2Id = game.player2.id;
 
-    if (p1Choice !== p2Choice) { // No tie
+    if (p1Choice !== p2Choice) {
         const p1IsBlack = p1Choice === 'first';
         game.blackPlayerId = p1IsBlack ? p1Id : p2Id;
         game.whitePlayerId = p1IsBlack ? p2Id : p1Id;
-        
-        if (game.mode === types.GameMode.Alkkagi) {
-            game.gameStatus = 'alkkagi_start_confirmation';
-            game.revealEndTime = now + 30000;
-            game.preGameConfirmations = { [p1Id]: false, [p2Id]: false };
-            if (game.isAiGame) game.preGameConfirmations[aiUserId] = true;
-        } else if (game.mode === types.GameMode.Curling) {
-            game.gameStatus = 'curling_start_confirmation';
-            game.revealEndTime = now + 30000;
-            game.preGameConfirmations = { [p1Id]: false, [p2Id]: false };
-            if (game.isAiGame) game.preGameConfirmations[aiUserId] = true;
-        } else { // Omok, Ttamok - direct start
-            transitionToPlaying(game, now);
-        }
         game.turnChoices = undefined;
-    } else { // Tie, proceed to RPS tiebreaker
-        const rpsStatus = rpsStatusMap[game.mode];
-        if (rpsStatus) {
-            game.gameStatus = rpsStatus;
-            game.rpsState = { [p1Id]: null, [p2Id]: null };
-            game.rpsRound = 1;
-            game.turnDeadline = now + 30000;
+        finalizePlayfulColorsAfterTurnOrder(game, now);
+    } else {
+        const p1IsBlack = Math.random() < 0.5;
+        game.blackPlayerId = p1IsBlack ? p1Id : p2Id;
+        game.whitePlayerId = p1IsBlack ? p2Id : p1Id;
+        if (game.mode === types.GameMode.Thief) {
+            game.thiefPlayerId = game.blackPlayerId;
+            game.policePlayerId = game.whitePlayerId;
         }
+        game.gameStatus = 'turn_preference_roulette';
+        game.revealEndTime = now + 4200;
+        game.rpsState = undefined;
+        game.rpsRound = undefined;
+        game.turnChoices = undefined;
     }
     game.turnChoiceDeadline = undefined;
 };
@@ -318,6 +325,14 @@ export const updateSharedGameState = (game: LiveGameSession, now: number): boole
             return true;
         }
     }
+
+    if (game.gameStatus === 'turn_preference_roulette') {
+        if (game.revealEndTime && now > game.revealEndTime) {
+            game.revealEndTime = undefined;
+            finalizePlayfulColorsAfterTurnOrder(game, now);
+            return true;
+        }
+    }
     
     const rpsRevealStatus = game.gameStatus.endsWith('_rps_reveal');
     if (rpsRevealStatus && game.revealEndTime && now > game.revealEndTime) {
@@ -352,36 +367,28 @@ export const updateSharedGameState = (game: LiveGameSession, now: number): boole
                 
                 game.turnChoices[loserId] = winnerChoice === 'first' ? 'second' : 'first';
             }
-            
-            if (game.mode === types.GameMode.Alkkagi) {
-                game.gameStatus = 'alkkagi_start_confirmation';
-                game.revealEndTime = now + 30000;
-                game.preGameConfirmations = { [p1Id]: false, [p2Id]: false };
-                if (game.isAiGame) game.preGameConfirmations[aiUserId] = true;
-            } else if (game.mode === types.GameMode.Curling) {
-                game.gameStatus = 'curling_start_confirmation';
-                game.revealEndTime = now + 30000;
-                game.preGameConfirmations = { [p1Id]: false, [p2Id]: false };
-                if (game.isAiGame) game.preGameConfirmations[aiUserId] = true;
-            } else if (game.mode === types.GameMode.Thief) {
+
+            const rolePick = game.roleChoices?.[winnerId];
+            if (
+                game.mode === types.GameMode.Thief &&
+                (rolePick === 'thief' || rolePick === 'police')
+            ) {
                 const loserId = winnerId === p1Id ? p2Id : p1Id;
-                const winnerChoice = game.roleChoices![winnerId]!;
-                
-                if(winnerChoice === 'thief') {
+                if (rolePick === 'thief') {
                     game.thiefPlayerId = winnerId;
                     game.policePlayerId = loserId;
                 } else {
                     game.policePlayerId = winnerId;
                     game.thiefPlayerId = loserId;
                 }
-                
                 game.blackPlayerId = game.thiefPlayerId;
                 game.whitePlayerId = game.policePlayerId;
                 game.gameStatus = 'thief_role_confirmed';
                 game.revealEndTime = now + 10000;
                 if (game.isAiGame) game.preGameConfirmations = { [aiUserId]: true };
-            } else { // Omok, Ttamok
-                transitionToPlaying(game, now);
+            } else {
+                game.turnChoices = undefined;
+                finalizePlayfulColorsAfterTurnOrder(game, now);
             }
             return true;
         }

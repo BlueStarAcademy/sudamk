@@ -538,8 +538,8 @@ export async function checkVictoryCondition(
             }
         } else if (checkInfo.gameType === 'singleplayer') {
             // 싱글플레이 승리 조건 체크
-            const { SINGLE_PLAYER_STAGES } = await import('../constants/singlePlayerConstants.js');
-            const stage = SINGLE_PLAYER_STAGES.find((s: any) => s.id === checkInfo.stageId);
+            const { getSinglePlayerStages } = await import('../constants/singlePlayerConstants.js');
+            const stage = getSinglePlayerStages().find((s: any) => s.id === checkInfo.stageId);
             
             if (!stage) {
                 return null;

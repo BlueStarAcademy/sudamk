@@ -28,12 +28,14 @@ import { aiUserId } from '../aiPlayer.js';
 import {
     skipPendingCaptureForAdventureHiddenReveal,
     shouldPreserveDiscovererTurnAfterOpponentHiddenReveal,
+    shouldPreserveDiscovererTurnWhenAiRevealsUserHiddenStone,
     treatAsPveLikeForHiddenOpponentReveal,
     useAiInitialHiddenCellTracking,
 } from './hiddenRevealPolicy.js';
 import { isHiddenMoveIndexSoftRevealedByAnyPlayer } from './hiddenScanShared.js';
 import { PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS } from '../constants/pveStrategicAiSchedule.js';
 import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
+import { resolveSinglePlayerAutoScoringTurnCap } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 import { tryEndGameWhenCaptureTargetReached } from '../utils/captureTargets.js';
 
 /** `Game.tsx` findLatestMoveIndexAt와 동일 — 상대 히든 판별 시 같은 좌표의 과거 수와 혼동하지 않도록 */
@@ -445,7 +447,8 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 if (game.gameCategory === 'tower') {
                     autoScoringTurns = (game.settings as any)?.autoScoringTurns;
                 } else if (game.isSinglePlayer && game.stageId) {
-                    autoScoringTurns = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId)?.autoScoringTurns;
+                    const spStageTrig = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId);
+                    autoScoringTurns = resolveSinglePlayerAutoScoringTurnCap(game.settings as any, spStageTrig);
                 } else {
                     autoScoringTurns =
                         game.mode === types.GameMode.Capture
@@ -510,7 +513,8 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 if (game.gameCategory === 'tower') {
                     autoScoringTurnsSync = (game.settings as any)?.autoScoringTurns;
                 } else if (game.isSinglePlayer && game.stageId) {
-                    autoScoringTurnsSync = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId)?.autoScoringTurns;
+                    const spStageSyncStrat = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId);
+                    autoScoringTurnsSync = resolveSinglePlayerAutoScoringTurnCap(game.settings as any, spStageSyncStrat);
                 } else {
                     autoScoringTurnsSync =
                         game.mode === types.GameMode.Capture
@@ -769,7 +773,13 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
 
                 if (result?.isValid && !adventureHiddenRevealOnly) {
                     const extraCaptures = result.capturedStones || [];
-                    const preserveDiscovererTurnPve = shouldPreserveDiscovererTurnAfterOpponentHiddenReveal(game);
+                    const preserveDiscovererTurnPve =
+                        shouldPreserveDiscovererTurnAfterOpponentHiddenReveal(game) ||
+                        shouldPreserveDiscovererTurnWhenAiRevealsUserHiddenStone(
+                            game,
+                            myPlayerEnum,
+                            !!isAiInitialHiddenStone
+                        );
                     const boardStateBeforeReveal = preserveDiscovererTurnPve
                         ? (game.boardState || []).map((row: types.Player[]) => [...row])
                         : undefined;
@@ -1218,7 +1228,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     autoScoringTurns = (game.settings as any)?.autoScoringTurns;
                 } else {
                     const stage = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId);
-                    autoScoringTurns = stage?.autoScoringTurns;
+                    autoScoringTurns = resolveSinglePlayerAutoScoringTurnCap(game.settings as any, stage);
                 }
                 
                 if (autoScoringTurns !== undefined) {

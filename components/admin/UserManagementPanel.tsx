@@ -841,13 +841,17 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
         const map: Record<string, string> = {
             waiting: '대기',
             resting: '휴식',
-            'in-game': '대국중',
+            'in-game': '경기중',
             negotiating: '협상중',
             online: '온라인',
             disconnected: '오프라인',
             spectating: '관전중',
         };
-        return <span className="text-yellow-300">{map[status] ?? status}</span>;
+        const label = map[status] ?? status;
+        if (status === 'in-game') {
+            return <span className="font-semibold text-red-400">{label}</span>;
+        }
+        return <span className="text-yellow-300">{label}</span>;
     };
 
     const fetchAdminUsersPage = useCallback(
@@ -1198,10 +1202,14 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                                                 >
                                                     {openingUserId === user.id ? '열기…' : '관리'}
                                                 </button>
-                                                {Boolean((user as any).isConnected) && user.id !== currentUser.id && (
+                                                {user.id !== currentUser.id && (
                                                     <button
                                                         type="button"
-                                                        title="강제 로그아웃"
+                                                        title={
+                                                            (user as any).isConnected
+                                                                ? '강제 로그아웃'
+                                                                : '접속 세션이 없어도 서버 측 정리·연결 해제를 시도합니다.'
+                                                        }
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             if (window.confirm(`[${user.nickname}] 님을 즉시 로그아웃 처리할까요?`)) {

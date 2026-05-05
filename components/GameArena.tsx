@@ -40,6 +40,7 @@ interface GameArenaProps extends GameProps {
     onboardingDemoAnchorPoint?: Point | null;
     onboardingForcedFirstMovePoint?: Point | null;
     intro1TutorialHighlight?: Point | null;
+    strategicPetHintBoardOverlay?: { x: number; y: number; message: string; showBubble: boolean } | null;
 }
 
 const GameArena: React.FC<GameArenaProps> = (props) => {

@@ -1,15 +1,29 @@
 import React, { useMemo, useState, useEffect, useLayoutEffect, useRef } from 'react';
 // FIX: Import missing types from the centralized types file.
-import { Player, GameProps, GameMode, User, AlkkagiPlacementType, GameSettings, GameStatus, UserWithStatus, LiveGameSession } from '../../types/index.js';
+import {
+    Player,
+    GameProps,
+    GameMode,
+    User,
+    AlkkagiPlacementType,
+    GameSettings,
+    GameStatus,
+    UserWithStatus,
+    LiveGameSession,
+    SinglePlayerStageInfo,
+} from '../../types/index.js';
 import Avatar from '../Avatar.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, ALKKAGI_TURN_TIME_LIMIT, CURLING_TURN_TIME_LIMIT, DICE_GO_MAIN_PLACE_TIME, DICE_GO_MAIN_ROLL_TIME, ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, aiUserId, AVATAR_POOL, BORDER_POOL, PLAYFUL_MODE_FOUL_LIMIT, THIEF_NIGHTS_PER_SEGMENT } from '../../constants';
-import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
 import { TOWER_AI_BOT_DISPLAY_NAME, TOWER_STAGES } from '../../constants/towerConstants.js';
 import {
     resolveAiLobbyProfileStepFromSettings,
     strategicAiDisplayLevelFromProfileStep,
 } from '../../shared/utils/strategicAiDifficulty.js';
-import { resolveSinglePlayerSurvivalModeForSession } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
+import {
+    resolveSinglePlayerSurvivalModeForSession,
+    resolveSinglePlayerAutoScoringTurnCap,
+} from '../../shared/utils/singlePlayerStrategicRulePreset.js';
+import { resolveLiveSessionSinglePlayerStageRow } from '../../shared/utils/liveSessionSinglePlayerStage.js';
 import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { mergeStaffNicknameDisplayClass } from '../../shared/utils/staffNicknameDisplay.js';
@@ -246,8 +260,8 @@ interface SinglePlayerPanelProps {
     captureHeadStartFlatBonus?: number;
     /** 스피드 바둑 결과 정산용 시간 보너스 점수(실시간 추정치) */
     speedTimeBonusScore?: number | null;
-    /** 스피드 시간보너스 점수 수혜 대상 라벨 */
-    speedBonusScoreLabel?: 'self' | 'ai';
+    /** 스피드 시간보너스 점수 수혜 대상 라벨 (`rival` = PVP에서 상대가 내 소모시간으로 받는 +점) */
+    speedBonusScoreLabel?: 'self' | 'ai' | 'rival';
     /** 스피드 시간보너스: 다음 -1점까지 남은 구간 진행률(0~1, 1에 가까울수록 곧 감소) */
     speedBonusTickProgress?: number | null;
     /** 스피드 시간보너스: 다음 -1점까지 남은 초 */
@@ -311,17 +325,16 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         : 0;
 
     const levelToDisplay = user.userLevel;
-    const levelLabel = '유저';
-    let levelText = `${levelLabel} Lv.${levelToDisplay}`;
+    let levelText = `Lv.${levelToDisplay}`;
 
-    // 전략바둑 AI 대국: 상단 패널에서 봇 이름 옆에 AI 난이도(단계 1~10 → 표시 레벨 1,3,5,…,50)
+    // 전략바둑 AI 대국: 봇 패널에는 AI 난이도 표시 레벨만(단계 1~10 → 1,3,5,…,50)
     const isStrategicAiGame = session.isAiGame && isStrategic && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
     if (opponentMonsterDisplay) {
         levelText = `Lv.${opponentMonsterDisplay.level}`;
     } else if (isStrategicAiGame && isAiPlayer) {
         const profileStep = resolveAiLobbyProfileStepFromSettings(session.settings as GameSettings);
         const displayAiLevel = strategicAiDisplayLevelFromProfileStep(profileStep);
-        levelText = `${levelText} · AI Lv.${displayAiLevel}`;
+        levelText = `Lv.${displayAiLevel}`;
     }
 
     const orderClass = isLeft ? 'flex-row' : 'flex-row-reverse';
@@ -477,8 +490,10 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                     : undefined
             }
             inlineHeadStartBonus={captureHeadStartFlatBonus}
-            inlineScoreBonusText={
-                isAiPlayer && showSpeedTimeBonusScore && speedBonusScoreLabel === 'ai'
+                inlineScoreBonusText={
+                showSpeedTimeBonusScore &&
+                ((isAiPlayer && speedBonusScoreLabel === 'ai') ||
+                    (!isAiPlayer && speedBonusScoreLabel === 'rival' && speedTimeBonusScore != null && speedTimeBonusScore > 0))
                     ? `(+${speedTimeBonusScore})`
                     : null
             }
@@ -684,6 +699,8 @@ interface PlayerPanelProps extends GameProps {
   isMobile?: boolean;
   /** 온보딩 phase 6: 유저 패널만 / 점수·턴 줄 전체 스포트라이트 */
   singlePlayerOnboardingBarHighlight?: 'user-panel' | 'scores-bar' | null;
+  /** 싱글 스테이지 목록 리비전(온보딩 등에서 패널 리셋용) */
+  singlePlayerStagesListRevision?: number;
 }
 
 const getTurnDuration = (mode: GameMode, gameStatus: GameStatus, settings: GameSettings): number => {
@@ -718,7 +735,15 @@ const getTurnDuration = (mode: GameMode, gameStatus: GameStatus, settings: GameS
 
 
 const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
-    const { session, clientTimes, isSinglePlayer, isMobile = false, currentUser, singlePlayerOnboardingBarHighlight = null } = props;
+    const {
+        session,
+        clientTimes,
+        isSinglePlayer,
+        isMobile = false,
+        currentUser,
+        singlePlayerOnboardingBarHighlight = null,
+        singlePlayerStagesListRevision = 0,
+    } = props;
     /** PC 창을 좁혔거나 태블릿 폭: 네이티브 모바일이 아니어도 상단 바가 같은 폭 제약을 받음 */
     const isHandheldViewport = useIsHandheldDevice(1025);
     const compactPlayerBar = isMobile || isHandheldViewport;
@@ -729,6 +754,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         mode === GameMode.Base || (mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Base)));
     const basePrePlayFreezeStatuses: GameStatus[] = [
         'base_placement',
+        'base_stone_color_choice',
+        'base_same_color_points_bid',
         'komi_bidding',
         'komi_bid_reveal',
         'base_color_roulette',
@@ -1020,23 +1047,50 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const isSpeedLikeMode =
         mode === GameMode.Speed ||
         (mode === GameMode.Mix && Boolean(session.settings?.mixedModes?.includes(GameMode.Speed)));
-    const isSinglePlayerSpeed = !!session.isSinglePlayer && isSpeedLikeMode && isFischerStyleTimeControl(session);
+    /** PvE/AI 대국 + 스피드(피셔): 라이브 "사용 시간" 보너스 UI — 봇 턴·히든 연출은 유저 사용에서 제외 */
+    const isAiSpeedFischerBonusUi =
+        (Boolean(session.isAiGame) || Boolean(session.isSinglePlayer)) &&
+        isSpeedLikeMode &&
+        isFischerStyleTimeControl(session);
+    /** PVP 휴먼 대국 + 스피드(피셔): 누적 사용 시간 10초당 상대 (+1점) 표시 */
+    const isPvpHumanSpeedFischerBonusUi =
+        !session.isAiGame &&
+        !session.isSinglePlayer &&
+        isSpeedLikeMode &&
+        isFischerStyleTimeControl(session);
+    const isSpeedFischerLiveBonusUi = isAiSpeedFischerBonusUi || isPvpHumanSpeedFischerBonusUi;
     const [speedBonusNowMs, setSpeedBonusNowMs] = useState(() => Date.now());
     useEffect(() => {
-        if (!isSinglePlayerSpeed) return;
+        if (!isSpeedFischerLiveBonusUi) return;
         const id = setInterval(() => setSpeedBonusNowMs(Date.now()), 250);
         return () => clearInterval(id);
-    }, [isSinglePlayerSpeed]);
+    }, [isSpeedFischerLiveBonusUi]);
+    const isHumanSeatForAiSpeedBonus = (playerEnum: Player) =>
+        (playerEnum === Player.Black && session.blackPlayerId !== aiUserId) ||
+        (playerEnum === Player.White && session.whitePlayerId !== aiUserId);
+    const isAiHiddenItemThinkPresentationForSpeed =
+        (session.animation as { type?: string } | null | undefined)?.type === 'ai_thinking' &&
+        typeof (session as { aiHiddenItemAnimationEndTime?: number }).aiHiddenItemAnimationEndTime === 'number' &&
+        speedBonusNowMs < Number((session as { aiHiddenItemAnimationEndTime: number }).aiHiddenItemAnimationEndTime);
+    /** 유저 좌석의 스피드 보너스용 "지금 이 마감이 내 소모인가" (동기화 오류·연출 중 오탐 방지) */
+    const humanLiveSpeedTurnClockActive = (playerEnum: Player) =>
+        session.currentPlayer === playerEnum &&
+        typeof session.turnDeadline === 'number' &&
+        !((Boolean(session.isAiGame) || Boolean(session.isSinglePlayer)) &&
+            isHumanSeatForAiSpeedBonus(playerEnum) &&
+            isAiHiddenItemThinkPresentationForSpeed);
     const getLiveMainTimeForBonus = (playerEnum: Player, storedMainTimeLeft: number): number => {
-        if (!isSinglePlayerSpeed) return storedMainTimeLeft;
-        if (session.currentPlayer === playerEnum && typeof session.turnDeadline === 'number') {
-            return Math.max(0, (session.turnDeadline - speedBonusNowMs) / 1000);
+        if (!isSpeedFischerLiveBonusUi) return storedMainTimeLeft;
+        if (humanLiveSpeedTurnClockActive(playerEnum)) {
+            const deadline = session.turnDeadline;
+            if (typeof deadline !== 'number') return storedMainTimeLeft;
+            return Math.max(0, (deadline - speedBonusNowMs) / 1000);
         }
         return storedMainTimeLeft;
     };
     const getLiveSpeedTimeBonusScore = (playerEnum: Player, playerId: string, currentMainTimeLeft: number): number | null => {
-        if (!isSinglePlayerSpeed) return null;
-        if (playerId === aiUserId) return null;
+        if (!isSpeedFischerLiveBonusUi) return null;
+        if (playerId === aiUserId && !isPvpHumanSpeedFischerBonusUi) return null;
         const speedConsumed = ((session.settings as any)?.__speedBonusConsumedSec ?? {}) as { black?: number; white?: number };
         const committedUsedSec =
             playerEnum === Player.Black
@@ -1047,10 +1101,9 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 ? Math.max(0, Number(session.blackTimeLeft ?? 0))
                 : Math.max(0, Number(session.whiteTimeLeft ?? 0));
         const current = Math.max(0, Number(currentMainTimeLeft) || 0);
-        const liveTurnUsedSec =
-            session.currentPlayer === playerEnum && typeof session.turnDeadline === 'number'
-                ? Math.max(0, storedAtTurnStart - current)
-                : 0;
+        const liveTurnUsedSec = humanLiveSpeedTurnClockActive(playerEnum)
+            ? Math.max(0, storedAtTurnStart - current)
+            : 0;
         const usedSec = committedUsedSec + liveTurnUsedSec;
         return Math.floor(usedSec / 10);
     };
@@ -1064,7 +1117,11 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const stabilizeSpeedBonus = (playerId: string, playerEnum: Player, raw: number | null): number | null => {
         const prev = speedBonusStableRef.current.byPlayerId[playerId];
         if (raw == null) return prev ?? null;
-        const isThatPlayersTurn = session.currentPlayer === playerEnum;
+        const isThatPlayersTurn =
+            session.currentPlayer === playerEnum &&
+            !((Boolean(session.isAiGame) || Boolean(session.isSinglePlayer)) &&
+            isHumanSeatForAiSpeedBonus(playerEnum) &&
+            isAiHiddenItemThinkPresentationForSpeed);
         // 봇 턴에서는 플레이어 시간 보너스가 크게 튀는 사례가 있어, 해당 플레이어 턴이 아닐 때는 이전 값을 유지한다.
         const next = !isThatPlayersTurn && prev != null ? prev : raw;
         speedBonusStableRef.current.byPlayerId[playerId] = next;
@@ -1092,8 +1149,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
           )
         : null;
     const getSpeedBonusTickState = (playerEnum: Player, playerId: string, currentMainTimeLeft: number) => {
-        if (!isSinglePlayerSpeed) return { progress: null as number | null, secToNextDrop: null as number | null };
-        if (playerId === aiUserId) return { progress: null as number | null, secToNextDrop: null as number | null };
+        if (!isSpeedFischerLiveBonusUi) return { progress: null as number | null, secToNextDrop: null as number | null };
+        if (playerId === aiUserId && !isPvpHumanSpeedFischerBonusUi) return { progress: null as number | null, secToNextDrop: null as number | null };
         const speedConsumed = ((session.settings as any)?.__speedBonusConsumedSec ?? {}) as { black?: number; white?: number };
         const committedUsedSec =
             playerEnum === Player.Black
@@ -1104,10 +1161,9 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 ? Math.max(0, Number(session.blackTimeLeft ?? 0))
                 : Math.max(0, Number(session.whiteTimeLeft ?? 0));
         const current = Math.max(0, Number(currentMainTimeLeft) || 0);
-        const liveTurnUsedSec =
-            session.currentPlayer === playerEnum && typeof session.turnDeadline === 'number'
-                ? Math.max(0, storedAtTurnStart - current)
-                : 0;
+        const liveTurnUsedSec = humanLiveSpeedTurnClockActive(playerEnum)
+            ? Math.max(0, storedAtTurnStart - current)
+            : 0;
         const usedSec = committedUsedSec + liveTurnUsedSec;
         const withinChunk = ((usedSec % 10) + 10) % 10;
         const secToNextDropRaw = 10 - withinChunk;
@@ -1136,7 +1192,11 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         raw: { progress: number | null; secToNextDrop: number | null },
     ) => {
         const prev = speedBonusTickStableRef.current.byPlayerId[playerId] ?? { progress: null, secToNextDrop: null };
-        const isThatPlayersTurn = session.currentPlayer === playerEnum;
+        const isThatPlayersTurn =
+            session.currentPlayer === playerEnum &&
+            !((Boolean(session.isAiGame) || Boolean(session.isSinglePlayer)) &&
+            isHumanSeatForAiSpeedBonus(playerEnum) &&
+            isAiHiddenItemThinkPresentationForSpeed);
         const next = isThatPlayersTurn ? raw : prev;
         speedBonusTickStableRef.current.byPlayerId[playerId] = next;
         return next;
@@ -1144,24 +1204,75 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const stableHumanSpeedBonusTick = humanSide
         ? stabilizeSpeedBonusTick(humanSide.userId, humanSide.playerEnum, humanSpeedBonusTick)
         : { progress: null as number | null, secToNextDrop: null as number | null };
-    const leftSpeedBonusTick =
-        !isLeftAi && humanSide?.userId === leftPlayerUser.id
+    const leftPvpSelfTickRaw = isPvpHumanSpeedFischerBonusUi
+        ? getSpeedBonusTickState(
+              leftPlayerEnum,
+              leftPlayerUser.id,
+              getLiveMainTimeForBonus(leftPlayerEnum, leftPlayerMainTime),
+          )
+        : { progress: null as number | null, secToNextDrop: null as number | null };
+    const rightPvpSelfTickRaw = isPvpHumanSpeedFischerBonusUi
+        ? getSpeedBonusTickState(
+              rightPlayerEnum,
+              rightPlayerUser.id,
+              getLiveMainTimeForBonus(rightPlayerEnum, rightPlayerMainTime),
+          )
+        : { progress: null as number | null, secToNextDrop: null as number | null };
+    const leftSpeedBonusTick = isLeftAi
+        ? { progress: null as number | null, secToNextDrop: null as number | null }
+        : isPvpHumanSpeedFischerBonusUi
+          ? stabilizeSpeedBonusTick(leftPlayerUser.id, leftPlayerEnum, leftPvpSelfTickRaw)
+          : humanSide?.userId === leftPlayerUser.id
             ? stableHumanSpeedBonusTick
             : { progress: null as number | null, secToNextDrop: null as number | null };
-    const rightSpeedBonusTick =
-        !isRightAi && humanSide?.userId === rightPlayerUser.id
+    const rightSpeedBonusTick = isRightAi
+        ? { progress: null as number | null, secToNextDrop: null as number | null }
+        : isPvpHumanSpeedFischerBonusUi
+          ? stabilizeSpeedBonusTick(rightPlayerUser.id, rightPlayerEnum, rightPvpSelfTickRaw)
+          : humanSide?.userId === rightPlayerUser.id
             ? stableHumanSpeedBonusTick
             : { progress: null as number | null, secToNextDrop: null as number | null };
-    const leftLiveSpeedTimeBonusScore = isLeftAi ? humanUsedTimeBonusScore : null;
-    const rightLiveSpeedTimeBonusScore = isRightAi ? humanUsedTimeBonusScore : null;
-    const leftSpeedBonusScoreLabel: 'self' | 'ai' = isLeftAi ? 'ai' : 'self';
-    const rightSpeedBonusScoreLabel: 'self' | 'ai' = isRightAi ? 'ai' : 'self';
-    
+    /** PVP: 내 누적 사용 시간 10초당 상대 집(+1) — 패널에는 상대가 받는 추정치(= floor(내 사용/10)) */
+    const leftLiveSpeedTimeBonusScore = isLeftAi
+        ? humanUsedTimeBonusScore
+        : isPvpHumanSpeedFischerBonusUi
+          ? stabilizeSpeedBonus(
+                leftPlayerUser.id,
+                leftPlayerEnum,
+                getLiveSpeedTimeBonusScore(
+                    leftPlayerEnum,
+                    leftPlayerUser.id,
+                    getLiveMainTimeForBonus(leftPlayerEnum, leftPlayerMainTime),
+                ),
+            )
+          : null;
+    const rightLiveSpeedTimeBonusScore = isRightAi
+        ? humanUsedTimeBonusScore
+        : isPvpHumanSpeedFischerBonusUi
+          ? stabilizeSpeedBonus(
+                rightPlayerUser.id,
+                rightPlayerEnum,
+                getLiveSpeedTimeBonusScore(
+                    rightPlayerEnum,
+                    rightPlayerUser.id,
+                    getLiveMainTimeForBonus(rightPlayerEnum, rightPlayerMainTime),
+                ),
+            )
+          : null;
+    const leftSpeedBonusScoreLabel: 'self' | 'ai' | 'rival' = isLeftAi ? 'ai' : isPvpHumanSpeedFischerBonusUi ? 'rival' : 'self';
+    const rightSpeedBonusScoreLabel: 'self' | 'ai' | 'rival' = isRightAi ? 'ai' : isPvpHumanSpeedFischerBonusUi ? 'rival' : 'self';
+
     const turnDuration = getTurnDuration(mode, session.gameStatus, settings);
     const blackRemainingMonotonicRef = useRef<{ gameId: string; value: number | null }>({ gameId: '', value: null });
     if (blackRemainingMonotonicRef.current.gameId !== session.id) {
         blackRemainingMonotonicRef.current = { gameId: session.id, value: null };
     }
+    /**
+     * 히든 공개·계가 연출 등으로 moveHistory/totalTurns가 한 틱 줄어들 때
+     * "계가까지 남은 턴"이 다시 가득 찬 것처럼 보이지 않게 진행 수는 단조 증가만 허용한다.
+     */
+    const strategicScoringProgressMaxRef = useRef<{ key: string; max: number }>({ key: '', max: 0 });
+    const autoScoringProgressMaxRef = useRef<{ key: string; max: number }>({ key: '', max: 0 });
 
     // 전략바둑 로비(대국실) 턴 표시: 제한 없음 → N수, 제한 있음 → N/N에서 0/N으로 줄어드는 계가 카운트다운
     const isStrategicMode = SPECIAL_GAME_MODES.some(m => m.mode === mode);
@@ -1193,7 +1304,14 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         }
         const limit = settings.scoringTurnLimit;
         if (limit != null && limit > 0) {
-            const remaining = Math.max(0, limit - scoringTurnProgress);
+            const monKey = `${session.id}|stlim|${limit}`;
+            if (strategicScoringProgressMaxRef.current.key !== monKey) {
+                strategicScoringProgressMaxRef.current = { key: monKey, max: 0 };
+            }
+            const rawProg = Math.min(limit, scoringTurnProgress);
+            strategicScoringProgressMaxRef.current.max = Math.max(strategicScoringProgressMaxRef.current.max, rawProg);
+            const effProg = strategicScoringProgressMaxRef.current.max;
+            const remaining = Math.max(0, limit - effProg);
             return { type: 'scoring_limit' as const, label: '계가까지', current: remaining, total: limit };
         }
         return { type: 'moves_only' as const, label: '수순', current };
@@ -1210,13 +1328,17 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         session.settings,
     ]);
     const strategicLobbyTurnInfo = useMemo(() => {
-        if (strategicLobbyTurnInfoRaw?.type !== 'capture_limit') return strategicLobbyTurnInfoRaw;
-        const prev = blackRemainingMonotonicRef.current.value;
+        if (!strategicLobbyTurnInfoRaw) return strategicLobbyTurnInfoRaw;
+        if (strategicLobbyTurnInfoRaw.type !== 'capture_limit') return strategicLobbyTurnInfoRaw;
         const next = Math.max(0, strategicLobbyTurnInfoRaw.current);
+        if (session.gameStatus !== 'playing') {
+            return { ...strategicLobbyTurnInfoRaw, current: next };
+        }
+        const prev = blackRemainingMonotonicRef.current.value;
         const clamped = prev == null ? next : Math.min(prev, next);
         blackRemainingMonotonicRef.current.value = clamped;
         return { ...strategicLobbyTurnInfoRaw, current: clamped };
-    }, [strategicLobbyTurnInfoRaw]);
+    }, [strategicLobbyTurnInfoRaw, session.gameStatus]);
 
     // 싱글플레이/도전의 탑 턴 안내 패널 계산
     const turnInfoRaw = useMemo(() => {
@@ -1227,20 +1349,41 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         const isTower = session.gameCategory === 'tower';
         if ((!isSinglePlayer && !isTower) || !session.stageId) return null;
         
-        // 도전의 탑이면 TOWER_STAGES에서, 싱글플레이면 SINGLE_PLAYER_STAGES에서 스테이지 찾기
-        const stage = isTower 
+        // 도전의 탑이면 TOWER_STAGES에서, 싱글플레이면 세션 스냅샷·서버 동기화 목록에서 스테이지 찾기
+        const stage = isTower
             ? TOWER_STAGES.find(s => s.id === session.stageId)
-            : SINGLE_PLAYER_STAGES.find(s => s.id === session.stageId);
-        if (!stage) return null;
-        
-        const isSurvivalMode = resolveSinglePlayerSurvivalModeForSession(session, stage);
+            : resolveLiveSessionSinglePlayerStageRow(session);
+
+        const st = session.settings as Record<string, unknown> | undefined;
+        const stageDisplaySnap = session.singlePlayerStageDisplay;
+        const autoScoringCapForUi = resolveSinglePlayerAutoScoringTurnCap(
+            session.settings as { autoScoringTurns?: number } | undefined,
+            stageDisplaySnap,
+            stage
+        );
+        const settingsBlackTurnLimit =
+            typeof st?.blackTurnLimit === 'number' && st.blackTurnLimit > 0 ? st.blackTurnLimit : undefined;
+
+        if (isTower && !stage) return null;
+        // 싱글: 관리자 편집·소켓 타이밍으로 상수 목록에 없을 수 있음 — 서버가 내려준 settings로 턴 박스 표시
+        if (!isTower && !stage) {
+            const canInferFromSettings =
+                autoScoringCapForUi != null ||
+                settingsBlackTurnLimit != null ||
+                st?.isSurvivalMode === true ||
+                (typeof st?.survivalTurns === 'number' && (st.survivalTurns as number) > 0);
+            if (!canInferFromSettings) return null;
+        }
+
+        const stageForSurvivalPreset = (stage ?? {}) as SinglePlayerStageInfo;
+        const isSurvivalMode = resolveSinglePlayerSurvivalModeForSession(session, stageForSurvivalPreset);
 
         // 살리기바둑: 백의 남은 턴
         if (isSurvivalMode) {
             // KV/서버에서 내려온 settings가 진실값이다. 번들 상수 SINGLE_PLAYER_STAGES는
             // 관리자가 스테이지를 덮어써도 갱신되지 않으므로 Math.max(설정, 상수)하면 15처럼 옛 값이 이긴다.
             const settingsSurvivalTurns = Number((session.settings as any)?.survivalTurns ?? 0);
-            const stageSurvivalTurns = Number(stage.survivalTurns ?? 0);
+            const stageSurvivalTurns = Number(stage?.survivalTurns ?? 0);
             const totalSurvivalTurns =
                 settingsSurvivalTurns > 0 ? settingsSurvivalTurns : Math.max(1, stageSurvivalTurns);
             // 서버 승패 판정과 동일하게 whiteTurnsPlayed를 우선 사용한다.
@@ -1258,20 +1401,24 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             };
         }
 
-        // 따내기바둑: 흑의 남은 턴 (살리기가 아닐 때만)
-        if (stage.blackTurnLimit) {
+        // 따내기바둑: 흑의 남은 턴 (살리기가 아닐 때만) — settings가 진실값(관리자 편집·서버 적용)
+        const effectiveBlackTurnLimitConfig =
+            settingsBlackTurnLimit ?? (stage?.blackTurnLimit != null && stage.blackTurnLimit > 0 ? stage.blackTurnLimit : 0);
+        if (effectiveBlackTurnLimitConfig > 0) {
             const blackMovesCount = moveHistory.filter(m => m.player === Player.Black && m.x !== -1 && m.y !== -1).length;
             // 도전의 탑에서 턴 추가 아이템으로 증가한 턴을 반영
             const blackTurnLimitBonus = Number((session as any).blackTurnLimitBonus) || 0;
-            const settingsTurnLimit = Number((session.settings as any)?.blackTurnLimit ?? 0);
-            // settings.blackTurnLimit가 있어도 보너스는 반드시 더한다(이전 분기에서 보너스가 무시되어 아이템이 안 먹히는 것처럼 보이던 버그 수정)
-            const baseBlackTurnLimit =
-                settingsTurnLimit > 0 ? settingsTurnLimit : Number(stage.blackTurnLimit) || 0;
+            // settings 우선값은 effectiveBlackTurnLimitConfig에 이미 반영됨; 보너스는 항상 더함
+            const baseBlackTurnLimit = effectiveBlackTurnLimitConfig;
             const effectiveBlackTurnLimit = baseBlackTurnLimit + blackTurnLimitBonus;
             const markedRemainingRaw = Number((session as any).blackTurnLimitRemaining);
             const markedRemaining = Number.isFinite(markedRemainingRaw) ? Math.max(0, Math.floor(markedRemainingRaw)) : null;
             const calculatedRemaining = Math.max(0, effectiveBlackTurnLimit - blackMovesCount);
-            const remainingTurns = markedRemaining != null ? Math.min(markedRemaining, calculatedRemaining) : calculatedRemaining;
+            // pending·시작 전: 서버/DB에 남은 턴 필드가 없거나(0/1) 꼬인 값이 올 수 있어 N/N이 1로 보이는 현상 방지
+            const remainingTurns =
+                markedRemaining != null && session.gameStatus === 'playing'
+                    ? Math.min(markedRemaining, calculatedRemaining)
+                    : calculatedRemaining;
             return {
                 type: 'capture' as const,
                 label: '흑 남은 턴',
@@ -1282,15 +1429,24 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         
         // 자동계가: 카운트다운 형태(남은 수순). 0이 되면 자동계가 진행 (유효 수만 카운트, 서버와 동일: x/y !== -1)
         // totalTurns가 0이거나 없으면 moveHistory 기준으로 계산 (한 수 둔 뒤 턴이 Max로 돌아가는 버그 방지)
-        if (stage.autoScoringTurns) {
+        if (autoScoringCapForUi != null && autoScoringCapForUi > 0) {
             const validMovesCount = moveHistory.filter(m => m.x !== -1 && m.y !== -1).length;
-            const totalTurns = Math.max(validMovesCount, session.totalTurns ?? 0);
-            const remainingTurns = Math.max(0, stage.autoScoringTurns - totalTurns);
+            const rawProgress = Math.min(
+                autoScoringCapForUi,
+                Math.max(validMovesCount, session.totalTurns ?? 0)
+            );
+            const monKey = `${session.id}|autosc|${autoScoringCapForUi}`;
+            if (autoScoringProgressMaxRef.current.key !== monKey) {
+                autoScoringProgressMaxRef.current = { key: monKey, max: 0 };
+            }
+            autoScoringProgressMaxRef.current.max = Math.max(autoScoringProgressMaxRef.current.max, rawProgress);
+            const progressUsed = autoScoringProgressMaxRef.current.max;
+            const remainingTurns = Math.max(0, autoScoringCapForUi - progressUsed);
             return {
                 type: 'auto_scoring' as const,
                 label: '계가까지',
                 remaining: remainingTurns,
-                total: stage.autoScoringTurns
+                total: autoScoringCapForUi,
             };
         }
         
@@ -1303,17 +1459,25 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         session.moveHistory,
         session.totalTurns,
         session.settings,
+        session.singlePlayerStageDisplay,
         session.gameCategory,
         (session as any).blackTurnLimitBonus,
+        session.gameStatus,
+        singlePlayerStagesListRevision,
     ]);
     const turnInfo = useMemo(() => {
-        if (turnInfoRaw?.type !== 'capture') return turnInfoRaw;
-        const prev = blackRemainingMonotonicRef.current.value;
+        if (!turnInfoRaw) return turnInfoRaw;
+        if (turnInfoRaw.type !== 'capture') return turnInfoRaw;
         const next = Math.max(0, turnInfoRaw.remaining);
+        if (session.gameStatus !== 'playing') {
+            blackRemainingMonotonicRef.current.value = null;
+            return { ...turnInfoRaw, remaining: next };
+        }
+        const prev = blackRemainingMonotonicRef.current.value;
         const clamped = prev == null ? next : Math.min(prev, next);
         blackRemainingMonotonicRef.current.value = clamped;
         return { ...turnInfoRaw, remaining: clamped };
-    }, [turnInfoRaw]);
+    }, [turnInfoRaw, session.gameStatus]);
     
     /** 컴팩트 바: 행(stretch) 높이에 맞춤 — 대국자 패널과 동일 높이 */
     const turnInfoShellClass = compactPlayerBar

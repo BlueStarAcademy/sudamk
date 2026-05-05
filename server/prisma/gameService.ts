@@ -476,7 +476,7 @@ export async function listEndedGuildWarGamesForWar(
       },
       select: { id: true, data: true, status: true, category: true, aiHiddenItemAnimationEndTime: true, updatedAt: true },
       orderBy: { updatedAt: "desc" },
-      take: 200,
+      take: 600,
     });
     const out: Array<{ game: LiveGameSession; rowUpdatedAtMs: number }> = [];
     for (const row of rows) {

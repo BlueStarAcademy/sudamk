@@ -1,4 +1,4 @@
-/** 모험 몬스터 승리 기본 전략 EXP (판 크기별) — 전략 AI 대기실 보상 등과 동일 기준 */
+/** 모험 몬스터 승리 기본 EXP (판 크기별) — 전략 AI 대기실 보상 등과 동일 기준 */
 export const ADVENTURE_STRATEGY_XP_BY_BOARD_SIZE: Record<number, number> = {
     7: 10,
     9: 13,

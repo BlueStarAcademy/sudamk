@@ -9,6 +9,10 @@ export const aiUserId = 'ai-player-01';
 export const OTHER_DEVICE_LOGIN_SHARED_PC_REASON = 'shared_pc_ip' as const;
 /** WebSocket OTHER_DEVICE_LOGIN `payload.reason` — 점검 모드에서 비관리자 일괄 강제 로그아웃 */
 export const OTHER_DEVICE_LOGIN_MAINTENANCE_REASON = 'maintenance_mode' as const;
+/** WebSocket OTHER_DEVICE_LOGIN `payload.reason` — 관리자 강제 로그아웃 */
+export const OTHER_DEVICE_LOGIN_ADMIN_FORCE_REASON = 'admin_force_logout' as const;
+/** 관리자 강제 로그아웃 시 `closeWebSocketsForUser`와 클라 `onclose` 재연결 방지용 (RFC6455 private 4xxx) */
+export const WEBSOCKET_ADMIN_FORCE_LOGOUT_CLOSE_CODE = 4001 as const;
 
 /** 관리자 계정 ID (서버 initialData/db와 동일해야 함) */
 export const ADMIN_USER_ID = 'user-admin-static-id';

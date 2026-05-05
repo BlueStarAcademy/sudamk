@@ -1,9 +1,16 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { GameMode, SinglePlayerLevel, SinglePlayerStageInfo, SinglePlayerStrategicRulePreset } from '../../types/index.js';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+    GameMode,
+    SinglePlayerAiBaseKomiBid,
+    SinglePlayerLevel,
+    SinglePlayerStageInfo,
+    SinglePlayerStrategicRulePreset,
+} from '../../types/index.js';
 import {
     inferSinglePlayerStrategicRulePreset,
     resolveSinglePlayerMixedModes,
 } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
+import { ensureMixModesMinTwoAfterBaseCaptureSanitize } from '../../shared/utils/singlePlayerMixBaseCaptureExclusive.js';
 import Button from '../Button.js';
 import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
@@ -37,6 +44,12 @@ interface Props {
 const cloneStageInfo = (value: SinglePlayerStageInfo): SinglePlayerStageInfo =>
     JSON.parse(JSON.stringify(value)) as SinglePlayerStageInfo;
 
+const clampStageBoardSize = (n: unknown): SinglePlayerStageInfo['boardSize'] => {
+    const v = Number(n);
+    if (v === 7 || v === 9 || v === 11 || v === 13) return v as SinglePlayerStageInfo['boardSize'];
+    return 9;
+};
+
 /** 믹스에 포함되지 않은 모드 전용 스테이지 필드 제거 */
 function pruneDraftForMixedStrategicModes(d: SinglePlayerStageInfo, modes: GameMode[]): SinglePlayerStageInfo {
     const next: SinglePlayerStageInfo = { ...d, mixedStrategicModes: modes.length > 0 ? [...modes] : undefined };
@@ -51,6 +64,7 @@ function pruneDraftForMixedStrategicModes(d: SinglePlayerStageInfo, modes: GameM
         delete (next as { disableAiHiddenItemUsage?: boolean }).disableAiHiddenItemUsage;
         delete (next as { forceAiResponsesOnHiddenTurnsOnly?: boolean }).forceAiResponsesOnHiddenTurnsOnly;
         delete (next as { baseStones?: number }).baseStones;
+        delete (next as { singlePlayerAiBaseKomiBid?: SinglePlayerAiBaseKomiBid }).singlePlayerAiBaseKomiBid;
         delete (next as { blackTurnLimit?: number }).blackTurnLimit;
         delete (next as { autoScoringTurns?: number }).autoScoringTurns;
         delete (next as { survivalTurns?: number }).survivalTurns;
@@ -67,7 +81,15 @@ function pruneDraftForMixedStrategicModes(d: SinglePlayerStageInfo, modes: GameM
         delete (next as { disableAiHiddenItemUsage?: boolean }).disableAiHiddenItemUsage;
         delete (next as { forceAiResponsesOnHiddenTurnsOnly?: boolean }).forceAiResponsesOnHiddenTurnsOnly;
     }
-    if (!modes.includes(GameMode.Base)) delete (next as { baseStones?: number }).baseStones;
+    if (!modes.includes(GameMode.Base)) {
+        delete (next as { baseStones?: number }).baseStones;
+        delete (next as { singlePlayerAiBaseKomiBid?: SinglePlayerAiBaseKomiBid }).singlePlayerAiBaseKomiBid;
+    } else {
+        next.placements = { black: 0, white: 0, blackPattern: 0, whitePattern: 0 };
+        delete (next as { mergeRandomPlacementsWithFixed?: boolean }).mergeRandomPlacementsWithFixed;
+        delete (next as { fixedOpening?: SinglePlayerStageInfo['fixedOpening'] }).fixedOpening;
+        delete (next as { centerBlackStoneChance?: number }).centerBlackStoneChance;
+    }
     if (!modes.includes(GameMode.Capture)) delete (next as { blackTurnLimit?: number }).blackTurnLimit;
     const keepAutoScoringTurns = !modes.includes(GameMode.Capture);
     if (!keepAutoScoringTurns) delete (next as { autoScoringTurns?: number }).autoScoringTurns;
@@ -83,6 +105,7 @@ function nextDraftAfterStrategicRulePresetChange(
     if (nextPreset === 'auto') {
         const next = { ...prev };
         delete (next as { mixedStrategicModes?: GameMode[] }).mixedStrategicModes;
+        delete (next as { strategicRulePreset?: SinglePlayerStrategicRulePreset }).strategicRulePreset;
         return next;
     }
 
@@ -92,9 +115,18 @@ function nextDraftAfterStrategicRulePresetChange(
         return n;
     };
 
+    const withExplicitPreset = <P extends Exclude<SinglePlayerStrategicRulePreset, 'auto'>>(
+        body: SinglePlayerStageInfo,
+        preset: P,
+    ): SinglePlayerStageInfo => ({
+        ...body,
+        strategicRulePreset: preset,
+    });
+
     switch (nextPreset) {
         case 'capture':
-            return wipe(prev, [
+            return withExplicitPreset(
+                wipe(prev, [
                 'survivalTurns',
                 'autoScoringTurns',
                 'missileCount',
@@ -107,8 +139,11 @@ function nextDraftAfterStrategicRulePresetChange(
                 'disableAiHiddenItemUsage',
                 'forceAiResponsesOnHiddenTurnsOnly',
                 'baseStones',
+                'singlePlayerAiBaseKomiBid',
                 'mixedStrategicModes',
-            ]);
+                ]),
+                'capture',
+            );
         case 'survival': {
             const seedTurns =
                 Number(prev.survivalTurns ?? 0) > 0
@@ -129,13 +164,15 @@ function nextDraftAfterStrategicRulePresetChange(
                 'disableAiHiddenItemUsage',
                 'forceAiResponsesOnHiddenTurnsOnly',
                 'baseStones',
+                'singlePlayerAiBaseKomiBid',
                 'mixedStrategicModes',
                 'blackTurnLimit',
             ]);
-            return { ...cleared, survivalTurns: seedTurns };
+            return withExplicitPreset({ ...cleared, survivalTurns: seedTurns }, 'survival');
         }
         case 'speed':
-            return wipe(prev, [
+            return withExplicitPreset(
+                wipe(prev, [
                 'missileCount',
                 'hiddenCount',
                 'scanCount',
@@ -148,10 +185,14 @@ function nextDraftAfterStrategicRulePresetChange(
                 'survivalTurns',
                 'blackTurnLimit',
                 'baseStones',
+                'singlePlayerAiBaseKomiBid',
                 'mixedStrategicModes',
-            ]);
+                ]),
+                'speed',
+            );
         case 'classic':
-            return wipe(prev, [
+            return withExplicitPreset(
+                wipe(prev, [
                 'missileCount',
                 'hiddenCount',
                 'scanCount',
@@ -164,10 +205,13 @@ function nextDraftAfterStrategicRulePresetChange(
                 'survivalTurns',
                 'blackTurnLimit',
                 'baseStones',
+                'singlePlayerAiBaseKomiBid',
                 'mixedStrategicModes',
-            ]);
-        case 'base':
-            return wipe(prev, [
+                ]),
+                'classic',
+            );
+        case 'base': {
+            const clearedBase = wipe(prev, [
                 'missileCount',
                 'hiddenCount',
                 'scanCount',
@@ -181,16 +225,33 @@ function nextDraftAfterStrategicRulePresetChange(
                 'blackTurnLimit',
                 'mixedStrategicModes',
             ]);
+            return withExplicitPreset(
+                {
+                    ...clearedBase,
+                    placements: { black: 0, white: 0, blackPattern: 0, whitePattern: 0 },
+                    mergeRandomPlacementsWithFixed: undefined,
+                    fixedOpening: undefined,
+                    forcedAiResponses: undefined,
+                    strictForcedAiResponses: undefined,
+                },
+                'base',
+            );
+        }
         case 'hidden':
-            return wipe(prev, [
+            return withExplicitPreset(
+                wipe(prev, [
                 'missileCount',
                 'survivalTurns',
                 'blackTurnLimit',
                 'baseStones',
+                'singlePlayerAiBaseKomiBid',
                 'mixedStrategicModes',
-            ]);
+                ]),
+                'hidden',
+            );
         case 'missile':
-            return wipe(prev, [
+            return withExplicitPreset(
+                wipe(prev, [
                 'hiddenCount',
                 'scanCount',
                 'aiHiddenItemTurns',
@@ -202,11 +263,15 @@ function nextDraftAfterStrategicRulePresetChange(
                 'survivalTurns',
                 'blackTurnLimit',
                 'baseStones',
+                'singlePlayerAiBaseKomiBid',
                 'mixedStrategicModes',
-            ]);
+                ]),
+                'missile',
+            );
         case 'mix': {
-            const modes = resolveSinglePlayerMixedModes({ ...prev, strategicRulePreset: 'mix' });
-            const withMix = { ...prev, mixedStrategicModes: modes };
+            const modesRaw = resolveSinglePlayerMixedModes({ ...prev, strategicRulePreset: 'mix' });
+            const modes = ensureMixModesMinTwoAfterBaseCaptureSanitize(modesRaw);
+            const withMix: SinglePlayerStageInfo = { ...prev, strategicRulePreset: 'mix', mixedStrategicModes: modes };
             return pruneDraftForMixedStrategicModes(withMix, modes);
         }
         default:
@@ -215,7 +280,7 @@ function nextDraftAfterStrategicRulePresetChange(
 }
 
 const fixedOpeningToCells = (stage: SinglePlayerStageInfo): StoneCell[][] => {
-    const size = stage.boardSize;
+    const size = clampStageBoardSize(stage.boardSize);
     const cells: StoneCell[][] = Array(size).fill(null).map(() => Array(size).fill(''));
     for (const s of stage.fixedOpening ?? []) {
         if (s.x < 0 || s.y < 0 || s.x >= size || s.y >= size) continue;
@@ -231,8 +296,10 @@ const fixedOpeningToCells = (stage: SinglePlayerStageInfo): StoneCell[][] => {
 const cellsToFixedOpening = (cells: StoneCell[][]): NonNullable<SinglePlayerStageInfo['fixedOpening']> => {
     const out: NonNullable<SinglePlayerStageInfo['fixedOpening']> = [];
     for (let y = 0; y < cells.length; y++) {
-        for (let x = 0; x < cells[y].length; x++) {
-            const c = cells[y][x];
+        const row = cells[y];
+        if (!row) continue;
+        for (let x = 0; x < row.length; x++) {
+            const c = row[x];
             if (!c) continue;
             if (c === 'black') out.push({ x, y, color: 'black', kind: 'plain' });
             else if (c === 'white') out.push({ x, y, color: 'white', kind: 'plain' });
@@ -346,8 +413,14 @@ type ForcedAiResponseRow = NonNullable<SinglePlayerStageInfo['forcedAiResponses'
 const pointKey = (x: number, y: number): string => `${x},${y}`;
 
 const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClose, onSave, onResetAllToDefault }) => {
-    const [draft, setDraft] = useState<SinglePlayerStageInfo>(() => cloneStageInfo(stage));
-    const [cells, setCells] = useState<StoneCell[][]>(() => fixedOpeningToCells(stage));
+    const [draft, setDraft] = useState<SinglePlayerStageInfo>(() => {
+        const c = cloneStageInfo(stage);
+        return { ...c, boardSize: clampStageBoardSize(c.boardSize) };
+    });
+    const [cells, setCells] = useState<StoneCell[][]>(() => {
+        const c = cloneStageInfo(stage);
+        return fixedOpeningToCells({ ...c, boardSize: clampStageBoardSize(c.boardSize) });
+    });
     const [saving, setSaving] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [brush, setBrush] = useState<BrushStone>('black');
@@ -368,13 +441,17 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
     );
     const [rulePreset, setRulePreset] = useState<SinglePlayerStrategicRulePreset>(() => stage.strategicRulePreset ?? 'auto');
     const [isForcedResponseBoardEditMode, setIsForcedResponseBoardEditMode] = useState(false);
-    const [resetBaseline, setResetBaseline] = useState<SinglePlayerStageInfo>(() => cloneStageInfo(stage));
+    const [resetBaseline, setResetBaseline] = useState<SinglePlayerStageInfo>(() => {
+        const c = cloneStageInfo(stage);
+        return { ...c, boardSize: clampStageBoardSize(c.boardSize) };
+    });
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const [rememberPosition, setRememberPosition] = useState(false);
     const modalRef = useRef<HTMLDivElement | null>(null);
     const dragPointerIdRef = useRef<number | null>(null);
     const dragOriginRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
+    const prevMixHadBaseRef = useRef(false);
 
     // 편집기가 열릴 때·다른 스테이지로 바뀔 때만 서버/상수 스냅샷으로 초기화한다.
     // `stage` 객체 참조만 바뀌는 경우(소켓으로 SINGLE_PLAYER_STAGES 전체 갱신 등)에는 초기화하지 않는다.
@@ -382,26 +459,54 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
     useEffect(() => {
         if (!open) return;
         const snapshot = cloneStageInfo(stage);
+        const safeBoard = clampStageBoardSize(snapshot.boardSize);
+        const snapshotPatched = { ...snapshot, boardSize: safeBoard };
         const resolvedKataServerLevel = clampKataServerLevel(
-            Number.isFinite(snapshot.kataServerLevel)
-                ? Number(snapshot.kataServerLevel)
-                : defaultSinglePlayerKataServerLevel(snapshot.level)
+            Number.isFinite(snapshotPatched.kataServerLevel)
+                ? Number(snapshotPatched.kataServerLevel)
+                : defaultSinglePlayerKataServerLevel(snapshotPatched.level)
         );
-        setResetBaseline(snapshot);
-        setDraft({ ...snapshot, kataServerLevel: resolvedKataServerLevel });
+        setResetBaseline(snapshotPatched);
+        setDraft({ ...snapshotPatched, kataServerLevel: resolvedKataServerLevel });
         setKataServerLevelInput(String(resolvedKataServerLevel));
-        setAiHiddenTurnsCsv(Array.isArray(snapshot.aiHiddenItemTurns) ? snapshot.aiHiddenItemTurns.join(', ') : '');
+        setAiHiddenTurnsCsv(Array.isArray(snapshotPatched.aiHiddenItemTurns) ? snapshotPatched.aiHiddenItemTurns.join(', ') : '');
         setAiHiddenPlacementsCsv(
-            Array.isArray(snapshot.aiHiddenItemPlacements)
-                ? snapshot.aiHiddenItemPlacements.map((p) => `${p.x}:${p.y}`).join(', ')
+            Array.isArray(snapshotPatched.aiHiddenItemPlacements)
+                ? snapshotPatched.aiHiddenItemPlacements.map((p) => `${p.x}:${p.y}`).join(', ')
                 : ''
         );
-        setCells(fixedOpeningToCells(snapshot));
-        setRulePreset(snapshot.strategicRulePreset ?? 'auto');
+        setCells(fixedOpeningToCells(snapshotPatched));
+        setRulePreset(snapshotPatched.strategicRulePreset ?? 'auto');
         setIsForcedResponseBoardEditMode(false);
         setErrorMessage('');
         // eslint-disable-next-line react-hooks/exhaustive-deps -- stage.id·open만으로 동기화 시점을 제한함
     }, [open, stage.id]);
+
+    useEffect(() => {
+        if (!open) {
+            prevMixHadBaseRef.current = false;
+            return;
+        }
+        if (scope !== 'singleplayer') return;
+        const effective =
+            rulePreset === 'auto' ? inferSinglePlayerStrategicRulePreset(draft) : rulePreset;
+        const now =
+            effective === 'mix'
+            && Array.isArray(draft.mixedStrategicModes)
+            && draft.mixedStrategicModes.includes(GameMode.Base);
+        const prevHad = prevMixHadBaseRef.current;
+        prevMixHadBaseRef.current = now;
+        if (!now) return;
+        if (!prevHad) {
+            const size = clampStageBoardSize(draft.boardSize);
+            setCells(
+                Array.from({ length: size }, () =>
+                    Array.from({ length: size }, () => '' as StoneCell)),
+            );
+            setIsForcedResponseBoardEditMode(false);
+        }
+    }, [open, scope, rulePreset, draft, draft.boardSize]);
+
     useEffect(() => {
         if (!open) return;
         let shouldRemember = false;
@@ -443,7 +548,8 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
     const mixHasBase = mixedModes.includes(GameMode.Base);
     const mixHasHidden = mixedModes.includes(GameMode.Hidden);
     const mixHasMissile = mixedModes.includes(GameMode.Missile);
-    const showCaptureFields = effectiveRulePreset === 'capture' || (isMixPreset && mixHasCapture);
+    const showCaptureFields =
+        effectiveRulePreset === 'capture' || (isMixPreset && mixHasCapture && !mixHasBase);
     const showSurvivalFields = effectiveRulePreset === 'survival';
     const showAutoScoringTurns =
         effectiveRulePreset === 'classic'
@@ -456,6 +562,9 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
     const showHiddenCounts = effectiveRulePreset === 'hidden' || (isMixPreset && mixHasHidden);
     const showHiddenAiTiming = showHiddenCounts;
     const showMissileCount = effectiveRulePreset === 'missile' || (isMixPreset && mixHasMissile);
+    /** 베이스(순수 또는 믹스에 베이스 포함): 미리 깔리는 돌·랜덤 배치 없음 */
+    const editorBaseNoPregameStones =
+        scope === 'singleplayer' && (effectiveRulePreset === 'base' || (isMixPreset && mixHasBase));
     const isMixSelectionInvalid = isMixPreset && mixedModes.length < 2;
     const forcedAiResponses = Array.isArray(draft.forcedAiResponses) ? draft.forcedAiResponses : [];
     const forcedMoveIndexByKey = useMemo(() => {
@@ -471,12 +580,13 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
         if (isMixSelectionInvalid) {
             errors.push('믹스룰은 모드를 2개 이상 선택해야 저장할 수 있습니다.');
         }
-        const fixedStoneCount = cellsToFixedOpening(cells).length;
-        const randomStoneCount =
-            Math.max(0, Number(draft.placements.black) || 0)
-            + Math.max(0, Number(draft.placements.white) || 0)
-            + Math.max(0, Number(draft.placements.blackPattern) || 0)
-            + Math.max(0, Number(draft.placements.whitePattern) || 0);
+        const fixedStoneCount = editorBaseNoPregameStones ? 0 : cellsToFixedOpening(cells).length;
+        const randomStoneCount = editorBaseNoPregameStones
+            ? 0
+            : Math.max(0, Number(draft.placements.black) || 0)
+              + Math.max(0, Number(draft.placements.white) || 0)
+              + Math.max(0, Number(draft.placements.blackPattern) || 0)
+              + Math.max(0, Number(draft.placements.whitePattern) || 0);
         const boardCapacity = draft.boardSize * draft.boardSize;
         const randomCapacity = boardCapacity - (draft.mergeRandomPlacementsWithFixed ? fixedStoneCount : 0);
         if (fixedStoneCount > boardCapacity) {
@@ -504,7 +614,20 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
             }
         }
         return errors;
-    }, [aiHiddenPlacementsCsv, aiHiddenTurnsCsv, cells, draft.aiHiddenItemUseWithinTurn, draft.boardSize, draft.description, draft.disableAiHiddenItemUsage, draft.mergeRandomPlacementsWithFixed, draft.placements, isMixSelectionInvalid, showHiddenAiTiming]);
+    }, [
+        aiHiddenPlacementsCsv,
+        aiHiddenTurnsCsv,
+        cells,
+        draft.aiHiddenItemUseWithinTurn,
+        draft.boardSize,
+        draft.description,
+        draft.disableAiHiddenItemUsage,
+        draft.mergeRandomPlacementsWithFixed,
+        draft.placements,
+        editorBaseNoPregameStones,
+        isMixSelectionInvalid,
+        showHiddenAiTiming,
+    ]);
     const hasValidationErrors = validationErrors.length > 0;
 
     const updateForcedAiResponse = useCallback((index: number, updater: (prev: ForcedAiResponseRow) => ForcedAiResponseRow) => {
@@ -558,7 +681,8 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
             return;
         }
         setCells((prev) => {
-            const next = prev.map((row) => [...row]);
+            const next = prev.map((row) => [...(row ?? [])]);
+            if (!next[y]) return prev;
             const cur = next[y][x];
             if (cur) {
                 next[y][x] = '';
@@ -569,7 +693,17 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
         });
     }, [brush, cells, isForcedResponseBoardEditMode, scope]);
 
-    const boardSize = draft.boardSize;
+    const boardSize = clampStageBoardSize(draft.boardSize);
+
+    /** `draft.boardSize`와 `cells` 행 수가 어긋나면(오픈 직후 한 프레임·손상 데이터) 렌더에서 터진다. */
+    useLayoutEffect(() => {
+        if (!open) return;
+        setCells((prev) => {
+            if (prev.length === boardSize && prev.every((row) => row && row.length === boardSize)) return prev;
+            return resizeCells(Array.isArray(prev) && prev.length > 0 ? prev : [], boardSize);
+        });
+    }, [open, boardSize]);
+
     const rowIndices = useMemo(() => Array.from({ length: boardSize }, (_, i) => i), [boardSize]);
     const boardCellSizeClass =
         boardSize >= 13 ? 'h-6 w-6 sm:h-6 sm:w-6' : boardSize >= 11 ? 'h-6 w-6 sm:h-7 sm:w-7' : 'h-7 w-7 sm:h-8 sm:w-8';
@@ -678,55 +812,64 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden xl:min-w-0 xl:w-[70%] xl:flex-none xl:shrink-0 xl:grid xl:grid-cols-[4fr_3fr] xl:gap-3">
                         <div className="flex min-h-0 min-w-0 flex-col overflow-hidden xl:col-span-1">
                         <div className="shrink-0 rounded border border-zinc-800 bg-zinc-900/30 p-2">
-                            <p className="mb-2 text-xs text-zinc-400">
-                                위에서 돌 종류를 고른 뒤 빈 칸에 클릭해 놓습니다. 돌이 있는 칸을 다시 클릭하면 빈칸이 됩니다.
-                            </p>
-                            <div className="mb-3 flex flex-wrap gap-2">
-                                {BRUSH_OPTIONS.map((opt) => {
-                                    const active = brush === opt.id;
-                                    return (
-                                        <button
-                                            key={opt.id}
-                                            type="button"
-                                            onClick={() => setBrush(opt.id)}
-                                            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
-                                                active
-                                                    ? 'border-amber-400/80 bg-amber-950/50 text-amber-100 ring-2 ring-amber-400/50'
-                                                    : 'border-zinc-600 bg-zinc-900/80 text-zinc-200 hover:border-zinc-500'
-                                            }`}
-                                        >
-                                            <span className={`h-5 w-5 shrink-0 rounded-full border ${opt.previewClass}`} aria-hidden />
-                                            {opt.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                            <div className="flex justify-center">
-                            <div
-                                className={`inline-grid w-fit max-w-full shrink-0 rounded border border-zinc-700 bg-zinc-900/40 p-1.5 sm:p-2 ${boardRowGapClass}`}
-                            >
-                                {rowIndices.map((y) => (
-                                    <div key={y} className={`flex shrink-0 ${boardRowGapClass}`}>
-                                        {rowIndices.map((x) => (
-                                            <button
-                                                key={`${x}-${y}`}
-                                                type="button"
-                                                className={`relative shrink-0 rounded-full border ${boardCellSizeClass} ${cellClassName(cells[y][x] || '')}`}
-                                                onClick={() => handleBoardCellClick(x, y)}
-                                            >
-                                                {scope === 'singleplayer' && forcedMoveIndexByKey.has(pointKey(x, y)) && (
-                                                    <span
-                                                        className={`absolute inset-0 flex items-center justify-center rounded-full border border-zinc-500 bg-white font-black leading-none text-zinc-900 ${forcedIndexTextClass}`}
-                                                    >
-                                                        {(forcedMoveIndexByKey.get(pointKey(x, y)) ?? 0) + 1}
-                                                    </span>
-                                                )}
-                                            </button>
-                                        ))}
+                            {editorBaseNoPregameStones ? (
+                                <p className="text-xs leading-relaxed text-zinc-300">
+                                    베이스 바둑은 시작 판에 미리 놓이는 돌이 없습니다. 베이스돌은 대국 시작 후 배치 단계에서만 두며, 랜덤 흑·백·문양 배치는
+                                    사용하지 않습니다.
+                                </p>
+                            ) : (
+                                <>
+                                    <p className="mb-2 text-xs text-zinc-400">
+                                        위에서 돌 종류를 고른 뒤 빈 칸에 클릭해 놓습니다. 돌이 있는 칸을 다시 클릭하면 빈칸이 됩니다.
+                                    </p>
+                                    <div className="mb-3 flex flex-wrap gap-2">
+                                        {BRUSH_OPTIONS.map((opt) => {
+                                            const active = brush === opt.id;
+                                            return (
+                                                <button
+                                                    key={opt.id}
+                                                    type="button"
+                                                    onClick={() => setBrush(opt.id)}
+                                                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
+                                                        active
+                                                            ? 'border-amber-400/80 bg-amber-950/50 text-amber-100 ring-2 ring-amber-400/50'
+                                                            : 'border-zinc-600 bg-zinc-900/80 text-zinc-200 hover:border-zinc-500'
+                                                    }`}
+                                                >
+                                                    <span className={`h-5 w-5 shrink-0 rounded-full border ${opt.previewClass}`} aria-hidden />
+                                                    {opt.label}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
-                                ))}
-                            </div>
-                            </div>
+                                    <div className="flex justify-center">
+                                        <div
+                                            className={`inline-grid w-fit max-w-full shrink-0 rounded border border-zinc-700 bg-zinc-900/40 p-1.5 sm:p-2 ${boardRowGapClass}`}
+                                        >
+                                            {rowIndices.map((y) => (
+                                                <div key={y} className={`flex shrink-0 ${boardRowGapClass}`}>
+                                                    {rowIndices.map((x) => (
+                                                        <button
+                                                            key={`${x}-${y}`}
+                                                            type="button"
+                                                            className={`relative shrink-0 rounded-full border ${boardCellSizeClass} ${cellClassName(cells[y]?.[x] || '')}`}
+                                                            onClick={() => handleBoardCellClick(x, y)}
+                                                        >
+                                                            {scope === 'singleplayer' && forcedMoveIndexByKey.has(pointKey(x, y)) && (
+                                                                <span
+                                                                    className={`absolute inset-0 flex items-center justify-center rounded-full border border-zinc-500 bg-white font-black leading-none text-zinc-900 ${forcedIndexTextClass}`}
+                                                                >
+                                                                    {(forcedMoveIndexByKey.get(pointKey(x, y)) ?? 0) + 1}
+                                                                </span>
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                         <label className="mt-3 block shrink-0 rounded border border-zinc-700/80 bg-zinc-900/35 p-2 text-xs">
                             스테이지 설명
@@ -740,7 +883,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                             <span className="mt-1 block text-[11px] text-zinc-500">{(draft.description ?? '').length} / 1200</span>
                         </label>
                         </div>
-                        {scope === 'singleplayer' && (
+                        {scope === 'singleplayer' && !editorBaseNoPregameStones && (
                             <div className="mt-3 flex min-h-[10rem] flex-1 flex-col overflow-hidden rounded border border-indigo-700/40 bg-indigo-950/20 xl:col-span-1 xl:row-span-2 xl:mt-0 xl:min-h-0">
                                 <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-indigo-600/25 p-2">
                                     <p className="text-xs font-semibold text-indigo-100">AI 강제 응수 규칙</p>
@@ -937,7 +1080,19 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                     const nextPreset = e.target.value as SinglePlayerStrategicRulePreset;
                                     if (nextPreset === rulePreset) return;
                                     setRulePreset(nextPreset);
-                                    setDraft((d) => nextDraftAfterStrategicRulePresetChange(d, nextPreset));
+                                    const nextDraft = nextDraftAfterStrategicRulePresetChange(draft, nextPreset);
+                                    setDraft(nextDraft);
+                                    if (nextPreset === 'base') {
+                                        setIsForcedResponseBoardEditMode(false);
+                                        setCells(fixedOpeningToCells({ ...nextDraft, fixedOpening: undefined }));
+                                    }
+                                    if (
+                                        nextPreset === 'mix'
+                                        && nextDraft.mixedStrategicModes?.includes(GameMode.Base)
+                                    ) {
+                                        setIsForcedResponseBoardEditMode(false);
+                                        setCells(fixedOpeningToCells({ ...nextDraft, fixedOpening: undefined }));
+                                    }
                                 }}
                             >
                                 <option value="auto">자동 (필드 조합 — 현재 추론: {inferredRuleLabel})</option>
@@ -951,7 +1106,9 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                         {isMixPreset && (
                             <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2">
                                 <p className="text-xs font-semibold text-zinc-200">섞을 모드 (2개 이상 권장)</p>
-                                <p className="mt-1 text-[11px] text-zinc-400">따내기가 섞이면 계가까지 수순은 사용하지 않습니다.</p>
+                                <p className="mt-1 text-[11px] text-zinc-400">
+                                    따내기가 섞이면 계가까지 수순은 사용하지 않습니다. 베이스와 따내기는 함께 섞을 수 없으며, 베이스가 섞이면 시작 전 배치 돌은 없습니다.
+                                </p>
                                 <div className="mt-2 grid grid-cols-2 gap-2">
                                     {MIX_MODE_OPTIONS.map(({ mode, label }) => {
                                         const checked = mixedModes.includes(mode);
@@ -963,10 +1120,22 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                     onChange={(e) => {
                                                         setDraft((p) => {
                                                             const prev = Array.isArray(p.mixedStrategicModes) ? p.mixedStrategicModes : [];
-                                                            const next = e.target.checked
+                                                            let next = e.target.checked
                                                                 ? [...prev, mode]
                                                                 : prev.filter((m) => m !== mode);
-                                                            return pruneDraftForMixedStrategicModes({ ...p, mixedStrategicModes: next }, next);
+                                                            if (e.target.checked) {
+                                                                if (mode === GameMode.Base) {
+                                                                    next = next.filter((m) => m !== GameMode.Capture);
+                                                                }
+                                                                if (mode === GameMode.Capture) {
+                                                                    next = next.filter((m) => m !== GameMode.Base);
+                                                                }
+                                                            }
+                                                            next = ensureMixModesMinTwoAfterBaseCaptureSanitize(next);
+                                                            return pruneDraftForMixedStrategicModes(
+                                                                { ...p, strategicRulePreset: 'mix', mixedStrategicModes: next },
+                                                                next,
+                                                            );
                                                         });
                                                     }}
                                                 />
@@ -1051,6 +1220,159 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                 onChange={(e) => setDraft((p) => ({ ...(p as any), baseStones: clampGameInt(Number(e.target.value) || 0) }))}
                                             />
                                         </label>
+                                    )}
+                                    {showBaseStones && (
+                                        <div className="col-span-2 space-y-2 rounded border border-zinc-800 bg-zinc-950/50 p-2">
+                                            <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-200">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={draft.singlePlayerAiBaseKomiBid != null}
+                                                    onChange={(e) => {
+                                                        const on = e.target.checked;
+                                                        setDraft((p) => {
+                                                            if (!on) {
+                                                                const { singlePlayerAiBaseKomiBid: _removed, ...rest } = p;
+                                                                return rest as SinglePlayerStageInfo;
+                                                            }
+                                                            return {
+                                                                ...p,
+                                                                singlePlayerAiBaseKomiBid: p.singlePlayerAiBaseKomiBid ?? {
+                                                                    color: 'random',
+                                                                    komiMode: 'random',
+                                                                    komiMin: 1,
+                                                                    komiMax: 10,
+                                                                },
+                                                            };
+                                                        });
+                                                    }}
+                                                />
+                                                AI 덤 입찰 지정 (미체크 시 흑/백·덤 무작위, 기존과 동일)
+                                            </label>
+                                            {draft.singlePlayerAiBaseKomiBid && (
+                                                <div className="grid grid-cols-2 gap-2 border-t border-zinc-800 pt-2">
+                                                    <label className="text-xs text-zinc-300">
+                                                        AI 입찰 색
+                                                        <select
+                                                            className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                                            value={draft.singlePlayerAiBaseKomiBid.color}
+                                                            onChange={(e) =>
+                                                                setDraft((p) => {
+                                                                    const cur = p.singlePlayerAiBaseKomiBid;
+                                                                    if (!cur) return p;
+                                                                    const color = e.target.value as SinglePlayerAiBaseKomiBid['color'];
+                                                                    return { ...p, singlePlayerAiBaseKomiBid: { ...cur, color } };
+                                                                })
+                                                            }
+                                                        >
+                                                            <option value="random">무작위</option>
+                                                            <option value="black">흑</option>
+                                                            <option value="white">백</option>
+                                                        </select>
+                                                    </label>
+                                                    <label className="text-xs text-zinc-300">
+                                                        덤 집
+                                                        <select
+                                                            className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                                            value={draft.singlePlayerAiBaseKomiBid.komiMode}
+                                                            onChange={(e) =>
+                                                                setDraft((p) => {
+                                                                    const cur = p.singlePlayerAiBaseKomiBid;
+                                                                    if (!cur) return p;
+                                                                    const komiMode = e.target.value as SinglePlayerAiBaseKomiBid['komiMode'];
+                                                                    const next: SinglePlayerAiBaseKomiBid =
+                                                                        komiMode === 'fixed'
+                                                                            ? { ...cur, komiMode, komi: cur.komi ?? 5 }
+                                                                            : {
+                                                                                  ...cur,
+                                                                                  komiMode,
+                                                                                  komiMin: cur.komiMin ?? 1,
+                                                                                  komiMax: cur.komiMax ?? 10,
+                                                                              };
+                                                                    return { ...p, singlePlayerAiBaseKomiBid: next };
+                                                                })
+                                                            }
+                                                        >
+                                                            <option value="fixed">고정값</option>
+                                                            <option value="random">범위 랜덤</option>
+                                                        </select>
+                                                    </label>
+                                                    {draft.singlePlayerAiBaseKomiBid.komiMode === 'fixed' ? (
+                                                        <label className="col-span-2 text-xs text-zinc-300">
+                                                            고정 덤(집)
+                                                            <input
+                                                                className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                                                type="number"
+                                                                min={0}
+                                                                max={99}
+                                                                value={draft.singlePlayerAiBaseKomiBid.komi ?? 0}
+                                                                onChange={(e) =>
+                                                                    setDraft((p) => {
+                                                                        const cur = p.singlePlayerAiBaseKomiBid;
+                                                                        if (!cur) return p;
+                                                                        return {
+                                                                            ...p,
+                                                                            singlePlayerAiBaseKomiBid: {
+                                                                                ...cur,
+                                                                                komi: clampGameInt(Number(e.target.value) || 0),
+                                                                            },
+                                                                        };
+                                                                    })
+                                                                }
+                                                            />
+                                                        </label>
+                                                    ) : (
+                                                        <>
+                                                            <label className="text-xs text-zinc-300">
+                                                                최소 집
+                                                                <input
+                                                                    className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                                                    type="number"
+                                                                    min={0}
+                                                                    max={99}
+                                                                    value={draft.singlePlayerAiBaseKomiBid.komiMin ?? 1}
+                                                                    onChange={(e) =>
+                                                                        setDraft((p) => {
+                                                                            const cur = p.singlePlayerAiBaseKomiBid;
+                                                                            if (!cur) return p;
+                                                                            return {
+                                                                                ...p,
+                                                                                singlePlayerAiBaseKomiBid: {
+                                                                                    ...cur,
+                                                                                    komiMin: clampGameInt(Number(e.target.value) || 0),
+                                                                                },
+                                                                            };
+                                                                        })
+                                                                    }
+                                                                />
+                                                            </label>
+                                                            <label className="text-xs text-zinc-300">
+                                                                최대 집
+                                                                <input
+                                                                    className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                                                    type="number"
+                                                                    min={0}
+                                                                    max={99}
+                                                                    value={draft.singlePlayerAiBaseKomiBid.komiMax ?? 10}
+                                                                    onChange={(e) =>
+                                                                        setDraft((p) => {
+                                                                            const cur = p.singlePlayerAiBaseKomiBid;
+                                                                            if (!cur) return p;
+                                                                            return {
+                                                                                ...p,
+                                                                                singlePlayerAiBaseKomiBid: {
+                                                                                    ...cur,
+                                                                                    komiMax: clampGameInt(Number(e.target.value) || 0),
+                                                                                },
+                                                                            };
+                                                                        })
+                                                                    }
+                                                                />
+                                                            </label>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
                                     {showHiddenCounts && (
                                         <>
@@ -1156,42 +1478,46 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                 </div>
                             </div>
                         )}
-                        <div className="grid grid-cols-2 gap-2">
-                            <label className="text-xs">랜덤 흑돌
-                                <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1" type="number" value={draft.placements.black}
-                                    onChange={(e) => setDraft((p) => ({ ...p, placements: { ...p.placements, black: clampGameInt(Number(e.target.value) || 0) } }))} />
-                            </label>
-                            <label className="text-xs">랜덤 백돌
-                                <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1" type="number" value={draft.placements.white}
-                                    onChange={(e) => setDraft((p) => ({ ...p, placements: { ...p.placements, white: clampGameInt(Number(e.target.value) || 0) } }))} />
-                            </label>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <label className="text-xs">랜덤 흑 문양돌
-                                <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1" type="number" value={draft.placements.blackPattern}
-                                    onChange={(e) => setDraft((p) => ({ ...p, placements: { ...p.placements, blackPattern: clampGameInt(Number(e.target.value) || 0) } }))} />
-                            </label>
-                            <label className="text-xs">랜덤 백 문양돌
-                                <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1" type="number" value={draft.placements.whitePattern}
-                                    onChange={(e) => setDraft((p) => ({ ...p, placements: { ...p.placements, whitePattern: clampGameInt(Number(e.target.value) || 0) } }))} />
-                            </label>
-                        </div>
-                        <label className="flex items-center gap-2 text-sm">
-                            <input
-                                type="checkbox"
-                                checked={!!draft.mergeRandomPlacementsWithFixed}
-                                onChange={(e) => setDraft((p) => ({ ...p, mergeRandomPlacementsWithFixed: e.target.checked }))}
-                            />
-                            수동배치 위에 랜덤돌 추가
-                        </label>
-                        <label className="flex items-center gap-2 rounded border border-zinc-800 bg-zinc-900/40 p-2 text-sm">
-                            <input
-                                type="checkbox"
-                                checked={draft.allowPlacementRefresh !== false}
-                                onChange={(e) => setDraft((p) => ({ ...p, allowPlacementRefresh: e.target.checked }))}
-                            />
-                            <span className="font-semibold text-zinc-100">배치변경 허용</span>
-                        </label>
+                        {!editorBaseNoPregameStones && (
+                            <>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <label className="text-xs">랜덤 흑돌
+                                        <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1" type="number" value={draft.placements.black}
+                                            onChange={(e) => setDraft((p) => ({ ...p, placements: { ...p.placements, black: clampGameInt(Number(e.target.value) || 0) } }))} />
+                                    </label>
+                                    <label className="text-xs">랜덤 백돌
+                                        <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1" type="number" value={draft.placements.white}
+                                            onChange={(e) => setDraft((p) => ({ ...p, placements: { ...p.placements, white: clampGameInt(Number(e.target.value) || 0) } }))} />
+                                    </label>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <label className="text-xs">랜덤 흑 문양돌
+                                        <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1" type="number" value={draft.placements.blackPattern}
+                                            onChange={(e) => setDraft((p) => ({ ...p, placements: { ...p.placements, blackPattern: clampGameInt(Number(e.target.value) || 0) } }))} />
+                                    </label>
+                                    <label className="text-xs">랜덤 백 문양돌
+                                        <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1" type="number" value={draft.placements.whitePattern}
+                                            onChange={(e) => setDraft((p) => ({ ...p, placements: { ...p.placements, whitePattern: clampGameInt(Number(e.target.value) || 0) } }))} />
+                                    </label>
+                                </div>
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={!!draft.mergeRandomPlacementsWithFixed}
+                                        onChange={(e) => setDraft((p) => ({ ...p, mergeRandomPlacementsWithFixed: e.target.checked }))}
+                                    />
+                                    수동배치 위에 랜덤돌 추가
+                                </label>
+                                <label className="flex items-center gap-2 rounded border border-zinc-800 bg-zinc-900/40 p-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={draft.allowPlacementRefresh !== false}
+                                        onChange={(e) => setDraft((p) => ({ ...p, allowPlacementRefresh: e.target.checked }))}
+                                    />
+                                    <span className="font-semibold text-zinc-100">배치변경 허용</span>
+                                </label>
+                            </>
+                        )}
                     </div>
                 </div>
                 <div className="flex items-center justify-between gap-2 border-t border-zinc-800 px-4 py-3">
@@ -1270,6 +1596,15 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                 const normalizedHiddenTurns = normalizeHiddenTurnsFromCsv(aiHiddenTurnsCsv);
                                 const normalizedHiddenPlacements = normalizeHiddenPlacementsFromCsv(aiHiddenPlacementsCsv, cleanedDraft.boardSize);
                                 const aiHiddenItemUseCount = Number((cleanedDraft as { aiHiddenItemUseCount?: number }).aiHiddenItemUseCount ?? 0);
+                                const effectiveSavePreset: SinglePlayerStrategicRulePreset =
+                                    rulePreset === 'auto' ? inferSinglePlayerStrategicRulePreset(cleanedDraft) : rulePreset;
+                                const saveMixedModes = Array.isArray(cleanedDraft.mixedStrategicModes)
+                                    ? cleanedDraft.mixedStrategicModes
+                                    : [];
+                                const stripBaseOpeningFields =
+                                    scope === 'singleplayer'
+                                    && (effectiveSavePreset === 'base'
+                                        || (effectiveSavePreset === 'mix' && saveMixedModes.includes(GameMode.Base)));
                                 await onSave({
                                     ...cleanedDraft,
                                     strategicRulePreset: rulePreset === 'auto' ? undefined : rulePreset,
@@ -1287,7 +1622,19 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                     disableAiHiddenItemUsage: showHiddenAiTiming && cleanedDraft.disableAiHiddenItemUsage === true ? true : undefined,
                                     forceAiResponsesOnHiddenTurnsOnly:
                                         saveHiddenAiSettings && cleanedDraft.forceAiResponsesOnHiddenTurnsOnly === true ? true : undefined,
-                                    fixedOpening: cellsToFixedOpening(resizeCells(cells, cleanedDraft.boardSize)),
+                                    ...(stripBaseOpeningFields
+                                        ? {
+                                              placements: { black: 0, white: 0, blackPattern: 0, whitePattern: 0 },
+                                              mergeRandomPlacementsWithFixed: undefined,
+                                              fixedOpening: undefined,
+                                              centerBlackStoneChance: undefined,
+                                              forcedAiResponses: undefined,
+                                              strictForcedAiResponses: undefined,
+                                              allowPlacementRefresh: false,
+                                          }
+                                        : {
+                                              fixedOpening: cellsToFixedOpening(resizeCells(cells, cleanedDraft.boardSize)),
+                                          }),
                                 });
                             } catch (error) {
                                 setErrorMessage(getErrorMessage(error));

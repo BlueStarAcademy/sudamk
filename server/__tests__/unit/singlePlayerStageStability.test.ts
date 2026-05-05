@@ -156,6 +156,68 @@ describe('single-player stage stability', () => {
         expect(stage.blackTurnLimit).toBeUndefined();
     });
 
+    it('mix base+hidden without speed: autoScoringTurns must not re-inject 스피드 on normalize/save round-trip', () => {
+        const base = DEFAULT_SINGLE_PLAYER_STAGES[0];
+        const normalized = normalizeSinglePlayerStagesOverride([
+            {
+                ...base,
+                strategicRulePreset: 'mix',
+                mixedStrategicModes: [GameMode.Base, GameMode.Hidden],
+                baseStones: 3,
+                hiddenCount: 2,
+                scanCount: 1,
+                autoScoringTurns: 120,
+                timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 3 },
+            },
+        ]);
+        const stage = normalized.find((s) => s.id === base.id)!;
+
+        expect(stage.strategicRulePreset).toBe('mix');
+        expect(stage.mixedStrategicModes).toEqual([GameMode.Base, GameMode.Hidden]);
+        expect(stage.mixedStrategicModes).not.toContain(GameMode.Speed);
+        expect(stage.autoScoringTurns).toBe(120);
+    });
+
+    it('mix including Base removes Capture and clears pre-placed stones / 따내기 한도', () => {
+        const base = DEFAULT_SINGLE_PLAYER_STAGES[0];
+        const normalized = normalizeSinglePlayerStagesOverride([
+            {
+                ...base,
+                strategicRulePreset: 'mix',
+                mixedStrategicModes: [GameMode.Base, GameMode.Capture, GameMode.Speed],
+                fixedOpening: [{ x: 1, y: 1, color: 'black', kind: 'plain' }],
+                placements: { black: 3, white: 2, blackPattern: 0, whitePattern: 0 },
+                blackTurnLimit: 10,
+            },
+        ]);
+        const stage = normalized[0]!;
+
+        expect(stage.mixedStrategicModes).not.toContain(GameMode.Capture);
+        expect(stage.mixedStrategicModes).toContain(GameMode.Base);
+        expect(stage.mixedStrategicModes!.length).toBeGreaterThanOrEqual(2);
+        expect(stage.fixedOpening).toBeUndefined();
+        expect(stage.placements).toEqual({ black: 0, white: 0, blackPattern: 0, whitePattern: 0 });
+        expect(stage.blackTurnLimit).toBeUndefined();
+    });
+
+    it('promotes capture preset to mix when missile + 따내기 한도 are both set (관리자 편집 필드 유지)', () => {
+        const base = DEFAULT_SINGLE_PLAYER_STAGES.find((s) => s.targetScore) ?? DEFAULT_SINGLE_PLAYER_STAGES[0];
+        const normalized = normalizeSinglePlayerStagesOverride([
+            {
+                ...base,
+                strategicRulePreset: 'capture',
+                blackTurnLimit: 12,
+                missileCount: 3,
+            },
+        ]);
+        const stage = normalized.find((s) => s.id === base.id)!;
+
+        expect(stage.strategicRulePreset).toBe('mix');
+        expect(stage.mixedStrategicModes).toEqual([GameMode.Capture, GameMode.Missile]);
+        expect(stage.blackTurnLimit).toBe(12);
+        expect(stage.missileCount).toBe(3);
+    });
+
     it('drops auto scoring turns for admin-configured capture mix stages', () => {
         const base = DEFAULT_SINGLE_PLAYER_STAGES.find((s) => s.autoScoringTurns != null) ?? DEFAULT_SINGLE_PLAYER_STAGES[0];
         const normalized = normalizeSinglePlayerStagesOverride([
@@ -193,6 +255,42 @@ describe('single-player stage stability', () => {
 
         expect(normalized[0].aiHiddenItemUseWithinTurn).toBe(8);
         expect(normalized[0].aiHiddenItemUseCount).toBe(3);
+    });
+
+    it('missile preset keeps 계가 수 even when merge left blackTurnLimit on the row (repair must not promote to capture mix)', () => {
+        const base = DEFAULT_SINGLE_PLAYER_STAGES.find((s) => s.id === '입문-1') ?? DEFAULT_SINGLE_PLAYER_STAGES[0];
+        const normalized = normalizeSinglePlayerStagesOverride([
+            {
+                ...base,
+                strategicRulePreset: 'missile',
+                missileCount: 3,
+                autoScoringTurns: 8,
+                blackTurnLimit: 15,
+            },
+        ]);
+        const stage = normalized.find((s) => s.id === base.id)!;
+        expect(stage.strategicRulePreset).toBe('missile');
+        expect(stage.autoScoringTurns).toBe(8);
+        expect(stage.missileCount).toBe(3);
+        expect(stage.blackTurnLimit).toBeUndefined();
+    });
+
+    it('preserves 계가까지 수순 for hidden (and other non-speed) strategic presets after normalize', () => {
+        const base = DEFAULT_SINGLE_PLAYER_STAGES[0];
+        const normalized = normalizeSinglePlayerStagesOverride([
+            {
+                ...base,
+                strategicRulePreset: 'hidden',
+                blackTurnLimit: undefined,
+                survivalTurns: undefined,
+                hiddenCount: 2,
+                scanCount: 1,
+                autoScoringTurns: 55,
+            },
+        ]);
+        const stage = normalized.find((s) => s.id === base.id)!;
+        expect(stage.strategicRulePreset).toBe('hidden');
+        expect(stage.autoScoringTurns).toBe(55);
     });
 
     it('keeps class-based KataServer defaults instead of weakening every normalized stage', () => {

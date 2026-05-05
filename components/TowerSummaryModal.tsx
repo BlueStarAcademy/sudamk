@@ -363,7 +363,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     const previousXpPercent = Math.min(100, (previousXp / (xpRequirement || 1)) * 100);
     const xpPercent = Math.min(100, (clampedXp / (xpRequirement || 1)) * 100);
 
-    /** 싱글/일반 결과 모달과 동일: 전략 경험치 바 + 현재/필요 XP + 변동 (summary 유무와 관계없이 표시) */
+    /** 싱글/일반 결과 모달과 동일: EXP 바 + 현재/필요 XP + 변동 (summary 유무와 관계없이 표시) */
     const renderTowerStrategyXpPanel = (compact: boolean) => (
         <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 ${compact ? 'p-1' : 'p-1.5'}`}>
             <div
@@ -620,7 +620,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                                 {currentUser.nickname}
                                             </p>
                                             <p className="text-amber-200/60" style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px` }}>
-                                                전략 Lv.{currentUser.userLevel}
+                                                Lv.{currentUser.userLevel}
                                             </p>
                                         </div>
                                     </div>
@@ -694,7 +694,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                             {currentUser.nickname}
                                         </p>
                                         <p className="text-amber-200/60" style={{ fontSize: '13px' }}>
-                                            전략 Lv.{currentUser.userLevel}
+                                            Lv.{currentUser.userLevel}
                                         </p>
                                     </div>
                                 </div>

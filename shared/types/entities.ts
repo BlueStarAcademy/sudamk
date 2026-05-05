@@ -39,6 +39,9 @@ export type PairPetHatcherySession = {
     eggItemId?: string;
 };
 
+/** 페어 펫 로비 인벤(펫·영혼석) 목록 정렬 */
+export type PairPetLobbyInventorySortMode = 'recent' | 'oldest' | 'name' | 'petLevel' | 'gradeHigh';
+
 export type Equipment = Partial<Record<EquipmentSlot, string>>;
 
 export type EquipmentPreset = {
@@ -481,7 +484,7 @@ export type User = {
   mannerScore: number;
   mail: Mail[];
   quests: QuestLog;
-  stats?: Record<string, { wins: number; losses: number; rankingScore?: number; aiWins?: number; aiLosses?: number; }>;
+  stats?: Record<string, { wins?: number; losses?: number; rankingScore?: number; aiWins?: number; aiLosses?: number }>;
   chatBanUntil?: number | null;
   connectionBanUntil?: number | null;
   chatBanReason?: string | null;
@@ -617,6 +620,8 @@ export type User = {
   pairPetHatcherySlotUnlocked?: boolean[];
   /** 부화장: 일반 4칸 + VIP 1칸 진행 세션 */
   pairPetHatcherySessions?: (PairPetHatcherySession | null)[];
+  /** 페어 펫 로비 인벤 정렬(저장 시 다음 접속에 유지) */
+  pairPetLobbyInventorySort?: PairPetLobbyInventorySortMode;
   /** 페어 경기장 대국만의 모드별 승패 (PVP 일반 대국 `stats[mode]`와 별도) */
   pairArenaStatsByMode?: Record<string, { wins: number; losses: number }>;
   /** 모험 스테이지·몬스터 전용 통계 및 이해도 */
@@ -702,6 +707,18 @@ export type StageInfo = {
     };
 };
 
+/** 싱글 베이스바둑: AI가 덤 입찰에서 제시할 색·덤 집. 미지정이면 흑/백 무작위 + 덤 1~10집(기존 동작) */
+export type SinglePlayerAiBaseKomiBid = {
+    color: 'black' | 'white' | 'random';
+    komiMode: 'fixed' | 'random';
+    /** komiMode=fixed일 때 입찰 덤 집(정수, 0~99) */
+    komi?: number;
+    /** komiMode=random일 때 포함 범위 하한 */
+    komiMin?: number;
+    /** komiMode=random일 때 포함 범위 상한 */
+    komiMax?: number;
+};
+
 /** 관리자 스테이지 편집: 미지정·auto면 기존 필드(hiddenCount 등)로 룰 추론 */
 export type SinglePlayerStrategicRulePreset =
     | 'auto'
@@ -765,6 +782,8 @@ export type SinglePlayerStageInfo = {
     blackTurnLimit?: number; // 유저(흑)의 턴 수 제한
     // 베이스 바둑 모드: 베이스 돌 개수
     baseStones?: number;
+    /** 베이스 싱글: AI 덤 입찰(흑/백·고정 또는 범위 랜덤 집). 없으면 서버 기본 랜덤 */
+    singlePlayerAiBaseKomiBid?: SinglePlayerAiBaseKomiBid;
     /** 고정 초기 배치(좌표는 x,y / boardState[y][x]). */
     fixedOpening?: Array<{ x: number; y: number; color: 'black' | 'white'; kind?: 'plain' | 'pattern' }>;
     /** fixedOpening이 있어도 placements 랜덤을 baseBoard 위에 추가 적용 */
@@ -842,6 +861,8 @@ export type GameSettings = {
     pairKataFixedLevelByParticipantId?: Record<string, number>;
     /** 페어 AI 대전 등: 합성 상대 펫 좌석에 보일 레벨(단계별 구간에서 굴림, 인게임·요약 UI용) */
     pairOpponentPetDisplayLevelByParticipantId?: Record<string, number>;
+    /** 페어 대기방 방장 — 베이스돌·베이스 덤 입찰 등은 방장만 조작(듀오 손님 불가) */
+    pairLobbyOwnerId?: string;
   };
   
   // Mode-specific settings
@@ -877,6 +898,8 @@ export type GameSettings = {
   singlePlayerDisableAiHiddenItemUsage?: boolean;
   /** true면 강제 응수 규칙을 히든 연출 턴에만 적용 */
   singlePlayerForceAiResponsesOnHiddenTurnsOnly?: boolean;
+  /** 싱글 베이스: AI 덤 입찰(스테이지에서 복사). 없으면 흑백·덤 무작위 */
+  singlePlayerAiBaseKomiBid?: SinglePlayerAiBaseKomiBid;
   
   // Omok settings
   has33Forbidden?: boolean;
@@ -1206,6 +1229,9 @@ export type LiveGameSession = {
   basePlacementDeadline?: number;
   /** 베이스돌 배치: 각 참가자가 배치 완료 버튼을 눌렀는지 (돌 개수 충족 후) */
   basePlacementReady?: { [userId: string]: boolean };
+  baseStoneColorChoices?: { [userId: string]: Player | null };
+  baseColorChoiceDeadline?: number;
+  baseSameColorTieColor?: Player;
   komiBids?: { [userId: string]: KomiBid | null };
   komiBiddingDeadline?: number;
   komiBiddingRound?: number;
@@ -1420,6 +1446,7 @@ export type AdminLog = {
     | 'reset_dungeon_progress'
     | 'reset_championship_all'
     | 'reset_strategic_ranking_all'
+    | 'reset_ranked_match_stats_all'
     | 'clear_user_guild'
     | 'guild_war_recharge_daily_attempts'
     | 'create_home_board_post'

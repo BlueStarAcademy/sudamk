@@ -5,6 +5,7 @@ import DraggableWindow from './DraggableWindow.js';
 import ConfirmModal from './ConfirmModal.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { getCurrentSeason } from '../utils/timeUtils.js';
+import { readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
 
 /** `UserProfileModal`과 동일: 시즌 표시 점수 = 1200 + dailyRankings.pair 델타 */
 const SEASON_BASE_SCORE = 1200;
@@ -70,11 +71,9 @@ export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({ curren
     const { stats, diamonds, pairArenaStatsByMode } = currentUser;
     const [pairResetConfirm, setPairResetConfirm] = useState<PairArenaResetConfirm | null>(null);
 
-    const pairAgg = stats?.['pair' as keyof typeof stats] as
-        | { wins?: number; losses?: number; rankingScore?: number }
-        | undefined;
-    const aggWins = pairAgg?.wins ?? 0;
-    const aggLosses = pairAgg?.losses ?? 0;
+    const pairRankedBlk = readPairRankedBlock(stats as Record<string, { wins?: number; losses?: number; rankingScore?: number }>);
+    const aggWins = pairRankedBlk.wins;
+    const aggLosses = pairRankedBlk.losses;
 
     const pairSeasonRank = useMemo(() => {
         const dr = currentUser.dailyRankings?.pair;
@@ -86,8 +85,7 @@ export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({ curren
             seasonScore = SEASON_BASE_SCORE + delta;
             rank = dr.rank;
         } else {
-            seasonScore =
-                pairAgg && typeof pairAgg.rankingScore === 'number' ? pairAgg.rankingScore : SEASON_BASE_SCORE;
+            seasonScore = pairRankedBlk.rankingScore;
             rank = 99_999;
         }
         const tier = getTier(seasonScore, rank, totalGames);
@@ -97,7 +95,7 @@ export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({ curren
             rank: dr && typeof dr.rank === 'number' ? dr.rank : (null as number | null),
             seasonLabel: getCurrentSeason().name,
         };
-    }, [currentUser.dailyRankings?.pair, pairAgg, aggWins, aggLosses]);
+    }, [currentUser.dailyRankings?.pair, aggWins, aggLosses, pairRankedBlk.rankingScore]);
 
     const canAffordSingle = diamonds >= SINGLE_RESET_COST;
     const canAffordCategory = diamonds >= CATEGORY_RESET_COST;
@@ -107,9 +105,9 @@ export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({ curren
     const pairResetConfirmMessage = useMemo(() => {
         if (!pairResetConfirm) return '';
         if (pairResetConfirm.type === 'single') {
-            return `「${pairResetConfirm.displayName}」 모드 전적만 초기화합니다. 통합 페어 전적에 반영됩니다.`;
+            return `「${pairResetConfirm.displayName}」 모드의 페어 경기장 전적만 초기화합니다. 랭킹전 레이팅·랭킹전 승패는 변하지 않습니다.`;
         }
-        return '페어 전장 전략 모드·통합 전적을 초기화합니다. 일반 PVP 전적은 그대로입니다.';
+        return '페어 경기장 모드별 전적을 모두 지우고, 페어 랭킹전 레이팅·랭킹전 승·패도 초기화합니다.';
     }, [pairResetConfirm]);
 
     const handleResetSingle = (mode: GameMode, displayName: string) => {

@@ -178,7 +178,7 @@ export function buildAiPregameRewardVisual(session: LiveGameSession, currentUser
     appendVipPlayRewardSlot(slots, session, currentUser);
     return {
       slots,
-      footnote: '※ 전략 AI 승리 시 모험과 동일한 기본 전략 경험치만 지급됩니다. 골드·아이템 드롭 없음.',
+      footnote: '※ 전략 AI 승리 시 모험과 동일한 기본 EXP만 지급됩니다. 골드·아이템 드롭 없음.',
     };
   }
 
@@ -195,16 +195,19 @@ export function buildAiPregameRewardVisual(session: LiveGameSession, currentUser
   const goldWin = Math.round(baseGoldWin * aiPenalty);
   const goldLoss = Math.round(goldWin * 0.25);
 
-  const xpVariant: 'strategy' | 'playful' = isStrategic ? 'strategy' : 'playful';
-
-  const slots: AiPregameRewardSlot[] = [
-    { kind: 'xp_win_loss', xpVariant, winXp, lossXp },
+  const slots: AiPregameRewardSlot[] = [];
+  if (isStrategic) {
+    slots.push({ kind: 'xp_win_loss', xpVariant: 'strategy', winXp, lossXp });
+  }
+  slots.push(
     { kind: 'gold_point', amount: goldWin, tone: 'win' },
     { kind: 'gold_point', amount: goldLoss, tone: 'loss' },
-  ];
+  );
   appendVipPlayRewardSlot(slots, session, currentUser);
   return {
     slots,
-    footnote: '※ EXP·골드는 대국 진행량·버프에 따라 달라질 수 있습니다.',
+    footnote: isStrategic
+      ? '※ EXP·골드는 대국 진행량·버프에 따라 달라질 수 있습니다.'
+      : '※ 골드는 대국 진행량·버프에 따라 달라질 수 있습니다.',
   };
 }

@@ -3,7 +3,8 @@ import React, { useMemo } from 'react';
 import { UserWithStatus, ServerAction, SinglePlayerLevel } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
-import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants';
+import { getSinglePlayerStages } from '../constants/singlePlayerConstants.js';
+import { useAppContext } from '../hooks/useAppContext.js';
 import { CONSUMABLE_ITEMS } from '../constants';
 
 interface StageSelectionModalProps {
@@ -15,12 +16,12 @@ interface StageSelectionModalProps {
 }
 
 const StageSelectionModal: React.FC<StageSelectionModalProps> = ({ currentUser, onClose, onAction, levelName, levelIdPrefix }) => {
-    
+    const { singlePlayerStagesListRevision } = useAppContext();
     const userProgress = currentUser.singlePlayerProgress ?? 0;
 
     const stagesForLevel = useMemo(() => {
-        return SINGLE_PLAYER_STAGES.filter(stage => stage.level === levelIdPrefix);
-    }, [levelIdPrefix]);
+        return getSinglePlayerStages().filter(stage => stage.level === levelIdPrefix);
+    }, [levelIdPrefix, singlePlayerStagesListRevision]);
 
     const handleStageClick = (stageId: string) => {
         onAction({ type: 'START_SINGLE_PLAYER_GAME', payload: { stageId } });
@@ -31,7 +32,7 @@ const StageSelectionModal: React.FC<StageSelectionModalProps> = ({ currentUser, 
             <div className="h-[60vh] flex flex-col">
                 <div className="grid grid-cols-5 gap-4 overflow-y-auto pr-2 flex-grow">
                     {stagesForLevel.map(stage => {
-                        const stageIndex = (SINGLE_PLAYER_STAGES.findIndex(s => s.id === stage.id));
+                        const stageIndex = getSinglePlayerStages().findIndex(s => s.id === stage.id);
                         const isLocked = userProgress < stageIndex;
                         const isCleared = userProgress > stageIndex;
 

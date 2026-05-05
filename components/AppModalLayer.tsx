@@ -1,4 +1,5 @@
 import React, { useMemo, useState, Suspense, lazy } from 'react';
+import type { PairRoomState } from '../types/api.js';
 import { clearOnboardingBagTutorialStep, getOnboardingBagTutorialStep } from '../utils/onboardingBagTutorialStep.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
@@ -44,11 +45,15 @@ import LevelUpCelebrationModal from './LevelUpCelebrationModal.js';
 import MannerGradeChangeModal from './MannerGradeChangeModal.js';
 import ContentUnlockNoticeModal from './ContentUnlockNoticeModal.js';
 import PairIncomingPartnerInviteModal from './pair/PairIncomingPartnerInviteModal.js';
+import { replaceAppHash } from '../utils/appUtils.js';
+import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
+import { PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY } from '../shared/constants/pairArena.js';
 
 const ModalLoadingFallback = () => null;
 
 const AppModalLayer: React.FC = () => {
     const { isNativeMobile } = useNativeMobileShell();
+    const isHandheld = useIsHandheldDevice(1024);
     const {
         allUsers,
         currentUserWithStatus,
@@ -66,6 +71,7 @@ const AppModalLayer: React.FC = () => {
         homeBoardPosts,
         unreadHomeBoardPostIds,
         waitingRoomChats,
+        pairRooms,
         pairPartnerInvites,
     } = useAppContext();
 
@@ -75,6 +81,7 @@ const AppModalLayer: React.FC = () => {
         const raw = pairPartnerInvites || {};
         const list = Object.values(raw) as Array<{
             id: string;
+            roomId: string;
             inviteeId: string;
             inviterName: string;
             roomTitle: string;
@@ -83,6 +90,12 @@ const AppModalLayer: React.FC = () => {
         }>;
         return list.find((i) => i.inviteeId === uid) ?? null;
     }, [pairPartnerInvites, currentUserWithStatus?.id]);
+
+    const incomingInvitePairRoom = useMemo(() => {
+        if (!incomingPairPartnerInvite) return null;
+        const raw = (pairRooms || {})[incomingPairPartnerInvite.roomId];
+        return raw && typeof raw === 'object' ? (raw as PairRoomState) : null;
+    }, [pairRooms, incomingPairPartnerInvite]);
 
     const [pairInviteRespondBusy, setPairInviteRespondBusy] = useState(false);
 
@@ -155,12 +168,45 @@ const AppModalLayer: React.FC = () => {
         handlers.closeInventory();
     };
 
-    const respondIncomingPairInvite = async (inviteId: string, accept: boolean) => {
+    const respondIncomingPairInvite = async (inviteId: string, accept: boolean, inviteRoomId?: string) => {
         setPairInviteRespondBusy(true);
         try {
             const result = await handlers.handleAction({ type: 'PAIR_RESPOND_PARTNER_INVITE', payload: { inviteId, accept } });
             const err = (result as any)?.error;
-            if (err) window.alert(err);
+            if (err) {
+                window.alert(err);
+                return;
+            }
+            if (!accept || !inviteRoomId) return;
+
+            const prMap = (result as any)?.clientResponse?.pairRooms ?? (result as any)?.pairRooms;
+            const room = prMap && typeof prMap === 'object' ? (prMap as Record<string, { lobbyChannel?: string }>)[inviteRoomId] : undefined;
+            const lobbyChannel = (room?.lobbyChannel ?? 'pair') as 'pair' | 'strategic' | 'playful';
+            const targetHash =
+                lobbyChannel === 'strategic'
+                    ? '#/waiting/strategic'
+                    : lobbyChannel === 'playful'
+                      ? '#/waiting/playful'
+                      : '#/pair';
+
+            const norm = (h: string) => h.replace(/^#\/?/, '').split('?')[0];
+            const needNav = norm(window.location.hash) !== norm(targetHash);
+
+            if (isHandheld) {
+                try {
+                    sessionStorage.setItem(PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY, '1');
+                } catch {
+                    // ignore
+                }
+            }
+
+            if (needNav) {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        replaceAppHash(targetHash);
+                    });
+                });
+            }
         } finally {
             setPairInviteRespondBusy(false);
         }
@@ -171,9 +217,16 @@ const AppModalLayer: React.FC = () => {
             {incomingPairPartnerInvite && currentUserWithStatus && (
                 <PairIncomingPartnerInviteModal
                     invite={incomingPairPartnerInvite}
+                    room={incomingInvitePairRoom}
                     isBusy={pairInviteRespondBusy}
-                    onAccept={() => respondIncomingPairInvite(incomingPairPartnerInvite.id, true)}
-                    onDecline={() => respondIncomingPairInvite(incomingPairPartnerInvite.id, false)}
+                    onAccept={() =>
+                        void respondIncomingPairInvite(
+                            incomingPairPartnerInvite.id,
+                            true,
+                            incomingPairPartnerInvite.roomId,
+                        )
+                    }
+                    onDecline={() => void respondIncomingPairInvite(incomingPairPartnerInvite.id, false)}
                 />
             )}
             {modals.isSettingsModalOpen && <SettingsModal onClose={handlers.closeSettingsModal} isTopmost={topmostModalId === 'settings'} />}

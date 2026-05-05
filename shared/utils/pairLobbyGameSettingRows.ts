@@ -8,9 +8,8 @@ import {
 import { isFischerStyleTimeControl } from './gameTimeControl.js';
 import { getRankedGameSettings } from '../../constants/rankedGameSettings.js';
 import { getAiScoringTurnLimitByBoardSize } from '../constants/gameSettings.js';
-import { formatDiceGoSpecialDiceSummary } from './diceGoSettings.js';
-import { formatThiefSpecialDiceSummary } from './thiefGoSettings.js';
 import { formatAlkkagiCurlingGaugeSpeedForLobbyDisplay } from './alkkagiCurlingGaugeLobbyDisplay.js';
+import { mixSubRuleDisplayName } from './mixSubRuleDisplayName.js';
 
 export type PairLobbyChannel = 'pair' | 'strategic' | 'playful';
 
@@ -58,7 +57,7 @@ export function pairLobbyScheduledGameModeLabel(mode: GameMode | undefined): str
 
 function pairLobbyMixedSubModeNames(modes: GameMode[] | undefined): string {
     if (!modes?.length) return '';
-    return modes.map((m) => pairLobbyGameModeIconAndName(m).name).join(' · ');
+    return modes.map((m) => mixSubRuleDisplayName(pairLobbyGameModeIconAndName(m).name)).join(' · ');
 }
 
 function pairLobbyAiStepRowValue(g: GameSettings): string | null {
@@ -80,7 +79,7 @@ function pairLobbyShowKataAiLevelInCreateModal(
 ): boolean {
     if (lobbyChannel === 'playful') return false;
     if (!roomKind) return false;
-    if (roomKind === 'friendly_4p') return false;
+    if (roomKind === 'friendly_4p' || roomKind === 'friendly_2p') return false;
     if (roomKind === 'duo_match' && lobbyChannel === 'strategic') return false;
     return true;
 }
@@ -155,6 +154,7 @@ export function buildPairRoomLobbyGameSettingRows(
         ext
             ? false
             : lobbyChannel === 'playful' ||
+              (lobbyChannel === 'pair' && roomKind === 'friendly_2p') ||
               (roomKind !== 'ai_duel' &&
                   roomKind !== 'arena_ai' &&
                   (lobbyChannel !== 'pair' || (roomKind !== 'duo_match' && roomKind !== 'friendly_2p')));
@@ -202,7 +202,13 @@ export function buildPairRoomLobbyGameSettingRows(
         rows.push({ label: '덤', value: String(g.komi ?? DEFAULT_KOMI) });
     }
 
-    if ((!pairArenaInterior || ext) && !modesWithoutTime.includes(mode)) {
+    /** 페어 4·2인 친선 + 전략·놀이 친선전(duo_match): 경기장 내부 요약에도 사람 vs 사람 시계 표시(페어 2인 랭킹 duo_match 제외) */
+    const showHumanPvPClockInArenaInterior =
+        pairArenaInterior &&
+        !ext &&
+        ((lobbyChannel === 'pair' && (roomKind === 'friendly_4p' || roomKind === 'friendly_2p')) ||
+            ((lobbyChannel === 'strategic' || lobbyChannel === 'playful') && roomKind === 'duo_match'));
+    if ((!pairArenaInterior || ext || showHumanPvPClockInArenaInterior) && !modesWithoutTime.includes(mode)) {
         const humanPvP = roomKind === 'duo_match' || roomKind === 'friendly_4p' || roomKind === 'friendly_2p';
         const def = DEFAULT_GAME_SETTINGS;
         let timeLimit = typeof g.timeLimit === 'number' ? g.timeLimit : def.timeLimit;
@@ -288,14 +294,18 @@ export function buildPairRoomLobbyGameSettingRows(
     if (mode === GameMode.Dice) {
         if ((!pairArenaInterior || ext) && g.diceGoVariant) rows.push({ label: '주사위 규칙', value: String(g.diceGoVariant) });
         if (typeof g.diceGoRounds === 'number') rows.push({ label: '라운드', value: String(g.diceGoRounds) });
-        rows.push({ label: '특수주사위', value: formatDiceGoSpecialDiceSummary(g) });
+        rows.push({ label: '홀수주사위', value: `${g.oddDiceCount ?? 0}개` });
+        rows.push({ label: '짝수주사위', value: `${g.evenDiceCount ?? 0}개` });
+        rows.push({ label: '(고)주사위', value: `${g.highDiceCount ?? 0}개` });
+        rows.push({ label: '(저)주사위', value: `${g.lowDiceCount ?? 0}개` });
         if ((!pairArenaInterior || ext) && typeof g.diceGoItemCount === 'number') {
             rows.push({ label: '아이템', value: `${g.diceGoItemCount}개` });
         }
     }
 
     if (mode === GameMode.Thief) {
-        rows.push({ label: '특수주사위', value: formatThiefSpecialDiceSummary(g) });
+        rows.push({ label: '(고)주사위', value: `${g.thiefHigh36ItemCount ?? 0}개` });
+        rows.push({ label: '방지주사위', value: `${g.thiefNoOneItemCount ?? 0}개` });
     }
 
     if (mode === GameMode.Alkkagi) {

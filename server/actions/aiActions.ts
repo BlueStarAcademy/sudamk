@@ -60,6 +60,12 @@ export async function handleAiAction(
   const now = Date.now();
   normalizeStrategicAiScoringSettings(game as any);
 
+  // 1:1 vs AI 대국에 `pairGame`이 남아 있으면 클라이언트가 페어 인게임으로 분기할 수 있어 제거한다.
+  const p2 = game.player2 as { id?: string } | undefined;
+  if (p2?.id === aiUserId && game.settings) {
+    delete (game.settings as { pairGame?: unknown }).pairGame;
+  }
+
   // Minimal "negotiation-like" object for initializer functions that need settings/mode.
   // game.settings는 START_AI_GAME 시 클라이언트에서 받은 전체 설정(계가까지 턴, 초읽기 등)을 그대로 유지.
   const neg = {

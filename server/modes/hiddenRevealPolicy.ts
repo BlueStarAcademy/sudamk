@@ -37,6 +37,25 @@ export const shouldPreserveDiscovererTurnAfterOpponentHiddenReveal = (game: type
     return !!game.isSinglePlayer || game.gameCategory === types.GameCategory.Tower;
 };
 
+/**
+ * 전략 로비 AI·길드전(AI): 봇이 유저 미공개 히든 칸을 찍어 공개할 때는 착수·수순·계가 턴 카운트에 반영하지 않고
+ * 연출 후 같은 턴에서 다른 좌표로 두게 한다. (유저가 AI 초기 히든을 찍는 `isAiInitialHiddenStone` 분기는 제외)
+ */
+export const shouldPreserveDiscovererTurnWhenAiRevealsUserHiddenStone = (
+    game: types.LiveGameSession,
+    discovererPlayerEnum: types.Player,
+    isAiInitialHiddenStoneReveal: boolean
+): boolean => {
+    if (isAiInitialHiddenStoneReveal) return false;
+    const discovererId =
+        discovererPlayerEnum === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+    if (discovererId !== aiUserId) return false;
+    return (
+        isStrategicAiLobbyGo(game) ||
+        ((game as any).gameCategory === 'guildwar' && gameSessionIncludesAiPlayer(game))
+    );
+};
+
 /** aiInitialHiddenStone 좌표 추적(히든 분기 진입) */
 export const useAiInitialHiddenCellTracking = (game: types.LiveGameSession): boolean =>
     !!game.isSinglePlayer ||

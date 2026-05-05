@@ -23,15 +23,15 @@ const SettingsSection: React.FC<{ title: string; children: React.ReactNode; clas
     className = '',
 }) => (
     <section
-        className={`relative overflow-hidden rounded-xl border border-amber-500/20 bg-gradient-to-b from-zinc-900/92 via-zinc-950/96 to-black/90 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_48px_-28px_rgba(0,0,0,0.75)] ring-1 ring-white/[0.05] sm:p-5 ${className}`}
+        className={`relative overflow-hidden rounded-xl border border-amber-500/20 bg-gradient-to-b from-zinc-900/92 via-zinc-950/96 to-black/90 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_48px_-28px_rgba(0,0,0,0.75)] ring-1 ring-white/[0.05] sm:p-3.5 ${className}`}
     >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/35 to-transparent" aria-hidden />
-        <div className="relative mb-4 flex items-center gap-3">
+        <div className="relative mb-2 flex items-center gap-2 sm:mb-2.5 sm:gap-2.5">
             <div
-                className="h-9 w-1 shrink-0 rounded-full bg-gradient-to-b from-amber-300 via-amber-500 to-amber-700 shadow-[0_0_16px_rgba(251,191,36,0.45)]"
+                className="h-7 w-1 shrink-0 rounded-full bg-gradient-to-b from-amber-300 via-amber-500 to-amber-700 shadow-[0_0_16px_rgba(251,191,36,0.45)] sm:h-8"
                 aria-hidden
             />
-            <h3 className="text-sm font-bold tracking-tight text-amber-50/95 sm:text-base">{title}</h3>
+            <h3 className="text-[13px] font-bold tracking-tight text-amber-50/95 sm:text-sm">{title}</h3>
         </div>
         <div className="relative">{children}</div>
     </section>
@@ -236,7 +236,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
             .join(', ');
         return (
             <div
-                className="h-14 w-20 rounded-lg border border-white/10 bg-panel shadow-inner ring-1 ring-white/[0.04]"
+                className="h-12 w-[4.5rem] rounded-lg border border-white/10 bg-panel shadow-inner ring-1 ring-white/[0.04] sm:h-[3.25rem] sm:w-20"
                 style={{
                     backgroundImage,
                     backgroundRepeat: 'no-repeat, no-repeat, no-repeat, no-repeat',
@@ -251,17 +251,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
         switch (activeTab) {
             case 'graphics':
                 return (
-                    <div className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-2.5 sm:gap-3">
                         <SettingsSection title="패널 스타일">
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-center rounded-xl border border-amber-500/15 bg-black/35 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-white/[0.04] sm:p-8">
+                            <div className="space-y-2 sm:space-y-2.5">
+                                <div className="flex items-center justify-center rounded-xl border border-amber-500/15 bg-black/35 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-white/[0.04] sm:p-5">
                                     {renderEdgePreview(settings.graphics.panelEdgeStyle ?? 'default')}
                                 </div>
-                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+                                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2">
                                     {PANEL_EDGE_OPTIONS.map(option => (
                                         <label
                                             key={option.id}
-                                            className="flex min-w-0 cursor-pointer items-center gap-1.5 rounded-xl border border-white/[0.08] bg-black/25 px-2.5 py-2 transition-all duration-150 has-[:checked]:border-amber-400/55 has-[:checked]:bg-amber-950/40 has-[:checked]:shadow-[0_0_20px_-8px_rgba(251,191,36,0.35)] has-[:checked]:ring-1 has-[:checked]:ring-amber-400/20 sm:gap-2 sm:px-3 sm:py-2.5"
+                                            className="flex min-w-0 cursor-pointer items-center gap-1.5 rounded-lg border border-white/[0.08] bg-black/25 px-2 py-1.5 transition-all duration-150 has-[:checked]:border-amber-400/55 has-[:checked]:bg-amber-950/40 has-[:checked]:shadow-[0_0_20px_-8px_rgba(251,191,36,0.35)] has-[:checked]:ring-1 has-[:checked]:ring-amber-400/20 sm:px-2.5 sm:py-2"
                                         >
                                             <input
                                                 type="radio"
@@ -283,14 +283,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                 );
             case 'sound':
                 return (
-                    <div className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-2.5 sm:gap-3">
                         <SettingsSection title="출력">
-                            <div className="space-y-5">
+                            <div className="space-y-3 sm:space-y-3.5">
                                 <div>
-                                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-amber-200/80 sm:text-xs">
+                                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-amber-200/80 sm:mb-1.5 sm:text-[11px]">
                                         마스터 볼륨
                                     </p>
-                                    <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-black/30 px-3 py-3 shadow-inner ring-1 ring-white/[0.04]">
+                                    <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/30 px-2.5 py-2 shadow-inner ring-1 ring-white/[0.04] sm:gap-4 sm:px-3 sm:py-2.5">
                                         <span className="w-10 text-center font-mono text-base tabular-nums text-amber-100 sm:w-11 sm:text-lg">
                                             {(settings.sound.masterVolume * 10).toFixed(0)}
                                         </span>
@@ -304,7 +304,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                                         />
                                     </div>
                                 </div>
-                                <div className="flex items-center justify-between gap-3 rounded-xl border border-color/40 bg-secondary/20 px-4 py-3">
+                                <div className="flex items-center justify-between gap-2 rounded-xl border border-color/40 bg-secondary/20 px-3 py-2 sm:gap-3 sm:px-3.5 sm:py-2.5">
                                     <span className="text-[11px] font-medium text-text-primary sm:text-sm">효과음 전체</span>
                                     <ToggleSwitch
                                         checked={!settings.sound.masterMuted}
@@ -314,11 +314,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                             </div>
                         </SettingsSection>
                         <SettingsSection title="효과음 세부 조절">
-                            <div className="flex flex-col gap-1">
+                            <div className="flex flex-col gap-0">
                                 {soundCategories.map(({ key, label }) => (
                                     <div
                                         key={key}
-                                        className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 transition-colors hover:border-amber-500/15 hover:bg-white/[0.04]"
+                                        className="flex items-center justify-between gap-2 rounded-lg border border-transparent px-1.5 py-1.5 transition-colors hover:border-amber-500/15 hover:bg-white/[0.04] sm:px-2 sm:py-2"
                                     >
                                         <span className="text-[11px] text-slate-300 sm:text-sm">{label}</span>
                                         <ToggleSwitch
@@ -339,31 +339,31 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                 );
             case 'features':
                 return (
-                    <div className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-2.5 sm:gap-3">
                         <SettingsSection title="게임 플레이">
-                            <div className="flex flex-col gap-1">
-                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-amber-500/15 hover:bg-white/[0.04]">
+                            <div className="flex flex-col gap-0">
+                                <div className="flex items-center justify-between gap-2 rounded-lg border border-transparent px-1.5 py-1.5 hover:border-amber-500/15 hover:bg-white/[0.04] sm:px-2 sm:py-2">
                                     <span className="text-[11px] text-slate-300 sm:text-sm">착수 버튼 사용</span>
                                     <ToggleSwitch
                                         checked={settings.features.moveConfirmButtonBox}
                                         onChange={(checked) => updateFeatureSetting('moveConfirmButtonBox', checked)}
                                     />
                                 </div>
-                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-amber-500/15 hover:bg-white/[0.04]">
+                                <div className="flex items-center justify-between gap-2 rounded-lg border border-transparent px-1.5 py-1.5 hover:border-amber-500/15 hover:bg-white/[0.04] sm:px-2 sm:py-2">
                                     <span className="text-[11px] text-slate-300 sm:text-sm">돌 미리보기 (마우스 호버)</span>
                                     <ToggleSwitch
                                         checked={settings.features.stonePreview}
                                         onChange={(checked) => updateFeatureSetting('stonePreview', checked)}
                                     />
                                 </div>
-                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-amber-500/15 hover:bg-white/[0.04]">
+                                <div className="flex items-center justify-between gap-2 rounded-lg border border-transparent px-1.5 py-1.5 hover:border-amber-500/15 hover:bg-white/[0.04] sm:px-2 sm:py-2">
                                     <span className="text-[11px] text-slate-300 sm:text-sm">마지막 놓은 자리 표시</span>
                                     <ToggleSwitch
                                         checked={settings.features.lastMoveMarker}
                                         onChange={(checked) => updateFeatureSetting('lastMoveMarker', checked)}
                                     />
                                 </div>
-                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-amber-500/15 hover:bg-white/[0.04]">
+                                <div className="flex items-center justify-between gap-2 rounded-lg border border-transparent px-1.5 py-1.5 hover:border-amber-500/15 hover:bg-white/[0.04] sm:px-2 sm:py-2">
                                     <span className="text-[11px] text-slate-300 sm:text-sm">따낸점수 애니메이션</span>
                                     <ToggleSwitch
                                         checked={settings.features.captureScoreAnimation}
@@ -373,15 +373,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                             </div>
                         </SettingsSection>
                         <SettingsSection title="알림">
-                            <div className="flex flex-col gap-1">
-                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-amber-500/15 hover:bg-white/[0.04]">
+                            <div className="flex flex-col gap-0">
+                                <div className="flex items-center justify-between gap-2 rounded-lg border border-transparent px-1.5 py-1.5 hover:border-amber-500/15 hover:bg-white/[0.04] sm:px-2 sm:py-2">
                                     <span className="text-[11px] text-slate-300 sm:text-sm">퀘스트 완료 알림</span>
                                     <ToggleSwitch
                                         checked={settings.features.questNotifications}
                                         onChange={(checked) => updateFeatureSetting('questNotifications', checked)}
                                     />
                                 </div>
-                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-amber-500/15 hover:bg-white/[0.04]">
+                                <div className="flex items-center justify-between gap-2 rounded-lg border border-transparent px-1.5 py-1.5 hover:border-amber-500/15 hover:bg-white/[0.04] sm:px-2 sm:py-2">
                                     <span className="text-[11px] text-slate-300 sm:text-sm">채팅 내용 알림 (빨간 점)</span>
                                     <ToggleSwitch
                                         checked={settings.features.chatNotifications}
@@ -396,8 +396,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                                     className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-400/50 to-transparent"
                                     aria-hidden
                                 />
-                                <div className="relative rounded-[0.95rem] bg-gradient-to-b from-red-950/35 via-black/40 to-black/55 p-4 ring-1 ring-inset ring-red-500/15">
-                                    <div className="mb-4 space-y-1 text-[10px] leading-snug text-red-100/88 sm:text-sm">
+                                <div className="relative rounded-[0.95rem] bg-gradient-to-b from-red-950/35 via-black/40 to-black/55 p-3 ring-1 ring-inset ring-red-500/15 sm:p-3.5">
+                                    <div className="mb-2 space-y-0.5 text-[10px] leading-snug text-red-100/88 sm:mb-2.5 sm:text-xs">
                                         <p className="whitespace-nowrap">모든 플레이중인 게임 종료</p>
                                         <p className="whitespace-nowrap">PVP 경기장 기권패 처리</p>
                                     </div>
@@ -421,9 +421,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                 );
             case 'account':
                 return (
-                    <div className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-2.5 sm:gap-3">
                         <SettingsSection title="계정 관리">
-                            <div className="mb-4 flex flex-col gap-2.5 sm:flex-row">
+                            <div className="mb-2 flex flex-col gap-2 sm:mb-3 sm:flex-row sm:gap-2">
                                 <button
                                     type="button"
                                     className={accountToggleBtnClass(showChangeUsername)}
@@ -458,8 +458,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                                 </button>
                             </div>
                             {showChangeUsername && (
-                                <div className="mb-4 rounded-xl border border-amber-500/20 bg-black/35 p-4 ring-1 ring-inset ring-white/[0.05]">
-                                    <div className="space-y-3">
+                                <div className="mb-2 rounded-xl border border-amber-500/20 bg-black/35 p-3 ring-1 ring-inset ring-white/[0.05] sm:mb-3 sm:p-3.5">
+                                    <div className="space-y-2 sm:space-y-2.5">
                                         <div>
                                             <label className="mb-1 block text-[11px] text-slate-400 sm:text-sm">새 아이디</label>
                                             <input
@@ -494,8 +494,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                                 </div>
                             )}
                             {showChangePassword && (
-                                <div className="mb-4 rounded-xl border border-amber-500/20 bg-black/35 p-4 ring-1 ring-inset ring-white/[0.05]">
-                                    <div className="space-y-3">
+                                <div className="mb-2 rounded-xl border border-amber-500/20 bg-black/35 p-3 ring-1 ring-inset ring-white/[0.05] sm:mb-3 sm:p-3.5">
+                                    <div className="space-y-2 sm:space-y-2.5">
                                         <div>
                                             <label className="mb-1 block text-[11px] text-slate-400 sm:text-sm">현재 비밀번호</label>
                                             <input
@@ -536,8 +536,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                                     className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-400/40 to-transparent"
                                     aria-hidden
                                 />
-                                <div className="relative rounded-[0.95rem] bg-gradient-to-b from-red-950/40 via-black/45 to-black/60 p-4 ring-1 ring-inset ring-red-500/12">
-                                    <div className="mb-4 space-y-1 text-[10px] leading-snug text-red-100/88 sm:text-sm">
+                                <div className="relative rounded-[0.95rem] bg-gradient-to-b from-red-950/40 via-black/45 to-black/60 p-3 ring-1 ring-inset ring-red-500/12 sm:p-3.5">
+                                    <div className="mb-2 space-y-0.5 text-[10px] leading-snug text-red-100/88 sm:mb-2.5 sm:text-xs">
                                         <p className="whitespace-nowrap">탈퇴시 데이터 삭제로 복구불가</p>
                                         <p className="whitespace-nowrap">동일한 이메일 1주일 재가입 불가</p>
                                     </div>
@@ -554,7 +554,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                                         {showWithdraw ? '취소' : '회원탈퇴'}
                                     </button>
                                     {showWithdraw && (
-                                        <div className="mt-4 space-y-3 border-t border-red-500/20 pt-4">
+                                        <div className="mt-3 space-y-2 border-t border-red-500/20 pt-3 sm:mt-3.5 sm:space-y-2.5 sm:pt-3.5">
                                             <div>
                                                 <label className="mb-1 block text-[11px] font-medium text-red-100/85 sm:text-sm">비밀번호 확인</label>
                                                 <input
@@ -602,15 +602,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
     };
     
     return (
-        <DraggableWindow title="설정" onClose={onClose} windowId="settings" initialWidth={720} initialHeight={780} isTopmost={isTopmost}>
-            <div className="flex h-full min-h-0 flex-1 flex-col rounded-2xl border border-amber-900/25 bg-gradient-to-b from-[#12141c] via-[#0e1016] to-[#08090e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                <div className="mb-3 flex shrink-0 gap-1 rounded-xl border border-white/[0.08] bg-black/40 p-1 shadow-inner backdrop-blur-md">
+        <DraggableWindow title="설정" onClose={onClose} windowId="settings" initialWidth={600} initialHeight={720} isTopmost={isTopmost}>
+            <div className="flex h-full min-h-0 flex-1 flex-col rounded-2xl border border-amber-900/25 bg-gradient-to-b from-[#12141c] via-[#0e1016] to-[#08090e] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-2.5">
+                <div className="mb-2 flex shrink-0 gap-0.5 rounded-xl border border-white/[0.08] bg-black/40 p-0.5 shadow-inner backdrop-blur-md sm:mb-2 sm:gap-1 sm:p-1">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
                             type="button"
                             onClick={() => setActiveTab(tab.id)}
-                            className={`relative flex-1 overflow-hidden rounded-lg py-2 text-xs font-semibold transition-all duration-200 sm:py-2.5 sm:text-sm ${
+                            className={`relative flex-1 overflow-hidden rounded-lg py-1.5 text-[11px] font-semibold transition-all duration-200 sm:py-2 sm:text-xs ${
                                 activeTab === tab.id
                                     ? 'text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_24px_-4px_rgba(251,191,36,0.35)]'
                                     : 'text-slate-400 hover:bg-white/[0.06] hover:text-amber-100/90'
@@ -626,7 +626,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                         </button>
                     ))}
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto px-1 py-1 pr-2 sm:px-2">
+                <div className="min-h-0 flex-1 overflow-y-auto px-0.5 py-0.5 pr-1.5 sm:px-1">
                     {renderContent()}
                 </div>
             </div>

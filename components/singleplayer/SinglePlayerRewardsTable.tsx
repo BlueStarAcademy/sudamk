@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
+import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js';
+import { useAppContext } from '../../hooks/useAppContext.js';
 import { SinglePlayerLevel } from '../../types.js';
 import type { SinglePlayerStageInfo } from '../../types.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, EQUIPMENT_POOL } from '../../constants/index.js';
@@ -92,7 +93,7 @@ const RewardBadges: React.FC<{ reward: RewardCell | undefined }> = ({ reward }) 
             {hasExp && (
                 <RewardBadge
                     tone="exp"
-                    label="전략EXP"
+                    label="EXP"
                     value={`+${(reward.exp ?? 0).toLocaleString()}`}
                     icon={<ExpIcon />}
                 />
@@ -141,17 +142,18 @@ export interface SinglePlayerRewardsTableProps {
 const SinglePlayerRewardsTable: React.FC<SinglePlayerRewardsTableProps> = ({
     initialClassWhenModalOpens,
 }) => {
+    const { singlePlayerStagesListRevision } = useAppContext();
     const [activeLevel, setActiveLevel] = useState<SinglePlayerLevel>(
         initialClassWhenModalOpens ?? SinglePlayerLevel.입문
     );
 
     const stagesForTab = useMemo(() => {
-        return SINGLE_PLAYER_STAGES.filter((s) => s.level === activeLevel).sort((a, b) => {
+        return getSinglePlayerStages().filter((s) => s.level === activeLevel).sort((a, b) => {
             const aNum = parseInt(a.id.split('-')[1], 10);
             const bNum = parseInt(b.id.split('-')[1], 10);
             return aNum - bNum;
         });
-    }, [activeLevel]);
+    }, [activeLevel, singlePlayerStagesListRevision]);
 
     return (
         <div className="flex flex-col gap-2 min-h-0">

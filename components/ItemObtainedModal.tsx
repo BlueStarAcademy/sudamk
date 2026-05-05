@@ -6,17 +6,13 @@ import DraggableWindow, {
 } from './DraggableWindow.js';
 import { InventoryItem, ItemGrade } from '../types.js';
 import { audioService } from '../services/audioService.js';
-import { isActionPointConsumable, MATERIAL_ITEMS } from '../constants/items';
+import { isActionPointConsumable, MATERIAL_ITEMS } from '../constants/items.js';
 import { EquipmentDetailPanel } from './EquipmentDetailPanel.js';
-import {
-    formatRewardItemDisplayName,
-    RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS,
-    RESULT_MODAL_BOX_GOLD_CLASS,
-    RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
-} from './game/ResultModalRewardSlot.js';
+import { RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS, RESULT_MODAL_BOX_GOLD_CLASS, RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS } from './game/ResultModalRewardSlot.js';
 import { ITEM_OBTAIN_COUNT_BADGE_CLASS, SingleItemObtainCard } from './game/ItemObtainModalShared.js';
 import { resolveItemObtainDescription, resolveItemObtainUsageLines } from '../shared/utils/bagItemDetailHelpers.js';
-import { isPairPetMaterial, isPairSoulStoneItem } from '../shared/constants/petLobby.js';
+import { resolveBagItemAcquireLines } from '../shared/utils/itemAcquireSourceLines.js';
+import { isPairPetMaterial } from '../shared/constants/petLobby.js';
 import {
     MOBILE_EQUIPMENT_DETAIL_BODY_PADDING_CLASS,
     MOBILE_EQUIPMENT_DETAIL_MAX_HEIGHT_CSS,
@@ -129,6 +125,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                             comfortableTypography
                             optionRowsSingleLine
                             showTradeStatusUnderImage
+                            showAcquireSources
                         />
                     </div>
                     <div className={`${ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS} shrink-0 border-t border-slate-700/50 pt-2`}>
@@ -145,23 +142,57 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
         typeof item.quantity === 'number' && Number.isFinite(item.quantity) ? item.quantity : 0;
     const isGoldIcon = item.image === '/images/icon/Gold.png';
     const isZemIcon = item.image === '/images/icon/Zem.png';
-    const materialAmount =
-        typeof item.quantity === 'number' && Number.isFinite(item.quantity) ? item.quantity : 0;
-    const isMaterialObtainLayout =
+
+    /** 통화(골드/다이아) 스냅샷은 `EquipmentDetailPanel` 레이아웃이 맞지 않음 — 통화 전용 카드 유지 */
+    const useBagDetailPanel =
         !isCurrency &&
-        !isActionPointConsumable(item.name) &&
-        (item.type === 'material' || !!MATERIAL_ITEMS[item.name]);
+        (item.type === 'material' || item.type === 'consumable' || !!MATERIAL_ITEMS[item.name]);
+
+    if (useBagDetailPanel) {
+        return (
+            <DraggableWindow
+                title="아이템 획득"
+                onClose={onClose}
+                windowId="item-obtained-bag"
+                initialWidth={MOBILE_EQUIPMENT_DETAIL_MODAL_WIDTH}
+                shrinkHeightToContent
+                isTopmost={isTopmost}
+                zIndex={70}
+                skipSavedPosition
+                variant="store"
+                hideFooter
+                mobileViewportFit
+                mobileViewportMaxHeightVh={98}
+                mobileViewportMaxHeightCss={MOBILE_EQUIPMENT_DETAIL_MAX_HEIGHT_CSS}
+                mobileViewportDvhBottomGapPx={8}
+                bodyScrollable
+                bodyPaddingClassName={MOBILE_EQUIPMENT_DETAIL_BODY_PADDING_CLASS}
+            >
+                <div className="flex min-h-0 w-full min-w-0 flex-col gap-1.5">
+                    <div className="min-h-0 w-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:thin]">
+                        <EquipmentDetailPanel
+                            item={item}
+                            optionsScrollable={false}
+                            comfortableTypography
+                            showAcquireSources
+                        />
+                    </div>
+                    <div className={`${ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS} shrink-0 border-t border-slate-700/50 pt-2`}>
+                        <button type="button" onClick={onClose} className={`${ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS} !text-xs !leading-snug`}>
+                            확인
+                        </button>
+                    </div>
+                </div>
+            </DraggableWindow>
+        );
+    }
 
     const COMPACT_CURRENCY_IMG_CLASS =
         'h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 min-[400px]:h-9 min-[400px]:w-9 object-contain p-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)] sm:h-9 sm:w-9';
-    /** 페어 영혼석(영혼 변환 보상 등) — 슬롯·아이콘을 한 단계 키움 */
-    const PAIR_SOUL_OBTAIN_SLOT_BOX_CLASS =
-        'h-12 w-12 min-[360px]:h-14 min-[360px]:w-14 min-[400px]:h-16 min-[400px]:w-16 sm:h-[4.85rem] sm:w-[4.85rem]';
-    const PAIR_SOUL_OBTAIN_IMG_CLASS =
-        'h-10 w-10 min-[360px]:h-11 min-[360px]:w-11 min-[400px]:h-12 min-[400px]:w-12 object-contain p-0.5 drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)] sm:h-[3.4rem] sm:w-[3.4rem]';
 
     const obtainDescription = resolveItemObtainDescription(item);
     const obtainUsageLines = resolveItemObtainUsageLines(item);
+    const obtainAcquireLines = resolveBagItemAcquireLines(item);
     const stackQty =
         typeof item.quantity === 'number' && Number.isFinite(item.quantity) && item.quantity > 0 ? Math.floor(item.quantity) : 1;
 
@@ -185,6 +216,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                 name="골드"
                 description={obtainDescription}
                 usageLines={obtainUsageLines}
+                acquireLines={obtainAcquireLines}
             />
         );
     } else if (isCurrency && isZemIcon) {
@@ -204,41 +236,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                 name="다이아몬드"
                 description={obtainDescription}
                 usageLines={obtainUsageLines}
-            />
-        );
-    } else if (isMaterialObtainLayout) {
-        windowId = 'item-obtained-material';
-        const matImage = item.image || MATERIAL_ITEMS[item.name]?.image || '';
-        const matLabel = formatRewardItemDisplayName(item.name);
-        const soulObtainEmphasis = isPairSoulStoneItem(item);
-        const slotBoxClass = soulObtainEmphasis ? PAIR_SOUL_OBTAIN_SLOT_BOX_CLASS : RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS;
-        const matImgClass = soulObtainEmphasis ? PAIR_SOUL_OBTAIN_IMG_CLASS : COMPACT_CURRENCY_IMG_CLASS;
-        singleCard = (
-            <SingleItemObtainCard
-                emphasis={soulObtainEmphasis}
-                leftVisual={
-                    <div className="relative shrink-0">
-                        <div
-                            className={`relative flex items-center justify-center ${RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS} ${slotBoxClass} ring-1 ring-slate-500/30`}
-                        >
-                            {matImage ? <img src={matImage} alt="" className={matImgClass} /> : null}
-                        </div>
-                        {materialAmount > 1 && !isPairPetMaterial(item) ? (
-                            <span
-                                className={
-                                    soulObtainEmphasis
-                                        ? `${ITEM_OBTAIN_COUNT_BADGE_CLASS} !bottom-1.5 !right-1.5 !min-w-[1.5rem] !px-2 !py-0.5 !text-[11px] sm:!text-xs`
-                                        : ITEM_OBTAIN_COUNT_BADGE_CLASS
-                                }
-                            >
-                                ×{materialAmount.toLocaleString()}
-                            </span>
-                        ) : null}
-                    </div>
-                }
-                name={matLabel}
-                description={obtainDescription}
-                usageLines={obtainUsageLines}
+                acquireLines={obtainAcquireLines}
             />
         );
     } else {
@@ -297,18 +295,17 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                 }
                 description={combinedDesc}
                 usageLines={obtainUsageLines}
+                acquireLines={obtainAcquireLines}
             />
         );
     }
-
-    const materialSoulEmphasis = isMaterialObtainLayout && isPairSoulStoneItem(item) && !isCurrency;
 
     return (
         <DraggableWindow
             title="아이템 획득"
             onClose={onClose}
             windowId={windowId}
-            initialWidth={materialSoulEmphasis ? 480 : 400}
+            initialWidth={440}
             shrinkHeightToContent
             skipSavedPosition
             isTopmost={isTopmost}
@@ -318,13 +315,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
             mobileViewportMaxHeightCss="min(92dvh, calc(100dvh - 16px))"
         >
             <>
-                <div
-                    className={`flex min-h-0 w-full flex-col self-center px-1.5 pt-1 sm:px-3 sm:pt-2 ${
-                        materialSoulEmphasis
-                            ? 'max-w-[min(100vw-1.5rem,30rem)] sm:max-w-[30rem]'
-                            : 'max-w-[min(100vw-1.5rem,26rem)] sm:max-w-[26rem]'
-                    }`}
-                >
+                <div className="flex min-h-0 w-full max-w-[min(100vw-1.5rem,28rem)] flex-col self-center px-1.5 pt-1 sm:max-w-[28rem] sm:px-3 sm:pt-2">
                     {singleCard}
                 </div>
                 <div className={ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS}>

@@ -819,11 +819,11 @@ export const initializeKataGo = async (): Promise<void> => {
 export function getScoringKataGoLimits(): { maxVisits: number; maxTimeSec: number } {
     const visitsRaw = (process.env.KATAGO_SCORING_MAX_VISITS || '').trim();
     const timeRaw = (process.env.KATAGO_SCORING_MAX_TIME_SEC || '').trim();
-    // 계가 정확도 우선 기본값(환경변수로 즉시 오버라이드 가능)
-    let maxVisits = visitsRaw ? parseInt(visitsRaw, 10) : 300;
-    let maxTimeSec = timeRaw ? parseInt(timeRaw, 10) : 6;
-    if (!Number.isFinite(maxVisits) || maxVisits <= 0) maxVisits = 300;
-    if (!Number.isFinite(maxTimeSec) || maxTimeSec <= 0) maxTimeSec = 6;
+    // 계가 정확도 우선 기본값(환경변수로 즉시 오버라이드 가능). 기본은 약간 빠른 쪽(285 visits / 5s cap).
+    let maxVisits = visitsRaw ? parseInt(visitsRaw, 10) : 285;
+    let maxTimeSec = timeRaw ? parseInt(timeRaw, 10) : 5;
+    if (!Number.isFinite(maxVisits) || maxVisits <= 0) maxVisits = 285;
+    if (!Number.isFinite(maxTimeSec) || maxTimeSec <= 0) maxTimeSec = 5;
     return { maxVisits, maxTimeSec };
 }
 

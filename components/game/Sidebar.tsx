@@ -10,7 +10,6 @@ import {
     ALKKAGI_GAUGE_SPEEDS,
     CURLING_GAUGE_SPEEDS,
     SPECIAL_GAME_MODES,
-    SINGLE_PLAYER_STAGES,
     ADMIN_USER_ID,
     ADMIN_NICKNAME,
     aiUserId
@@ -32,6 +31,7 @@ import AdBanner from '../ads/AdBanner.js';
 import SinglePlayerGameDescriptionModal from '../SinglePlayerGameDescriptionModal.js';
 import AiGameDescriptionModal from '../AiGameDescriptionModal.js';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
+import { resolveLiveSessionSinglePlayerStageRow } from '../../shared/utils/liveSessionSinglePlayerStage.js';
 import {
     arenaGameRoomAdminStripClass,
     arenaGameRoomAdminTitleClass,
@@ -77,7 +77,8 @@ export const GameInfoPanel: React.FC<{
     onClose?: () => void;
     onAction?: GameProps['onAction'];
     sidebarLayout?: 'desktop' | 'mobileDrawer';
-}> = ({ session, currentUser, onClose, onAction, sidebarLayout }) => {
+    singlePlayerStagesListRevision?: number;
+}> = ({ session, currentUser, onClose, onAction, sidebarLayout, singlePlayerStagesListRevision = 0 }) => {
     const drawerUi = sidebarLayout === 'mobileDrawer';
     const [matchGuideOpen, setMatchGuideOpen] = useState(false);
     const { mode, settings, effectiveCaptureTargets } = session;
@@ -121,7 +122,7 @@ export const GameInfoPanel: React.FC<{
 
         details.push(renderSetting("게임 모드", gameModeDisplayName));
         if (session.isSinglePlayer && session.stageId) {
-            const stage = SINGLE_PLAYER_STAGES.find(s => s.id === session.stageId);
+            const stage = resolveLiveSessionSinglePlayerStageRow(session);
             const stageDisplay = stage ? `${stage.level} · ${stage.name}` : session.stageId;
             details.push(renderSetting("스테이지", stageDisplay));
         }
@@ -239,7 +240,7 @@ export const GameInfoPanel: React.FC<{
         }
 
         return details.filter(Boolean);
-    }, [session]);
+    }, [session, singlePlayerStagesListRevision]);
 
 
     return (
@@ -770,6 +771,7 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                     onClose={props.onClose}
                     onAction={props.onAction}
                     sidebarLayout={sidebarLayout}
+                    singlePlayerStagesListRevision={props.singlePlayerStagesListRevision}
                 />
                 <UserListPanel {...props} />
                 <GuildWarStarConditionsPanel session={session} currentUser={props.currentUser} sidebarLayout={sidebarLayout} />
@@ -825,7 +827,26 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                             : (pauseButtonCooldown > 0 ? `일시 정지 (${pauseButtonCooldown})` : (pauseDisabledBecauseAiTurn ? '일시 정지 (AI 차례)' : '일시 정지'))}
                     </Button>
                 ) : (
-                    <Button bare onClick={onLeaveOrResign} colorScheme="none" className={`w-full ${arenaGameRoomSidebarLeaveBtnClass(isNoContestLeaveAvailable)}`}>
+                    <Button
+                        bare
+                        onClick={onLeaveOrResign}
+                        colorScheme="none"
+                        className={`w-full ${arenaGameRoomSidebarLeaveBtnClass(isNoContestLeaveAvailable)}`}
+                        disabled={
+                            gameStatus === 'scoring' &&
+                            !isSpectator &&
+                            !isGameEnded &&
+                            !isNoContestLeaveAvailable
+                        }
+                        title={
+                            gameStatus === 'scoring' &&
+                            !isSpectator &&
+                            !isGameEnded &&
+                            !isNoContestLeaveAvailable
+                                ? '계가 집계 중에는 기권할 수 없습니다.'
+                                : undefined
+                        }
+                    >
                         {leaveButtonText}
                     </Button>
                 )}

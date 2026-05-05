@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { GameProps, Player, Point, Move, SinglePlayerStageInfo } from '../../types.js';
 import GoBoard from '../GoBoard.js';
 import { ScoringOverlay, SCORING_PROGRESS_DURATION_MS } from '../game/ScoringOverlay.js';
-import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
+import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js';
+import { resolveSinglePlayerAutoScoringCapForClientSession } from '../../shared/utils/liveSessionSinglePlayerStage.js';
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
 import { resolveSinglePlayerSurvivalMode } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 
@@ -130,6 +131,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         onboardingDemoAnchorPoint = null,
         onboardingForcedFirstMovePoint = null,
         intro1TutorialHighlight = null,
+        singlePlayerStagesListRevision = 0,
     } = props;
     
     const {
@@ -201,6 +203,8 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
     const showPlacedBaseStoneArrays =
         allowBackBoardBaseStonesOnMobile &&
         (gameStatus === 'base_placement' ||
+            gameStatus === 'base_stone_color_choice' ||
+            gameStatus === 'base_same_color_points_bid' ||
             gameStatus === 'komi_bidding' ||
             gameStatus === 'komi_bid_reveal' ||
             gameStatus === 'base_color_roulette' ||
@@ -272,19 +276,29 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         const validMovesCount = moves.filter(m => m.x !== -1 && m.y !== -1).length;
         const isTower = session.gameCategory === 'tower';
         if ((session.isSinglePlayer || isTower) && session.stageId) {
-            const stage = isTower
-                ? TOWER_STAGES.find(s => s.id === session.stageId)
-                : SINGLE_PLAYER_STAGES.find(s => s.id === session.stageId);
-            if (stage?.autoScoringTurns) {
+            const cap = isTower
+                ? TOWER_STAGES.find(s => s.id === session.stageId)?.autoScoringTurns
+                : resolveSinglePlayerAutoScoringCapForClientSession(session as any);
+            if (cap) {
                 const totalTurns = (session.totalTurns != null && session.totalTurns > 0)
                     ? Math.max(session.totalTurns, validMovesCount)
                     : validMovesCount;
-                const remainingTurns = Math.max(0, stage.autoScoringTurns - totalTurns);
+                const remainingTurns = Math.max(0, cap - totalTurns);
                 if (remainingTurns <= 0) return true;
             }
         }
         return false;
-    }, [gameStatus, session.isSinglePlayer, session.gameCategory, session.stageId, session.moveHistory, session.totalTurns]);
+    }, [
+        gameStatus,
+        session.isSinglePlayer,
+        session.gameCategory,
+        session.stageId,
+        session.moveHistory,
+        session.totalTurns,
+        session.settings,
+        (session as any).singlePlayerStageDisplay,
+        singlePlayerStagesListRevision,
+    ]);
 
     const adventureRegionalHeadStartCaptureBonus =
         session.gameCategory === 'adventure'
@@ -299,14 +313,20 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         if (!session.isSinglePlayer || !session.stageId) return undefined;
         const snap = session.singlePlayerStageDisplay;
         if (snap && snap.id === session.stageId) return snap;
-        const fromList = SINGLE_PLAYER_STAGES.find((stage) => stage.id === session.stageId);
+        const fromList = getSinglePlayerStages().find((stage) => stage.id === session.stageId);
         if (fromList) return fromList;
         // 관리자 스테이지 순서 재배치 등으로 stageId는 갱신됐는데 스냅샷 id만 남은 경우: 두루마리·규칙 표시용 폴백
         if (snap && typeof snap.id === 'string') {
             return { ...snap, id: session.stageId };
         }
         return undefined;
-    }, [session.isSinglePlayer, session.stageId, session.singlePlayerStageDisplay, session.gameStatus]);
+    }, [
+        session.isSinglePlayer,
+        session.stageId,
+        session.singlePlayerStageDisplay,
+        session.gameStatus,
+        singlePlayerStagesListRevision,
+    ]);
 
     useEffect(() => {
         if (isMobile || !singlePlayerStage) {
@@ -443,10 +463,11 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     lastMove={displayLastMove}
                     lastTurnStones={lastTurnStones}
                     isBoardDisabled={
-                        !isMyTurn ||
+                        // 베이스 배치: 양쪽(유저·AI) 동시 배치 단계 — 턴 표시와 무관하게 유저가 찍어야 함 (GoGameArena와 동일)
+                        (!isMyTurn && gameStatus !== 'base_placement') ||
                         isSpectator ||
                         isPaused ||
-                        // 싱글플레이 미사일 선택 구간에서는 AI 턴으로 currentPlayer가 넘어가도 UX상 입력을 허용해야 한다.
+                        // 미사일 좌표 선택 중에는 응답 대기 등으로 isBoardLocked여도 판 조작이 필요하다.
                         (isBoardLocked && gameStatus !== 'missile_selecting') ||
                         isBoardDisabledDueToTurnLimit ||
                         isMissileAnimating ||
@@ -456,6 +477,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     stoneColor={myPlayerEnum}
                     winningLine={winningLine}
                     mode={session.mode}
+                    mixedModes={session.settings?.mixedModes}
                     myPlayerEnum={myPlayerEnum}
                     gameStatus={gameStatus}
                     currentPlayer={currentPlayer}

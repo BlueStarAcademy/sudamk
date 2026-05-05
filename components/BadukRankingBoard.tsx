@@ -4,7 +4,9 @@ import { RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScr
 import { useRanking } from '../hooks/useRanking.js';
 import { User } from '../types.js';
 import Avatar from './Avatar.js';
-import { AVATAR_POOL, BORDER_POOL, SPECIAL_GAME_MODES } from '../constants';
+import { AVATAR_POOL, BORDER_POOL } from '../constants';
+import { readPairRankedBlock, readStrategicRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
+import { RANKED_ELO_BASE_SCORE } from '../shared/constants/rules.js';
 import MobileRankingGuidePanel from './MobileRankingGuidePanel.js';
 
 interface BadukRankingBoardProps {
@@ -181,10 +183,8 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
         
         // rankings에 없으면 값만 계산 (10판 이상이어야 표시)
         if (activeTab === 'pair') {
-            const pairStats = currentUserWithStatus.stats?.['pair' as keyof typeof currentUserWithStatus.stats] as { wins?: number; losses?: number } | undefined;
-            const wins = pairStats?.wins || 0;
-            const losses = pairStats?.losses || 0;
-            const totalGames = wins + losses;
+            const pairBlk = readPairRankedBlock(currentUserWithStatus.stats);
+            const totalGames = pairBlk.wins + pairBlk.losses;
             if (totalGames < 5) return null;
             const rankInList = rankings.findIndex(r => r.user && r.user.id === currentUserWithStatus.id);
             if (rankInList !== -1) {
@@ -194,23 +194,17 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
                     rank: rankings[rankInList].rank,
                 };
             }
-            const score = Number(currentUserWithStatus.dailyRankings?.pair?.score ?? 1200);
+            const dr = currentUserWithStatus.dailyRankings?.pair;
+            const score =
+                dr && typeof dr.score === 'number' && Number.isFinite(dr.score)
+                    ? RANKED_ELO_BASE_SCORE + dr.score
+                    : pairBlk.rankingScore;
             return { user: currentUserWithStatus, value: score, rank: 'N/A' as const };
         }
 
-        const mode = 'strategic';
         const scoreMode = 'standard';
-        const gameModes = SPECIAL_GAME_MODES;
-
-        let totalGames = 0;
-        if (currentUserWithStatus.stats) {
-            for (const gameMode of gameModes) {
-                const gameStats = currentUserWithStatus.stats[gameMode.mode];
-                if (gameStats) {
-                    totalGames += (gameStats.wins || 0) + (gameStats.losses || 0);
-                }
-            }
-        }
+        const stratBlk = readStrategicRankedBlock(currentUserWithStatus.stats);
+        const totalGames = stratBlk.wins + stratBlk.losses;
 
         if (totalGames < 10) {
             return null;

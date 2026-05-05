@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { User, UserWithStatus, GameMode } from '../../types.js';
 import Avatar from '../Avatar.js';
-import { RANKING_TIERS, AVATAR_POOL, BORDER_POOL, SPECIAL_GAME_MODES } from '../../constants';
+import { RANKING_TIERS, AVATAR_POOL, BORDER_POOL } from '../../constants';
 import { readStrategicRankedBlock, readPairRankedBlock } from '../../shared/utils/unifiedRankedStatsMigration.js';
 import { RANKED_ELO_BASE_SCORE } from '../../shared/constants/rules.js';
 import { RANKING_MODAL_SLIM_SCROLL_Y } from '../../shared/constants/rankingModalScrollbar.js';
@@ -133,15 +133,9 @@ const RankingList: React.FC<RankingListProps> = ({
             };
         }
         if (lobbyType === 'strategic') {
-            let totalGames = 0;
-            if (u.stats) {
-                for (const gameMode of SPECIAL_GAME_MODES) {
-                    const gameStats = u.stats[gameMode.mode];
-                    if (gameStats) totalGames += (gameStats.wins || 0) + (gameStats.losses || 0);
-                }
-            }
-            if (totalGames < minGamesForTierList) return null;
             const blk = readStrategicRankedBlock(u.stats as Record<string, { wins?: number; losses?: number; rankingScore?: number }>);
+            const totalGames = blk.wins + blk.losses;
+            if (totalGames < minGamesForTierList) return null;
             const score = blk.rankingScore;
             const rank = eligibleRankedUsers.filter((x) => x.avgScore > score).length + 1;
             return {

@@ -43,6 +43,7 @@ import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventur
 import {
     skipPendingCaptureForAdventureHiddenReveal,
     shouldPreserveDiscovererTurnAfterOpponentHiddenReveal,
+    shouldPreserveDiscovererTurnWhenAiRevealsUserHiddenStone,
     treatAsPveLikeForHiddenOpponentReveal,
     useAiInitialHiddenCellTracking,
     useAiInitialHiddenSyntheticCaptureHistory,
@@ -78,6 +79,7 @@ const addSpeedConsumedSeconds = (game: types.LiveGameSession, player: types.Play
     }
 };
 import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
+import { resolveSinglePlayerAutoScoringTurnCap } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 
 function findLatestMoveIndexAt(
     moveHistory: types.LiveGameSession['moveHistory'] | undefined,
@@ -738,7 +740,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             fixedScoringTurnLimit = (game.settings as any)?.autoScoringTurns;
         } else if (game.isSinglePlayer && game.stageId) {
             const stage = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId);
-            fixedScoringTurnLimit = stage?.autoScoringTurns;
+            fixedScoringTurnLimit = resolveSinglePlayerAutoScoringTurnCap(game.settings as any, stage);
         } else {
             fixedScoringTurnLimit = (game.settings as any)?.autoScoringTurns ?? (game.settings as any)?.scoringTurnLimit;
             // scoringTurnLimit에서 PASS를 턴으로 포함할지 결정.
@@ -755,6 +757,15 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             : (game.moveHistory || []).filter(m => m && m.x !== -1 && m.y !== -1).length;
         return { fixedScoringTurnLimit, countPassAsTurn, currentTurnCount };
     };
+
+    if (type === 'REQUEST_STRATEGIC_PET_HINT') {
+        const { handleStrategicPetHintRequest } = await import('../strategicPetHintAction.js');
+        return handleStrategicPetHintRequest(game, user, {
+            pairClassicGame,
+            isMyTurn,
+            myPlayerEnum,
+        });
+    }
 
     switch (type) {
         case 'PLACE_STONE': {
@@ -862,7 +873,8 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                         autoScoringTurns = stage?.autoScoringTurns;
                     }
                 } else if (game.isSinglePlayer && game.stageId) {
-                    autoScoringTurns = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId)?.autoScoringTurns;
+                    const spStage = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId);
+                    autoScoringTurns = resolveSinglePlayerAutoScoringTurnCap(game.settings as any, spStage);
                 } else {
                     autoScoringTurns = (game.settings as any)?.autoScoringTurns ?? (game.settings as any)?.scoringTurnLimit;
                 }
@@ -939,7 +951,8 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                         autoScoringTurnsSync = stage?.autoScoringTurns;
                     }
                 } else if (game.isSinglePlayer && game.stageId) {
-                    autoScoringTurnsSync = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId)?.autoScoringTurns;
+                    const spStageSync = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId);
+                    autoScoringTurnsSync = resolveSinglePlayerAutoScoringTurnCap(game.settings as any, spStageSync);
                 } else {
                     autoScoringTurnsSync =
                         game.mode === types.GameMode.Capture
@@ -1151,7 +1164,13 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 // capturedStones가 비어 있어도 착수·보드 반영은 반드시 pendingCapture로 이어져야 한다.
                 if (simResult?.isValid && !adventureHiddenRevealOnly) {
                     const extraCaptures = simResult.capturedStones || [];
-                    const preserveDiscovererTurnPve = shouldPreserveDiscovererTurnAfterOpponentHiddenReveal(game);
+                    const preserveDiscovererTurnPve =
+                        shouldPreserveDiscovererTurnAfterOpponentHiddenReveal(game) ||
+                        shouldPreserveDiscovererTurnWhenAiRevealsUserHiddenStone(
+                            game,
+                            myPlayerEnum,
+                            !!isAiInitialHiddenStone
+                        );
                     // PVP/전략 대국에서는 캡처 처리(pendingCapture)는 유지하되, 턴만 발견자(myPlayerEnum)로 되돌려 UX를 고정한다.
                     // (PVE류에서는 preserveDiscovererTurn로 보드/상태 스냅샷을 되돌리는 기존 로직을 그대로 사용)
                     const preserveTurnAfterOpponentHiddenReveal = !preserveDiscovererTurnPve;
@@ -1645,7 +1664,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     autoScoringTurns = (game.settings as any)?.autoScoringTurns;
                 } else {
                     const stage = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId);
-                    autoScoringTurns = stage?.autoScoringTurns;
+                    autoScoringTurns = resolveSinglePlayerAutoScoringTurnCap(game.settings as any, stage);
                 }
                 
                 if (autoScoringTurns !== undefined) {

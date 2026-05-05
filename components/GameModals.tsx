@@ -5,9 +5,10 @@ import NigiriModal from './NigiriModal.js';
 import CaptureBidModal from './CaptureBidModal.js';
 import CaptureTiebreakerModal from './CaptureTiebreakerModal.js';
 import RPSMinigame from './RPSMinigame.js';
-import ThiefRoleSelection from './ThiefRoleSelection.js';
 import ThiefRoleConfirmedModal from './ThiefRoleConfirmedModal.js';
+import ThiefDeathmatchRoleRouletteModal from './ThiefDeathmatchRoleRouletteModal.js';
 import TurnPreferenceSelection from './TurnPreferenceSelection.js';
+import TurnPreferenceRouletteModal from './TurnPreferenceRouletteModal.js';
 import NoContestModal from './NoContestModal.js';
 import ThiefRoundSummary from './ThiefRoundSummary.js';
 import CurlingRoundSummary from './CurlingRoundSummary.js';
@@ -60,7 +61,8 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
             'capture_bidding',
             'dice_rps', 'thief_rps', 'alkkagi_rps', 'curling_rps', 'omok_rps', 'ttamok_rps',
             'turn_preference_selection',
-            'thief_role_selection',
+            'turn_preference_roulette',
+            'thief_deathmatch_role_roulette',
             'dice_turn_rolling',
             
         ];
@@ -73,6 +75,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         
         if (gameStatus === 'dice_turn_rolling' || gameStatus === 'dice_turn_rolling_animating' || gameStatus === 'dice_turn_choice') return <DiceGoTurnSelectionModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'dice_start_confirmation') return <DiceGoStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
+        if (gameStatus === 'turn_preference_roulette') return <TurnPreferenceRouletteModal session={session} />;
         if (gameStatus === 'turn_preference_selection') return <TurnPreferenceSelection session={session} currentUser={currentUser} onAction={onAction} tiebreaker={session.turnSelectionTiebreaker} />;
         if (['nigiri_choosing', 'nigiri_guessing', 'nigiri_reveal'].includes(gameStatus)) return <NigiriModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (!isSpectator && gameStatus === 'pair_order_reveal' && session.settings.pairGame?.turnOrder?.length) return <PairTurnOrderModal session={session} currentUser={currentUser} onAction={onAction} />;
@@ -84,7 +87,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         if (rpsStates.includes(gameStatus)) return <RPSMinigame session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'alkkagi_start_confirmation') return <AlkkagiStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'curling_start_confirmation') return <CurlingStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
-        if (gameStatus === 'thief_role_selection') return <ThiefRoleSelection session={session} currentUser={currentUser} onAction={onAction} />;
+        if (gameStatus === 'thief_deathmatch_role_roulette') return <ThiefDeathmatchRoleRouletteModal session={session} />;
         if (gameStatus === 'thief_role_confirmed') return <ThiefRoleConfirmedModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'thief_round_end') return <ThiefRoundSummary session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'curling_round_end') return <CurlingRoundSummary session={session} currentUser={currentUser} onAction={onAction} />;

@@ -22,8 +22,6 @@ import {
     equipmentGradeRewardIconShellClassNames,
     RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS,
     RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
-    RESULT_MODAL_REWARDS_ROW_MOBILE_FIVE_COL_CLASS,
-    RESULT_MODAL_REWARDS_ROW_MOBILE_SIX_COL_CLASS,
 } from './ResultModalRewardSlot.js';
 import { ResultModalVipRewardSlot } from './ResultModalVipRewardSlot.js';
 import AdventureKeyFragmentIcon from '../adventure/AdventureKeyFragmentIcon.js';
@@ -33,6 +31,10 @@ const ADVENTURE_DEFAULT_EQUIP_BOX_IMG =
     CONSUMABLE_ITEMS.find((c) => c.name === '장비 상자 I')?.image ?? '/images/Box/EquipmentBox1.png';
 const ADVENTURE_DEFAULT_MAT_BOX_IMG =
     CONSUMABLE_ITEMS.find((c) => c.name === '재료 상자 I')?.image ?? '/images/Box/ResourceBox1.png';
+
+/** 모험 획득 보상: 한 줄 가로 배치, 넘치면 스크롤(미획득 칸 없음) */
+const ADVENTURE_REWARD_SCROLL_ROW_CLASS =
+    'flex w-full min-w-0 flex-nowrap items-start justify-start gap-1.5 overflow-x-auto overflow-y-visible pb-0.5 sm:gap-2 [scrollbar-width:thin]';
 
 const ADVENTURE_REWARD_REVEAL_MS = 3000;
 const ADVENTURE_REWARD_ROLL_MS = 2800;
@@ -450,10 +452,11 @@ function MaterialRollingPlaceholder({
     );
 }
 
-/** 모험 획득 보상: 경험치·골드·장비·재료 4칸 고정(이미지+숫자, 미획득 시 동일 칸에 미획득) */
+/** 모험 획득 보상: 전략 바둑은 EXP·펫 EXP·획득 분만 표시, 미획득 칸 없음·한 줄 가로 스크롤 */
 export function AdventureBattleFixedRewardRow({
     slots,
     xpChange,
+    pairPetXpChange = 0,
     isPlayful,
     compact,
     vipPlayRewardSlot,
@@ -461,6 +464,7 @@ export function AdventureBattleFixedRewardRow({
 }: {
     slots: NonNullable<GameSummary['adventureRewardSlots']>;
     xpChange: number;
+    pairPetXpChange?: number;
     isPlayful: boolean;
     compact: boolean;
     vipPlayRewardSlot?: GameSummary['vipPlayRewardSlot'];
@@ -468,129 +472,91 @@ export function AdventureBattleFixedRewardRow({
 }) {
     const keyFragmentObtained = !!slots.keyFragment?.obtained;
     const keyFragmentAmount = Math.max(1, Math.floor(slots.keyFragment?.amount ?? 1));
-    const xpOk = xpChange > 0;
-    const rowClass = compact
-        ? vipPlayRewardSlot
-            ? RESULT_MODAL_REWARDS_ROW_MOBILE_SIX_COL_CLASS
-            : RESULT_MODAL_REWARDS_ROW_MOBILE_FIVE_COL_CLASS
-        : vipPlayRewardSlot
-          ? 'grid w-full min-w-0 grid-cols-6 items-start justify-items-center gap-1 min-h-[7.6rem]'
-          : 'grid w-full min-w-0 grid-cols-5 items-start justify-items-center gap-1.5 min-h-[7.6rem]';
-
-    const xpMissedBox = (
-        <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''} opacity-45`}>
-            <div
-                className={`flex ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'} shrink-0 flex-col items-center justify-center rounded-lg border ring-1 ring-inset ${
-                    isPlayful
-                        ? 'border-sky-400/35 bg-gradient-to-br from-sky-600/35 via-violet-900/55 to-indigo-950/70 ring-sky-400/25'
-                        : 'border-emerald-400/35 bg-gradient-to-br from-emerald-700/35 via-emerald-950/80 to-black/55 ring-emerald-400/25'
-                }`}
-                aria-hidden
-            >
-                <span
-                    className={
-                        compact
-                            ? `text-[0.5rem] min-[360px]:text-[0.52rem] min-[400px]:text-[0.54rem] font-bold ${
-                                  isPlayful ? 'text-sky-100/85' : 'text-emerald-100/80'
-                              }`
-                            : `text-[0.5rem] font-bold ${isPlayful ? 'text-sky-100/85' : 'text-emerald-100/80'}`
-                    }
-                >
-                    {isPlayful ? '놀이' : '전략'}
-                </span>
-                <span
-                    className={
-                        compact
-                            ? `mt-px text-[0.56rem] min-[360px]:text-[0.58rem] min-[400px]:text-[0.6rem] font-black ${
-                                  isPlayful ? 'text-violet-100' : 'text-emerald-50'
-                              }`
-                            : `mt-0.5 text-[0.58rem] font-black ${isPlayful ? 'text-violet-100' : 'text-emerald-50'}`
-                    }
-                >
-                    EXP
-                </span>
-            </div>
-            <span
-                className={
-                    compact
-                        ? 'text-center text-[0.72rem] font-bold tabular-nums text-slate-500'
-                        : 'text-center text-sm font-bold tabular-nums text-slate-500 min-[1024px]:text-base'
-                }
-            >
-                미획득
-            </span>
-        </div>
-    );
+    const xpOk = !isPlayful && xpChange > 0;
+    const petXpOk = !isPlayful && pairPetXpChange > 0;
 
     return (
-        <div className={rowClass}>
+        <div className={ADVENTURE_REWARD_SCROLL_ROW_CLASS}>
             {xpOk ? (
-                <ResultModalXpRewardBadge
-                    variant={isPlayful ? 'playful' : 'strategy'}
-                    amount={xpChange}
-                    density={compact ? 'compact' : 'comfortable'}
-                />
-            ) : (
-                xpMissedBox
-            )}
+                <div className="shrink-0">
+                    <ResultModalXpRewardBadge
+                        variant="strategy"
+                        amount={xpChange}
+                        density={compact ? 'compact' : 'comfortable'}
+                    />
+                </div>
+            ) : null}
+            {petXpOk ? (
+                <div className="shrink-0">
+                    <ResultModalXpRewardBadge
+                        variant="pet"
+                        amount={pairPetXpChange}
+                        density={compact ? 'compact' : 'comfortable'}
+                        title={`펫 경험치 +${pairPetXpChange.toLocaleString()}`}
+                    />
+                </div>
+            ) : null}
             {slots.gold.obtained ? (
-                <ResultModalGoldCurrencySlot
-                    amount={slots.gold.amount}
-                    compact={compact}
-                    understandingBonus={slots.gold.understandingBonus}
-                    adventureUnifiedSlot
-                />
-            ) : (
-                <AdventureMissedRewardSlot compact={compact} iconSrc="/images/icon/Gold.png" />
-            )}
-            <AdventureKeyFragmentRewardSlot
-                compact={compact}
-                amount={keyFragmentAmount}
-                obtained={keyFragmentObtained}
-            />
+                <div className="shrink-0">
+                    <ResultModalGoldCurrencySlot
+                        amount={slots.gold.amount}
+                        compact={compact}
+                        understandingBonus={slots.gold.understandingBonus}
+                        adventureUnifiedSlot
+                    />
+                </div>
+            ) : null}
+            {keyFragmentObtained ? (
+                <div className="shrink-0">
+                    <AdventureKeyFragmentRewardSlot compact={compact} amount={keyFragmentAmount} obtained />
+                </div>
+            ) : null}
             {slots.equipment.obtained && slots.equipment.displayName ? (
-                <ResultModalItemRewardSlot
-                    imageSrc={adventureRewardSlotItemImage(slots.equipment.displayName)}
-                    name={slots.equipment.displayName}
-                    quantity={1}
-                    compact={compact}
-                    alwaysShowNameBelow
-                    adventureUnifiedSlot
-                    equipmentGrade={adventureEquipmentGradeFromDisplayName(
-                        slots.equipment.displayName,
-                        slots.equipment.grade,
-                    )}
-                />
-            ) : (
-                <AdventureMissedRewardSlot compact={compact} iconSrc={ADVENTURE_DEFAULT_EQUIP_BOX_IMG} questionOverlay />
-            )}
+                <div className="shrink-0">
+                    <ResultModalItemRewardSlot
+                        imageSrc={adventureRewardSlotItemImage(slots.equipment.displayName)}
+                        name={slots.equipment.displayName}
+                        quantity={1}
+                        compact={compact}
+                        alwaysShowNameBelow
+                        adventureUnifiedSlot
+                        equipmentGrade={adventureEquipmentGradeFromDisplayName(
+                            slots.equipment.displayName,
+                            slots.equipment.grade,
+                        )}
+                    />
+                </div>
+            ) : null}
             {slots.material.obtained && slots.material.displayName ? (
-                <ResultModalItemRewardSlot
-                    imageSrc={adventureRewardSlotItemImage(slots.material.displayName)}
-                    name={slots.material.displayName}
-                    quantity={slots.material.quantity ?? 1}
-                    compact={compact}
-                    materialQuantityOnly
-                    adventureUnifiedSlot
-                />
-            ) : (
-                <AdventureMissedRewardSlot compact={compact} iconSrc={ADVENTURE_DEFAULT_MAT_BOX_IMG} questionOverlay />
-            )}
+                <div className="shrink-0">
+                    <ResultModalItemRewardSlot
+                        imageSrc={adventureRewardSlotItemImage(slots.material.displayName)}
+                        name={slots.material.displayName}
+                        quantity={slots.material.quantity ?? 1}
+                        compact={compact}
+                        materialQuantityOnly
+                        adventureUnifiedSlot
+                    />
+                </div>
+            ) : null}
             {vipPlayRewardSlot ? (
-                <ResultModalVipRewardSlot
-                    slot={vipPlayRewardSlot}
-                    compact={compact}
-                    onLockedClick={vipPlayRewardSlot.locked ? onVipLockedClick : undefined}
-                />
+                <div className="shrink-0">
+                    <ResultModalVipRewardSlot
+                        slot={vipPlayRewardSlot}
+                        compact={compact}
+                        onLockedClick={vipPlayRewardSlot.locked ? onVipLockedClick : undefined}
+                    />
+                </div>
             ) : null}
         </div>
     );
 }
 
-/** 최초 3초 롤링 후 실제 보상 공개 — 전략 경험치만 즉시 표시 */
+/** 최초 3초 롤링 후 실제 보상 공개 — 미획득 칸 없음, 한 줄 가로 스크롤 */
 export function AdventureBattleRewardRowWithReveal({
     slots,
     xpChange,
+    pairPetXpChange = 0,
     isPlayful,
     compact,
     vipPlayRewardSlot,
@@ -598,6 +564,7 @@ export function AdventureBattleRewardRowWithReveal({
 }: {
     slots: NonNullable<GameSummary['adventureRewardSlots']>;
     xpChange: number;
+    pairPetXpChange?: number;
     isPlayful: boolean;
     compact: boolean;
     vipPlayRewardSlot?: GameSummary['vipPlayRewardSlot'];
@@ -616,6 +583,7 @@ export function AdventureBattleRewardRowWithReveal({
             <AdventureBattleFixedRewardRow
                 slots={slots}
                 xpChange={xpChange}
+                pairPetXpChange={pairPetXpChange}
                 isPlayful={isPlayful}
                 compact={compact}
                 vipPlayRewardSlot={vipPlayRewardSlot}
@@ -624,129 +592,66 @@ export function AdventureBattleRewardRowWithReveal({
         );
     }
 
-    const xpOk = xpChange > 0;
-    const rowClass = compact
-        ? vipPlayRewardSlot
-            ? RESULT_MODAL_REWARDS_ROW_MOBILE_SIX_COL_CLASS
-            : RESULT_MODAL_REWARDS_ROW_MOBILE_FIVE_COL_CLASS
-        : vipPlayRewardSlot
-          ? 'grid w-full min-w-0 grid-cols-6 items-start justify-items-center gap-1 min-h-[7.6rem]'
-          : 'grid w-full min-w-0 grid-cols-5 items-start justify-items-center gap-1.5 min-h-[7.6rem]';
-
-    const xpMissedBox = (
-        <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''} opacity-45`}>
-            <div
-                className={`flex ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'} shrink-0 flex-col items-center justify-center rounded-lg border ring-1 ring-inset ${
-                    isPlayful
-                        ? 'border-sky-400/35 bg-gradient-to-br from-sky-600/35 via-violet-900/55 to-indigo-950/70 ring-sky-400/25'
-                        : 'border-emerald-400/35 bg-gradient-to-br from-emerald-700/35 via-emerald-950/80 to-black/55 ring-emerald-400/25'
-                }`}
-                aria-hidden
-            >
-                <span
-                    className={
-                        compact
-                            ? `text-[0.5rem] min-[360px]:text-[0.52rem] min-[400px]:text-[0.54rem] font-bold ${
-                                  isPlayful ? 'text-sky-100/85' : 'text-emerald-100/80'
-                              }`
-                            : `text-[0.5rem] font-bold ${isPlayful ? 'text-sky-100/85' : 'text-emerald-100/80'}`
-                    }
-                >
-                    {isPlayful ? '놀이' : '전략'}
-                </span>
-                <span
-                    className={
-                        compact
-                            ? `mt-px text-[0.56rem] min-[360px]:text-[0.58rem] min-[400px]:text-[0.6rem] font-black ${
-                                  isPlayful ? 'text-violet-100' : 'text-emerald-50'
-                              }`
-                            : `mt-0.5 text-[0.58rem] font-black ${isPlayful ? 'text-violet-100' : 'text-emerald-50'}`
-                    }
-                >
-                    EXP
-                </span>
-            </div>
-            <span
-                className={
-                    compact
-                        ? 'text-center text-[0.72rem] font-bold tabular-nums text-slate-500'
-                        : 'text-center text-sm font-bold tabular-nums text-slate-500 min-[1024px]:text-base'
-                }
-            >
-                미획득
-            </span>
-        </div>
-    );
+    const xpOk = !isPlayful && xpChange > 0;
+    const petXpOk = !isPlayful && pairPetXpChange > 0;
 
     const equipName = slots.equipment.displayName ?? '';
     const matName = slots.material.displayName ?? '';
     const matQty = slots.material.quantity ?? 1;
 
     return (
-        <div className={rowClass}>
+        <div className={ADVENTURE_REWARD_SCROLL_ROW_CLASS}>
             {xpOk ? (
-                <ResultModalXpRewardBadge
-                    variant={isPlayful ? 'playful' : 'strategy'}
-                    amount={xpChange}
-                    density={compact ? 'compact' : 'comfortable'}
-                />
-            ) : (
-                xpMissedBox
-            )}
-            <GoldRollingPlaceholder compact={compact} obtained={slots.gold.obtained} targetAmount={slots.gold.amount} />
-            <AdventureKeyFragmentRewardSlot
-                compact={compact}
-                amount={keyFragmentAmount}
-                obtained={keyFragmentObtained}
-            />
+                <div className="shrink-0">
+                    <ResultModalXpRewardBadge
+                        variant="strategy"
+                        amount={xpChange}
+                        density={compact ? 'compact' : 'comfortable'}
+                    />
+                </div>
+            ) : null}
+            {petXpOk ? (
+                <div className="shrink-0">
+                    <ResultModalXpRewardBadge
+                        variant="pet"
+                        amount={pairPetXpChange}
+                        density={compact ? 'compact' : 'comfortable'}
+                        title={`펫 경험치 +${pairPetXpChange.toLocaleString()}`}
+                    />
+                </div>
+            ) : null}
+            {slots.gold.obtained ? (
+                <div className="shrink-0">
+                    <GoldRollingPlaceholder compact={compact} obtained={slots.gold.obtained} targetAmount={slots.gold.amount} />
+                </div>
+            ) : null}
+            {keyFragmentObtained ? (
+                <div className="shrink-0">
+                    <AdventureKeyFragmentRewardSlot compact={compact} amount={keyFragmentAmount} obtained />
+                </div>
+            ) : null}
             {slots.equipment.obtained && equipName ? (
-                <EquipmentRollingPlaceholder
-                    compact={compact}
-                    finalName={equipName}
-                    finalGrade={adventureEquipmentGradeFromDisplayName(equipName, slots.equipment.grade)}
-                />
-            ) : (
-                <div className={`flex flex-col items-center ${compact ? 'max-w-[3.25rem] shrink-0 min-[360px]:max-w-[3.5rem] min-[400px]:max-w-12 sm:max-w-[6.75rem]' : 'max-w-[6.75rem]'}`}>
-                    <VerticalReel
-                        rowPx={compact ? 86 : 112}
-                        children={[
-                            ...pickDecoyEquipmentNames(10, '').map((n, i) => (
-                                <div key={`d-${i}-${n}`} className="flex w-full flex-col items-center justify-center opacity-50">
-                                    <AdventureMissedRewardSlot compact={compact} iconSrc={ADVENTURE_DEFAULT_EQUIP_BOX_IMG} questionOverlay />
-                                </div>
-                            )),
-                            <div key="final" className="flex w-full justify-center">
-                                <AdventureMissedRewardSlot compact={compact} iconSrc={ADVENTURE_DEFAULT_EQUIP_BOX_IMG} questionOverlay />
-                            </div>,
-                        ]}
+                <div className="shrink-0">
+                    <EquipmentRollingPlaceholder
+                        compact={compact}
+                        finalName={equipName}
+                        finalGrade={adventureEquipmentGradeFromDisplayName(equipName, slots.equipment.grade)}
                     />
                 </div>
-            )}
+            ) : null}
             {slots.material.obtained && matName ? (
-                <MaterialRollingPlaceholder compact={compact} finalName={matName} finalQty={matQty} />
-            ) : (
-                <div className={`flex flex-col items-center ${compact ? 'max-w-[3.25rem] shrink-0 min-[360px]:max-w-[3.5rem] min-[400px]:max-w-12 sm:max-w-[6.75rem]' : 'max-w-[6.75rem]'}`}>
-                    <VerticalReel
-                        rowPx={compact ? 86 : 112}
-                        children={[
-                            ...Array.from({ length: 10 }, (_, i) => (
-                                <div key={i} className="flex w-full justify-center opacity-60">
-                                    <AdventureMissedRewardSlot compact={compact} iconSrc={ADVENTURE_DEFAULT_MAT_BOX_IMG} questionOverlay />
-                                </div>
-                            )),
-                            <div key="f" className="flex w-full justify-center">
-                                <AdventureMissedRewardSlot compact={compact} iconSrc={ADVENTURE_DEFAULT_MAT_BOX_IMG} questionOverlay />
-                            </div>,
-                        ]}
+                <div className="shrink-0">
+                    <MaterialRollingPlaceholder compact={compact} finalName={matName} finalQty={matQty} />
+                </div>
+            ) : null}
+            {vipPlayRewardSlot ? (
+                <div className="shrink-0">
+                    <ResultModalVipRewardSlot
+                        slot={vipPlayRewardSlot}
+                        compact={compact}
+                        onLockedClick={vipPlayRewardSlot.locked ? onVipLockedClick : undefined}
                     />
                 </div>
-            )}
-            {vipPlayRewardSlot ? (
-                <ResultModalVipRewardSlot
-                    slot={vipPlayRewardSlot}
-                    compact={compact}
-                    onLockedClick={vipPlayRewardSlot.locked ? onVipLockedClick : undefined}
-                />
             ) : null}
         </div>
     );

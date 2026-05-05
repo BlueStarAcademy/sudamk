@@ -15,9 +15,9 @@ export const CASH_SHOP_PACKAGE_KO_LABEL: Record<CashShopPackageId, string> = {
     diamond_package_1: '다이아패키지Ⅰ',
     diamond_package_2: '다이아패키지Ⅱ',
     diamond_package_3: '다이아패키지Ⅲ',
-    equipment_package_1: '장비상자패키지Ⅰ',
-    equipment_package_2: '장비상자패키지Ⅱ',
-    equipment_package_3: '장비상자패키지Ⅲ',
+    equipment_package_1: '장비상자 패키지 Ⅰ',
+    equipment_package_2: '장비상자 패키지 Ⅱ',
+    equipment_package_3: '장비상자 패키지 Ⅲ',
 };
 
 export const DIAMOND_PACKAGE_DURATION_DAYS: Record<CashShopDiamondPackageId, number> = {

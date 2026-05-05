@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserWithStatus, ServerAction, InventoryItemType } from '../types.js';
+import { ItemGrade } from '../types/enums.js';
+import { gradeStyles } from '../shared/constants/items.js';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import { ACTION_POINT_PURCHASE_COSTS_DIAMONDS, MAX_ACTION_POINT_PURCHASES_PER_DAY, ACTION_POINT_PURCHASE_REFILL_AMOUNT } from '../constants';
@@ -14,6 +16,7 @@ import {
 import { VIP_SHOP_DURATION_DAYS } from '../shared/constants/vipShopProducts.js';
 import PurchaseQuantityModal from './PurchaseQuantityModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { useKSTCalendarDayTick } from '../hooks/useKSTCalendarDayTick.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { useAdContext } from './ads/AdProvider.js';
 
@@ -69,6 +72,22 @@ interface MiscShopProduct {
 }
 
 const SHOP_DIAMOND_ICON = '/images/icon/Zem.png';
+
+/** 현금 다이아 탭 — 합계는 그대로, “더 주는” 느낌으로 구간만 시각 분할 */
+function getCashDiamondShopSegments(total: number): readonly [number, number] | null {
+    if (total === 200) return [150, 50] as const;
+    if (total === 500) return [350, 150] as const;
+    if (total === 1000) return [500, 500] as const;
+    if (total === 2000) return [750, 1250] as const;
+    return null;
+}
+
+/** 장비상자 패키지 보너스 등급 단어 → `gradeStyles`용 enum (실제 장비 등급 색상과 동일) */
+const SHOP_EQUIPMENT_PACKAGE_BONUS_GRADE: Record<'에픽' | '전설' | '신화', ItemGrade> = {
+    에픽: ItemGrade.Epic,
+    전설: ItemGrade.Legendary,
+    신화: ItemGrade.Mythic,
+};
 
 /** 원화(현금) 결제 미연동 — 일반 유저 차단, 관리자만 `BUY_CASH_PACKAGE`·`BUY_VIP_PACKAGE` 허용 */
 const CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE = '아직 구현되지 않았습니다.';
@@ -195,7 +214,7 @@ const ShopAdRewardCard: React.FC<{
 
     return (
         <div
-            className={`group relative flex min-h-0 flex-col items-center overflow-hidden rounded-xl border border-indigo-400/35 bg-gradient-to-br from-[#1f2239]/95 via-[#0f172a]/95 to-[#060b12]/95 text-center shadow-[0_22px_55px_-30px_rgba(99,102,241,0.65)] transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_30px_70px_-32px_rgba(129,140,248,0.65)] ${mobile ? 'p-2.5' : 'p-3'}`}
+            className={`group relative flex h-full min-h-0 flex-col items-center overflow-hidden rounded-xl border border-indigo-400/35 bg-gradient-to-br from-[#1f2239]/95 via-[#0f172a]/95 to-[#060b12]/95 text-center shadow-[0_22px_55px_-30px_rgba(99,102,241,0.65)] transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_30px_70px_-32px_rgba(129,140,248,0.65)] ${mobile ? 'p-2.5' : 'p-3'}`}
         >
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent" />
             <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-20 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.35),transparent_65%)]" />
@@ -467,19 +486,21 @@ const PackageBoxRowVisual: React.FC<{
             ? 'flex min-w-0 max-w-[48%] shrink-0 flex-col items-center justify-center gap-0 rounded border border-emerald-500/25 bg-emerald-950/20 px-0.5 py-0.5'
             : 'flex min-w-0 max-w-[52%] shrink-0 flex-col items-center justify-center gap-0.5 rounded-md border border-emerald-500/30 bg-emerald-950/25 px-1 py-1 min-[380px]:max-w-[50%]'
         : 'flex min-w-[6rem] max-w-[46%] shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-emerald-500/30 bg-emerald-950/25 px-2 py-1.5 sm:min-w-[6.75rem] sm:max-w-[44%] sm:px-2.5 sm:py-2';
-    const bonusVerticalLineClass = compact
+    const bonusEquipmentLineBaseClass = compact
         ? dn
-            ? 'block text-center text-[8px] font-extrabold leading-[1.05] tracking-tight text-emerald-100'
-            : 'block text-center text-[10px] font-extrabold leading-[1.08] tracking-tight text-emerald-100 min-[380px]:text-[11px] sm:text-xs'
-        : 'block text-center text-xs font-extrabold leading-[1.1] tracking-tight text-emerald-100 sm:text-sm';
+            ? 'block text-center text-[8px] font-extrabold leading-[1.05] tracking-tight'
+            : 'block text-center text-[10px] font-extrabold leading-[1.08] tracking-tight min-[380px]:text-[11px] sm:text-xs'
+        : 'block text-center text-xs font-extrabold leading-[1.1] tracking-tight sm:text-sm';
     const qtyBadgeClass = compact
         ? dn
             ? 'rounded px-[1px] py-0 text-[6px] font-bold tabular-nums leading-none text-amber-50 shadow ring-1 ring-amber-400/45 bg-amber-950/95'
             : 'rounded px-0.5 py-px text-[8px] font-bold tabular-nums leading-none text-amber-50 shadow ring-1 ring-amber-400/45 bg-amber-950/95 min-[380px]:text-[9px]'
         : 'rounded px-0.5 py-0.5 text-[10px] font-bold tabular-nums leading-none text-amber-50 shadow ring-1 ring-amber-400/45 bg-amber-950/95 sm:text-[11px]';
 
+    /** 장비 확정 지급 레이아웃은 좁은 카드에서도 두 상자가 세로로 줄바꿈되지 않도록 한 줄 유지 */
+    const boxesFlexRowClass = equipmentBonusGradeWord ? 'flex-nowrap' : 'flex-wrap';
     const boxesGrid = (
-        <div className={`flex flex-wrap items-end justify-center ${gapClass}`}>
+        <div className={`flex ${boxesFlexRowClass} items-end justify-center ${gapClass}`}>
             {boxes.map((b, i) => (
                 <div key={`${b.imageSrc}-${i}`} className={`flex shrink-0 flex-col items-center ${compact ? 'gap-0' : 'gap-0.5'}`}>
                     <div className={`relative rounded-md bg-gradient-to-br from-indigo-500/20 to-slate-900/60 shadow-[0_0_20px_-6px_rgba(129,140,248,0.5)] ring-1 ring-indigo-400/25 ${padClass}`}>
@@ -500,7 +521,8 @@ const PackageBoxRowVisual: React.FC<{
     );
 
     if (equipmentBonusGradeWord) {
-        const bonusLines: [string, string, string] = [equipmentBonusGradeWord, '장비', '획득'];
+        const gradeForStyle = SHOP_EQUIPMENT_PACKAGE_BONUS_GRADE[equipmentBonusGradeWord];
+        const gradeColorClass = gradeStyles[gradeForStyle].color;
         return (
             <div
                 className={`flex w-full min-w-0 items-stretch justify-center ${
@@ -510,12 +532,9 @@ const PackageBoxRowVisual: React.FC<{
                 <div className={boxGroupClass}>{boxesGrid}</div>
                 <span className={`flex shrink-0 items-center self-center ${plusClass}`}>+</span>
                 <div className={bonusGroupClass}>
-                    <div className="flex flex-col items-center justify-center gap-0" role="text" aria-label={`${equipmentBonusGradeWord} 장비 획득`}>
-                        {bonusLines.map((line, idx) => (
-                            <span key={`equip-bonus-${idx}`} className={bonusVerticalLineClass}>
-                                {line}
-                            </span>
-                        ))}
+                    <div className="flex flex-col items-center justify-center gap-0" role="text" aria-label={`${equipmentBonusGradeWord} 장비`}>
+                        <span className={`${bonusEquipmentLineBaseClass} ${gradeColorClass}`}>{equipmentBonusGradeWord}</span>
+                        <span className={`${bonusEquipmentLineBaseClass} text-emerald-100`}>장비</span>
                     </div>
                 </div>
             </div>
@@ -553,6 +572,42 @@ const MiscShopCard: React.FC<{
     const visual = product.packageVisual;
     const compact = threeColumn;
     const denseNested = Boolean(compact && mobile);
+    const now = Date.now();
+    const isDiamondPkg = (CASH_SHOP_DIAMOND_PACKAGE_IDS as readonly string[]).includes(product.id);
+    const isEquipmentPkg = (CASH_SHOP_EQUIPMENT_PACKAGE_IDS as readonly string[]).includes(product.id);
+    const diamondActive = (currentUser.diamondPackageExpiresAt ?? 0) > now;
+    const diamondBlocked = isDiamondPkg && diamondActive;
+    let equipLimit = 0;
+    let equipRemaining = 0;
+    let equipBlocked = false;
+    if (isEquipmentPkg) {
+        equipLimit = EQUIPMENT_PACKAGE_MONTHLY_LIMIT[product.id as keyof typeof EQUIPMENT_PACKAGE_MONTHLY_LIMIT];
+        const rec = currentUser.dailyShopPurchases?.[product.id];
+        const usedThisMonth = rec && !isDifferentMonthKST(rec.date, now) ? rec.quantity : 0;
+        equipRemaining = Math.max(0, equipLimit - usedThisMonth);
+        equipBlocked = !currentUser.isAdmin && equipRemaining <= 0;
+    }
+    const purchaseDisabled = diamondBlocked || equipBlocked;
+    const handleMiscCashBuy = () => {
+        if (!currentUser.isAdmin) {
+            setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
+            return;
+        }
+        if (diamondBlocked) {
+            setToastMessage('진행 중인 다이아 패키지가 있을 때는 추가 구매할 수 없습니다.');
+            return;
+        }
+        if (equipBlocked) {
+            setToastMessage('이번 달 구매 한도에 도달했습니다.');
+            return;
+        }
+        onBuyCashPackage(product.id);
+    };
+    const visualBoxFooterClass = compact
+        ? denseNested
+            ? 'mt-0.5 shrink-0 border-t border-white/10 pt-0.5 text-center text-[8px] leading-tight tracking-tight text-slate-400/95'
+            : 'mt-1 shrink-0 border-t border-white/10 pt-1 text-center text-[9px] leading-tight tracking-tight text-slate-400/95 min-[380px]:text-[10px]'
+        : 'mt-1.5 shrink-0 border-t border-white/10 pt-1.5 text-center text-[10px] leading-snug text-slate-400/95 sm:text-xs';
     /** 다이아·장비 패키지 비주얼 영역 높이 통일 */
     const packageVisualMinHClass = compact
         ? denseNested
@@ -584,32 +639,42 @@ const MiscShopCard: React.FC<{
             </div>
             {visual?.type === 'diamond_combo' && (
                 <div
-                    className={`mb-1 flex min-h-0 w-full min-w-0 shrink-0 items-center justify-center border border-cyan-400/20 bg-black/25 ${packageVisualMinHClass} ${
+                    className={`mb-1 flex min-h-0 w-full min-w-0 shrink-0 flex-col border border-cyan-400/20 bg-black/25 ${packageVisualMinHClass} ${
                         denseNested ? 'rounded border-cyan-400/15 px-0.5 py-0.5' : compact ? 'rounded-md px-1 py-1' : 'rounded-lg px-2 py-2'
                     }`}
                 >
-                    <PackageDiamondVisual
-                        dailyPerMail={visual.dailyPerMail}
-                        durationDays={visual.durationDays}
-                        instantDiamonds={visual.instantDiamonds}
-                        compact={compact}
-                        denseNested={denseNested}
-                    />
+                    <div className="flex min-h-0 flex-1 items-center justify-center">
+                        <PackageDiamondVisual
+                            dailyPerMail={visual.dailyPerMail}
+                            durationDays={visual.durationDays}
+                            instantDiamonds={visual.instantDiamonds}
+                            compact={compact}
+                            denseNested={denseNested}
+                        />
+                    </div>
+                    <p className={`${visualBoxFooterClass} text-cyan-100/80`}>다이아 패키지 I,II,III 중복구매 불가</p>
                 </div>
             )}
             {visual?.type === 'box_row' && (
                 <div
-                    className={`mb-1 flex min-h-0 w-full min-w-0 shrink-0 items-center justify-center border border-indigo-400/25 bg-black/25 ${packageVisualMinHClass} ${
+                    className={`mb-1 flex min-h-0 w-full min-w-0 shrink-0 flex-col border border-indigo-400/25 bg-black/25 ${packageVisualMinHClass} ${
                         denseNested ? 'rounded border-indigo-400/15 px-0 py-0.5' : compact ? 'rounded-md px-0.5 py-0.5' : 'rounded-lg px-2 py-1.5'
                     }`}
                 >
-                    <PackageBoxRowVisual
-                        boxes={visual.boxes}
-                        bonusLine={visual.bonusLine}
-                        equipmentBonusGradeWord={visual.equipmentBonusGradeWord}
-                        compact={compact}
-                        denseNested={denseNested}
-                    />
+                    <div className="flex min-h-0 flex-1 items-center justify-center">
+                        <PackageBoxRowVisual
+                            boxes={visual.boxes}
+                            bonusLine={visual.bonusLine}
+                            equipmentBonusGradeWord={visual.equipmentBonusGradeWord}
+                            compact={compact}
+                            denseNested={denseNested}
+                        />
+                    </div>
+                    {isEquipmentPkg && equipLimit > 0 ? (
+                        <p className={`${visualBoxFooterClass} font-medium tabular-nums text-violet-200/90`}>
+                            구매제한 월({equipRemaining}/{equipLimit}회)
+                        </p>
+                    ) : null}
                 </div>
             )}
             {!visual && (
@@ -627,77 +692,23 @@ const MiscShopCard: React.FC<{
                 </ul>
             )}
             <div className="mt-auto shrink-0 pt-1.5">
-                {(() => {
-                    const now = Date.now();
-                    const isDiamond = (CASH_SHOP_DIAMOND_PACKAGE_IDS as readonly string[]).includes(product.id);
-                    const isEquipment = (CASH_SHOP_EQUIPMENT_PACKAGE_IDS as readonly string[]).includes(product.id);
-                    const diamondActive = (currentUser.diamondPackageExpiresAt ?? 0) > now;
-                    const diamondBlocked = isDiamond && diamondActive;
-                    let equipBlocked = false;
-                    let equipRemaining = 0;
-                    let equipLimit = 0;
-                    let equipUsedThisMonth = 0;
-                    if (isEquipment) {
-                        equipLimit = EQUIPMENT_PACKAGE_MONTHLY_LIMIT[product.id as keyof typeof EQUIPMENT_PACKAGE_MONTHLY_LIMIT];
-                        const rec = currentUser.dailyShopPurchases?.[product.id];
-                        equipUsedThisMonth = rec && !isDifferentMonthKST(rec.date, now) ? rec.quantity : 0;
-                        equipRemaining = Math.max(0, equipLimit - equipUsedThisMonth);
-                        equipBlocked = !currentUser.isAdmin && equipRemaining <= 0;
-                    }
-                    const disabled = diamondBlocked || equipBlocked;
-                    const onClick = () => {
-                        if (!currentUser.isAdmin) {
-                            setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
-                            return;
-                        }
-                        if (diamondBlocked) {
-                            setToastMessage('진행 중인 다이아 패키지가 있을 때는 추가 구매할 수 없습니다.');
-                            return;
-                        }
-                        if (equipBlocked) {
-                            setToastMessage('이번 달 구매 한도에 도달했습니다.');
-                            return;
-                        }
-                        onBuyCashPackage(product.id);
-                    };
-                    const equipLimitLabel =
-                        isEquipment && equipLimit > 0 ? (
-                            <span
-                                className={`shrink-0 font-medium tabular-nums text-slate-800/88 ${
-                                    compact
-                                        ? denseNested
-                                            ? 'text-[8px] leading-none tracking-tight'
-                                            : 'text-[9px] leading-tight min-[380px]:text-[10px] sm:text-[11px]'
-                                        : 'text-[11px] sm:text-xs'
-                                }`}
-                            >
-                                구매제한 월({equipRemaining}/{equipLimit}회)
-                            </span>
-                        ) : null;
-
-                    return (
-                        <>
-                            <Button
-                                type="button"
-                                disabled={disabled}
-                                disabledWithoutDim
-                                colorScheme="none"
-                                bare
-                                onClick={onClick}
-                                className={`flex w-full flex-wrap items-center justify-center gap-x-1 gap-y-0 rounded-md border border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 font-semibold tabular-nums text-slate-900 shadow-[0_8px_22px_-12px_rgba(251,191,36,0.75)] disabled:cursor-not-allowed disabled:opacity-45 sm:rounded-lg sm:shadow-[0_10px_28px_-14px_rgba(251,191,36,0.85)] ${
-                                    compact
-                                        ? denseNested
-                                            ? 'min-h-[2.1rem] px-1 py-1 text-[10px] leading-tight sm:min-h-[2.35rem] sm:text-xs'
-                                            : 'min-h-[2.35rem] px-1 py-1.5 text-xs leading-tight min-[380px]:text-sm sm:min-h-[2.5rem] sm:text-sm'
-                                        : 'min-h-[2.65rem] px-2 py-2 text-sm sm:min-h-[2.75rem] sm:text-base'
-                                }`}
-                            >
-                                <span className="shrink-0">{product.priceKRW.toLocaleString()}원</span>
-                                {equipLimitLabel}
-                            </Button>
-                        </>
-                    );
-                })()}
+                <Button
+                    type="button"
+                    disabled={purchaseDisabled}
+                    disabledWithoutDim
+                    colorScheme="none"
+                    bare
+                    onClick={handleMiscCashBuy}
+                    className={`flex w-full flex-wrap items-center justify-center gap-x-1 gap-y-0 rounded-md border border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 font-semibold tabular-nums text-slate-900 shadow-[0_8px_22px_-12px_rgba(251,191,36,0.75)] disabled:cursor-not-allowed disabled:opacity-45 sm:rounded-lg sm:shadow-[0_10px_28px_-14px_rgba(251,191,36,0.85)] ${
+                        compact
+                            ? denseNested
+                                ? 'min-h-[2.1rem] px-1 py-1 text-[10px] leading-tight sm:min-h-[2.35rem] sm:text-xs'
+                                : 'min-h-[2.35rem] px-1 py-1.5 text-xs leading-tight min-[380px]:text-sm sm:min-h-[2.5rem] sm:text-sm'
+                            : 'min-h-[2.65rem] px-2 py-2 text-sm sm:min-h-[2.75rem] sm:text-base'
+                    }`}
+                >
+                    {product.priceKRW.toLocaleString()}원
+                </Button>
             </div>
         </div>
     );
@@ -784,37 +795,88 @@ const DiamondShopCard: React.FC<{
     onCashPriceClick: () => void;
 }> = ({ product, mobile = false, onCashPriceClick }) => {
     const countLabel = product.diamonds.toLocaleString();
+    const segments = getCashDiamondShopSegments(product.diamonds);
+    const segmentGemClass = mobile ? 'h-7 w-7 shrink-0' : 'h-9 w-9 shrink-0 sm:h-10 sm:w-10';
+    const segmentNumClass = mobile
+        ? 'text-[9px] font-bold tabular-nums text-cyan-200'
+        : 'text-[10px] font-bold tabular-nums text-cyan-200 sm:text-xs';
+    const segmentBoxSplitClass =
+        'flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-0 rounded-lg border border-cyan-500/28 bg-cyan-950/22 px-0.5 py-1 shadow-[inset_0_0_12px_-8px_rgba(34,211,238,0.25)]';
+    const segmentBoxSingleClass =
+        'mx-auto flex min-h-0 w-[4.75rem] shrink-0 flex-col items-center justify-center gap-0 rounded-lg border border-cyan-500/28 bg-cyan-950/22 px-1 py-1 shadow-[inset_0_0_12px_-8px_rgba(34,211,238,0.25)] sm:w-[5.25rem] sm:py-1.5';
     return (
         <div
             className={`group relative flex h-full min-h-0 flex-col items-center overflow-hidden rounded-xl border border-indigo-400/35 bg-gradient-to-br from-[#1f2239]/95 via-[#0f172a]/95 to-[#060b12]/95 text-center shadow-[0_22px_55px_-30px_rgba(99,102,241,0.65)] transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_30px_70px_-32px_rgba(129,140,248,0.65)] ${mobile ? 'p-2.5' : 'p-3'}`}
         >
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent" />
-            <div
-                className="relative mx-auto mb-1.5 flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0 rounded-lg bg-gradient-to-br from-cyan-500/20 via-[#1e1b4b]/25 to-transparent p-0 shadow-[0_0_22px_-8px_rgba(34,211,238,0.55)]"
-                aria-label={`다이아 ${countLabel}개`}
-            >
-                <div className="flex min-h-0 flex-1 w-full items-center justify-center px-0.5 pt-px">
-                    <img
-                        src={SHOP_DIAMOND_ICON}
-                        alt=""
-                        className="h-12 w-12 shrink-0 object-contain drop-shadow-[0_0_14px_rgba(34,211,238,0.55)]"
-                    />
+            {segments ? (
+                <div
+                    className={`relative mx-auto mb-1.5 flex w-full min-w-0 shrink-0 items-stretch justify-center gap-0.5 ${mobile ? 'min-h-[3.25rem]' : 'min-h-[3.75rem] gap-1 sm:min-h-[4rem]'}`}
+                    aria-hidden
+                >
+                    <div className={segmentBoxSplitClass}>
+                        <img
+                            src={SHOP_DIAMOND_ICON}
+                            alt=""
+                            className={`${segmentGemClass} object-contain drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]`}
+                        />
+                        <span className={segmentNumClass}>{segments[0].toLocaleString()}</span>
+                    </div>
+                    <span
+                        className={`flex shrink-0 items-center self-center font-bold tabular-nums text-slate-400/95 ${
+                            mobile ? 'px-0 text-[10px]' : 'px-0.5 text-xs sm:text-sm'
+                        }`}
+                    >
+                        +
+                    </span>
+                    <div className={segmentBoxSplitClass}>
+                        <img
+                            src={SHOP_DIAMOND_ICON}
+                            alt=""
+                            className={`${segmentGemClass} object-contain drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]`}
+                        />
+                        <span className={segmentNumClass}>{segments[1].toLocaleString()}</span>
+                    </div>
                 </div>
-                <span className="w-full shrink-0 px-0.5 pb-px text-center text-[9px] font-extrabold tabular-nums leading-none text-cyan-100 min-[390px]:text-[10px] sm:text-[11px]">
-                    {countLabel}
-                </span>
-            </div>
-            <div className="min-h-0 w-full flex-1" aria-hidden />
-            <Button
-                type="button"
-                colorScheme="none"
-                bare
-                title={CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE}
-                onClick={onCashPriceClick}
-                className="mt-2 flex min-h-[2.7rem] w-full shrink-0 items-center justify-center rounded-lg border border-amber-400/55 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 px-2 py-1.5 text-xs font-bold tabular-nums text-slate-900 shadow-[0_10px_28px_-14px_rgba(251,191,36,0.85)] transition-all duration-150 hover:from-amber-300 hover:to-amber-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+            ) : (
+                <div
+                    className={`relative mx-auto mb-1.5 flex shrink-0 justify-center ${mobile ? 'min-h-[3.25rem]' : 'min-h-[3.75rem]'}`}
+                    aria-hidden
+                >
+                    <div className={segmentBoxSingleClass}>
+                        <img
+                            src={SHOP_DIAMOND_ICON}
+                            alt=""
+                            className={`${segmentGemClass} object-contain drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]`}
+                        />
+                        <span className={segmentNumClass}>{product.diamonds.toLocaleString()}</span>
+                    </div>
+                </div>
+            )}
+            <h3
+                className={`w-full min-w-0 shrink-0 px-0 text-center font-semibold tabular-nums tracking-tight text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] ${
+                    mobile
+                        ? 'h-[1.1rem] whitespace-nowrap text-[10px] leading-[1.1rem]'
+                        : 'min-h-[2.5rem] break-keep text-[11px] leading-snug sm:min-h-0 sm:text-sm'
+                }`}
+                title={`${countLabel}개`}
             >
-                {product.priceKRW.toLocaleString()}원
-            </Button>
+                {countLabel}개
+            </h3>
+            <div className="mt-1.5 flex w-full flex-shrink-0 flex-col items-stretch justify-center gap-1">
+                <Button
+                    type="button"
+                    colorScheme="none"
+                    bare
+                    title={CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE}
+                    onClick={onCashPriceClick}
+                    className={`flex w-full flex-col items-center justify-center gap-0.5 rounded-lg border border-amber-400/55 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 px-2 py-1.5 text-center font-bold tabular-nums text-slate-900 shadow-[0_10px_28px_-14px_rgba(251,191,36,0.85)] transition-all duration-150 hover:from-amber-300 hover:to-amber-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 ${
+                        mobile ? 'h-[2.95rem] min-h-[2.95rem] max-h-[2.95rem] text-[11px]' : 'min-h-[3.5rem] py-2 text-xs sm:text-sm'
+                    }`}
+                >
+                    {product.priceKRW.toLocaleString()}원
+                </Button>
+            </div>
         </div>
     );
 };
@@ -824,6 +886,8 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
     const { showShopAdRewardInterstitial } = useAdContext();
     const { isNativeMobile } = useNativeMobileShell();
     const mobileShop = Boolean(isNativeMobile);
+    /** KST 자정마다 리렌더 → 광고 남은 횟수 등 `isSameDayKST(..., Date.now())` 표시 갱신 */
+    const kstCalendarDay = useKSTCalendarDayTick();
     // useAppContext의 currentUserWithStatus를 우선 사용 (최신 상태 보장)
     const currentUser = currentUserWithStatus || propCurrentUser;
     
@@ -951,7 +1015,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         },
         {
             id: 'equipment_package_1',
-            name: '장비상자패키지 I',
+            name: '장비상자 패키지 I',
             priceKRW: 2900,
             benefits: ['장비상자 V 1개', '재료상자 VI 1개', '+ "에픽 장비" 확정지급'],
             packageVisual: {
@@ -975,7 +1039,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         },
         {
             id: 'equipment_package_2',
-            name: '장비상자패키지 II',
+            name: '장비상자 패키지 II',
             priceKRW: 4900,
             benefits: ['장비상자 V 2개', '재료상자 VI 2개', '+ "전설 장비" 확정지급'],
             packageVisual: {
@@ -999,7 +1063,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         },
         {
             id: 'equipment_package_3',
-            name: '장비상자패키지 III',
+            name: '장비상자 패키지 III',
             priceKRW: 7900,
             benefits: ['장비상자 VI 2개', '재료상자 VI 5개', '+ "신화 장비" 확정지급'],
             packageVisual: {
@@ -1285,6 +1349,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                             ? 'relative flex min-h-0 w-full flex-col'
                             : 'relative flex h-full min-h-0 flex-col'
                     }
+                    data-kst-calendar-day={kstCalendarDay}
                 >
                     <div
                         className={`mb-3 flex shrink-0 rounded-lg bg-gray-900/70 p-1 ${mobileShop ? 'sticky top-0 z-20 gap-1 backdrop-blur-sm' : ''}`}

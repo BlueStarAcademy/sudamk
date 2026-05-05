@@ -206,7 +206,14 @@ const applyLatestPendingSinglePlayerStage = async (
         Array.isArray(game.boardState) &&
         game.boardState.length === stage.boardSize &&
         (game.moveHistory?.length ?? 0) === 0;
-    const generated = generateSinglePlayerBoard(stage);
+    const emptyBaseBoard = (): { board: BoardState; blackPattern: Point[]; whitePattern: Point[] } => ({
+        board: Array(stage.boardSize)
+            .fill(null)
+            .map(() => Array(stage.boardSize).fill(Player.None)),
+        blackPattern: [],
+        whitePattern: [],
+    });
+    const generated = ruleFlags.hasBase ? emptyBaseBoard() : generateSinglePlayerBoard(stage);
     const board = preserveExistingPlacement ? game.boardState : generated.board;
     const blackPattern = preserveExistingPlacement
         ? (Array.isArray(game.blackPatternStones) ? game.blackPatternStones : [])
@@ -280,6 +287,7 @@ const applyLatestPendingSinglePlayerStage = async (
         // 따내기/살리기에서만 턴 제한을 사용한다.
         blackTurnLimit: isCaptureGoalMode && !isSurvivalMode ? stage.blackTurnLimit : undefined,
         baseStones: ruleFlags.hasBase ? stage.baseStones : undefined,
+        singlePlayerAiBaseKomiBid: ruleFlags.hasBase ? stage.singlePlayerAiBaseKomiBid : undefined,
         singlePlayerForcedAiResponses: stage.forcedAiResponses,
         singlePlayerStrictForcedAiResponses: stage.strictForcedAiResponses === true,
         singlePlayerAiHiddenItemTurns: ruleFlags.hasHidden ? stage.aiHiddenItemTurns : undefined,
@@ -406,10 +414,18 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             let blackPattern: Point[];
             let whitePattern: Point[];
             try {
-                const generatedBoard = generateSinglePlayerBoard(stage);
-                board = generatedBoard.board;
-                blackPattern = generatedBoard.blackPattern;
-                whitePattern = generatedBoard.whitePattern;
+                if (ruleFlags.hasBase) {
+                    board = Array(stage.boardSize)
+                        .fill(null)
+                        .map(() => Array(stage.boardSize).fill(Player.None));
+                    blackPattern = [];
+                    whitePattern = [];
+                } else {
+                    const generatedBoard = generateSinglePlayerBoard(stage);
+                    board = generatedBoard.board;
+                    blackPattern = generatedBoard.blackPattern;
+                    whitePattern = generatedBoard.whitePattern;
+                }
             } catch (error) {
                 console.error(`[START_SINGLE_PLAYER_GAME] Failed to generate board for stage ${stageId}`, error);
                 return { error: '스테이지 맵 설정이 올바르지 않아 게임을 시작할 수 없습니다. 관리자에게 문의해주세요.' };
@@ -460,6 +476,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                     autoScoringTurns: hasAutoScoring ? stage.autoScoringTurns : undefined, // 자동 계가 턴 수
                     blackTurnLimit: isCaptureGoalMode && !isSurvivalMode ? stage.blackTurnLimit : undefined,
                     baseStones: ruleFlags.hasBase ? stage.baseStones : undefined, // 베이스바둑: 베이스 돌 개수
+                    singlePlayerAiBaseKomiBid: ruleFlags.hasBase ? stage.singlePlayerAiBaseKomiBid : undefined,
                     singlePlayerForcedAiResponses: stage.forcedAiResponses,
                     singlePlayerStrictForcedAiResponses: stage.strictForcedAiResponses === true,
                     singlePlayerAiHiddenItemTurns: ruleFlags.hasHidden ? stage.aiHiddenItemTurns : undefined,
@@ -600,11 +617,12 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
 
             const now = Date.now();
             const mixModes = ((game.settings as any)?.mixedModes ?? []) as GameMode[];
+            const confirmRuleFlags = getSinglePlayerRuleFlags(game.mode, mixModes);
             const isSpeedMode =
                 game.mode === GameMode.Speed ||
                 (game.mode === GameMode.Mix && Array.isArray(mixModes) && mixModes.includes(GameMode.Speed));
 
-            if (game.mode === GameMode.Base) {
+            if (confirmRuleFlags.hasBase) {
                 const { initializeBase } = await import('../modes/base.js');
                 initializeBase(game, now);
                 await db.saveGame(game, true);

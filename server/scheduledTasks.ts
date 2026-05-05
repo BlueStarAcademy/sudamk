@@ -27,6 +27,7 @@ import { FUNCTION_VIP_DAILY_ACTION_POINT_POTION_NAME } from '../shared/constants
 import { DIAMOND_PACKAGE_DAILY_MAIL_DIAMONDS } from '../shared/constants/cashShopPackages.js';
 import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
 import { guildWarEffectiveEndMs, guildWarIsChronologicallyActive } from './guildWarActiveUtils.js';
+import { readStrategicRankedBlock, readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
 
 let lastSeasonProcessed: SeasonInfo | null = null;
 let lastWeeklyResetTimestamp: number | null = null;
@@ -223,8 +224,16 @@ const processRewardsForSeason = async (season: SeasonInfo) => {
     const rankingsByMode: Record<string, { user: types.User, rank: number }[]> = {};
     for (const mode of seasonTierRankingModes) {
         const eligibleUsers = allUsers
-            .filter(u => u.stats?.[mode] && (u.stats[mode].wins + u.stats[mode].losses) >= 20)
-            .sort((a, b) => (b.stats![mode].rankingScore || 0) - (a.stats![mode].rankingScore || 0));
+            .filter((u) => {
+                const row = u.stats?.[mode];
+                const played = (row?.wins ?? 0) + (row?.losses ?? 0);
+                return !!row && played >= 20;
+            })
+            .sort((a, b) => {
+                const ar = a.stats?.[mode];
+                const br = b.stats?.[mode];
+                return (br?.rankingScore ?? 0) - (ar?.rankingScore ?? 0);
+            });
         
         rankingsByMode[mode] = eligibleUsers.map((user, index) => ({ user, rank: index + 1 }));
     }
@@ -1469,15 +1478,8 @@ export async function processDailyRankings(): Promise<void> {
     const strategicRankings = allUsers
         .filter(user => {
             if (!user || !user.id) return false;
-            // 전략바둑 모드들의 총 게임 수 계산 (wins + losses)
-            let totalGames = 0;
-            for (const mode of SPECIAL_GAME_MODES) {
-                const gameStats = user.stats?.[mode.mode];
-                if (gameStats) {
-                    totalGames += (gameStats.wins || 0) + (gameStats.losses || 0);
-                }
-            }
-            // 10판 이상 PVP를 한 유저만 랭킹에 포함
+            const blk = readStrategicRankedBlock(user.stats as Record<string, { wins?: number; losses?: number }>);
+            const totalGames = blk.wins + blk.losses;
             return totalGames >= 10 && user.cumulativeRankingScore?.['standard'] !== undefined;
         })
         .map(user => ({
@@ -1494,8 +1496,8 @@ export async function processDailyRankings(): Promise<void> {
     const pairRankings = allUsers
         .filter(user => {
             if (!user || !user.id) return false;
-            const ps = user.stats?.['pair'];
-            const totalGames = (ps?.wins || 0) + (ps?.losses || 0);
+            const blk = readPairRankedBlock(user.stats as Record<string, { wins?: number; losses?: number }>);
+            const totalGames = blk.wins + blk.losses;
             return totalGames >= 5 && user.cumulativeRankingScore?.['pair'] !== undefined;
         })
         .map(user => ({

@@ -4,6 +4,7 @@ import * as db from './db.js';
 import { volatileState } from './state.js';
 import { releaseIpBindingForUser } from './ipLoginPolicy.js';
 import { scheduleWebSocketMetricsSample } from './serverLoadMetrics.js';
+import { WEBSOCKET_ADMIN_FORCE_LOGOUT_CLOSE_CODE } from '../shared/constants/auth.js';
 
 let wss: WebSocketServer;
 // WebSocket 연결과 userId 매핑 (대역폭 최적화를 위해 게임 참가자에게만 전송)
@@ -697,6 +698,22 @@ export const sendToUser = (userId: string, message: any) => {
             } catch {
                 // 조용히 처리
             }
+        }
+    }
+};
+
+/** 관리자 강제 로그아웃 등: 해당 유저의 모든 WS를 닫아 클라이언트 루프·재연결 루프를 끊는다. */
+export const closeWebSocketsForUser = (userId: string): void => {
+    const clients = userIdToClients.get(userId);
+    if (!clients || clients.size === 0) return;
+    const snapshot = Array.from(clients);
+    for (const client of snapshot) {
+        try {
+            if (client.readyState === WebSocket.OPEN || client.readyState === WebSocket.CONNECTING) {
+                client.close(WEBSOCKET_ADMIN_FORCE_LOGOUT_CLOSE_CODE, 'Session ended');
+            }
+        } catch {
+            // ignore
         }
     }
 };

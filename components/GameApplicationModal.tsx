@@ -40,7 +40,7 @@ const GameApplicationModal: React.FC<GameApplicationModalProps> = ({ onClose }) 
       <div className="flex min-h-0 flex-1 flex-col gap-0">
         <div className="flex min-h-0 flex-1 gap-6">
           <div className="w-1/3 min-w-0 flex flex-col rounded-lg bg-gray-800 p-4 shadow-inner">
-            <h3 className="mb-4 border-b border-gray-600 pb-3 text-2xl font-semibold">게임 종류</h3>
+            <h3 className="mb-4 border-b border-gray-600 pb-3 text-2xl font-semibold">게임 모드</h3>
             <div className="flex min-h-0 flex-1 flex-col space-y-2 overflow-y-auto">
               {allGameModes.map((game) => (
                 <button

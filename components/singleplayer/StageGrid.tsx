@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { GameMode, SinglePlayerLevel, UserWithStatus } from '../../types.js';
-import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
+import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js';
 import { CONSUMABLE_ITEMS } from '../../constants/index.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
@@ -45,12 +45,12 @@ interface StageGridProps {
 }
 
 const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compact = false, mobileTabShelf = false }) => {
-    const { handlers } = useAppContext();
+    const { handlers, singlePlayerStagesListRevision } = useAppContext();
     const [rewardsModalOpen, setRewardsModalOpen] = useState(false);
 
     // 선택된 단계의 스테이지들 필터링
     const stages = useMemo(() => {
-        return SINGLE_PLAYER_STAGES
+        return getSinglePlayerStages()
             .filter(stage => stage.level === selectedClass)
             .sort((a, b) => {
                 // 스테이지 번호로 정렬 (예: 입문-1, 입문-2, ...)
@@ -58,15 +58,15 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                 const bNum = parseInt(b.id.split('-')[1]);
                 return aNum - bNum;
             });
-    }, [selectedClass]);
+    }, [selectedClass, singlePlayerStagesListRevision]);
 
     const progress = useMemo(() => {
         return reconcileSinglePlayerProgress(
-            SINGLE_PLAYER_STAGES,
+            getSinglePlayerStages(),
             (currentUser as any).clearedSinglePlayerStages,
             (currentUser as any).singlePlayerProgress
         );
-    }, [currentUser]);
+    }, [currentUser, singlePlayerStagesListRevision]);
 
     const handleStageEnter = (stageId: string) => {
         console.log('[StageGrid] handleStageEnter called with stageId:', stageId);
@@ -89,7 +89,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
     };
 
     const isStageCleared = (stageId: string) => {
-        return isSinglePlayerStageCleared(SINGLE_PLAYER_STAGES, progress, stageId);
+        return isSinglePlayerStageCleared(getSinglePlayerStages(), progress, stageId);
     };
 
     const isStageLocked = (stageIndex: number) => {
@@ -97,7 +97,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
         if (currentUser.isAdmin) return false;
         
         const stage = stages[stageIndex];
-        return !isSinglePlayerStageUnlocked(SINGLE_PLAYER_STAGES, progress, stage.id);
+        return !isSinglePlayerStageUnlocked(getSinglePlayerStages(), progress, stage.id);
     };
 
     const GAME_MODE_LABELS: Record<GameMode, string> = {

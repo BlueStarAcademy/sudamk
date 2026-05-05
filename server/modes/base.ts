@@ -6,6 +6,7 @@ import { getGoLogic } from '../goLogic.js';
 import { transitionToPlaying } from './shared.js';
 import { aiUserId } from '../aiPlayer.js';
 import { processMove } from '../goLogic.js';
+import { resolveRuntimeAiBaseKomiBid } from '../../shared/utils/singlePlayerAiBaseKomiBid.js';
 
 /** 2차 덤 동점 → 무작위 흑백 시 룰렛 연출 후 시작 확인으로 넘기는 시간(ms) */
 const BASE_COLOR_ROULETTE_PHASE_MS = 5200;
@@ -58,6 +59,40 @@ export const initializeBase = (game: types.LiveGameSession, now: number) => {
 const clearBasePlacementReadyForUser = (game: types.LiveGameSession, userId: string) => {
     if (!game.basePlacementReady) return;
     game.basePlacementReady[userId] = false;
+};
+
+const getPairLobbyOwnerId = (game: types.LiveGameSession): string | undefined => {
+    const id = (game.settings as types.GameSettings | undefined)?.pairGame?.pairLobbyOwnerId;
+    if (typeof id !== 'string' || id.length === 0) return undefined;
+    if (id !== game.player1.id && id !== game.player2.id) return undefined;
+    return id;
+};
+
+const clearBothPlayersBasePlacementReady = (game: types.LiveGameSession) => {
+    if (!game.basePlacementReady) {
+        game.basePlacementReady = { [game.player1.id]: false, [game.player2.id]: false };
+    }
+    game.basePlacementReady[game.player1.id] = false;
+    game.basePlacementReady[game.player2.id] = false;
+};
+
+/** 페어 방장 배치: 먼저 p1석 N개 → 이어서 p2석 N개 */
+const resolvePairHostActiveBaseStoneKey = (game: types.LiveGameSession): 'baseStones_p1' | 'baseStones_p2' | null => {
+    const target = game.settings.baseStones ?? 4;
+    const n1 = game.baseStones_p1?.length ?? 0;
+    const n2 = game.baseStones_p2?.length ?? 0;
+    if (n1 < target) return 'baseStones_p1';
+    if (n2 < target) return 'baseStones_p2';
+    return null;
+};
+
+/** 재배치·취소: p2에 돌이 있으면 p2부터, 없으면 p1 */
+const resolvePairHostResetOrUndoBaseStoneKey = (game: types.LiveGameSession): 'baseStones_p1' | 'baseStones_p2' | null => {
+    const n2 = game.baseStones_p2?.length ?? 0;
+    if (n2 > 0) return 'baseStones_p2';
+    const n1 = game.baseStones_p1?.length ?? 0;
+    if (n1 > 0) return 'baseStones_p1';
+    return null;
 };
 
 // Helper function to check if a stone placement would result in immediate capture
@@ -316,14 +351,119 @@ const resolveBasePlacementAndTransition = (game: types.LiveGameSession, now: num
     game.basePlacementDeadline = undefined;
     game.basePlacementReady = undefined;
 
-    game.gameStatus = 'komi_bidding';
-    game.komiBiddingDeadline = isAdventureBaseGame(game) ? undefined : now + 30000;
-    game.komiBids = { [game.player1.id]: null, [game.player2.id]: null };
-    game.komiBiddingRound = 1;
-    // 입찰 중에는 시간 비활성 유지
+    game.gameStatus = 'base_stone_color_choice';
+    game.baseStoneColorChoices = { [game.player1.id]: null, [game.player2.id]: null };
+    game.baseColorChoiceDeadline = now + 30000;
+    game.baseSameColorTieColor = undefined;
+    game.komiBids = undefined;
+    game.komiBiddingDeadline = undefined;
+    game.komiBiddingRound = undefined;
     game.turnDeadline = undefined;
     game.turnStartTime = undefined;
     game.pausedTurnTimeLeft = undefined;
+};
+
+const oppositeStoneColor = (c: types.Player): types.Player =>
+    c === types.Player.Black ? types.Player.White : types.Player.Black;
+
+/** 선호 색이 다르면 즉시 흑·백·판·덤(백 +0.5) 확정 후 대국 시작 */
+const finalizeBaseDifferentStoneColorChoices = (
+    game: types.LiveGameSession,
+    now: number,
+    c1: types.Player,
+    c2: types.Player,
+) => {
+    const p1 = game.player1;
+    const p2 = game.player2;
+    const blackPlayerId = c1 === types.Player.Black ? p1.id : p2.id;
+    const whitePlayerId = c1 === types.Player.White ? p1.id : p2.id;
+    const baseKomi = game.settings.komi ?? 0.5;
+    const finalKomi = baseKomi + 0.5;
+
+    game.blackPlayerId = blackPlayerId;
+    game.whitePlayerId = whitePlayerId;
+    game.finalKomi = finalKomi;
+    game.baseStones = [];
+    const newBoardState = Array(game.settings.boardSize)
+        .fill(0)
+        .map(() => Array(game.settings.boardSize).fill(types.Player.None));
+    const p1Color = p1.id === blackPlayerId ? types.Player.Black : types.Player.White;
+    const p2Color = p2.id === whitePlayerId ? types.Player.White : types.Player.Black;
+    const p1BaseStoneColor = isAdventureBaseGame(game) ? types.Player.Black : p1Color;
+    const p2BaseStoneColor = isAdventureBaseGame(game) ? types.Player.White : p2Color;
+    (game.baseStones_p1 || []).forEach((p) => {
+        newBoardState[p.y][p.x] = p1BaseStoneColor;
+        game.baseStones!.push({ ...p, player: p1BaseStoneColor });
+    });
+    (game.baseStones_p2 || []).forEach((p) => {
+        newBoardState[p.y][p.x] = p2BaseStoneColor;
+        game.baseStones!.push({ ...p, player: p2BaseStoneColor });
+    });
+    game.boardState = newBoardState;
+    game.baseKomiBidsSnapshot = {
+        [p1.id]: { color: c1, komi: 0 },
+        [p2.id]: { color: c2, komi: 0 },
+    };
+    game.komiBids = undefined;
+    game.komiBiddingRound = undefined;
+    game.baseStoneColorChoices = undefined;
+    game.baseColorChoiceDeadline = undefined;
+    game.baseSameColorTieColor = undefined;
+    game.komiBiddingDeadline = undefined;
+    game.revealEndTime = undefined;
+    transitionToPlaying(game, now);
+};
+
+const resolveBaseStoneColorChoicePhase = (game: types.LiveGameSession, now: number) => {
+    const p1 = game.player1.id;
+    const p2 = game.player2.id;
+    if (!game.baseStoneColorChoices) {
+        game.baseStoneColorChoices = { [p1]: null, [p2]: null };
+    }
+    const aiId = game.player1.id === aiUserId ? game.player1.id : game.player2.id;
+    const humanId = aiId === p1 ? p2 : p1;
+    if (game.isAiGame) {
+        const humanChoice = game.baseStoneColorChoices[humanId];
+        if (humanChoice != null && game.baseStoneColorChoices[aiId] == null) {
+            game.baseStoneColorChoices[aiId] = Math.random() < 0.5 ? types.Player.Black : types.Player.White;
+        }
+    }
+
+    let c1 = game.baseStoneColorChoices[p1] ?? null;
+    let c2 = game.baseStoneColorChoices[p2] ?? null;
+    const deadlinePassed = !!game.baseColorChoiceDeadline && now > game.baseColorChoiceDeadline;
+    const bothChosen = c1 != null && c2 != null;
+    if (!bothChosen && !deadlinePassed) return;
+
+    if (deadlinePassed) {
+        if (c1 == null && c2 == null) {
+            c1 = Math.random() < 0.5 ? types.Player.Black : types.Player.White;
+            c2 = Math.random() < 0.5 ? types.Player.Black : types.Player.White;
+        } else if (c1 == null) {
+            c1 = oppositeStoneColor(c2!);
+        } else if (c2 == null) {
+            c2 = oppositeStoneColor(c1!);
+        }
+    }
+
+    game.baseStoneColorChoices![p1] = c1;
+    game.baseStoneColorChoices![p2] = c2;
+    game.baseColorChoiceDeadline = undefined;
+
+    if (c1 === null || c2 === null) return;
+
+    if (c1 !== c2) {
+        finalizeBaseDifferentStoneColorChoices(game, now, c1, c2);
+    } else {
+        game.baseSameColorTieColor = c1;
+        game.gameStatus = 'base_same_color_points_bid';
+        game.komiBids = { [p1]: null, [p2]: null };
+        game.komiBiddingDeadline = now + 30000;
+        game.komiBiddingRound = 1;
+        game.turnDeadline = undefined;
+        game.turnStartTime = undefined;
+        game.pausedTurnTimeLeft = undefined;
+    }
 };
 
 /** 양측 입찰이 채워진 뒤 흑·백·finalKomi·판 반영. 1차 동률이면 komi_bidding 2차로만 되돌림. (덤 공개 연출 단계 없이 즉시 처리) */
@@ -358,8 +498,9 @@ const applyBaseKomiBidResolution = (game: types.LiveGameSession, now: number) =>
             finalKomi = baseKomi - winningBidKomi;
         }
     } else if ((game.komiBiddingRound || 1) === 1) {
-        game.gameStatus = 'komi_bidding';
-        game.komiBiddingDeadline = isAdventureBaseGame(game) ? undefined : now + 30000;
+        const sameColorFlow = game.baseSameColorTieColor != null;
+        game.gameStatus = sameColorFlow ? 'base_same_color_points_bid' : 'komi_bidding';
+        game.komiBiddingDeadline = sameColorFlow || !isAdventureBaseGame(game) ? now + 30000 : undefined;
         game.komiBids = { [p1.id]: null, [p2.id]: null };
         game.komiBiddingRound = 2;
         game.revealEndTime = undefined;
@@ -414,6 +555,9 @@ const applyBaseKomiBidResolution = (game: types.LiveGameSession, now: number) =>
         game.komiBiddingRound = undefined;
         game.basePlacementDeadline = undefined;
         game.komiBidRevealProcessed = undefined;
+        game.baseStoneColorChoices = undefined;
+        game.baseColorChoiceDeadline = undefined;
+        game.baseSameColorTieColor = undefined;
         game.turnDeadline = undefined;
         game.turnStartTime = undefined;
         game.pausedTurnTimeLeft = undefined;
@@ -444,33 +588,41 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
             }
             break;
         }
+        case 'base_stone_color_choice': {
+            resolveBaseStoneColorChoicePhase(game, now);
+            break;
+        }
+        case 'base_same_color_points_bid':
         case 'komi_bidding': {
-            const p1Id = game.player1.id;
-            const p2Id = game.player2.id;
-            // AI 대국: 유저 입찰이 들어오면 봇 입찰을 자동으로 채워 즉시 공개 단계로 진행
+            const lockedSame = game.baseSameColorTieColor;
             if (game.isAiGame && game.komiBids) {
                 const aiId = game.player1.id === aiUserId ? game.player1.id : game.player2.id;
                 const humanId = aiId === p1Id ? p2Id : p1Id;
-                if (game.komiBids[humanId] != null && game.komiBids[aiId] == null) {
-                    // AI는 유저 반대편 고정이 아닌, 흑/백을 50:50으로 랜덤 선택한다.
-                    const randomColor = Math.random() < 0.5 ? types.Player.Black : types.Player.White;
-                    // 덤 입찰값도 1~10 집 랜덤으로 선택한다.
-                    const randomKomi = Math.floor(Math.random() * 10) + 1;
-                    game.komiBids[aiId] = { color: randomColor, komi: randomKomi };
+                if (game.gameStatus === 'base_same_color_points_bid' && lockedSame != null) {
+                    if (game.komiBids[humanId] != null && game.komiBids[aiId] == null) {
+                        const fromStage = (game.settings as types.GameSettings | undefined)?.singlePlayerAiBaseKomiBid;
+                        const aiKomi = resolveRuntimeAiBaseKomiBid(fromStage).komi;
+                        game.komiBids[aiId] = { color: lockedSame, komi: Math.min(100, Math.max(0, Math.floor(aiKomi))) };
+                    }
+                } else if (game.komiBids[humanId] != null && game.komiBids[aiId] == null) {
+                    const fromStage = (game.settings as types.GameSettings | undefined)?.singlePlayerAiBaseKomiBid;
+                    game.komiBids[aiId] = resolveRuntimeAiBaseKomiBid(fromStage);
                 }
             }
             const bothHaveBid = game.komiBids?.[p1Id] != null && game.komiBids?.[p2Id] != null;
-            const deadlinePassed =
-                !isAdventureBaseGame(game) && !!game.komiBiddingDeadline && now > game.komiBiddingDeadline;
+            const deadlinePassed = !!game.komiBiddingDeadline && now > game.komiBiddingDeadline;
 
             if (bothHaveBid || deadlinePassed) {
                 if (deadlinePassed) {
-                    // A non-competitive bid as a penalty for timeout.
-                    // This bid will lose to any player who also wants Black (by bidding a higher komi),
-                    // and will give White to any player who wants it. This is a safe "pass".
-                    const timeoutBid = { color: types.Player.Black, komi: 0 };
-                    if (!game.komiBids![p1Id]) game.komiBids![p1Id] = timeoutBid;
-                    if (!game.komiBids![p2Id]) game.komiBids![p2Id] = timeoutBid;
+                    if (game.gameStatus === 'base_same_color_points_bid' && lockedSame != null) {
+                        const fill = { color: lockedSame, komi: 0 };
+                        if (!game.komiBids![p1Id]) game.komiBids![p1Id] = fill;
+                        if (!game.komiBids![p2Id]) game.komiBids![p2Id] = fill;
+                    } else {
+                        const timeoutBid = { color: types.Player.Black, komi: 0 };
+                        if (!game.komiBids![p1Id]) game.komiBids![p1Id] = timeoutBid;
+                        if (!game.komiBids![p2Id]) game.komiBids![p2Id] = timeoutBid;
+                    }
                 }
                 applyBaseKomiBidResolution(game, now);
             }
@@ -509,36 +661,119 @@ export const handleBaseAction = (game: types.LiveGameSession, action: types.Serv
     switch (type) {
         case 'PLACE_BASE_STONE':
             if (game.gameStatus !== 'base_placement') return { error: "Not in base placement phase." };
-            const myStonesKey = user.id === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
-            if (!game[myStonesKey]) game[myStonesKey] = [];
-            if ((game[myStonesKey]?.length ?? 0) >= game.settings.baseStones!) return { error: "Already placed all stones." };
-            if (game[myStonesKey]!.some(p => p.x === payload.x && p.y === payload.y)) return { error: "Already placed a stone there." };
-            game[myStonesKey]!.push({ x: payload.x, y: payload.y });
-            clearBasePlacementReadyForUser(game, user.id);
+            {
+                const pairHostId = getPairLobbyOwnerId(game);
+                const myStonesKey =
+                    pairHostId != null
+                        ? (() => {
+                              if (user.id !== pairHostId) {
+                                  return null as 'baseStones_p1' | 'baseStones_p2' | null;
+                              }
+                              return resolvePairHostActiveBaseStoneKey(game);
+                          })()
+                        : user.id === game.player1.id
+                          ? ('baseStones_p1' as const)
+                          : user.id === game.player2.id
+                            ? ('baseStones_p2' as const)
+                            : null;
+                if (myStonesKey == null) {
+                    return {
+                        error:
+                            pairHostId != null
+                                ? '페어 방장만 베이스돌을 놓을 수 있습니다.'
+                                : '베이스돌을 놓을 수 없습니다.',
+                    };
+                }
+                if (!game[myStonesKey]) game[myStonesKey] = [];
+                if ((game[myStonesKey]?.length ?? 0) >= game.settings.baseStones!) return { error: "Already placed all stones." };
+                if (game[myStonesKey]!.some(p => p.x === payload.x && p.y === payload.y)) return { error: "Already placed a stone there." };
+                game[myStonesKey]!.push({ x: payload.x, y: payload.y });
+                if (pairHostId != null) clearBothPlayersBasePlacementReady(game);
+                else clearBasePlacementReadyForUser(game, user.id);
+            }
             return {};
         case 'PLACE_REMAINING_BASE_STONES_RANDOMLY':
             if (game.gameStatus !== 'base_placement') return { error: "Not in base placement phase." };
-            const playerStonesKey = user.id === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
-            placeRemainingStonesRandomly(game, playerStonesKey);
-            clearBasePlacementReadyForUser(game, user.id);
+            {
+                const pairHostId = getPairLobbyOwnerId(game);
+                const playerStonesKey =
+                    pairHostId != null
+                        ? user.id === pairHostId
+                            ? resolvePairHostActiveBaseStoneKey(game)
+                            : null
+                        : user.id === game.player1.id
+                          ? ('baseStones_p1' as const)
+                          : ('baseStones_p2' as const);
+                if (playerStonesKey == null) {
+                    return { error: pairHostId != null ? '페어 방장만 베이스돌을 놓을 수 있습니다.' : 'Not in base placement phase.' };
+                }
+                placeRemainingStonesRandomly(game, playerStonesKey);
+                if (pairHostId != null) clearBothPlayersBasePlacementReady(game);
+                else clearBasePlacementReadyForUser(game, user.id);
+            }
             return {};
         case 'RESET_MY_BASE_STONE_PLACEMENTS':
             if (game.gameStatus !== 'base_placement') return { error: "Not in base placement phase." };
-            const resetKey = user.id === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
-            game[resetKey] = [];
-            clearBasePlacementReadyForUser(game, user.id);
+            {
+                const pairHostId = getPairLobbyOwnerId(game);
+                const resetKey =
+                    pairHostId != null
+                        ? user.id === pairHostId
+                            ? resolvePairHostResetOrUndoBaseStoneKey(game)
+                            : null
+                        : user.id === game.player1.id
+                          ? ('baseStones_p1' as const)
+                          : ('baseStones_p2' as const);
+                if (resetKey == null) {
+                    return { error: pairHostId != null ? '페어 방장만 재배치할 수 있습니다.' : 'Not in base placement phase.' };
+                }
+                game[resetKey] = [];
+                if (pairHostId != null) clearBothPlayersBasePlacementReady(game);
+                else clearBasePlacementReadyForUser(game, user.id);
+            }
             return {};
         case 'UNDO_LAST_BASE_STONE_PLACEMENT':
             if (game.gameStatus !== 'base_placement') return { error: "Not in base placement phase." };
-            const undoKey = user.id === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
-            const undoArr = game[undoKey];
-            if (!undoArr || undoArr.length === 0) return { error: "취소할 배치가 없습니다." };
-            undoArr.pop();
-            clearBasePlacementReadyForUser(game, user.id);
+            {
+                const pairHostId = getPairLobbyOwnerId(game);
+                const undoKey =
+                    pairHostId != null
+                        ? user.id === pairHostId
+                            ? resolvePairHostResetOrUndoBaseStoneKey(game)
+                            : null
+                        : user.id === game.player1.id
+                          ? ('baseStones_p1' as const)
+                          : ('baseStones_p2' as const);
+                if (undoKey == null) {
+                    return { error: pairHostId != null ? '페어 방장만 취소할 수 있습니다.' : 'Not in base placement phase.' };
+                }
+                const undoArr = game[undoKey];
+                if (!undoArr || undoArr.length === 0) return { error: "취소할 배치가 없습니다." };
+                undoArr.pop();
+                if (pairHostId != null) clearBothPlayersBasePlacementReady(game);
+                else clearBasePlacementReadyForUser(game, user.id);
+            }
             return {};
         case 'CONFIRM_BASE_PLACEMENT_COMPLETE': {
             if (game.gameStatus !== 'base_placement') return { error: '베이스돌 배치 단계가 아닙니다.' };
             const targetStones = game.settings.baseStones ?? 4;
+            const pairHostId = getPairLobbyOwnerId(game);
+            if (pairHostId != null) {
+                if (user.id !== pairHostId) return { error: '페어 방장만 배치 완료를 확정할 수 있습니다.' };
+                if ((game.baseStones_p1?.length ?? 0) < targetStones || (game.baseStones_p2?.length ?? 0) < targetStones) {
+                    return { error: '양쪽 베이스돌을 모두 놓은 뒤에 배치 완료를 눌러 주세요.' };
+                }
+                if (!game.basePlacementReady) {
+                    game.basePlacementReady = { [game.player1.id]: false, [game.player2.id]: false };
+                    if (game.isAiGame) {
+                        const aiId = game.player1.id === aiUserId ? game.player1.id : game.player2.id;
+                        game.basePlacementReady[aiId] = true;
+                    }
+                }
+                game.basePlacementReady[game.player1.id] = true;
+                game.basePlacementReady[game.player2.id] = true;
+                return {};
+            }
             const confirmKey = user.id === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
             if ((game[confirmKey]?.length ?? 0) < targetStones) {
                 return { error: '베이스돌을 모두 놓은 뒤에 배치 완료를 눌러 주세요.' };
@@ -553,11 +788,63 @@ export const handleBaseAction = (game: types.LiveGameSession, action: types.Serv
             game.basePlacementReady[user.id] = true;
             return {};
         }
-        case 'UPDATE_KOMI_BID':
-            if (game.gameStatus !== 'komi_bidding' || game.komiBids?.[user.id]) return { error: "Cannot bid now." };
-            if (!game.komiBids) game.komiBids = {};
-            game.komiBids[user.id] = payload.bid;
+        case 'SUBMIT_BASE_STONE_COLOR_CHOICE': {
+            if (game.gameStatus !== 'base_stone_color_choice') return { error: '선호 돌 선택 단계가 아닙니다.' };
+            const col = payload.color as types.Player;
+            if (col !== types.Player.Black && col !== types.Player.White) {
+                return { error: '흑 또는 백만 선택할 수 있습니다.' };
+            }
+            if (!game.baseStoneColorChoices) {
+                game.baseStoneColorChoices = { [game.player1.id]: null, [game.player2.id]: null };
+            }
+            const pairHostIdChoice = getPairLobbyOwnerId(game);
+            const subjectId =
+                pairHostIdChoice != null && typeof payload.choiceForUserId === 'string'
+                    ? payload.choiceForUserId === game.player2.id
+                        ? game.player2.id
+                        : game.player1.id
+                    : user.id;
+            if (pairHostIdChoice != null && user.id !== pairHostIdChoice) {
+                return { error: '페어 방장만 돌 색을 선택할 수 있습니다.' };
+            }
+            if (pairHostIdChoice != null && subjectId !== game.player1.id && subjectId !== game.player2.id) {
+                return { error: '선택 대상이 올바르지 않습니다.' };
+            }
+            if (game.baseStoneColorChoices[subjectId] != null) return { error: '이미 선택했습니다.' };
+            game.baseStoneColorChoices[subjectId] = col;
             return {};
+        }
+        case 'UPDATE_KOMI_BID': {
+            const inLegacyKomi = game.gameStatus === 'komi_bidding';
+            const inSameColorBid = game.gameStatus === 'base_same_color_points_bid';
+            if (!inLegacyKomi && !inSameColorBid) return { error: 'Cannot bid now.' };
+            if (!game.komiBids) game.komiBids = {};
+            const pairHostIdBid = getPairLobbyOwnerId(game);
+            const bidSubjectId =
+                pairHostIdBid != null && typeof payload.bidForUserId === 'string'
+                    ? payload.bidForUserId === game.player2.id
+                        ? game.player2.id
+                        : game.player1.id
+                    : user.id;
+            if (pairHostIdBid != null && user.id !== pairHostIdBid) {
+                return { error: '페어 방장만 덤 입찰을 할 수 있습니다.' };
+            }
+            if (pairHostIdBid != null && bidSubjectId !== game.player1.id && bidSubjectId !== game.player2.id) {
+                return { error: '입찰 대상이 올바르지 않습니다.' };
+            }
+            if (game.komiBids?.[bidSubjectId]) return { error: 'Cannot bid now.' };
+            const bid = payload.bid as { color: types.Player; komi: number };
+            if (inSameColorBid) {
+                const locked = game.baseSameColorTieColor;
+                if (locked == null) return { error: '동색 입찰 상태가 아닙니다.' };
+                const k = Math.floor(Number(bid?.komi));
+                const komi = Number.isFinite(k) ? Math.max(0, Math.min(100, k)) : 0;
+                game.komiBids[bidSubjectId] = { color: locked, komi };
+            } else {
+                game.komiBids[bidSubjectId] = bid;
+            }
+            return {};
+        }
         case 'CONFIRM_BASE_KOMI_SUMMARY': {
             if (game.gameStatus !== 'base_komi_result') return { error: '덤 결과 확인 단계가 아닙니다.' };
             if (!game.preGameKomiSummaryAck) game.preGameKomiSummaryAck = {};

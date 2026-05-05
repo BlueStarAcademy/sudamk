@@ -90,15 +90,39 @@ export const resolveSinglePlayerSurvivalTurnCount = (stage: SinglePlayerStageInf
     return 15;
 };
 
+const pickPositiveAutoScoringTurns = (row?: { autoScoringTurns?: number }): number | undefined => {
+    const n = typeof row?.autoScoringTurns === 'number' && Number.isFinite(row.autoScoringTurns) ? Math.floor(row.autoScoringTurns) : undefined;
+    return n != null && n > 0 ? n : undefined;
+};
+
 export const resolveSinglePlayerHasAutoScoringTurns = (stage: SinglePlayerStageInfo): boolean => {
+    if (pickPositiveAutoScoringTurns(stage) == null) return false;
     const p = stage.strategicRulePreset;
-    if (p === 'speed') return stage.autoScoringTurns !== undefined;
+    if (!p || p === 'auto') return true;
+    if (p === 'capture' || p === 'survival') return false;
     if (p === 'mix') {
         const modes = resolveSinglePlayerMixedModes(stage);
-        return !modes.includes(GameMode.Capture) && stage.autoScoringTurns !== undefined;
+        return !modes.includes(GameMode.Capture);
     }
-    if (p && p !== 'auto') return false;
-    return stage.autoScoringTurns !== undefined;
+    // speed, classic, base, hidden, missile — 스테이지에 계가 수가 있으면 대국 settings에 스냅샷한다.
+    return true;
+};
+
+/**
+ * 자동 계가까지 수순 상한. 진행 중 대국은 `settings.autoScoringTurns`(시작 시 스냅샷)를 최우선으로 하고,
+ * 없을 때만 스테이지 정의(관리자 KV 등)를 사용한다. 관리자가 스테이지를 나중에 바꿔도 진행 중 경기 한도가 어긋나지 않게 한다.
+ */
+export const resolveSinglePlayerAutoScoringTurnCap = (
+    settings: { autoScoringTurns?: number } | undefined,
+    ...stageFallbacks: Array<SinglePlayerStageInfo | undefined>
+): number | undefined => {
+    const fromSettings = pickPositiveAutoScoringTurns(settings);
+    if (fromSettings != null) return fromSettings;
+    for (const st of stageFallbacks) {
+        const v = pickPositiveAutoScoringTurns(st);
+        if (v != null) return v;
+    }
+    return undefined;
 };
 
 const DEFAULT_MIX: GameMode[] = [GameMode.Speed, GameMode.Capture];

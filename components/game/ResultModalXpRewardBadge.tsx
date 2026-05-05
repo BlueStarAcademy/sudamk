@@ -56,7 +56,7 @@ const DENSITY_BOX = {
 } as const;
 
 /**
- * 게임 결과·시작 전 모달에서 공통으로 쓰는 경험치 획득 배지(전략/놀이 구분).
+ * 게임 결과·시작 전 모달에서 공통으로 쓰는 경험치 획득 배지(EXP / 놀이 / 펫 구분).
  * 싱글·탑·PvP 요약의 보상 줄과 동일한 시각 언어.
  */
 export const ResultModalXpRewardBadge: React.FC<{
@@ -84,13 +84,15 @@ export const ResultModalXpRewardBadge: React.FC<{
     const showPetZero = variant === 'pet' && allowZeroDisplay && amount <= 0;
     if (amount <= 0 && !showPetZero) return null;
     const v = VARIANT[variant];
-    const modeLabel = variant === 'strategy' ? '전략' : variant === 'playful' ? '놀이' : '펫';
+    const modeLabel = variant === 'strategy' ? '' : variant === 'playful' ? '놀이' : '펫';
     const defaultTitle =
         showPetZero
             ? '펫 경험치 변동 없음'
             : variant === 'pet' && petXpSpecSplit && petXpSpecSplit.spec > 0
               ? `펫 경험치 기본 +${petXpSpecSplit.base.toLocaleString()} (특화 +${petXpSpecSplit.spec.toLocaleString()})`
-              : `${modeLabel} 경험치 +${amount.toLocaleString()}`;
+              : variant === 'strategy'
+                ? `EXP +${amount.toLocaleString()}`
+                : `${modeLabel} 경험치 +${amount.toLocaleString()}`;
 
     const isPreGameInline = density === 'preGameInline';
     const isCompact = density === 'compact' || isPreGameInline;
@@ -121,7 +123,7 @@ export const ResultModalXpRewardBadge: React.FC<{
                 className={`flex ${DENSITY_BOX[density]} shrink-0 flex-col items-center justify-center rounded-lg border ring-1 ring-inset ${v.box}`}
                 aria-hidden
             >
-                <span className={labelModeClass}>{modeLabel}</span>
+                {modeLabel ? <span className={labelModeClass}>{modeLabel}</span> : null}
                 <span className={labelExpClass}>EXP</span>
             </div>
             {!hideAmount && (

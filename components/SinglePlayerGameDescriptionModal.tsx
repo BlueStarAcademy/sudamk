@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LiveGameSession, ServerAction, SinglePlayerStageInfo, UserWithStatus } from '../types.js';
-import { getSinglePlayerStages, setSinglePlayerStagesFromServer, SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
+import { getSinglePlayerStages, setSinglePlayerStagesFromServer } from '../constants/singlePlayerConstants.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants/gameModes.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, EQUIPMENT_POOL } from '../constants/index.js';
@@ -12,6 +12,8 @@ import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import { getPreGameSummaryFour } from '../utils/preGameSummaryFour.js';
 import { resolveSinglePlayerSurvivalModeForSession } from '../shared/utils/singlePlayerStrategicRulePreset.js';
+import { resolveLiveSessionSinglePlayerStageRow } from '../shared/utils/liveSessionSinglePlayerStage.js';
+import { useAppContext } from '../hooks/useAppContext.js';
 import { getItemTemplateByName, normalizeBoxItemName } from '../utils/itemTemplateLookup.js';
 import { getTowerSessionFloor, isTowerFirstClearAttemptOnFloor } from '../utils/towerPreGameDisplay.js';
 import {
@@ -107,10 +109,11 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     onAction,
     onTowerItemPurchase,
 }) => {
+    const { singlePlayerStagesListRevision } = useAppContext();
     const isTower = session.gameCategory === 'tower';
     const stage: SinglePlayerStageInfo | undefined = isTower
         ? TOWER_STAGES.find((s) => s.id === session.stageId)
-        : SINGLE_PLAYER_STAGES.find((s) => s.id === session.stageId);
+        : resolveLiveSessionSinglePlayerStageRow(session);
 
     const { isNativeMobile } = useNativeMobileShell();
     const isHandheld = useIsHandheldDevice(1025);
@@ -124,7 +127,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                 stage,
                 isTower ? currentUser?.inventory : undefined
             ),
-        [session, stage, isTower, currentUser?.inventory]
+        [session, stage, isTower, currentUser?.inventory, singlePlayerStagesListRevision]
     );
     const contentMeasureRef = useRef<HTMLDivElement>(null);
     const [frameHeight, setFrameHeight] = useState(780);
@@ -169,6 +172,25 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
         (currentUser?.onboardingTutorialPhase ?? 0) === 5;
     const onboardingPregameFinalSubStep = onboardingPhase5Active && pregameDescSubStep >= 2;
 
+    const canOpenTowerShop = isTower && !!currentUser && !!onTowerItemPurchase;
+    const canOpenStageEditor = !isTower && !!currentUser && isClientAdmin(currentUser) && !!onAction;
+    const pendingSinglePlayerGameId = !isTower && session.gameStatus === 'pending' ? session.id : undefined;
+    const adminStageListIndex = useMemo(() => {
+        if (isTower) return -1;
+        return getSinglePlayerStages().findIndex((s) => s.id === session.stageId);
+    }, [isTower, session.stageId, singlePlayerStagesListRevision]);
+    const adminSpListLen = useMemo(
+        () => getSinglePlayerStages().length,
+        [singlePlayerStagesListRevision],
+    );
+    const adminCanJumpPrev =
+        !!pendingSinglePlayerGameId && canOpenStageEditor && adminStageListIndex > 0;
+    const adminCanJumpNext =
+        !!pendingSinglePlayerGameId &&
+        canOpenStageEditor &&
+        adminStageListIndex >= 0 &&
+        adminStageListIndex < adminSpListLen - 1;
+
     if (!stage) {
         return null;
     }
@@ -192,21 +214,6 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     const firstClearReward = stage.rewards?.firstClear;
     const clearReward = isEligibleForFirstClearRewards ? firstClearReward : undefined;
     const hasClearRewardToShow = isEligibleForFirstClearRewards && firstClearRewardHasContent(clearReward);
-
-    const canOpenTowerShop = isTower && !!currentUser && !!onTowerItemPurchase;
-    const canOpenStageEditor = !isTower && !!currentUser && isClientAdmin(currentUser) && !!onAction;
-    const pendingSinglePlayerGameId = !isTower && session.gameStatus === 'pending' ? session.id : undefined;
-    const adminStageListIndex = useMemo(
-        () => (!isTower ? SINGLE_PLAYER_STAGES.findIndex((s) => s.id === session.stageId) : -1),
-        [isTower, session.stageId],
-    );
-    const adminCanJumpPrev =
-        !!pendingSinglePlayerGameId && canOpenStageEditor && adminStageListIndex > 0;
-    const adminCanJumpNext =
-        !!pendingSinglePlayerGameId &&
-        canOpenStageEditor &&
-        adminStageListIndex >= 0 &&
-        adminStageListIndex < SINGLE_PLAYER_STAGES.length - 1;
 
     const resolveItemImage = (itemId: string): string | null => {
         const normalized = normalizeBoxItemName(itemId);

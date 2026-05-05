@@ -24,6 +24,10 @@ interface PreGameColorRouletteProps {
     layout?: 'full' | 'cardsOnly';
     /** false면 룰렛 애니메이션 없이 최종 배치만 표시 */
     animate?: boolean;
+    /** 흑(Black) 카드 하단 라벨 (기본: 선공 · 흑) */
+    blackRoleLabel?: string;
+    /** 백(White) 카드 하단 라벨 (기본: 후공 · 백) */
+    whiteRoleLabel?: string;
 }
 
 const ROULETTE_TICK_MS = 110;
@@ -40,6 +44,8 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
     suppressHeader = false,
     layout = 'full',
     animate = true,
+    blackRoleLabel = '선공 · 흑',
+    whiteRoleLabel = '후공 · 백',
 }) => {
     const flipMode = Boolean(participantsInDisplayOrder?.[0] && participantsInDisplayOrder?.[1]);
     const leftSeat = flipMode ? participantsInDisplayOrder![0] : blackPlayer;
@@ -136,17 +142,17 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
 
         return (
             <div
-                className={`flex-1 rounded-xl border transition-all duration-200 ${
-                    compact ? 'p-2.5 sm:p-3' : 'p-4'
+                className={`min-w-0 flex-1 rounded-2xl border transition-all duration-200 ${
+                    compact ? 'p-2.5 sm:p-3' : 'p-3.5 sm:p-4'
                 } ${
                     isActive
                         ? isBlack
-                            ? 'border-yellow-300 bg-yellow-500/15 shadow-[0_0_20px_rgba(250,204,21,0.25)] scale-[1.02]'
-                            : 'border-sky-300 bg-sky-500/15 shadow-[0_0_20px_rgba(125,211,252,0.25)] scale-[1.02]'
-                        : 'border-gray-700 bg-gray-900/50 opacity-80'
+                            ? 'border-amber-300/90 bg-gradient-to-b from-amber-500/20 to-zinc-950/80 shadow-[0_0_24px_rgba(245,158,11,0.22)]'
+                            : 'border-sky-300/85 bg-gradient-to-b from-sky-500/18 to-zinc-950/80 shadow-[0_0_24px_rgba(56,189,248,0.18)]'
+                        : 'border-white/[0.08] bg-zinc-950/55 opacity-85'
                 }`}
             >
-                <div className={`flex flex-col items-center text-center ${compact ? 'gap-1.5' : 'gap-2'}`}>
+                <div className={`flex flex-col items-center text-center ${compact ? 'gap-1.5' : 'gap-2.5'}`}>
                     {overrideUrl ? (
                         <div className={portraitFrameClass}>
                             <img
@@ -169,19 +175,30 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
                         {player.nickname}
                     </p>
                     <div
-                        className={`rounded-full border-4 ${isBlack ? 'bg-black border-gray-300' : 'bg-white border-gray-700'} ${
-                            compact ? 'h-12 w-12 sm:h-14 sm:w-14' : 'h-16 w-16'
-                        }`}
+                        className={`rounded-full border-[3px] shadow-inner ${
+                            isBlack ? 'border-stone-500 bg-black' : 'border-stone-400 bg-white'
+                        } ${compact ? 'h-12 w-12 sm:h-14 sm:w-14' : 'h-[3.25rem] w-[3.25rem] sm:h-14 sm:w-14'}`}
                     />
-                    <p className={`font-semibold ${compact ? 'text-[0.7rem] sm:text-xs' : ''}`}>
-                        {isBlack ? '흑 (선공)' : '백 (후공)'}
+                    <p className={`font-bold tracking-tight text-stone-100 ${compact ? 'text-[0.7rem] sm:text-xs' : 'text-sm sm:text-base'}`}>
+                        {isBlack ? blackRoleLabel : whiteRoleLabel}
                     </p>
                 </div>
             </div>
         );
     };
 
-    const slotSizeClass = 'w-[5.5rem] h-[5.5rem] sm:w-24 sm:h-24';
+    const slotSizeClass = 'h-[4.75rem] w-[4.75rem] sm:h-[5.25rem] sm:w-[5.25rem]';
+
+    const vsDivider = (
+        <div
+            className="flex w-8 shrink-0 flex-col items-center justify-center self-stretch sm:w-10"
+            aria-hidden
+        >
+            <span className="select-none rounded-md border border-amber-500/20 bg-black/40 px-1.5 py-1 text-[0.6rem] font-black tracking-[0.22em] text-amber-200/75 sm:text-[0.65rem]">
+                VS
+            </span>
+        </div>
+    );
 
     if (layout === 'cardsOnly') {
         if (flipMode) {
@@ -201,66 +218,75 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
     }
 
     return (
-        <div className="space-y-4">
-            {!suppressHeader && (
-                <div className="text-center">
-                    <p className="text-lg font-bold text-white">{title}</p>
-                    <p className="text-sm text-gray-300 mt-1">{subtitle}</p>
+        <div className="rounded-2xl border border-amber-400/25 bg-gradient-to-b from-zinc-900/[0.97] via-zinc-950/[0.99] to-black/[0.92] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_16px_48px_-20px_rgba(0,0,0,0.75)] sm:p-5">
+            {!suppressHeader ? (
+                <div className="mb-4 border-b border-amber-500/10 pb-4 text-center sm:mb-5 sm:pb-5">
+                    <p className="text-base font-bold tracking-tight text-amber-50/95 sm:text-lg">{title}</p>
+                    <p className="mt-2 text-xs leading-relaxed text-stone-400 sm:text-sm">{subtitle}</p>
                 </div>
-            )}
+            ) : null}
 
-            <div className="rounded-2xl border border-amber-400/30 bg-gray-950/70 px-4 py-5">
-                <div className="flex flex-col items-center gap-3">
-                    <div
-                        className={`relative flex shrink-0 items-center justify-center rounded-xl border-2 border-amber-400/50 bg-gray-900/80 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.15)] ${slotSizeClass}`}
-                    >
-                        {isFinished ? (
-                            <span className="text-center text-base sm:text-lg font-bold text-green-300 px-1">배정 완료</span>
-                        ) : flipMode ? (
-                            <div
-                                key={leftIsBlack ? 'L' : 'R'}
-                                className="flex h-full w-full flex-col items-center justify-center gap-0.5 rounded-[10px] border border-amber-500/35 bg-gray-950/95 px-1 py-0.5"
-                            >
-                                <span className="text-[0.65rem] sm:text-xs font-semibold tracking-wide text-amber-200/95">
-                                    지금 선공(흑) 후보
-                                </span>
-                                <span className="max-w-[95%] truncate text-center text-xs sm:text-sm font-bold text-white">
-                                    {leftIsBlack ? leftSeat.nickname : rightSeat.nickname}
-                                </span>
-                                <span className="text-2xl sm:text-4xl font-black text-yellow-300">흑</span>
-                            </div>
-                        ) : (
-                            <div
-                                key={activeColor}
-                                className={`flex h-full w-full items-center justify-center rounded-[10px] text-3xl sm:text-4xl font-black transition-colors duration-100 ${
-                                    activeColor === Player.Black
-                                        ? 'bg-black text-white border border-gray-500'
-                                        : 'bg-white text-gray-900 border border-gray-400'
-                                }`}
-                            >
-                                {activeColor === Player.Black ? '흑' : '백'}
-                            </div>
-                        )}
-                    </div>
-                    <p className={`text-center text-sm font-semibold ${isFinished ? 'text-green-300' : 'text-yellow-300 animate-pulse'}`}>
-                        {isFinished
-                            ? '아래에서 흑·백 배정을 확인하세요.'
-                            : flipMode
-                              ? '두 칸의 흑·백이 바뀌다가 최종 배치로 고정됩니다…'
-                              : '흑과 백이 번갈아 표시됩니다...'}
-                    </p>
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start sm:gap-5">
+                <div
+                    className={`relative flex shrink-0 items-center justify-center rounded-xl border-2 border-amber-400/45 bg-gradient-to-b from-zinc-900/95 to-black/90 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.12)] ${slotSizeClass}`}
+                >
+                    {isFinished ? (
+                        <div className="flex flex-col items-center gap-0.5 px-1 text-center">
+                            <span className="rounded border border-emerald-500/35 bg-emerald-950/60 px-2 py-0.5 text-[0.65rem] font-bold tracking-wide text-emerald-200 sm:text-xs">
+                                배정 완료
+                            </span>
+                            <span className="text-[0.7rem] font-semibold text-stone-400 sm:text-xs">룰렛 종료</span>
+                        </div>
+                    ) : flipMode ? (
+                        <div
+                            key={leftIsBlack ? 'L' : 'R'}
+                            className="flex h-full w-full flex-col items-center justify-center gap-0.5 rounded-[10px] border border-amber-500/30 bg-black/50 px-1 py-1"
+                        >
+                            <span className="text-[0.6rem] font-semibold tracking-wide text-amber-200/90 sm:text-[0.65rem]">
+                                선공(흑) 후보
+                            </span>
+                            <span className="max-w-[95%] truncate text-center text-[0.7rem] font-bold text-white sm:text-xs">
+                                {leftIsBlack ? leftSeat.nickname : rightSeat.nickname}
+                            </span>
+                            <span className="text-xl font-black text-amber-300 sm:text-2xl">흑</span>
+                        </div>
+                    ) : (
+                        <div
+                            key={activeColor}
+                            className={`flex h-full w-full items-center justify-center rounded-[10px] text-2xl font-black transition-colors duration-100 sm:text-3xl ${
+                                activeColor === Player.Black
+                                    ? 'border border-stone-500 bg-black text-white'
+                                    : 'border border-stone-300 bg-white text-zinc-900'
+                            }`}
+                        >
+                            {activeColor === Player.Black ? '흑' : '백'}
+                        </div>
+                    )}
                 </div>
+                <p
+                    className={`max-w-md text-center text-xs font-semibold leading-snug sm:flex-1 sm:text-left sm:text-sm ${
+                        isFinished ? 'text-emerald-200/90' : 'animate-pulse text-amber-200/90'
+                    }`}
+                >
+                    {isFinished
+                        ? '좌우 카드에 최종 선공·후공이 표시됩니다.'
+                        : flipMode
+                          ? '두 칸의 흑·백 표시가 바뀌다가 잠시 뒤 최종 배치로 고정됩니다.'
+                          : '흑과 백이 빠르게 바뀌며 무작위로 멈춥니다.'}
+                </p>
             </div>
 
-            <div className="flex gap-4">
+            <div className="mt-5 flex items-stretch gap-1.5 sm:gap-2">
                 {flipMode ? (
                     <>
                         {renderPlayerCard(leftSeat, leftIsBlack, isFinished ? true : leftIsBlack)}
+                        {vsDivider}
                         {renderPlayerCard(rightSeat, !leftIsBlack, isFinished ? true : !leftIsBlack)}
                     </>
                 ) : (
                     <>
                         {renderPlayerCard(blackPlayer, true, isFinished ? true : activeColor === Player.Black)}
+                        {vsDivider}
                         {renderPlayerCard(whitePlayer, false, isFinished ? true : activeColor === Player.White)}
                     </>
                 )}

@@ -9,6 +9,7 @@ import {
     recordSoftHiddenScanDiscovery,
 } from './hiddenScanShared.js';
 import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
+import { resolveSinglePlayerAutoScoringTurnCap } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -58,6 +59,11 @@ export const initializeSinglePlayerHidden = (game: types.LiveGameSession) => {
             if (currentAiHidden < minAiHiddenByConfig) {
                 game.hidden_stones_p2 = minAiHiddenByConfig;
             }
+            // AI 히든 사용 횟수·재고는 스테이지 hiddenStoneCount(유저와 동일 상한)를 넘지 않게 맞춘다.
+            // (명시 턴이 3개여도 재고 2면 실제로는 2회만 가능해야 함 — 초과 시 3번째 연출·오표기 버그 방지)
+            if (hiddenStoneCount > 0 && (game.hidden_stones_p2 ?? 0) > hiddenStoneCount) {
+                game.hidden_stones_p2 = hiddenStoneCount;
+            }
             if ((game.hidden_stones_p2 ?? 0) <= 0) {
                 return;
             }
@@ -65,17 +71,23 @@ export const initializeSinglePlayerHidden = (game: types.LiveGameSession) => {
             game.aiHiddenItemsUsedCount = 0;
             game.aiHiddenItemUsed = false;
             if (configuredTurns.length > 0) {
-                game.aiHiddenItemTurns = configuredTurns;
-                game.aiHiddenItemTurn = configuredTurns[0];
+                const cappedTurns =
+                    hiddenStoneCount > 0
+                        ? configuredTurns.slice(0, hiddenStoneCount)
+                        : configuredTurns;
+                game.aiHiddenItemTurns = cappedTurns;
+                game.aiHiddenItemTurn = cappedTurns[0];
             } else {
                 const candidates = Array.from({ length: withinTurn }, (_, i) => i + 1);
                 for (let i = candidates.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
                 }
-                const randomTurns = candidates
-                    .slice(0, Math.min(plannedRandomUseCount, candidates.length))
-                    .sort((a, b) => a - b);
+                const sliceCap =
+                    hiddenStoneCount > 0
+                        ? Math.min(plannedRandomUseCount, candidates.length, hiddenStoneCount)
+                        : Math.min(plannedRandomUseCount, candidates.length);
+                const randomTurns = candidates.slice(0, sliceCap).sort((a, b) => a - b);
                 game.aiHiddenItemTurn = randomTurns[0]; // 1=1번째 AI턴, ..., withinTurn=withinTurn번째 AI턴
                 game.aiHiddenItemTurns = randomTurns;
             }
@@ -192,7 +204,7 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                 onPostTurnSwitch: async (g) => {
                     if (!g.isSinglePlayer || !g.stageId) return;
                     const stage = (await getEffectiveSinglePlayerStages()).find(s => s.id === g.stageId);
-                    const autoScoringTurns = stage?.autoScoringTurns;
+                    const autoScoringTurns = resolveSinglePlayerAutoScoringTurnCap(g.settings as any, stage);
                     if (autoScoringTurns === undefined) return;
                     const isAiTurn = g.currentPlayer === types.Player.White && g.isSinglePlayer;
                     if (isAiTurn) return;

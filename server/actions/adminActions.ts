@@ -15,7 +15,7 @@ import { getStartOfDayKST, getTodayKSTDateString } from '../../utils/timeUtils.j
 import { clearAiSession } from '../aiSessionManager.js';
 import { getCachedUser, updateUserCache, removeUserFromCache } from '../gameCache.js';
 import { invalidateUserCache } from '../db.js';
-import { ADMIN_USER_ID, OTHER_DEVICE_LOGIN_MAINTENANCE_REASON } from '../../shared/constants/auth.js';
+import { ADMIN_USER_ID, OTHER_DEVICE_LOGIN_MAINTENANCE_REASON, OTHER_DEVICE_LOGIN_ADMIN_FORCE_REASON } from '../../shared/constants/auth.js';
 import { isRecognizedAdminUser } from '../../shared/utils/adminRecognition.js';
 import { applyVipDurationExtensionToUser } from '../../shared/utils/vipDurationGrant.js';
 import { mergeArenaEntranceAvailability, type ArenaEntranceKey, ARENA_ENTRANCE_KEYS } from '../../constants/arenaEntrance.js';
@@ -41,8 +41,7 @@ import { DEFAULT_SINGLE_PLAYER_STAGES } from '../../shared/constants/singlePlaye
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 import { MAX_GAME_INTEGER_INPUT, MAX_PLAYER_DIAMONDS, MAX_PLAYER_GOLD } from '../../shared/constants/numericLimits.js';
 import { RANKED_ELO_BASE_SCORE } from '../../shared/constants/rules.js';
-import { STRATEGIC_RANKED_STAT_KEY } from '../../shared/constants/userRankedStats.js';
-import { readStrategicRankedBlock } from '../../shared/utils/unifiedRankedStatsMigration.js';
+import { applyRankedMatchStatsFullResetToUser } from '../rankedMatchStatsReset.js';
 import type { KataServerRuntimeOverrides } from '../../shared/types/kataServerRuntime.js';
 import { resetKataServerRuntimeOverrides, saveKataServerRuntimePatch } from '../kataServerRuntimeStore.js';
 import { CASH_SHOP_PACKAGE_IDS, type CashShopPackageId } from '../../shared/constants/cashShopPackages.js';
@@ -410,39 +409,63 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             const targetUser = await db.getUser(targetUserId);
             if (!targetUser) return { error: '대상 사용자를 찾을 수 없습니다.' };
 
-            // 사용자가 게임 중인 경우 게임 종료 처리
             const userStatus = volatileState.userStatuses[targetUserId];
             if (userStatus?.gameId) {
-                const activeGame = await db.getLiveGame(userStatus.gameId);
-                if (activeGame && activeGame.gameStatus !== 'ended' && activeGame.gameStatus !== 'no_contest') {
-                    // 상대방이 승리하도록 게임 종료
-                    const opponentId = activeGame.player1.id === targetUserId ? activeGame.player2.id : activeGame.player1.id;
-                    const winner = activeGame.blackPlayerId === opponentId ? types.Player.Black : types.Player.White;
-                    await summaryService.endGame(activeGame, winner, 'disconnect');
-                    await db.saveGame(activeGame);
-                    
-                    // 상대방 상태 업데이트
-                    if (volatileState.userStatuses[opponentId]) {
-                        const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === activeGame.mode);
-                        const isPlayful = PLAYFUL_GAME_MODES.some(m => m.mode === activeGame.mode);
-                        const lobbyMode: GameMode | undefined = isStrategic ? undefined : isPlayful ? undefined : activeGame.mode;
-                        volatileState.userStatuses[opponentId].status = UserStatus.Waiting;
-                        volatileState.userStatuses[opponentId].mode = lobbyMode;
-                        delete volatileState.userStatuses[opponentId].gameId;
+                try {
+                    let activeGame: LiveGameSession | null = await db.getLiveGame(userStatus.gameId);
+                    if (!activeGame && volatileState.gameCache) {
+                        const cached = volatileState.gameCache.get(userStatus.gameId);
+                        if (cached?.game) activeGame = cached.game as LiveGameSession;
                     }
-                    
-                    broadcast({ type: 'GAME_UPDATE', payload: { [activeGame.id]: activeGame } });
+                    // scoring 중에는 자동 계가 흐름과 충돌할 수 있어 endGame 생략 (접속만 끊음)
+                    if (
+                        activeGame &&
+                        activeGame.gameStatus !== 'ended' &&
+                        activeGame.gameStatus !== 'no_contest' &&
+                        activeGame.gameStatus !== 'scoring'
+                    ) {
+                        const opponentId = activeGame.player1.id === targetUserId ? activeGame.player2.id : activeGame.player1.id;
+                        const winner = activeGame.blackPlayerId === opponentId ? types.Player.Black : types.Player.White;
+                        await summaryService.endGame(activeGame, winner, 'disconnect');
+                        await db.saveGame(activeGame);
+
+                        if (volatileState.userStatuses[opponentId]) {
+                            const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === activeGame.mode);
+                            const isPlayful = PLAYFUL_GAME_MODES.some(m => m.mode === activeGame.mode);
+                            const lobbyMode: GameMode | undefined = isStrategic ? undefined : isPlayful ? undefined : activeGame.mode;
+                            volatileState.userStatuses[opponentId].status = UserStatus.Waiting;
+                            volatileState.userStatuses[opponentId].mode = lobbyMode;
+                            delete volatileState.userStatuses[opponentId].gameId;
+                        }
+
+                        broadcast({ type: 'GAME_UPDATE', payload: { [activeGame.id]: activeGame } });
+                    }
+                } catch (forceLogoutGameErr: any) {
+                    console.error('[ADMIN_FORCE_LOGOUT] Game cleanup failed (continuing disconnect):', targetUserId, forceLogoutGameErr?.message);
                 }
             }
-            
+
             const backupData = { status: volatileState.userStatuses[targetUserId] };
             releaseIpBindingForUser(volatileState, targetUserId);
             delete volatileState.userConnections[targetUserId];
             delete volatileState.userStatuses[targetUserId];
-            
-            // 사용자 상태 업데이트 브로드캐스트
+
             broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
-            
+
+            try {
+                const { sendToUser, closeWebSocketsForUser } = await import('../socket.js');
+                sendToUser(targetUserId, {
+                    type: 'OTHER_DEVICE_LOGIN',
+                    payload: {
+                        reason: OTHER_DEVICE_LOGIN_ADMIN_FORCE_REASON,
+                        message: '관리자에 의해 접속이 종료되었습니다.',
+                    },
+                });
+                closeWebSocketsForUser(targetUserId);
+            } catch (socketErr: any) {
+                console.warn('[ADMIN_FORCE_LOGOUT] Socket notify/close failed:', socketErr?.message);
+            }
+
             await createAdminLog(user, 'force_logout', targetUser, backupData);
             return {};
         }
@@ -1414,18 +1437,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             const allUsers = await db.getAllUsers({ includeEquipment: false, includeInventory: false, skipCache: true });
             let updatedCount = 0;
             for (const targetUser of allUsers) {
-                if (!targetUser.stats) targetUser.stats = {} as User['stats'];
-                const stats = targetUser.stats as Record<string, unknown>;
-                const blk = readStrategicRankedBlock(stats as any);
-                stats[STRATEGIC_RANKED_STAT_KEY] = {
-                    wins: blk.wins,
-                    losses: blk.losses,
-                    rankingScore: RANKED_ELO_BASE_SCORE,
-                };
-                if (!targetUser.cumulativeRankingScore) targetUser.cumulativeRankingScore = {};
-                targetUser.cumulativeRankingScore.standard = 0;
-                if (!targetUser.dailyRankings) targetUser.dailyRankings = {};
-                targetUser.dailyRankings.strategic = { rank: 9999, score: 0, lastUpdated: now };
+                applyRankedMatchStatsFullResetToUser(targetUser, now);
                 await db.updateUser(targetUser);
                 invalidateUserCache(targetUser.id);
                 removeUserFromCache(targetUser.id);
@@ -1433,10 +1445,10 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                 updatedCount++;
             }
             invalidateRankingCache();
-            await createAdminLog(user, 'reset_strategic_ranking_all', { id: 'all', nickname: '전체 유저' }, { updatedCount, totalUsers: allUsers.length });
+            await createAdminLog(user, 'reset_ranked_match_stats_all', { id: 'all', nickname: '전체 유저' }, { updatedCount, totalUsers: allUsers.length });
             return {
                 clientResponse: {
-                    message: `전체 유저 전략바둑 랭킹 점수를 ${RANKED_ELO_BASE_SCORE}점(기준)으로 맞췄습니다. (${updatedCount}명). 랭킹 보드는 새로고침 후 반영됩니다.`,
+                    message: `전체 유저의 전략·페어 랭킹전 전적(승·패)을 0으로 초기화하고, 시즌 점수·누적 델타를 ${RANKED_ELO_BASE_SCORE}점 기준으로 맞췄습니다. (${updatedCount}명). 랭킹 보드는 새로고침 후 반영됩니다.`,
                     updatedCount,
                     totalUsers: allUsers.length,
                 },

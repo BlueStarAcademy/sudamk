@@ -5,17 +5,18 @@ import StageGrid from './singleplayer/StageGrid.js';
 import TrainingQuestPanel from './singleplayer/TrainingQuestPanel.js';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
 import { SinglePlayerLevel, UserWithStatus } from '../types.js';
-import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
+import { getSinglePlayerStages } from '../constants/singlePlayerConstants.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { userHasFullTrainingQuestReward } from '../utils/trainingQuestRewardNotify.js';
 import { isOnboardingTutorialActive } from '../shared/constants/onboardingTutorial.js';
 
 /** singlePlayerProgress(다음 플레이 스테이지 전역 인덱스)에 맞는 반 — 대기실 기본 탭 */
 function defaultSinglePlayerLevelFromProgress(progress: number): SinglePlayerLevel {
-    const n = SINGLE_PLAYER_STAGES.length;
+    const stages = getSinglePlayerStages();
+    const n = stages.length;
     if (n === 0) return SinglePlayerLevel.입문;
     const idx = Math.min(Math.max(0, progress), n - 1);
-    return SINGLE_PLAYER_STAGES[idx].level;
+    return stages[idx].level;
 }
 
 const SINGLE_PLAYER_LOBBY_TITLE = '바둑학원';
@@ -63,12 +64,12 @@ const DesktopSinglePlayerLobbyLayout: React.FC<{
 };
 
 const SinglePlayerLobby: React.FC = () => {
-    const { currentUser, currentUserWithStatus } = useAppContext();
+    const { currentUser, currentUserWithStatus, singlePlayerStagesListRevision } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const progressForDefault = currentUserWithStatus?.singlePlayerProgress ?? 0;
     const defaultClass = useMemo(
         () => defaultSinglePlayerLevelFromProgress(progressForDefault),
-        [progressForDefault]
+        [progressForDefault, singlePlayerStagesListRevision]
     );
     const [overrideClass, setOverrideClass] = useState<SinglePlayerLevel | null>(null);
 

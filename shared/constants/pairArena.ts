@@ -1,3 +1,9 @@
+/** PairWaitingLobby: 모바일에서 N번방 탭으로 포커스(초대 수락·경기 종료 후 복귀 등) */
+export const PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY = 'sudamr_pair_lobby_focus_room_tab';
+
+/** 인게임에서 집계 경기장으로 복귀 시 복원할 페어 방 ID(PairWaitingLobby가 읽고 제거) */
+export const POST_GAME_PAIR_ROOM_RESTORE_SESSION_KEY = 'sudamr_post_game_pair_room_id';
+
 /** 페어·전략·놀이 경기장 슬롯 그리드(방 코드 정수 1~N) */
 export const PAIR_LOBBY_GRID_SLOT_COUNT = 100;
 

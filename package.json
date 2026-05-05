@@ -34,6 +34,7 @@
     "fix-orphaned-guild-refs": "npx tsx --tsconfig server/tsconfig.json server/scripts/fixOrphanedGuildReferences.ts",
     "reset-championship-data": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetAllChampionshipData.ts",
     "reset-championship-scores": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetAllChampionshipScores.ts",
+    "reset-ranked-match-stats": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetAllRankedMatchRecords.ts",
     "script:reset-single-tower": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetSinglePlayerAndTower.ts",
     "script:lock-training-quests": "npx tsx --tsconfig server/tsconfig.json server/scripts/lockTrainingQuests.ts",
     "cleanup-orphaned-games": "npx tsx --tsconfig server/tsconfig.json server/scripts/cleanupOrphanedActiveGames.ts",
@@ -52,11 +53,14 @@
     "start-katago": "cross-env PORT=4001 npx tsx --tsconfig server/tsconfig.json server/katagoServer.ts",
     "electron": "electron electron/main.js",
     "electron:dev": "cross-env NODE_ENV=development electron electron/main.js",
+    "typecheck:client": "npx tsc --noEmit",
+    "typecheck:server": "npx tsc --noEmit -p server/tsconfig.json",
+    "typecheck": "npm run typecheck:client && npm run typecheck:server",
     "test": "vitest run",
     "test:unit": "vitest run server/__tests__/unit",
     "test:integration": "vitest run server/__tests__/integration",
     "test:e2e": "playwright test",
-    "test:ci": "npm run test:unit && npm run test:integration && npm run test:e2e"
+    "test:ci": "npm run typecheck && npm run test:unit && npm run test:integration && npm run test:e2e"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.936.0",

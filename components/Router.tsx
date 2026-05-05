@@ -4,7 +4,6 @@ import { useAppContext } from '../hooks/useAppContext.js';
 import { mergeArenaEntranceAvailability } from '../constants/arenaEntrance.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import { LiveGameSession } from '../types.js';
-import { GameMode } from '../types.js';
 import Login from './Login.js';
 import Register from './Register.js';
 import KakaoCallback from './KakaoCallback.js';

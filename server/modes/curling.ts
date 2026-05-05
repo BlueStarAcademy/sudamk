@@ -447,7 +447,11 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
                 } else if (inTiebreakerExtra && game.curlingScores) {
                     const sb = game.curlingScores[types.Player.Black];
                     const sw = game.curlingScores[types.Player.White];
-                    if (sb !== sw) {
+                    // 승부치기: 서로 한 번씩 공격한 뒤(샷 2회 = 1턴)에만 승패 판정. 동점이면 다음 1턴을 반복.
+                    const totalTiebreakerShots =
+                        (game.stonesThrownThisRound![p1Id] ?? 0) + (game.stonesThrownThisRound![p2Id] ?? 0);
+                    const completedTiebreakerTurn = totalTiebreakerShots > 0 && totalTiebreakerShots % 2 === 0;
+                    if (completedTiebreakerTurn && sb !== sw) {
                         game.curlingTiebreakerSnap = undefined;
                         game.isTiebreaker = false;
                         const winnerEnum = sb > sw ? types.Player.Black : types.Player.White;

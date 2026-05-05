@@ -23,6 +23,8 @@ export type SingleItemObtainCardProps = {
     name: React.ReactNode;
     description?: string;
     usageLines?: string[];
+    /** 상점 상세·가방과 동일한 「획득처」 요약(통화 등 EquipmentDetailPanel 미사용 시) */
+    acquireLines?: string[];
     /** a11y / 래퍼 */
     regionAriaLabel?: string;
     /** 페어 영혼석 획득 등 가독성 강조(이미지·타이포는 부모에서 키움) */
@@ -34,10 +36,11 @@ export const SingleItemObtainCard: React.FC<SingleItemObtainCardProps> = ({
     name,
     description = '',
     usageLines = [],
+    acquireLines = [],
     regionAriaLabel = '획득 아이템',
     emphasis = false,
 }) => {
-    const showFooter = !!description.trim() || usageLines.length > 0;
+    const showFooter = !!description.trim() || usageLines.length > 0 || acquireLines.length > 0;
     const rowPad = emphasis ? 'gap-4 px-5 py-5 sm:gap-5 sm:px-6 sm:py-6' : 'gap-3 px-4 py-4 sm:gap-4 sm:px-5 sm:py-5';
     const titleClass = emphasis
         ? 'inline-block whitespace-nowrap pr-1 text-left text-base font-black tracking-tight text-slate-100 sm:text-lg'
@@ -52,6 +55,9 @@ export const SingleItemObtainCard: React.FC<SingleItemObtainCardProps> = ({
     const usageListClass = emphasis
         ? 'list-inside list-disc space-y-1 text-sm leading-snug text-slate-200/90 sm:text-[15px]'
         : 'list-inside list-disc space-y-0.5 text-[11px] leading-snug text-slate-200/90 sm:text-xs';
+    const acquireHeadClass = emphasis
+        ? 'text-xs font-bold uppercase tracking-[0.14em] text-sky-200/80 sm:text-[13px]'
+        : 'text-[10px] font-bold uppercase tracking-[0.14em] text-sky-200/75 sm:text-[11px]';
 
     return (
         <div className={ITEM_OBTAIN_UNIFIED_CARD_CLASS} role="region" aria-label={regionAriaLabel}>
@@ -71,6 +77,16 @@ export const SingleItemObtainCard: React.FC<SingleItemObtainCardProps> = ({
                             <ul className={usageListClass}>
                                 {usageLines.map((line, i) => (
                                     <li key={i}>{line}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    ) : null}
+                    {acquireLines.length > 0 ? (
+                        <div className="space-y-1.5 pt-1">
+                            <p className={acquireHeadClass}>획득처</p>
+                            <ul className={usageListClass}>
+                                {acquireLines.map((line, i) => (
+                                    <li key={`acq-${i}`}>{line}</li>
                                 ))}
                             </ul>
                         </div>

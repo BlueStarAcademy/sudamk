@@ -311,6 +311,7 @@ export type ServerAction =
     | { type: 'SEND_CHAT_MESSAGE', payload: { channel: string; text?: string; emoji?: string, location?: string } }
     | { type: 'SET_USER_STATUS', payload: { status: any } }
     | { type: 'UPDATE_REJECTION_SETTINGS', payload: { rejectedGameModes: GameMode[] } }
+    | { type: 'UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT', payload: { sortMode: string } }
     | { type: 'ENTER_WAITING_ROOM', payload: { mode: GameMode | 'strategic' | 'playful' } }
     | { type: 'LEAVE_WAITING_ROOM', payload?: never }
     | { type: 'LEAVE_GAME_ROOM', payload: { gameId: string } }
@@ -403,6 +404,8 @@ export type ServerAction =
     | { type: 'LEAVE_AI_GAME', payload: { gameId: string } }
     | { type: 'REQUEST_NO_CONTEST_LEAVE', payload: { gameId: string } }
     | { type: 'REQUEST_SERVER_AI_MOVE', payload: { gameId: string; clientSync?: PveItemActionClientSync } }
+    /** 전략바둑 로비: 대표 펫 힌트(Kata 1수, 페이즈당 1회) */
+    | { type: 'REQUEST_STRATEGIC_PET_HINT', payload: { gameId: string } }
     /** 모험/길드전·로비 Kata AI 대국: 클라이언트가 장시간 미착수 등으로 서버 상태를 다시 맞출 때 */
     | { type: 'REQUEST_GAME_STATE_SYNC', payload: { gameId: string } }
     | { type: 'EMERGENCY_EXIT', payload?: never }
@@ -418,7 +421,8 @@ export type ServerAction =
     | { type: 'RESET_MY_BASE_STONE_PLACEMENTS', payload: { gameId: string } }
     | { type: 'UNDO_LAST_BASE_STONE_PLACEMENT', payload: { gameId: string } }
     | { type: 'CONFIRM_BASE_PLACEMENT_COMPLETE', payload: { gameId: string } }
-    | { type: 'UPDATE_KOMI_BID', payload: { gameId: string, bid: KomiBid } }
+    | { type: 'SUBMIT_BASE_STONE_COLOR_CHOICE', payload: { gameId: string; color: Player; choiceForUserId?: string } }
+    | { type: 'UPDATE_KOMI_BID', payload: { gameId: string; bid: KomiBid; bidForUserId?: string } }
     | { type: 'CONFIRM_BASE_KOMI_SUMMARY', payload: { gameId: string } }
     | { type: 'CONFIRM_BASE_REVEAL', payload: { gameId: string } }
     // Hidden Go
@@ -702,10 +706,18 @@ export type ServerAction =
     | { type: 'REFINE_EQUIPMENT', payload: { itemId: string; optionType: 'main' | 'combatSub' | 'specialSub' | 'mythicSub'; optionIndex: number; refinementType: 'type' | 'value' | 'mythic' | null } }
     ;
 
+/** `handlers.handleAction` 등이 반환할 수 있는 클라이언트 전용 페이로드(싱글 보상·전략 펫 힌트 등) */
+export type GameClientActionResult =
+    | { gameId?: string; claimAllTrainingQuestRewards?: any }
+    | {
+          strategicPetHint?: { x: number; y: number; message: string };
+          clientResponse?: { strategicPetHint?: { x: number; y: number; message: string } };
+      };
+
 export interface GameProps {
     session: LiveGameSession;
     currentUser: UserWithStatus;
-    onAction: (action: ServerAction) => void | Promise<void | { gameId?: string; claimAllTrainingQuestRewards?: any }>;
+    onAction: (action: ServerAction) => void | Promise<void | GameClientActionResult>;
     isSpectator: boolean;
     onlineUsers: UserWithStatus[];
     onViewUser: (userId: string) => void;
@@ -715,6 +727,8 @@ export interface GameProps {
     negotiations: Negotiation[];
     /** 전광판(TurnDisplay)에 잠시 안내 — 패·둘 수 없는 자리 등 */
     onBoardRuleFlash?: (message: string) => void;
+    /** 관리자 스테이지 목록 갱신 시 PlayerPanel 등이 최신 메타를 읽도록 */
+    singlePlayerStagesListRevision?: number;
 }
 
 export interface AdminProps {

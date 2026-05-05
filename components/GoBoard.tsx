@@ -21,6 +21,20 @@ function parseBonusTextPoints(text: string): number | null {
     return m ? Number.parseInt(m[1], 10) : null;
 }
 
+/** 도둑/주사위: 라운드·역할 전환 직후 서버가 보내는 의도적 빈 판(전부 빈칸). 이 경우 보존 ref의 전판을 쓰면 안 됨 */
+function isPlayfulEmptyBoardSnapshot(boardState: BoardState | undefined, boardSize: number): boolean {
+    if (!boardState || !Array.isArray(boardState) || boardState.length !== boardSize) return false;
+    for (let y = 0; y < boardSize; y++) {
+        const row = boardState[y];
+        if (!Array.isArray(row) || row.length !== boardSize) return false;
+        for (let x = 0; x < boardSize; x++) {
+            const c = row[x];
+            if (c !== Player.None && c != null) return false;
+        }
+    }
+    return true;
+}
+
 function getCaptureScoreFloatVisual(cellSize: number, points: number) {
     const tier = captureScoreFloatTierFromPoints(points);
     const baseFs = cellSize * CAPTURE_SCORE_FLOAT_BASE_EM;
@@ -612,6 +626,10 @@ interface GoBoardProps {
   onboardingDemoAnchorPoint?: Point | null;
   /** 온보딩: 이 교차점만 착수 허용(싱글 등) */
   onboardingForcedFirstMovePoint?: Point | null;
+  /** 전략바둑 대표펫 힌트: 좌표 점만(말풍선은 푸터) */
+  strategicPetHintOverlay?: { x: number; y: number } | null;
+  /** 페어 방장: 양측 베이스돌을 모두 직접 배치할 때 오버레이·중복클릭 방지에 p1+p2를 함께 사용 */
+  isPairBasePlacementHost?: boolean;
 }
 
 const GoBoard: React.FC<GoBoardProps> = (props) => {
@@ -638,6 +656,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         onBoardRuleFlash,
         onboardingDemoAnchorPoint = null,
         onboardingForcedFirstMovePoint = null,
+        strategicPetHintOverlay = null,
+        isPairBasePlacementHost = false,
     } = props;
     /** playing 중에 세션에 남은 stale newlyRevealed로 스파클·가시성이 매 수 재생되는 것 방지 */
     const isHiddenRevealStatus =
@@ -763,11 +783,18 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 return list.slice(start);
             };
             const sumCapturePoints = (entries: typeof list) =>
-                entries.reduce(
-                    (sum, e) =>
-                        sum + (e.capturePoints ?? (e.wasHidden || e.wasBaseStone ? 5 : 1)),
-                    0
-                );
+                entries.reduce((sum, e) => {
+                    if (typeof e.capturePoints === 'number' && Number.isFinite(e.capturePoints)) {
+                        return sum + e.capturePoints;
+                    }
+                    const capturedP = e.player;
+                    const patternList =
+                        capturedP === Player.Black ? blackPatternStones : whitePatternStones;
+                    if (patternList?.some((p) => p.x === e.point.x && p.y === e.point.y)) {
+                        return sum + 2;
+                    }
+                    return sum + (e.wasHidden || e.wasBaseStone ? 5 : 1);
+                }, 0);
 
             const pushFloat = (totalPts: number, anchor: Point, extraDelayMs = 0) => {
                 if (totalPts < minPts) return;
@@ -1006,6 +1033,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         gameStatus,
         animation,
         adventureRegionalHeadStartCaptureBonus,
+        blackPatternStones,
+        whitePatternStones,
     ]);
 
     const [hoverPos, setHoverPos] = useState<Point | null>(null);
@@ -1024,6 +1053,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     // scoring 상태일 때 boardState를 보존하여 초기화 방지
     // 유효한 boardState가 있으면 보존
     useEffect(() => {
+        if ((mode === GameMode.Thief || mode === GameMode.Dice) && isPlayfulEmptyBoardSnapshot(boardState, boardSize)) {
+            preservedBoardStateRef.current = null;
+            return;
+        }
         const isBoardStateValid = boardState && 
             Array.isArray(boardState) && 
             boardState.length > 0 && 
@@ -1037,7 +1070,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         if (isBoardStateValid) {
             preservedBoardStateRef.current = boardState;
         }
-    }, [boardState]);
+    }, [boardState, boardSize, mode]);
     
     // IMPORTANT:
     // - moveHistory로 보드를 "단순 복원"하면 포획(따낸돌 제거)을 반영할 수 없어, 계가 시점에 없던 돌이 생겨나는 버그가 발생한다.
@@ -1056,12 +1089,19 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             return boardState || [];
         }
 
+        if (
+            (mode === GameMode.Thief || mode === GameMode.Dice) &&
+            isPlayfulEmptyBoardSnapshot(boardState, safeSize)
+        ) {
+            return boardState as BoardState;
+        }
+
         const result = isBoardStateValid ? boardState : (preservedBoardStateRef.current || boardState);
         if (!result || !Array.isArray(result) || result.length === 0) {
             return Array(safeSize).fill(null).map(() => Array(safeSize).fill(Player.None));
         }
         return result;
-    }, [boardState, gameStatus, boardSize, moveHistory, analysisResult]);
+    }, [boardState, gameStatus, boardSize, moveHistory, analysisResult, mode]);
 
     const safeBoardSize = boardSize > 0 ? boardSize : 19;
     const cell_size = boardSizePx / safeBoardSize;
@@ -1343,7 +1383,9 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             // 같은 좌표를 다시 클릭해도 서버 오류(중복 배치)까지 기다릴 수 있음.
             // 내 베이스돌 위치는 즉시 클릭을 막아 UX를 개선.
             if (gameStatus === 'base_placement') {
-                if (myBaseStonesForPlacement?.some((st) => st.x === boardPos.x && st.y === boardPos.y)) {
+                const atP1 = baseStones_p1?.some((st) => st.x === boardPos.x && st.y === boardPos.y);
+                const atP2 = baseStones_p2?.some((st) => st.x === boardPos.x && st.y === boardPos.y);
+                if (isPairBasePlacementHost ? atP1 || atP2 : myBaseStonesForPlacement?.some((st) => st.x === boardPos.x && st.y === boardPos.y)) {
                     return;
                 }
             }
@@ -1935,15 +1977,38 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
                     return <Stone key={`${x}-${y}`} player={stonePlayerForRender} cx={cx} cy={cy} isLastMove={isLast} isKnownHidden={isKnownHidden as boolean} isBaseStone={hasBaseStoneHere} isPatternStone={isPatternStone} isNewlyRevealed={isNewlyRevealedForAnim} animationClass={isNewlyRevealedForAnim ? 'sparkle-animation' : ''} isSelectedMissile={isSelectedMissileForRender} isHoverSelectableMissile={isHoverSelectableMissile} radius={stone_radius} isFaint={isFaint} keepUpright={!!isRotated} />;
                 }))}
-                {myBaseStonesForPlacement?.map((stone, i) => {
-                    const { cx, cy } = toSvgCoords(stone);
-                    return (
-                        <g key={`my-base-${i}`} opacity={0.7} className="animate-fade-in">
-                            <Stone player={myPlayerEnum} cx={cx} cy={cy} isBaseStone radius={stone_radius} />
-                        </g>
-                    );
-                })}
-                {gameStatus === 'komi_bidding' && (
+                {isPairBasePlacementHost ? (
+                    <>
+                        {baseStones_p1?.map((stone, i) => {
+                            const { cx, cy } = toSvgCoords(stone);
+                            return (
+                                <g key={`my-base-p1-${i}`} opacity={0.7} className="animate-fade-in">
+                                    <Stone player={Player.Black} cx={cx} cy={cy} isBaseStone radius={stone_radius} />
+                                </g>
+                            );
+                        })}
+                        {baseStones_p2?.map((stone, i) => {
+                            const { cx, cy } = toSvgCoords(stone);
+                            return (
+                                <g key={`my-base-p2-${i}`} opacity={0.7} className="animate-fade-in">
+                                    <Stone player={Player.White} cx={cx} cy={cy} isBaseStone radius={stone_radius} />
+                                </g>
+                            );
+                        })}
+                    </>
+                ) : (
+                    myBaseStonesForPlacement?.map((stone, i) => {
+                        const { cx, cy } = toSvgCoords(stone);
+                        return (
+                            <g key={`my-base-${i}`} opacity={0.7} className="animate-fade-in">
+                                <Stone player={myPlayerEnum} cx={cx} cy={cy} isBaseStone radius={stone_radius} />
+                            </g>
+                        );
+                    })
+                )}
+                {(gameStatus === 'komi_bidding' ||
+                    gameStatus === 'base_stone_color_choice' ||
+                    gameStatus === 'base_same_color_points_bid') && (
                     <>
                         {baseStones_p1?.map((stone, i) => {
                             const { cx, cy } = toSvgCoords(stone);
@@ -2156,6 +2221,29 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 {renderTerritoryMarkers()}
                 {renderDeadStoneMarkers()}
                 {showHintOverlay && !isBoardDisabled && analysisResult?.recommendedMoves?.map(move => ( <RecommendedMoveMarker key={`rec-${move.order}`} move={move} toSvgCoords={toSvgCoords} cellSize={cell_size} onClick={onBoardClick} /> ))}
+                {strategicPetHintOverlay &&
+                    strategicPetHintOverlay.x >= 0 &&
+                    strategicPetHintOverlay.y >= 0 &&
+                    (() => {
+                        const { cx, cy } = toSvgCoords({
+                            x: strategicPetHintOverlay.x,
+                            y: strategicPetHintOverlay.y,
+                        });
+                        const r = Math.max(cell_size * 0.12, 3);
+                        return (
+                            <g key="strategic-pet-hint" style={{ pointerEvents: 'none' }}>
+                                <circle
+                                    cx={cx}
+                                    cy={cy}
+                                    r={r}
+                                    fill="#38bdf8"
+                                    stroke="#0c4a6e"
+                                    strokeWidth={Math.max(1, cell_size * 0.02)}
+                                    opacity={0.92}
+                                />
+                            </g>
+                        );
+                    })()}
                 </g>
             </svg>
             </div>

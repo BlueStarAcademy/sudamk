@@ -47,7 +47,7 @@ const GameCard: React.FC<{
             )}
             <div 
                 className="w-full flex-shrink-0 bg-tertiary rounded-md flex items-center justify-center text-tertiary overflow-hidden shadow-inner relative"
-                style={{ height: '100px', marginBottom: '4px', padding: '4px' }}
+                style={{ height: '100px', padding: '4px' }}
             >
                 {!imgError ? (
                     <img 
@@ -60,16 +60,14 @@ const GameCard: React.FC<{
                     <span style={{ fontSize: '10px' }}>{name}</span>
                 )}
             </div>
-            <div className="flex-grow flex flex-col w-full">
-                <h3 
-                    className={`font-bold leading-tight ${
-                        isSelected ? 'text-green-300' : 'text-primary'
-                    }`}
-                    style={{ fontSize: '11px', marginBottom: '2px' }}
-                >
-                    {name}
-                </h3>
-            </div>
+            <h3
+                className={`w-full shrink-0 font-bold leading-tight ${
+                    isSelected ? 'text-green-300' : 'text-primary'
+                }`}
+                style={{ fontSize: '11px' }}
+            >
+                {name}
+            </h3>
         </div>
     );
 };
@@ -245,11 +243,11 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
                 {/* Left Panel: Game Selection */}
                 <div className={`w-1/3 bg-tertiary/30 ${isCompactViewport ? 'p-2' : 'p-4'} flex flex-col text-on-panel rounded-l-lg border-r border-gray-700`}>
                     <h3 className="font-bold text-green-300 mb-3" style={{ fontSize: `${Math.max(12, Math.round(16 * mobileTextScale))}px` }}>
-                        게임 종류 선택 (다중 선택 가능)
+                        게임 모드 선택 (다중 선택 가능)
                     </h3>
                     
                     {/* 모든 게임들 표시 (선택 여부와 관계없이) */}
-                    <div className="flex-1 grid grid-cols-2 gap-2 overflow-y-auto pr-2">
+                    <div className="grid flex-1 grid-cols-2 items-start gap-2 overflow-y-auto pr-2">
                         {availableGameDefinitions.map((game) => {
                             const isSelected = selectedModes.includes(game.mode);
                             return (

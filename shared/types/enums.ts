@@ -43,6 +43,8 @@ export type GameStatus =
   | 'nigiri_reveal'
   | 'pair_order_reveal'
   | 'base_placement'
+  | 'base_stone_color_choice'
+  | 'base_same_color_points_bid'
   | 'komi_bidding'
   | 'komi_bid_reveal'
   | 'base_color_roulette'
@@ -70,6 +72,7 @@ export type GameStatus =
   | 'curling_tiebreaker_rps' | 'curling_tiebreaker_rps_reveal'
   // Role/Turn Selection
   | 'turn_preference_selection' // Unified state for choosing turn
+  | 'turn_preference_roulette' // 선후공 동점 시 룰렛 연출 후 무작위 배정
   | 'color_start_confirmation'
   | 'alkkagi_turn_selection'
   | 'curling_turn_selection'
@@ -106,6 +109,7 @@ export type GameStatus =
   | 'thief_rolling_animating'
   | 'thief_placing'
   | 'thief_round_end'
+  | 'thief_deathmatch_role_roulette'
   // Main phase
   | 'playing'
   // End-game phases
@@ -164,7 +168,7 @@ export enum CoreStat {
 }
 export enum SpecialStat {
     ActionPointMax = '행동력 최대치',
-    StrategyXpBonus = '전략 경험치 추가획득',
+    StrategyXpBonus = 'EXP 추가 획득',
     PlayfulXpBonus = '놀이 경험치 추가',
     ChampionshipVenueAllStats = '챔피언십 능력치',
     GuildBossBattleAllStats = '길드보스전 능력치',

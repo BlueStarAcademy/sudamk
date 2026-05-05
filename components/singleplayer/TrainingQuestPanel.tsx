@@ -33,11 +33,6 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
     const [selectedMissionForUpgrade, setSelectedMissionForUpgrade] = useState<string | null>(null);
     const [selectedMissionForStart, setSelectedMissionForStart] = useState<string | null>(null);
     const [currentTime, setCurrentTime] = useState(Date.now());
-    const [levelUpResult, setLevelUpResult] = useState<{
-        missionName: string;
-        previousLevel: number;
-        newLevel: number;
-    } | null>(null);
     const [claimAllRewards, setClaimAllRewards] = useState<{
         rewards: Array<{
             missionId: string;
@@ -278,21 +273,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                 setActionErrorMessage(getActionFailureMessage(result, '수련 과제를 강화하지 못했습니다. 다시 시도해주세요.'));
                 return;
             }
-            
-            // 강화 완료 결과 확인
-            const levelUpData = (result as any)?.trainingQuestLevelUp;
-            if (levelUpData) {
-                setLevelUpResult({
-                    missionName: levelUpData.missionName,
-                    previousLevel: levelUpData.previousLevel,
-                    newLevel: levelUpData.newLevel
-                });
-                // 3초 후 자동으로 닫기
-                setTimeout(() => {
-                    setLevelUpResult(null);
-                }, 3000);
-            }
-            
+
             // 모달을 닫지 않고 유지하여 강화된 정보로 동기화되도록 함
             // WebSocket 업데이트를 기다려서 인벤토리가 업데이트되면 모달이 자동으로 강화된 정보를 표시
             // 모달은 사용자가 직접 닫을 때까지 열려있음
@@ -1239,24 +1220,6 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                 />
             )}
 
-            {/* 강화 완료 토스트 */}
-            {levelUpResult && (
-                <div className="fixed top-4 left-1/2 -translate-x-1/2 w-full max-w-md z-[100] animate-slide-down">
-                    <div className="bg-success border-2 border-green-400 rounded-lg shadow-2xl p-6 text-center">
-                        <div className="text-6xl mb-3 animate-bounce">🎉</div>
-                        <h3 className="text-2xl font-bold text-green-400 mb-2">강화 완료!</h3>
-                        <p className="text-white text-lg mb-1">
-                            <span className="font-semibold">{levelUpResult.missionName}</span>
-                        </p>
-                        <div className="flex items-center justify-center gap-3 text-xl font-bold">
-                            <span className="text-yellow-400">Lv.{levelUpResult.previousLevel}</span>
-                            <span className="text-white">→</span>
-                            <span className="text-green-400">Lv.{levelUpResult.newLevel}</span>
-                        </div>
-                    </div>
-                </div>
-            )}
-            
             {/* 일괄 수령 모달 */}
             {claimAllRewards && (
                 <ClaimAllTrainingQuestRewardsModal

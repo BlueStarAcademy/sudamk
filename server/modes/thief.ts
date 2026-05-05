@@ -241,84 +241,9 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
         ensureThiefGoItemUses(game);
     }
 
-    if (game.gameStatus === 'thief_role_selection') {
-        const p1Choice = game.roleChoices?.[p1Id];
-        const p2Choice = game.roleChoices?.[p2Id];
-        const deadlinePassed = game.turnChoiceDeadline && now > game.turnChoiceDeadline;
+    if (updateSharedGameState(game, now)) return;
 
-        if ((p1Choice && p2Choice) || deadlinePassed) {
-            const choices = ['thief', 'police'] as const;
-            
-            let finalP1Choice = p1Choice;
-            let finalP2Choice = p2Choice;
-
-            if (deadlinePassed) {
-                if (!game.roleChoices) game.roleChoices = {};
-                if (!finalP1Choice) {
-                    finalP1Choice = choices[Math.floor(Math.random() * 2)];
-                    game.roleChoices[p1Id] = finalP1Choice;
-                }
-                if (!finalP2Choice) {
-                    finalP2Choice = choices[Math.floor(Math.random() * 2)];
-                    game.roleChoices[p2Id] = finalP2Choice;
-                }
-            }
-
-            if (finalP1Choice && finalP2Choice) { // Type guard for safety
-                if (finalP1Choice === finalP2Choice) {
-                    game.gameStatus = 'thief_rps';
-                    game.rpsState = { [p1Id]: null, [p2Id]: null };
-                    game.rpsRound = 1;
-                    game.turnDeadline = now + 30000;
-                } else {
-                    if (finalP1Choice === 'thief') {
-                        game.thiefPlayerId = p1Id;
-                        game.policePlayerId = p2Id;
-                    } else { // p1c must be 'police'
-                        game.thiefPlayerId = p2Id;
-                        game.policePlayerId = p1Id;
-                    }
-                    game.blackPlayerId = game.thiefPlayerId;
-                    game.whitePlayerId = game.policePlayerId;
-                    game.gameStatus = 'thief_role_confirmed';
-                    game.revealEndTime = now + 10000;
-                }
-            }
-        }
-    } else if (game.gameStatus === 'thief_rps_reveal') {
-        if (game.revealEndTime && now > game.revealEndTime) {
-            const p1Choice = game.rpsState?.[p1Id];
-            const p2Choice = game.rpsState?.[p2Id];
-
-            if (p1Choice && p2Choice) {
-                 let winnerId: string;
-                if (p1Choice === p2Choice) {
-                    winnerId = Math.random() < 0.5 ? p1Id : p2Id;
-                } else {
-                    const p1Wins = (p1Choice === 'rock' && p2Choice === 'scissors') ||
-                                   (p1Choice === 'scissors' && p2Choice === 'paper') ||
-                                   (p1Choice === 'paper' && p2Choice === 'rock');
-                    winnerId = p1Wins ? p1Id : p2Id;
-                }
-                
-                const loserId = winnerId === p1Id ? p2Id : p1Id;
-                const winnerChoice = game.roleChoices![winnerId]!;
-                
-                if(winnerChoice === 'thief') {
-                    game.thiefPlayerId = winnerId;
-                    game.policePlayerId = loserId;
-                } else {
-                    game.policePlayerId = winnerId;
-                    game.thiefPlayerId = loserId;
-                }
-                
-                game.blackPlayerId = game.thiefPlayerId;
-                game.whitePlayerId = game.policePlayerId;
-                game.gameStatus = 'thief_role_confirmed';
-                game.revealEndTime = now + 10000;
-            }
-        }
-    } else if (game.gameStatus === 'thief_role_confirmed') {
+    if (game.gameStatus === 'thief_role_confirmed') {
         if (game.isAiGame) {
             if (!game.preGameConfirmations) game.preGameConfirmations = {};
             game.preGameConfirmations[aiUserId] = true;
@@ -578,12 +503,20 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                 game.turnInRound = 1;
                 game.thiefCapturesThisRound = 0;
                 game.roundEndConfirmations = {};
-                game.revealEndTime = undefined;
                 game.thiefRoundSummary = undefined;
-                
-                game.gameStatus = 'thief_role_selection';
-                game.roleChoices = { [p1Id]: null, [p2Id]: null };
-                game.turnChoiceDeadline = now + 10000; // 10s
+
+                const thiefPlayer = Math.random() < 0.5 ? p1Id : p2Id;
+                const policePlayer = thiefPlayer === p1Id ? p2Id : p1Id;
+                game.thiefPlayerId = thiefPlayer;
+                game.policePlayerId = policePlayer;
+                game.blackPlayerId = thiefPlayer;
+                game.whitePlayerId = policePlayer;
+                game.roleChoices = undefined;
+                game.rpsState = undefined;
+                game.rpsRound = undefined;
+                game.turnChoiceDeadline = undefined;
+                game.gameStatus = 'thief_deathmatch_role_roulette';
+                game.revealEndTime = now + 4200;
              } else { // round 1 ended, start round 2
                  game.round++;
                  game.isDeathmatch = game.round > 2;
@@ -608,6 +541,17 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                  kickThiefAiForThiefRolling(game, now);
              }
          }
+    } else if (game.gameStatus === 'thief_deathmatch_role_roulette') {
+        if (game.revealEndTime && now > game.revealEndTime) {
+            game.revealEndTime = undefined;
+            game.currentPlayer = types.Player.Black;
+            game.gameStatus = 'thief_rolling';
+            if (shouldEnforceTimeControl(game)) {
+                game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
+                game.turnStartTime = now;
+            }
+            kickThiefAiForThiefRolling(game, now);
+        }
     }
 };
 
@@ -632,18 +576,6 @@ export const handleThiefAction = async (volatileState: types.VolatileState, game
     if (sharedResult) return sharedResult;
 
     switch (type) {
-        case 'THIEF_UPDATE_ROLE_CHOICE': {
-            if (game.gameStatus !== 'thief_role_selection') return { error: "Not in role selection phase." };
-            if (!game.roleChoices) game.roleChoices = {};
-            if (game.roleChoices[user.id]) return { error: "You have already chosen a role." };
-            
-            const { choice } = payload as { choice: 'thief' | 'police' };
-            game.roleChoices[user.id] = choice;
-
-            // The state transition logic is now exclusively handled by the updateThiefState function.
-            // We just need to signal that the game state has changed.
-            return {};
-        }
         case 'CONFIRM_THIEF_ROLE': {
             if (game.gameStatus !== 'thief_role_confirmed') {
                 return { error: "Not in role confirmation phase." };

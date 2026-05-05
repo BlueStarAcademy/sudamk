@@ -621,8 +621,8 @@ export const SPECIAL_STATS_DATA: Record<SpecialStat, { name: string; description
         range: [2, 4],
     },
     [SpecialStat.StrategyXpBonus]: {
-        name: '전략 경험치 추가획득',
-        description: '전략 바둑 승리 시 획득하는 경험치를 증가시킵니다. (+4·+7·+10 강화마다 +3%)',
+        name: 'EXP 추가 획득',
+        description: '전략 바둑 승리 시 획득하는 EXP를 증가시킵니다. (+4·+7·+10 강화마다 +3%)',
         isPercentage: true,
         range: [10, 15],
     },

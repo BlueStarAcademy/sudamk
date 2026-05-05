@@ -2,7 +2,8 @@ import * as db from './db.js';
 import {
     DEFAULT_SINGLE_PLAYER_STAGES,
 } from '../shared/constants/singlePlayerConstants.js';
-import { GameMode, SinglePlayerStageInfo, SinglePlayerStrategicRulePreset } from '../types/index.js';
+import { GameMode, SinglePlayerAiBaseKomiBid, SinglePlayerStageInfo, SinglePlayerStrategicRulePreset } from '../types/index.js';
+import { ensureMixModesMinTwoAfterBaseCaptureSanitize } from '../shared/utils/singlePlayerMixBaseCaptureExclusive.js';
 
 const SINGLE_PLAYER_STAGE_OVERRIDE_KV_KEY = 'singlePlayerStagesOverride';
 
@@ -79,6 +80,30 @@ const normalizeOptionalPositiveIntFromRow = (
     return n > 0 ? n : undefined;
 };
 
+const normalizeSinglePlayerAiBaseKomiBid = (value: unknown): SinglePlayerAiBaseKomiBid | undefined => {
+    if (!value || typeof value !== 'object') return undefined;
+    const row = value as Record<string, unknown>;
+    const color = row.color === 'black' || row.color === 'white' || row.color === 'random' ? row.color : undefined;
+    const komiMode = row.komiMode === 'fixed' || row.komiMode === 'random' ? row.komiMode : undefined;
+    if (!color || !komiMode) return undefined;
+    const out: SinglePlayerAiBaseKomiBid = { color, komiMode };
+    if (komiMode === 'fixed') {
+        const k = clampInt(row.komi, 0, 99, 0);
+        out.komi = k;
+    } else {
+        let lo = clampInt(row.komiMin, 0, 99, 1);
+        let hi = clampInt(row.komiMax, 0, 99, 10);
+        if (lo > hi) {
+            const t = lo;
+            lo = hi;
+            hi = t;
+        }
+        out.komiMin = lo;
+        out.komiMax = hi;
+    }
+    return out;
+};
+
 const normalizeOptionalPositiveIntList = (value: unknown, maxValue: number, maxLen: number): number[] | undefined => {
     if (!Array.isArray(value)) return undefined;
     const seen = new Set<number>();
@@ -112,6 +137,120 @@ const deleteHiddenStageFields = (stage: SinglePlayerStageInfo): void => {
     delete (stage as { forceAiResponsesOnHiddenTurnsOnly?: boolean }).forceAiResponsesOnHiddenTurnsOnly;
 };
 
+/** prune가 단일 프리셋만 허용한다고 해서 관리자가 넣은 미사일·히든·따내기 한도 등을 지워 버리는 문제 방지 */
+const STRATEGIC_MODE_ORDER: GameMode[] = [
+    GameMode.Hidden,
+    GameMode.Missile,
+    GameMode.Base,
+    GameMode.Capture,
+    GameMode.Speed,
+];
+
+const collectImpliedStrategicModes = (stage: SinglePlayerStageInfo): GameMode[] => {
+    const raw: GameMode[] = [];
+    if (((stage.hiddenCount ?? 0) > 0) || ((stage.scanCount ?? 0) > 0)) raw.push(GameMode.Hidden);
+    if ((stage.missileCount ?? 0) > 0) raw.push(GameMode.Missile);
+    if ((stage.baseStones ?? 0) > 0) raw.push(GameMode.Base);
+    if ((stage.survivalTurns ?? 0) > 0 || (stage.blackTurnLimit ?? 0) > 0) raw.push(GameMode.Capture);
+    // 따내기 mix는 저장 단계에서 autoScoringTurns를 제거한다(prune 직전 블록). 남아 있는 값으로 Speed를 implied하지 않음
+    const p = stage.strategicRulePreset;
+    const mixModes = p === 'mix' ? stage.mixedStrategicModes ?? [] : [];
+    /** 믹스에서 `mixedStrategicModes`가 이미 2개 이상이면, 그 목록에 스피드가 없을 때는 `autoScoringTurns`만으로 스피드를 암시하지 않는다(베이스+히든 등 계가 수는 남기되 룰 조합은 관리자 선택을 존중). */
+    const mixHasExplicitModeList =
+        p === 'mix' &&
+        Array.isArray(stage.mixedStrategicModes) &&
+        stage.mixedStrategicModes.length >= 2;
+    const autoScoringTurnsCanMeanSpeedRule =
+        !p ||
+        p === 'auto' ||
+        p === 'speed' ||
+        (p === 'mix' && !mixModes.includes(GameMode.Capture));
+    const shouldImplySpeedFromAutoScoring =
+        (stage.autoScoringTurns ?? 0) > 0 &&
+        autoScoringTurnsCanMeanSpeedRule &&
+        (!mixHasExplicitModeList || mixModes.includes(GameMode.Speed));
+    if (shouldImplySpeedFromAutoScoring) raw.push(GameMode.Speed);
+    return STRATEGIC_MODE_ORDER.filter((m) => raw.includes(m));
+};
+
+const mergeModeListsPreserveExistingOrder = (existing: GameMode[], implied: GameMode[]): GameMode[] => {
+    const union = new Set<GameMode>([...existing, ...implied]);
+    const pri: GameMode[] = [];
+    const seen = new Set<GameMode>();
+    for (const m of existing) {
+        if (union.has(m) && !seen.has(m)) {
+            seen.add(m);
+            pri.push(m);
+        }
+    }
+    for (const m of STRATEGIC_MODE_ORDER) {
+        if (union.has(m) && !seen.has(m)) {
+            seen.add(m);
+            pri.push(m);
+        }
+    }
+    return pri.slice(0, 5);
+};
+
+const modesSupportedByExplicitPreset = (preset: SinglePlayerStrategicRulePreset, stage: SinglePlayerStageInfo): GameMode[] => {
+    switch (preset) {
+        case 'capture':
+        case 'survival':
+            return [GameMode.Capture];
+        case 'missile':
+            return [GameMode.Missile];
+        case 'hidden':
+            return [GameMode.Hidden];
+        case 'speed':
+            return [GameMode.Speed];
+        case 'base':
+            return [GameMode.Base];
+        case 'classic':
+            return [];
+        case 'mix':
+            return Array.isArray(stage.mixedStrategicModes) ? [...stage.mixedStrategicModes] : [];
+        default:
+            return [];
+    }
+};
+
+/** 단일 프리셋이 저장 필드와 맞지 않으면 mix로 승격해 prune가 미사일/히든/턴 한도 등을 삭제하지 않게 함 */
+const repairStagePresetBeforePrune = (stage: SinglePlayerStageInfo): void => {
+    const implied = collectImpliedStrategicModes(stage);
+    if (implied.length === 0) return;
+
+    const p = stage.strategicRulePreset;
+    if (!p || p === 'auto') {
+        if (implied.length >= 2) {
+            stage.strategicRulePreset = 'mix';
+            stage.mixedStrategicModes = ensureMixModesMinTwoAfterBaseCaptureSanitize(implied.slice(0, 5));
+        }
+        return;
+    }
+
+    if (p === 'mix') {
+        const fallbackMix = [GameMode.Speed, GameMode.Capture];
+        const existing =
+            Array.isArray(stage.mixedStrategicModes) && stage.mixedStrategicModes.length >= 2
+                ? stage.mixedStrategicModes
+                : fallbackMix;
+        stage.strategicRulePreset = 'mix';
+        stage.mixedStrategicModes = ensureMixModesMinTwoAfterBaseCaptureSanitize(
+            mergeModeListsPreserveExistingOrder(existing, implied).slice(0, 5)
+        );
+        return;
+    }
+
+    const supported = modesSupportedByExplicitPreset(p, stage);
+    const missing = implied.filter((m) => !supported.includes(m));
+    if (missing.length === 0) return;
+
+    stage.strategicRulePreset = 'mix';
+    stage.mixedStrategicModes = ensureMixModesMinTwoAfterBaseCaptureSanitize(
+        mergeModeListsPreserveExistingOrder([...supported, ...implied], []).slice(0, 5)
+    );
+};
+
 const pruneStageFieldsForExplicitRulePreset = (stage: SinglePlayerStageInfo): void => {
     const preset = stage.strategicRulePreset;
     if (!preset || preset === 'auto') return;
@@ -127,11 +266,27 @@ const pruneStageFieldsForExplicitRulePreset = (stage: SinglePlayerStageInfo): vo
     const keepsBase = preset === 'base' || (preset === 'mix' && mixModes.includes(GameMode.Base));
     const keepsCapture = preset === 'capture' || preset === 'survival' || (preset === 'mix' && mixModes.includes(GameMode.Capture));
     const keepsSurvival = preset === 'survival';
-    const keepsAutoScoring = preset === 'speed' || (preset === 'mix' && !mixModes.includes(GameMode.Capture));
+    // 편집기·인게임은 클래식/베이스/히든/미사일에서도 계가 수순을 쓸 수 있다. 여기서만 false면 저장 직후 필드가 사라져 0으로 보인다.
+    const keepsAutoScoring =
+        preset === 'classic'
+        || preset === 'speed'
+        || preset === 'base'
+        || preset === 'hidden'
+        || preset === 'missile'
+        || (preset === 'mix' && !mixModes.includes(GameMode.Capture));
 
     if (!keepsHidden) deleteHiddenStageFields(stage);
     if (!keepsMissile) delete (stage as { missileCount?: number }).missileCount;
-    if (!keepsBase) delete (stage as { baseStones?: number }).baseStones;
+    if (!keepsBase) {
+        delete (stage as { baseStones?: number }).baseStones;
+        delete (stage as { singlePlayerAiBaseKomiBid?: SinglePlayerAiBaseKomiBid }).singlePlayerAiBaseKomiBid;
+    } else if (keepsBase && (preset === 'base' || preset === 'mix')) {
+        // 베이스(순수 또는 믹스): 미리 깔리는 돌 없음
+        stage.placements = { black: 0, white: 0, blackPattern: 0, whitePattern: 0 };
+        delete (stage as { centerBlackStoneChance?: number }).centerBlackStoneChance;
+        delete (stage as { fixedOpening?: SinglePlayerStageInfo['fixedOpening'] }).fixedOpening;
+        delete (stage as { mergeRandomPlacementsWithFixed?: boolean }).mergeRandomPlacementsWithFixed;
+    }
     if (!keepsCapture) delete (stage as { blackTurnLimit?: number }).blackTurnLimit;
     if (!keepsSurvival) delete (stage as { survivalTurns?: number }).survivalTurns;
     if (!keepsAutoScoring) delete (stage as { autoScoringTurns?: number }).autoScoringTurns;
@@ -298,6 +453,7 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
             },
         },
         baseStones: normalizeOptionalPositiveIntFromRow(row, 'baseStones', 20),
+        singlePlayerAiBaseKomiBid: normalizeSinglePlayerAiBaseKomiBid((row as Record<string, unknown>).singlePlayerAiBaseKomiBid),
         fixedOpening: fixedOpening?.length ? fixedOpening : undefined,
         mergeRandomPlacementsWithFixed: Boolean(row.mergeRandomPlacementsWithFixed),
         allowPlacementRefresh: row.allowPlacementRefresh === false ? false : fallback.allowPlacementRefresh !== false,
@@ -324,12 +480,37 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
             .map((m) => (typeof m === 'string' && allowed.has(m as GameMode) ? (m as GameMode) : null))
             .filter((m): m is GameMode => m != null);
         if (cleaned.length >= 2) {
-            out.mixedStrategicModes = cleaned.slice(0, 5);
+            out.mixedStrategicModes = ensureMixModesMinTwoAfterBaseCaptureSanitize(cleaned).slice(0, 5);
         } else {
             delete (out as { mixedStrategicModes?: GameMode[] }).mixedStrategicModes;
         }
     } else {
         delete (out as { mixedStrategicModes?: GameMode[] }).mixedStrategicModes;
+    }
+
+    // 기본 슬롯과 merge되면 다른 룰 전용 필드가 남는다. repair가 implied로 mix로 승격하기 전에
+    // 명시 프리셋에 맞게 잘라야 한다. (capture에 missile을 넣어 mix로 승격시키는 케이스는 여기서 지우지 않는다.)
+    const pBeforeRepair = out.strategicRulePreset;
+    if (
+        pBeforeRepair === 'missile' ||
+        pBeforeRepair === 'hidden' ||
+        pBeforeRepair === 'base' ||
+        pBeforeRepair === 'speed' ||
+        pBeforeRepair === 'classic' ||
+        pBeforeRepair === 'survival'
+    ) {
+        pruneStageFieldsForExplicitRulePreset(out);
+    }
+
+    repairStagePresetBeforePrune(out);
+    if (out.strategicRulePreset === 'mix' && Array.isArray(out.mixedStrategicModes)) {
+        const sanitized = ensureMixModesMinTwoAfterBaseCaptureSanitize(out.mixedStrategicModes);
+        const same =
+            sanitized.length === out.mixedStrategicModes.length &&
+            sanitized.every((m, i) => m === out.mixedStrategicModes![i]);
+        if (!same) {
+            out.mixedStrategicModes = sanitized;
+        }
     }
     if (out.strategicRulePreset === 'mix' && out.mixedStrategicModes?.includes(GameMode.Capture)) {
         delete (out as { autoScoringTurns?: number }).autoScoringTurns;

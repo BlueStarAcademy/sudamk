@@ -25,15 +25,7 @@ import { projectActionPointsCurrent } from '../services/effectService.js';
 import { getStrategicBoardSizesByMode } from '../constants/gameSettings.js';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
-import {
-  diceGoUnifiedSpecialDiceCounts,
-  getDiceGoUnifiedSpecialDiceCount,
-} from '../shared/utils/diceGoSettings.js';
-import {
-  getThiefUnifiedSpecialDiceCount,
-  thiefUnifiedSpecialDiceCounts,
-} from '../shared/utils/thiefGoSettings.js';
-
+import { mixSubRuleDisplayName } from '../shared/utils/mixSubRuleDisplayName.js';
 interface NegotiationModalProps {
   negotiation: Negotiation;
   currentUser: UserWithStatus;
@@ -375,7 +367,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
         value={value} 
         onChange={e => onChange(e.target.value)} 
         disabled={disabled}
-        className="w-full rounded-lg border border-gray-600 bg-gray-700 p-2.5 text-base text-white focus:border-blue-500 focus:ring-blue-500"
+        className="w-full rounded-lg border border-gray-600 bg-gray-700 py-2.5 pl-2.5 pr-9 text-base text-white focus:border-blue-500 focus:ring-blue-500"
       >
           {children}
       </select>
@@ -477,7 +469,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                                                 disabled={isReadOnly || isDisabledByConflict} 
                                                 className="w-4 h-4"
                                             />
-                                            <span className="leading-tight">{m.name}</span>
+                                            <span className="leading-tight">{mixSubRuleDisplayName(m.name)}</span>
                                         </label>
                                     );
                                 })}
@@ -562,7 +554,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                                     )
                                 }
                                 disabled={isReadOnly} 
-                                className="w-full rounded-lg border border-gray-600 bg-gray-700 p-2.5 text-base text-white focus:border-blue-500 focus:ring-blue-500" 
+                                className="w-full rounded-lg border border-gray-600 bg-gray-700 py-2.5 pl-2.5 pr-9 text-base text-white focus:border-blue-500 focus:ring-blue-500" 
                             />
                             <span className="whitespace-nowrap text-xl font-bold text-gray-300">.5 집</span>
                         </div>
@@ -625,38 +617,90 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                             {[1, 2, 3].map(r => <option key={r} value={r}>{r}라운드</option>)}
                         </Select>
                     </SettingRow>
-                    <SettingRow label="특수주사위">
-                       <Select
-                           value={getDiceGoUnifiedSpecialDiceCount(settings)}
-                           onChange={v =>
-                               setSettings((prev) => ({
-                                   ...prev,
-                                   ...diceGoUnifiedSpecialDiceCounts(parseInt(v, 10)),
-                               }))
-                           }
-                           disabled={isReadOnly}
-                       >
-                           {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개 (유형당)</option>)}
-                       </Select>
-                   </SettingRow>
+                    <SettingRow label="홀수주사위">
+                        <Select
+                            value={settings.oddDiceCount ?? 1}
+                            onChange={(v) => handleSettingChange('oddDiceCount', parseInt(v, 10))}
+                            disabled={isReadOnly}
+                        >
+                            {DICE_GO_ITEM_COUNTS.map((c) => (
+                                <option key={c} value={c}>
+                                    {c}개
+                                </option>
+                            ))}
+                        </Select>
+                    </SettingRow>
+                    <SettingRow label="짝수주사위">
+                        <Select
+                            value={settings.evenDiceCount ?? 1}
+                            onChange={(v) => handleSettingChange('evenDiceCount', parseInt(v, 10))}
+                            disabled={isReadOnly}
+                        >
+                            {DICE_GO_ITEM_COUNTS.map((c) => (
+                                <option key={c} value={c}>
+                                    {c}개
+                                </option>
+                            ))}
+                        </Select>
+                    </SettingRow>
+                    <SettingRow label="(고)주사위">
+                        <Select
+                            value={settings.highDiceCount ?? 1}
+                            onChange={(v) => handleSettingChange('highDiceCount', parseInt(v, 10))}
+                            disabled={isReadOnly}
+                        >
+                            {DICE_GO_ITEM_COUNTS.map((c) => (
+                                <option key={c} value={c}>
+                                    {c}개
+                                </option>
+                            ))}
+                        </Select>
+                    </SettingRow>
+                    <SettingRow label="(저)주사위">
+                        <Select
+                            value={settings.lowDiceCount ?? 1}
+                            onChange={(v) => handleSettingChange('lowDiceCount', parseInt(v, 10))}
+                            disabled={isReadOnly}
+                        >
+                            {DICE_GO_ITEM_COUNTS.map((c) => (
+                                <option key={c} value={c}>
+                                    {c}개
+                                </option>
+                            ))}
+                        </Select>
+                    </SettingRow>
                    </>
                 )}
 
                 {showThiefGoItemSettings && (
-                   <SettingRow label="특수주사위">
-                       <Select
-                           value={getThiefUnifiedSpecialDiceCount(settings)}
-                           onChange={v =>
-                               setSettings((prev) => ({
-                                   ...prev,
-                                   ...thiefUnifiedSpecialDiceCounts(parseInt(v, 10)),
-                               }))
-                           }
-                           disabled={isReadOnly}
-                       >
-                           {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개 (유형당)</option>)}
-                       </Select>
-                   </SettingRow>
+                    <>
+                        <SettingRow label="(고)주사위">
+                            <Select
+                                value={settings.thiefHigh36ItemCount ?? 1}
+                                onChange={(v) => handleSettingChange('thiefHigh36ItemCount', parseInt(v, 10))}
+                                disabled={isReadOnly}
+                            >
+                                {DICE_GO_ITEM_COUNTS.map((c) => (
+                                    <option key={c} value={c}>
+                                        {c}개
+                                    </option>
+                                ))}
+                            </Select>
+                        </SettingRow>
+                        <SettingRow label="방지주사위">
+                            <Select
+                                value={settings.thiefNoOneItemCount ?? 1}
+                                onChange={(v) => handleSettingChange('thiefNoOneItemCount', parseInt(v, 10))}
+                                disabled={isReadOnly}
+                            >
+                                {DICE_GO_ITEM_COUNTS.map((c) => (
+                                    <option key={c} value={c}>
+                                        {c}개
+                                    </option>
+                                ))}
+                            </Select>
+                        </SettingRow>
+                    </>
                 )}
 
                 {showCaptureTarget && (

@@ -3,8 +3,9 @@ import { GameProps, Player, Point, GameStatus, Move, GameMode } from '../../type
 import GoBoard from '../GoBoard.js';
 import { ScoringOverlay, SCORING_PROGRESS_DURATION_MS } from '../game/ScoringOverlay.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants/gameModes';
-import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
+import { resolveSinglePlayerAutoScoringCapForClientSession } from '../../shared/utils/liveSessionSinglePlayerStage.js';
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
+import { getEffectivePairLobbyOwnerId } from '../../shared/utils/effectivePairLobbyOwnerId.js';
 
 interface GoGameArenaProps extends GameProps {
     isMyTurn: boolean;
@@ -22,6 +23,7 @@ interface GoGameArenaProps extends GameProps {
     // 온라인 전략바둑 AI 대국용: 서버 응답 전 낙관적 표시용 임시 돌
     pendingMove?: { x: number; y: number; player: Player } | null;
     captureScoreFloatMinPoints?: number;
+    strategicPetHintBoardOverlay?: { x: number; y: number; message: string; showBubble: boolean } | null;
 }
 
 function modeIncludesCaptureRule(mode: GameMode, settings: { mixedModes?: GameMode[] }): boolean {
@@ -45,9 +47,18 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         onToggleBoardRotation,
         pendingMove,
         captureScoreFloatMinPoints = 2,
+        singlePlayerStagesListRevision = 0,
+        strategicPetHintBoardOverlay = null,
     } = props;
 
     const { blackPlayerId, whitePlayerId, player1, player2, settings, lastMove, gameStatus, mode, moveHistory, hiddenMoves } = session;
+    const strategicPetHintDotOverlay = useMemo(() => {
+        if (!strategicPetHintBoardOverlay) return null;
+        const { x, y } = strategicPetHintBoardOverlay;
+        if (typeof x !== 'number' || typeof y !== 'number' || x < 0 || y < 0) return null;
+        return { x, y };
+    }, [strategicPetHintBoardOverlay]);
+
     const scoringOverlayStorageKey = `scoringOverlayPlayed_${session.id}`;
     const [hasPlayedScoringOverlay, setHasPlayedScoringOverlay] = useState<boolean>(() => {
         try {
@@ -168,11 +179,19 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
     /** 베이스 배치·덤 입찰 단계: 바둑판에 양측 베이스돌 좌표 전달(덤 배팅 중에도 배치 상태 표시) */
     const showPlacedBaseStoneArrays =
         gameStatus === 'base_placement' ||
+        gameStatus === 'base_stone_color_choice' ||
+        gameStatus === 'base_same_color_points_bid' ||
         gameStatus === 'komi_bidding' ||
         gameStatus === 'komi_bid_reveal' ||
         gameStatus === 'base_color_roulette' ||
         gameStatus === 'base_komi_result' ||
         gameStatus === 'base_game_start_confirmation';
+
+    const isPairBasePlacementHost = useMemo(() => {
+        if (gameStatus !== 'base_placement') return false;
+        const owner = getEffectivePairLobbyOwnerId(session);
+        return Boolean(owner && props.currentUser.id === owner);
+    }, [gameStatus, session, props.currentUser.id]);
 
     const backgroundClass = useMemo(() => {
         if (session.gameCategory === 'guildwar') {
@@ -216,12 +235,12 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         // 싱글플레이/도전의 탑: 자동계가 턴 수 제한
         const isTower = session.gameCategory === 'tower';
         if ((session.isSinglePlayer || isTower) && session.stageId) {
-            const stage = isTower
-                ? TOWER_STAGES.find(s => s.id === session.stageId)
-                : SINGLE_PLAYER_STAGES.find(s => s.id === session.stageId);
-            if (stage?.autoScoringTurns) {
+            const cap = isTower
+                ? TOWER_STAGES.find(s => s.id === session.stageId)?.autoScoringTurns
+                : resolveSinglePlayerAutoScoringCapForClientSession(session as any);
+            if (cap) {
                 const totalTurns = Math.max(validMovesCount, session.totalTurns ?? 0);
-                const remainingTurns = Math.max(0, stage.autoScoringTurns - totalTurns);
+                const remainingTurns = Math.max(0, cap - totalTurns);
                 if (remainingTurns <= 0) return true;
             }
         }
@@ -244,7 +263,20 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         }
 
         return false;
-    }, [gameStatus, session.isSinglePlayer, session.gameCategory, session.stageId, session.moveHistory, session.totalTurns, session.settings?.pairGame, settings.scoringTurnLimit, mode]);
+    }, [
+        gameStatus,
+        session.isSinglePlayer,
+        session.gameCategory,
+        session.stageId,
+        session.moveHistory,
+        session.totalTurns,
+        session.settings,
+        (session as any).singlePlayerStageDisplay,
+        singlePlayerStagesListRevision,
+        session.settings?.pairGame,
+        settings.scoringTurnLimit,
+        mode,
+    ]);
 
     const isAdventureBoardLayout = session.gameCategory === 'adventure';
 
@@ -346,6 +378,8 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 captureScoreFloatMinPoints={captureScoreFloatMinPoints}
                 adventureRegionalHeadStartCaptureBonus={adventureRegionalHeadStartCaptureBonus}
                 onBoardRuleFlash={props.onBoardRuleFlash}
+                strategicPetHintOverlay={strategicPetHintDotOverlay}
+                isPairBasePlacementHost={isPairBasePlacementHost}
                 />
                 </div>
                 {showBoardGlow && (

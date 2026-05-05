@@ -10,6 +10,7 @@ import {
     DEFAULT_GAME_SETTINGS,
     RANKED_ELO_BASE_SCORE,
 } from '../../constants';
+import { PAIR_RANKED_STAT_KEY, PAIR_RANKED_MATCH_RECORD_KEY } from '../../shared/constants/userRankedStats.js';
 import {
     getAdventureMonsterAttackActionPointCost,
     isAdventureChapterBossCodexId,
@@ -28,6 +29,7 @@ import {
     resolveAdventureBoardSize,
 } from '../../shared/utils/adventureBattleBoard.js';
 import { aggregateSpecialOptionGearFromUser } from '../../shared/utils/specialOptionGearEffects.js';
+import { normalizePairPetLobbyInventorySort } from '../../shared/constants/petLobby.js';
 import { GameMode, UserStatus } from '../../types/enums.js';
 import { broadcast } from '../socket.js';
 import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
@@ -656,21 +658,13 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             if (pw === 0 && pl === 0) {
                 return { error: '이 모드에 기록된 페어 경기장 전적이 없습니다.' };
             }
-            if (!user.stats) user.stats = {};
-            const pairAgg = user.stats['pair'] ?? { wins: 0, losses: 0, rankingScore: RANKED_ELO_BASE_SCORE };
-            pairAgg.wins = Math.max(0, (pairAgg.wins ?? 0) - pw);
-            pairAgg.losses = Math.max(0, (pairAgg.losses ?? 0) - pl);
-            if (typeof pairAgg.rankingScore !== 'number' || !Number.isFinite(pairAgg.rankingScore)) {
-                pairAgg.rankingScore = RANKED_ELO_BASE_SCORE;
-            }
-            user.stats['pair'] = pairAgg;
             if (!user.pairArenaStatsByMode) user.pairArenaStatsByMode = {};
             user.pairArenaStatsByMode[modeKey] = { wins: 0, losses: 0 };
             if (!user.isAdmin) user.diamonds = (user.diamonds ?? 0) - SINGLE_RESET_COST;
             const updatedUser = getSelectiveUserUpdate(user, 'RESET_PAIR_ARENA_SINGLE_STAT');
             db.updateUser(user).catch((err) => console.error('[UserAction] RESET_PAIR_ARENA_SINGLE_STAT save failed:', err));
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['diamonds', 'stats', 'pairArenaStatsByMode']);
+            broadcastUserUpdate(user, ['diamonds', 'pairArenaStatsByMode']);
             return { clientResponse: { updatedUser } };
         }
         case 'RESET_PAIR_ARENA_STRATEGIC_ALL': {
@@ -679,13 +673,16 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 return { error: `다이아가 부족합니다. (필요: ${CATEGORY_RESET_COST})` };
             }
             if (!user.stats) user.stats = {};
-            user.stats['pair'] = { wins: 0, losses: 0, rankingScore: RANKED_ELO_BASE_SCORE };
+            user.stats[PAIR_RANKED_MATCH_RECORD_KEY] = { wins: 0, losses: 0 };
+            user.stats[PAIR_RANKED_STAT_KEY] = { rankingScore: RANKED_ELO_BASE_SCORE };
+            if (!user.cumulativeRankingScore) user.cumulativeRankingScore = {};
+            user.cumulativeRankingScore.pair = 0;
             user.pairArenaStatsByMode = {};
             if (!user.isAdmin) user.diamonds = (user.diamonds ?? 0) - CATEGORY_RESET_COST;
             const updatedUser = getSelectiveUserUpdate(user, 'RESET_PAIR_ARENA_STRATEGIC_ALL');
             db.updateUser(user).catch((err) => console.error('[UserAction] RESET_PAIR_ARENA_STRATEGIC_ALL save failed:', err));
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['diamonds', 'stats', 'pairArenaStatsByMode']);
+            broadcastUserUpdate(user, ['diamonds', 'stats', 'pairArenaStatsByMode', 'cumulativeRankingScore']);
             return { clientResponse: { updatedUser } };
         }
         case 'CONFIRM_STAT_ALLOCATION': {
@@ -758,6 +755,21 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             const fullUserForBroadcast = JSON.parse(JSON.stringify(user));
             broadcast({ type: 'USER_UPDATE', payload: { [user.id]: fullUserForBroadcast } });
             
+            return { clientResponse: { updatedUser } };
+        }
+        case 'UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT': {
+            const { sortMode } = payload as { sortMode: string };
+            const normalized = normalizePairPetLobbyInventorySort(sortMode);
+            if (!normalized) {
+                return { error: '잘못된 정렬 값입니다.' };
+            }
+            user.pairPetLobbyInventorySort = normalized;
+            const updatedUser = getSelectiveUserUpdate(user, 'UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT');
+            db.updateUser(user).catch((err) => {
+                console.error(`[UserAction] Failed to save user ${user.id} after UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT:`, err);
+            });
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['pairPetLobbyInventorySort']);
             return { clientResponse: { updatedUser } };
         }
         case 'SAVE_PRESET': {

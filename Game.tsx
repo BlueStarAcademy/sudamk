@@ -38,6 +38,7 @@ import GuildWarMissileTowerControls from './components/game/GuildWarMissileTower
 function modeIncludesCaptureRule(mode: GameMode, settings: { mixedModes?: GameMode[] }): boolean {
     return mode === GameMode.Capture || (mode === GameMode.Mix && Boolean(settings.mixedModes?.includes(GameMode.Capture)));
 }
+import { getEffectivePairLobbyOwnerId } from './shared/utils/effectivePairLobbyOwnerId.js';
 import GuildWarHiddenTowerControls from './components/game/GuildWarHiddenTowerControls.js';
 import GuildWarTowerSidebar from './components/game/GuildWarTowerSidebar.js';
 import { useClientTimer } from './hooks/useClientTimer.js';
@@ -73,6 +74,11 @@ import {
     ONBOARDING_INTRO1_FORCED_CAPTURE_POINT,
     shouldRestrictIntro1OnboardingFirstMove,
 } from './shared/constants/onboardingTutorial.js';
+import {
+    PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY,
+    POST_GAME_PAIR_ROOM_RESTORE_SESSION_KEY,
+} from './shared/constants/pairArena.js';
+import { sessionUsesPairArenaIngameChrome } from './shared/utils/pairArenaIngameChrome.js';
 import { AI_HIDDEN_ITEM_THINKING_DURATION_MS } from './shared/constants/gameSettings.js';
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
 const AI_USER_ID = aiUserId;
@@ -463,7 +469,7 @@ const PairIngameTopPanel: React.FC<{
 }> = ({ session, clientTimes, mobile = false, pairMobileViewerUserId }) => {
     if (mobile) {
         return (
-            <div className="flex w-full shrink-0 items-stretch gap-1 px-1 pb-1">
+            <div className="flex w-full shrink-0 items-stretch gap-0.5 px-1 pb-0.5">
                 <PairMobileTeamPanel session={session} player={Player.Black} clientTimes={clientTimes} viewerUserId={pairMobileViewerUserId} />
                 <PairMobileMoveCountBox session={session} />
                 <PairMobileTeamPanel session={session} player={Player.White} clientTimes={clientTimes} viewerUserId={pairMobileViewerUserId} />
@@ -472,7 +478,7 @@ const PairIngameTopPanel: React.FC<{
     }
 
     return (
-        <div className="flex w-full shrink-0 flex-col gap-2 px-1 pb-2 lg:flex-row lg:items-stretch">
+        <div className="flex w-full shrink-0 flex-col gap-1.5 px-1 pb-1 lg:flex-row lg:items-stretch">
             <PairIngameTeamGroup session={session} player={Player.Black} clientTimes={clientTimes} />
             <PairMoveCountBox session={session} />
             <PairIngameTeamGroup session={session} player={Player.White} clientTimes={clientTimes} />
@@ -555,6 +561,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         settings,
         updateFeatureSetting,
         isNativeMobile,
+        singlePlayerStagesListRevision,
     } = useAppContext();
     const { id: gameId, currentPlayer, gameStatus, player1, player2, mode, blackPlayerId, whitePlayerId } = session;
 
@@ -598,6 +605,81 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const pveLocalStonePlacementLockRef = useRef(false);
     /** 전략·모험·길드전 등 온라인 AI 대국: 낙관적 착수~서버 PLACE_STONE 완료까지 동기적으로 중복 클릭 차단 */
     const strategicAiStoneLockRef = useRef(false);
+    const [strategicPetHintBoardOverlay, setStrategicPetHintBoardOverlay] = useState<{
+        x: number;
+        y: number;
+        message: string;
+        showBubble: boolean;
+    } | null>(null);
+    const strategicPetHintMoveLenRef = useRef<number | null>(null);
+    const strategicPetHintBubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const ingameHandleAction = useCallback(
+        async (action: ServerAction) => {
+            const moveLenBefore =
+                action.type === 'REQUEST_STRATEGIC_PET_HINT' ? session.moveHistory?.length ?? 0 : null;
+            const r = (await handlers.handleAction(action)) as
+                | {
+                      strategicPetHint?: { x: number; y: number; message: string };
+                      clientResponse?: { strategicPetHint?: { x: number; y: number; message: string } };
+                  }
+                | void
+                | undefined;
+            if (action.type === 'REQUEST_STRATEGIC_PET_HINT') {
+                const hint =
+                    (r as { strategicPetHint?: { x: number; y: number; message: string } })?.strategicPetHint ??
+                    (r as { clientResponse?: { strategicPetHint?: { x: number; y: number; message: string } } })?.clientResponse
+                        ?.strategicPetHint;
+                if (hint && Number.isInteger(hint.x) && Number.isInteger(hint.y) && typeof hint.message === 'string') {
+                    if (strategicPetHintBubbleTimerRef.current) {
+                        clearTimeout(strategicPetHintBubbleTimerRef.current);
+                        strategicPetHintBubbleTimerRef.current = null;
+                    }
+                    setStrategicPetHintBoardOverlay({
+                        x: hint.x,
+                        y: hint.y,
+                        message: hint.message,
+                        showBubble: true,
+                    });
+                    strategicPetHintMoveLenRef.current = moveLenBefore;
+                    strategicPetHintBubbleTimerRef.current = setTimeout(() => {
+                        setStrategicPetHintBoardOverlay((prev) => (prev ? { ...prev, showBubble: false } : prev));
+                        strategicPetHintBubbleTimerRef.current = null;
+                    }, 5000);
+                }
+            }
+            return r;
+        },
+        [handlers.handleAction, session.moveHistory?.length, session.id],
+    );
+
+    useEffect(() => {
+        return () => {
+            if (strategicPetHintBubbleTimerRef.current) {
+                clearTimeout(strategicPetHintBubbleTimerRef.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (strategicPetHintBoardOverlay == null) return;
+        const base = strategicPetHintMoveLenRef.current;
+        if (base == null) return;
+        if ((session.moveHistory?.length ?? 0) !== base) {
+            setStrategicPetHintBoardOverlay(null);
+            strategicPetHintMoveLenRef.current = null;
+        }
+    }, [session.moveHistory?.length, strategicPetHintBoardOverlay, session.id]);
+
+    useEffect(() => {
+        setStrategicPetHintBoardOverlay(null);
+        strategicPetHintMoveLenRef.current = null;
+        if (strategicPetHintBubbleTimerRef.current) {
+            clearTimeout(strategicPetHintBubbleTimerRef.current);
+            strategicPetHintBubbleTimerRef.current = null;
+        }
+    }, [session.id]);
+
     const [boardRuleFlashMessage, setBoardRuleFlashMessage] = useState<string | null>(null);
     const boardRuleFlashClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isPausableAiGameForTimer =
@@ -668,9 +750,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const prevMoveCount = usePrevious(session.moveHistory?.length);
     const myBaseStoneCountForUnlock = useMemo(() => {
         if (gameStatus !== 'base_placement') return undefined;
+        const pairHostId = getEffectivePairLobbyOwnerId(session);
+        if (pairHostId && currentUser.id === pairHostId) {
+            const n1 = session.baseStones_p1?.length ?? 0;
+            const n2 = session.baseStones_p2?.length ?? 0;
+            return n1 + n2;
+        }
         const stones = currentUser.id === player1.id ? session.baseStones_p1 : session.baseStones_p2;
         return stones?.length ?? 0;
-    }, [gameStatus, currentUser.id, player1.id, session.baseStones_p1, session.baseStones_p2]);
+    }, [gameStatus, currentUser.id, player1.id, player2.id, session.baseStones_p1, session.baseStones_p2]);
     const prevMyBaseStoneCountForUnlock = usePrevious(myBaseStoneCountForUnlock);
     const prevAnalysisResult = usePrevious(session.analysisResult?.['system']);
     const isSinglePlayer = session.isSinglePlayer;
@@ -1306,10 +1394,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             : gameHasJustEnded ||
               (gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended');
 
+        /** 따내기 승: 계가 연출 직후 ended인 경우(prev scoring)에도 착수·포획 연출 대기 후 모달을 연다 */
         const shouldDelayCaptureResultModal =
             gameHasJustEnded &&
-            prevGameStatus === 'playing' &&
-            session.winReason === 'capture_limit';
+            session.winReason === 'capture_limit' &&
+            (prevGameStatus === 'playing' || prevGameStatus === 'scoring');
 
         if (shouldShowModal) {
             if (shouldDelayCaptureResultModal) {
@@ -1401,14 +1490,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
             case 'missile_selecting': {
                 if (myPlayerEnum === Player.None) return false;
-                if (myPlayerEnum === currentPlayer) return true;
-                // 싱글플레이: 내 착수 직후(turn은 AI로 넘어갔지만) START_MISSILE_SELECTION 허용 구간이 있으므로,
-                // 미사일 선택/발사도 동일하게 허용한다.
-                if (session.isSinglePlayer && !isTower && session.moveHistory?.length) {
-                    const last = session.moveHistory[session.moveHistory.length - 1];
-                    if (last && last.player === myPlayerEnum) return true;
-                }
-                return false;
+                return myPlayerEnum === currentPlayer;
             }
             case 'playing': case 'hidden_placing': 
                 if (pairCurrentSeat) return pairSeatAllowsViewerStonePlacement(pairCurrentSeat, currentUser.id);
@@ -1422,9 +1504,19 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             case 'thief_placing':
                 return myPlayerEnum !== Player.None && myPlayerEnum === currentPlayer;
             case 'base_placement': {
-                 const myStones = currentUser.id === player1.id ? session.baseStones_p1 : session.baseStones_p2;
-                 return (myStones?.length || 0) < (session.settings.baseStones || 4);
+                const target = session.settings.baseStones ?? 4;
+                const pairHostId = getEffectivePairLobbyOwnerId(session);
+                if (pairHostId && currentUser.id === pairHostId) {
+                    const n1 = session.baseStones_p1?.length ?? 0;
+                    const n2 = session.baseStones_p2?.length ?? 0;
+                    return n1 < target || n2 < target;
+                }
+                const myStones = currentUser.id === player1.id ? session.baseStones_p1 : session.baseStones_p2;
+                return (myStones?.length || 0) < target;
             }
+            case 'base_stone_color_choice':
+            case 'base_same_color_points_bid':
+                return !isSpectator && (currentUser.id === player1.id || currentUser.id === player2.id);
             default: return false;
         }
     }, [myPlayerEnum, currentPlayer, gameStatus, isSpectator, session, currentUser.id, player1.id, session.settings, isTower]);
@@ -2138,8 +2230,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             audioService.stopScanBgm();
             actionType = 'SCAN_BOARD';
         } else if (gameStatus === 'base_placement') {
-            const myStones = currentUser.id === player1.id ? session.baseStones_p1 : session.baseStones_p2;
-            if ((myStones?.length || 0) < (session.settings.baseStones || 4)) actionType = 'PLACE_BASE_STONE';
+            const pairHostId = getEffectivePairLobbyOwnerId(session);
+            const baseN = session.settings.baseStones || 4;
+            const n1 = session.baseStones_p1?.length ?? 0;
+            const n2 = session.baseStones_p2?.length ?? 0;
+            let canPlaceBase = false;
+            if (pairHostId) {
+                if (currentUser.id === pairHostId) {
+                    canPlaceBase = n1 < baseN || n2 < baseN;
+                }
+            } else {
+                const myStones = currentUser.id === player1.id ? session.baseStones_p1 : session.baseStones_p2;
+                canPlaceBase = (myStones?.length || 0) < baseN;
+            }
+            if (canPlaceBase) actionType = 'PLACE_BASE_STONE';
         } else if (mode === GameMode.Dice && gameStatus === 'dice_placing' && isMyTurn && (session.stonesToPlace ?? 0) > 0) {
             if (!isDiceGoLibertyPlacement(session, x, y)) return;
             actionType = 'DICE_PLACE_STONE';
@@ -2932,7 +3036,23 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 const stageId = session.adventureStageId;
                 sessionStorage.setItem('postGameRedirect', stageId ? `#/adventure/${stageId}` : '#/adventure');
             } else if (session.settings?.pairGame) {
-                sessionStorage.setItem('postGameRedirect', '#/pair');
+                const pairCh = session.settings.pairGame?.lobbyChannel ?? 'pair';
+                if (pairCh === 'strategic') {
+                    sessionStorage.setItem('postGameRedirect', '#/waiting/strategic');
+                } else if (pairCh === 'playful') {
+                    sessionStorage.setItem('postGameRedirect', '#/waiting/playful');
+                } else {
+                    sessionStorage.setItem('postGameRedirect', '#/pair');
+                }
+                const rid = session.settings.pairGame?.roomId;
+                if (rid && (pairCh === 'strategic' || pairCh === 'playful')) {
+                    try {
+                        sessionStorage.setItem(POST_GAME_PAIR_ROOM_RESTORE_SESSION_KEY, rid);
+                        sessionStorage.setItem(PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY, '1');
+                    } catch {
+                        // ignore
+                    }
+                }
             } else if (session.isAiGame && (SPECIAL_GAME_MODES.some(m => m.mode === session.mode) || PLAYFUL_GAME_MODES.some(m => m.mode === session.mode))) {
                 const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const : 'playful' as const;
                 sessionStorage.setItem('postGameRedirect', `#/waiting/${waitingRoomMode}`);
@@ -2951,6 +3071,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 handlers.handleAction({ type: 'REQUEST_NO_CONTEST_LEAVE', payload: { gameId } });
             }
         } else {
+            if (gameStatus === 'scoring') {
+                window.alert('계가 집계 중에는 기권할 수 없습니다.');
+                return;
+            }
             setConfirmModalType('resign');
         }
     }, [
@@ -2962,6 +3086,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.adventureStageId,
         session.mode,
         session.settings?.pairGame,
+        session.settings?.pairGame?.lobbyChannel,
+        session.settings?.pairGame?.roomId,
         gameId,
         gameStatus,
         isNoContestLeaveAvailable,
@@ -3731,8 +3857,24 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (!session.analysisResult?.['system']) {
             setShowFinalTerritory(false);
         }
-        // 경기 결과 "확인"은 모달만 닫고 대국실에 머무름. 대기실·페어장 이동은 사이드바 등 「나가기」에서만 처리한다.
-    }, [session.analysisResult]);
+        const terminal = ['ended', 'no_contest', 'rematch_pending'].includes(gameStatus);
+        if (!terminal) return;
+        if (isSpectator) {
+            handlers.handleAction({ type: 'LEAVE_SPECTATING' });
+            return;
+        }
+        if (session.isSinglePlayer || session.gameCategory === 'tower' || session.gameCategory === 'singleplayer') {
+            return;
+        }
+        // PVP 등: 결과 모달「확인」은 모달만 닫고 인게임을 유지한다. 대기실·로비 복귀는 사이드바/푸터 「나가기」로만 처리한다.
+    }, [
+        session.analysisResult,
+        gameStatus,
+        isSpectator,
+        session.isSinglePlayer,
+        session.gameCategory,
+        handlers.handleAction,
+    ]);
 
     // 싱글플레이 게임 설명창 표시 여부
     // 결과 모달과 겹치지 않게: 계가/종료 직후 일시적으로 pending이 섞이는 경우에도 설명창이 위를 덮지 않도록 함
@@ -3842,9 +3984,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             isAiHiddenPresentationActive;
     
     const gameProps: GameProps = {
-        session: sessionWithAiHiddenPresentation, onAction: handlers.handleAction, currentUser: currentUserWithStatus, waitingRoomChat: globalChat,
+        session: sessionWithAiHiddenPresentation, onAction: ingameHandleAction, currentUser: currentUserWithStatus, waitingRoomChat: globalChat,
         gameChat: gameChat, isSpectator, onlineUsers, activeNegotiation, negotiations: Object.values(negotiations), onViewUser: handlers.openViewingUser,
         onBoardRuleFlash: flashBoardRuleMessage,
+        singlePlayerStagesListRevision,
     };
 
     // AI 게임 일시 정지 관련 변수 (gameControlsProps보다 먼저 정의)
@@ -3855,7 +3998,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.gameCategory !== 'singleplayer';
 
     const gameControlsProps = {
-        session, isMyTurn, isSpectator, onAction: handlers.handleAction, setShowResultModal, setConfirmModalType, currentUser: currentUserWithStatus,
+        session, isMyTurn, isSpectator, onAction: ingameHandleAction, setShowResultModal, setConfirmModalType, currentUser: currentUserWithStatus,
         onlineUsers, pendingMove, onConfirmMove: handleConfirmMove, onCancelMove: handleCancelMove, settings, isMobile,
         onUpdateFeatureSetting: updateFeatureSetting,
         showResultModal,
@@ -3871,6 +4014,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             : undefined,
         onOpenGameRecordList: handlers.openGameRecordList,
         onLeaveOrResign: handleLeaveOrResignClick,
+        strategicPetHintFooterBubble:
+            strategicPetHintBoardOverlay?.showBubble && strategicPetHintBoardOverlay.message
+                ? { message: strategicPetHintBoardOverlay.message, visible: true }
+                : null,
     };
 
     if (isSinglePlayer) {
@@ -3903,7 +4050,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 <Header compact />
                 <div className="flex-1 flex flex-row gap-2 min-h-0 overflow-hidden">
                     <main className="flex-1 flex items-center justify-center min-w-0 min-h-0 overflow-hidden">
-                        <div className="w-full h-full max-h-full max-w-full flex min-h-0 flex-col items-stretch gap-1 lg:gap-2">
+                        <div className="w-full h-full max-h-full max-w-full flex min-h-0 flex-col items-stretch gap-0.5 lg:gap-1.5">
                         <div className="flex w-full flex-shrink-0 justify-center">
                                 <div className="min-w-0 w-full flex-1 px-2 pt-1 min-[1025px]:px-1">
                                     <PlayerPanel
@@ -3938,6 +4085,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         onboardingDemoAnchorPoint={intro1OnboardingDemoPoint}
                                         onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
                                         intro1TutorialHighlight={intro1OnboardingDemoPoint}
+                                        strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                     />
                                     {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
                                     {showMoveConfirmPanel && (
@@ -4083,7 +4231,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 <Header compact />
                 <div className="flex-1 flex flex-row gap-2 min-h-0 overflow-hidden">
                     <main className="flex-1 flex items-center justify-center min-w-0 min-h-0 overflow-hidden">
-                        <div className="w-full h-full max-h-full max-w-full flex min-h-0 flex-col items-stretch gap-1 lg:gap-2">
+                        <div className="w-full h-full max-h-full max-w-full flex min-h-0 flex-col items-stretch gap-0.5 lg:gap-1.5">
                         <div className="flex w-full flex-shrink-0 justify-center">
                             <div className="min-w-0 w-full flex-1 px-2 pt-1 min-[1025px]:px-1">
                                     <PlayerPanel
@@ -4116,6 +4264,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         onboardingDemoAnchorPoint={intro1OnboardingDemoPoint}
                                         onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
                                         intro1TutorialHighlight={intro1OnboardingDemoPoint}
+                                        strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                     />
                                 {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
                                 {showMoveConfirmPanel && (
@@ -4220,13 +4369,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         );
     }
 
-    // PVP 게임 배경: 페어 경기장(`lobbyChannel === 'pair'`)만 전용 이미지, 전략/놀이 페어식 대국은 CSS 배경
-    const isPairIngame = Boolean(session.settings.pairGame?.turnOrder?.length);
-    const pairGameLobbyChannel = session.settings.pairGame?.lobbyChannel ?? 'pair';
-    const usePairArenaBackdrop = Boolean(session.settings.pairGame) && pairGameLobbyChannel === 'pair';
+    // PVP 게임 배경·상단 레일: `#/pair`에서 시작한 대국만 페어 전용, 집계 경기장(strategic/playful)은 일반 전략/놀이 스킨
+    const usePairArenaIngameChrome = sessionUsesPairArenaIngameChrome(session);
+    const usePairArenaBackdrop = usePairArenaIngameChrome;
     const pairBackgroundImage = usePairArenaBackdrop ? '/images/bg/pairbg.webp' : null;
     const pvpBackgroundClass = useMemo(() => {
-        if (isPairIngame && pairGameLobbyChannel === 'pair') {
+        if (usePairArenaIngameChrome) {
             return '';
         }
         if (isGuildWarGame) {
@@ -4239,7 +4387,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return 'bg-playful-background';
         }
         return 'bg-tertiary';
-    }, [mode, isGuildWarGame, isPairIngame, pairGameLobbyChannel]);
+    }, [mode, isGuildWarGame, usePairArenaIngameChrome]);
 
     // AI 게임도 클라이언트 일시 정지 상태 사용 (싱글플레이어와 동일한 방식)
     // isPausableAiGame은 위에서 이미 정의됨
@@ -4274,6 +4422,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             {isAiRematchModalOpen && (
                 <AiChallengeModal
                     lobbyType={SPECIAL_GAME_MODES.some(m => m.mode === mode) ? 'strategic' : 'playful'}
+                    preferredGameSettingsBucket={
+                        SPECIAL_GAME_MODES.some((m) => m.mode === mode) ? 'strategic_ai_challenge' : 'playful_ai_challenge'
+                    }
                     seedFromSession={{ mode: session.mode, settings: session.settings }}
                     onClose={() => setIsAiRematchModalOpen(false)}
                     onAction={(action) => {
@@ -4298,8 +4449,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             : 'flex-1 flex min-w-0 min-h-0 overflow-hidden items-stretch justify-center'
                     }
                 >
-                    <div className="w-full h-full max-h-full max-w-full flex min-h-0 flex-col items-stretch gap-1 lg:gap-2">
-                        {!isPairIngame && (
+                    <div className="w-full h-full max-h-full max-w-full flex min-h-0 flex-col items-stretch gap-0.5 lg:gap-1.5">
+                        {!usePairArenaIngameChrome && (
                             <div
                                 className={
                                     isAdventureGame
@@ -4328,7 +4479,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                             isAdventureGame ? 'overflow-hidden' : 'overflow-auto'
                                         } ${effectivePaused ? 'opacity-0 pointer-events-none' : 'opacity-100'} transition-opacity duration-500`}
                                     >
-                                        {isPairIngame ? (
+                                        {usePairArenaIngameChrome ? (
                                             <div className="flex h-full w-full min-w-0 flex-col overflow-hidden px-1 py-1">
                                                 <PairIngameTopPanel
                                                     session={session}
@@ -4367,6 +4518,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                         onboardingDemoAnchorPoint={intro1OnboardingDemoPoint}
                                                         onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
                                                         intro1TutorialHighlight={intro1OnboardingDemoPoint}
+                                                        strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                                     />
                                                 </div>
                                             </div>
@@ -4383,6 +4535,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                 myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
                                                 showLastMoveMarker={settings.features.lastMoveMarker}
                                                 captureScoreFloatMinPoints={settings.features.captureScoreAnimation ? 1 : 2}
+                                                strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                                 isBoardRotated={isBoardRotated}
                                                 onToggleBoardRotation={() => setIsBoardRotated((prev: boolean) => !prev)}
                                                 showBoardGlow={boardGlowForHiddenScanItem}

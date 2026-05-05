@@ -40,6 +40,8 @@ interface TowerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'c
     isMobile?: boolean;
     /** Game.tsx에서 gameControlsProps 일괄 전달 시 무시 */
     onLeaveOrResign?: () => void;
+    /** Game.tsx gameControlsProps 일괄 전달 시 무시 */
+    strategicPetHintFooterBubble?: { message: string; visible: boolean } | null;
 }
 
 interface ImageButtonProps {
@@ -55,7 +57,7 @@ interface ImageButtonProps {
 
 const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled = false, title, count, maxCount, compact = false }) => {
     const sizeClass = compact
-        ? 'h-16 w-16 shrink-0 rounded-xl sm:h-[4.25rem] sm:w-[4.25rem] md:h-[4.5rem] md:w-[4.5rem]'
+        ? 'h-10 w-10 shrink-0 rounded-md sm:h-10 sm:w-10 md:h-10 md:w-10'
         : 'h-[4.25rem] w-[4.25rem] rounded-xl min-[1025px]:h-16 min-[1025px]:w-16';
     return (
         <button
@@ -266,6 +268,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     };
 
     const handleForfeit = () => {
+        if (session.gameStatus === 'scoring') return;
         setConfirmModalType?.('resign');
     };
 
@@ -437,7 +440,8 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 					src="/images/button/giveup.png"
 					alt="기권"
 					onClick={handleForfeit}
-					title="기권하기"
+					disabled={gameStatus === 'scoring'}
+					title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'}
 					compact={isMobile}
 				/>
 				<span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>기권</span>
@@ -568,15 +572,15 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 		<footer
 			className={`responsive-controls flex-shrink-0 w-full ${arenaGameRoomIngameBottomBarShellClass} ${
 				isMobile
-					? 'flex h-[164px] w-full min-w-0 flex-row items-stretch gap-3 p-2'
+					? 'flex h-[104px] w-full min-w-0 flex-row items-stretch gap-1.5 p-1'
 					: 'flex min-h-[124px] flex-row items-stretch gap-6 p-2 min-[1025px]:gap-7 min-[1025px]:py-1.5 min-[1025px]:px-2.5'
 			}`}
 		>
 			{isMobile ? (
 				<>
-					<div className={`flex min-w-0 flex-1 flex-col justify-center px-1 py-2 ${arenaGameRoomIngameInnerNeutralSurfaceClass}`}>
+					<div className={`flex min-w-0 flex-1 flex-col justify-center px-0.5 py-1 ${arenaGameRoomIngameInnerNeutralSurfaceClass}`}>
 						<div className="flex min-h-0 w-full flex-1 items-center justify-center">
-							<ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-3">
+							<ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
 								{coreZone}
 							</ArenaControlStrip>
 						</div>
@@ -584,9 +588,9 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 					{(showTurnAdd || showMissileAndHiddenForHook) && (
 						<>
 							<div className="w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-600/20 via-stone-500/50 to-stone-600/20" aria-hidden />
-							<div className={`flex min-w-0 flex-1 flex-col justify-center px-1 py-2 ${arenaGameRoomIngameInnerItemSurfaceClass}`}>
+							<div className={`flex min-w-0 flex-1 flex-col justify-center px-0.5 py-1 ${arenaGameRoomIngameInnerItemSurfaceClass}`}>
 								<div className="flex min-h-0 w-full flex-1 items-center justify-center">
-									<ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-3">
+									<ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
 										{itemZone}
 									</ArenaControlStrip>
 								</div>

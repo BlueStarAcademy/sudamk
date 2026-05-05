@@ -88,7 +88,7 @@ const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, 
     const handleResetAllUsersStrategicRankingToBase = () => {
         if (
             window.confirm(
-                '모든 유저의 전략바둑 통합 랭킹 점수를 1200점(기준)으로 되돌립니다. 전적(승·패)은 유지됩니다. 계속하시겠습니까?'
+                '모든 유저의 전략·페어 랭킹전 전용 전적(승·패)을 0으로 초기화하고, 시즌 점수·누적 델타를 1200점 기준으로 맞춥니다. 되돌릴 수 없습니다. 계속하시겠습니까?'
             )
         ) {
             onAction({ type: 'ADMIN_RESET_ALL_USERS_STRATEGIC_RANKING_TO_BASE' });
@@ -167,12 +167,13 @@ const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, 
 
     const strategicRankingSection = (
         <section className={sectionClass}>
-            <h2 className={adminCardTitle}>전략바둑 랭킹 일괄 초기화</h2>
+            <h2 className={adminCardTitle}>전략·페어 랭킹전 일괄 초기화</h2>
             <p className="text-sm text-gray-400">
-                전체 유저의 전략바둑 통합 랭킹 점수를 1200점(기준)으로 맞춥니다. 랭킹전 승·패 통계는 그대로 두고 점수만 초기화합니다.
+                전체 유저의 랭킹전 전용 전적(승·패)을 0으로 초기화하고, 전략·페어 시즌 점수 및 누적 델타를 1200점 기준으로 맞춥니다.
+                모드별·페어 친선 전적(pairArenaStatsByMode 등)은 건드리지 않습니다.
             </p>
             <Button onClick={handleResetAllUsersStrategicRankingToBase} colorScheme="orange" variant="outline" className="w-full sm:w-auto">
-                전체 유저 전략바둑 랭킹 1200점으로 초기화
+                전체 유저 랭킹전 전적·점수 초기화
             </Button>
         </section>
     );

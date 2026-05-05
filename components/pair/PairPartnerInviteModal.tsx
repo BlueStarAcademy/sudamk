@@ -3,6 +3,7 @@ import type { UserWithStatus } from '../../types.js';
 import type { ServerAction } from '../../types.js';
 import PlayerList, { type PairInviteListTab } from '../waiting-room/PlayerList.js';
 import { UserStatus } from '../../types.js';
+import { userInUnifiedArenaLobbyUserList } from '../../shared/utils/unifiedArenaLobbyUserList.js';
 
 type Props = {
     onClose: () => void;
@@ -44,14 +45,8 @@ const PairPartnerInviteModal: React.FC<Props> = ({
     const friendSet = useMemo(() => new Set(friendIds), [friendIds]);
 
     const pairLobbyUsers = useMemo(
-        () =>
-            onlineUsers.filter(
-                (u) =>
-                    u.status === UserStatus.Waiting ||
-                    u.status === UserStatus.Online ||
-                    u.status === UserStatus.Resting
-            ),
-        [onlineUsers]
+        () => onlineUsers.filter((u) => userInUnifiedArenaLobbyUserList(u)),
+        [onlineUsers],
     );
 
     const displayedUsers = useMemo(() => {
@@ -73,10 +68,13 @@ const PairPartnerInviteModal: React.FC<Props> = ({
         if (currentUser.status === UserStatus.Resting) return '휴식 중에는 파트너를 초대할 수 없습니다.';
         if (u.id === currentUserId) return '본인은 초대할 수 없습니다.';
         if (u.status === UserStatus.Resting) return '휴식 중인 유저는 초대할 수 없습니다.';
+        if (u.status === UserStatus.InGame || u.status === UserStatus.Negotiating) {
+            return '경기 또는 협상 중인 유저는 초대할 수 없습니다.';
+        }
         const until = mergedCooldownUntil[u.id] ?? 0;
         if (Date.now() < until) return '잠시 후 다시 초대할 수 있습니다 (10초)';
-        if (tab === 'users' && !u.inPairLobby) {
-            return '페어 경기장 화면에 있는 유저만 초대할 수 있습니다.';
+        if (tab === 'users' && !userInUnifiedArenaLobbyUserList(u)) {
+            return '전략·놀이·페어 대국실에 머무는 유저만 초대할 수 있습니다.';
         }
         return null;
     };

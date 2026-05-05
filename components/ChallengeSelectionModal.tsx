@@ -19,15 +19,7 @@ import {
 } from '../constants/gameSettings';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
-import {
-  diceGoUnifiedSpecialDiceCounts,
-  getDiceGoUnifiedSpecialDiceCount,
-} from '../shared/utils/diceGoSettings.js';
-import {
-  getThiefUnifiedSpecialDiceCount,
-  thiefUnifiedSpecialDiceCounts,
-} from '../shared/utils/thiefGoSettings.js';
-
+import { mixSubRuleDisplayName } from '../shared/utils/mixSubRuleDisplayName.js';
 /** 전략 로비에서 판 크기별 ‘계가까지 턴’ 옵션을 쓰는 모드 (따내기 바둑·따목 등 제외) */
 const STRATEGIC_MODES_WITH_SCORING_TURN: GameMode[] = [
   GameMode.Standard,
@@ -88,7 +80,7 @@ const GameCard: React.FC<{
     const noClick = isRejected || interactionLocked;
     return (
         <div
-            className={`bg-panel text-on-panel rounded-lg flex flex-col items-center text-center transition-all transform ${
+            className={`bg-panel text-on-panel flex flex-col items-center rounded-lg text-center transition-all transform ${
                 isRejected 
                     ? 'opacity-50 cursor-not-allowed grayscale pointer-events-none' 
                     : interactionLocked && !isSelected
@@ -104,12 +96,11 @@ const GameCard: React.FC<{
                 }
             }}
         >
-            <div 
-                className="w-full flex-shrink-0 bg-tertiary rounded-md flex items-center justify-center text-tertiary overflow-hidden shadow-inner relative"
-                style={{ 
+            <div
+                className="relative flex w-full flex-shrink-0 items-center justify-center overflow-hidden rounded-md bg-tertiary text-tertiary shadow-inner"
+                style={{
                     height: `${imageHeight}px`,
-                    marginBottom: `${Math.max(4, Math.round(8 * scaleFactor))}px`,
-                    padding: `${Math.max(4, Math.round(8 * scaleFactor))}px`
+                    padding: `${Math.max(4, Math.round(8 * scaleFactor))}px`,
                 }}
             >
                 {!imgError ? (
@@ -135,14 +126,12 @@ const GameCard: React.FC<{
                     <span style={{ fontSize: `${fontSize}px` }}>{mode}</span>
                 )}
             </div>
-            <div className="flex-grow flex flex-col w-full">
-                <h3 
-                    className={`font-bold leading-tight ${isRejected ? 'text-gray-400' : 'text-primary'}`}
-                    style={{ fontSize: `${titleFontSize}px`, marginBottom: `${Math.max(2, Math.round(4 * scaleFactor))}px` }}
-                >
-                    {mode}
-                </h3>
-            </div>
+            <h3
+                className={`w-full shrink-0 font-bold leading-tight ${isRejected ? 'text-gray-400' : 'text-primary'}`}
+                style={{ fontSize: `${titleFontSize}px` }}
+            >
+                {mode}
+            </h3>
         </div>
     );
 };
@@ -344,6 +333,13 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
       : 0;
 
   const handleGameSelect = (mode: GameMode) => {
+    try {
+      if (selectedMode && selectedMode !== mode) {
+        localStorage.setItem(`preferredGameSettings_${selectedMode}`, JSON.stringify(settings));
+      }
+    } catch {
+      /* ignore quota / private mode */
+    }
     setSelectedMode(mode);
     // 로컬 스토리지에서 선호 설정 불러오기
     try {
@@ -453,7 +449,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
             lineHeight: 1.45,
           }}
         >
-          좌측에서 게임 종류를 선택하세요
+          좌측에서 게임 모드를 선택하세요
         </div>
       );
     }
@@ -492,10 +488,17 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
       lineHeight: 1.35,
       padding: `${Math.max(8, Math.round(10 * scaleFactor))}px`,
     };
+    /** `<select>`에는 좌우대칭 패딩만 쓰면 네이티브 화살표와 글자가 겹침 — 클래스에서 오른쪽 여유 확보 */
+    const selectFontStyle = {
+      fontSize: inputStyle.fontSize,
+      lineHeight: inputStyle.lineHeight,
+    };
     const settingsLabelClass =
       'font-semibold text-gray-200 flex-shrink-0 text-[15px] sm:text-[16px] leading-snug antialiased subpixel-antialiased [text-rendering:optimizeLegibility]';
-    const settingsSelectFullClass =
-      'w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-400 py-2.5 px-3 text-[15px] sm:text-[16px] leading-snug antialiased subpixel-antialiased [text-rendering:optimizeLegibility]';
+    const settingsControlBaseClass =
+      'w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-400 py-2.5 text-[15px] sm:text-[16px] leading-snug antialiased subpixel-antialiased [text-rendering:optimizeLegibility]';
+    const settingsSelectFullClass = `${settingsControlBaseClass} pl-3 pr-9`;
+    const settingsNumberInputFullClass = `${settingsControlBaseClass} px-3`;
 
     const boardSizeOptions = selectedMode != null ? getStrategicBoardSizesByMode(selectedMode) : BOARD_SIZES;
 
@@ -532,7 +535,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                         className="h-4 w-4 shrink-0"
                       />
                       <span className="leading-tight text-gray-200" style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor))}px` }}>
-                        {m.name}
+                        {mixSubRuleDisplayName(m.name)}
                       </span>
                     </label>
                   );
@@ -560,9 +563,9 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               value={settings.boardSize} 
               onChange={e => handleSettingChange('boardSize', parseInt(e.target.value, 10) as GameSettings['boardSize'])}
               className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-              style={inputStyle}
-            >
-              {(selectedMode === GameMode.Omok || selectedMode === GameMode.Ttamok ? OMOK_BOARD_SIZES : 
+                style={selectFontStyle}
+              >
+                {(selectedMode === GameMode.Omok || selectedMode === GameMode.Ttamok ? OMOK_BOARD_SIZES :
                 selectedMode === GameMode.Thief ? [9, 13, 19] : 
                 boardSizeOptions).map(size => (
                 <option key={size} value={size}>{size}줄</option>
@@ -587,7 +590,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               }
               onChange={(e) => handleSettingChange('scoringTurnLimit', parseInt(e.target.value, 10))}
               className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-              style={inputStyle}
+              style={selectFontStyle}
             >
               {getScoringTurnLimitOptionsByBoardSize(settings.boardSize)
                 .filter((l) => l > 0)
@@ -621,7 +624,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                     clampGameInt(parseInt(e.target.value, 10) || 0, { min: 0, max: MAX_GAME_INTEGER_INPUT }) + 0.5,
                   )
                 }
-                className={`${settingsSelectFullClass} min-h-[2.75rem]`}
+                className={`${settingsNumberInputFullClass} min-h-[2.75rem]`}
                 style={inputStyle}
               />
               <span className="font-bold text-gray-200 whitespace-nowrap antialiased subpixel-antialiased" style={labelStyle}>
@@ -638,7 +641,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               value={settings.captureTarget} 
               onChange={e => handleSettingChange('captureTarget', parseInt(e.target.value))}
               className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
+                style={selectFontStyle}
             >
               {CAPTURE_TARGETS.map(t => <option key={t} value={t}>{t}점</option>)}
             </select>
@@ -652,7 +655,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               value={settings.captureTarget ?? 20} 
               onChange={e => handleSettingChange('captureTarget', parseInt(e.target.value))}
               className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
+                style={selectFontStyle}
             >
               {TTAMOK_CAPTURE_TARGETS.map(t => <option key={t} value={t}>{t}개</option>)}
             </select>
@@ -672,7 +675,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                     value={settings.timeLimit}
                     onChange={(e) => handleSettingChange('timeLimit', parseInt(e.target.value, 10))}
                     className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                    style={inputStyle}
+                    style={selectFontStyle}
                   >
                     {SPEED_TIME_LIMITS.map((t) => (
                       <option key={t.value} value={t.value}>
@@ -700,7 +703,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                     value={settings.timeLimit}
                     onChange={(e) => handleSettingChange('timeLimit', parseInt(e.target.value, 10))}
                     className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                    style={inputStyle}
+                    style={selectFontStyle}
                   >
                     {TIME_LIMITS.map((t) => (
                       <option key={t.value} value={t.value}>
@@ -718,7 +721,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                       value={settings.byoyomiTime}
                       onChange={(e) => handleSettingChange('byoyomiTime', parseInt(e.target.value, 10))}
                       className={`${settingsSelectFullClass} min-h-[2.75rem] w-full min-w-0`}
-                      style={inputStyle}
+                      style={selectFontStyle}
                     >
                       {BYOYOMI_TIMES.map((t) => (
                         <option key={t} value={t}>
@@ -730,7 +733,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                       value={settings.byoyomiCount}
                       onChange={(e) => handleSettingChange('byoyomiCount', parseInt(e.target.value, 10))}
                       className={`${settingsSelectFullClass} min-h-[2.75rem] w-full min-w-0`}
-                      style={inputStyle}
+                      style={selectFontStyle}
                     >
                       {BYOYOMI_COUNTS.map((c) => (
                         <option key={c} value={c}>
@@ -753,7 +756,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 value={settings.baseStones} 
                 onChange={e => handleSettingChange('baseStones', parseInt(e.target.value))}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                  style={inputStyle}
+                  style={selectFontStyle}
               >
                 {BASE_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
               </select>
@@ -769,7 +772,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 value={settings.hiddenStoneCount} 
                 onChange={e => handleSettingChange('hiddenStoneCount', parseInt(e.target.value))}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
+                style={selectFontStyle}
               >
                 {HIDDEN_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
               </select>
@@ -785,7 +788,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 value={settings.scanCount || 5} 
                 onChange={e => handleSettingChange('scanCount', parseInt(e.target.value))}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
+                style={selectFontStyle}
               >
                 {SCAN_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
               </select>
@@ -801,7 +804,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 value={settings.missileCount} 
                 onChange={e => handleSettingChange('missileCount', parseInt(e.target.value))}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                  style={inputStyle}
+                  style={selectFontStyle}
               >
                 {MISSILE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
               </select>
@@ -817,25 +820,69 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 value={settings.diceGoRounds ?? 3} 
                 onChange={e => handleSettingChange('diceGoRounds', parseInt(e.target.value, 10) as 1 | 2 | 3)}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
+                style={selectFontStyle}
               >
                 {[1, 2, 3].map(r => <option key={r} value={r}>{r}라운드</option>)}
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>특수주사위</label>
-              <select 
-                value={getDiceGoUnifiedSpecialDiceCount(settings)} 
-                onChange={e =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    ...diceGoUnifiedSpecialDiceCounts(parseInt(e.target.value, 10)),
-                  }))
-                }
+              <label className={settingsLabelClass} style={labelStyle}>홀수주사위</label>
+              <select
+                value={settings.oddDiceCount ?? 1}
+                onChange={(e) => handleSettingChange('oddDiceCount', parseInt(e.target.value, 10))}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
+                style={selectFontStyle}
               >
-                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개 (유형당)</option>)}
+                {DICE_GO_ITEM_COUNTS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}개
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
+              <label className={settingsLabelClass} style={labelStyle}>짝수주사위</label>
+              <select
+                value={settings.evenDiceCount ?? 1}
+                onChange={(e) => handleSettingChange('evenDiceCount', parseInt(e.target.value, 10))}
+                className={`${settingsSelectFullClass} min-h-[2.75rem]`}
+                style={selectFontStyle}
+              >
+                {DICE_GO_ITEM_COUNTS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}개
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
+              <label className={settingsLabelClass} style={labelStyle}>(고)주사위</label>
+              <select
+                value={settings.highDiceCount ?? 1}
+                onChange={(e) => handleSettingChange('highDiceCount', parseInt(e.target.value, 10))}
+                className={`${settingsSelectFullClass} min-h-[2.75rem]`}
+                style={selectFontStyle}
+              >
+                {DICE_GO_ITEM_COUNTS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}개
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
+              <label className={settingsLabelClass} style={labelStyle}>(저)주사위</label>
+              <select
+                value={settings.lowDiceCount ?? 1}
+                onChange={(e) => handleSettingChange('lowDiceCount', parseInt(e.target.value, 10))}
+                className={`${settingsSelectFullClass} min-h-[2.75rem]`}
+                style={selectFontStyle}
+              >
+                {DICE_GO_ITEM_COUNTS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}개
+                  </option>
+                ))}
               </select>
             </div>
           </SettingsSection>
@@ -844,19 +891,33 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         {showThiefGoItemSettings && (
           <SettingsSection title="도둑 바둑" scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>특수주사위</label>
+              <label className={settingsLabelClass} style={labelStyle}>(고)주사위</label>
               <select
-                value={getThiefUnifiedSpecialDiceCount(settings)}
-                onChange={e =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    ...thiefUnifiedSpecialDiceCounts(parseInt(e.target.value, 10)),
-                  }))
-                }
+                value={settings.thiefHigh36ItemCount ?? 1}
+                onChange={(e) => handleSettingChange('thiefHigh36ItemCount', parseInt(e.target.value, 10))}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
+                style={selectFontStyle}
               >
-                {DICE_GO_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개 (유형당)</option>)}
+                {DICE_GO_ITEM_COUNTS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}개
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
+              <label className={settingsLabelClass} style={labelStyle}>방지주사위</label>
+              <select
+                value={settings.thiefNoOneItemCount ?? 1}
+                onChange={(e) => handleSettingChange('thiefNoOneItemCount', parseInt(e.target.value, 10))}
+                className={`${settingsSelectFullClass} min-h-[2.75rem]`}
+                style={selectFontStyle}
+              >
+                {DICE_GO_ITEM_COUNTS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}개
+                  </option>
+                ))}
               </select>
             </div>
           </SettingsSection>
@@ -893,7 +954,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 value={settings.alkkagiStoneCount ?? 5} 
                 onChange={e => handleSettingChange('alkkagiStoneCount', parseInt(e.target.value))}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
+                style={selectFontStyle}
               >
                 {ALKKAGI_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
               </select>
@@ -904,7 +965,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 value={settings.alkkagiRounds ?? 1} 
                 onChange={e => handleSettingChange('alkkagiRounds', parseInt(e.target.value) as 1 | 2 | 3)}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
+                style={selectFontStyle}
               >
                 {ALKKAGI_ROUNDS.map(r => <option key={r} value={r}>{r}라운드</option>)}
               </select>
@@ -915,7 +976,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 value={settings.alkkagiPlacementType ?? AlkkagiPlacementType.TurnByTurn} 
                 onChange={e => handleSettingChange('alkkagiPlacementType', e.target.value as AlkkagiPlacementType)}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
+                style={selectFontStyle}
               >
                 {Object.values(AlkkagiPlacementType).map(type => <option key={type} value={type}>{type}</option>)}
               </select>
@@ -926,7 +987,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 value={settings.alkkagiLayout ?? AlkkagiLayoutType.Normal} 
                 onChange={e => handleSettingChange('alkkagiLayout', e.target.value as AlkkagiLayoutType)}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
+                style={selectFontStyle}
               >
                 {Object.values(AlkkagiLayoutType).map(type => <option key={type} value={type}>{type}</option>)}
               </select>
@@ -937,7 +998,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 value={settings.alkkagiGaugeSpeed ?? 700} 
                 onChange={e => handleSettingChange('alkkagiGaugeSpeed', parseInt(e.target.value))}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
+                style={selectFontStyle}
               >
                 {ALKKAGI_GAUGE_SPEEDS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
@@ -948,7 +1009,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 value={settings.alkkagiSlowItemCount ?? 2} 
                 onChange={e => handleSettingChange('alkkagiSlowItemCount', parseInt(e.target.value))}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
+                style={selectFontStyle}
               >
                 {ALKKAGI_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
               </select>
@@ -959,7 +1020,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 value={settings.alkkagiAimingLineItemCount ?? 2} 
                 onChange={e => handleSettingChange('alkkagiAimingLineItemCount', parseInt(e.target.value))}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
+                style={selectFontStyle}
               >
                 {ALKKAGI_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
               </select>
@@ -975,7 +1036,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 value={settings.curlingStoneCount ?? 5} 
                 onChange={e => handleSettingChange('curlingStoneCount', parseInt(e.target.value))}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
+                style={selectFontStyle}
               >
                 {CURLING_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
               </select>
@@ -986,7 +1047,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 value={settings.curlingRounds ?? 3} 
                 onChange={e => handleSettingChange('curlingRounds', parseInt(e.target.value) as 1 | 2 | 3)}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
+                style={selectFontStyle}
               >
                 {CURLING_ROUNDS.map(r => <option key={r} value={r}>{r}라운드</option>)}
               </select>
@@ -997,7 +1058,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 value={settings.curlingGaugeSpeed ?? 700} 
                 onChange={e => handleSettingChange('curlingGaugeSpeed', parseInt(e.target.value))}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
+                style={selectFontStyle}
               >
                 {CURLING_GAUGE_SPEEDS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
@@ -1008,7 +1069,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 value={settings.curlingSlowItemCount ?? 2} 
                 onChange={e => handleSettingChange('curlingSlowItemCount', parseInt(e.target.value))}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
+                style={selectFontStyle}
               >
                 {CURLING_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
               </select>
@@ -1019,7 +1080,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 value={settings.curlingAimingLineItemCount ?? 2} 
                 onChange={e => handleSettingChange('curlingAimingLineItemCount', parseInt(e.target.value))}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                style={inputStyle}
+                style={selectFontStyle}
               >
                 {CURLING_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
               </select>
@@ -1111,13 +1172,13 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                       className="font-bold tabular-nums text-gray-100"
                       style={{ fontSize: `${Math.max(14, Math.round(15 * scaleFactor))}px`, lineHeight: 1.3 }}
                     >
-                      {selectedGameStats.wins}승 {selectedGameStats.losses}패
+                      {(selectedGameStats.wins ?? 0)}승 {(selectedGameStats.losses ?? 0)}패
                       <span className="ml-1 font-semibold text-gray-400">
                         (
-                        {selectedGameStats.wins + selectedGameStats.losses > 0
+                        {(selectedGameStats.wins ?? 0) + (selectedGameStats.losses ?? 0) > 0
                           ? Math.round(
-                              (selectedGameStats.wins /
-                                (selectedGameStats.wins + selectedGameStats.losses)) *
+                              ((selectedGameStats.wins ?? 0) /
+                                ((selectedGameStats.wins ?? 0) + (selectedGameStats.losses ?? 0))) *
                                 100,
                             )
                           : 0}
@@ -1148,7 +1209,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
             className="flex min-h-0 flex-1 flex-row overflow-hidden"
             style={{ gap: `${Math.max(6, Math.round(10 * scaleFactor))}px` }}
           >
-          {/* 좌측 패널: 게임 종류 선택 또는 게임 정보 */}
+          {/* 좌측 패널: 게임 모드 선택 또는 게임 정보 */}
           <div 
             className="min-w-0 flex-[0_0_42%] sudamr-modal-inner-well flex flex-col overflow-hidden rounded-xl border border-white/[0.07]"
             style={{
@@ -1196,11 +1257,11 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </div>
             )}
 
-            <div 
-              className="flex-1 grid grid-cols-2 overflow-y-auto min-h-0"
-              style={{ 
+            <div
+              className="grid min-h-0 flex-1 grid-cols-2 items-start overflow-y-auto"
+              style={{
                 gap: `${Math.max(6, Math.round(12 * scaleFactor))}px`,
-                paddingRight: `${Math.max(4, Math.round(8 * scaleFactor))}px`
+                paddingRight: `${Math.max(4, Math.round(8 * scaleFactor))}px`,
               }}
             >
               {availableGames.map((game) => {

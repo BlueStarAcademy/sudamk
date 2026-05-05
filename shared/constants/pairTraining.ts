@@ -129,9 +129,22 @@ export const PAIR_TRAINING_SLOT_DEFS: PairTrainingSlotDef[] = [
     },
 ];
 
-type StatsLike = { stats?: Record<string, { wins?: number } | undefined> | undefined };
+type StatsLike = {
+    stats?: Record<string, { wins?: number } | undefined> | undefined;
+    pairArenaStatsByMode?: Record<string, { wins?: number; losses?: number } | undefined> | undefined;
+};
 
+/** 페어 훈련 슬롯 언락용: 경기장 모드별 전적 승수 합(친선·AI 포함). 랭킹전 전용 `pairRankedMatchRecord`와 무관 */
 export function getPairWins(user: StatsLike): number {
+    const byMode = user.pairArenaStatsByMode;
+    if (byMode && typeof byMode === 'object') {
+        let sum = 0;
+        for (const row of Object.values(byMode)) {
+            const w = row?.wins;
+            if (typeof w === 'number' && Number.isFinite(w)) sum += Math.max(0, Math.floor(w));
+        }
+        return sum;
+    }
     const w = user.stats?.['pair']?.wins;
     return typeof w === 'number' && Number.isFinite(w) ? Math.max(0, Math.floor(w)) : 0;
 }

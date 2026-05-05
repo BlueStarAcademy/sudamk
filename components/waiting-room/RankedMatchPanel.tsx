@@ -4,6 +4,7 @@ import type { RankingEntry } from '../../hooks/useRanking.js';
 import Button from '../Button.js';
 import PairPetRankedMatchModeModal from '../pair/PairPetRankedMatchModeModal.js';
 import { RANKING_TIERS, SPECIAL_GAME_MODES, STRATEGIC_ACTION_POINT_COST } from '../../constants';
+import { readStrategicRankedBlock } from '../../shared/utils/unifiedRankedStatsMigration.js';
 import { RANKED_STRATEGIC_MODES } from '../../constants/rankedGameSettings.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { useRanking } from '../../hooks/useRanking.js';
@@ -82,27 +83,13 @@ function tierMetaByName(name: string | null | undefined) {
 function computeSeasonSnapshotFromUserStats(
     user: UserWithStatus,
     rankings: RankingEntry[],
-): { score: number; rank: number; totalGames: number; wins: number; losses: number } | null {
-    const gameModes = SPECIAL_GAME_MODES;
-    let wins = 0;
-    let losses = 0;
-    let totalScore = 0;
-    let modeCount = 0;
-    for (const { mode } of gameModes) {
-        const st = user.stats?.[mode];
-        if (st) {
-            wins += st.wins ?? 0;
-            losses += st.losses ?? 0;
-            if (st.rankingScore !== undefined) {
-                totalScore += st.rankingScore;
-                modeCount++;
-            }
-        }
-    }
+): { score: number; rank: number; totalGames: number; wins: number; losses: number } {
+    const blk = readStrategicRankedBlock(user.stats as Record<string, { wins?: number; losses?: number; rankingScore?: number }>);
+    const wins = blk.wins;
+    const losses = blk.losses;
     const totalGames = wins + losses;
-    if (modeCount === 0 && totalGames === 0) return null;
 
-    const avgScore = modeCount > 0 ? Math.round(totalScore / modeCount) : 1200;
+    const avgScore = blk.rankingScore;
     const eligible = rankings.filter((r) => (r.totalGames ?? 0) >= 10);
     const myEntry = rankings.find((r) => r.id === user.id);
     let rank: number;
@@ -178,9 +165,16 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                   };
               })()
             : computeSeasonSnapshotFromUserStats(currentUser, rankings);
-        if (!fromApi) return null;
-        const tier = getTier(fromApi.score, fromApi.rank, fromApi.totalGames);
-        return { tier, ...fromApi };
+        /** 랭킹 API 캐시·구 스키마와 무관하게, 본인 `stats`의 랭킹전 전용 전적이 단일 출처 */
+        const statBlk = readStrategicRankedBlock(currentUser.stats as Record<string, { wins?: number; losses?: number; rankingScore?: number }>);
+        const merged = {
+            ...fromApi,
+            wins: statBlk.wins,
+            losses: statBlk.losses,
+            totalGames: statBlk.wins + statBlk.losses,
+        };
+        const tier = getTier(merged.score, merged.rank, merged.totalGames);
+        return { tier, ...merged };
     }, [rankings, currentUser]);
 
     const isFirstSeason = useMemo(() => {
@@ -373,14 +367,20 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                                             {(currentSeasonTierAndScore.score ?? 0).toLocaleString()}
                                                         </span>
                                                     </div>
-                                                    {(currentSeasonTierAndScore.wins + currentSeasonTierAndScore.losses) > 0 && (
-                                                        <div className="text-[10px] sm:text-xs text-blue-300/80 pt-1.5 border-t border-blue-400/20 leading-snug">
-                                                            {currentSeasonTierAndScore.wins}승 {currentSeasonTierAndScore.losses}패 · 승률{' '}
-                                                            <span className="font-bold text-blue-200">
-                                                                {((currentSeasonTierAndScore.wins / (currentSeasonTierAndScore.wins + currentSeasonTierAndScore.losses)) * 100).toFixed(0)}%
-                                                            </span>
-                                                        </div>
-                                                    )}
+                                                    <div className="text-[10px] sm:text-xs text-blue-300/80 pt-1.5 border-t border-blue-400/20 leading-snug">
+                                                        {currentSeasonTierAndScore.wins}승 {currentSeasonTierAndScore.losses}패 · 승률{' '}
+                                                        <span className="font-bold text-blue-200">
+                                                            {(() => {
+                                                                const g =
+                                                                    currentSeasonTierAndScore.wins +
+                                                                    currentSeasonTierAndScore.losses;
+                                                                return g > 0
+                                                                    ? ((currentSeasonTierAndScore.wins / g) * 100).toFixed(0)
+                                                                    : '0';
+                                                            })()}
+                                                            %
+                                                        </span>
+                                                    </div>
                                                 </div>
                                                 <div className="flex justify-between items-center gap-2 text-[10px] sm:text-xs pt-0.5">
                                                     <span className="text-blue-300/80 font-medium shrink-0">시즌 최고</span>
@@ -436,14 +436,20 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                                     <p className="font-mono font-bold text-white text-base sm:text-lg text-center tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
                                                         {(currentSeasonTierAndScore.score ?? 0).toLocaleString()}점
                                                     </p>
-                                                    {(currentSeasonTierAndScore.wins + currentSeasonTierAndScore.losses) > 0 && (
-                                                        <p className="text-[10px] sm:text-xs text-amber-300/80 pt-1.5 border-t border-amber-400/20 text-center leading-snug">
-                                                            {currentSeasonTierAndScore.wins}승 {currentSeasonTierAndScore.losses}패 · 승률{' '}
-                                                            <span className="font-bold text-amber-200">
-                                                                {((currentSeasonTierAndScore.wins / (currentSeasonTierAndScore.wins + currentSeasonTierAndScore.losses)) * 100).toFixed(0)}%
-                                                            </span>
-                                                        </p>
-                                                    )}
+                                                    <p className="text-[10px] sm:text-xs text-amber-300/80 pt-1.5 border-t border-amber-400/20 text-center leading-snug">
+                                                        {currentSeasonTierAndScore.wins}승 {currentSeasonTierAndScore.losses}패 · 승률{' '}
+                                                        <span className="font-bold text-amber-200">
+                                                            {(() => {
+                                                                const g =
+                                                                    currentSeasonTierAndScore.wins +
+                                                                    currentSeasonTierAndScore.losses;
+                                                                return g > 0
+                                                                    ? ((currentSeasonTierAndScore.wins / g) * 100).toFixed(0)
+                                                                    : '0';
+                                                            })()}
+                                                            %
+                                                        </span>
+                                                    </p>
                                                 </div>
                                             </>
                                         ) : bestSeasonSameAsCurrent ? (

@@ -3,7 +3,8 @@ import { LiveGameSession, UserWithStatus, ServerAction, Player, AnalysisResult, 
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import Button from './Button.js';
 import Avatar from './Avatar.js';
-import { SINGLE_PLAYER_STAGES, AVATAR_POOL, BORDER_POOL } from '../constants';
+import { getSinglePlayerStages, AVATAR_POOL, BORDER_POOL } from '../constants';
+import { resolveLiveSessionSinglePlayerStageRow } from '../shared/utils/liveSessionSinglePlayerStage.js';
 import { ScoringOverlay } from './game/ScoringOverlay.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
@@ -138,14 +139,15 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
 
 const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ session, currentUser, onAction: _onAction, onClose }) => {
     const [mobileResultTab, setMobileResultTab] = useState<MobileGameResultTab>('match');
-    const { modalLayerUsesDesignPixels } = useAppContext();
+    const { modalLayerUsesDesignPixels, singlePlayerStagesListRevision } = useAppContext();
     const isScoring = session.gameStatus === 'scoring';
     const isEnded = session.gameStatus === 'ended';
     const analysisResult = session.analysisResult?.['system'];
     const summary = session.summary?.[currentUser.id];
 
-    const currentStageIndex = SINGLE_PLAYER_STAGES.findIndex(s => s.id === session.stageId);
-    const currentStage = SINGLE_PLAYER_STAGES.find(s => s.id === session.stageId);
+    const stagesList = getSinglePlayerStages();
+    const currentStageIndex = stagesList.findIndex(s => s.id === session.stageId);
+    const currentStage = resolveLiveSessionSinglePlayerStageRow(session);
     
     // 계가 결과가 있으면 점수를 기반으로 승리/실패 판단, 없으면 session.winner 사용
     // 계가 중일 때는 승리/실패를 판단하지 않음 (잘못된 실패 표시 방지)
@@ -214,7 +216,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
         }
         
         return null;
-    }, [summary, isEnded, currentStage, isWinner, currentUser, session.winReason]);
+    }, [summary, isEnded, currentStage, isWinner, currentUser, session.winReason, singlePlayerStagesListRevision]);
     const failureReason = useMemo(() => {
         if (isWinner) return null;
         switch (session.winReason) {
@@ -252,7 +254,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             default:
                 return null;
         }
-    }, [isWinner, session.winReason, currentStage]);
+    }, [isWinner, session.winReason, currentStage, singlePlayerStagesListRevision]);
 
     const winReasonText = useMemo(() => {
         if (!isWinner) return null;
@@ -288,7 +290,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             default:
                 return '승리했습니다.';
         }
-    }, [isWinner, session.winReason, currentStage]);
+    }, [isWinner, session.winReason, currentStage, singlePlayerStagesListRevision]);
     
     // 살리기 바둑: 백의 목표 점수와 획득 점수
     const survivalModeInfo = useMemo(() => {
@@ -299,7 +301,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             target: whiteTarget,
             captured: whiteCaptured
         };
-    }, [currentStage, session.effectiveCaptureTargets, session.captures]);
+    }, [currentStage, session.effectiveCaptureTargets, session.captures, singlePlayerStagesListRevision]);
 
     // 경기 결과 모달이 열린 뒤에는 경기장 상태 업데이트로 시간이 바뀌어도
     // "총 걸린 시간"이 변하지 않도록, 처음 계산한 값을 ref에 고정한다.
@@ -599,7 +601,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                                 {currentUser.nickname}
                                             </p>
                                             <p className="text-amber-200/60" style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px` }}>
-                                                전략 Lv.{currentUser.userLevel}
+                                                Lv.{currentUser.userLevel}
                                             </p>
                                         </div>
                                     </div>
@@ -696,7 +698,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                             {currentUser.nickname}
                                         </p>
                                         <p className="text-amber-200/60" style={{ fontSize: '13px' }}>
-                                            전략 Lv.{currentUser.userLevel}
+                                            Lv.{currentUser.userLevel}
                                         </p>
                                     </div>
                                 </div>

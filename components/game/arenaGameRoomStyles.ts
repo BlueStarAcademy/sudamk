@@ -10,7 +10,7 @@ import { arenaPostGameButtonClass } from './arenaPostGameButtonStyles.js';
  * (`max-h` 제거 — 종료 버튼이 많을 때 잘리지 않게 하되, 대부분은 동일 높이로 유지)
  */
 export function pveIngameFooterReservedHeightClass(isMobile: boolean): string {
-    return isMobile ? 'min-h-[164px]' : 'min-h-[124px]';
+    return isMobile ? 'min-h-[104px]' : 'min-h-[108px]';
 }
 
 /**
@@ -18,7 +18,7 @@ export function pveIngameFooterReservedHeightClass(isMobile: boolean): string {
  * `gameStatus` 전후로 하단 블록 높이가 달라져도 바둑판 영역이 밀리지 않도록 **충분한 min-height**를 둔다.
  */
 export function onlineGameControlsCompactFooterMinHeightClass(isMobile: boolean): string {
-    return isMobile ? 'min-h-[18.25rem]' : 'min-h-[13.25rem]';
+    return isMobile ? 'min-h-[11.5rem]' : 'min-h-[10.75rem]';
 }
 
 /** 인게임 하단 조작 바 외곽 — PC/모바일 공통 불투명 딥 네이비 슬레이트 */
@@ -143,46 +143,46 @@ export const arenaGameRoomIngameInnerItemSurfaceClass = INGAME_INNER_ITEM;
 
 /** 인게임 푸터(대국 기능 바) 외곽 */
 export const arenaGameRoomControlsFooterClass =
-    `responsive-controls flex-shrink-0 w-full ${INGAME_BOTTOM_BAR_SHELL} p-2 sm:p-2.5 ` +
-    'flex flex-col items-stretch justify-center gap-2 min-[1025px]:gap-1 min-[1025px]:p-1.5';
+    `responsive-controls flex-shrink-0 w-full ${INGAME_BOTTOM_BAR_SHELL} p-1.5 sm:p-2 ` +
+    'flex flex-col items-stretch justify-center gap-1.5 min-[1025px]:gap-0.5 min-[1025px]:p-1';
 
 export const arenaGameRoomControlsFooterCompactClass =
-    `responsive-controls flex-shrink-0 w-full ${INGAME_BOTTOM_BAR_SHELL} p-1.5 sm:p-2 ` +
-    'flex flex-col items-stretch justify-center gap-1.5 min-[1025px]:gap-1 min-[1025px]:p-1';
+    `responsive-controls flex-shrink-0 w-full ${INGAME_BOTTOM_BAR_SHELL} p-1 sm:p-1.5 ` +
+    'flex flex-col items-stretch justify-center gap-1 min-[1025px]:gap-0.5 min-[1025px]:p-1';
 
 /** 푸터 내부 서브 패널 (매너 액션 / 대국·특수 기능) */
-export const arenaGameRoomControlsInnerPanelClass = `${INGAME_INNER_NEUTRAL} p-2`;
+export const arenaGameRoomControlsInnerPanelClass = `${INGAME_INNER_NEUTRAL} p-1.5`;
 
-export const arenaGameRoomControlsInnerPanelAccentClass = `${INGAME_INNER_ITEM} p-2`;
+export const arenaGameRoomControlsInnerPanelAccentClass = `${INGAME_INNER_ITEM} p-1.5`;
 
 export const arenaGameRoomControlsSectionTitleClass =
-    'text-center text-[11px] font-bold tracking-wide text-slate-400/95';
+    'text-center text-[10px] font-bold tracking-wide text-slate-400/95';
 
 export const arenaGameRoomControlsDividerClass =
     'w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-slate-500/10 via-slate-500/45 to-slate-500/10';
 
 /** 싱글플레이 푸터 이중 패널 */
 export const arenaGameRoomSinglePlayerSplitPanelClass =
-    `flex min-h-[2.75rem] min-w-0 flex-1 flex-col justify-center px-1.5 py-1 ${INGAME_INNER_NEUTRAL}`;
+    `flex min-h-[2.35rem] min-w-0 flex-1 flex-col justify-center px-1.5 py-0.5 ${INGAME_INNER_NEUTRAL}`;
 
 export const arenaGameRoomSinglePlayerSplitPanelAccentClass =
-    `flex min-h-[2.75rem] min-w-0 flex-1 flex-col justify-center px-1.5 py-1 ${INGAME_INNER_ITEM}`;
+    `flex min-h-[2.35rem] min-w-0 flex-1 flex-col justify-center px-1.5 py-0.5 ${INGAME_INNER_ITEM}`;
 
 /** 싱글플레이 푸터 안쪽 래퍼(외곽 푸터 `arenaGameRoomControlsFooterClass` 안에 사용) */
 export const arenaGameRoomSinglePlayerOuterBarClass = INGAME_BOTTOM_BAR_SHELL;
 
 /** 관리자 푸터 줄 */
 export const arenaGameRoomControlsAdminBarClass =
-    'mt-1 flex w-full min-w-0 flex-row items-center gap-4 rounded-xl border border-violet-800/35 ' +
-    'bg-gradient-to-r from-violet-950/45 via-slate-950/80 to-slate-950/90 p-2 ring-1 ring-inset ring-violet-500/15';
+    'mt-0.5 flex w-full min-w-0 flex-row items-center gap-3 rounded-xl border border-violet-800/35 ' +
+    'bg-gradient-to-r from-violet-950/45 via-slate-950/80 to-slate-950/90 p-1.5 ring-1 ring-inset ring-violet-500/15';
 
 /** 전광판 배경(온라인 대국, 싱글 제외) — `border`는 TurnDisplay baseClasses와 함께 쓰임 */
 export const arenaGameRoomTurnDisplayBgClass =
     'bg-gradient-to-b from-slate-800/95 via-slate-900/96 to-[#0b0e14] border-slate-500/55';
 
-/** 매너 액션 칩 (작은 버튼) */
+/** 매너 액션 칩 (작은 버튼) — 줄바꿈/말줄임은 모바일·데스크톱 분기에서 지정 */
 const MANNER_CHIP_BASE =
-    'relative min-w-0 max-w-full shrink whitespace-nowrap rounded-lg border font-semibold ' +
+    'relative min-w-0 max-w-full shrink rounded-lg border font-semibold ' +
     'shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_4px_14px_-8px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-white/[0.05] ' +
     'transition-[transform,box-shadow,filter] duration-200 hover:-translate-y-px hover:brightness-[1.04] active:translate-y-0 active:scale-[0.99] ' +
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/30 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ' +
@@ -190,12 +190,12 @@ const MANNER_CHIP_BASE =
 
 export function arenaGameRoomMannerChipClass(isMobile: boolean, type: 'manner' | 'other'): string {
     const sizing = isMobile
-        ? 'text-[0.68rem] leading-snug px-2.5 py-1.5 min-h-[2.25rem]'
-        : 'text-[clamp(0.55rem,1.9vmin,0.8rem)] px-[clamp(0.45rem,1.6vmin,0.65rem)] py-[clamp(0.35rem,1.1vmin,0.45rem)] min-h-[2rem]';
+        ? 'max-w-[5rem] px-1 py-0.5 text-[8px] leading-[1.15] min-h-[1.35rem] whitespace-normal text-center line-clamp-2 break-words overflow-hidden'
+        : 'whitespace-nowrap text-[clamp(0.48rem,1.5vmin,0.72rem)] px-[clamp(0.3rem,1.2vmin,0.5rem)] py-[clamp(0.22rem,0.85vmin,0.36rem)] min-h-[1.5rem]';
     const tone =
         type === 'manner'
-            ? 'border-emerald-600/40 bg-gradient-to-b from-emerald-800/88 to-emerald-950/95 text-emerald-50'
-            : 'border-amber-600/40 bg-gradient-to-b from-amber-800/85 to-amber-950/95 text-amber-50';
+            ? 'border-lime-300/85 bg-gradient-to-b from-lime-500 via-green-600 to-emerald-900 text-white shadow-[0_0_18px_-4px_rgba(34,197,94,0.55)]'
+            : 'border-red-300/85 bg-gradient-to-b from-red-500 via-rose-600 to-red-950 text-white shadow-[0_0_18px_-4px_rgba(248,113,113,0.5)]';
     return `${MANNER_CHIP_BASE} ${sizing} ${tone}`;
 }
 
