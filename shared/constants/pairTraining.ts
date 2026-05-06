@@ -15,11 +15,11 @@ export const PAIR_TRAINING_MIN_PET_LEVEL = [1, 5, 10, 15, 20, 1] as const;
 
 /** 수련 슬롯 UI 표시 이름 */
 export const PAIR_TRAINING_SLOT_DISPLAY_NAMES = [
-    '기술 수련',
-    '사활 수련',
-    '수상전 수련',
-    '정석 수련',
-    '기보 수련',
+    '기술수련',
+    '사활수련',
+    '수상전수련',
+    '정석수련',
+    '기보수련',
     '수담수련',
 ] as const;
 
@@ -42,7 +42,7 @@ export type PairTrainingSlotDef = {
     /** 영혼석 추가 지급 확률 (0~1) */
     soulDropChance: number;
     soulTable: PairTrainingSoulRow[];
-    /** 기능 VIP 활성 시에만 해금 (기보 수련과 동일 확률보상 구조) */
+    /** 기능 VIP 활성 시에만 해금 (기보수련과 동일 확률보상 구조) */
     requiresFunctionVip?: boolean;
 };
 

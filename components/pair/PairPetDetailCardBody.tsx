@@ -2,7 +2,7 @@ import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CORE_STATS_DATA } from '../../constants/index.js';
 import type { InventoryItem, PairPetMeta, User } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
-import { getXpRequirementForLevel } from '../../shared/utils/strategyLevelXp.js';
+import { getPairPetXpRequirementForLevel } from '../../shared/utils/strategyLevelXp.js';
 import { resolvePairPetMetaFromInventoryRow } from '../../shared/utils/pairPetRoll.js';
 import { getPairPetDisplayName } from '../../shared/constants/petLobby.js';
 import {
@@ -12,6 +12,8 @@ import {
 } from '../../shared/constants/pairPetGrade.js';
 import { gradeBackgrounds, gradeStyles, EQUIPMENT_GRADE_LABEL_KO } from '../../shared/constants/items.js';
 import PairPetBadukPhaseStripAndCoreGrid from './PairPetBadukPhaseStripAndCoreGrid.js';
+import PairPetRpsBadge from './PairPetRpsBadge.js';
+import { resolvePairPetRpsAttributeFromMeta } from '../../shared/utils/pairPetRps.js';
 
 function dispositionLabel(meta: PairPetMeta['disposition']): string {
     if (meta.kind === 'all') {
@@ -111,6 +113,10 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
     mobileHomeRepPet = false,
 }) => {
     const meta = useMemo(() => resolvePairPetMetaFromInventoryRow(item), [item]);
+    const rpsAttr = useMemo(
+        () => resolvePairPetRpsAttributeFromMeta(meta, item.id, item.createdAt ?? Date.now()),
+        [meta, item.id, item.createdAt],
+    );
 
     const petGrade = effectivePairPetGradeFromRow(item);
     const petGradeBgSrc = gradeBackgrounds[petGrade] ?? gradeBackgrounds[ItemGrade.Normal];
@@ -120,7 +126,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
     const displayName = useMemo(() => getPairPetDisplayName(item), [item]);
     const levelSafe = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(meta.level) || 1));
     const xpBlocked = pairPetXpGainBlockedByGrade(petGrade, levelSafe);
-    const maxXp = xpBlocked ? 0 : getXpRequirementForLevel(levelSafe);
+    const maxXp = xpBlocked ? 0 : getPairPetXpRequirementForLevel(levelSafe);
     const xpPct =
         xpBlocked || !Number.isFinite(maxXp) || maxXp <= 0
             ? 0
@@ -259,6 +265,9 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                                 className={`relative z-[1] h-full w-full object-contain ${petImgPad} drop-shadow-[0_4px_12px_rgba(0,0,0,0.45)]`}
                                 loading="lazy"
                             />
+                            <span className="absolute left-0.5 top-0.5 z-[4] sm:left-1 sm:top-1">
+                                <PairPetRpsBadge attribute={rpsAttr} scaleWithParent />
+                            </span>
                         </div>
                     </div>
                     <div className="flex min-w-0 flex-col justify-center gap-1 text-left sm:gap-1.5">

@@ -15,6 +15,9 @@ export type PairPetSpecialization =
     | { kind: 'trainingTime'; pct: number }
     | { kind: 'soulDrop'; pct: number };
 
+/** 페어 펫 가위바위보 속성 — 1=가위, 2=바위, 3=보 */
+export type PairPetRpsAttribute = 1 | 2 | 3;
+
 export type PairPetMeta = {
     level: number;
     xp: number;
@@ -22,6 +25,8 @@ export type PairPetMeta = {
     specialization: PairPetSpecialization;
     /** 레벨업 시 등급별 풀을 6코어에 랜덤 분배한 누적 보너스 */
     levelUpCoreBonuses?: Partial<Record<CoreStat, number>>;
+    /** 부화 시 부여. 구 데이터는 resolve 시 결정론 백필 */
+    rpsAttribute?: PairPetRpsAttribute;
 };
 
 /** 페어 펫 수련 슬롯(인덱스 0~4)에 배치된 세션 */
@@ -857,6 +862,8 @@ export type GameSettings = {
     orderSeededAt?: number;
     /** 펫/AI 좌석별 KATA 산출용 6코어 스냅샷 */
     petKataStatsByParticipantId?: Record<string, import('../constants/pairArena.js').PairPetCoreStatsSix>;
+    /** 인게임 표시·가위바위보 — 좌석 participantId → 1가위 2바위 3보 */
+    pairPetRpsAttributeByParticipantId?: Record<string, PairPetRpsAttribute>;
     /** 고정 KATA 레벨을 쓰는 AI 좌석(펫 페어 AI 대전 상대 등) */
     pairKataFixedLevelByParticipantId?: Record<string, number>;
     /** 페어 AI 대전 등: 합성 상대 펫 좌석에 보일 레벨(단계별 구간에서 굴림, 인게임·요약 UI용) */
@@ -1406,6 +1413,12 @@ export type Negotiation = {
   rematchOfGameId?: string;
   previousSettings?: GameSettings;
   isRanked?: boolean; // false면 친선전, true면 랭킹전 (기본값: false)
+  /**
+   * 페어 국: `initializeGame`에서 전략 초기화보다 먼저 RPS·6코어 스냅샷을 넣기 위한 참가 유저(장착 펫 메타).
+   * `pairPetConfigureOwnerId`는 `ownerPet` 슬롯 귀속에 사용(기본: challenger).
+   */
+  pairPetStatUsers?: User[];
+  pairPetConfigureOwnerId?: string;
   /** `initializeGame`에서 LiveGameSession 모험 필드로 복사 */
   adventureBattle?: {
     stageId: string;

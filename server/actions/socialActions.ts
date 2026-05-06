@@ -86,7 +86,7 @@ import {
     diffPairPetLevelUpCoreBonuses,
 } from '../../shared/utils/pairPetRoll.js';
 import { getEquippedPairPetInventoryRow, reconcileEquippedPairPetInventoryItem } from '../../shared/utils/pairEquippedPet.js';
-import { getXpRequirementForLevel } from '../../shared/utils/strategyLevelXp.js';
+import { getPairPetXpRequirementForLevel } from '../../shared/utils/strategyLevelXp.js';
 import {
     resolveAiLobbyProfileStepFromSettings,
     rollPairAiOpponentPetDisplayLevelForProfileStep,
@@ -117,8 +117,7 @@ import {
     rollHatchPetLevelFromRule,
 } from '../../shared/constants/pairHatchery.js';
 import { CoreStat, ItemGrade } from '../../types/enums.js';
-import type { PairPetCoreStatsSix } from '../../shared/constants/pairArena.js';
-import { computePairPetKataCoreStatsSixFromMeta } from '../../shared/utils/pairPetKataStatsFromMeta.js';
+import { hydratePairGamePetKataAndRpsIfNeeded } from '../pairPetKataHydration.js';
 import {
     effectivePairPetGradeFromRow,
     nextPairPetGrade,
@@ -209,6 +208,7 @@ const neutralTrainingMeta: PairPetMeta = {
     disposition: { kind: 'all', pct: 5 },
     specialization: { kind: 'trainingXp', pct: 0 },
     levelUpCoreBonuses: {},
+    rpsAttribute: 1,
 };
 
 /** 인벤에서 `templateId` 영혼석을 `need`개만큼 차감한 새 배열 — 부족하면 null */
@@ -264,7 +264,7 @@ function applyPairPetXp(meta: PairPetMeta, rawGain: number, itemGrade: ItemGrade
             xp = 0;
             break;
         }
-        const need = getXpRequirementForLevel(level);
+        const need = getPairPetXpRequirementForLevel(level);
         if (!Number.isFinite(need) || need <= 0) break;
         const room = need - xp;
         if (room <= 0) {
@@ -1051,6 +1051,48 @@ const refreshPairRoomTeams = (room: types.PairRoomState): types.PairRoomState =>
     return room;
 };
 
+/** 페어 경기장에서 방을 만들지 않고 펫 페어 AI 대전만 시작할 때 — volatileState에 넣지 않는 일회용 스냅샷 */
+function buildEphemeralPairPetAiDuelLobbySnapshot(
+    user: User,
+    payload: { mode?: GameMode; settings?: types.GameSettings } | undefined,
+): types.PairRoomState | null {
+    if (!hasUsableEquippedPairPet(user)) return null;
+    const roomId = `pair-ai-ephemeral-${randomUUID()}`;
+    const ownerPairPetName = equippedPairPetDisplayNameForUser(user);
+    const room: types.PairRoomState = {
+        id: roomId,
+        code: '0',
+        mode: 'ai',
+        pairMode: 'ai',
+        roomKind: 'ai_duel',
+        visibility: 'public',
+        passwordProtected: false,
+        phase: 'waiting',
+        lobbyChannel: 'pair',
+        title: clampPairRoomTitle(`${user.nickname}님의 펫 페어방`),
+        ownerId: user.id,
+        ownerName: user.nickname,
+        partnerId: `pet-ai-${user.id}`,
+        partnerName: ownerPairPetName,
+        selectedGameMode: PAIR_MODE_DEFAULT_GAME_MODE,
+        settings: { ...DEFAULT_GAME_SETTINGS },
+        teamA: { id: 'teamA', name: '우리 팀', members: [] },
+        teamB: { id: 'teamB', name: '상대 팀', members: [] },
+        futurePetAi: pairPetAiPlaceholder(),
+        ownerReady: false,
+        partnerReady: true,
+        createdAt: Date.now(),
+        pairChatMessages: [],
+    };
+    const snap = pairLobbyPetSnapshotFromUser(user);
+    if (snap) room.ownerLobbyPet = snap;
+    mergePairRoomLobbyGameSettings(room, {
+        selectedGameMode: payload?.mode,
+        settings: payload?.settings,
+    });
+    return refreshPairRoomTeams(room);
+}
+
 function resolvePairMemberDisplayNameForTransfer(volatileState: VolatileState, room: types.PairRoomState, userId: string): string {
     if (room.ownerId === userId) return room.ownerName;
     if (room.partnerId === userId) return room.partnerName || '파트너';
@@ -1550,15 +1592,7 @@ function getDuoPairAiPartner(room: types.PairRoomState): { id: string; name: str
     return extra ? { id: extra.id, name: extra.name, ready: Boolean(extra.ready) } : null;
 }
 
-function pairPetKataStatsFromEquippedPet(user: User): PairPetCoreStatsSix | null {
-    const row = getEquippedPairPetInventoryRow(user);
-    if (!row) return null;
-    const meta = readPairPetMetaFromRow(row);
-    const grade = effectivePairPetGradeFromRow(row);
-    return computePairPetKataCoreStatsSixFromMeta(meta, grade);
-}
-
-function configurePairClassicGameStart(
+export function configurePairClassicGameStart(
     game: types.LiveGameSession,
     ownerUser: User,
     petStatUsers: User[] = [ownerUser],
@@ -1583,27 +1617,7 @@ function configurePairClassicGameStart(
     for (const id of getPairHumanParticipantIds(pairGame)) {
         pairGame.orderRevealConfirmed[id] = false;
     }
-    const petStatsByUserPetId = new Map<string, PairPetCoreStatsSix>();
-    for (const petOwner of petStatUsers) {
-        const stats = pairPetKataStatsFromEquippedPet(petOwner);
-        if (stats) petStatsByUserPetId.set(`pet-ai-${petOwner.id}`, stats);
-    }
-    pairGame.petKataStatsByParticipantId = {};
-    for (const seat of turnOrder) {
-        if (seat.kind === 'pet' || seat.kind === 'ai') {
-            pairGame.petKataStatsByParticipantId[seat.participantId] =
-                petStatsByUserPetId.get(seat.participantId) ??
-                (seat.slot === 'ownerPet' ? petStatsByUserPetId.get(`pet-ai-${ownerUser.id}`) : undefined) ??
-                {
-                    concentration: 100,
-                    thinkingSpeed: 100,
-                    judgment: 100,
-                    calculation: 100,
-                    combatPower: 100,
-                    stability: 100,
-                };
-        }
-    }
+    hydratePairGamePetKataAndRpsIfNeeded(game, ownerUser, petStatUsers);
     if (pairGame.pairKataFixedLevelByParticipantId) {
         pairGame.pairKataFixedLevelByParticipantId = Object.fromEntries(
             Object.entries(pairGame.pairKataFixedLevelByParticipantId).filter(([participantId]) =>
@@ -1890,6 +1904,8 @@ async function finalizePairRankedPetRankedGame(
         deadline: Date.now(),
         turnCount: 0,
         isRanked: true,
+        pairPetStatUsers: [ownerA, ownerB],
+        pairPetConfigureOwnerId: ownerA.id,
     };
     const game = await initializeGame(negotiation);
     configurePairClassicGameStart(game, ownerA, [ownerA, ownerB]);
@@ -2038,6 +2054,8 @@ async function finalizePairRankedDuoHumanGame(
         deadline: Date.now(),
         turnCount: 0,
         isRanked: true,
+        pairPetStatUsers: [ownerA, partnerA, ownerB, partnerB],
+        pairPetConfigureOwnerId: ownerA.id,
     };
     const game = await initializeGame(negotiation);
     configurePairClassicGameStart(game, ownerA, [ownerA, partnerA, ownerB, partnerB]);
@@ -3930,6 +3948,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                         deadline: 0,
                         turnCount: 0,
                         isRanked: false,
+                        pairPetStatUsers: [uA0, uA1, uB0, uB1],
+                        pairPetConfigureOwnerId: user.id,
                     };
                     gameDuo = await initializeGame(negotiationDuo);
                     configurePairClassicGameStart(gameDuo, user, [uA0, uA1, uB0, uB1]);
@@ -4022,6 +4042,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     deadline: 0,
                     turnCount: 0,
                     isRanked: false,
+                    pairPetStatUsers: [user, partnerUser],
+                    pairPetConfigureOwnerId: user.id,
                 };
                 const game = await initializeGame(negotiation);
                 configurePairClassicGameStart(game, user, [user, partnerUser]);
@@ -4093,9 +4115,11 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 deadline: 0,
                 turnCount: 0,
                 isRanked: false,
+                pairPetStatUsers: partnerUser.id === aiUserId ? [user] : [user, partnerUser],
+                pairPetConfigureOwnerId: user.id,
             };
             const game = await initializeGame(negotiation);
-            configurePairClassicGameStart(game, user);
+            configurePairClassicGameStart(game, user, partnerUser.id === aiUserId ? [user] : [user, partnerUser]);
             await db.saveGame(game);
             volatileState.userStatuses[game.player1.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
             volatileState.userStatuses[game.player2.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
@@ -4263,15 +4287,27 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
         }
         case 'PAIR_START_AI_MATCH': {
             if (!volatileState.pairRooms) volatileState.pairRooms = {};
-            const target = Object.values(volatileState.pairRooms).find((room) => userInActivePairLobbyRoom(room, user.id));
-            if (!target) return { error: '참여 중인 페어 방이 없습니다.' };
-            if (target.ownerId !== user.id) return { error: '방장만 AI 대전을 시작할 수 있습니다.' };
+            let target = Object.values(volatileState.pairRooms).find((room) => userInActivePairLobbyRoom(room, user.id));
+            let ephemeralPairPetAiDuelShell = false;
+            if (!target) {
+                const shell = buildEphemeralPairPetAiDuelLobbySnapshot(
+                    user,
+                    payload as { mode?: GameMode; settings?: types.GameSettings } | undefined,
+                );
+                if (!shell) {
+                    return { error: 'AI 대전을 시작하려면 페어 펫을 장착해야 합니다.' };
+                }
+                target = shell;
+                ephemeralPairPetAiDuelShell = true;
+            } else if (target.ownerId !== user.id) {
+                return { error: '방장만 AI 대전을 시작할 수 있습니다.' };
+            }
             if (target.roomKind !== 'ai_duel' && target.roomKind !== 'duo_match' && target.roomKind !== 'arena_ai') {
                 return { error: '펫 페어, AI와 대결, 또는 2인 페어 방에서만 AI 대전을 시작할 수 있습니다.' };
             }
             const isPetPairAiDuel = target.roomKind === 'ai_duel';
             const isDuoPairAiDuel = target.roomKind === 'duo_match';
-            if (isPetPairAiDuel && !hasUsableEquippedPairPet(user)) {
+            if (!ephemeralPairPetAiDuelShell && isPetPairAiDuel && !hasUsableEquippedPairPet(user)) {
                 return { error: 'AI 대전을 시작하려면 페어 펫을 장착해야 합니다.' };
             }
             if (isPetPairAiDuel && (target.extraPairMembers?.length ?? 0) > 0) {
@@ -4322,28 +4358,34 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 deadline: 0,
                 turnCount: 0,
                 isRanked: false,
+                pairPetStatUsers: isDuoPairAiDuel ? [user, partnerUser] : [user],
+                pairPetConfigureOwnerId: user.id,
             };
             const game = await initializeGame(negotiation);
-            configurePairClassicGameStart(game, user);
+            configurePairClassicGameStart(game, user, isDuoPairAiDuel ? [user, partnerUser] : [user]);
             await db.saveGame(game);
             volatileState.userStatuses[game.player1.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
             volatileState.userStatuses[game.player2.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
-            target.matchStartedAt = Date.now();
-            target.phase = 'in_game';
-            clearPairInvitesForRoom(volatileState, target.id);
-            clearPairRoomTeamChatStore(volatileState, target.id);
-            refreshPairRoomTeams(target);
+            if (!ephemeralPairPetAiDuelShell) {
+                target.matchStartedAt = Date.now();
+                target.phase = 'in_game';
+                clearPairInvitesForRoom(volatileState, target.id);
+                clearPairRoomTeamChatStore(volatileState, target.id);
+                refreshPairRoomTeams(target);
+            }
 
             const { broadcastToGameParticipants, broadcastLiveGameToList } = await import('../socket.js');
             broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
             broadcastLiveGameToList(game);
-            broadcastPairRooms(volatileState);
-            broadcastPairPartnerInvites(volatileState);
+            if (!ephemeralPairPetAiDuelShell) {
+                broadcastPairRooms(volatileState);
+                broadcastPairPartnerInvites(volatileState);
+            }
             return {
                 clientResponse: {
                     gameId: game.id,
-                    pairRooms: enrichPairRoomsForClientPayload(volatileState.pairRooms),
+                    ...(ephemeralPairPetAiDuelShell ? {} : { pairRooms: enrichPairRoomsForClientPayload(volatileState.pairRooms!) }),
                 },
             };
         }
@@ -4960,7 +5002,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 const metaBefore = readPairPetMetaFromRow(petRow);
                 const oldLevel = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(metaBefore.level) || 1));
                 const initialXp = Math.max(0, Math.floor(metaBefore.xp ?? 0));
-                const maxXpForInitialLevel = getXpRequirementForLevel(oldLevel);
+                const maxXpForInitialLevel = getPairPetXpRequirementForLevel(oldLevel);
                 const meta = { ...readPairPetMetaFromRow(petRow) };
                 applyPairPetXp(meta, xpGain, petRow.grade ?? ItemGrade.Normal);
                 user.inventory[petIdx] = { ...petRow, pairPetMeta: meta };
@@ -4968,7 +5010,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 const finalXp = Math.max(0, Math.floor(meta.xp ?? 0));
                 const petDisplayName = getPairPetDefinition(petRow.templateId!)?.displayName ?? petRow.name;
                 const trainingPetLeveledUp = finalLevel > oldLevel;
-                const maxXpForBar = trainingPetLeveledUp ? getXpRequirementForLevel(finalLevel) : maxXpForInitialLevel;
+                const maxXpForBar = trainingPetLeveledUp ? getPairPetXpRequirementForLevel(finalLevel) : maxXpForInitialLevel;
                 const initialXpForBar = trainingPetLeveledUp ? 0 : initialXp;
                 const safeTrainingPetMax =
                     Number.isFinite(maxXpForBar) && maxXpForBar > 0

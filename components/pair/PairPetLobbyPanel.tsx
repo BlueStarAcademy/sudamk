@@ -65,6 +65,8 @@ import {
 } from '../../shared/constants/pairHatchery.js';
 import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
 import { resolvePairPetMetaFromInventoryRow } from '../../shared/utils/pairPetRoll.js';
+import { resolvePairPetRpsAttributeFromMeta } from '../../shared/utils/pairPetRps.js';
+import PairPetRpsBadge from './PairPetRpsBadge.js';
 type AiTab = 'info' | 'training' | 'hatchery' | 'shop';
 type InvFilter = 'pet' | 'soul';
 type ShopSkuTab = 'egg' | 'soul';
@@ -199,6 +201,11 @@ function InvThumb({
     const petBg = petThumb ? (gradeBackgrounds[petG] ?? gradeBackgrounds[ItemGrade.Normal]) : null;
     const petTrans = petThumb && petG === ItemGrade.Transcendent;
     const petLevel = petThumb ? resolvePairPetMetaFromInventoryRow(item).level : null;
+    const petRpsAttr = useMemo(() => {
+        if (!petThumb) return undefined;
+        const m = resolvePairPetMetaFromInventoryRow(item);
+        return resolvePairPetRpsAttributeFromMeta(m, item.id, item.createdAt ?? Date.now());
+    }, [petThumb, item]);
     const badgeChip =
         'max-w-[95%] truncate px-[3px] py-[1px] text-[clamp(0.45rem,2.4vmin,0.5625rem)] font-black leading-none tracking-tight text-white shadow-sm ring-1 ring-black/35';
     return (
@@ -212,7 +219,7 @@ function InvThumb({
             } ${petTrans ? 'transcendent-grade-slot' : ''} disabled:opacity-40`}
         >
             {petThumb && (showRepresentativeBadge || showTrainingBadge) ? (
-                <span className="pointer-events-none absolute inset-x-0 top-0 z-[3] flex flex-col items-center gap-px px-0.5 pt-px">
+                <span className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col items-center gap-px px-0.5 pt-px">
                     {showRepresentativeBadge ? (
                         <span className="flex w-full justify-center" title="대표 펫">
                             <span className={`${badgeChip} rounded-b bg-cyan-600`}>대표펫</span>
@@ -236,7 +243,7 @@ function InvThumb({
             ) : null}
             {petThumb && petLevel != null ? (
                 <span
-                    className="pointer-events-none absolute inset-x-0 bottom-0 z-[3] flex justify-center px-0.5 pb-px"
+                    className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-0.5 pb-px"
                     title={`레벨 ${petLevel}`}
                 >
                     <span
@@ -247,7 +254,7 @@ function InvThumb({
                 </span>
             ) : null}
             {petBg ? (
-                <img src={petBg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-88" loading="lazy" />
+                <img src={petBg} alt="" className="absolute inset-0 z-0 h-full w-full object-cover opacity-88" loading="lazy" />
             ) : null}
             <img
                 src={item.image}
@@ -255,8 +262,13 @@ function InvThumb({
                 className={`relative z-[1] shrink-0 object-contain ${petThumb ? 'h-[72%] w-[72%] drop-shadow-[0_1px_4px_rgba(0,0,0,0.65)]' : 'h-9 w-9 rounded'}`}
                 loading="lazy"
             />
+            {petThumb ? (
+                <span className="pointer-events-none absolute left-0.5 top-0.5 z-[2] sm:left-1 sm:top-1">
+                    <PairPetRpsBadge attribute={petRpsAttr} scaleWithParent />
+                </span>
+            ) : null}
             {showStackBadge ? (
-                <span className="absolute bottom-0.5 right-0.5 z-[2] rounded bg-black/70 px-1 py-0.5 text-xs font-black text-amber-200">
+                <span className="absolute bottom-0.5 right-0.5 z-20 rounded bg-black/70 px-1 py-0.5 text-xs font-black text-amber-200">
                     ×{qty}
                 </span>
             ) : null}

@@ -4795,14 +4795,28 @@ export const useApp = () => {
                      return trainingQuestLevelUp;
                  }
                  
-                const obtainedItemsBulk = result.clientResponse?.obtainedItemsBulk || result.obtainedItemsBulk;
+                const obtainedItemsBulkRaw = result.clientResponse?.obtainedItemsBulk || result.obtainedItemsBulk;
                 // 도전의 탑 전용 상점 구매: 인벤은 갱신되지만 획득 아이템 모달은 띄우지 않음
-                if (obtainedItemsBulk && action.type !== 'BUY_TOWER_ITEM') {
-                    const stampedItems = obtainedItemsBulk.map((item: any) => ({
-                        ...item,
-                        id: item.id || `reward-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                        quantity: item.quantity ?? 1,
-                    }));
+                if (obtainedItemsBulkRaw && action.type !== 'BUY_TOWER_ITEM') {
+                    let obtainedItemsBulk: InventoryItem[] = obtainedItemsBulkRaw as InventoryItem[];
+                    try {
+                        obtainedItemsBulk = JSON.parse(JSON.stringify(obtainedItemsBulkRaw)) as InventoryItem[];
+                    } catch {
+                        // 폴백: 얕은 복사만 가능한 경우에도 인벤 행과 참조를 끊기 위해 항목 단위 복제
+                        obtainedItemsBulk = (obtainedItemsBulkRaw as InventoryItem[]).map((it) => ({ ...it }));
+                    }
+                    const stampedItems = obtainedItemsBulk.map((item: InventoryItem) => {
+                        const qRaw = (item as { quantity?: unknown }).quantity;
+                        const q =
+                            typeof qRaw === 'number' && Number.isFinite(qRaw)
+                                ? Math.max(0, Math.floor(qRaw))
+                                : 1;
+                        return {
+                            ...item,
+                            id: item.id || `reward-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                            quantity: q,
+                        };
+                    });
                     flushSync(() => {
                         setLastUsedItemResult(stampedItems);
                     });

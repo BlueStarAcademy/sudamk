@@ -53,7 +53,7 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
         ? 'border-red-400 shadow-red-500/40 focus:ring-red-400'
         : 'border-amber-400 shadow-amber-500/30 focus:ring-amber-300';
     const sizeClass = compact
-        ? 'h-10 w-10 shrink-0 rounded-md sm:h-10 sm:w-10'
+        ? 'h-12 w-12 shrink-0 rounded-lg sm:h-12 sm:w-12'
         : 'h-[4.25rem] w-[4.25rem] rounded-xl min-[1025px]:h-16 min-[1025px]:w-16';
     
     return (
@@ -69,7 +69,7 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
             {count !== undefined && (
                 <span
                     className={`absolute flex items-center justify-center rounded-full border border-amber-600 bg-black/80 font-bold text-white ${disabled ? 'opacity-60' : ''} ${
-                        compact ? 'bottom-0 right-0 h-3.5 min-w-[0.875rem] px-0.5 text-[8px]' : 'bottom-0.5 right-0.5 h-5 w-5 text-[10px]'
+                        compact ? 'bottom-0 right-0 h-4 min-w-[1rem] px-0.5 text-[9px]' : 'bottom-0.5 right-0.5 h-5 w-5 text-[10px]'
                     }`}
                 >
                     {count > 99 ? '99+' : count}
@@ -91,7 +91,7 @@ interface ItemImageButtonProps {
 
 const ItemImageButton: React.FC<ItemImageButtonProps> = ({ src, alt, onClick, disabled = false, title, count, compact = false }) => {
     const sizeClass = compact
-        ? 'h-10 w-10 shrink-0 rounded-md sm:h-10 sm:w-10'
+        ? 'h-12 w-12 shrink-0 rounded-lg sm:h-12 sm:w-12'
         : 'h-[4.25rem] w-[4.25rem] rounded-xl min-[1025px]:h-16 min-[1025px]:w-16';
     return (
         <button
@@ -105,7 +105,7 @@ const ItemImageButton: React.FC<ItemImageButtonProps> = ({ src, alt, onClick, di
             {/* 개수 표시 우측 하단 */}
             <span
                 className={`absolute flex items-center justify-center rounded-full border border-amber-600 bg-black/80 font-bold text-white ${disabled ? 'opacity-60' : ''} ${
-                    compact ? 'bottom-0 right-0 h-3.5 min-w-[0.875rem] px-0.5 text-[8px]' : 'bottom-0.5 right-0.5 h-5 w-5 text-[10px]'
+                    compact ? 'bottom-0 right-0 h-4 min-w-[1rem] px-0.5 text-[9px]' : 'bottom-0.5 right-0.5 h-5 w-5 text-[10px]'
                 }`}
             >
                 {count > 99 ? '99+' : count}
@@ -444,7 +444,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     }
 
     const colClass = isMobile ? 'flex flex-col items-center gap-0.5 shrink-0' : 'flex flex-col items-center gap-1.5';
-    const lblBase = isMobile ? 'text-[8px]' : 'text-[12px]';
+    const lblBase = isMobile ? 'text-[10px]' : 'text-[12px]';
 
     const coreZoneSp = (
         <>
@@ -532,7 +532,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
         <div
             className={`${arenaGameRoomIngameBottomBarShellClass} w-full ${
                 isMobile
-                    ? 'flex h-[104px] w-full min-w-0 flex-row items-stretch gap-1.5 p-1'
+                    ? 'flex min-h-[124px] w-full min-w-0 flex-row items-stretch gap-1.5 p-1'
                     : 'flex min-h-[124px] flex-row items-stretch gap-6 p-2 min-[1025px]:gap-7 min-[1025px]:py-1.5 min-[1025px]:px-2.5'
             }`}
         >

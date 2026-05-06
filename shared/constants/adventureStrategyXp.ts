@@ -1,10 +1,10 @@
 /** 모험 몬스터 승리 기본 EXP (판 크기별) — 전략 AI 대기실 보상 등과 동일 기준 */
 export const ADVENTURE_STRATEGY_XP_BY_BOARD_SIZE: Record<number, number> = {
-    7: 10,
-    9: 13,
-    11: 15,
-    13: 20,
-    19: 40,
+    7: 20,
+    9: 30,
+    11: 35,
+    13: 50,
+    19: 100,
 };
 
 export function getAdventureBaseStrategyXp(boardSizeRaw: unknown): number {

@@ -266,6 +266,8 @@ interface SinglePlayerPanelProps {
     speedBonusTickProgress?: number | null;
     /** 스피드 시간보너스: 다음 -1점까지 남은 초 */
     speedBonusSecToNextDrop?: number | null;
+    /** 싱글/탑 모바일 2행 헤더: `profile` = 가로 프로필만, `stats` = 시간·점수만(수순 박스는 PlayerPanel 중앙) */
+    pveMobileLayoutTier?: 'full' | 'profile' | 'stats';
 }
 
 const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
@@ -300,6 +302,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         speedBonusScoreLabel = 'self',
         speedBonusTickProgress = null,
         speedBonusSecToNextDrop = null,
+        pveMobileLayoutTier = 'full',
     } = props;
     const { gameStatus, winner, blackPlayerId, whitePlayerId } = session;
 
@@ -425,7 +428,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const stonesThrown = session.stonesThrownThisRound?.[user.id] || 0;
     const stonesLeft = totalStones - stonesThrown;
 
-    const avatarSize = isMobile ? 40 : 48;
+    const avatarSize = pveMobileLayoutTier === 'profile' ? (isMobile ? 48 : 52) : isMobile ? 40 : 48;
     const nameTextSize = fluidTextLayout
         ? 'text-[clamp(0.5625rem,2.35vmin,0.8125rem)] min-[380px]:text-[clamp(0.625rem,2.15vmin,0.875rem)]'
         : isMobile
@@ -501,6 +504,212 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     );
 
     const compactMainColClass = fluidTextLayout ? 'justify-center gap-0.5' : 'justify-between';
+
+    const timeAndMetaBlock = (
+        <>
+            {useAdventureMatchCountdown && !isGameEnded && (
+                <>
+                    <TimeBar
+                        timeLeft={adventureMatchCountdownSec!}
+                        totalTime={adventureMatchTotalSec!}
+                        byoyomiTime={effectiveByoyomiTime}
+                        byoyomiPeriods={0}
+                        totalByoyomi={0}
+                        isActive={!adventureMonsterTurnPanel}
+                        isInByoyomi={false}
+                        isFoulMode={false}
+                        isMobile={isMobile}
+                        lightSurface={panelType === 'white'}
+                    />
+                    <div className={`mt-0.5 flex ${justifyClass}`}>
+                        <span
+                            className={`font-mono text-xs font-semibold tabular-nums tracking-wide ${
+                                panelType === 'white' ? 'text-slate-800' : 'text-stone-200'
+                            }`}
+                        >
+                            {formatTimeMmSs(adventureMatchCountdownSec ?? 0)}
+                        </span>
+                    </div>
+                </>
+            )}
+            {!useAdventureMatchCountdown && !showElapsedOnly && (
+                <TimeBar
+                    timeLeft={timeLeft}
+                    totalTime={totalTime}
+                    byoyomiTime={effectiveByoyomiTime}
+                    byoyomiPeriods={effectiveByoyomiPeriodsLeft}
+                    totalByoyomi={effectiveTotalByoyomi}
+                    isActive={isActive && !isGameEnded}
+                    isInByoyomi={isInByoyomi}
+                    isFoulMode={isFoulMode}
+                    isMobile={isMobile}
+                    lightSurface={panelType === 'white'}
+                />
+            )}
+            {(!useAdventureMatchCountdown && (showElapsedOnly ? isCurrentUser : true)) && (
+                <div className={`flex flex-wrap items-center ${isMobile ? 'mt-0' : 'mt-0.5'} ${justifyClass} gap-x-1 gap-y-0.5`}>
+                    {showElapsedOnly ? (
+                        <>
+                            <span className={`font-mono font-bold ${timeTextClasses} ${displayTimeTextSize}`}>{formatTime(timeLeft)}</span>
+                        </>
+                    ) : (
+                        <>
+                            <span
+                                className={`min-w-0 font-mono font-bold ${
+                                    isInByoyomi || (isFoulMode && timeLeft < 10)
+                                        ? panelType === 'white'
+                                            ? 'text-red-800'
+                                            : 'text-red-400'
+                                        : timeTextClasses
+                                } ${displayTimeTextSize}`}
+                            >
+                                {formatTime(timeLeft)}
+                            </span>
+                            {showByoyomiStatus && (
+                                <div
+                                    className={`flex shrink-0 items-center gap-1 ${isFoulMode ? 'text-red-300' : 'text-yellow-300'}`}
+                                    title={isFoulMode ? `남은 기회 ${effectiveByoyomiPeriodsLeft}회` : undefined}
+                                >
+                                    <img
+                                        src="/images/icon/timer.png"
+                                        alt={isFoulMode ? '남은 기회' : '초읽기'}
+                                        className={`object-contain ${fluidTextLayout && isMobile ? 'h-4 w-4' : isMobile ? 'h-5 w-5' : 'h-4 w-4'}`}
+                                    />
+                                    <span
+                                        className={`font-semibold tabular-nums ${fluidTextLayout && isMobile ? 'text-[11px]' : isMobile ? 'text-sm' : 'text-xs'}`}
+                                    >
+                                        {effectiveByoyomiPeriodsLeft}
+                                    </span>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            )}
+            {showSpeedBonusTickBar && (
+                <div className={`mt-0 flex items-center gap-1 ${isLeft ? '' : 'justify-end'}`}>
+                    <div
+                        className={`h-1.5 w-24 overflow-hidden rounded-full ${
+                            panelType === 'white' ? 'bg-emerald-900/25' : 'bg-emerald-300/20'
+                        }`}
+                    >
+                        <div
+                            className="h-full rounded-full bg-emerald-400 transition-[width] duration-300"
+                            style={{ width: `${speedBonusTickPct}%` }}
+                        />
+                    </div>
+                    <span
+                        className={`tabular-nums ${
+                            fluidTextLayout && isMobile ? 'text-[10px]' : isMobile ? 'text-[10px]' : 'text-[11px]'
+                        } ${panelType === 'white' ? 'text-emerald-800/90' : 'text-emerald-300/90'}`}
+                    >
+                        {speedBonusSecToNextDrop}초
+                    </span>
+                </div>
+            )}
+        </>
+    );
+
+    if (pveMobileLayoutTier === 'profile') {
+        return (
+            <div
+                className={`relative flex h-full min-h-0 min-w-0 flex-1 flex-col ${compactMainColClass} ${padding} rounded-lg transition-all duration-300 border ${panelColorClasses} ${fluidTextLayout ? 'max-h-full overflow-hidden' : ''} ${textAlignClass}`}
+                {...ingameOnboardingUserAttrs}
+            >
+                {showActiveBorderPulse && (
+                    <div className={`pointer-events-none absolute inset-0 rounded-lg border-2 animate-pulse ${activeBorderPulseClass}`} />
+                )}
+                <div
+                    className={`flex min-w-0 shrink-0 flex-1 ${fluidTextLayout ? 'items-center' : 'items-center'} ${gap} ${isLeft ? '' : 'flex-row-reverse'}`}
+                >
+                    {opponentMonsterDisplay ? (
+                        <div className="relative shrink-0" style={{ width: avatarSize, height: avatarSize }}>
+                            <div className="h-full w-full overflow-hidden rounded-md border border-white/20 bg-black/50">
+                                <img
+                                    src={opponentMonsterDisplay.portraitUrl}
+                                    alt=""
+                                    draggable={false}
+                                    className="h-full w-full object-contain object-center"
+                                />
+                            </div>
+                            {winLoseAvatarRibbon}
+                        </div>
+                    ) : (
+                        <div className="relative shrink-0 self-center">
+                            <Avatar userId={user.id} userName={user.nickname} size={avatarSize} avatarUrl={avatarUrl} borderUrl={borderUrl} />
+                            {winLoseAvatarRibbon}
+                        </div>
+                    )}
+                    <div className="min-w-0 w-full flex-1 basis-0">
+                        <div
+                            className={`flex w-full min-w-0 ${fluidTextLayout ? `flex-nowrap items-baseline gap-x-1 ${justifyClass}` : `items-baseline ${gap} ${justifyClass}`}`}
+                        >
+                            {!isLeft && isGameEnded && isWinner && !showWinLoseAvatarOverlay && (
+                                <span className={`shrink-0 ${displayWinLoseTextSize} text-blue-400`}>승</span>
+                            )}
+                            {!isLeft && isGameEnded && isLoser && !showWinLoseAvatarOverlay && (
+                                <span className={`shrink-0 ${displayWinLoseTextSize} text-red-400`}>패</span>
+                            )}
+                            <h2
+                                className={`min-w-0 max-w-full flex-1 truncate font-bold leading-snug [writing-mode:horizontal-tb] break-words break-keep ${nameTextSize} ${finalNameClass}`}
+                                title={nameTitle}
+                            >
+                                {opponentMonsterDisplay ? (
+                                    <span>{opponentMonsterDisplay.displayName}</span>
+                                ) : (
+                                    <>
+                                        <span
+                                            className={mergeStaffNicknameDisplayClass(
+                                                {
+                                                    nickname: user.nickname,
+                                                    isAdmin: user.isAdmin,
+                                                    staffNicknameDisplayEligibility: user.staffNicknameDisplayEligibility,
+                                                },
+                                                'inline',
+                                            )}
+                                        >
+                                            {user.nickname}
+                                        </span>
+                                        {isAiPlayer ? ' 🤖' : ''}
+                                    </>
+                                )}
+                                {role ? ` (${role})` : ''}
+                            </h2>
+                            {isLeft && isGameEnded && isWinner && !showWinLoseAvatarOverlay && (
+                                <span className={`shrink-0 ${displayWinLoseTextSize} text-blue-400`}>승</span>
+                            )}
+                            {isLeft && isGameEnded && isLoser && !showWinLoseAvatarOverlay && (
+                                <span className={`shrink-0 ${displayWinLoseTextSize} text-red-400`}>패</span>
+                            )}
+                        </div>
+                        <p
+                            className={`${fluidTextLayout ? 'mt-0' : 'mt-0.5'} max-w-full truncate leading-snug [writing-mode:horizontal-tb] break-words break-keep ${levelTextSize} ${levelTextClasses}`}
+                            title={levelText}
+                        >
+                            {levelText}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (pveMobileLayoutTier === 'stats') {
+        return (
+            <div
+                className={`relative flex h-full min-h-0 min-w-0 flex-1 ${rootLayoutClass} ${padding} rounded-lg transition-all duration-300 border ${panelColorClasses} ${fluidTextLayout ? 'max-h-full overflow-hidden' : ''}`}
+                {...ingameOnboardingUserAttrs}
+            >
+                {showActiveBorderPulse && (
+                    <div className={`pointer-events-none absolute inset-0 rounded-lg border-2 animate-pulse ${activeBorderPulseClass}`} />
+                )}
+                <div className={`flex min-w-0 flex-1 basis-0 flex-col ${compactMainColClass} ${textAlignClass}`}>
+                    <div className={`shrink-0 min-w-0 w-full ${fluidTextLayout ? 'mt-0' : isMobile ? 'mt-0.5' : 'mt-1'}`}>{timeAndMetaBlock}</div>
+                </div>
+                {React.cloneElement(capturedStonesEl, { fillStretchHeight: false })}
+            </div>
+        );
+    }
 
     return (
         <div
@@ -585,106 +794,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                     </div>
                 </div>
                 <div className={`shrink-0 min-w-0 w-full ${fluidTextLayout ? 'mt-0' : isMobile ? 'mt-0.5' : 'mt-1'}`}>
-                    {useAdventureMatchCountdown && !isGameEnded && (
-                        <>
-                            <TimeBar
-                                timeLeft={adventureMatchCountdownSec!}
-                                totalTime={adventureMatchTotalSec!}
-                                byoyomiTime={effectiveByoyomiTime}
-                                byoyomiPeriods={0}
-                                totalByoyomi={0}
-                                isActive={!adventureMonsterTurnPanel}
-                                isInByoyomi={false}
-                                isFoulMode={false}
-                                isMobile={isMobile}
-                                lightSurface={panelType === 'white'}
-                            />
-                            <div className={`mt-0.5 flex ${justifyClass}`}>
-                                <span
-                                    className={`font-mono text-xs font-semibold tabular-nums tracking-wide ${
-                                        panelType === 'white' ? 'text-slate-800' : 'text-stone-200'
-                                    }`}
-                                >
-                                    {formatTimeMmSs(adventureMatchCountdownSec ?? 0)}
-                                </span>
-                            </div>
-                        </>
-                    )}
-                    {!useAdventureMatchCountdown && !showElapsedOnly && (
-                        <TimeBar
-                            timeLeft={timeLeft}
-                            totalTime={totalTime}
-                            byoyomiTime={effectiveByoyomiTime}
-                            byoyomiPeriods={effectiveByoyomiPeriodsLeft}
-                            totalByoyomi={effectiveTotalByoyomi}
-                            isActive={isActive && !isGameEnded}
-                            isInByoyomi={isInByoyomi}
-                            isFoulMode={isFoulMode}
-                            isMobile={isMobile}
-                            lightSurface={panelType === 'white'}
-                        />
-                    )}
-                    {(!useAdventureMatchCountdown && (showElapsedOnly ? isCurrentUser : true)) && (
-                    <div className={`flex flex-wrap items-center ${isMobile ? 'mt-0' : 'mt-0.5'} ${justifyClass} gap-x-1 gap-y-0.5`}>
-                        {showElapsedOnly ? (
-                            <>
-                                <span className={`font-mono font-bold ${timeTextClasses} ${displayTimeTextSize}`}>{formatTime(timeLeft)}</span>
-                            </>
-                        ) : (
-                            <>
-                                <span
-                                    className={`min-w-0 font-mono font-bold ${
-                                        isInByoyomi || (isFoulMode && timeLeft < 10)
-                                            ? panelType === 'white'
-                                                ? 'text-red-800'
-                                                : 'text-red-400'
-                                            : timeTextClasses
-                                    } ${displayTimeTextSize}`}
-                                >
-                                    {formatTime(timeLeft)}
-                                </span>
-                                {showByoyomiStatus && (
-                                    <div
-                                        className={`flex shrink-0 items-center gap-1 ${isFoulMode ? 'text-red-300' : 'text-yellow-300'}`}
-                                        title={isFoulMode ? `남은 기회 ${effectiveByoyomiPeriodsLeft}회` : undefined}
-                                    >
-                                        <img
-                                            src="/images/icon/timer.png"
-                                            alt={isFoulMode ? '남은 기회' : '초읽기'}
-                                            className={`object-contain ${fluidTextLayout && isMobile ? 'h-4 w-4' : isMobile ? 'h-5 w-5' : 'h-4 w-4'}`}
-                                        />
-                                        <span
-                                            className={`font-semibold tabular-nums ${fluidTextLayout && isMobile ? 'text-[11px]' : isMobile ? 'text-sm' : 'text-xs'}`}
-                                        >
-                                            {effectiveByoyomiPeriodsLeft}
-                                        </span>
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
-                    )}
-                    {showSpeedBonusTickBar && (
-                        <div className={`mt-0 flex items-center gap-1 ${isLeft ? '' : 'justify-end'}`}>
-                            <div
-                                className={`h-1.5 w-24 overflow-hidden rounded-full ${
-                                    panelType === 'white' ? 'bg-emerald-900/25' : 'bg-emerald-300/20'
-                                }`}
-                            >
-                                <div
-                                    className="h-full rounded-full bg-emerald-400 transition-[width] duration-300"
-                                    style={{ width: `${speedBonusTickPct}%` }}
-                                />
-                            </div>
-                            <span
-                                className={`tabular-nums ${
-                                    fluidTextLayout && isMobile ? 'text-[10px]' : isMobile ? 'text-[10px]' : 'text-[11px]'
-                                } ${panelType === 'white' ? 'text-emerald-800/90' : 'text-emerald-300/90'}`}
-                            >
-                                {speedBonusSecToNextDrop}초
-                            </span>
-                        </div>
-                    )}
+                    {timeAndMetaBlock}
                 </div>
             </div>
             {capturedStonesEl}
@@ -1538,6 +1648,15 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         ? `${compactBarFixedHeightClass} items-stretch justify-between gap-1.5 overflow-hidden`
         : 'h-full items-stretch gap-2 min-[1025px]:gap-1.5';
 
+    /** 싱글/탑 모바일·좁은 창: 프로필 행 + (시간·점수 | 수순 | 시간·점수) — 모험·중앙 특수 박스(알까기 등)는 기존 1행 유지 */
+    const usePveSplitCompactHeader =
+        compactPlayerBar &&
+        (Boolean(session.isSinglePlayer) || session.gameCategory === 'tower') &&
+        session.gameCategory !== 'adventure' &&
+        !showPlayfulStonesBox &&
+        !showStrategicTurnBox &&
+        !showAlkkagiRoundBox;
+
     const adventurePregameColorReveal =
         session.gameCategory === 'adventure' &&
         ['nigiri_reveal', 'color_start_confirmation', 'nigiri_choosing', 'nigiri_guessing'].includes(session.gameStatus);
@@ -1549,6 +1668,21 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const userPanelOnboardingTarget =
         singlePlayerOnboardingBarHighlight === 'user-panel' && currentUser?.id === leftPlayerUser.id;
 
+    const pveSplitTurnInfoCenter =
+        (isSinglePlayer || session.gameCategory === 'tower') && turnInfo ? (
+            <div className={`${turnInfoShellClass} bg-stone-800/95 rounded-lg border-2 border-stone-500 shadow-xl`}>
+                <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center px-1 text-center">
+                    <span className={`${turnInfoLabelSize} text-stone-300 ${compactPlayerBar ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>
+                        {turnInfo.label}
+                    </span>
+                    <div className="flex items-baseline justify-center gap-0.5">
+                        <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{turnInfo.remaining}</span>
+                        <span className={`${turnInfoTotalSize} text-stone-400`}>/{turnInfo.total}</span>
+                    </div>
+                </div>
+            </div>
+        ) : null;
+
     if (adventurePregameColorReveal) {
         return (
             <div
@@ -1556,6 +1690,158 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             >
                 <div className={`${playerColClass} rounded-lg border border-stone-600/25 bg-zinc-950/35`} aria-hidden />
                 <div className={`${playerColClass} rounded-lg border border-stone-600/25 bg-zinc-950/35`} aria-hidden />
+            </div>
+        );
+    }
+
+    if (usePveSplitCompactHeader) {
+        return (
+            <div className="flex w-full min-w-0 flex-shrink-0 flex-col gap-1.5" {...barHighlightAttrs}>
+                <div className="flex w-full min-h-[3.25rem] flex-shrink-0 items-stretch gap-2 overflow-hidden">
+                    <div className={playerColClass}>
+                        <SinglePlayerPanel
+                            user={leftPlayerUser}
+                            playerEnum={leftPlayerEnum}
+                            score={leftPanelStoneCaptureDisplay}
+                            isActive={isLeftPlayerActive}
+                            timeLeft={leftPlayerTime}
+                            totalTime={turnDuration}
+                            mainTimeLeft={leftPlayerMainTime}
+                            byoyomiPeriodsLeft={leftPlayerByoyomi}
+                            totalByoyomi={settings.byoyomiCount}
+                            byoyomiTime={settings.byoyomiTime}
+                            isLeft={true}
+                            session={session}
+                            captureTarget={getCaptureTargetForPlayer(leftPlayerEnum)}
+                            role={leftPlayerRole}
+                            isAiPlayer={isLeftAi}
+                            mode={mode}
+                            isSinglePlayer={isSinglePlayer}
+                            isMobile={isMobile}
+                            fluidTextLayout={true}
+                            pveMobileLayoutTier="profile"
+                            showElapsedOnly={leftShowElapsedOnly}
+                            isCurrentUser={leftPlayerUser.id === currentUser?.id}
+                            opponentMonsterDisplay={isLeftAi ? adventureMonsterPanel : undefined}
+                            spIngameOnboardingUserTarget={userPanelOnboardingTarget}
+                            captureHeadStartFlatBonus={leftCaptureHeadStartFlatBonus}
+                            speedTimeBonusScore={leftLiveSpeedTimeBonusScore}
+                            speedBonusScoreLabel={leftSpeedBonusScoreLabel}
+                            speedBonusTickProgress={leftSpeedBonusTick.progress}
+                            speedBonusSecToNextDrop={leftSpeedBonusTick.secToNextDrop}
+                            {...leftAdventureCdProps}
+                        />
+                    </div>
+                    <div className={playerColClass}>
+                        <SinglePlayerPanel
+                            user={towerOpponentPanelUser}
+                            playerEnum={rightPlayerEnum}
+                            score={rightPanelStoneCaptureDisplay}
+                            isActive={isRightPlayerActive}
+                            timeLeft={rightPlayerTime}
+                            totalTime={turnDuration}
+                            mainTimeLeft={rightPlayerMainTime}
+                            byoyomiPeriodsLeft={rightPlayerByoyomi}
+                            totalByoyomi={settings.byoyomiCount}
+                            byoyomiTime={settings.byoyomiTime}
+                            isLeft={false}
+                            session={session}
+                            captureTarget={getCaptureTargetForPlayer(rightPlayerEnum)}
+                            role={rightPlayerRole}
+                            isAiPlayer={isRightAi}
+                            mode={mode}
+                            isSinglePlayer={isSinglePlayer}
+                            isMobile={isMobile}
+                            fluidTextLayout={true}
+                            pveMobileLayoutTier="profile"
+                            showElapsedOnly={rightShowElapsedOnly}
+                            isCurrentUser={rightPlayerUser.id === currentUser?.id}
+                            opponentMonsterDisplay={isRightAi ? adventureMonsterPanel : undefined}
+                            spIngameOnboardingUserTarget={
+                                singlePlayerOnboardingBarHighlight === 'user-panel' && currentUser?.id === rightPlayerUser.id
+                            }
+                            captureHeadStartFlatBonus={rightCaptureHeadStartFlatBonus}
+                            speedTimeBonusScore={rightLiveSpeedTimeBonusScore}
+                            speedBonusScoreLabel={rightSpeedBonusScoreLabel}
+                            speedBonusTickProgress={rightSpeedBonusTick.progress}
+                            speedBonusSecToNextDrop={rightSpeedBonusTick.secToNextDrop}
+                            {...rightAdventureCdProps}
+                        />
+                    </div>
+                </div>
+                <div className={`flex w-full min-h-0 flex-shrink-0 items-stretch gap-1.5 overflow-hidden ${compactBarFixedHeightClass}`}>
+                    <div className={playerColClass}>
+                        <SinglePlayerPanel
+                            user={leftPlayerUser}
+                            playerEnum={leftPlayerEnum}
+                            score={leftPanelStoneCaptureDisplay}
+                            isActive={isLeftPlayerActive}
+                            timeLeft={leftPlayerTime}
+                            totalTime={turnDuration}
+                            mainTimeLeft={leftPlayerMainTime}
+                            byoyomiPeriodsLeft={leftPlayerByoyomi}
+                            totalByoyomi={settings.byoyomiCount}
+                            byoyomiTime={settings.byoyomiTime}
+                            isLeft={true}
+                            session={session}
+                            captureTarget={getCaptureTargetForPlayer(leftPlayerEnum)}
+                            role={leftPlayerRole}
+                            isAiPlayer={isLeftAi}
+                            mode={mode}
+                            isSinglePlayer={isSinglePlayer}
+                            isMobile={isMobile}
+                            fluidTextLayout={true}
+                            pveMobileLayoutTier="stats"
+                            showElapsedOnly={leftShowElapsedOnly}
+                            isCurrentUser={leftPlayerUser.id === currentUser?.id}
+                            opponentMonsterDisplay={isLeftAi ? adventureMonsterPanel : undefined}
+                            spIngameOnboardingUserTarget={userPanelOnboardingTarget}
+                            captureHeadStartFlatBonus={leftCaptureHeadStartFlatBonus}
+                            speedTimeBonusScore={leftLiveSpeedTimeBonusScore}
+                            speedBonusScoreLabel={leftSpeedBonusScoreLabel}
+                            speedBonusTickProgress={leftSpeedBonusTick.progress}
+                            speedBonusSecToNextDrop={leftSpeedBonusTick.secToNextDrop}
+                            {...leftAdventureCdProps}
+                        />
+                    </div>
+                    {pveSplitTurnInfoCenter}
+                    <div className={playerColClass}>
+                        <SinglePlayerPanel
+                            user={towerOpponentPanelUser}
+                            playerEnum={rightPlayerEnum}
+                            score={rightPanelStoneCaptureDisplay}
+                            isActive={isRightPlayerActive}
+                            timeLeft={rightPlayerTime}
+                            totalTime={turnDuration}
+                            mainTimeLeft={rightPlayerMainTime}
+                            byoyomiPeriodsLeft={rightPlayerByoyomi}
+                            totalByoyomi={settings.byoyomiCount}
+                            byoyomiTime={settings.byoyomiTime}
+                            isLeft={false}
+                            session={session}
+                            captureTarget={getCaptureTargetForPlayer(rightPlayerEnum)}
+                            role={rightPlayerRole}
+                            isAiPlayer={isRightAi}
+                            mode={mode}
+                            isSinglePlayer={isSinglePlayer}
+                            isMobile={isMobile}
+                            fluidTextLayout={true}
+                            pveMobileLayoutTier="stats"
+                            showElapsedOnly={rightShowElapsedOnly}
+                            isCurrentUser={rightPlayerUser.id === currentUser?.id}
+                            opponentMonsterDisplay={isRightAi ? adventureMonsterPanel : undefined}
+                            spIngameOnboardingUserTarget={
+                                singlePlayerOnboardingBarHighlight === 'user-panel' && currentUser?.id === rightPlayerUser.id
+                            }
+                            captureHeadStartFlatBonus={rightCaptureHeadStartFlatBonus}
+                            speedTimeBonusScore={rightLiveSpeedTimeBonusScore}
+                            speedBonusScoreLabel={rightSpeedBonusScoreLabel}
+                            speedBonusTickProgress={rightSpeedBonusTick.progress}
+                            speedBonusSecToNextDrop={rightSpeedBonusTick.secToNextDrop}
+                            {...rightAdventureCdProps}
+                        />
+                    </div>
+                </div>
             </div>
         );
     }

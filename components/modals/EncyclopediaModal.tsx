@@ -18,6 +18,7 @@ import { computeEnhancedMainValueAtStars } from '../../shared/utils/equipmentEnh
 import {
     PAIR_PET_HATCH_DISPOSITION_ENCYCLOPEDIA_LINES,
     PAIR_PET_HATCH_SPECIALIZATION_ENCYCLOPEDIA_LINES,
+    PAIR_PET_HATCH_RPS_ENCYCLOPEDIA_LINES,
 } from '../../shared/utils/pairPetRoll.js';
 import {
     isPairSoulStoneMaterialName,
@@ -842,6 +843,14 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                             <ul className="space-y-1 pl-4 text-[11px] leading-snug text-slate-300 sm:text-xs marker:text-amber-400/70">
                                 {PAIR_PET_HATCH_SPECIALIZATION_ENCYCLOPEDIA_LINES.map((line, i) => (
                                     <li key={`spec-${i}`}>{line}</li>
+                                ))}
+                            </ul>
+                        </div>
+                        <div>
+                            <p className="mb-1.5 text-[0.65rem] font-bold uppercase tracking-wider text-sky-200/85">부화 시 속성</p>
+                            <ul className="space-y-1 pl-4 text-[11px] leading-snug text-slate-300 sm:text-xs marker:text-sky-400/70">
+                                {PAIR_PET_HATCH_RPS_ENCYCLOPEDIA_LINES.map((line, i) => (
+                                    <li key={`rps-${i}`}>{line}</li>
                                 ))}
                             </ul>
                         </div>

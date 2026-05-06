@@ -22,7 +22,7 @@ import {
     hasOpponentHiddenScanTargets,
     recordSoftHiddenScanDiscovery,
 } from './hiddenScanShared.js';
-import { canUseBoardItemTurnWindow, isStrategicAiGoSession } from '../../shared/utils/strategicBoardItemTurn.js';
+import { isStrategicAiGoSession } from '../../shared/utils/strategicBoardItemTurn.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -355,8 +355,8 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
     const now = Date.now();
     const myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
     const isMyTurn = myPlayerEnum === game.currentPlayer;
-    // 도전의 탑/싱글: 유저가 방금 둔 직후(턴이 AI로 넘어갔지만 AI가 아직 두기 전)에도 히든/스캔 허용 (싱글플레이와 동일)
-    const canUseItem = canUseBoardItemTurnWindow(game, myPlayerEnum, isMyTurn);
+    // 히든·스캔 시작은 본인 차례에만 (미사일·펫 힌트와 동일)
+    const canUseItem = isMyTurn;
 
     switch(type) {
         case 'START_HIDDEN_PLACEMENT': {

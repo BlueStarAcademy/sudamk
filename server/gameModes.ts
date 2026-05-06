@@ -25,6 +25,7 @@ import {
     isPairAiSeat,
     isPairClassicGame,
     isPairCooperativeTwoHumansVsAi,
+    PAIR_GO_GAME_MODES,
 } from '../shared/utils/pairGameTurn.js';
 import { PVP_DISCONNECT_REJOIN_GRACE_MS } from '../shared/utils/pvpDisconnectPolicy.js';
 
@@ -1034,6 +1035,19 @@ export const initializeGame = async (neg: Negotiation): Promise<LiveGameSession>
         if (typeof neg.adventureBattle.boardSize === 'number') {
             game.adventureBoardSize = neg.adventureBattle.boardSize;
         }
+    }
+
+    const pairPetStatUsers = (neg as Negotiation & { pairPetStatUsers?: types.User[] }).pairPetStatUsers;
+    if (
+        pairPetStatUsers &&
+        pairPetStatUsers.length > 0 &&
+        (settings as types.GameSettings).pairGame &&
+        PAIR_GO_GAME_MODES.includes(mode as types.GameMode)
+    ) {
+        const { hydratePairGamePetKataAndRpsIfNeeded } = await import('./pairPetKataHydration.js');
+        const ownerId = (neg as Negotiation & { pairPetConfigureOwnerId?: string }).pairPetConfigureOwnerId ?? neg.challenger.id;
+        const ownerUser = pairPetStatUsers.find((u) => u.id === ownerId) ?? neg.challenger;
+        hydratePairGamePetKataAndRpsIfNeeded(game, ownerUser, pairPetStatUsers);
     }
 
     // AI 게임은 대국실 입장 후 "경기 시작" 확인을 받아야 시작되므로,

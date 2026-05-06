@@ -65,6 +65,7 @@ import {
 } from '../utils/adventureRegionalSpecialtyBuff.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig, type RewardConfig } from '../shared/constants/rewardConfig.js';
 import { getAdventureBaseStrategyXp, getAdventureMonsterLevelXpBonus } from '../shared/constants/adventureStrategyXp.js';
+import { PAIR_GO_REWARD_BANDS } from '../shared/constants/pairGoRewardBands.js';
 import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 import { rollVipPlayRewardOutcome } from '../shared/utils/rewardVipPlayRoll.js';
 import { isAdventureChapterBossCodexId } from '../constants/adventureMonstersCodex.js';
@@ -81,7 +82,7 @@ import {
     PAIR_PET_MAX_LEVEL,
     pairPetXpGainBlockedByGrade,
 } from '../shared/constants/pairPetGrade.js';
-import { getXpRequirementForLevel } from '../shared/utils/strategyLevelXp.js';
+import { getPairPetXpRequirementForLevel } from '../shared/utils/strategyLevelXp.js';
 import {
     STRATEGIC_RANKED_STAT_KEY,
     PAIR_RANKED_STAT_KEY,
@@ -1022,18 +1023,6 @@ export function rollAndResolveRewardVipPlayGrant(): RewardVipResolvedGrant {
 
 const STRATEGIC_GOLD_REWARDS = ADVENTURE_STRATEGIC_WIN_BASE_GOLD_BY_BOARD_SIZE;
 
-type PairGoRewardBand = {
-    gold: [number, number];
-    petXp: [number, number];
-    strategyXp: [number, number];
-};
-
-const PAIR_GO_REWARD_BANDS: Record<9 | 13 | 19, PairGoRewardBand> = {
-    9: { gold: [100, 200], petXp: [60, 90], strategyXp: [10, 15] },
-    13: { gold: [300, 500], petXp: [120, 180], strategyXp: [20, 30] },
-    19: { gold: [500, 1000], petXp: [180, 300], strategyXp: [30, 50] },
-};
-
 const rollInclusive = ([min, max]: [number, number]): number => {
     const lo = Math.ceil(min);
     const hi = Math.floor(max);
@@ -1092,7 +1081,7 @@ function applyPairPetRewardXp(
             xp = 0;
             break;
         }
-        const need = getXpRequirementForLevel(level);
+        const need = getPairPetXpRequirementForLevel(level);
         if (!Number.isFinite(need) || need <= 0) break;
         const room = need - xp;
         if (room <= 0) {
@@ -1127,9 +1116,9 @@ function applyPairPetRewardXp(
     user.inventory[idx] = { ...user.inventory[idx]!, pairPetMeta: meta };
     const finalXp = meta.xp ?? 0;
     const finalLevel = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(meta.level) || 1));
-    const maxXpForInitialLevel = getXpRequirementForLevel(oldLevel);
+    const maxXpForInitialLevel = getPairPetXpRequirementForLevel(oldLevel);
     const petLeveledUp = finalLevel > oldLevel;
-    const maxXpForBar = petLeveledUp ? getXpRequirementForLevel(finalLevel) : maxXpForInitialLevel;
+    const maxXpForBar = petLeveledUp ? getPairPetXpRequirementForLevel(finalLevel) : maxXpForInitialLevel;
     const initialXpForBar = petLeveledUp ? 0 : initialXp;
     const safePetMax =
         Number.isFinite(maxXpForBar) && maxXpForBar > 0
@@ -1169,7 +1158,7 @@ function buildPairPetZeroGainSummary(user: User):
     const meta = resolvePairPetMetaFromInventoryRow(row);
     const oldLevel = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(meta.level) || 1));
     const initialXp = Math.max(0, Math.floor(meta.xp ?? 0));
-    const maxXpForLevel = getXpRequirementForLevel(oldLevel);
+    const maxXpForLevel = getPairPetXpRequirementForLevel(oldLevel);
     return {
         xp: { initial: initialXp, change: 0, final: initialXp },
         level: {

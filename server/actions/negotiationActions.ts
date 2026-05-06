@@ -9,6 +9,7 @@ import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { applyPassiveActionPointRegenToUser } from '../effectService.js';
 import { maybeDeleteDetachedEndedPvpGame } from '../maybeDeleteDetachedEndedPvpGame.js';
 import { clampAiLobbyStrategicItemCaps } from '../../shared/utils/strategicAiLobbyItemCaps.js';
+import { isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -372,7 +373,22 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
 
             // 수락 시에는 원래 negotiation.settings를 사용 (발신자가 보낸 설정)
             // settings 파라미터는 UPDATE_NEGOTIATION에서만 사용
-            const game = await initializeGame(negotiation);
+            let negForInit: Negotiation = negotiation;
+            if (isPairClassicGame(negotiation.settings, negotiation.mode)) {
+                const { ensureNegotiationPairPetUsers } = await import('../pairNegotiationPairPetUsers.js');
+                negForInit = await ensureNegotiationPairPetUsers(negotiation);
+            }
+            const game = await initializeGame(negForInit);
+            if (isPairClassicGame(game.settings, game.mode)) {
+                const { configurePairClassicGameStart } = await import('./socialActions.js');
+                const ownerId =
+                    (negForInit as Negotiation & { pairPetConfigureOwnerId?: string }).pairPetConfigureOwnerId ??
+                    negForInit.challenger.id;
+                const statUsers =
+                    (negForInit as Negotiation & { pairPetStatUsers?: User[] }).pairPetStatUsers ?? [negForInit.challenger];
+                const ownerUser = statUsers.find((u) => u.id === ownerId) ?? negForInit.challenger;
+                configurePairClassicGameStart(game, ownerUser, statUsers);
+            }
             await db.saveGame(game);
             
             volatileState.userStatuses[game.player1.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };

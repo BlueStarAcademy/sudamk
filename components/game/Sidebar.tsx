@@ -508,6 +508,9 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
                 <>
                         {activeChatMessages.map(msg => {
                             const isBotMessage = msg.system && !msg.actionInfo && msg.user.nickname === 'AI 보안관봇';
+                            const isPairPetSeatChatSpeaker =
+                                !msg.system &&
+                                (msg.user.id.startsWith('pet-ai-') || msg.user.id === 'pair-opponent-pet');
                             return (
                                 <div key={msg.id} className={chatMsgClass}>
                             {msg.actionInfo ? (
@@ -524,9 +527,21 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
                                 <>
                                     {msg.location && <span className="font-semibold text-gray-500 pr-1">{msg.location}</span>}
                                     <span 
-                                        className={`font-semibold pr-2 ${msg.system ? 'text-yellow-400' : 'text-gray-400 cursor-pointer hover:underline'}`}
-                                        onClick={() => !msg.system && handleUserClick(msg.user.id)}
-                                        title={!msg.system ? `${msg.user.nickname} 프로필 보기 / 제재` : ''}
+                                        className={`font-semibold pr-2 ${
+                                            msg.system
+                                                ? 'text-yellow-400'
+                                                : isPairPetSeatChatSpeaker
+                                                  ? 'text-fuchsia-200/95'
+                                                  : 'text-gray-400 cursor-pointer hover:underline'
+                                        }`}
+                                        onClick={() => !msg.system && !isPairPetSeatChatSpeaker && handleUserClick(msg.user.id)}
+                                        title={
+                                            msg.system
+                                                ? ''
+                                                : isPairPetSeatChatSpeaker
+                                                  ? `${msg.user.nickname} (페어 펫)`
+                                                  : `${msg.user.nickname} 프로필 보기 / 제재`
+                                        }
                                     >
                                         {msg.system ? (isBotMessage ? 'AI 보안관봇' : '시스템') : msg.user.nickname}:
                                     </span>

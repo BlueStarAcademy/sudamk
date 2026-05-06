@@ -124,12 +124,16 @@ export function resolveAiLobbyProfileStepFromSettings(
 }
 
 /**
- * 고정 베이스 보상에 곱하는 배율: 1단계=1배, 2단계=1.2배, …, 10단계=2배 (1 + 단계×0.1, 단계≥2).
+ * 고정 베이스 보상에 곱하는 배율 (대기실 AI 프로필 1~10단계).
+ * 1=1.0, 2=1.2, 3~10은 단계마다 +0.1 (7=1.7, 10=2.0).
  */
+const AI_LOBBY_REWARD_MULTIPLIER_BY_PROFILE_STEP: readonly number[] = [
+  1.0, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0,
+];
+
 export function aiLobbyRewardMultiplierFromProfileStep(profileStep: number): number {
   const t = Math.max(1, Math.min(10, Math.round(profileStep)));
-  if (t <= 1) return 1;
-  return 1 + t * 0.1;
+  return AI_LOBBY_REWARD_MULTIPLIER_BY_PROFILE_STEP[t - 1] ?? 1;
 }
 
 /**
@@ -142,8 +146,8 @@ export function pairGoAiRewardRelativeToStep3Multiplier(profileStep: number): nu
 }
 
 function strategicLobbyAiBoardXpMultiplier(boardSize: number): number {
-  if (boardSize === 13) return 1.5;
-  if (boardSize === 19) return 2.5;
+  if (boardSize === 13) return 2;
+  if (boardSize === 19) return 5;
   return 1;
 }
 
@@ -155,8 +159,8 @@ function isMaxScoringTurnLimit(boardSize: number, scoringTurnLimit?: number): bo
 
 /**
  * 전략바둑 대기실 AI 대결 승리 기본 EXP.
- * - 9줄 승리 EXP를 기준(1x)
- * - 13줄 1.5x, 19줄 2.5x
+ * - 9줄 모험 기본 EXP를 기준(1x)
+ * - 13줄 2배, 19줄 5배 (그 외 판은 1x)
  * - 계가까지 턴을 해당 판의 최대치로 설정하면 +0.5x(총 1.5배 추가 곱)
  */
 export function strategicLobbyAiWinXp(boardSize?: number, scoringTurnLimit?: number): number {

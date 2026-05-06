@@ -12,6 +12,7 @@ export type AdminView =
     | 'serverSettings'
     | 'serverMonitoring'
     | 'dropRateReference'
+    | 'xpFormulaReference'
     | 'homeBoard'
     | 'operations';
 
@@ -86,6 +87,14 @@ const TILES: TileDef[] = [
         icon: '🎯',
         accent: 'from-teal-500/20 to-teal-600/5',
         ringHover: 'hover:ring-teal-400/40',
+    },
+    {
+        view: 'xpFormulaReference',
+        title: '경험치 공식',
+        description: '유저 전략 EXP·대표펫 EXP 획득 규칙, 모험·대기실 AI·페어바둑·수련 등 서버와 동일한 상수 표',
+        icon: '📐',
+        accent: 'from-sky-500/20 to-sky-600/5',
+        ringHover: 'hover:ring-sky-400/40',
     },
     {
         view: 'operations',

@@ -13,7 +13,6 @@ import {
 import { applyMissileCaptureProcessResult } from '../../shared/utils/missileLandingCapture.js';
 import { recordPatternStoneConsumed, stripPatternStonesAtConsumedIntersections } from '../../shared/utils/patternStoneConsume.js';
 import { getCurrentPairTurnSeat, isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
-import { canUseBoardItemTurnWindow } from '../../shared/utils/strategicBoardItemTurn.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -223,8 +222,8 @@ export const updateMissileState = (game: types.LiveGameSession, now: number): bo
         game.gameStatus = 'playing';
         game.currentPlayer = timedOutPlayerEnum;
 
-        // 미사일 아이템 소멸
-        const missileKey = timedOutPlayerId === game.player1.id ? 'missiles_p1' : 'missiles_p2';
+        // 미사일 아이템 소멸 (p1/p2는 흑/백 — player1 좌석과 무관)
+        const missileKey = timedOutPlayerEnum === types.Player.Black ? 'missiles_p1' : 'missiles_p2';
         const currentMissiles = game[missileKey] ?? game.settings.missileCount ?? 0;
         if (currentMissiles > 0) {
             game[missileKey] = currentMissiles - 1;
@@ -549,13 +548,13 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
     const isMyTurn = pairCurrentSeat
         ? user.id === pairCurrentSeat.participantId && pairCurrentSeat.player === game.currentPlayer
         : myPlayerEnum === game.currentPlayer;
-    // 도전의 탑/싱글: 유저가 방금 둔 직후(턴이 AI로 넘어갔지만 AI가 아직 두기 전)에도 미사일 허용 (싱글플레이와 동일)
-    const canUseMissile = canUseBoardItemTurnWindow(game, myPlayerEnum, isMyTurn);
+    // 미사일은 본인 차례에만 사용 (히든/스캔과 달리 상대 응답 전 창은 허용하지 않음)
+    const canUseMissile = isMyTurn;
 
     switch (type) {
         case 'START_MISSILE_SELECTION': {
             if (!canUseMissile || game.gameStatus !== 'playing') {
-                console.warn(`[Missile Go] START_MISSILE_SELECTION failed: isMyTurn=${isMyTurn}, canUseMissile=${canUseMissile}, gameStatus=${game.gameStatus}, gameId=${game.id}`);
+                console.warn(`[Missile Go] START_MISSILE_SELECTION failed: isMyTurn=${isMyTurn}, gameStatus=${game.gameStatus}, gameId=${game.id}`);
                 return { error: "Not your turn to use an item." };
             }
             

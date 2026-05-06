@@ -57,7 +57,7 @@ interface ImageButtonProps {
 
 const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled = false, title, count, maxCount, compact = false }) => {
     const sizeClass = compact
-        ? 'h-10 w-10 shrink-0 rounded-md sm:h-10 sm:w-10 md:h-10 md:w-10'
+        ? 'h-12 w-12 shrink-0 rounded-lg sm:h-12 sm:w-12 md:h-12 md:w-12'
         : 'h-[4.25rem] w-[4.25rem] rounded-xl min-[1025px]:h-16 min-[1025px]:w-16';
     return (
         <button
@@ -572,7 +572,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 		<footer
 			className={`responsive-controls flex-shrink-0 w-full ${arenaGameRoomIngameBottomBarShellClass} ${
 				isMobile
-					? 'flex h-[104px] w-full min-w-0 flex-row items-stretch gap-1.5 p-1'
+					? 'flex min-h-[124px] w-full min-w-0 flex-row items-stretch gap-1.5 p-1'
 					: 'flex min-h-[124px] flex-row items-stretch gap-6 p-2 min-[1025px]:gap-7 min-[1025px]:py-1.5 min-[1025px]:px-2.5'
 			}`}
 		>

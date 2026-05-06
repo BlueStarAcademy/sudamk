@@ -23,6 +23,7 @@ export * from './negotiationMessages.js';
 export * from './helpCenterContent.js';
 export * from './petLobby.js';
 export * from './pairTraining.js';
+export * from './pairGoRewardBands.js';
 export * from './pairHatchery.js';
 export * from './pairArena.js';
 export * from './numericLimits.js';

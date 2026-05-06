@@ -85,6 +85,8 @@ export interface EquipmentDetailPanelProps {
     showAcquireSources?: boolean;
     /** 상점 미리보기 등에서 「보유 수량」 행 숨김 */
     hideOwnedQuantity?: boolean;
+    /** `obtained`: 획득 모달 등 — 스냅샷 수량을 「획득 수량」으로 표시 (가방 보유와 구분) */
+    materialQuantityCaption?: 'owned' | 'obtained';
 }
 
 /**
@@ -99,6 +101,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
     iconSlotPx,
     showAcquireSources = false,
     hideOwnedQuantity = false,
+    materialQuantityCaption = 'owned',
 }) => {
     const { currentUserWithStatus } = useAppContext();
     const styles = equipmentDetailGradeStyles[item.grade];
@@ -211,7 +214,14 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                             <p className={`${metaText} text-slate-400`}>{typeLabel}</p>
                             <p className={`${metaText} ${styles.color}`}>[{styles.name}]</p>
                             {!hideOwnedQuantity ? (
-                                <p className={`${metaSemi} text-slate-300`}>보유 수량: {item.quantity ?? 0}</p>
+                                <p className={`${metaSemi} text-slate-300`}>
+                                    {materialQuantityCaption === 'obtained' ? '획득 수량' : '보유 수량'}:{' '}
+                                    {typeof item.quantity === 'number' && Number.isFinite(item.quantity)
+                                        ? Math.max(0, Math.floor(item.quantity))
+                                        : materialQuantityCaption === 'obtained'
+                                          ? 0
+                                          : (item.quantity as number | undefined) ?? 0}
+                                </p>
                             ) : null}
                         </div>
                     </div>

@@ -175,6 +175,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                             optionsScrollable={false}
                             comfortableTypography
                             showAcquireSources
+                            materialQuantityCaption="obtained"
                         />
                     </div>
                     <div className={`${ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS} shrink-0 border-t border-slate-700/50 pt-2`}>

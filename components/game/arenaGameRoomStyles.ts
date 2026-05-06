@@ -10,7 +10,7 @@ import { arenaPostGameButtonClass } from './arenaPostGameButtonStyles.js';
  * (`max-h` 제거 — 종료 버튼이 많을 때 잘리지 않게 하되, 대부분은 동일 높이로 유지)
  */
 export function pveIngameFooterReservedHeightClass(isMobile: boolean): string {
-    return isMobile ? 'min-h-[104px]' : 'min-h-[108px]';
+    return isMobile ? 'min-h-[124px]' : 'min-h-[108px]';
 }
 
 /**

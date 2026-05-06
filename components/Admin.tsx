@@ -8,6 +8,7 @@ import HomeBoardPanel from './admin/HomeBoardPanel.js';
 import AdminOperationsPanel from './admin/AdminOperationsPanel.js';
 import ServerMonitoringPanel from './admin/ServerMonitoringPanel.js';
 import DropRateReferencePanel from './admin/DropRateReferencePanel.js';
+import XpFormulaReferencePanel from './admin/XpFormulaReferencePanel.js';
 import AdminVipGrantPanel from './admin/AdminVipGrantPanel.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
@@ -82,6 +83,8 @@ const Admin: React.FC = () => {
                 );
             case 'dropRateReference':
                 return <DropRateReferencePanel onBack={handleBack} />;
+            case 'xpFormulaReference':
+                return <XpFormulaReferencePanel onBack={handleBack} />;
             case 'homeBoard':
                 return <HomeBoardPanel {...adminProps} />;
             case 'operations':

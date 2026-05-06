@@ -1,5 +1,5 @@
 import { CoreStat, ItemGrade } from '../types/enums.js';
-import type { PairPetDisposition, PairPetMeta, PairPetSpecialization } from '../types/entities.js';
+import type { PairPetDisposition, PairPetMeta, PairPetSpecialization, PairPetRpsAttribute } from '../types/entities.js';
 import { CORE_STATS_DATA } from '../constants/items.js';
 import { PAIR_PET_MAX_LEVEL, pairPetLevelUpStatBudget } from '../constants/pairPetGrade.js';
 
@@ -29,6 +29,9 @@ export const PAIR_PET_HATCH_SPECIALIZATION_ENCYCLOPEDIA_LINES: readonly string[]
     '영혼석 획득 확률 +10%~20%',
 ];
 
+/** 도감용 — 부화 시 가위·바위·보 중 하나 */
+export const PAIR_PET_HATCH_RPS_ENCYCLOPEDIA_LINES: readonly string[] = ['가위 / 바위 / 보 중 하나(부화 시 무작위)'];
+
 function mulberry32(seed: number): () => number {
     let a = seed >>> 0;
     return () => {
@@ -47,6 +50,21 @@ function hashSeed(s: string): number {
         h = Math.imul(h, 16777619);
     }
     return h >>> 0;
+}
+
+export function isPairPetRpsAttribute(x: unknown): x is PairPetRpsAttribute {
+    return x === 1 || x === 2 || x === 3;
+}
+
+/** 구 펫 행 등에 결정론적으로 부여 */
+export function backfillPairPetRpsAttribute(itemId: string, createdAt: number): PairPetRpsAttribute {
+    const rng = mulberry32(hashSeed(`pair-pet-rps|${itemId}|${createdAt}`));
+    return (1 + Math.floor(rng() * 3)) as PairPetRpsAttribute;
+}
+
+export function resolvePairPetRpsAttributeFromMeta(meta: PairPetMeta, itemId: string, createdAt: number): PairPetRpsAttribute {
+    if (isPairPetRpsAttribute(meta.rpsAttribute)) return meta.rpsAttribute;
+    return backfillPairPetRpsAttribute(itemId, createdAt);
 }
 
 function rollInt(rng: () => number, min: number, max: number): number {
@@ -82,6 +100,7 @@ export function rollPairPetMetaForHatch(): PairPetMeta {
         disposition,
         specialization,
         levelUpCoreBonuses: {},
+        rpsAttribute: (1 + Math.floor(rng() * 3)) as PairPetRpsAttribute,
     };
 }
 
@@ -170,6 +189,9 @@ export function resolvePairPetMetaFromInventoryRow(row: {
     if (lvl > 1 && sumB === 0) {
         merged.levelUpCoreBonuses = backfillPairPetLevelUpCoreBonuses(row.id, row.createdAt ?? Date.now(), lvl, grade);
     }
+    if (!isPairPetRpsAttribute(merged.rpsAttribute)) {
+        merged.rpsAttribute = backfillPairPetRpsAttribute(row.id, row.createdAt ?? Date.now());
+    }
     return merged;
 }
 
@@ -215,5 +237,6 @@ export function derivePairPetMetaFallback(itemId: string, createdAt: number): Pa
         disposition,
         specialization,
         levelUpCoreBonuses: {},
+        rpsAttribute: (1 + Math.floor(rng() * 3)) as PairPetRpsAttribute,
     };
 }

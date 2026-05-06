@@ -42,7 +42,6 @@ import {
 import BaseGameFooterPanel, { BasePlacementControlStrip, isBaseGameFooterPhase } from './BaseGameFooterPanel.js';
 import IngameMobileFooterAd from './IngameMobileFooterAd.js';
 import { isPairCooperativeTwoHumansVsAi, pairSeatMatchesViewerUser } from '../../shared/utils/pairGameTurn.js';
-import { canUseBoardItemTurnWindow } from '../../shared/utils/strategicBoardItemTurn.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 import { pairPetKataPhaseFromTotalPly } from '../../shared/constants/pairArena.js';
 import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
@@ -1663,13 +1662,10 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                   ? (session.missiles_p2 ?? missileCountSetting)
                   : 0;
 
-        /** 서버 hidden/missile 과 동일: AI 응답 전 창에서도 히든·스캔·미사일 활성 */
-        const canItemTurnWindow = canUseBoardItemTurnWindow(session, myPlayerEnum, isMyTurn);
-
         const buttons: React.ReactNode[] = [];
 
         if (isHiddenMode) {
-            const hiddenDisabled = !canItemTurnWindow || isSpectator || effectiveGameStatus !== 'playing' || hiddenLeft <= 0;
+            const hiddenDisabled = !isMyTurn || isSpectator || effectiveGameStatus !== 'playing' || hiddenLeft <= 0;
             buttons.push(
                 <LabeledControlButton
                     key="hidden"
@@ -1685,7 +1681,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             );
 
             const scansLeft = myScansLeft ?? 0;
-            const scanDisabled = !canItemTurnWindow || isSpectator || effectiveGameStatus !== 'playing' || scansLeft <= 0 || !canScan;
+            const scanDisabled = !isMyTurn || isSpectator || effectiveGameStatus !== 'playing' || scansLeft <= 0 || !canScan;
             const scanHighlightAdventure = session.gameCategory === 'adventure' && !scanDisabled;
             buttons.push(
                 <div
@@ -1713,7 +1709,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
 
         if (isMissileMode) {
             const missilesLeft = myMissilesLeft ?? 0;
-            const missileDisabled = !canItemTurnWindow || isSpectator || effectiveGameStatus !== 'playing' || missilesLeft <= 0;
+            const missileDisabled = !isMyTurn || isSpectator || effectiveGameStatus !== 'playing' || missilesLeft <= 0;
             buttons.push(
                 <LabeledControlButton
                     key="missile"

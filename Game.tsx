@@ -41,6 +41,7 @@ function modeIncludesCaptureRule(mode: GameMode, settings: { mixedModes?: GameMo
 import { getEffectivePairLobbyOwnerId } from './shared/utils/effectivePairLobbyOwnerId.js';
 import GuildWarHiddenTowerControls from './components/game/GuildWarHiddenTowerControls.js';
 import GuildWarTowerSidebar from './components/game/GuildWarTowerSidebar.js';
+import PairPetRpsBadge from './components/pair/PairPetRpsBadge.js';
 import { useClientTimer } from './hooks/useClientTimer.js';
 import { useIsHandheldDevice } from './hooks/useIsMobileLayout.js';
 import { calculateSimpleAiMove } from './client/goAiBotClient.js';
@@ -259,19 +260,29 @@ const PairIngamePlayerCard: React.FC<{ session: LiveGameSession; seat: PairSeat;
                 <span className={`absolute right-2 top-2 z-[1] text-[10px] font-black ${black ? 'text-sky-200' : 'text-sky-700'}`}>통과</span>
             ) : null}
             <div className="flex h-full min-w-0 items-center justify-center gap-2 text-center">
-                <Avatar
-                    userId={seat.participantId}
-                    userName={display.name}
-                    avatarUrl={display.avatarUrl || (seat.kind === 'pet' ? '/images/pets/pet1.webp' : '/images/profiles/profile1.png')}
-                    borderUrl={display.borderUrl}
-                    size={compact ? 42 : 48}
-                />
+                <div className="relative shrink-0">
+                    <Avatar
+                        userId={seat.participantId}
+                        userName={display.name}
+                        avatarUrl={display.avatarUrl || (seat.kind === 'pet' ? '/images/pets/pet1.webp' : '/images/profiles/profile1.png')}
+                        borderUrl={display.borderUrl}
+                        size={compact ? 42 : 48}
+                    />
+                </div>
                 <div className="flex min-w-0 items-center justify-center gap-1.5">
                     {levelText ? (
                         <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-black ${black ? 'bg-slate-100/12 text-amber-100' : 'bg-slate-900/10 text-slate-700'}`}>
                             {levelText}
                         </span>
                     ) : null}
+                    {(seat.kind === 'pet' || seat.kind === 'ai') && (
+                        <span className="inline-flex shrink-0" title="펫 속성(가위·바위·보)">
+                            <PairPetRpsBadge
+                                attribute={session.settings.pairGame?.pairPetRpsAttributeByParticipantId?.[seat.participantId]}
+                                anchorSizePx={compact ? 32 : 36}
+                            />
+                        </span>
+                    )}
                     <span className={`${compact ? 'text-xs' : 'text-sm'} min-w-0 truncate font-black`} title={nickname}>
                         {nickname}
                     </span>
@@ -366,6 +377,7 @@ const PairMobileTeamPanel: React.FC<{
 }> = ({ session, clientTimes, player, viewerUserId }) => {
     const black = player === Player.Black;
     const seats = sortPairSeatsBySeatId((session.settings.pairGame?.turnOrder ?? []).filter((seat) => seat.player === player));
+    const showPairMobileRpsRow = seats.some((s) => s.kind === 'pet' || s.kind === 'ai');
     const colorTime = black ? clientTimes.black : clientTimes.white;
     const score = session.captures?.[player] ?? 0;
     const currentSeat = getCurrentPairTurnSeat(session.settings);
@@ -390,21 +402,39 @@ const PairMobileTeamPanel: React.FC<{
             }`}
             aria-current={isMyTurnHighlight ? 'true' : undefined}
         >
-            <div className="flex shrink-0 -space-x-2">
-                {seats.map((seat) => {
-                    const display = pairSeatDisplayInfo(session, seat);
-                    return (
-                        <div key={seat.seatId} className={`rounded-full ring-2 ${black ? 'ring-slate-950' : 'ring-amber-50'}`}>
-                            <Avatar
-                                userId={seat.participantId}
-                                userName={display.name}
-                                avatarUrl={display.avatarUrl || (seat.kind === 'pet' ? '/images/pets/pet1.webp' : '/images/profiles/profile1.png')}
-                                borderUrl={display.borderUrl}
-                                size={28}
-                            />
-                        </div>
-                    );
-                })}
+            <div className="flex shrink-0 flex-col items-center gap-0.5">
+                <div className="flex -space-x-2">
+                    {seats.map((seat) => {
+                        const display = pairSeatDisplayInfo(session, seat);
+                        return (
+                            <div key={seat.seatId} className={`rounded-full ring-2 ${black ? 'ring-slate-950' : 'ring-amber-50'}`}>
+                                <Avatar
+                                    userId={seat.participantId}
+                                    userName={display.name}
+                                    avatarUrl={display.avatarUrl || (seat.kind === 'pet' ? '/images/pets/pet1.webp' : '/images/profiles/profile1.png')}
+                                    borderUrl={display.borderUrl}
+                                    size={28}
+                                />
+                            </div>
+                        );
+                    })}
+                </div>
+                {showPairMobileRpsRow ? (
+                    <div className="flex max-w-full justify-center gap-0.5 px-0.5" aria-label="펫 속성">
+                        {seats.map((seat) => (
+                            <span key={`${seat.seatId}-rps`} className="inline-flex shrink-0">
+                                {seat.kind === 'pet' || seat.kind === 'ai' ? (
+                                    <PairPetRpsBadge
+                                        attribute={session.settings.pairGame?.pairPetRpsAttributeByParticipantId?.[seat.participantId]}
+                                        anchorSizePx={22}
+                                    />
+                                ) : (
+                                    <span className="inline-block h-[15px] w-[15px] shrink-0" aria-hidden />
+                                )}
+                            </span>
+                        ))}
+                    </div>
+                ) : null}
             </div>
             <div className={`min-w-0 flex-1 ${black ? 'text-left' : 'text-right'}`}>
                 <div className="truncate font-mono text-[12px] font-black leading-none tabular-nums">
@@ -1480,13 +1510,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             case 'dice_turn_choice': return session.turnChooserId === currentUser.id;
             case 'scanning': {
                 if (myPlayerEnum === Player.None) return false;
-                if (myPlayerEnum === currentPlayer) return true;
-                // 싱글플레이: 내 착수 직후 턴은 AI로 넘어갔지만 START_SCANNING 허용 — 스캔 좌표 클릭도 동일하게 허용 (도전의 탑은 AI 턴에 스캔 불가)
-                if (session.isSinglePlayer && !isTower && session.moveHistory?.length) {
-                    const last = session.moveHistory[session.moveHistory.length - 1];
-                    if (last && last.player === myPlayerEnum) return true;
-                }
-                return false;
+                return myPlayerEnum === currentPlayer;
             }
             case 'missile_selecting': {
                 if (myPlayerEnum === Player.None) return false;
@@ -1519,7 +1543,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 return !isSpectator && (currentUser.id === player1.id || currentUser.id === player2.id);
             default: return false;
         }
-    }, [myPlayerEnum, currentPlayer, gameStatus, isSpectator, session, currentUser.id, player1.id, session.settings, isTower]);
+    }, [myPlayerEnum, currentPlayer, gameStatus, isSpectator, session, currentUser.id, player1.id, session.settings]);
     
     // --- Sound Effects ---
     const prevIsMyTurn = usePrevious(isMyTurn);

@@ -9,7 +9,7 @@ import { audioService } from '../services/audioService.js';
 import { MATERIAL_ITEMS, isActionPointConsumable } from '../constants/items';
 import { RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS, RESULT_MODAL_BOX_GOLD_CLASS } from './game/ResultModalRewardSlot.js';
 import { ITEM_OBTAIN_COUNT_BADGE_CLASS } from './game/ItemObtainModalShared.js';
-import { isPairPetMaterial } from '../shared/constants/petLobby.js';
+import { isPairPetMaterial, isPairSoulStoneItem } from '../shared/constants/petLobby.js';
 
 interface BulkItemObtainedModalProps {
     items: InventoryItem[];
@@ -118,6 +118,10 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                 const isGoldIcon = item.image === '/images/icon/Gold.png';
                                 const currencyQty =
                                     typeof item.quantity === 'number' && Number.isFinite(item.quantity) ? item.quantity : 0;
+                                const grantQty =
+                                    typeof item.quantity === 'number' && Number.isFinite(item.quantity)
+                                        ? Math.max(0, Math.floor(item.quantity))
+                                        : 0;
                                 const tileWrapClass =
                                     'group relative aspect-square w-full min-w-0 max-w-[4.85rem] justify-self-center overflow-hidden rounded-2xl min-[400px]:max-w-[5.15rem] sm:max-w-[5.35rem]';
 
@@ -157,6 +161,35 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                                     className="relative z-[1] h-[48%] w-[48%] object-contain p-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)] sm:h-[46%] sm:w-[46%]"
                                                 />
                                                 <span className={ITEM_OBTAIN_COUNT_BADGE_CLASS}>+{currencyQty.toLocaleString()}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+
+                                /** 페어 영혼석: 획득 스냅샷 — 골드/다이아와 동일하게 +N으로 이번 지급 분만 표시 */
+                                if (isPairSoulStoneItem(item)) {
+                                    return (
+                                        <div key={item.id ?? `${item.name}-${index}`} className={tileWrapClass}>
+                                            <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-b from-violet-400/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                                            <div
+                                                className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl ring-1 ring-violet-400/30 ${staticBorderClass}`}
+                                            >
+                                                <img src={styles.background} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                                                {imagePath ? (
+                                                    <img
+                                                        src={imagePath}
+                                                        alt=""
+                                                        className="absolute z-[1] max-h-[62%] max-w-[62%] object-contain p-[6%] drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]"
+                                                        style={{
+                                                            left: '50%',
+                                                            top: '50%',
+                                                            transform: 'translate(-50%, -50%)',
+                                                        }}
+                                                    />
+                                                ) : null}
+                                                <span className={ITEM_OBTAIN_COUNT_BADGE_CLASS}>
+                                                    +{grantQty.toLocaleString()}
+                                                </span>
                                             </div>
                                         </div>
                                     );

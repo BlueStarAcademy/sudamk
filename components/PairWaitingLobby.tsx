@@ -2396,28 +2396,6 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                 window.alert('방장만 AI 대전을 시작할 수 있습니다.');
                 return;
             }
-            if (!myRoom) {
-                const mergeSettings = {
-                    ...DEFAULT_GAME_SETTINGS,
-                    ...(settings && typeof settings === 'object' ? settings : {}),
-                };
-                const createResult = await handlers.handleAction({
-                    type: 'PAIR_CREATE_ROOM',
-                    payload: {
-                        roomKind: 'ai_duel',
-                        lobbyChannel: 'pair',
-                        selectedGameMode: mode,
-                        settings: mergeSettings,
-                        visibility: 'public',
-                    },
-                } as ServerAction);
-                const createErr = (createResult as { error?: string } | undefined)?.error;
-                if (createErr) {
-                    window.alert(createErr);
-                    return;
-                }
-                await handlers.handleAction({ type: 'PAIR_SYNC' } as ServerAction).catch(() => undefined);
-            }
             const startPayload =
                 settings !== undefined && typeof settings === 'object'
                     ? { mode, settings }

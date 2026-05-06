@@ -243,8 +243,8 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
         game.gameStatus = 'playing';
         game.currentPlayer = timedOutPlayerEnum;
         
-        // 미사일 아이템 소멸
-        const missileKey = timedOutPlayerId === game.player1.id ? 'missiles_p1' : 'missiles_p2';
+        // 미사일 아이템 소멸 (p1/p2는 흑/백 — player1 좌석과 무관)
+        const missileKey = timedOutPlayerEnum === types.Player.Black ? 'missiles_p1' : 'missiles_p2';
         const currentMissiles = game[missileKey] ?? game.settings.missileCount ?? 0;
         if (currentMissiles > 0) {
             game[missileKey] = currentMissiles - 1;
