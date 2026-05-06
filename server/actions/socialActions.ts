@@ -4287,7 +4287,37 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
         }
         case 'PAIR_START_AI_MATCH': {
             if (!volatileState.pairRooms) volatileState.pairRooms = {};
-            let target = Object.values(volatileState.pairRooms).find((room) => userInActivePairLobbyRoom(room, user.id));
+            const payloadRoomIdRaw = (payload as { roomId?: string } | undefined)?.roomId;
+            const payloadRoomId =
+                typeof payloadRoomIdRaw === 'string' && payloadRoomIdRaw.trim() ? payloadRoomIdRaw.trim() : undefined;
+
+            const resolvePairStartAiMatchTargetRoom = (): types.PairRoomState | undefined => {
+                if (payloadRoomId) {
+                    const byId = volatileState.pairRooms![payloadRoomId];
+                    if (
+                        byId &&
+                        userInActivePairLobbyRoom(byId, user.id) &&
+                        byId.ownerId === user.id &&
+                        (byId.roomKind === 'ai_duel' || byId.roomKind === 'duo_match' || byId.roomKind === 'arena_ai')
+                    ) {
+                        return byId;
+                    }
+                }
+                const candidates = Object.values(volatileState.pairRooms).filter((room) =>
+                    userInActivePairLobbyRoom(room, user.id),
+                );
+                if (candidates.length === 0) return undefined;
+                // 집계 경기장 `arena_ai` 껍데기 방과 페어 채널 `ai_duel` 방을 동시에 가질 때 `.find` 순서로 잘못된 방이 잡히는 버그 방지: 페어 채널 AI 펫 방 우선
+                return (
+                    candidates.find((r) => (r.lobbyChannel ?? 'pair') === 'pair' && r.roomKind === 'ai_duel') ??
+                    candidates.find((r) => r.roomKind === 'duo_match') ??
+                    candidates.find((r) => r.roomKind === 'arena_ai') ??
+                    candidates.find((r) => r.roomKind === 'ai_duel') ??
+                    candidates[0]
+                );
+            };
+
+            let target = resolvePairStartAiMatchTargetRoom();
             let ephemeralPairPetAiDuelShell = false;
             if (!target) {
                 const shell = buildEphemeralPairPetAiDuelLobbySnapshot(

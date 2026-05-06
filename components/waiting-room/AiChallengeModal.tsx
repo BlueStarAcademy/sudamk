@@ -16,11 +16,12 @@ import {
   OMOK_BOARD_SIZES, HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getStrategicBoardSizesByMode, getScoringTurnLimitOptionsByBoardSize, getAiScoringTurnLimitByBoardSize
 } from '../../constants/gameSettings.js';
 import { profileStepFromKataServerLevel } from '../../shared/utils/strategicAiDifficulty.js';
-import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 import {
     clampAiLobbyStrategicItemCaps,
     AI_LOBBY_HIDDEN_ITEM_FIXED,
+    AI_LOBBY_KOMI_MAX_INTEGER,
+    AI_LOBBY_KOMI_MIN_INTEGER,
     AI_LOBBY_MISSILE_MAX,
     AI_LOBBY_SCAN_MAX,
 } from '../../shared/utils/strategicAiLobbyItemCaps.js';
@@ -1335,14 +1336,17 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             <input 
                                 type="number" 
                                 step="1" 
-                                min={0}
-                                max={MAX_GAME_INTEGER_INPUT}
+                                min={AI_LOBBY_KOMI_MIN_INTEGER}
+                                max={AI_LOBBY_KOMI_MAX_INTEGER}
                                 disabled={pairRoomLobbyChangePropose}
                                 value={Math.floor(settings.komi)} 
                                 onChange={(e) =>
                                     handleSettingChange(
                                         'komi',
-                                        clampGameInt(parseInt(e.target.value, 10) || 0, { min: 0, max: MAX_GAME_INTEGER_INPUT }) + 0.5,
+                                        clampGameInt(parseInt(e.target.value, 10) || AI_LOBBY_KOMI_MIN_INTEGER, {
+                                            min: AI_LOBBY_KOMI_MIN_INTEGER,
+                                            max: AI_LOBBY_KOMI_MAX_INTEGER,
+                                        }) + 0.5,
                                     )
                                 }
                                 className={gameSettingsSelectClass}

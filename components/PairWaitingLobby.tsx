@@ -2398,8 +2398,8 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             }
             const startPayload =
                 settings !== undefined && typeof settings === 'object'
-                    ? { mode, settings }
-                    : { mode };
+                    ? { mode, settings, ...(myRoom?.id ? { roomId: myRoom.id } : {}) }
+                    : { mode, ...(myRoom?.id ? { roomId: myRoom.id } : {}) };
             const result = await handlers.handleAction({
                 type: 'PAIR_START_AI_MATCH',
                 payload: startPayload,
@@ -2513,7 +2513,10 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             const mode = myRoom.selectedGameMode ?? GameMode.Standard;
             const raw = { ...DEFAULT_GAME_SETTINGS, ...(myRoom.settings ?? {}) };
             const settings = transformPairAiSettings(mode, raw);
-            await applyAction({ type: 'PAIR_START_AI_MATCH', payload: { mode, settings } } as ServerAction);
+            await applyAction({
+                type: 'PAIR_START_AI_MATCH',
+                payload: { mode, settings, ...(myRoom.id ? { roomId: myRoom.id } : {}) },
+            } as ServerAction);
     };
 
     const transformPairDraftLobbySettings = useCallback((_mode: GameMode, raw: GameSettings): GameSettings => {

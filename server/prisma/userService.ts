@@ -64,6 +64,16 @@ const buildPersistentFields = (user: User) => {
 
 const mapUser = (row: PrismaUserWithStatus): User => deserializeUser(row);
 
+/** Prisma 클라이언트가 DB보다 앞서거나(컬럼 제거 마이그레이션 후 미생성) 뒤처진 경우 */
+function logPrismaSchemaDriftHint(error: unknown): void {
+  const msg = (error as { message?: string })?.message ?? "";
+  if (!msg.includes("does not exist in the current database")) return;
+  console.error(
+    "[userService] DB와 Prisma 클라이언트가 어긋났습니다(예: 옛 스키마의 컬럼을 조회). " +
+      "서버를 끈 뒤 프로젝트 루트에서 `npm run prisma:generate` 실행 후, DB에는 `npm run prisma:migrate:deploy`로 마이그레이션을 맞춰 주세요."
+  );
+}
+
 // equipment와 inventory를 별도로 로드하는 헬퍼 함수
 const loadUserWithEquipmentAndInventory = async (query: () => Promise<any>) => {
   try {
@@ -104,6 +114,7 @@ export async function listUsers(options?: { includeEquipment?: boolean; includeI
     });
     return rows.map(mapUser);
   } catch (error: any) {
+    logPrismaSchemaDriftHint(error);
     // Prisma 엔진 미연결 시 준비 후 재시도
     if (error?.message?.includes('Engine is not yet connected') || prismaErrorImpliesEngineNotConnected(error)) {
       try {
@@ -140,6 +151,7 @@ export async function getUserById(id: string, options?: { includeEquipment?: boo
     });
     return row ? mapUser(row) : null;
   } catch (error: any) {
+    logPrismaSchemaDriftHint(error);
     // Prisma 엔진 미연결 시 준비 후 재시도
     if (error?.message?.includes('Engine is not yet connected')) {
       await ensurePrismaEngineReady();

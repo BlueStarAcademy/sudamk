@@ -14,6 +14,10 @@ import {
 } from '../shared/utils/strategicAiDifficulty.js';
 
 function pairTurnOrderPetPortrait(session: LiveGameSession, participantId: string): string | null {
+    if (isPairAiOpponentSyntheticDisplayParticipant(participantId)) {
+        const tid = participantId === 'pair-opponent-pet' ? 'pair-pet-2' : 'pair-pet-1';
+        return getPairPetDefinition(tid)?.image ?? null;
+    }
     if (!participantId.startsWith('pet-ai-')) return null;
     const uid = participantId.slice('pet-ai-'.length);
     const u = session.player1.id === uid ? session.player1 : session.player2.id === uid ? session.player2 : null;

@@ -23,6 +23,7 @@ import {
     recordSoftHiddenScanDiscovery,
 } from './hiddenScanShared.js';
 import { isStrategicAiGoSession } from '../../shared/utils/strategicBoardItemTurn.js';
+import { getCurrentPairTurnSeat, isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -353,9 +354,25 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
 export const handleHiddenAction = (volatileState: types.VolatileState, game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): HandleActionResult | null => {
     const { type, payload } = action as any;
     const now = Date.now();
-    const myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
-    const isMyTurn = myPlayerEnum === game.currentPlayer;
-    // 히든·스캔 시작은 본인 차례에만 (미사일·펫 힌트와 동일)
+    const pairClassicGame = isPairClassicGame(game.settings, game.mode);
+    const pairCurrentSeat = pairClassicGame ? getCurrentPairTurnSeat(game.settings) : null;
+    const myPlayerEnum = pairCurrentSeat
+        ? user.id === pairCurrentSeat.participantId
+            ? pairCurrentSeat.player
+            : user.id === game.blackPlayerId
+              ? types.Player.Black
+              : user.id === game.whitePlayerId
+                ? types.Player.White
+                : types.Player.None
+        : user.id === game.blackPlayerId
+          ? types.Player.Black
+          : user.id === game.whitePlayerId
+            ? types.Player.White
+            : types.Player.None;
+    const isMyTurn = pairCurrentSeat
+        ? user.id === pairCurrentSeat.participantId && pairCurrentSeat.player === game.currentPlayer
+        : myPlayerEnum === game.currentPlayer;
+    // 히든·스캔 시작은 본인 차례에만 (미사일·펫 힌트와 동일). 페어는 좌석 participantId·색이 일치할 때만(흑1/흑2 교대).
     const canUseItem = isMyTurn;
 
     switch(type) {

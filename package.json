@@ -7,6 +7,7 @@
   "scripts": {
     "start": "concurrently \"npm:start-client\" \"npm:start-server\"",
     "start-client": "vite --host",
+    "prestart-server": "npm run prisma:generate",
     "start-server": "npx tsx --tsconfig server/tsconfig.json server/server.ts",
     "railway:start": "npm run start-server",
     "build": "npm run build:client",
