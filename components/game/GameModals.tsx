@@ -97,7 +97,9 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
             return <SinglePlayerSummaryModal session={session} currentUser={currentUser} onAction={onAction} onClose={onCloseResults} />;
         }
 
-        if (session.gameCategory === 'tower' && showPveResultShell) {
+        // 도전의 탑: `showResultModal`만으로 게이트하면 종료 직후 WS/병합으로 `gameStatus`가 선행(예: base_game_start_confirmation)으로
+        // 잠깐 바뀌는 레이스에서 결과 대신 경기 시작 확인 모달이 덮이는 경우가 있다. 플래그가 켜진 동안은 항상 결과를 우선한다.
+        if (session.gameCategory === 'tower' && showResultModal) {
             return <TowerSummaryModal session={session} currentUser={currentUser} onAction={onAction} onClose={onCloseResults} />;
         }
         

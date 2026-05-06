@@ -7614,6 +7614,20 @@ export const useApp = () => {
                                                 existingGame.gameStatus === 'hidden_final_reveal' ||
                                                 existingGame.gameStatus === 'ended' ||
                                                 existingGame.gameStatus === 'no_contest';
+                                            // 종료 후 같은 gameId로 베이스 사전 단계 패킷이 늦게 오면 결과 모달 대신 시작 확인이 뜨는 레이스 방지
+                                            if (
+                                                localAdvanced &&
+                                                (game.gameStatus === 'base_game_start_confirmation' ||
+                                                    game.gameStatus === 'base_komi_result')
+                                            ) {
+                                                if (process.env.NODE_ENV === 'development') {
+                                                    console.warn(
+                                                        '[WebSocket] Tower: ignoring base pre-play GAME_UPDATE while local is terminal',
+                                                        { gameId, incoming: game.gameStatus }
+                                                    );
+                                                }
+                                                return currentGames;
+                                            }
                                             if (localAdvanced && game.gameStatus === 'pending') {
                                                 if (process.env.NODE_ENV === 'development') {
                                                     console.warn(

@@ -3904,11 +3904,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     // 결과 모달과 겹치지 않게: 계가/종료 직후 일시적으로 pending이 섞이는 경우에도 설명창이 위를 덮지 않도록 함
     const showGameDescription = isSinglePlayer && gameStatus === 'pending' && !showResultModal;
     // CONFIRM 전에만 시작 설명(대기 pending·실제 시작 시각 없음). 계가/종료 직후 잠깐 pending이 섞이면 시작창이 덮이는 간헐 이슈 방지.
+    // 한 판을 두었는데도 pending으로 잠깐 보이는 경우(동기화 레이스)에는 재시작 설명을 띄우지 않는다.
+    const towerValidMoveCount =
+        session.moveHistory?.filter((m: { x: number; y: number }) => m.x !== -1 && m.y !== -1).length ?? 0;
     const showTowerGameDescription =
         isTower &&
         gameStatus === 'pending' &&
         !showResultModal &&
-        (session as { startTime?: number | null }).startTime == null;
+        (session as { startTime?: number | null }).startTime == null &&
+        towerValidMoveCount === 0;
     
     // 도전의 탑 배경 이미지 설정
     const towerBackgroundImage = isTower && session.towerFloor 
