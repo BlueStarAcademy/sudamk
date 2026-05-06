@@ -55,7 +55,7 @@ const BaseStoneColorChoicePanel: React.FC<Props> = ({
         isSinglePlayer
             ? 'border-amber-500/50 bg-amber-900/40 text-amber-50 hover:bg-amber-800/45'
             : 'border-cyan-400/45 bg-cyan-950/50 text-cyan-50 hover:bg-cyan-900/45'
-    } min-h-[2.6rem] flex-1 px-2 py-2 text-sm sm:text-base`;
+    } min-h-[2.6rem] w-11 shrink-0 px-1.5 py-2 text-sm sm:w-12 sm:px-2 sm:text-base`;
 
     if (pairLobbyOwnerId && !isPairHostChoice) {
         const waitGuest = (
@@ -70,7 +70,7 @@ const BaseStoneColorChoicePanel: React.FC<Props> = ({
     const renderChoiceRow = (label: string, subjectId: string, stored: typeof choiceP1) => (
         <div className="flex w-full min-w-0 flex-col gap-1.5">
             <p className="text-center text-[10px] font-bold text-amber-100/90 sm:text-[11px]">{label}</p>
-            <div className="flex w-full min-w-0 gap-2">
+            <div className="flex w-full min-w-0 justify-center gap-2">
                 <button
                     type="button"
                     disabled={stored != null}
@@ -125,7 +125,7 @@ const BaseStoneColorChoicePanel: React.FC<Props> = ({
                     {renderChoiceRow(`${player2.nickname} (참가자 2)`, player2.id, choiceP2)}
                 </div>
             ) : (
-                <div className="flex w-full min-w-0 gap-2">
+                <div className="flex w-full min-w-0 justify-center gap-2">
                     <button
                         type="button"
                         disabled={myChoice != null}

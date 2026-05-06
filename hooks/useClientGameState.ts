@@ -6,7 +6,10 @@
 import { Player, LiveGameSession, Point, GameMode } from '../types/index.js';
 import { getFischerIncrementSeconds } from '../shared/utils/gameTimeControl.js';
 import { recordPatternStoneConsumed, stripPatternStonesAtConsumedIntersections } from '../shared/utils/patternStoneConsume.js';
-import { isIntersectionRecordedAsBaseStone } from '../shared/utils/removeCapturedBaseStoneMarkers.js';
+import {
+    isIntersectionRecordedAsBaseStone,
+    removeCapturedBaseStoneMarkersFromSession,
+} from '../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { getTowerSessionFloor } from '../utils/towerPreGameDisplay.js';
 
 export type GameType = 'tower' | 'singleplayer';
@@ -298,6 +301,19 @@ export function updateGameStateAfterMove(
     if (!isHidden) {
         updatedPermanentlyRevealedStones = updatedPermanentlyRevealedStones.filter(p => !(p.x === x && p.y === y));
     }
+
+    let updatedBaseStones: Point[] | undefined | null = game.baseStones ? [...game.baseStones] : null;
+    if (updatedBaseStones && updatedBaseStones.length > 0 && capturedStones.length > 0) {
+        const scratch = { baseStones: [...updatedBaseStones] } as LiveGameSession;
+        removeCapturedBaseStoneMarkersFromSession(scratch, capturedStones);
+        updatedBaseStones = scratch.baseStones?.length ? [...(scratch.baseStones as Point[])] : undefined;
+    }
+    if (!isHidden && updatedBaseStones && updatedBaseStones.length > 0) {
+        updatedBaseStones = updatedBaseStones.filter((p) => !(p.x === x && p.y === y));
+    }
+    if (updatedBaseStones && updatedBaseStones.length === 0) {
+        updatedBaseStones = undefined;
+    }
     const justCapturedEntries: {
         point: Point;
         player: Player;
@@ -419,6 +435,7 @@ export function updateGameStateAfterMove(
         permanentlyRevealedStones: updatedPermanentlyRevealedStones,
         hiddenStoneCaptures: updatedHiddenStoneCaptures,
         baseStoneCaptures: updatedBaseStoneCaptures,
+        ...(updatedBaseStones !== null ? { baseStones: updatedBaseStones } : {}),
         justCaptured: justCapturedEntries,
         newlyRevealed: [],
         animation: null,

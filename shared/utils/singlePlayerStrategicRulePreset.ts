@@ -8,8 +8,12 @@ export const inferLegacySinglePlayerGameMode = (stage: SinglePlayerStageInfo): G
     const isSpeedTime = stage.timeControl?.type === 'fischer';
     if (stage.hiddenCount !== undefined) return GameMode.Hidden;
     if (stage.missileCount !== undefined) return GameMode.Missile;
+    /** 베이스 스테이지는 `autoScoringTurns`가 함께 있어도 Base가 우선 (auto 프리셋이 Speed로만 가는 버그 방지) */
+    const baseStoneCount =
+        typeof stage.baseStones === 'number' && Number.isFinite(stage.baseStones) ? Math.floor(stage.baseStones) : 0;
+    if (baseStoneCount > 0) return GameMode.Base;
     if (stage.autoScoringTurns !== undefined) return GameMode.Speed;
-    // targetScore 객체는 항상 있어 truthy — 기존 서버와 동일하게 유지
+    // targetScore 객체는 항상 있어 truthy — 기존 서버와 동일하게 유지 (Base는 위에서 분기)
     if (stage.blackTurnLimit !== undefined || stage.targetScore) return GameMode.Capture;
     if (isSpeedTime) return GameMode.Speed;
     return GameMode.Standard;
@@ -26,6 +30,7 @@ export const inferSinglePlayerStrategicRulePreset = (stage: SinglePlayerStageInf
     if (mode === GameMode.Hidden) return 'hidden';
     if (mode === GameMode.Missile) return 'missile';
     if (mode === GameMode.Speed) return 'speed';
+    if (mode === GameMode.Base) return 'base';
     if (mode === GameMode.Standard) return 'classic';
     if (mode === GameMode.Capture && stage.survivalTurns != null && stage.survivalTurns > 0) return 'survival';
     return 'capture';

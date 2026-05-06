@@ -6,19 +6,41 @@ import { getGoLogic } from '../goLogic.js';
 import { transitionToPlaying } from './shared.js';
 import { aiUserId } from '../aiPlayer.js';
 import { processMove } from '../goLogic.js';
-import { resolveRuntimeAiBaseKomiBid } from '../../shared/utils/singlePlayerAiBaseKomiBid.js';
+import {
+    pickAiKomiValueAvoiding,
+    resolveRuntimeAiBaseKomiBid,
+} from '../../shared/utils/singlePlayerAiBaseKomiBid.js';
+import {
+    cloneBoardStateForKataOpeningSnapshot,
+    encodeBoardStateAsKataSetupMovesFromEmpty,
+} from '../kataCaptureSetupEncoding.js';
 
 /** 2차 덤 동점 → 무작위 흑백 시 룰렛 연출 후 시작 확인으로 넘기는 시간(ms) */
 const BASE_COLOR_ROULETTE_PHASE_MS = 5200;
 
+/** 메인 루프가 매 틱 호출해도 동일한 값이 나오게 (AI 선호·타임아웃 무작위 흔들림 방지) */
+const pickBlackOrWhiteFromDeterministicSeed = (seed: string): types.Player => {
+    let h = 2166136261;
+    for (let i = 0; i < seed.length; i++) {
+        h ^= seed.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+    }
+    const u = h >>> 0;
+    return (u & 1) === 0 ? types.Player.Black : types.Player.White;
+};
+
 /** 모험 베이스: 몬스터 대전은 카운트다운·자동 타임아웃 없이 유저 조작만으로 진행 */
 const isAdventureBaseGame = (game: types.LiveGameSession) => game.gameCategory === 'adventure';
+
+/** 싱글도 모험과 같이「시작하기」만 받고, 메인 루프 30초 타임아웃으로 playing만 되면 모달과 어긋난다 */
+const skipBaseStartConfirmationDeadline = (game: types.LiveGameSession) =>
+    isAdventureBaseGame(game) || game.isSinglePlayer;
 
 const enterBaseGameStartConfirmation = (game: types.LiveGameSession, now: number) => {
     const p1Id = game.player1.id;
     const p2Id = game.player2.id;
     game.gameStatus = 'base_game_start_confirmation';
-    game.revealEndTime = isAdventureBaseGame(game) ? undefined : now + 30000;
+    game.revealEndTime = skipBaseStartConfirmationDeadline(game) ? undefined : now + 30000;
     game.preGameConfirmations = { [p1Id]: false, [p2Id]: false };
     if (game.isAiGame) {
         const aiId = p1Id === aiUserId ? p1Id : p2Id;
@@ -185,15 +207,33 @@ const wouldBeImmediatelyCaptured = (board: types.BoardState, x: number, y: numbe
 const edgeInset = (x: number, y: number, boardSize: number): number =>
     Math.min(x, y, boardSize - 1 - x, boardSize - 1 - y);
 
-const distSqToBoardCenter = (x: number, y: number, boardSize: number): number => {
-    const cx = (boardSize - 1) / 2;
-    const cy = (boardSize - 1) / 2;
-    const dx = x - cx;
-    const dy = y - cy;
-    return dx * dx + dy * dy;
+type BaseRandCell = { x: number; y: number; inset: number };
+
+/**
+ * 베이스 랜덤 배치: 바둑 3·4선(가장 가까운 변으로부터 격자 3·4번째 줄 → edgeInset 2..3).
+ * 작은 판은 가능한 범위로 완화.
+ */
+const baseStoneRandomInsetBand = (boardSize: number): { minInset: number; maxInset: number } => {
+    if (boardSize <= 5) return { minInset: 1, maxInset: 2 };
+    if (boardSize <= 7) return { minInset: 1, maxInset: 3 };
+    return { minInset: 2, maxInset: 3 };
 };
 
-type BaseRandCell = { x: number; y: number; d: number; inset: number };
+const manhattanMinToOccupied = (x: number, y: number, occupied: Set<string>): number => {
+    let best = 999;
+    for (const key of occupied) {
+        const parts = key.split(',');
+        const ox = Number(parts[0]);
+        const oy = Number(parts[1]);
+        if (!Number.isFinite(ox) || !Number.isFinite(oy)) continue;
+        const d = Math.abs(x - ox) + Math.abs(y - oy);
+        if (d < best) best = d;
+    }
+    return best >= 999 ? 0 : best;
+};
+
+const filterCellsByInsetBand = (cells: BaseRandCell[], minInset: number, maxInset: number): BaseRandCell[] =>
+    cells.filter((c) => c.inset >= minInset && c.inset <= maxInset);
 
 /** interiorOnly: 1~(N-2) 선 안만(가장자리 1·N선 제외). 보드가 너무 작으면 interior 없음. */
 const listBaseRandomCandidates = (
@@ -215,7 +255,6 @@ const listBaseRandomCandidates = (
             out.push({
                 x,
                 y,
-                d: distSqToBoardCenter(x, y, boardSize),
                 inset: edgeInset(x, y, boardSize),
             });
         }
@@ -223,31 +262,87 @@ const listBaseRandomCandidates = (
     return out;
 };
 
-/** 보드 중심에 가깝고, 동률이면 가장자리에서 더 안쪽(inset 큼)을 선호한 뒤 무작위 1칸. */
-const pickBaseStoneRandomCell = (
+const tiersBaseRandom: Array<[boolean, boolean]> = [
+    [true, true],
+    [true, false],
+    [false, true],
+    [false, false],
+];
+
+/** 3~4선 띠 안에서, 이미 놓인 돌·상대 베이스와 맨해튼 거리가 큰 칸을 우선해 고른 뒤 그중 무작위. */
+const collectBandPoolForBaseRandom = (
+    boardSize: number,
+    occupied: Set<string>,
+    tempBoard: types.BoardState,
+    playerColor: types.Player,
+    minInset: number,
+    maxInset: number
+): BaseRandCell[] => {
+    const acc: BaseRandCell[] = [];
+    for (const [interiorOnly, requireNonCapture] of tiersBaseRandom) {
+        const pool = listBaseRandomCandidates(boardSize, occupied, tempBoard, playerColor, interiorOnly, requireNonCapture);
+        const band = filterCellsByInsetBand(pool, minInset, maxInset);
+        for (const c of band) acc.push(c);
+        if (acc.length > 0) break;
+    }
+    return acc;
+};
+
+/** 띠 후보가 없을 때: 전체 후보 중 퍼짐 최대(동률±1 중 랜덤), 보드 중심 몰림 없음 */
+const pickBaseStoneRandomCellSpreadFallback = (
     boardSize: number,
     occupied: Set<string>,
     tempBoard: types.BoardState,
     playerColor: types.Player
 ): { x: number; y: number } | null => {
-    const tiers: Array<[boolean, boolean]> = [
-        [true, true],
-        [true, false],
-        [false, true],
-        [false, false],
-    ];
-    for (const [interiorOnly, requireNonCapture] of tiers) {
+    for (const [interiorOnly, requireNonCapture] of tiersBaseRandom) {
         const pool = listBaseRandomCandidates(boardSize, occupied, tempBoard, playerColor, interiorOnly, requireNonCapture);
         if (pool.length === 0) continue;
-        pool.sort((a, b) => (a.d !== b.d ? a.d - b.d : b.inset - a.inset));
-        const bestD = pool[0]!.d;
-        const afterD = pool.filter((c) => c.d === bestD);
-        const bestInset = afterD[0]!.inset;
-        const tier = afterD.filter((c) => c.inset === bestInset);
-        const pick = tier[Math.floor(Math.random() * tier.length)]!;
+        const scored = pool.map((c) => ({
+            c,
+            spread: occupied.size === 0 ? 0 : manhattanMinToOccupied(c.x, c.y, occupied),
+        }));
+        scored.sort((a, b) => (b.spread !== a.spread ? b.spread - a.spread : b.c.inset - a.c.inset));
+        const topSpread = scored[0]!.spread;
+        const spreadTier = scored.filter((s) => s.spread >= topSpread - 1);
+        const pick = spreadTier[Math.floor(Math.random() * spreadTier.length)]!.c;
         return { x: pick.x, y: pick.y };
     }
     return null;
+};
+
+const pickBaseStoneRandomCellInBandWithSpread = (
+    boardSize: number,
+    occupied: Set<string>,
+    tempBoard: types.BoardState,
+    playerColor: types.Player
+): { x: number; y: number } | null => {
+    const { minInset: bandMin, maxInset: bandMax } = baseStoneRandomInsetBand(boardSize);
+
+    let bandPool = collectBandPoolForBaseRandom(boardSize, occupied, tempBoard, playerColor, bandMin, bandMax);
+    if (bandPool.length === 0) {
+        bandPool = collectBandPoolForBaseRandom(
+            boardSize,
+            occupied,
+            tempBoard,
+            playerColor,
+            Math.max(0, bandMin - 1),
+            Math.min(Math.floor((boardSize - 1) / 2), bandMax + 1)
+        );
+    }
+    if (bandPool.length === 0) {
+        return pickBaseStoneRandomCellSpreadFallback(boardSize, occupied, tempBoard, playerColor);
+    }
+
+    const scored = bandPool.map((c) => ({
+        c,
+        spread: occupied.size === 0 ? 0 : manhattanMinToOccupied(c.x, c.y, occupied),
+    }));
+    scored.sort((a, b) => b.spread - a.spread);
+    const topSpread = scored[0]!.spread;
+    const spreadTier = scored.filter((s) => s.spread >= topSpread - 1);
+    const pick = spreadTier[Math.floor(Math.random() * spreadTier.length)]!.c;
+    return { x: pick.x, y: pick.y };
 };
 
 const placeRemainingStonesRandomly = (game: types.LiveGameSession, playerKey: 'baseStones_p1' | 'baseStones_p2') => {
@@ -267,7 +362,7 @@ const placeRemainingStonesRandomly = (game: types.LiveGameSession, playerKey: 'b
     (game.baseStones_p2 ?? []).forEach(p => occupied.add(`${p.x},${p.y}`));
     
     const { boardSize } = game.settings;
-    
+
     // Determine player color based on playerKey
     const playerColor = playerKey === 'baseStones_p1' ? types.Player.Black : types.Player.White;
 
@@ -277,7 +372,7 @@ const placeRemainingStonesRandomly = (game: types.LiveGameSession, playerKey: 'b
     (game.baseStones_p2 ?? []).forEach(p => tempBoard[p.y][p.x] = types.Player.White);
 
     for (let i = 0; i < stonesToPlace; i++) {
-        const picked = pickBaseStoneRandomCell(boardSize, occupied, tempBoard, playerColor);
+        const picked = pickBaseStoneRandomCellInBandWithSpread(boardSize, occupied, tempBoard, playerColor);
         if (!picked) {
             console.warn(`[BaseGo] No empty cells left for base stone placement (playerKey=${playerKey}).`);
             return;
@@ -377,8 +472,8 @@ const finalizeBaseDifferentStoneColorChoices = (
     const p2 = game.player2;
     const blackPlayerId = c1 === types.Player.Black ? p1.id : p2.id;
     const whitePlayerId = c1 === types.Player.White ? p1.id : p2.id;
-    const baseKomi = game.settings.komi ?? 0.5;
-    const finalKomi = baseKomi + 0.5;
+    /** 베이스 모드 `settings.komi`(기본 0.5)를 백 덤으로 그대로 사용 — 입찰 단계 없이 확정 */
+    const finalKomi = game.settings.komi ?? 0.5;
 
     game.blackPlayerId = blackPlayerId;
     game.whitePlayerId = whitePlayerId;
@@ -389,17 +484,20 @@ const finalizeBaseDifferentStoneColorChoices = (
         .map(() => Array(game.settings.boardSize).fill(types.Player.None));
     const p1Color = p1.id === blackPlayerId ? types.Player.Black : types.Player.White;
     const p2Color = p2.id === whitePlayerId ? types.Player.White : types.Player.Black;
-    const p1BaseStoneColor = isAdventureBaseGame(game) ? types.Player.Black : p1Color;
-    const p2BaseStoneColor = isAdventureBaseGame(game) ? types.Player.White : p2Color;
     (game.baseStones_p1 || []).forEach((p) => {
-        newBoardState[p.y][p.x] = p1BaseStoneColor;
-        game.baseStones!.push({ ...p, player: p1BaseStoneColor });
+        newBoardState[p.y][p.x] = p1Color;
+        game.baseStones!.push({ ...p, player: p1Color });
     });
     (game.baseStones_p2 || []).forEach((p) => {
-        newBoardState[p.y][p.x] = p2BaseStoneColor;
-        game.baseStones!.push({ ...p, player: p2BaseStoneColor });
+        newBoardState[p.y][p.x] = p2Color;
+        game.baseStones!.push({ ...p, player: p2Color });
     });
     game.boardState = newBoardState;
+    /** 본대국에서는 `game.baseStones`만 베이스 좌표 소스 — p1/p2가 남으면 빈 자리 재착수가 베이스로 오인될 수 있음 */
+    game.baseStones_p1 = [];
+    game.baseStones_p2 = [];
+    (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(newBoardState);
+    (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(newBoardState);
     game.baseKomiBidsSnapshot = {
         [p1.id]: { color: c1, komi: 0 },
         [p2.id]: { color: c2, komi: 0 },
@@ -411,7 +509,7 @@ const finalizeBaseDifferentStoneColorChoices = (
     game.baseSameColorTieColor = undefined;
     game.komiBiddingDeadline = undefined;
     game.revealEndTime = undefined;
-    transitionToPlaying(game, now);
+    enterBaseGameStartConfirmation(game, now);
 };
 
 const resolveBaseStoneColorChoicePhase = (game: types.LiveGameSession, now: number) => {
@@ -425,7 +523,9 @@ const resolveBaseStoneColorChoicePhase = (game: types.LiveGameSession, now: numb
     if (game.isAiGame) {
         const humanChoice = game.baseStoneColorChoices[humanId];
         if (humanChoice != null && game.baseStoneColorChoices[aiId] == null) {
-            game.baseStoneColorChoices[aiId] = Math.random() < 0.5 ? types.Player.Black : types.Player.White;
+            game.baseStoneColorChoices[aiId] = pickBlackOrWhiteFromDeterministicSeed(
+                `${game.id}:baseAiStonePref:${humanId}:${humanChoice}`,
+            );
         }
     }
 
@@ -437,8 +537,8 @@ const resolveBaseStoneColorChoicePhase = (game: types.LiveGameSession, now: numb
 
     if (deadlinePassed) {
         if (c1 == null && c2 == null) {
-            c1 = Math.random() < 0.5 ? types.Player.Black : types.Player.White;
-            c2 = Math.random() < 0.5 ? types.Player.Black : types.Player.White;
+            c1 = pickBlackOrWhiteFromDeterministicSeed(`${game.id}:baseColorDeadline:${p1}`);
+            c2 = pickBlackOrWhiteFromDeterministicSeed(`${game.id}:baseColorDeadline:${p2}`);
         } else if (c1 == null) {
             c1 = oppositeStoneColor(c2!);
         } else if (c2 == null) {
@@ -453,6 +553,7 @@ const resolveBaseStoneColorChoicePhase = (game: types.LiveGameSession, now: numb
     if (c1 === null || c2 === null) return;
 
     if (c1 !== c2) {
+        // 선호가 다르면 흑·백은 선택 그대로, 덤은 settings.komi(기본 0.5)만 적용 후 경기 시작 확인(모달)으로
         finalizeBaseDifferentStoneColorChoices(game, now, c1, c2);
     } else {
         game.baseSameColorTieColor = c1;
@@ -500,13 +601,19 @@ const applyBaseKomiBidResolution = (game: types.LiveGameSession, now: number) =>
     } else if ((game.komiBiddingRound || 1) === 1) {
         const sameColorFlow = game.baseSameColorTieColor != null;
         game.gameStatus = sameColorFlow ? 'base_same_color_points_bid' : 'komi_bidding';
-        game.komiBiddingDeadline = sameColorFlow || !isAdventureBaseGame(game) ? now + 30000 : undefined;
+        // 2차 입찰: 모험 포함 전부 제한 시간(싱글·로비와 동일하게 타임아웃·AI 자동 입찰)
+        game.komiBiddingDeadline = now + 30000;
         game.komiBids = { [p1.id]: null, [p2.id]: null };
         game.komiBiddingRound = 2;
         game.revealEndTime = undefined;
         return;
     } else {
-        const winnerId = Math.random() < 0.5 ? p1.id : p2.id;
+        const winnerId =
+            pickBlackOrWhiteFromDeterministicSeed(
+                `${game.id}:baseKomiTie2:${p1}:${p2}:${p1Bid.komi}:${p2Bid.komi}:${p1Bid.color}`,
+            ) === types.Player.Black
+                ? p1.id
+                : p2.id;
         const loserId = winnerId === p1.id ? p2.id : p1.id;
         useBaseColorRoulettePhase = true;
 
@@ -531,18 +638,19 @@ const applyBaseKomiBidResolution = (game: types.LiveGameSession, now: number) =>
             .map(() => Array(game.settings.boardSize).fill(types.Player.None));
         const p1Color = p1.id === blackPlayerId ? types.Player.Black : types.Player.White;
         const p2Color = p2.id === whitePlayerId ? types.Player.White : types.Player.Black;
-        // 모험 베이스는 덤 결과로 유저 색이 바뀌어도, 배치한 베이스 돌의 흑/백 표시를 고정한다.
-        const p1BaseStoneColor = isAdventureBaseGame(game) ? types.Player.Black : p1Color;
-        const p2BaseStoneColor = isAdventureBaseGame(game) ? types.Player.White : p2Color;
         (game.baseStones_p1 || []).forEach(p => {
-            newBoardState[p.y][p.x] = p1BaseStoneColor;
-            game.baseStones!.push({ ...p, player: p1BaseStoneColor });
+            newBoardState[p.y][p.x] = p1Color;
+            game.baseStones!.push({ ...p, player: p1Color });
         });
         (game.baseStones_p2 || []).forEach(p => {
-            newBoardState[p.y][p.x] = p2BaseStoneColor;
-            game.baseStones!.push({ ...p, player: p2BaseStoneColor });
+            newBoardState[p.y][p.x] = p2Color;
+            game.baseStones!.push({ ...p, player: p2Color });
         });
         game.boardState = newBoardState;
+        game.baseStones_p1 = [];
+        game.baseStones_p2 = [];
+        (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(newBoardState);
+        (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(newBoardState);
         if (useBaseColorRoulettePhase) {
             game.gameStatus = 'base_color_roulette';
             game.revealEndTime = isAdventureBaseGame(game) ? now - 1 : now + BASE_COLOR_ROULETTE_PHASE_MS;
@@ -601,12 +709,20 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
                 if (game.gameStatus === 'base_same_color_points_bid' && lockedSame != null) {
                     if (game.komiBids[humanId] != null && game.komiBids[aiId] == null) {
                         const fromStage = (game.settings as types.GameSettings | undefined)?.singlePlayerAiBaseKomiBid;
-                        const aiKomi = resolveRuntimeAiBaseKomiBid(fromStage).komi;
+                        const humanK = game.komiBids[humanId]!.komi;
+                        const avoid =
+                            (game.komiBiddingRound ?? 1) >= 2 && Number.isFinite(humanK) ? humanK : undefined;
+                        const aiKomi = pickAiKomiValueAvoiding(fromStage, avoid);
                         game.komiBids[aiId] = { color: lockedSame, komi: Math.min(100, Math.max(0, Math.floor(aiKomi))) };
                     }
                 } else if (game.komiBids[humanId] != null && game.komiBids[aiId] == null) {
                     const fromStage = (game.settings as types.GameSettings | undefined)?.singlePlayerAiBaseKomiBid;
-                    game.komiBids[aiId] = resolveRuntimeAiBaseKomiBid(fromStage);
+                    const humanK = game.komiBids[humanId]!.komi;
+                    const avoid =
+                        (game.komiBiddingRound ?? 1) >= 2 && Number.isFinite(humanK) ? humanK : undefined;
+                    const base = resolveRuntimeAiBaseKomiBid(fromStage);
+                    const komi = pickAiKomiValueAvoiding(fromStage, avoid);
+                    game.komiBids[aiId] = { color: base.color, komi };
                 }
             }
             const bothHaveBid = game.komiBids?.[p1Id] != null && game.komiBids?.[p2Id] != null;
@@ -645,7 +761,7 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
         case 'base_game_start_confirmation': {
             const bothConfirmed = game.preGameConfirmations?.[p1Id] && game.preGameConfirmations?.[p2Id];
             const deadlinePassed =
-                !isAdventureBaseGame(game) && !!game.revealEndTime && now > game.revealEndTime;
+                !skipBaseStartConfirmationDeadline(game) && !!game.revealEndTime && now > game.revealEndTime;
             if (bothConfirmed || deadlinePassed) {
                 transitionToPlaying(game, now);
             }
@@ -653,6 +769,15 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
         }
     }
 };
+
+/** `/api/action` 본문에 game을 실어 WS 없이도 클라가 본경기 전환을 반영하게 함 */
+function baseHttpGameSnapshot(game: types.LiveGameSession): types.HandleActionResult {
+    const boardState =
+        game.boardState && Array.isArray(game.boardState)
+            ? game.boardState.map((row: number[]) => [...row])
+            : game.boardState;
+    return { clientResponse: { gameId: game.id, game: { ...game, boardState } as types.LiveGameSession } };
+}
 
 export const handleBaseAction = (game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): types.HandleActionResult | null => {
     const { type, payload } = action as any;
@@ -687,6 +812,10 @@ export const handleBaseAction = (game: types.LiveGameSession, action: types.Serv
                 if (!game[myStonesKey]) game[myStonesKey] = [];
                 if ((game[myStonesKey]?.length ?? 0) >= game.settings.baseStones!) return { error: "Already placed all stones." };
                 if (game[myStonesKey]!.some(p => p.x === payload.x && p.y === payload.y)) return { error: "Already placed a stone there." };
+                const otherKey: 'baseStones_p1' | 'baseStones_p2' = myStonesKey === 'baseStones_p1' ? 'baseStones_p2' : 'baseStones_p1';
+                if ((game[otherKey] ?? []).some((p) => p.x === payload.x && p.y === payload.y)) {
+                    return { error: '상대 베이스돌이 있는 자리에는 둘 수 없습니다.' };
+                }
                 game[myStonesKey]!.push({ x: payload.x, y: payload.y });
                 if (pairHostId != null) clearBothPlayersBasePlacementReady(game);
                 else clearBasePlacementReadyForUser(game, user.id);
@@ -858,21 +987,33 @@ export const handleBaseAction = (game: types.LiveGameSession, action: types.Serv
             if (game.preGameKomiSummaryAck[p1Ack] && game.preGameKomiSummaryAck[p2Ack]) {
                 enterBaseGameStartConfirmation(game, now);
             }
-            return {};
+            return baseHttpGameSnapshot(game);
         }
-        case 'CONFIRM_BASE_REVEAL':
-             if (game.gameStatus !== 'base_game_start_confirmation') return { error: "Not in confirmation phase." };
-             if (!game.preGameConfirmations) game.preGameConfirmations = {};
-             game.preGameConfirmations[user.id] = true;
-             // AI 대국 안전장치:
-             // 일부 케이스에서 AI 확인 플래그가 참가자 키와 어긋나 "상대방 확인 대기 중"에 머무를 수 있으므로
-             // 유저가 확인을 누른 시점에 상대(AI) 확인을 보정하고 즉시 시작 전환한다.
-             if (game.isAiGame) {
-                const opponentId = game.player1.id === user.id ? game.player2.id : game.player1.id;
-                game.preGameConfirmations[opponentId] = true;
-                transitionToPlaying(game, now);
-             }
-             return {};
+        case 'CONFIRM_BASE_REVEAL': {
+            if (game.gameStatus === 'base_game_start_confirmation') {
+                if (!game.preGameConfirmations) game.preGameConfirmations = {};
+                game.preGameConfirmations[user.id] = true;
+                // AI 대국 안전장치:
+                // 일부 케이스에서 AI 확인 플래그가 참가자 키와 어긋나 "상대방 확인 대기 중"에 머무를 수 있으므로
+                // 유저가 확인을 누른 시점에 상대(AI) 확인을 보정하고 즉시 시작 전환한다.
+                if (game.isAiGame) {
+                    const opponentId = game.player1.id === user.id ? game.player2.id : game.player1.id;
+                    game.preGameConfirmations[opponentId] = true;
+                    transitionToPlaying(game, now);
+                }
+                return baseHttpGameSnapshot(game);
+            }
+            // 틱·PVP 타임아웃 등으로 이미 playing인데 클라가 모달을 늦게 닫는 경우(싱글 베이스)
+            const baseReadyNoMoves =
+                game.isSinglePlayer &&
+                game.gameStatus === 'playing' &&
+                !(game.moveHistory && game.moveHistory.length > 0) &&
+                Boolean(game.blackPlayerId && game.whitePlayerId) &&
+                ((game.baseStones?.length ?? 0) > 0 ||
+                    (typeof game.settings?.baseStones === 'number' && game.settings.baseStones > 0));
+            if (baseReadyNoMoves) return baseHttpGameSnapshot(game);
+            return { error: 'Not in confirmation phase.' };
+        }
     }
     return null;
 };

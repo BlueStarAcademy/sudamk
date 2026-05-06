@@ -62,7 +62,9 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
 
     const baseUsesBottomStrip =
         mode === GameMode.Base || (mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Base)));
-    const unifiedBasePrePlayChrome = session.isSinglePlayer || !session.isAiGame;
+    /** 모험 베이스도 싱글과 같은 푸터·선호/덤 패널 톤(로비 AI 베이스만 시안 유지) */
+    const unifiedBasePrePlayChrome =
+        session.isSinglePlayer || !session.isAiGame || session.gameCategory === 'adventure';
 
     const renderModals = () => {
         // AI 봇 대전(대기실의 "AI와 대결하기"로 시작된 일반/로비 AI 경기만):

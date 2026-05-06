@@ -4,6 +4,7 @@ import { gradeStyles, MATERIAL_ITEMS } from '../../constants/items.js';
 import {
     isPairSoulStoneMaterialName,
     PAIR_EGG_MATERIAL_NAME,
+    PAIR_WELCOME_EGG_MATERIAL_NAME,
     PAIR_PET_SHOP_SKUS,
 } from '../constants/petLobby.js';
 import { PAIR_TRAINING_SLOT_DEFS } from '../constants/pairTraining.js';
@@ -95,6 +96,12 @@ export function resolveBagItemAcquireLines(item: InventoryItem): string[] {
         lines.push('[펫 · 부화장] 신비로운알을 부화할 때 소모');
         lines.push('[펫 · 펫 상점] 골드·다이아로 구매 가능(일일 한도)');
         lines.push('[펫 · 수련·이벤트] 일부 보상으로 획득');
+        return lines;
+    }
+
+    if (n === PAIR_WELCOME_EGG_MATERIAL_NAME) {
+        lines.push('[우편] 신규 환영·운영 지급 등으로 획득할 수 있습니다.');
+        lines.push('[펫 · 부화장] 어떤 슬롯에서든 부화 시간 1분, 부화 시 레벨 5 펫');
         return lines;
     }
 

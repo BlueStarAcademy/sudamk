@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { GameProps, Player, Point, Move, SinglePlayerStageInfo } from '../../types.js';
+import { GameProps, GameStatus, Player, Point, Move, SinglePlayerStageInfo } from '../../types.js';
 import GoBoard from '../GoBoard.js';
 import { ScoringOverlay, SCORING_PROGRESS_DURATION_MS } from '../game/ScoringOverlay.js';
 import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js';
@@ -199,17 +199,20 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         }
     }, [gameStatus, hasPlayedScoringOverlay, scoringOverlayStorageKey]);
 
-    const allowBackBoardBaseStonesOnMobile = !isMobile || stageDescriptionCollapsed;
-    const showPlacedBaseStoneArrays =
-        allowBackBoardBaseStonesOnMobile &&
-        (gameStatus === 'base_placement' ||
-            gameStatus === 'base_stone_color_choice' ||
-            gameStatus === 'base_same_color_points_bid' ||
-            gameStatus === 'komi_bidding' ||
-            gameStatus === 'komi_bid_reveal' ||
-            gameStatus === 'base_color_roulette' ||
-            gameStatus === 'base_komi_result' ||
-            gameStatus === 'base_game_start_confirmation');
+    /** 모바일에서 스테이지 두루마리를 펼쳐도, 베이스 사전 단계에서는 판에 놓인 베이스돌을 항상 표시해야 함(그렇지 않으면 배치·덤 UI가 깨져 보임). */
+    const basePrePlayStatusesForBoard: readonly GameStatus[] = [
+        'base_placement',
+        'base_stone_color_choice',
+        'base_same_color_points_bid',
+        'komi_bidding',
+        'komi_bid_reveal',
+        'base_color_roulette',
+        'base_komi_result',
+        'base_game_start_confirmation',
+    ];
+    const isBasePrePlayOnBoard = basePrePlayStatusesForBoard.includes(gameStatus);
+    const allowBackBoardBaseStonesOnMobile = !isMobile || stageDescriptionCollapsed || isBasePrePlayOnBoard;
+    const showPlacedBaseStoneArrays = allowBackBoardBaseStonesOnMobile && isBasePrePlayOnBoard;
 
     const myRevealedMoveIndices = useMemo(() => {
         const uid = currentUser?.id;

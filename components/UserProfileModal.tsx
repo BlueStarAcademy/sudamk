@@ -11,6 +11,8 @@ import type { ServerAction } from '../types.js';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
 import { readStrategicRankedBlock, readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
+import PairPetProfilePanel from './pair/PairPetProfilePanel.js';
+import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 
 // Re-using components from Profile.tsx for consistency.
 const getXpRequirementForLevel = (level: number): number => {
@@ -44,19 +46,27 @@ const getXpRequirementForLevel = (level: number): number => {
     return xp;
 };
 
-const XpBar: React.FC<{ level: number, currentXp: number, label: string, colorClass: string }> = ({ level, currentXp, label, colorClass }) => {
+const XpBar: React.FC<{ level: number; currentXp: number; colorClass: string }> = ({ level, currentXp, colorClass }) => {
     const safeLevel = Math.max(1, Math.floor(Number(level) || 1));
     const safeXp = Math.max(0, Math.floor(Number(currentXp) || 0));
     const maxXp = getXpRequirementForLevel(safeLevel);
     const percentage = maxXp > 0 ? Math.min((safeXp / maxXp) * 100, 100) : 0;
     return (
-        <div>
-            <div className="flex justify-between items-baseline mb-1 text-sm">
-                <span className="font-semibold">{label} <span className="text-lg font-bold">Lv.{safeLevel}</span></span>
-                <span className="text-xs font-mono text-gray-400">{safeXp} / {maxXp}</span>
+        <div className="min-w-0">
+            <div className="mb-1 flex items-baseline justify-end gap-2 text-sm">
+                <span className="shrink-0 font-mono text-[10px] tabular-nums text-slate-400/95">
+                    {safeXp} / {maxXp}
+                </span>
             </div>
-            <div className="w-full bg-gray-700 rounded-full h-4 border border-gray-900">
-                <div className={`${colorClass} h-full rounded-full transition-width duration-500`} style={{ width: `${percentage}%` }}></div>
+            <div className="relative h-3 w-full overflow-hidden rounded-full border border-black/55 bg-black/45 shadow-[inset_0_2px_4px_rgba(0,0,0,0.45)] ring-1 ring-inset ring-white/[0.05]">
+                <div
+                    className={`absolute inset-y-0 left-0 rounded-full ${colorClass} transition-[width] duration-500 ease-out`}
+                    style={{ width: `${percentage}%` }}
+                />
+                <div
+                    className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                    aria-hidden
+                />
             </div>
         </div>
     );
@@ -65,8 +75,10 @@ const XpBar: React.FC<{ level: number, currentXp: number, label: string, colorCl
 const CombinedLevelBadge: React.FC<{ level: number }> = ({ level }) => {
     const safeLevel = Math.max(1, Math.floor(Number(level) || 1));
     return (
-        <div className="flex-shrink-0 bg-gray-900/70 rounded-md border border-gray-700 flex items-center justify-center px-3 py-2">
-            <span className="font-bold text-xl text-blue-300 whitespace-nowrap">Lv.{safeLevel}</span>
+        <div className="flex shrink-0 items-center justify-center rounded-lg border border-sky-500/30 bg-gradient-to-br from-slate-900/95 via-sky-950/35 to-slate-950/95 px-3 py-2 shadow-[0_10px_22px_-12px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-white/[0.06]">
+            <span className="whitespace-nowrap bg-gradient-to-b from-sky-100 to-cyan-300 bg-clip-text text-lg font-black tabular-nums text-transparent">
+                Lv.{safeLevel}
+            </span>
         </div>
     );
 };
@@ -110,30 +122,51 @@ const getStarDisplay = (stars: number) => {
     );
 };
 
-const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: InventoryItem; onClick?: () => void; }> = ({ slot, item, onClick }) => {
+const EquipmentSlotDisplay: React.FC<{
+    slot: EquipmentSlot;
+    item?: InventoryItem;
+    onClick?: () => void;
+    /** 프로필 모달 등: 슬롯·아이콘을 줄여 상단 패널 높이 절약 */
+    compact?: boolean;
+}> = ({ slot, item, onClick, compact }) => {
     const clickableClass = item && onClick ? 'cursor-pointer hover:scale-105 transition-transform' : '';
-    
+    const round = compact ? 'rounded-lg' : 'rounded-xl';
+
     if (item) {
         const isTranscendent = item.grade === ItemGrade.Transcendent;
+        const iconPct = compact ? '68%' : '80%';
+        const iconPad = compact ? 'p-1.5' : 'p-3';
         return (
             <div
-                className={`relative w-full aspect-square rounded-lg border-2 border-gray-700/50 bg-gray-900/50 ${clickableClass} ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
+                className={`relative aspect-square w-full border border-white/[0.1] bg-gradient-to-br from-zinc-900/90 to-black/60 shadow-inner ring-1 ring-inset ring-white/[0.05] ${round} ${clickableClass} ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
                 title={item.name}
                 onClick={onClick}
                 style={{ border: isTranscendent ? undefined : undefined }}
             >
-                <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-md" />
-                <div className="absolute top-1 right-2.5 text-sm font-bold z-10">
+                <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 h-full w-full rounded-md object-cover" />
+                <div
+                    className={`absolute z-10 font-bold ${compact ? 'right-1 top-0.5 origin-top-right scale-[0.82]' : 'right-2.5 top-1 text-sm'}`}
+                >
                     {getStarDisplay(item.stars)}
                 </div>
-                {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-3" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
+                {item.image && (
+                    <img
+                        src={item.image}
+                        alt={item.name}
+                        className={`absolute object-contain ${iconPad}`}
+                        style={{ width: iconPct, height: iconPct, left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                    />
+                )}
             </div>
         );
-    } else {
-        return (
-             <img src={emptySlotImages[slot]} alt={`${slot} empty slot`} className="w-full aspect-square rounded-lg bg-gray-900/50 border-2 border-gray-700/50" />
-        );
     }
+    return (
+        <img
+            src={emptySlotImages[slot]}
+            alt={`${slot} empty slot`}
+            className={`aspect-square w-full border border-white/[0.08] bg-black/45 opacity-90 ring-1 ring-inset ring-white/[0.04] ${round}`}
+        />
+    );
 };
 
 interface UserProfileModalProps {
@@ -144,7 +177,7 @@ interface UserProfileModalProps {
 }
 
 /** 페어: 랭킹전 전적(`pairRankedMatchRecord`) + 경기장 전략 모드별(`pairArenaStatsByMode`) */
-const PairStatsTab: React.FC<{ user: UserWithStatus }> = ({ user }) => {
+const PairStatsTab: React.FC<{ user: UserWithStatus; dense?: boolean }> = ({ user, dense }) => {
     const pairRanked = readPairRankedBlock(user.stats as Record<string, { wins?: number; losses?: number; rankingScore?: number }>);
     const totalWins = pairRanked.wins;
     const totalLosses = pairRanked.losses;
@@ -152,14 +185,21 @@ const PairStatsTab: React.FC<{ user: UserWithStatus }> = ({ user }) => {
     const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
     const byMode = user.pairArenaStatsByMode;
 
+    const wrap = dense ? 'space-y-1 text-[0.68rem]' : 'space-y-1.5 text-xs';
+    const sumPad = dense ? 'px-1.5 py-1' : 'px-2 py-1.5';
+    const rowPad = dense ? 'px-1.5 py-0.5' : 'px-2 py-1';
+    const rowMono = dense ? 'text-[0.62rem]' : 'text-[0.7rem]';
+
     return (
-        <div className="space-y-1 text-xs">
-            <div className="bg-gray-700/50 px-1.5 py-1 rounded-md text-center">
-                <span className="font-bold text-gray-100">
+        <div className={wrap}>
+            <div
+                className={`rounded-lg border border-violet-400/20 bg-gradient-to-r from-violet-950/50 via-black/35 to-fuchsia-950/35 text-center shadow-inner ring-1 ring-inset ring-white/[0.04] ${sumPad}`}
+            >
+                <span className="font-bold tracking-tight text-violet-100/95">
                     랭킹전 통합: {totalWins}승 {totalLosses}패 ({winRate}%)
                 </span>
             </div>
-            <div className="space-y-1">
+            <div className={dense ? 'space-y-0.5' : 'space-y-1'}>
                 {SPECIAL_GAME_MODES.map(({ mode, name }) => {
                     const row = byMode?.[String(mode)];
                     const wins = row?.wins ?? 0;
@@ -167,9 +207,12 @@ const PairStatsTab: React.FC<{ user: UserWithStatus }> = ({ user }) => {
                     const g = wins + losses;
                     const wr = g > 0 ? Math.round((wins / g) * 100) : 0;
                     return (
-                        <div key={mode} className="bg-gray-900/40 rounded px-1.5 py-0.5 flex items-center justify-between gap-1.5">
-                            <span className="font-semibold text-gray-200 truncate">{name}</span>
-                            <span className="text-right text-gray-300 whitespace-nowrap">
+                        <div
+                            key={mode}
+                            className={`flex items-center justify-between gap-1.5 rounded-md border border-white/[0.06] bg-black/35 shadow-sm ring-1 ring-inset ring-white/[0.03] ${rowPad}`}
+                        >
+                            <span className="truncate font-semibold text-slate-200/95">{name}</span>
+                            <span className={`whitespace-nowrap text-right font-mono tabular-nums text-slate-300/90 ${rowMono}`}>
                                 {wins}승 {losses}패 ({wr}%)
                             </span>
                         </div>
@@ -180,7 +223,7 @@ const PairStatsTab: React.FC<{ user: UserWithStatus }> = ({ user }) => {
     );
 };
 
-const StatsTab: React.FC<{ user: UserWithStatus, type: 'strategic' | 'playful' }> = ({ user, type }) => {
+const StatsTab: React.FC<{ user: UserWithStatus; type: 'strategic' | 'playful'; dense?: boolean }> = ({ user, type, dense }) => {
     const modes = type === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
     const stats = user.stats || {};
     
@@ -200,19 +243,34 @@ const StatsTab: React.FC<{ user: UserWithStatus, type: 'strategic' | 'playful' }
     const totalGames = totalWins + totalLosses;
     const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
 
+    const summaryTint =
+        type === 'strategic'
+            ? 'border-sky-400/25 from-sky-950/45 via-black/35 to-indigo-950/40 text-sky-100/95'
+            : 'border-amber-400/22 from-amber-950/40 via-black/35 to-orange-950/35 text-amber-100/95';
+
+    const wrap = dense ? 'space-y-1 text-[0.68rem]' : 'space-y-1.5 text-xs';
+    const sumPad = dense ? 'px-1.5 py-1' : 'px-2 py-1.5';
+    const rowPad = dense ? 'px-1.5 py-0.5' : 'px-2 py-1';
+    const rowMono = dense ? 'text-[0.62rem]' : 'text-[0.7rem]';
+
     return (
-        <div className="space-y-1 text-xs">
-            <div className="bg-gray-700/50 px-1.5 py-1 rounded-md text-center">
-                <span className="font-bold text-gray-100">총 전적: {totalWins}승 {totalLosses}패 ({winRate}%)</span>
+        <div className={wrap}>
+            <div
+                className={`rounded-lg border bg-gradient-to-r text-center shadow-inner ring-1 ring-inset ring-white/[0.04] ${summaryTint} ${sumPad}`}
+            >
+                <span className="font-bold tracking-tight">총 전적: {totalWins}승 {totalLosses}패 ({winRate}%)</span>
             </div>
-            <div className="space-y-1">
-                {gameStats.map(stat => {
+            <div className={dense ? 'space-y-0.5' : 'space-y-1'}>
+                {gameStats.map((stat) => {
                     const gameTotal = (stat.wins ?? 0) + (stat.losses ?? 0);
                     const gameWinRate = gameTotal > 0 ? Math.round(((stat.wins ?? 0) / gameTotal) * 100) : 0;
                     return (
-                        <div key={stat.mode} className="bg-gray-900/40 rounded px-1.5 py-0.5 flex items-center justify-between gap-1.5">
-                            <span className="font-semibold text-gray-200 truncate">{stat.mode}</span>
-                            <span className="text-right text-gray-300 whitespace-nowrap">
+                        <div
+                            key={stat.mode}
+                            className={`flex items-center justify-between gap-1.5 rounded-md border border-white/[0.06] bg-black/35 shadow-sm ring-1 ring-inset ring-white/[0.03] ${rowPad}`}
+                        >
+                            <span className="truncate font-semibold text-slate-200/95">{stat.mode}</span>
+                            <span className={`whitespace-nowrap text-right font-mono tabular-nums text-slate-300/90 ${rowMono}`}>
                                 {stat.wins ?? 0}승 {stat.losses ?? 0}패 ({gameWinRate}%)
                             </span>
                         </div>
@@ -221,7 +279,7 @@ const StatsTab: React.FC<{ user: UserWithStatus, type: 'strategic' | 'playful' }
             </div>
         </div>
     );
-}
+};
 
 /** 대기실과 동일: 현재 시즌 점수 = 1200 + (저장된 차이값). dailyRankings에는 1200에서의 차이가 저장됨 */
 const SEASON_BASE_SCORE = 1200;
@@ -392,6 +450,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
         return guilds[user.guildId] || null;
     }, [user.guildId, guilds]);
 
+    const equippedPairPetRow = useMemo(() => getEquippedPairPetInventoryRow(user), [user]);
+
     const PROFILE_MODAL_WIDTH = 900;
 
     return (
@@ -404,7 +464,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
             }}
             windowId={`view-user-${user.id}`}
             initialWidth={PROFILE_MODAL_WIDTH}
-            initialHeight={800}
+            initialHeight={700}
             isTopmost={isTopmost}
             mobileViewportFit
             headerContent={
@@ -416,7 +476,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                             e.stopPropagation();
                             setAdminToolsOpen(true);
                         }}
-                        className="z-30 shrink-0 rounded-lg border border-red-400/50 bg-red-950/75 px-2.5 py-1.5 text-xs font-bold text-red-100 shadow-sm hover:bg-red-900/85 sm:px-3 sm:py-2 sm:text-sm"
+                        className="z-30 shrink-0 rounded-lg border border-rose-400/45 bg-gradient-to-br from-rose-950/90 to-red-950/80 px-2.5 py-1.5 text-xs font-bold text-rose-50 shadow-[0_8px_24px_-8px_rgba(244,63,94,0.45)] ring-1 ring-inset ring-white/10 transition hover:border-rose-300/55 hover:from-rose-900/90 sm:px-3 sm:py-2 sm:text-sm"
                     >
                         관리자 기능
                     </button>
@@ -424,17 +484,22 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
             }
         >
             {showMbtiComparison && <MbtiComparisonModal opponentUser={user} onClose={() => setShowMbtiComparison(false)} isTopmost={true} />}
-            <div className="h-full min-h-0 overflow-y-auto pr-1">
-                <div className="grid min-h-full grid-cols-1 gap-3 lg:grid-cols-2">
+            <div className="h-full min-h-0 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-slate-950/40 via-transparent to-black/25 pr-0.5">
+                <div className="grid min-h-0 grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4">
                     {/* 좌상단: 프로필 */}
-                    <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col gap-2 min-h-[260px]">
-                        <div className="flex items-start gap-3">
-                            <Avatar userId={user.id} userName={nickname} size={60} avatarUrl={avatarUrl} borderUrl={borderUrl} />
+                    <div className="relative flex min-h-0 flex-col gap-2 overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-zinc-900/95 via-slate-950/98 to-zinc-950 p-3 shadow-[0_24px_48px_-24px_rgba(0,0,0,0.75)] ring-1 ring-inset ring-white/[0.05]">
+                        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-400/25 to-transparent" aria-hidden />
+                        <div className="flex items-start gap-2.5">
+                            <div className="relative shrink-0 rounded-xl p-0.5 shadow-lg shadow-black/50 ring-1 ring-cyan-400/20">
+                                <Avatar userId={user.id} userName={nickname} size={52} avatarUrl={avatarUrl} borderUrl={borderUrl} />
+                            </div>
                             <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
                                 <div className="min-w-0 flex-1">
-                                    <h2 className="text-xl font-extrabold tracking-wide truncate text-blue-100">{nickname}</h2>
-                                    <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-300">
-                                        <span className="font-semibold text-gray-200">MBTI:</span>
+                                    <h2 className="truncate bg-gradient-to-r from-slate-50 via-sky-100 to-cyan-200 bg-clip-text text-lg font-extrabold tracking-tight text-transparent sm:text-xl">
+                                        {nickname}
+                                    </h2>
+                                    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-slate-400/95">
+                                        <span className="font-semibold text-slate-300">MBTI</span>
                                         {user.mbti ? (
                                             <>
                                                 <span className="font-bold text-base text-cyan-200">{user.mbti}</span>
@@ -455,12 +520,12 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                                     </div>
                                 </div>
                                 {!isSelfProfile && (
-                                    <div className="flex shrink-0 flex-col items-end gap-2 border-l border-gray-600/50 pl-3">
+                                    <div className="flex shrink-0 flex-col items-end gap-2 border-l border-white/[0.08] pl-3">
                                         {isFriend ? (
                                             <button
                                                 type="button"
                                                 onClick={removeFriend}
-                                                className="min-w-[6.5rem] rounded-lg border border-rose-300/50 bg-rose-900/55 px-4 py-2 text-sm font-bold text-rose-100 shadow-sm transition hover:bg-rose-800/60"
+                                                className="min-w-[6.5rem] rounded-xl border border-rose-400/40 bg-gradient-to-br from-rose-950/80 to-zinc-950/90 px-4 py-2 text-sm font-bold text-rose-50 shadow-md shadow-black/40 ring-1 ring-inset ring-white/[0.06] transition hover:border-rose-300/50 hover:from-rose-900/85"
                                             >
                                                 친구 삭제
                                             </button>
@@ -468,7 +533,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                                             <button
                                                 type="button"
                                                 onClick={addFriend}
-                                                className="min-w-[6.5rem] rounded-lg border border-cyan-300/50 bg-cyan-900/55 px-4 py-2 text-sm font-bold text-cyan-100 shadow-sm transition hover:bg-cyan-800/60"
+                                                className="min-w-[6.5rem] rounded-xl border border-cyan-400/40 bg-gradient-to-br from-cyan-950/75 via-slate-950/90 to-indigo-950/80 px-4 py-2 text-sm font-bold text-cyan-50 shadow-md shadow-black/40 ring-1 ring-inset ring-white/[0.06] transition hover:border-cyan-300/55 hover:from-cyan-900/80"
                                             >
                                                 친구 추가
                                             </button>
@@ -478,8 +543,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                             </div>
                         </div>
                         {user.guildId ? (
-                            <div className="mt-1 flex items-center gap-2 rounded-md border border-indigo-500/30 bg-indigo-900/25 px-2.5 py-1.5">
-                                <div className="w-6 h-6 rounded-md bg-gray-900/60 border border-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                            <div className="mt-0.5 flex items-center gap-2 rounded-xl border border-indigo-400/25 bg-gradient-to-r from-indigo-950/55 via-slate-950/40 to-violet-950/45 px-2.5 py-1.5 shadow-inner ring-1 ring-inset ring-white/[0.04]">
+                                <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-black/40">
                                     {(guildInfo?.icon ?? (user as any).guildIcon) ? (
                                         <img
                                             src={(() => {
@@ -493,50 +558,77 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                                         <img src="/images/button/guild.png" alt="길드" className="w-4 h-4 object-contain" />
                                     )}
                                 </div>
-                                <span className="text-xs text-indigo-200/90">길드</span>
-                                <span className="font-semibold text-sm text-gray-100 truncate">{guildInfo?.name ?? (user as any).guildName ?? '길드 소속'}</span>
-                                <span className="text-xs text-gray-300 ml-auto">Lv.{guildInfo ? (guildInfo.level || 1) : ((user as any).guildLevel ?? 1)}</span>
+                                <span className="text-[0.65rem] font-bold uppercase tracking-wider text-indigo-300/80">길드</span>
+                                <span className="truncate text-sm font-semibold text-slate-100">{guildInfo?.name ?? (user as any).guildName ?? '길드 소속'}</span>
+                                <span className="ml-auto font-mono text-xs tabular-nums text-indigo-200/85">
+                                    Lv.{guildInfo ? guildInfo.level || 1 : (user as any).guildLevel ?? 1}
+                                </span>
                             </div>
                         ) : (
-                            <div className="mt-1 rounded-md border border-gray-700/60 bg-gray-900/45 px-2.5 py-1.5 text-xs text-gray-400">
+                            <div className="mt-0.5 rounded-xl border border-white/[0.07] bg-black/30 px-2.5 py-1.5 text-xs text-slate-500 ring-1 ring-inset ring-white/[0.03]">
                                 길드 없음
                             </div>
                         )}
-                        <div className="w-full bg-gray-900/70 rounded-md p-2 mt-1 flex flex-col gap-1.5">
-                            <div className="flex items-center gap-2 min-w-0">
+                        <div className="mt-0.5 flex w-full flex-col gap-2 rounded-xl border border-white/[0.08] bg-gradient-to-br from-black/55 via-slate-950/80 to-black/50 p-2.5 shadow-inner ring-1 ring-inset ring-white/[0.04]">
+                            <div className="flex min-w-0 items-center gap-2">
                                 <CombinedLevelBadge level={combinedLevel} />
-                                <div className="flex-1 min-w-0 space-y-1">
-                                    <XpBar level={user.userLevel} currentXp={user.userXp} label="유저 경험치" colorClass="bg-gradient-to-r from-blue-500 to-cyan-400" />
+                                <div className="min-w-0 flex-1 space-y-1">
+                                    <XpBar
+                                        level={user.userLevel}
+                                        currentXp={user.userXp}
+                                        colorClass="bg-gradient-to-r from-sky-500 via-cyan-400 to-teal-400 shadow-[0_0_14px_-2px_rgba(34,211,238,0.55)]"
+                                    />
                                 </div>
                             </div>
-                            <div className="mt-0.5">
-                                <div className="flex items-center justify-between text-xs text-gray-300 mb-0.5">
-                                    <span className="font-semibold">매너 등급</span>
-                                    <span className={`font-semibold ${mannerRank.color}`}>{totalMannerScore}점 ({mannerRank.rank})</span>
+                            <div className="border-t border-white/[0.06] pt-2">
+                                <PairPetProfilePanel
+                                    currentUser={user}
+                                    currentUserId={user.id}
+                                    isBusy={false}
+                                    compact
+                                    readOnly={!isSelfProfile}
+                                    showRepresentativeBadge={!!equippedPairPetRow}
+                                    onOpenEquippedPetDetail={() => {
+                                        if (equippedPairPetRow) handlers.openPairPetDetailModal(equippedPairPetRow, 'view');
+                                    }}
+                                />
+                            </div>
+                            <div className="border-t border-white/[0.06] pt-1.5">
+                                <div className="mb-0.5 flex items-center justify-between text-[0.7rem] text-slate-400">
+                                    <span className="font-semibold tracking-tight text-slate-300">매너 등급</span>
+                                    <span className={`font-semibold tabular-nums ${mannerRank.color}`}>
+                                        {totalMannerScore}점 ({mannerRank.rank})
+                                    </span>
                                 </div>
-                                <div className="w-full bg-gray-700 rounded-full h-2 border border-gray-900">
-                                    <div className={`${mannerStyle.colorClass} h-full rounded-full`} style={{ width: `${mannerStyle.percentage}%` }}></div>
+                                <div className="relative h-1.5 w-full overflow-hidden rounded-full border border-black/50 bg-black/45 shadow-inner ring-1 ring-inset ring-white/[0.04]">
+                                    <div
+                                        className={`${mannerStyle.colorClass} h-full rounded-full transition-[width]`}
+                                        style={{ width: `${mannerStyle.percentage}%` }}
+                                    />
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     {/* 우상단: 장비/능력치 */}
-                    <div className="bg-gray-800/50 rounded-lg p-3 min-h-[260px] flex flex-col">
-                        <div className="grid grid-cols-3 gap-2 w-full max-w-xs mx-auto mb-3">
-                            <EquipmentSlotDisplay slot="fan" item={getItemForSlot('fan')} onClick={() => getItemForSlot('fan') && onViewItem(getItemForSlot('fan')!, false)} />
-                            <EquipmentSlotDisplay slot="board" item={getItemForSlot('board')} onClick={() => getItemForSlot('board') && onViewItem(getItemForSlot('board')!, false)} />
-                            <EquipmentSlotDisplay slot="top" item={getItemForSlot('top')} onClick={() => getItemForSlot('top') && onViewItem(getItemForSlot('top')!, false)} />
-                            <EquipmentSlotDisplay slot="bottom" item={getItemForSlot('bottom')} onClick={() => getItemForSlot('bottom') && onViewItem(getItemForSlot('bottom')!, false)} />
-                            <EquipmentSlotDisplay slot="bowl" item={getItemForSlot('bowl')} onClick={() => getItemForSlot('bowl') && onViewItem(getItemForSlot('bowl')!, false)} />
-                            <EquipmentSlotDisplay slot="stones" item={getItemForSlot('stones')} onClick={() => getItemForSlot('stones') && onViewItem(getItemForSlot('stones')!, false)} />
+                    <div className="relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-slate-950 p-3 shadow-[0_24px_48px_-24px_rgba(0,0,0,0.75)] ring-1 ring-inset ring-amber-500/[0.07]">
+                        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/20 to-transparent" aria-hidden />
+                        <p className="mb-1 text-center text-[0.6rem] font-bold uppercase tracking-[0.18em] text-amber-200/70">장비</p>
+                        <div className="mx-auto mb-2 grid w-full max-w-[12rem] grid-cols-3 gap-1.5 sm:max-w-[12.5rem]">
+                            <EquipmentSlotDisplay slot="fan" item={getItemForSlot('fan')} compact onClick={() => getItemForSlot('fan') && onViewItem(getItemForSlot('fan')!, false)} />
+                            <EquipmentSlotDisplay slot="board" item={getItemForSlot('board')} compact onClick={() => getItemForSlot('board') && onViewItem(getItemForSlot('board')!, false)} />
+                            <EquipmentSlotDisplay slot="top" item={getItemForSlot('top')} compact onClick={() => getItemForSlot('top') && onViewItem(getItemForSlot('top')!, false)} />
+                            <EquipmentSlotDisplay slot="bottom" item={getItemForSlot('bottom')} compact onClick={() => getItemForSlot('bottom') && onViewItem(getItemForSlot('bottom')!, false)} />
+                            <EquipmentSlotDisplay slot="bowl" item={getItemForSlot('bowl')} compact onClick={() => getItemForSlot('bowl') && onViewItem(getItemForSlot('bowl')!, false)} />
+                            <EquipmentSlotDisplay slot="stones" item={getItemForSlot('stones')} compact onClick={() => getItemForSlot('stones') && onViewItem(getItemForSlot('stones')!, false)} />
                         </div>
-                        <div className="border-t border-gray-700 pt-3 flex-1 min-h-0">
-                            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs bg-gray-900/50 p-2 rounded-lg h-full overflow-y-auto">
+                        <div className="min-h-0 flex-1 border-t border-white/[0.07] pt-2">
+                            <p className="mb-1 text-center text-[0.6rem] font-bold uppercase tracking-[0.14em] text-slate-400/90">능력치</p>
+                            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 rounded-lg border border-white/[0.06] bg-black/35 p-2 text-[0.68rem] shadow-inner ring-1 ring-inset ring-white/[0.03]">
                                 {Object.entries(totalStats).map(([stat, value]) => (
-                                    <div key={stat} className="flex items-center gap-1.5 min-w-0">
-                                        <span className="font-semibold text-gray-300 truncate">{CORE_STATS_DATA[stat as CoreStat]?.name || stat}:</span>
-                                        <span className="font-mono text-right ml-auto">{value}</span>
+                                    <div key={stat} className="flex min-w-0 items-center gap-1.5">
+                                        <span className="truncate font-semibold text-slate-400">{CORE_STATS_DATA[stat as CoreStat]?.name || stat}</span>
+                                        <span className="ml-auto font-mono text-right tabular-nums text-slate-100">{value}</span>
                                     </div>
                                 ))}
                             </div>
@@ -545,38 +637,43 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
 
                     {/* 하단: 전략 → 페어 → 놀이 (한 줄, 모바일은 세로) */}
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:col-span-2">
-                        <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col min-h-[220px]">
-                            <div className="mb-2 flex items-center gap-2 rounded-md border border-blue-700/50 bg-blue-900/30 py-1.5 px-2">
-                                <img src={strategicTierInfo.tier.icon} alt={strategicTierInfo.tier.name} className="h-8 w-8 shrink-0" />
-                                <span className="text-xs font-medium text-blue-300">전략 바둑</span>
-                                <span className={`ml-auto text-sm font-semibold ${strategicTierInfo.tier.color}`}>
-                                    {strategicTierInfo.tier.name} {strategicTierInfo.score}점
+                        <div className="relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-sky-500/20 bg-gradient-to-b from-sky-950/35 via-zinc-950/90 to-black/60 p-2.5 shadow-lg shadow-black/40 ring-1 ring-inset ring-white/[0.04]">
+                            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-400/30 to-transparent" aria-hidden />
+                            <div className="mb-1.5 flex items-center gap-1.5 rounded-lg border border-sky-400/25 bg-gradient-to-r from-sky-950/50 to-indigo-950/40 py-1.5 pl-1.5 pr-2 shadow-inner">
+                                <img src={strategicTierInfo.tier.icon} alt={strategicTierInfo.tier.name} className="h-7 w-7 shrink-0 drop-shadow-md" />
+                                <span className="text-[0.62rem] font-bold uppercase tracking-wide text-sky-200/90">전략</span>
+                                <span className={`ml-auto text-right text-xs font-bold leading-tight ${strategicTierInfo.tier.color}`}>
+                                    {strategicTierInfo.tier.name}
+                                    <span className="mt-0.5 block font-mono text-[0.62rem] tabular-nums text-sky-100/80">{strategicTierInfo.score}점</span>
                                 </span>
                             </div>
-                            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-                                <StatsTab user={user} type="strategic" />
+                            <div className="min-h-0 flex-1 overflow-visible pr-0.5">
+                                <StatsTab user={user} type="strategic" dense />
                             </div>
                         </div>
 
-                        <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col min-h-[220px]">
-                            <div className="mb-2 flex items-center gap-2 rounded-md border border-violet-700/50 bg-violet-900/30 py-1.5 px-2">
-                                <img src={pairTierInfo.tier.icon} alt={pairTierInfo.tier.name} className="h-8 w-8 shrink-0" />
-                                <span className="text-xs font-medium text-violet-200">페어 바둑</span>
-                                <span className={`ml-auto text-sm font-semibold ${pairTierInfo.tier.color}`}>
-                                    {pairTierInfo.tier.name} {pairTierInfo.score}점
+                        <div className="relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-violet-500/22 bg-gradient-to-b from-violet-950/35 via-zinc-950/90 to-black/60 p-2.5 shadow-lg shadow-black/40 ring-1 ring-inset ring-white/[0.04]">
+                            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/28 to-transparent" aria-hidden />
+                            <div className="mb-1.5 flex items-center gap-1.5 rounded-lg border border-violet-400/28 bg-gradient-to-r from-violet-950/55 to-fuchsia-950/35 py-1.5 pl-1.5 pr-2 shadow-inner">
+                                <img src={pairTierInfo.tier.icon} alt={pairTierInfo.tier.name} className="h-7 w-7 shrink-0 drop-shadow-md" />
+                                <span className="text-[0.62rem] font-bold uppercase tracking-wide text-violet-200/90">페어</span>
+                                <span className={`ml-auto text-right text-xs font-bold leading-tight ${pairTierInfo.tier.color}`}>
+                                    {pairTierInfo.tier.name}
+                                    <span className="mt-0.5 block font-mono text-[0.62rem] tabular-nums text-violet-100/85">{pairTierInfo.score}점</span>
                                 </span>
                             </div>
-                            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-                                <PairStatsTab user={user} />
+                            <div className="min-h-0 flex-1 overflow-visible pr-0.5">
+                                <PairStatsTab user={user} dense />
                             </div>
                         </div>
 
-                        <div className="bg-gray-800/50 rounded-lg p-3 flex flex-col min-h-[220px]">
-                            <div className="mb-2 flex items-center rounded-md border border-amber-700/50 bg-amber-900/30 py-2 px-2.5">
-                                <span className="text-sm font-semibold text-amber-200">놀이 바둑</span>
+                        <div className="relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-amber-500/22 bg-gradient-to-b from-amber-950/28 via-zinc-950/90 to-black/60 p-2.5 shadow-lg shadow-black/40 ring-1 ring-inset ring-white/[0.04]">
+                            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/28 to-transparent" aria-hidden />
+                            <div className="mb-1.5 flex items-center rounded-lg border border-amber-400/28 bg-gradient-to-r from-amber-950/45 to-orange-950/35 py-1.5 px-2 shadow-inner">
+                                <span className="text-[0.62rem] font-bold uppercase tracking-[0.12em] text-amber-200/95">놀이 바둑</span>
                             </div>
-                            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-                                <StatsTab user={user} type="playful" />
+                            <div className="min-h-0 flex-1 overflow-visible pr-0.5">
+                                <StatsTab user={user} type="playful" dense />
                             </div>
                         </div>
                     </div>
@@ -595,7 +692,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                 mobileViewportFit
                 hideFooter
             >
-                <div className="space-y-2 rounded-lg border border-red-500/30 bg-red-950/35 p-3 text-xs">
+                <div className="space-y-2.5 rounded-xl border border-rose-500/35 bg-gradient-to-b from-rose-950/40 via-zinc-950/90 to-black/55 p-4 text-xs shadow-inner ring-1 ring-inset ring-white/[0.05]">
                     <div className="text-gray-300">
                         접속 상태:{' '}
                         <span className={isConnected ? 'font-semibold text-emerald-400' : 'text-gray-400'}>

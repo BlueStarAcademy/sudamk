@@ -1286,6 +1286,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const isMixMode = mode === GameMode.Mix;
     const isGameEnded = ['ended', 'no_contest', 'rematch_pending'].includes(gameStatus);
     const showBaseGameFooterStrip = isBaseGameFooterPhase(session) && !isGameEnded;
+    /** 모험 몬스터 베이스: 싱글과 동일 앰버 톤의 베이스 전·덤 푸터 */
+    const basePregameSpStyleChrome =
+        Boolean(isSinglePlayer) || String(session.gameCategory ?? '') === 'adventure';
     const isGameActive = ACTIVE_GAME_STATUSES.includes(gameStatus);
     const isPreGame = !isGameActive && !isGameEnded;
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
@@ -2361,7 +2364,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                     currentUser={currentUser}
                                     onAction={onAction}
                                     isMobile={isMobile}
-                                    isSinglePlayer={!!isSinglePlayer}
+                                    isSinglePlayer={basePregameSpStyleChrome}
                                 />
                             </ArenaControlStrip>
                         </div>
@@ -2371,7 +2374,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         currentUser={currentUser}
                         onAction={onAction}
                         isMobile={isMobile}
-                        isSinglePlayer={!!isSinglePlayer}
+                        isSinglePlayer={basePregameSpStyleChrome}
                         hideBasePlacementActions={gameStatus === 'base_placement' && !isSpectator}
                     />
                 </div>

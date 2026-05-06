@@ -38,6 +38,7 @@ import {
 } from '../../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { bumpGuildWarMaxSingleCapturePointsForPlayer } from '../../shared/utils/guildWarMaxSingleCapturePoints.js';
 import { tryEndGameWhenCaptureTargetReached } from '../utils/captureTargets.js';
+import { syncSpeedTimePressureCaptures } from '../utils/speedTimePressureLiveCaptures.js';
 import { getRegionalCaptureOpponentTargetBonus } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 import {
@@ -77,6 +78,7 @@ const addSpeedConsumedSeconds = (game: types.LiveGameSession, player: types.Play
     } else if (player === types.Player.White) {
         bag.white = Math.max(0, Number(bag.white ?? 0)) + consumedSec;
     }
+    syncSpeedTimePressureCaptures(game, Date.now());
 };
 import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
 import { resolveSinglePlayerAutoScoringTurnCap } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
@@ -448,6 +450,10 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
 
     syncAdventureEncounterDeadlineDuringMonsterTurn(game, now);
     updatePairOrderRevealState(game, now);
+
+    if (game.gameStatus === 'playing') {
+        syncSpeedTimePressureCaptures(game, now);
+    }
 
     if (await tryEndGameWhenCaptureTargetReached(game, game.currentPlayer)) {
         return;
@@ -1570,9 +1576,12 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 removeCapturedBaseStoneMarkersFromSession(game, result.capturedStones);
             }
 
-            // 같은 교차점에 일반 착수 시, 과거 히든 공개 마커가 남아 문양/히든 표시가 꼬이지 않게 한다.
+            // 같은 교차점에 일반 착수 시, 과거 히든 공개 마커·베이스 마커가 남아 문양이 꼬이지 않게 한다.
             if (!effectiveIsHidden && game.permanentlyRevealedStones?.length) {
                 game.permanentlyRevealedStones = game.permanentlyRevealedStones.filter((p) => !(p.x === x && p.y === y));
+            }
+            if (!effectiveIsHidden && game.baseStones?.length) {
+                game.baseStones = game.baseStones.filter((p) => !(p.x === x && p.y === y));
             }
 
             const playerWhoMoved = myPlayerEnum;

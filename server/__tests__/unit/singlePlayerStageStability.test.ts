@@ -5,6 +5,11 @@ import { GameMode } from '../../../shared/types/enums.js';
 import { reconcileSinglePlayerProgress } from '../../../shared/utils/singlePlayerProgress.js';
 import { isFullSinglePlayerStagesPermutation, normalizeSinglePlayerStagesOverride } from '../../singlePlayerStageConfigService.js';
 import { remapUserSinglePlayerProgressFields } from '../../singlePlayerStageIdMigration.js';
+import {
+    inferLegacySinglePlayerGameMode,
+    inferSinglePlayerStrategicRulePreset,
+    resolveSinglePlayerStrategicGameMode,
+} from '../../../shared/utils/singlePlayerStrategicRulePreset.js';
 
 describe('single-player stage stability', () => {
     it('accepts a full permutation: canonical slot ids with content from payload order', () => {
@@ -307,5 +312,17 @@ describe('single-player stage stability', () => {
         const stage = normalized.find((s) => s.id === base.id)!;
 
         expect(stage.kataServerLevel).toBe(9);
+    });
+
+    it('auto preset + baseStones infers Base (not Capture from ever-present targetScore)', () => {
+        const template = DEFAULT_SINGLE_PLAYER_STAGES.find((s) => s.id === '중급-11')!;
+        const stage = {
+            ...template,
+            strategicRulePreset: 'auto' as const,
+            baseStones: 4,
+        };
+        expect(inferLegacySinglePlayerGameMode(stage)).toBe(GameMode.Base);
+        expect(resolveSinglePlayerStrategicGameMode(stage)).toBe(GameMode.Base);
+        expect(inferSinglePlayerStrategicRulePreset(stage)).toBe('base');
     });
 });

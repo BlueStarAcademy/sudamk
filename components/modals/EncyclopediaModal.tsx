@@ -23,6 +23,7 @@ import {
 import {
     isPairSoulStoneMaterialName,
     PAIR_EGG_MATERIAL_NAME,
+    PAIR_WELCOME_EGG_MATERIAL_NAME,
     PAIR_SOULSTONE_NAMES,
 } from '../../shared/constants/petLobby.js';
 import { getMaterialBagUsageLines } from '../../shared/utils/bagItemDetailHelpers.js';
@@ -79,7 +80,11 @@ function encyclopediaItemsEqual(a: EncyclopediaItem, b: EncyclopediaItem): boole
 
 /** 도감 재료 탭에서 제외 — 펫 탭(알·영혼석)으로만 표시 */
 function isPetTabExclusiveMaterial(item: Pick<InventoryItem, 'name'>): boolean {
-    return isPairSoulStoneMaterialName(item.name) || item.name === PAIR_EGG_MATERIAL_NAME;
+    return (
+        isPairSoulStoneMaterialName(item.name) ||
+        item.name === PAIR_EGG_MATERIAL_NAME ||
+        item.name === PAIR_WELCOME_EGG_MATERIAL_NAME
+    );
 }
 
 function formatEncyclopediaMainStatNumber(v: number): string {
@@ -330,18 +335,33 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
     /** 도감 펫 탭: 알 → 영혼석 → 페어 펫 종류 */
     const petTabSections = useMemo((): { key: string; title: string; items: EncyclopediaItem[] }[] => {
         const eggRow = MATERIAL_ITEMS[PAIR_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS];
-        const eggItems: EncyclopediaItem[] = eggRow
-            ? [
-                  {
-                      name: eggRow.name,
-                      description: eggRow.description,
-                      type: 'material',
-                      slot: null,
-                      image: eggRow.image,
-                      grade: eggRow.grade,
-                  },
-              ]
-            : [];
+        const welcomeEggRow = MATERIAL_ITEMS[PAIR_WELCOME_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS];
+        const eggItems: EncyclopediaItem[] = [
+            ...(eggRow
+                ? [
+                      {
+                          name: eggRow.name,
+                          description: eggRow.description,
+                          type: 'material' as const,
+                          slot: null,
+                          image: eggRow.image,
+                          grade: eggRow.grade,
+                      },
+                  ]
+                : []),
+            ...(welcomeEggRow
+                ? [
+                      {
+                          name: welcomeEggRow.name,
+                          description: welcomeEggRow.description,
+                          type: 'material' as const,
+                          slot: null,
+                          image: welcomeEggRow.image,
+                          grade: welcomeEggRow.grade,
+                      },
+                  ]
+                : []),
+        ];
         const soulItems: EncyclopediaItem[] = PAIR_SOULSTONE_NAMES.map((name) => {
             const row = MATERIAL_ITEMS[name as keyof typeof MATERIAL_ITEMS];
             if (!row) return null;
@@ -752,7 +772,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                   : mainTab === 'pet'
                     ? isPairSoulStoneMaterialName(item.name)
                         ? '영혼석'
-                        : item.name === PAIR_EGG_MATERIAL_NAME
+                        : item.name === PAIR_EGG_MATERIAL_NAME || item.name === PAIR_WELCOME_EGG_MATERIAL_NAME
                           ? '알'
                           : '페어 펫'
                     : mainTab === 'material'
@@ -825,6 +845,13 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                 footer = (
                     <p className="text-[11px] leading-snug text-slate-300 sm:text-sm">
                         부화장에서 무작위 종류의 AI 펫으로 부화할 수 있습니다. 페어 경기장 상점 등에서 구할 수 있습니다.
+                    </p>
+                );
+            } else if (item.name === PAIR_WELCOME_EGG_MATERIAL_NAME) {
+                footer = (
+                    <p className="text-[11px] leading-snug text-slate-300 sm:text-sm">
+                        신비로운 알과 같은 모습이며, 부화장의 어느 슬롯에서든 부화 시간이 1분이고 부화 시 레벨 5 AI 펫이
+                        나옵니다. 환영 우편 등으로 받을 수 있습니다.
                     </p>
                 );
             } else {

@@ -24,7 +24,6 @@ import {
     resolveSinglePlayerAutoScoringTurnCap,
 } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 import { resolveLiveSessionSinglePlayerStageRow } from '../../shared/utils/liveSessionSinglePlayerStage.js';
-import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { mergeStaffNicknameDisplayClass } from '../../shared/utils/staffNicknameDisplay.js';
 import { getAdventureCodexMonsterById } from '../../constants/adventureMonstersCodex.js';
@@ -1157,24 +1156,21 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const isSpeedLikeMode =
         mode === GameMode.Speed ||
         (mode === GameMode.Mix && Boolean(session.settings?.mixedModes?.includes(GameMode.Speed)));
-    /** PvE/AI 대국 + 스피드(피셔): 라이브 "사용 시간" 보너스 UI — 봇 턴·히든 연출은 유저 사용에서 제외 */
-    const isAiSpeedFischerBonusUi =
-        (Boolean(session.isAiGame) || Boolean(session.isSinglePlayer)) &&
-        isSpeedLikeMode &&
-        isFischerStyleTimeControl(session);
-    /** PVP 휴먼 대국 + 스피드(피셔): 누적 사용 시간 10초당 상대 (+1점) 표시 */
-    const isPvpHumanSpeedFischerBonusUi =
-        !session.isAiGame &&
-        !session.isSinglePlayer &&
-        isSpeedLikeMode &&
-        isFischerStyleTimeControl(session);
-    const isSpeedFischerLiveBonusUi = isAiSpeedFischerBonusUi || isPvpHumanSpeedFischerBonusUi;
+    /** 스피드 + 시계: 라이브 사용 시간 보너스 UI(서버가 playing 중 `captures`에 시간 압박 반영) */
+    const isSpeedLiveBonusUi = isSpeedLikeMode && enforceTime && session.gameStatus === 'playing';
+    /** 본장 중에는 따낸 숫자에 이미 반영되므로 `(+N)` 중복 표기 숨김 */
+    const hideSpeedTimePressureInlineBonus = isSpeedLikeMode && session.gameStatus === 'playing';
+    /** PvE/AI 대국 + 스피드 — 봇 턴·히든 연출은 유저 사용에서 제외 */
+    const isAiSpeedLiveBonusUi =
+        (Boolean(session.isAiGame) || Boolean(session.isSinglePlayer)) && isSpeedLiveBonusUi;
+    /** PVP 휴먼 대국 + 스피드 */
+    const isPvpHumanSpeedLiveBonusUi = !session.isAiGame && !session.isSinglePlayer && isSpeedLiveBonusUi;
     const [speedBonusNowMs, setSpeedBonusNowMs] = useState(() => Date.now());
     useEffect(() => {
-        if (!isSpeedFischerLiveBonusUi) return;
+        if (!isSpeedLiveBonusUi) return;
         const id = setInterval(() => setSpeedBonusNowMs(Date.now()), 250);
         return () => clearInterval(id);
-    }, [isSpeedFischerLiveBonusUi]);
+    }, [isSpeedLiveBonusUi]);
     const isHumanSeatForAiSpeedBonus = (playerEnum: Player) =>
         (playerEnum === Player.Black && session.blackPlayerId !== aiUserId) ||
         (playerEnum === Player.White && session.whitePlayerId !== aiUserId);
@@ -1190,7 +1186,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             isHumanSeatForAiSpeedBonus(playerEnum) &&
             isAiHiddenItemThinkPresentationForSpeed);
     const getLiveMainTimeForBonus = (playerEnum: Player, storedMainTimeLeft: number): number => {
-        if (!isSpeedFischerLiveBonusUi) return storedMainTimeLeft;
+        if (!isSpeedLiveBonusUi) return storedMainTimeLeft;
         if (humanLiveSpeedTurnClockActive(playerEnum)) {
             const deadline = session.turnDeadline;
             if (typeof deadline !== 'number') return storedMainTimeLeft;
@@ -1199,8 +1195,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         return storedMainTimeLeft;
     };
     const getLiveSpeedTimeBonusScore = (playerEnum: Player, playerId: string, currentMainTimeLeft: number): number | null => {
-        if (!isSpeedFischerLiveBonusUi) return null;
-        if (playerId === aiUserId && !isPvpHumanSpeedFischerBonusUi) return null;
+        if (!isSpeedLiveBonusUi) return null;
+        if (playerId === aiUserId && !isPvpHumanSpeedLiveBonusUi) return null;
         const speedConsumed = ((session.settings as any)?.__speedBonusConsumedSec ?? {}) as { black?: number; white?: number };
         const committedUsedSec =
             playerEnum === Player.Black
@@ -1259,8 +1255,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
           )
         : null;
     const getSpeedBonusTickState = (playerEnum: Player, playerId: string, currentMainTimeLeft: number) => {
-        if (!isSpeedFischerLiveBonusUi) return { progress: null as number | null, secToNextDrop: null as number | null };
-        if (playerId === aiUserId && !isPvpHumanSpeedFischerBonusUi) return { progress: null as number | null, secToNextDrop: null as number | null };
+        if (!isSpeedLiveBonusUi) return { progress: null as number | null, secToNextDrop: null as number | null };
+        if (playerId === aiUserId && !isPvpHumanSpeedLiveBonusUi) return { progress: null as number | null, secToNextDrop: null as number | null };
         const speedConsumed = ((session.settings as any)?.__speedBonusConsumedSec ?? {}) as { black?: number; white?: number };
         const committedUsedSec =
             playerEnum === Player.Black
@@ -1314,14 +1310,14 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const stableHumanSpeedBonusTick = humanSide
         ? stabilizeSpeedBonusTick(humanSide.userId, humanSide.playerEnum, humanSpeedBonusTick)
         : { progress: null as number | null, secToNextDrop: null as number | null };
-    const leftPvpSelfTickRaw = isPvpHumanSpeedFischerBonusUi
+    const leftPvpSelfTickRaw = isPvpHumanSpeedLiveBonusUi
         ? getSpeedBonusTickState(
               leftPlayerEnum,
               leftPlayerUser.id,
               getLiveMainTimeForBonus(leftPlayerEnum, leftPlayerMainTime),
           )
         : { progress: null as number | null, secToNextDrop: null as number | null };
-    const rightPvpSelfTickRaw = isPvpHumanSpeedFischerBonusUi
+    const rightPvpSelfTickRaw = isPvpHumanSpeedLiveBonusUi
         ? getSpeedBonusTickState(
               rightPlayerEnum,
               rightPlayerUser.id,
@@ -1330,14 +1326,14 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         : { progress: null as number | null, secToNextDrop: null as number | null };
     const leftSpeedBonusTick = isLeftAi
         ? { progress: null as number | null, secToNextDrop: null as number | null }
-        : isPvpHumanSpeedFischerBonusUi
+        : isPvpHumanSpeedLiveBonusUi
           ? stabilizeSpeedBonusTick(leftPlayerUser.id, leftPlayerEnum, leftPvpSelfTickRaw)
           : humanSide?.userId === leftPlayerUser.id
             ? stableHumanSpeedBonusTick
             : { progress: null as number | null, secToNextDrop: null as number | null };
     const rightSpeedBonusTick = isRightAi
         ? { progress: null as number | null, secToNextDrop: null as number | null }
-        : isPvpHumanSpeedFischerBonusUi
+        : isPvpHumanSpeedLiveBonusUi
           ? stabilizeSpeedBonusTick(rightPlayerUser.id, rightPlayerEnum, rightPvpSelfTickRaw)
           : humanSide?.userId === rightPlayerUser.id
             ? stableHumanSpeedBonusTick
@@ -1345,7 +1341,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     /** PVP: 내 누적 사용 시간 10초당 상대 집(+1) — 패널에는 상대가 받는 추정치(= floor(내 사용/10)) */
     const leftLiveSpeedTimeBonusScore = isLeftAi
         ? humanUsedTimeBonusScore
-        : isPvpHumanSpeedFischerBonusUi
+        : isPvpHumanSpeedLiveBonusUi
           ? stabilizeSpeedBonus(
                 leftPlayerUser.id,
                 leftPlayerEnum,
@@ -1358,7 +1354,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
           : null;
     const rightLiveSpeedTimeBonusScore = isRightAi
         ? humanUsedTimeBonusScore
-        : isPvpHumanSpeedFischerBonusUi
+        : isPvpHumanSpeedLiveBonusUi
           ? stabilizeSpeedBonus(
                 rightPlayerUser.id,
                 rightPlayerEnum,
@@ -1369,8 +1365,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 ),
             )
           : null;
-    const leftSpeedBonusScoreLabel: 'self' | 'ai' | 'rival' = isLeftAi ? 'ai' : isPvpHumanSpeedFischerBonusUi ? 'rival' : 'self';
-    const rightSpeedBonusScoreLabel: 'self' | 'ai' | 'rival' = isRightAi ? 'ai' : isPvpHumanSpeedFischerBonusUi ? 'rival' : 'self';
+    const leftSpeedTimeBonusForPanel = hideSpeedTimePressureInlineBonus ? null : leftLiveSpeedTimeBonusScore;
+    const rightSpeedTimeBonusForPanel = hideSpeedTimePressureInlineBonus ? null : rightLiveSpeedTimeBonusScore;
+    const leftSpeedBonusScoreLabel: 'self' | 'ai' | 'rival' = isLeftAi ? 'ai' : isPvpHumanSpeedLiveBonusUi ? 'rival' : 'self';
+    const rightSpeedBonusScoreLabel: 'self' | 'ai' | 'rival' = isRightAi ? 'ai' : isPvpHumanSpeedLiveBonusUi ? 'rival' : 'self';
 
     const turnDuration = getTurnDuration(mode, session.gameStatus, settings);
     const blackRemainingMonotonicRef = useRef<{ gameId: string; value: number | null }>({ gameId: '', value: null });
@@ -1725,7 +1723,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             opponentMonsterDisplay={isLeftAi ? adventureMonsterPanel : undefined}
                             spIngameOnboardingUserTarget={userPanelOnboardingTarget}
                             captureHeadStartFlatBonus={leftCaptureHeadStartFlatBonus}
-                            speedTimeBonusScore={leftLiveSpeedTimeBonusScore}
+                            speedTimeBonusScore={leftSpeedTimeBonusForPanel}
                             speedBonusScoreLabel={leftSpeedBonusScoreLabel}
                             speedBonusTickProgress={leftSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={leftSpeedBonusTick.secToNextDrop}
@@ -1761,7 +1759,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                                 singlePlayerOnboardingBarHighlight === 'user-panel' && currentUser?.id === rightPlayerUser.id
                             }
                             captureHeadStartFlatBonus={rightCaptureHeadStartFlatBonus}
-                            speedTimeBonusScore={rightLiveSpeedTimeBonusScore}
+                            speedTimeBonusScore={rightSpeedTimeBonusForPanel}
                             speedBonusScoreLabel={rightSpeedBonusScoreLabel}
                             speedBonusTickProgress={rightSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={rightSpeedBonusTick.secToNextDrop}
@@ -1797,7 +1795,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             opponentMonsterDisplay={isLeftAi ? adventureMonsterPanel : undefined}
                             spIngameOnboardingUserTarget={userPanelOnboardingTarget}
                             captureHeadStartFlatBonus={leftCaptureHeadStartFlatBonus}
-                            speedTimeBonusScore={leftLiveSpeedTimeBonusScore}
+                            speedTimeBonusScore={leftSpeedTimeBonusForPanel}
                             speedBonusScoreLabel={leftSpeedBonusScoreLabel}
                             speedBonusTickProgress={leftSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={leftSpeedBonusTick.secToNextDrop}
@@ -1834,7 +1832,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                                 singlePlayerOnboardingBarHighlight === 'user-panel' && currentUser?.id === rightPlayerUser.id
                             }
                             captureHeadStartFlatBonus={rightCaptureHeadStartFlatBonus}
-                            speedTimeBonusScore={rightLiveSpeedTimeBonusScore}
+                            speedTimeBonusScore={rightSpeedTimeBonusForPanel}
                             speedBonusScoreLabel={rightSpeedBonusScoreLabel}
                             speedBonusTickProgress={rightSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={rightSpeedBonusTick.secToNextDrop}
@@ -1874,7 +1872,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     opponentMonsterDisplay={isLeftAi ? adventureMonsterPanel : undefined}
                     spIngameOnboardingUserTarget={userPanelOnboardingTarget}
                     captureHeadStartFlatBonus={leftCaptureHeadStartFlatBonus}
-                    speedTimeBonusScore={leftLiveSpeedTimeBonusScore}
+                    speedTimeBonusScore={leftSpeedTimeBonusForPanel}
                     speedBonusScoreLabel={leftSpeedBonusScoreLabel}
                     speedBonusTickProgress={leftSpeedBonusTick.progress}
                     speedBonusSecToNextDrop={leftSpeedBonusTick.secToNextDrop}
@@ -1999,7 +1997,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     singlePlayerOnboardingBarHighlight === 'user-panel' && currentUser?.id === rightPlayerUser.id
                 }
                 captureHeadStartFlatBonus={rightCaptureHeadStartFlatBonus}
-                speedTimeBonusScore={rightLiveSpeedTimeBonusScore}
+                speedTimeBonusScore={rightSpeedTimeBonusForPanel}
                 speedBonusScoreLabel={rightSpeedBonusScoreLabel}
                 speedBonusTickProgress={rightSpeedBonusTick.progress}
                 speedBonusSecToNextDrop={rightSpeedBonusTick.secToNextDrop}

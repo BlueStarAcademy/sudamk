@@ -28,6 +28,12 @@ import {
     PAIR_GO_GAME_MODES,
 } from '../shared/utils/pairGameTurn.js';
 import { PVP_DISCONNECT_REJOIN_GRACE_MS } from '../shared/utils/pvpDisconnectPolicy.js';
+import {
+    getSpeedTimeBonusPointsDesired,
+    getSpeedTimePressureConsumptionSnapshot,
+    isSessionSpeedTimePressureMode,
+    SPEED_TIME_PRESSURE_SECONDS_PER_POINT,
+} from './utils/speedTimePressureLiveCaptures.js';
 
 // 정확한 계가 결과는 1회만 표시한다는 전제 하에,
 // (특히 히든돌 최종 공개 애니메이션 동안) KataGo 분석을 백그라운드로 미리 시작해
@@ -145,55 +151,25 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
     // Time bonus (speed unified):
     // - PVP/AI/싱글 공통: "내가 사용한 시간 10초당 상대 +1점"
     // - 피셔 등으로 시간이 회복되어도 누적 사용시간은 감소하지 않는다.
-    const SPEED_AI_SECONDS_PER_POINT = 10;
-    const isSpeedMode = session.mode === types.GameMode.Speed || (session.mode === types.GameMode.Mix && session.settings.mixedModes?.includes(types.GameMode.Speed));
+    const isSpeedMode =
+        session.mode === types.GameMode.Speed ||
+        (session.mode === types.GameMode.Mix && session.settings.mixedModes?.includes(types.GameMode.Speed));
     if (isSpeedMode) {
+        const nowMs = Date.now();
+        const { blackConsumed, whiteConsumed } = getSpeedTimePressureConsumptionSnapshot(session, nowMs);
+        const desired = getSpeedTimeBonusPointsDesired(session, nowMs);
         const speedConsumed = ((session.settings as any)?.__speedBonusConsumedSec ?? {}) as { black?: number; white?: number };
         const committedBlackConsumed = Math.max(0, Number(speedConsumed.black ?? 0));
         const committedWhiteConsumed = Math.max(0, Number(speedConsumed.white ?? 0));
-        const nowMs = Date.now();
-        let liveBlackTurnUsed =
-            session.currentPlayer === types.Player.Black && typeof session.turnDeadline === 'number'
-                ? Math.max(0, Math.max(0, Number(session.blackTimeLeft ?? 0)) - Math.max(0, (session.turnDeadline - nowMs) / 1000))
-                : 0;
-        let liveWhiteTurnUsed =
-            session.currentPlayer === types.Player.White && typeof session.turnDeadline === 'number'
-                ? Math.max(0, Math.max(0, Number(session.whiteTimeLeft ?? 0)) - Math.max(0, (session.turnDeadline - nowMs) / 1000))
-                : 0;
-        // AI 대국: AI 좌석의 "라이브 턴 사용분"은 스피드 보너스(상대 헌납)에 넣지 않는다. (계가 스냅샷이 AI 차례일 때 봇 생각 시간이 유저 사용으로 잡히는 것 방지)
-        if (session.isAiGame) {
-            if (session.blackPlayerId === aiUserId) liveBlackTurnUsed = 0;
-            if (session.whitePlayerId === aiUserId) liveWhiteTurnUsed = 0;
-        }
-        // 핵심 원칙: 사용 시간 누적치는 절대 감소하지 않는다.
-        // 피셔 증분으로 남은 시간이 늘어나도 committed는 줄지 않고, 현재 턴 실시간 사용분만 추가한다.
-        const blackConsumed = committedBlackConsumed + liveBlackTurnUsed;
-        const whiteConsumed = committedWhiteConsumed + liveWhiteTurnUsed;
-
-        if (session.isAiGame) {
-            // AI전: 유저가 사용한 시간만 AI에게 보너스로 반영한다. (AI 사용 시간은 무시)
-            const humanIsBlack = session.blackPlayerId !== aiUserId && session.whitePlayerId === aiUserId;
-            const humanIsWhite = session.whitePlayerId !== aiUserId && session.blackPlayerId === aiUserId;
-            const humanConsumed = humanIsBlack ? blackConsumed : humanIsWhite ? whiteConsumed : 0;
-            const aiBonus = Math.floor(humanConsumed / SPEED_AI_SECONDS_PER_POINT);
-
-            if (humanIsBlack) {
-                finalAnalysis.scoreDetails.black.timeBonus = 0;
-                finalAnalysis.scoreDetails.white.timeBonus = aiBonus;
-            } else if (humanIsWhite) {
-                finalAnalysis.scoreDetails.black.timeBonus = aiBonus;
-                finalAnalysis.scoreDetails.white.timeBonus = 0;
-            } else {
-                // 예외 좌석 상태면 기존 대칭 규칙으로 폴백
-                finalAnalysis.scoreDetails.black.timeBonus = Math.floor(whiteConsumed / SPEED_AI_SECONDS_PER_POINT);
-                finalAnalysis.scoreDetails.white.timeBonus = Math.floor(blackConsumed / SPEED_AI_SECONDS_PER_POINT);
-            }
-        } else {
-            finalAnalysis.scoreDetails.black.timeBonus = Math.floor(whiteConsumed / SPEED_AI_SECONDS_PER_POINT);
-            finalAnalysis.scoreDetails.white.timeBonus = Math.floor(blackConsumed / SPEED_AI_SECONDS_PER_POINT);
-        }
+        const liveBlackTurnUsed = Math.max(0, blackConsumed - committedBlackConsumed);
+        const liveWhiteTurnUsed = Math.max(0, whiteConsumed - committedWhiteConsumed);
+        const grant = ((session.settings as any).__speedTimePressureGranted ?? {}) as { black?: number; white?: number };
+        const gb = Math.max(0, Number(grant.black ?? 0));
+        const gw = Math.max(0, Number(grant.white ?? 0));
+        finalAnalysis.scoreDetails.black.timeBonus = Math.max(0, desired.blackBonus - gb);
+        finalAnalysis.scoreDetails.white.timeBonus = Math.max(0, desired.whiteBonus - gw);
         console.log(
-            `[finalizeAnalysisResult] Speed time bonus (unified): committedBlack=${committedBlackConsumed}, committedWhite=${committedWhiteConsumed}, liveBlackTurnUsed=${liveBlackTurnUsed}, liveWhiteTurnUsed=${liveWhiteTurnUsed}, blackConsumed=${blackConsumed}, whiteConsumed=${whiteConsumed}, blackBonus=${finalAnalysis.scoreDetails.black.timeBonus}, whiteBonus=${finalAnalysis.scoreDetails.white.timeBonus}`
+            `[finalizeAnalysisResult] Speed time bonus (unified): committedBlack=${committedBlackConsumed}, committedWhite=${committedWhiteConsumed}, liveBlackTurnUsed=${liveBlackTurnUsed}, liveWhiteTurnUsed=${liveWhiteTurnUsed}, blackConsumed=${blackConsumed}, whiteConsumed=${whiteConsumed}, desiredBlack=${desired.blackBonus}, desiredWhite=${desired.whiteBonus}, grantedBlack=${gb}, grantedWhite=${gw}, timeBonusBlack=${finalAnalysis.scoreDetails.black.timeBonus}, timeBonusWhite=${finalAnalysis.scoreDetails.white.timeBonus} (secPerPoint=${SPEED_TIME_PRESSURE_SECONDS_PER_POINT})`,
         );
     } else {
         finalAnalysis.scoreDetails.black.timeBonus = 0;
@@ -1113,6 +1089,28 @@ export const resetGameForRematch = (game: LiveGameSession, negotiation: types.Ne
     return newGame;
 };
 
+/**
+ * 메인 루프가 들고 있는 게임 스냅샷이 `/api/action` 직후의 `gameCache`보다 낡을 수 있다.
+ * `updateGameStates` 타임아웃·배치 제한 등으로 조기 반환할 때는 반드시 캐시를 한 번 읽어
+ * (예: 베이스 `CONFIRM_BASE_REVEAL` → `playing` 직후) stale 덮어쓰기를 막는다.
+ */
+export async function mergeGamesWithLatestCache(
+    snapshots: LiveGameSession[],
+    lookupMs: number,
+): Promise<LiveGameSession[]> {
+    const { getCachedGame } = await import('./gameCache.js');
+    return Promise.all(
+        snapshots.map(async (snap) => {
+            if (!snap?.id) return snap;
+            const cached = await Promise.race([
+                getCachedGame(snap.id),
+                new Promise<LiveGameSession | null>((r) => setTimeout(() => r(null), lookupMs)),
+            ]);
+            return cached ?? snap;
+        }),
+    );
+}
+
 export const updateGameStates = async (games: LiveGameSession[], now: number): Promise<LiveGameSession[]> => {
     // 빈 배열이면 즉시 반환
     if (!games || games.length === 0) {
@@ -1182,6 +1180,7 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                     'base_komi_result',
                     'base_game_start_confirmation',
                 ].includes(game.gameStatus);
+            // 싱글 베이스 사전 단계는 `needsSinglePlayerBasePrePlayTick`으로 처리(도전의 탑 등에는 베이스 모드 없음).
             // 싱글/타워 등 PVE는 기본적으로 메인 루프에서 제외되나, 주사위·도둑은 update*State / AI 턴이
             // 여기서 돌지 않으면 새로고침·WS 공백 시 굴림 애니·연속 착수가 영구 정지한다.
             const pveDiceThiefCurrentPid =
@@ -1189,6 +1188,11 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
             const pveDiceThiefIsAiTurn =
                 pveDiceThiefCurrentPid === aiUserId ||
                 (!!pveDiceThiefCurrentPid && String(pveDiceThiefCurrentPid).startsWith('dungeon-bot-'));
+            /** 스피드 시간 압박을 `captures`에 실시간 반영하려면 playing 중에도 updateStrategicGameState가 돌아야 함 */
+            const needsPveSpeedPlayingTick =
+                isPVEGame &&
+                game.gameStatus === 'playing' &&
+                isSessionSpeedTimePressureMode(game);
             const needsPveDiceThiefPlayfulTick =
                 isPVEGame &&
                 ((game.mode === types.GameMode.Dice &&
@@ -1209,6 +1213,7 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                 needsItemModeTransition ||
                 needsPveServerGoAiTick ||
                 needsSinglePlayerBasePrePlayTick ||
+                needsPveSpeedPlayingTick ||
                 needsPveDiceThiefPlayfulTick
             ) {
                 multiPlayerGames.push(game);
@@ -1237,13 +1242,18 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
         const OUTER_DEADLINE_MS = toProcess.length === 1 ? 22000 : toProcess.length <= 2 ? 9000 : toProcess.length <= 3 ? 6000 : 2500;
         const outerTimeout = new Promise<LiveGameSession[]>((resolve) => {
             setTimeout(() => {
-                // 로그를 덜 자주 출력 (30초마다 한 번만)
-                const shouldLog = !(global as any).lastUpdateGameStatesTimeoutLog || (Date.now() - (global as any).lastUpdateGameStatesTimeoutLog > 30000);
-                if (shouldLog) {
-                    console.warn(`[updateGameStates] Outer timeout (${OUTER_DEADLINE_MS}ms) reached, returning original games`);
-                    (global as any).lastUpdateGameStatesTimeoutLog = Date.now();
-                }
-                resolve(games);
+                void (async () => {
+                    const shouldLog =
+                        !(global as any).lastUpdateGameStatesTimeoutLog ||
+                        Date.now() - (global as any).lastUpdateGameStatesTimeoutLog > 30000;
+                    if (shouldLog) {
+                        console.warn(
+                            `[updateGameStates] Outer timeout (${OUTER_DEADLINE_MS}ms) — merging gameCache so HTTP-updated sessions are not overwritten`,
+                        );
+                        (global as any).lastUpdateGameStatesTimeoutLog = Date.now();
+                    }
+                    resolve(await mergeGamesWithLatestCache(games, 1500));
+                })();
             }, OUTER_DEADLINE_MS);
         });
 
@@ -1254,7 +1264,7 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
             
             // 타임아웃 체크: 이미 시간이 초과했으면 즉시 반환
             if (Date.now() - startTime >= OUTER_DEADLINE_MS) {
-                return games;
+                return await mergeGamesWithLatestCache(games, 1200);
             }
             
             // 플레이어 캐시 프리웜 (1초 내 완료, 더 엄격하게)
@@ -1273,7 +1283,7 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
 
             // 타임아웃 체크: 프리웜 후 시간 확인
             if (Date.now() - startTime >= OUTER_DEADLINE_MS) {
-                return games;
+                return await mergeGamesWithLatestCache(games, 1200);
             }
 
             const BATCH_SIZE = 1;
@@ -1294,7 +1304,11 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                 
                 const batch = toProcess.slice(i, i + BATCH_SIZE);
                 const batchTimeout = new Promise<LiveGameSession[]>((resolve) => {
-                    setTimeout(() => resolve(batch), BATCH_DEADLINE_MS);
+                    setTimeout(() => {
+                        void (async () => {
+                            resolve(await mergeGamesWithLatestCache(batch, 1200));
+                        })();
+                    }, BATCH_DEADLINE_MS);
                 });
 
                 const processGameWithTimeout = async (game: LiveGameSession): Promise<LiveGameSession> => {
@@ -1314,6 +1328,14 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                         const duration = Date.now() - gameStartTime;
                         if (timeoutOccurred && duration >= GAME_DEADLINE_MS * 0.9) {
                             console.warn(`[updateGameStates] Game ${game.id} processing timeout after ${duration}ms (limit: ${GAME_DEADLINE_MS}ms)`);
+                        }
+                        if (timeoutOccurred) {
+                            const { getCachedGame } = await import('./gameCache.js');
+                            const cached = await Promise.race([
+                                getCachedGame(game.id),
+                                new Promise<LiveGameSession | null>((r) => setTimeout(() => r(null), 800)),
+                            ]);
+                            if (cached) return cached;
                         }
                         return result;
                     } catch (error: any) {
@@ -1367,7 +1389,7 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
             name: error?.name,
             gamesCount: games?.length || 0
         });
-        return games; // 치명적 에러 발생 시 원본 게임들 반환
+        return await mergeGamesWithLatestCache(games, 1500); // 치명적 에러 시에도 캐시 우선으로 stale 덮어쓰기 완화
     }
 };
 

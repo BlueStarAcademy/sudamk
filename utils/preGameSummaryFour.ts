@@ -51,8 +51,12 @@ const LOSE_MIX = '종료 시 따내기·계가 등에서 상대가 승리 조건
 /** 바둑판 문양돌과 동일 스프라이트(`GoBoard` 흑 문양) — 게임 설명 모달 하이라이트 */
 const PATTERN_STONE_HIGHLIGHT_IMG = '/images/single/BlackDouble.png';
 
-function defaultBaseStoneCount(settings: GameSettings): number {
-  return settings.baseStones ?? 4;
+/** 게임 설명 모달「특수 규칙」— 베이스 모드는 짧은 두 줄로 표시 */
+function baseModePregameHighlights(): PreGameSpecialHighlight[] {
+  return [
+    { img: '/images/simbols/simbol4.png', text: '베이스돌 5점' },
+    { img: '/images/simbols/simbol4.png', text: '덤 설정으로 흑/백 정하기' },
+  ];
 }
 
 function mixedList(s: GameSettings): GameMode[] {
@@ -344,15 +348,11 @@ function mixSpecialHighlights(
   includeFischerGuide: boolean = true
 ): PreGameSpecialHighlight[] {
   const h: PreGameSpecialHighlight[] = [];
-  const bs = defaultBaseStoneCount(settings);
   if (hasMix(mix, GameMode.Capture)) {
     h.push({ img: PATTERN_STONE_HIGHLIGHT_IMG, text: '문양돌 따내기 2점' });
   }
   if (hasMix(mix, GameMode.Base)) {
-    h.push({
-      img: '/images/simbols/simbol4.png',
-      text: `비밀 베이스돌 최대 ${bs}개 · 공개 후 덤/색 입찰 · 계가 보너스`,
-    });
+    h.push(...baseModePregameHighlights());
   }
   if (hasMix(mix, GameMode.Hidden)) {
     h.push({ img: '/images/button/hidden.png', text: '히든 착수 · 스캔으로 탐색' });
@@ -394,19 +394,14 @@ function singlePlayerStageHighlights(
     (session.mode === GameMode.Capture ||
       em.includes(GameMode.Capture) ||
       (isLegacyRuleInference && stage.blackTurnLimit !== undefined));
-  const bs = defaultBaseStoneCount(session.settings);
-
   if (
     (stage.placements.blackPattern > 0 || stage.placements.whitePattern > 0) &&
     (isCaptureMode || isSurvivalRules)
   ) {
     h.push({ img: PATTERN_STONE_HIGHLIGHT_IMG, text: '문양돌 따내기 2점' });
   }
-  if (session.mode === GameMode.Base) {
-    h.push({
-      img: '/images/simbols/simbol4.png',
-      text: `비밀 베이스돌 최대 ${bs}개 · 공개 시 계가 보너스`,
-    });
+  if (session.mode === GameMode.Base || em.includes(GameMode.Base)) {
+    h.push(...baseModePregameHighlights());
   }
   if (isSurvivalRules) {
     const settingsSurv = Number((session.settings as any)?.survivalTurns ?? 0);
@@ -493,7 +488,6 @@ export function getPreGameSummaryFour(
 ): PreGameSummaryFour {
   const { mode, settings } = session;
   const mix = mixedList(settings);
-  const bs = defaultBaseStoneCount(settings);
 
   if (stage) {
     return getSinglePlayerStageSummary(session, stage, towerLobbyInventory);
@@ -574,12 +568,7 @@ export function getPreGameSummaryFour(
       loseGoal: autoLose ?? (auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY),
       scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
       timeRules: timeLine(settings, mode, mix),
-      specialHighlights: [
-        {
-          img: '/images/simbols/simbol4.png',
-          text: `비밀 베이스돌 최대 ${bs}개 · 공개 후 덤/색 입찰 · 계가 보너스`,
-        },
-      ],
+      specialHighlights: baseModePregameHighlights(),
       items: NONE,
       itemSlots: [],
     };

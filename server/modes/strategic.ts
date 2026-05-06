@@ -37,6 +37,7 @@ import { PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS } from '../constants/pveStr
 import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
 import { resolveSinglePlayerAutoScoringTurnCap } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 import { tryEndGameWhenCaptureTargetReached } from '../utils/captureTargets.js';
+import { syncSpeedTimePressureCaptures } from '../utils/speedTimePressureLiveCaptures.js';
 
 /** `Game.tsx` findLatestMoveIndexAt와 동일 — 상대 히든 판별 시 같은 좌표의 과거 수와 혼동하지 않도록 */
 function findLatestMoveIndexAt(
@@ -78,6 +79,7 @@ const addSpeedConsumedSeconds = (game: types.LiveGameSession, player: types.Play
     } else if (player === types.Player.White) {
         bag.white = Math.max(0, Number(bag.white ?? 0)) + consumedSec;
     }
+    syncSpeedTimePressureCaptures(game, Date.now());
 };
 
 const STRATEGIC_GO_SERVER_AI_MODES: types.GameMode[] = [
@@ -247,6 +249,10 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
 
 export const updateStrategicGameState = async (game: types.LiveGameSession, now: number) => {
     syncAdventureEncounterDeadlineDuringMonsterTurn(game, now);
+
+    if (game.gameStatus === 'playing') {
+        syncSpeedTimePressureCaptures(game, now);
+    }
 
     if (await tryEndGameWhenCaptureTargetReached(game, game.currentPlayer)) {
         return;
@@ -1153,6 +1159,9 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
 
             if (!isHidden && game.permanentlyRevealedStones?.length) {
                 game.permanentlyRevealedStones = game.permanentlyRevealedStones.filter((p) => !(p.x === x && p.y === y));
+            }
+            if (!isHidden && game.baseStones?.length) {
+                game.baseStones = game.baseStones.filter((p) => !(p.x === x && p.y === y));
             }
 
             const playerWhoMoved = myPlayerEnum;

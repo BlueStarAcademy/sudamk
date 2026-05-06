@@ -42,6 +42,8 @@ export type PairPetHatcherySession = {
     startedAt: number;
     /** 부화 시작 시 차감한 알 인벤 행 id (취소 시 복구) */
     eggItemId?: string;
+    /** 부화에 사용한 알의 templateId (예: `pair-egg-welcome` → 1분·레벨 5) */
+    eggTemplateId?: string;
 };
 
 /** 페어 펫 로비 인벤(펫·영혼석) 목록 정렬 */

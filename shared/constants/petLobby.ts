@@ -80,8 +80,14 @@ export function isPairLobbyPetInventoryFull(user: {
 
 export const PAIR_EGG_TEMPLATE_ID = 'pair-egg-mystery';
 
+/** 환영 우편 등: 신비로운알과 동일 이미지, 부화 시 슬롯 무관 1분·레벨 5 펫 */
+export const PAIR_WELCOME_EGG_TEMPLATE_ID = 'pair-egg-welcome';
+
 /** 상점 지급·MATERIAL_ITEMS 키와 동일한 알 이름 */
 export const PAIR_EGG_MATERIAL_NAME = '신비로운알';
+
+/** `(특)신비로운 알` — MATERIAL_ITEMS 객체 키·표기명과 동일 */
+export const PAIR_WELCOME_EGG_MATERIAL_NAME = '(특)신비로운 알';
 
 /** 알 썸네일(상점 카드·부화장 등 공통) */
 export const PAIR_EGG_DISPLAY_IMAGE = '/images/pets/egg.webp';
@@ -327,12 +333,26 @@ export function isPairPetMaterial(item: Pick<InventoryItem, 'templateId' | 'name
     return typeof item.templateId === 'string' && item.templateId.startsWith('pair-pet-');
 }
 
+export function isPairWelcomeEggItem(item: Pick<InventoryItem, 'templateId' | 'name'>): boolean {
+    return item.templateId === PAIR_WELCOME_EGG_TEMPLATE_ID || item.name === PAIR_WELCOME_EGG_MATERIAL_NAME;
+}
+
 export function isPairEggItem(item: Pick<InventoryItem, 'templateId' | 'name'>): boolean {
     return (
+        isPairWelcomeEggItem(item) ||
         item.templateId === PAIR_EGG_TEMPLATE_ID ||
         item.name === PAIR_EGG_MATERIAL_NAME ||
         item.name === '페어 미스터리 알'
     );
+}
+
+/** 부화 시작 시 서버와 동일 순서로 소모될 첫 알 행(수량 ≥ 1) */
+export function findFirstHatchablePairEgg(inv: InventoryItem[] | null | undefined): InventoryItem | undefined {
+    if (!Array.isArray(inv)) return undefined;
+    for (const it of inv) {
+        if (isPairEggItem(it) && (it.quantity ?? 1) >= 1) return it;
+    }
+    return undefined;
 }
 
 export function isPairSoulStoneItem(item: Pick<InventoryItem, 'templateId' | 'name'>): boolean {

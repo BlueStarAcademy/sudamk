@@ -63,6 +63,8 @@ import {
     PAIR_PET_SHOP_SKUS,
     PAIR_EGG_TEMPLATE_ID,
     PAIR_EGG_MATERIAL_NAME,
+    PAIR_WELCOME_EGG_TEMPLATE_ID,
+    PAIR_WELCOME_EGG_MATERIAL_NAME,
     PAIR_SOULSTONE_NAMES,
     PAIR_PET_LOBBY_INV_EXPAND_STEP,
     PAIR_PET_LOBBY_INV_MAX_SLOTS,
@@ -153,7 +155,7 @@ const makePairMaterialStack = (materialName: string, templateId: string, quantit
 };
 
 /** 취소 시 차감했던 알 1개 복구 (같은 스택 id가 있으면 합침) */
-const restoreOnePairEgg = (user: User, eggItemId?: string): string | null => {
+const restoreOnePairEgg = (user: User, eggItemId?: string, eggTemplateIdForRestore?: string): string | null => {
     if (!user.inventorySlots) {
         user.inventorySlots = { equipment: 30, consumable: 30, material: 30 };
     }
@@ -170,9 +172,11 @@ const restoreOnePairEgg = (user: User, eggItemId?: string): string | null => {
             }
         }
     }
-    const merged = addItemsToInventory(inv, user.inventorySlots, [
-        makePairMaterialStack(PAIR_EGG_MATERIAL_NAME, PAIR_EGG_TEMPLATE_ID, 1),
-    ]);
+    const useWelcome =
+        eggTemplateIdForRestore === PAIR_WELCOME_EGG_TEMPLATE_ID;
+    const matName = (useWelcome ? PAIR_WELCOME_EGG_MATERIAL_NAME : PAIR_EGG_MATERIAL_NAME) as keyof typeof MATERIAL_ITEMS;
+    const templateId = useWelcome ? PAIR_WELCOME_EGG_TEMPLATE_ID : PAIR_EGG_TEMPLATE_ID;
+    const merged = addItemsToInventory(inv, user.inventorySlots, [makePairMaterialStack(matName, templateId, 1)]);
     if (!merged.success || !merged.updatedInventory) {
         return '인벤토리 공간이 부족해 알을 돌려줄 수 없습니다.';
     }
@@ -4638,13 +4642,21 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 if (eggIdx < 0) return { error: '부화할 알이 없습니다.' };
             }
             const egg = user.inventory[eggIdx]!;
-            const invSnapshot = JSON.parse(JSON.stringify(user.inventory)) as InventoryItem[];
             const nextQty = (egg.quantity ?? 1) - 1;
             const afterEgg = [...user.inventory];
             if (nextQty <= 0) afterEgg.splice(eggIdx, 1);
             else afterEgg[eggIdx] = { ...egg, quantity: nextQty };
             user.inventory = afterEgg;
-            user.pairPetHatcherySessions[slotIndex] = { slotIndex, startedAt: Date.now(), eggItemId: egg.id };
+            const eggTid =
+                typeof egg.templateId === 'string' && egg.templateId.length > 0
+                    ? egg.templateId
+                    : PAIR_EGG_TEMPLATE_ID;
+            user.pairPetHatcherySessions[slotIndex] = {
+                slotIndex,
+                startedAt: Date.now(),
+                eggItemId: egg.id,
+                eggTemplateId: eggTid,
+            };
             user.inventory = JSON.parse(JSON.stringify(user.inventory));
             const updatedUser = getSelectiveUserUpdate(user, 'PAIR_PET_HATCHERY_START', { includeAll: true });
             await db.updateUser(user);
@@ -4662,14 +4674,17 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             user.pairPetHatcherySessions = normalizePairPetHatcherySessions(user.pairPetHatcherySessions);
             const session = user.pairPetHatcherySessions[slotIndex];
             if (!session) return { error: '부화 완료 대기 중인 알이 없습니다.' };
-            const endAt = hatcheryEndsAt(session.startedAt, slotIndex);
+            const endAt = hatcheryEndsAt(session.startedAt, slotIndex, session);
             if (Date.now() < endAt) return { error: '아직 부화가 끝나지 않았습니다.' };
             if (isPairLobbyPetInventoryFull(user)) {
                 return { error: PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE };
             }
             const def = getPairHatcherySlotDef(slotIndex);
             if (!def) return { error: '유효하지 않은 슬롯입니다.' };
-            const petLevel = rollHatchPetLevelFromRule(def.levelRule);
+            const petLevel =
+                session.eggTemplateId === PAIR_WELCOME_EGG_TEMPLATE_ID
+                    ? Math.min(PAIR_PET_MAX_LEVEL, 5)
+                    : rollHatchPetLevelFromRule(def.levelRule);
             const petMeta = rollPairPetMetaForHatchAtLevel(petLevel);
             const petTemplate = rollPairPetTemplateId();
             const petItem = makePairPetItem(petTemplate, petMeta);
@@ -4701,11 +4716,15 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             user.pairPetHatcherySessions = normalizePairPetHatcherySessions(user.pairPetHatcherySessions);
             const cancelSession = user.pairPetHatcherySessions[slotIndex];
             if (!cancelSession) return { error: '부화 중인 알이 없습니다.' };
-            const cancelEndAt = hatcheryEndsAt(cancelSession.startedAt, slotIndex);
+            const cancelEndAt = hatcheryEndsAt(cancelSession.startedAt, slotIndex, cancelSession);
             if (Date.now() >= cancelEndAt) {
                 return { error: '부화가 완료되었습니다. 펫 받기를 사용해 주세요.' };
             }
-            const restoreErr = restoreOnePairEgg(user, cancelSession.eggItemId);
+            const restoreErr = restoreOnePairEgg(
+                user,
+                cancelSession.eggItemId,
+                cancelSession.eggTemplateId,
+            );
             if (restoreErr) return { error: restoreErr };
             user.pairPetHatcherySessions[slotIndex] = null;
             const updatedUserCancel = getSelectiveUserUpdate(user, 'PAIR_PET_HATCHERY_CANCEL', { includeAll: true });
@@ -4738,7 +4757,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (!Number.isFinite(startedAtSafe) || startedAtSafe <= 0) {
                 return { error: '유효하지 않은 부화 세션입니다.' };
             }
-            const endAtIf = hatcheryEndsAt(startedAtSafe, slotIndexIf);
+            const endAtIf = hatcheryEndsAt(startedAtSafe, slotIndexIf, sessIf);
             const nowIf = Date.now();
             if (nowIf >= endAtIf) {
                 return { error: '이미 부화가 끝났습니다. 펫 받기를 사용해 주세요.' };
@@ -4751,7 +4770,10 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             const diamondBal = Math.floor(Number(user.diamonds ?? 0));
             const defIf = getPairHatcherySlotDef(slotIndexIf);
             if (!defIf) return { error: '유효하지 않은 슬롯입니다.' };
-            const petLevelIf = rollHatchPetLevelFromRule(defIf.levelRule);
+            const petLevelIf =
+                sessIf.eggTemplateId === PAIR_WELCOME_EGG_TEMPLATE_ID
+                    ? Math.min(PAIR_PET_MAX_LEVEL, 5)
+                    : rollHatchPetLevelFromRule(defIf.levelRule);
             const petMetaIf = rollPairPetMetaForHatchAtLevel(petLevelIf);
             const petTemplateIf = rollPairPetTemplateId();
             const petItemIf = makePairPetItem(petTemplateIf, petMetaIf);
@@ -4965,7 +4987,10 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             user.pairPetTrainingSlots = normalizePairPetTrainingSlots(user.pairPetTrainingSlots);
             const session = user.pairPetTrainingSlots[slotIndex];
             if (!session) return { error: '취소할 수련이 없습니다.' };
-            const endAt = trainingEndsAt(session.startedAt, slotIndex);
+            const petIdxCancel = user.inventory.findIndex((it) => it.id === session.itemId);
+            const metaForTimingCancel =
+                petIdxCancel >= 0 ? readPairPetMetaFromRow(user.inventory[petIdxCancel]!) : null;
+            const endAt = trainingEndsAt(session.startedAt, slotIndex, metaForTimingCancel);
             if (Date.now() >= endAt) {
                 return { error: '이미 수련이 완료되어 취소할 수 없습니다. 보상 수령으로 진행해 주세요.' };
             }
@@ -4986,12 +5011,15 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             user.pairPetTrainingSlots = normalizePairPetTrainingSlots(user.pairPetTrainingSlots);
             const session = user.pairPetTrainingSlots[slotIndex];
             if (!session) return { error: '수령할 수련이 없습니다.' };
-            const endAt = trainingEndsAt(session.startedAt, slotIndex);
+            const petIdxClaim = user.inventory.findIndex((it) => it.id === session.itemId);
+            const metaForTimingClaim =
+                petIdxClaim >= 0 ? readPairPetMetaFromRow(user.inventory[petIdxClaim]!) : null;
+            const endAt = trainingEndsAt(session.startedAt, slotIndex, metaForTimingClaim);
             if (Date.now() < endAt) return { error: '아직 수련이 끝나지 않았습니다.' };
             const def = getPairTrainingSlotDef(slotIndex);
             if (!def) return { error: '유효하지 않은 슬롯입니다.' };
 
-            const petIdx = user.inventory.findIndex((it) => it.id === session.itemId);
+            const petIdx = petIdxClaim;
             const metaForBonuses = petIdx >= 0 ? readPairPetMetaFromRow(user.inventory[petIdx]!) : neutralTrainingMeta;
 
             const goldRoll = rollInclusive(def.goldMin, def.goldMax);

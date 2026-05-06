@@ -2,6 +2,7 @@ import { getPairWins } from './pairTraining.js';
 import { PAIR_PET_MAX_LEVEL } from './pairPetGrade.js';
 import { isFunctionVipActive } from '../utils/rewardVip.js';
 import type { PairPetHatcherySession, User } from '../types/entities.js';
+import { PAIR_WELCOME_EGG_TEMPLATE_ID } from './petLobby.js';
 
 /** 부화 펫 수령·즉시 완료 시 펫 로비 인벤 슬롯 부족 — 서버·클라 동일 문자열 */
 export const PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE = '펫 인벤토리 공간이 부족합니다.';
@@ -86,10 +87,24 @@ export function getPairHatcherySlotDef(slotIndex: number): PairHatcherySlotDef |
     return PAIR_HATCHERY_SLOT_DEFS[slotIndex];
 }
 
-export function hatcheryEndsAt(startedAt: number, slotIndex: number): number {
+/** 부화 중인 알이 환영용 `(특)신비로운 알`이면 슬롯 기본 시간 대신 1분 */
+export function getPairHatcheryDurationMs(
+    slotIndex: number,
+    session?: Pick<PairPetHatcherySession, 'eggTemplateId'> | null
+): number {
+    if (session?.eggTemplateId === PAIR_WELCOME_EGG_TEMPLATE_ID) {
+        return 60 * 1000;
+    }
     const def = getPairHatcherySlotDef(slotIndex);
-    if (!def) return startedAt;
-    return startedAt + def.durationMs;
+    return def?.durationMs ?? 0;
+}
+
+export function hatcheryEndsAt(
+    startedAt: number,
+    slotIndex: number,
+    session?: Pick<PairPetHatcherySession, 'eggTemplateId'> | null
+): number {
+    return startedAt + getPairHatcheryDurationMs(slotIndex, session);
 }
 
 /** 일반 슬롯 0~3 해금 여부 (0번은 항상 true) */
@@ -116,7 +131,14 @@ export function normalizePairPetHatcherySessions(
         if (slotIndex !== i || !Number.isFinite(startedAt) || startedAt <= 0) continue;
         const eggRaw = (cell as PairPetHatcherySession).eggItemId;
         const eggItemId = typeof eggRaw === 'string' && eggRaw.length > 0 ? eggRaw : undefined;
-        out[i] = eggItemId ? { slotIndex: i, startedAt, eggItemId } : { slotIndex: i, startedAt };
+        const tidRaw = (cell as PairPetHatcherySession).eggTemplateId;
+        const eggTemplateId =
+            typeof tidRaw === 'string' && tidRaw.length > 0 ? tidRaw : undefined;
+        const base: PairPetHatcherySession = eggItemId
+            ? { slotIndex: i, startedAt, eggItemId }
+            : { slotIndex: i, startedAt };
+        if (eggTemplateId) base.eggTemplateId = eggTemplateId;
+        out[i] = base;
     }
     return out;
 }

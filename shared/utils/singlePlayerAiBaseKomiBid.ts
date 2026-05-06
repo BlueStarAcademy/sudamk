@@ -30,3 +30,45 @@ export const resolveRuntimeAiBaseKomiBid = (cfg: SinglePlayerAiBaseKomiBid | und
     }
     return { color, komi };
 };
+
+const clampKomiBid = (n: number) => Math.min(100, Math.max(0, Math.floor(n)));
+
+/**
+ * 2차 덤 입찰 등: 인간과 동일한 집수를 피해 AI 덤 값을 고른다(동률 재발 방지).
+ * `avoidKomi`가 없으면 {@link resolveRuntimeAiBaseKomiBid}와 동일 분포.
+ */
+export const pickAiKomiValueAvoiding = (
+    cfg: SinglePlayerAiBaseKomiBid | undefined,
+    avoidKomi: number | undefined,
+): number => {
+    if (avoidKomi == null || !Number.isFinite(avoidKomi)) {
+        return resolveRuntimeAiBaseKomiBid(cfg).komi;
+    }
+    const avoid = clampKomiBid(avoidKomi);
+
+    if (cfg?.komiMode === 'fixed') {
+        const raw = Math.floor(Number(cfg.komi));
+        const k = Number.isFinite(raw) && raw >= 0 ? clampKomiBid(raw) : legacyRandomKomi();
+        if (k !== avoid) return k;
+        return avoid >= 100 ? Math.max(0, avoid - 1) : avoid + 1;
+    }
+
+    if (cfg?.komiMode === 'random') {
+        const lo = Math.max(0, Math.floor(Number(cfg.komiMin ?? 1)));
+        const hi = Math.max(lo, Math.floor(Number(cfg.komiMax ?? 10)));
+        if (hi > lo) {
+            for (let i = 0; i < 80; i++) {
+                const v = lo + Math.floor(Math.random() * (hi - lo + 1));
+                if (v !== avoid) return v;
+            }
+            return avoid >= hi ? lo : hi;
+        }
+        return avoid === lo ? clampKomiBid(lo + 1) : lo;
+    }
+
+    for (let i = 0; i < 80; i++) {
+        const v = legacyRandomKomi();
+        if (v !== avoid) return v;
+    }
+    return avoid >= 10 ? 1 : avoid + 1;
+};

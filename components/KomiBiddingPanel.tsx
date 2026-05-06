@@ -91,7 +91,7 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
             setTimer(0);
             return;
         }
-        if (isAdventure || !komiBiddingDeadline || isPairHostKomi) {
+        if (!komiBiddingDeadline || isPairHostKomi) {
             setTimer(KOMI_BID_TIME_SEC);
             return;
         }
@@ -103,7 +103,7 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
             }
         }, 1000);
         return () => clearInterval(intervalId);
-    }, [myBid, komiBiddingDeadline, handleBidSubmit, isAdventure, isPairHostKomi]);
+    }, [myBid, komiBiddingDeadline, handleBidSubmit, isPairHostKomi]);
 
     const adjustKomi = (amount: number) => {
         setKomiValue((prev) => Math.max(0, Math.min(100, prev + amount)));
@@ -211,12 +211,12 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
                         <span className="font-mono text-lg font-bold tabular-nums text-amber-200 sm:text-xl">{komiValue}집</span>
                     </div>
 
-                    <div className="flex min-w-0 flex-1 items-stretch gap-1">
+                    <div className="flex shrink-0 items-center justify-center gap-1">
                         <button
                             type="button"
                             disabled={buttonsDisabled}
                             onClick={() => setSelectedColor(Player.Black)}
-                            className={`min-h-[2.6rem] min-w-0 flex-1 rounded-lg border py-2 text-sm font-bold transition-all sm:min-h-[2.75rem] sm:text-base ${
+                            className={`min-h-[2.6rem] w-11 shrink-0 rounded-lg border px-1.5 py-2 text-sm font-bold transition-all sm:min-h-[2.75rem] sm:w-12 sm:px-2 sm:text-base ${
                                 selectedColor === Player.Black
                                     ? 'border-amber-400/60 bg-amber-500/20 text-amber-50 shadow-[0_0_18px_-8px_rgba(251,191,36,0.5)]'
                                     : 'border-white/10 bg-white/5 text-stone-400 hover:bg-white/10'
@@ -228,7 +228,7 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
                             type="button"
                             disabled={buttonsDisabled}
                             onClick={() => setSelectedColor(Player.White)}
-                            className={`min-h-[2.6rem] min-w-0 flex-1 rounded-lg border py-2 text-sm font-bold transition-all sm:min-h-[2.75rem] sm:text-base ${
+                            className={`min-h-[2.6rem] w-11 shrink-0 rounded-lg border px-1.5 py-2 text-sm font-bold transition-all sm:min-h-[2.75rem] sm:w-12 sm:px-2 sm:text-base ${
                                 selectedColor === Player.White
                                     ? 'border-slate-300/50 bg-slate-200/15 text-slate-50 shadow-[0_0_18px_-8px_rgba(226,232,240,0.35)]'
                                     : 'border-white/10 bg-white/5 text-stone-400 hover:bg-white/10'
@@ -308,7 +308,7 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
                     type="button"
                     disabled={buttonsDisabled}
                     onClick={() => setSelectedColor(Player.Black)}
-                    className={`min-w-[5.5rem] rounded-xl border px-4 py-2 text-sm font-bold transition-all ${
+                    className={`w-11 shrink-0 rounded-xl border px-1.5 py-2 text-sm font-bold transition-all sm:w-12 sm:px-2 ${
                         selectedColor === Player.Black
                             ? 'border-amber-400/60 bg-amber-500/20 text-amber-50 shadow-[0_0_20px_-8px_rgba(251,191,36,0.5)]'
                             : 'border-white/10 bg-white/5 text-stone-400 hover:bg-white/10'
@@ -320,7 +320,7 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
                     type="button"
                     disabled={buttonsDisabled}
                     onClick={() => setSelectedColor(Player.White)}
-                    className={`min-w-[5.5rem] rounded-xl border px-4 py-2 text-sm font-bold transition-all ${
+                    className={`w-11 shrink-0 rounded-xl border px-1.5 py-2 text-sm font-bold transition-all sm:w-12 sm:px-2 ${
                         selectedColor === Player.White
                             ? 'border-slate-300/50 bg-slate-200/15 text-slate-50 shadow-[0_0_20px_-8px_rgba(226,232,240,0.35)]'
                             : 'border-white/10 bg-white/5 text-stone-400 hover:bg-white/10'

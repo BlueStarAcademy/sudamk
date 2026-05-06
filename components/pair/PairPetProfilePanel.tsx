@@ -35,6 +35,8 @@ export interface PairPetProfilePanelProps {
     pairLobbyProminent?: boolean;
     /** 우측 상세 버튼 문구 덮어쓰기(예: 상세보기) */
     detailButtonLabel?: string;
+    /** 타인 프로필 등: 상세·인벤 이동 비활성(표시만) */
+    readOnly?: boolean;
 }
 
 const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
@@ -50,6 +52,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
     homeColumn = false,
     pairLobbyProminent = false,
     detailButtonLabel,
+    readOnly = false,
 }) => {
     const lineFontMax =
         pairLobbyProminent && !compact
@@ -247,7 +250,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                         </p>
                     )}
                 </div>
-                {equippedItem && !embed ? (
+                {equippedItem && !embed && !readOnly ? (
                     <button
                         type="button"
                         disabled={isBusy}
@@ -272,7 +275,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
             </div>
     );
 
-    if (!equippedItem && onFocusPetInventory) {
+    if (!equippedItem && onFocusPetInventory && !readOnly) {
         return (
             <button
                 type="button"
@@ -286,7 +289,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
         );
     }
 
-    if (embed && equippedItem) {
+    if (embed && equippedItem && !readOnly) {
         return (
             <button
                 type="button"

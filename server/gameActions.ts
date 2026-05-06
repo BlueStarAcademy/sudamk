@@ -862,7 +862,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                         (game as any).gameStatus = 'playing';
                     }
                 }
-                // 본대국으로 정규화할 때는 타이머만 정리한다. AI 히든 6초 연출(ai_thinking·aiHiddenItemAnimationEndTime)은
+                // 본대국으로 정규화할 때는 타이머만 정리한다. AI 히든 연출(ai_thinking·aiHiddenItemAnimationEndTime, 길이는 gameSettings의 AI_HIDDEN_ITEM_THINKING_DURATION_MS)은
                 // 여기서 지우면 안 된다 — 다음 REQUEST에서 makeGoAiBotMove가 만료 분기로 pendingAiHiddenPlacement를
                 // 세팅해야 실제 히든 착수가 이어진다. 무조건 제거 시 연출 없이 즉시 백 차례로 돌아가는 버그가 난다.
                 if (String(game.gameStatus) === 'playing') {
@@ -1397,7 +1397,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 []) as GameMode[];
             const pveStrategicBaseFlow =
                 isStrategicPVE &&
-                (game.isSinglePlayer || game.gameCategory === 'tower') &&
+                game.isSinglePlayer &&
                 (game.mode === GameMode.Base ||
                     (game.mode === GameMode.Mix && mixModesForBasePve.includes(GameMode.Base)));
             const baseFlowServerActionTypes = new Set<string>([

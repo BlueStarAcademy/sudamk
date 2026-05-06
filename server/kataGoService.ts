@@ -838,20 +838,6 @@ export const analyzeGame = async (
 ): Promise<AnalysisResult> => {
     const isScoringRequest =
         options?.includePolicy === false && (options?.includeOwnership !== false);
-    const isBaseMode =
-        session.mode === types.GameMode.Base ||
-        (session.mode === types.GameMode.Mix && Boolean(session.settings.mixedModes?.includes(types.GameMode.Base)));
-    const isAdventureBase = isBaseMode && (session as any).gameCategory === 'adventure';
-    const resolveBaseStoneColor = (owner: 'p1' | 'p2'): 'B' | 'W' => {
-        if (isAdventureBase) {
-            return owner === 'p1' ? 'B' : 'W';
-        }
-        const blackPlayerId = session.blackPlayerId;
-        if (owner === 'p1') {
-            return session.player1.id === blackPlayerId ? 'B' : 'W';
-        }
-        return session.player2.id === blackPlayerId ? 'B' : 'W';
-    };
 
     // 계가/분석은 모드와 무관하게 항상 "최종 바둑판 상태"를 단일 진실 소스로 사용한다.
     // (수순 재구성(moveHistory) 경로는 히든/베이스/포획/특수 연출에서 최종 형상과 어긋날 수 있음)
@@ -896,27 +882,17 @@ export const analyzeGame = async (
             }
         }
         
-        // 2. 베이스 돌 추가 (미리 배치된 돌, moveHistory에 없을 수 있음)
-        const baseStones_p1 = (session as any).baseStones_p1 || [];
-        const baseStones_p2 = (session as any).baseStones_p2 || [];
-        for (const stone of baseStones_p1) {
+        // 2. 베이스 돌 보충: 본대국 후에는 `baseStones`(실제 흑백)만 유지되고 p1/p2 배열은 비울 수 있음
+        for (const stone of session.baseStones ?? []) {
+            if (!stone || !Number.isInteger(stone.x) || !Number.isInteger(stone.y)) continue;
+            if (stone.x < 0 || stone.x >= boardSize || stone.y < 0 || stone.y >= boardSize) continue;
+            if (stone.player !== Player.Black && stone.player !== Player.White) continue;
             const pointKey = `${stone.x},${stone.y}`;
             if (!processedPoints.has(pointKey)) {
                 processedPoints.add(pointKey);
                 initialStones.push([
-                    resolveBaseStoneColor('p1'),
-                    pointToKataGoMove({ x: stone.x, y: stone.y }, boardSize)
-                ]);
-            }
-        }
-        
-        for (const stone of baseStones_p2) {
-            const pointKey = `${stone.x},${stone.y}`;
-            if (!processedPoints.has(pointKey)) {
-                processedPoints.add(pointKey);
-                initialStones.push([
-                    resolveBaseStoneColor('p2'),
-                    pointToKataGoMove({ x: stone.x, y: stone.y }, boardSize)
+                    stone.player === Player.Black ? 'B' : 'W',
+                    pointToKataGoMove({ x: stone.x, y: stone.y }, boardSize),
                 ]);
             }
         }
@@ -947,24 +923,17 @@ export const analyzeGame = async (
         const moves: [string, string][] = [];
         const processedPoints = new Set<string>();
         
-        // 1. 베이스 돌을 먼저 추가 (게임 시작 전에 배치된 돌)
-        const baseStones_p1 = (session as any).baseStones_p1 || [];
-        const baseStones_p2 = (session as any).baseStones_p2 || [];
-        for (const stone of baseStones_p1) {
+        // 1. 베이스 돌을 먼저 추가 (게임 시작 전에 배치된 돌; 실제 색은 `stone.player`)
+        const boardSz = session.settings.boardSize || 19;
+        for (const stone of session.baseStones ?? []) {
+            if (!stone || !Number.isInteger(stone.x) || !Number.isInteger(stone.y)) continue;
+            if (stone.x < 0 || stone.x >= boardSz || stone.y < 0 || stone.y >= boardSz) continue;
+            if (stone.player !== Player.Black && stone.player !== Player.White) continue;
             const pointKey = `${stone.x},${stone.y}`;
             processedPoints.add(pointKey);
             moves.push([
-                resolveBaseStoneColor('p1'),
-                pointToKataGoMove({ x: stone.x, y: stone.y }, session.settings.boardSize)
-            ]);
-        }
-        
-        for (const stone of baseStones_p2) {
-            const pointKey = `${stone.x},${stone.y}`;
-            processedPoints.add(pointKey);
-            moves.push([
-                resolveBaseStoneColor('p2'),
-                pointToKataGoMove({ x: stone.x, y: stone.y }, session.settings.boardSize)
+                stone.player === Player.Black ? 'B' : 'W',
+                pointToKataGoMove({ x: stone.x, y: stone.y }, boardSz),
             ]);
         }
         

@@ -263,6 +263,13 @@ const applyLatestPendingSinglePlayerStage = async (
     };
     game.whiteTurnsPlayed = isSurvivalMode ? 0 : undefined;
     game.singlePlayerPlacementRefreshesUsed = 0;
+    if (ruleFlags.hasBase) {
+        game.baseStones_p1 = [];
+        game.baseStones_p2 = [];
+        game.baseStones = [];
+        game.basePlacementReady = undefined;
+        game.baseKomiBidsSnapshot = undefined;
+    }
     (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(board);
     (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(board);
 

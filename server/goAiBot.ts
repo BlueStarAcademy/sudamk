@@ -308,7 +308,7 @@ export async function computeStrategicPetKataHintMove(
         player: (humanPlayerEnum === types.Player.White ? 'white' : 'black') as 'white' | 'black',
         moveHistory,
         level: kataLevel,
-        komi: game.settings.komi,
+        komi: Number(game.finalKomi ?? game.settings.komi),
         gameId: game.id,
         kataSessionTag: composeKataSessionTagForGame(game, `hint-${Date.now()}`),
         allowPass: false,
@@ -1114,34 +1114,64 @@ function buildKataMoveHistory(
         (game.mode === types.GameMode.Mix && Boolean(game.settings.mixedModes?.includes(types.GameMode.Base)));
     if (isBaseMode) {
         const bs = game.settings?.boardSize ?? 19;
-        const baseStones = (game.baseStones ?? []).filter(
-            (s): s is { x: number; y: number; player: Player } =>
-                !!s &&
-                Number.isInteger(s.x) &&
-                Number.isInteger(s.y) &&
-                s.x >= 0 &&
-                s.x < bs &&
-                s.y >= 0 &&
-                s.y < bs &&
-                (s.player === Player.Black || s.player === Player.White)
+        const validStone = (s: unknown): s is { x: number; y: number; player: Player } => {
+            if (!s || typeof s !== 'object') return false;
+            const o = s as { x?: unknown; y?: unknown; player?: unknown };
+            return (
+                Number.isInteger(o.x) &&
+                Number.isInteger(o.y) &&
+                (o.x as number) >= 0 &&
+                (o.x as number) < bs &&
+                (o.y as number) >= 0 &&
+                (o.y as number) < bs &&
+                (o.player === Player.Black || o.player === Player.White)
+            );
+        };
+
+        const placementBoard: types.BoardState = Array.from({ length: bs }, () =>
+            Array.from({ length: bs }, () => Player.None),
         );
-        if (baseStones.length === 0) return moveHistory;
+        let filledFromBaseList = false;
+        for (const s of game.baseStones ?? []) {
+            if (!validStone(s)) continue;
+            placementBoard[s.y][s.x] = s.player;
+            filledFromBaseList = true;
+        }
+
+        let setupMoves: Array<{ x: number; y: number; player: number }> = [];
+        if (filledFromBaseList) {
+            setupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(placementBoard);
+        }
+        if (setupMoves.length === 0) {
+            const cached = (game as any).kataCaptureSetupMoves as
+                | Array<{ x: number; y: number; player: number }>
+                | undefined;
+            if (cached?.length) setupMoves = [...cached];
+        }
+        if (setupMoves.length === 0) {
+            const snap = (game as any).kataStrategicOpeningBoardState as types.BoardState | undefined;
+            if (snap?.length === bs && snap.every((row) => Array.isArray(row) && row.length === bs)) {
+                setupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(snap);
+            }
+        }
+        /** baseStones·스냅샷이 없는 구 세션 등: 수가 아직 없을 때만 현재 판 전체를 접두로 삼는다 */
+        if (setupMoves.length === 0 && (game.moveHistory?.length ?? 0) === 0) {
+            const boardOk =
+                game.boardState?.length === bs &&
+                game.boardState.every((row: unknown[]) => Array.isArray(row) && row.length === bs);
+            if (boardOk) setupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(game.boardState);
+        }
+
+        if (setupMoves.length === 0) return moveHistory;
 
         const occupied = new Set<string>();
-        for (const m of moveHistory) {
+        for (const m of setupMoves) {
             if (m.x >= 0 && m.y >= 0) occupied.add(`${m.x},${m.y}`);
         }
-
-        const baseSetupMoves: Array<{ x: number; y: number; player: number }> = [];
-        for (const s of baseStones) {
-            const key = `${s.x},${s.y}`;
-            if (occupied.has(key)) continue;
-            baseSetupMoves.push({ x: s.x, y: s.y, player: s.player });
-            occupied.add(key);
-        }
-
-        if (baseSetupMoves.length === 0) return moveHistory;
-        return [...baseSetupMoves, ...moveHistory];
+        const restMoves = moveHistory.filter(
+            (m) => m.x < 0 || m.y < 0 || !occupied.has(`${m.x},${m.y}`),
+        );
+        return appendPassesUntilSideToMove([...setupMoves, ...restMoves], game.currentPlayer);
     }
 
     // 따내기·고정 포석 등: 선배치가 moveHistory에 없어 Kata가 빈 판으로만 재생하는 문제 방지
@@ -1690,7 +1720,7 @@ export async function makeGoAiBotMove(
         pairCurrentSeat.kind === 'pet' &&
         game.settings?.pairGame?.pairMode === 'ai' &&
         pairCurrentSeat.teamId === 'teamA';
-    /** 페어에서 서버가 둘 AI/펫 좌석: `isAiGame`이 false여도 히든 6초 연출·재고 카운트 경로가 타도록 함 */
+    /** 페어에서 서버가 둘 AI/펫 좌석: `isAiGame`이 false여도 히든 연출·재고 카운트 경로가 타도록 함 */
     const pairServerAiSeatMayUseHiddenItem =
         pairClassicGame &&
         pairCurrentSeat != null &&
@@ -1771,7 +1801,7 @@ export async function makeGoAiBotMove(
         const thinkPlacementDue = !!(game as any).aiHiddenItemThinkPlacementDue;
         (game as any).aiHiddenItemThinkPlacementDue = false;
         game.aiHiddenItemAnimationEndTime = undefined;
-        // 6초 만료 직후에도 클라·전광판에 연출 유지 → Kata 히든 착수 반영 뒤 finally에서 animation 정리
+        // 연출 만료 직후에도 클라·전광판에 연출 유지 → Kata 히든 착수 반영 뒤 finally에서 animation 정리
         // 연출 종료 후 "다음 착수는 히든으로 처리" 플래그를 영속 저장한다.
         // 연출 시작 시점에 aiHiddenItemsUsedCount가 +1 되므로, 아직 실제 히든 수가 기록되지 않았을 때만 pending을 켠다.
         // (재고 0인데 wasAiThinking만으로 pending이 켜지면 다음 수가 히든으로 오표시되어 판·UI가 깨짐)
@@ -1827,10 +1857,10 @@ export async function makeGoAiBotMove(
     const currentAiTurnIndex = getCurrentAiTurnIndex(game, aiPlayerEnum);
     const recordedAiHiddenMoves = countRecordedAiHiddenMoves(game, aiPlayerEnum);
     // 연출 없이 히든만 켜지는 경로 방지: 카운터만 앞선 경우 실제 히든 수순에 맞춰 되돌린다.
+    // 싱글도 동일: 연출 시작 시 +1만 되고 moveHistory에 히든이 안 남으면 슬롯이 밀려 매 턴 히든 연출이 재실행될 수 있음
     if (
-        !game.isSinglePlayer &&
         isHiddenMode &&
-        isStrategicAiGame &&
+        (isStrategicAiGame || game.isSinglePlayer) &&
         usedAiHiddenItems > recordedAiHiddenMoves &&
         !shouldApplyHiddenOnThisMove
     ) {
@@ -1838,14 +1868,18 @@ export async function makeGoAiBotMove(
     }
     const nextPlannedAiHiddenTurn = plannedAiHiddenTurns[usedAiHiddenItems];
     const shouldUseStrategicAiHiddenItem = isStrategicAiGame && nextPlannedAiHiddenTurn === currentAiTurnIndex;
-    const nextSinglePlayerAiHiddenTurn = configuredSinglePlayerHiddenTurns[usedAiHiddenItems];
+    /** 스케줄 인덱스는 `aiHiddenItemsUsedCount`(연출 선반영)가 아니라 실제 기록 수를 쓴다 */
+    const nextSinglePlayerAiHiddenTurn = configuredSinglePlayerHiddenTurns[recordedAiHiddenMoves];
     const shouldUseSinglePlayerAiHiddenItem =
         game.isSinglePlayer &&
         (
-            (nextSinglePlayerAiHiddenTurn != null && currentAiTurnIndex >= nextSinglePlayerAiHiddenTurn) ||
+            (configuredSinglePlayerHiddenTurns.length > 0 &&
+                nextSinglePlayerAiHiddenTurn != null &&
+                currentAiTurnIndex >= nextSinglePlayerAiHiddenTurn) ||
             (
                 configuredSinglePlayerHiddenTurns.length === 0 &&
                 !game.aiHiddenItemUsed &&
+                recordedAiHiddenMoves === 0 &&
                 typeof game.aiHiddenItemTurn === 'number' &&
                 currentAiTurnIndex >= game.aiHiddenItemTurn
             )
@@ -1873,7 +1907,7 @@ export async function makeGoAiBotMove(
               )
             : 0;
     const atOrOverSinglePlayerHiddenSchedule =
-        singlePlayerPlannedHiddenUsesCap > 0 && usedAiHiddenItems >= singlePlayerPlannedHiddenUsesCap;
+        singlePlayerPlannedHiddenUsesCap > 0 && recordedAiHiddenMoves >= singlePlayerPlannedHiddenUsesCap;
     const atOrOverTowerHiddenSchedule =
         configuredTowerAiHiddenTurns.length > 0 && usedAiHiddenItems >= configuredTowerAiHiddenTurns.length;
 
@@ -2005,14 +2039,14 @@ export async function makeGoAiBotMove(
 
             if (
                 isStrategicAiGame ||
-                game.isSinglePlayer ||
                 String((game as any).gameCategory ?? '') === 'tower' ||
                 (isHiddenMode && pairServerAiSeatMayUseHiddenItem)
             ) {
                 (game as any).aiHiddenItemsUsedCount = usedAiHiddenItems + 1;
             }
+            // 싱글(singleplayer): 여기서 +1하면 기록 전 슬롯이 밀려 히든이 과다 트리거됨 → 실제 히든 수 기록 시점에만 맞춤
             if (game.isSinglePlayer && configuredSinglePlayerHiddenTurns.length > 0) {
-                game.aiHiddenItemUsed = usedAiHiddenItems + 1 >= configuredSinglePlayerHiddenTurns.length;
+                game.aiHiddenItemUsed = recordedAiHiddenMoves + 1 >= configuredSinglePlayerHiddenTurns.length;
             } else if (String((game as any).gameCategory ?? '') === 'tower' && configuredTowerAiHiddenTurns.length > 0) {
                 game.aiHiddenItemUsed = usedAiHiddenItems + 1 >= configuredTowerAiHiddenTurns.length;
             } else {
@@ -2162,7 +2196,7 @@ export async function makeGoAiBotMove(
             player: (aiPlayerEnum === types.Player.White ? 'white' : 'black') as 'white' | 'black',
             moveHistory,
             level: kataLevel,
-            komi: game.settings.komi,
+            komi: Number(game.finalKomi ?? game.settings.komi),
             gameId: game.id,
             kataSessionTag: composeKataSessionTagForGame(game, undefined),
             allowPass: pairKataAllowPass,
@@ -2434,7 +2468,7 @@ export async function makeGoAiBotMove(
                 player: (aiPlayerEnum === types.Player.White ? 'white' : 'black') as 'white' | 'black',
                 moveHistory,
                 level: kataLevel,
-                komi: game.settings.komi,
+                komi: Number(game.finalKomi ?? game.settings.komi),
                 gameId: game.id,
                 kataSessionTag: composeKataSessionTagForGame(game, hiddenRevealTag),
                 allowPass: pairKataAllowPass,
@@ -2629,6 +2663,11 @@ export async function makeGoAiBotMove(
     }
     if (!treatAsAiHiddenStone && game.permanentlyRevealedStones?.length) {
         game.permanentlyRevealedStones = game.permanentlyRevealedStones.filter(
+            (p) => !(p.x === selectedMove.x && p.y === selectedMove.y)
+        );
+    }
+    if (!treatAsAiHiddenStone && game.baseStones?.length) {
+        game.baseStones = game.baseStones.filter(
             (p) => !(p.x === selectedMove.x && p.y === selectedMove.y)
         );
     }

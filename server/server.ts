@@ -33,7 +33,8 @@ if (!process.env.RAILWAY_ENVIRONMENT &&
 import { handleAction, resetAndGenerateQuests, updateQuestProgress } from './gameActions.js';
 import { tickPairPartnerInviteExpiry } from './actions/socialActions.js';
 import { regenerateActionPoints } from './effectService.js';
-import { updateGameStates } from './gameModes.js';
+import { mergeGamesWithLatestCache, updateGameStates } from './gameModes.js';
+import { isSessionSpeedTimePressureMode } from './utils/speedTimePressureLiveCaptures.js';
 import * as db from './db.js';
 // FIX: Import missing types from the centralized types file.
 import * as types from '../shared/types/index.js';
@@ -47,6 +48,7 @@ import { AVATAR_POOL, BOT_NAMES, PLAYFUL_GAME_MODES, SPECIAL_GAME_MODES, SINGLE_
 import { calculateTotalStats } from './statService.js';
 import { isSameDayKST, getKSTDate } from '../shared/utils/timeUtils.js';
 import { createDefaultBaseStats, createDefaultUser } from './initialData.ts';
+import { appendWelcomeSpecialEggMailToUser } from './welcomeSpecialEggMail.js';
 import { maybeResetStatAllocationAfterLevelStructureChange } from './statAllocationLevelStructureMigration.js';
 import { containsProfanity } from '../profanity.js';
 import {
@@ -168,7 +170,9 @@ function getGameSignature(g: types.LiveGameSession): string {
     const whiteTime = g.whiteTimeLeft ?? 0;
     const blackByo = g.blackByoyomiPeriodsLeft ?? 0;
     const whiteByo = g.whiteByoyomiPeriodsLeft ?? 0;
-    return `${g.id}\t${rev}\t${moves}\t${status}\t${synced}\t${turn}\t${winner}\t${blackTime}\t${whiteTime}\t${blackByo}\t${whiteByo}`;
+    const capB = g.captures?.[Player.Black] ?? 0;
+    const capW = g.captures?.[Player.White] ?? 0;
+    return `${g.id}\t${rev}\t${moves}\t${status}\t${synced}\t${turn}\t${winner}\t${blackTime}\t${whiteTime}\t${blackByo}\t${whiteByo}\t${capB}\t${capW}`;
 }
 
 // 만료된 negotiation 정리 함수
@@ -463,6 +467,12 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 }
             } catch (cleanupErr: any) {
                 console.warn('[Server Startup] Orphaned game cleanup failed (non-fatal):', cleanupErr?.message);
+            }
+            try {
+                const { runWelcomeSpecialEggMailMigrationOnce } = await import('./welcomeSpecialEggMailMigration.js');
+                await runWelcomeSpecialEggMailMigrationOnce();
+            } catch (welcomeMailErr: any) {
+                console.warn('[Server Startup] Welcome egg mail migration (non-fatal):', welcomeMailErr?.message);
             }
         } catch (err: any) {
             console.error("Error during server startup:", err);
@@ -2214,13 +2224,19 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         : MAINLOOP_UPDATE_GAMES_TIMEOUT_MS;
                     const updateGamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
                         setTimeout(() => {
-                            timeoutOccurred = true;
-                            const shouldLog = !(global as any).lastUpdateGamesTimeout || (Date.now() - (global as any).lastUpdateGamesTimeout > 30000);
-                            if (shouldLog) {
-                                console.warn(`[MainLoop] updateGameStates timeout (${updateGamesTimeoutMs}ms) for ${gamesWithOnlinePlayers.length} games, using original state`);
-                                (global as any).lastUpdateGamesTimeout = Date.now();
-                            }
-                            resolve(gamesWithOnlinePlayers);
+                            void (async () => {
+                                timeoutOccurred = true;
+                                const shouldLog =
+                                    !(global as any).lastUpdateGamesTimeout ||
+                                    Date.now() - (global as any).lastUpdateGamesTimeout > 30000;
+                                if (shouldLog) {
+                                    console.warn(
+                                        `[MainLoop] updateGameStates timeout (${updateGamesTimeoutMs}ms) for ${gamesWithOnlinePlayers.length} games — merging gameCache`,
+                                    );
+                                    (global as any).lastUpdateGamesTimeout = Date.now();
+                                }
+                                resolve(await mergeGamesWithLatestCache(gamesWithOnlinePlayers, 1500));
+                            })();
                         }, updateGamesTimeoutMs);
                     });
                     const updatedSubset = await Promise.race([
@@ -2394,8 +2410,14 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 const updatedGame = updatedGames[i];
                 
                 // PVE 중 도전의 탑은 서버에서 초읽기/제한시간을 갱신하므로 변경 시 브로드캐스트 필요 (클라이언트 타이머 동기화)
-                // 싱글플레이어(단순 PVE)만 서버 루프 브로드캐스트 제외
-                const isPVESkipBroadcast = (updatedGame.isSinglePlayer || updatedGame.gameCategory === 'singleplayer') && updatedGame.gameCategory !== 'tower';
+                // 싱글플레이어(단순 PVE)만 서버 루프 브로드캐스트 제외 — 스피드 본장은 시간 압박 `captures` 갱신을 위해 제외하지 않음
+                const isPVESkipBroadcast =
+                    (updatedGame.isSinglePlayer || updatedGame.gameCategory === 'singleplayer') &&
+                    updatedGame.gameCategory !== 'tower' &&
+                    !(
+                        isSessionSpeedTimePressureMode(updatedGame as types.LiveGameSession) &&
+                        updatedGame.gameStatus === 'playing'
+                    );
                 if (isPVESkipBroadcast) {
                     continue;
                 }
@@ -3015,7 +3037,8 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
             console.log('[/api/auth/register] Resetting and generating quests...');
             newUser = await resetAndGenerateQuests(newUser);
-    
+            appendWelcomeSpecialEggMailToUser(newUser);
+
             console.log('[/api/auth/register] Creating user in database...');
             try {
                 await db.createUser(newUser);
@@ -3908,8 +3931,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 // }
 
                 user = await resetAndGenerateQuests(user);
+                appendWelcomeSpecialEggMailToUser(user);
                 await db.createUser(user);
-                
+
                 // 카카오 ID로 인증 정보 생성 (비밀번호 없음)
                 await db.createUserCredentials(username, null, user.id, kakaoUserInfo.id);
                 
@@ -3988,6 +4012,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 user = createDefaultUser(`user-${randomUUID()}`, username, tempNickname, false);
 
                 user = await resetAndGenerateQuests(user);
+                appendWelcomeSpecialEggMailToUser(user);
                 await db.createUser(user);
 
                 // 구글 ID로 인증 정보 생성 (비밀번호 없음)

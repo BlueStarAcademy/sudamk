@@ -360,6 +360,83 @@ function getLastPlacedPointForStaleCheck(g: LiveGameSession | undefined): { x: n
     return null;
 }
 
+function liveGamePayloadHasRenderableBoardGrid(game: LiveGameSession | undefined): boolean {
+    const b = game?.boardState;
+    return !!(
+        b &&
+        Array.isArray(b) &&
+        b.length > 0 &&
+        b.some((row: any[]) => row && Array.isArray(row) && row.some((c: any) => c !== 0 && c != null))
+    );
+}
+
+/**
+ * 베이스(순·믹스) playing: 보드 생략 슬림 WS에서 수순·판은 로컬과 동일한데 currentPlayer만 어긋날 때(차례 역전) 로컬 턴으로 맞춘다.
+ */
+function alignBaseModeCurrentPlayerWithExistingWhenSlimDrift(
+    merged: LiveGameSession,
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined,
+    opts: { playfulTrustEmptyServerBoardSnapshot?: boolean } = {}
+): LiveGameSession {
+    if (!existing) return merged;
+    if (!liveSessionIncludesBaseMode(merged) || merged.gameStatus !== 'playing') return merged;
+    if (merged.mode === GameMode.Dice || merged.mode === GameMode.Thief) return merged;
+    if (opts.playfulTrustEmptyServerBoardSnapshot) return merged;
+
+    const incomingMoveCount = incoming.moveHistory?.length ?? 0;
+    const existingMoveCount = existing.moveHistory?.length ?? 0;
+    if (incomingMoveCount > existingMoveCount) return merged;
+
+    if (liveGamePayloadHasRenderableBoardGrid(incoming)) return merged;
+
+    const eb = existing.boardState;
+    const existingBoardValid =
+        eb && Array.isArray(eb) && eb.length > 0 && eb[0] && Array.isArray(eb[0]) && eb[0].length > 0;
+    if (!existingBoardValid) return merged;
+
+    if (
+        stableStringify(merged.moveHistory) !== stableStringify(existing.moveHistory) ||
+        stableStringify(merged.boardState) !== stableStringify(existing.boardState)
+    ) {
+        return merged;
+    }
+    if (merged.currentPlayer === existing.currentPlayer) return merged;
+    return { ...merged, currentPlayer: existing.currentPlayer };
+}
+
+function liveSessionIncludesBaseMode(g: LiveGameSession | undefined): boolean {
+    if (!g) return false;
+    if (g.mode === GameMode.Base) return true;
+    if (g.mode === GameMode.Mix) {
+        const mm = (g.settings as { mixedModes?: GameMode[] } | undefined)?.mixedModes;
+        return Array.isArray(mm) && mm.includes(GameMode.Base);
+    }
+    return false;
+}
+
+/** 싱글 베이스(배치·선호·덤): 수순이 없어도 WS가 빠르게 연속으로 오므로 GAME_UPDATE 쓰로틀에서 제외 */
+function isSinglePlayerBaseFlowUpdateThrottleBypass(g: LiveGameSession | undefined): boolean {
+    if (!g?.isSinglePlayer || !liveSessionIncludesBaseMode(g)) return false;
+    const st = String(g.gameStatus);
+    if (st.startsWith('base_')) return true;
+    if (g.gameStatus === 'komi_bidding') return true;
+    if (st === 'capture_bidding' || st === 'capture_reveal' || st === 'capture_tiebreaker') return true;
+    return false;
+}
+
+function patchLiveGameInMapById(
+    currentGames: Record<string, LiveGameSession>,
+    gameId: string,
+    mutate: (game: LiveGameSession) => LiveGameSession | null,
+): Record<string, LiveGameSession> {
+    const g = currentGames[gameId];
+    if (!g) return currentGames;
+    const next = mutate(g);
+    if (!next) return currentGames;
+    return { ...currentGames, [gameId]: next };
+}
+
 function shouldDropStaleStrategicGameUpdate(
     incoming: LiveGameSession,
     existing: LiveGameSession | undefined
@@ -389,14 +466,63 @@ function shouldDropStaleStrategicGameUpdate(
         return false;
     }
 
+    const incomingMoves = Array.isArray(incoming.moveHistory) ? incoming.moveHistory.length : 0;
+    const existingMoves = Array.isArray(existing.moveHistory) ? existing.moveHistory.length : 0;
+
+    /** WS 페이로드에 isSinglePlayer가 빠지는 경우에도 sp-game- 등으로 싱글 본경기 전환을 살림 */
+    const singlePlayerLikeSession =
+        Boolean(incoming.isSinglePlayer || existing.isSinglePlayer) ||
+        String(incoming.id || '').startsWith('sp-game-') ||
+        String(existing.id || '').startsWith('sp-game-') ||
+        incoming.gameCategory === 'singleplayer' ||
+        (existing.gameCategory as string | undefined) === 'singleplayer';
+
+    const existingIsBaseOrKomiPreplay =
+        String(existing.gameStatus).startsWith('base_') ||
+        existing.gameStatus === 'komi_bidding' ||
+        ['capture_bidding', 'capture_reveal', 'capture_tiebreaker'].includes(String(existing.gameStatus));
+
+    // 베이스 대국 준비(및 덤 입찰 등) → playing(수순 0): revision·플래그 누락과 무관하게 절대 버리지 않음
+    if (
+        singlePlayerLikeSession &&
+        incoming.gameStatus === 'playing' &&
+        liveSessionIncludesBaseMode(incoming) &&
+        liveSessionIncludesBaseMode(existing) &&
+        incomingMoves === 0 &&
+        existingMoves === 0 &&
+        existingIsBaseOrKomiPreplay
+    ) {
+        return false;
+    }
+
     const incomingRevision = incoming.serverRevision ?? 0;
     const existingRevision = existing.serverRevision ?? 0;
     if (incomingRevision > 0 && existingRevision > 0 && incomingRevision < existingRevision) {
-        return true;
+        // 베이스「시작하기」직후: 서버가 본경기(playing)로만 바꾼 패킷의 revision이 클라 pre-play보다
+        // 늦게 올라가면(또는 동일·역전) 여기서 전부 버려져 모달이 영원히 남는다.
+        const spBaseEnterPlayingNoMoves =
+            singlePlayerLikeSession &&
+            liveSessionIncludesBaseMode(incoming) &&
+            liveSessionIncludesBaseMode(existing) &&
+            incomingMoves === 0 &&
+            existingMoves === 0 &&
+            incoming.gameStatus === 'playing' &&
+            existingIsBaseOrKomiPreplay;
+        const spBasePreMoveNoMainLine =
+            singlePlayerLikeSession &&
+            liveSessionIncludesBaseMode(incoming) &&
+            liveSessionIncludesBaseMode(existing) &&
+            incomingMoves === 0 &&
+            existingMoves === 0 &&
+            (String(incoming.gameStatus).startsWith('base_') ||
+                incoming.gameStatus === 'komi_bidding' ||
+                ['capture_bidding', 'capture_reveal', 'capture_tiebreaker'].includes(String(incoming.gameStatus)) ||
+                spBaseEnterPlayingNoMoves);
+        if (!spBasePreMoveNoMainLine) {
+            return true;
+        }
     }
 
-    const incomingMoves = Array.isArray(incoming.moveHistory) ? incoming.moveHistory.length : 0;
-    const existingMoves = Array.isArray(existing.moveHistory) ? existing.moveHistory.length : 0;
     if (incomingMoves < existingMoves) {
         return true;
     }
@@ -459,6 +585,139 @@ function mergeHiddenMovesByStableHistory(
         }
     }
     return Object.keys(out).length > 0 ? out : undefined;
+}
+
+const OVERLAY_PRESERVE_GAME_STATUSES = new Set([
+    'playing',
+    'scoring',
+    'base_game_start_confirmation',
+    'base_komi_result',
+    'hidden_placing',
+    'scanning',
+    'missile_selecting',
+    'missile_animating',
+    'scanning_animating',
+    'hidden_reveal_animating',
+    'hidden_final_reveal',
+]);
+
+function lastMoveHistoryIndexAt(
+    hist: NonNullable<LiveGameSession['moveHistory']>,
+    x: number,
+    y: number
+): number {
+    for (let i = hist.length - 1; i >= 0; i--) {
+        const m = hist[i];
+        if (m && m.x === x && m.y === y) return i;
+    }
+    return -1;
+}
+
+/** 슬림 WS 병합 후: 빈 칸·일반 재착수 좌표에 남은 베이스/공개히든 마커 제거 */
+function sanitizeSessionBoardOverlayMarkers(merged: LiveGameSession): LiveGameSession {
+    const board = merged.boardState;
+    let next = merged;
+
+    if (Array.isArray(merged.baseStones) && merged.baseStones.length > 0 && Array.isArray(board) && board.length > 0) {
+        const filtered = merged.baseStones.filter((p) => {
+            const row = board[p.y];
+            const cell = row?.[p.x];
+            return cell === Player.Black || cell === Player.White;
+        });
+        if (filtered.length !== merged.baseStones.length) {
+            next = { ...next, baseStones: filtered.length > 0 ? filtered : undefined };
+        }
+    }
+
+    const hist = merged.moveHistory;
+    const hm = merged.hiddenMoves;
+    const aiH = (merged as any).aiInitialHiddenStone as { x: number; y: number } | undefined | null;
+    if (
+        Array.isArray(merged.permanentlyRevealedStones) &&
+        merged.permanentlyRevealedStones.length > 0 &&
+        Array.isArray(hist) &&
+        hist.length > 0 &&
+        Array.isArray(board) &&
+        board.length > 0
+    ) {
+        const f = merged.permanentlyRevealedStones.filter((p) => {
+            const row = board[p.y];
+            const cell = row?.[p.x];
+            if (!cell) return false;
+            const idx = lastMoveHistoryIndexAt(hist, p.x, p.y);
+            if (idx < 0) return false;
+            if (hm?.[idx]) return true;
+            if (aiH && aiH.x === p.x && aiH.y === p.y) return true;
+            return false;
+        });
+        if (f.length !== merged.permanentlyRevealedStones.length) {
+            next = { ...next, permanentlyRevealedStones: f.length > 0 ? f : undefined };
+        }
+    }
+
+    return next;
+}
+
+/**
+ * GAME_UPDATE 슬림 패킷에서 히든·베이스·문양 등 오버레이 키가 빠질 때 기존 세션 값을 보존한 뒤,
+ * 판/수순과 맞지 않는 마커(따낸 뒤 재착수 등)는 sanitize로 정리한다.
+ */
+function preserveStrategicSessionOverlaysIfIncomingOmitted(
+    merged: LiveGameSession,
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined
+): LiveGameSession {
+    let next: LiveGameSession = { ...merged };
+    const st = next.gameStatus;
+    const shouldPreserve = !!st && OVERLAY_PRESERVE_GAME_STATUSES.has(st) && !!existing;
+
+    if (shouldPreserve) {
+        if (!Object.prototype.hasOwnProperty.call(incoming, 'baseStones')) {
+            const prev = existing!.baseStones;
+            if (Array.isArray(prev) && prev.length > 0) {
+                next = { ...next, baseStones: prev };
+            }
+        }
+        if (!Object.prototype.hasOwnProperty.call(incoming, 'hiddenMoves')) {
+            const mh = mergeHiddenMovesByStableHistory({ ...next, hiddenMoves: existing!.hiddenMoves }, existing);
+            if (mh && Object.keys(mh).length > 0) {
+                next = { ...next, hiddenMoves: mh };
+            }
+        }
+        if (!Object.prototype.hasOwnProperty.call(incoming, 'permanentlyRevealedStones')) {
+            const pr = existing!.permanentlyRevealedStones;
+            if (Array.isArray(pr) && pr.length > 0) {
+                next = { ...next, permanentlyRevealedStones: pr };
+            }
+        }
+        if (!Object.prototype.hasOwnProperty.call(incoming, 'revealedHiddenMoves')) {
+            const rv = existing!.revealedHiddenMoves;
+            if (rv && typeof rv === 'object' && Object.keys(rv as object).length > 0) {
+                next = { ...next, revealedHiddenMoves: rv };
+            }
+        }
+        if (!Object.prototype.hasOwnProperty.call(incoming, 'blackPatternStones')) {
+            const b = existing!.blackPatternStones;
+            if (Array.isArray(b) && b.length > 0) next = { ...next, blackPatternStones: b };
+        }
+        if (!Object.prototype.hasOwnProperty.call(incoming, 'whitePatternStones')) {
+            const w = existing!.whitePatternStones;
+            if (Array.isArray(w) && w.length > 0) next = { ...next, whitePatternStones: w };
+        }
+        if (!Object.prototype.hasOwnProperty.call(incoming, 'consumedPatternIntersections')) {
+            const c = (existing as any).consumedPatternIntersections;
+            if (Array.isArray(c) && c.length > 0) (next as any).consumedPatternIntersections = c;
+        }
+        if (!Object.prototype.hasOwnProperty.call(incoming, 'aiInitialHiddenStone') && (existing as any).aiInitialHiddenStone != null) {
+            (next as any).aiInitialHiddenStone = (existing as any).aiInitialHiddenStone;
+        }
+        if (!Object.prototype.hasOwnProperty.call(incoming, 'aiInitialHiddenStoneIsPrePlaced')) {
+            const ap = (existing as any).aiInitialHiddenStoneIsPrePlaced;
+            if (ap !== undefined) (next as any).aiInitialHiddenStoneIsPrePlaced = ap;
+        }
+    }
+
+    return sanitizeSessionBoardOverlayMarkers(next);
 }
 
 /** WebSocket INITIAL_STATE에서 boardState를 떼어내므로, 격자가 없으면 F5 후에도 /api/game/rejoin으로 전체 판·수순을 받아야 한다. */
@@ -1956,9 +2215,8 @@ export const useApp = () => {
             const { gameId, x, y } = payload || {};
             const uid = currentUserRef.current?.id;
             if (gameId && uid != null && typeof x === 'number' && typeof y === 'number') {
-                setLiveGames((currentGames) => {
-                    const game = currentGames[gameId];
-                    if (!game || game.gameStatus !== 'base_placement') return currentGames;
+                const placeBaseStoneMutate = (game: LiveGameSession): LiveGameSession | null => {
+                    if (game.gameStatus !== 'base_placement') return null;
 
                     const baseStonesTarget = game.settings?.baseStones ?? 4;
                     const pairHostId = (game.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)
@@ -1977,9 +2235,11 @@ export const useApp = () => {
                     const myArr = (game as any)[myKey] as Point[] | undefined;
                     const nextArr = Array.isArray(myArr) ? [...myArr] : [];
 
-                    // 서버 검증과 동일하게 중복/초과는 즉시 반영하지 않음
-                    if (nextArr.some((p) => p.x === x && p.y === y)) return currentGames;
-                    if (nextArr.length >= baseStonesTarget) return currentGames;
+                    if (nextArr.some((p) => p.x === x && p.y === y)) return null;
+                    if (nextArr.length >= baseStonesTarget) return null;
+                    const otherKey = myKey === 'baseStones_p1' ? 'baseStones_p2' : 'baseStones_p1';
+                    const otherArr = (game as any)[otherKey] as Point[] | undefined;
+                    if (Array.isArray(otherArr) && otherArr.some((p) => p.x === x && p.y === y)) return null;
 
                     nextArr.push({ x, y });
                     const prevReady = ((game as any).basePlacementReady ?? {}) as Record<string, boolean>;
@@ -1988,14 +2248,13 @@ export const useApp = () => {
                             ? { ...prevReady, [game.player1.id]: false, [game.player2.id]: false }
                             : { ...prevReady, [uid]: false };
                     return {
-                        ...currentGames,
-                        [gameId]: {
-                            ...game,
-                            [myKey]: nextArr,
-                            basePlacementReady: nextReady,
-                        } as any
-                    };
-                });
+                        ...game,
+                        [myKey]: nextArr,
+                        basePlacementReady: nextReady,
+                    } as any;
+                };
+                setLiveGames((c) => patchLiveGameInMapById(c, gameId, placeBaseStoneMutate));
+                setSinglePlayerGames((c) => patchLiveGameInMapById(c, gameId, placeBaseStoneMutate));
             }
         }
 
@@ -2004,9 +2263,8 @@ export const useApp = () => {
             const gameId = payload?.gameId;
             const uid = currentUserRef.current?.id;
             if (gameId && uid != null) {
-                setLiveGames((currentGames) => {
-                    const game = currentGames[gameId];
-                    if (!game || game.gameStatus !== 'base_placement') return currentGames;
+                const confirmBasePlacementMutate = (game: LiveGameSession): LiveGameSession | null => {
+                    if (game.gameStatus !== 'base_placement') return null;
                     const prevReady = ((game as any).basePlacementReady ?? {}) as Record<string, boolean>;
                     const pairHostId = (game.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)
                         ?.pairGame?.pairLobbyOwnerId;
@@ -2014,11 +2272,10 @@ export const useApp = () => {
                         pairHostId && uid === pairHostId
                             ? { ...prevReady, [game.player1.id]: true, [game.player2.id]: true }
                             : { ...prevReady, [uid]: true };
-                    return {
-                        ...currentGames,
-                        [gameId]: { ...game, basePlacementReady: nextReady } as any,
-                    };
-                });
+                    return { ...game, basePlacementReady: nextReady } as any;
+                };
+                setLiveGames((c) => patchLiveGameInMapById(c, gameId, confirmBasePlacementMutate));
+                setSinglePlayerGames((c) => patchLiveGameInMapById(c, gameId, confirmBasePlacementMutate));
             }
         }
 
@@ -2030,25 +2287,23 @@ export const useApp = () => {
             const uid = currentUserRef.current?.id;
             const choiceFor = typeof payload?.choiceForUserId === 'string' ? payload.choiceForUserId : undefined;
             if (gameId && uid != null && (color === Player.Black || color === Player.White)) {
-                setLiveGames((currentGames) => {
-                    const game = currentGames[gameId];
-                    if (!game || game.gameStatus !== 'base_stone_color_choice') return currentGames;
+                const submitColorMutate = (game: LiveGameSession): LiveGameSession | null => {
+                    if (game.gameStatus !== 'base_stone_color_choice') return null;
                     const pairHostId = (game.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)?.pairGame
                         ?.pairLobbyOwnerId;
                     const subjectId =
                         pairHostId === uid && choiceFor && (choiceFor === game.player1.id || choiceFor === game.player2.id)
                             ? choiceFor
                             : uid;
-                    if (pairHostId === uid && choiceFor && choiceFor !== uid && subjectId !== choiceFor) return currentGames;
-                    if (!(pairHostId === uid && choiceFor) && choiceFor && choiceFor !== uid) return currentGames;
+                    if (pairHostId === uid && choiceFor && choiceFor !== uid && subjectId !== choiceFor) return null;
+                    if (!(pairHostId === uid && choiceFor) && choiceFor && choiceFor !== uid) return null;
                     const prev = { ...(game.baseStoneColorChoices ?? {}) } as Record<string, Player | null>;
-                    if (prev[subjectId] != null) return currentGames;
+                    if (prev[subjectId] != null) return null;
                     prev[subjectId] = color;
-                    return {
-                        ...currentGames,
-                        [gameId]: { ...game, baseStoneColorChoices: prev } as any,
-                    };
-                });
+                    return { ...game, baseStoneColorChoices: prev } as any;
+                };
+                setLiveGames((c) => patchLiveGameInMapById(c, gameId, submitColorMutate));
+                setSinglePlayerGames((c) => patchLiveGameInMapById(c, gameId, submitColorMutate));
             }
         }
 
@@ -2063,13 +2318,9 @@ export const useApp = () => {
             const uid = currentUserRef.current?.id;
             const bidFor = typeof payload?.bidForUserId === 'string' ? payload.bidForUserId : undefined;
             if (gameId && uid != null && bid && (bid.color === Player.Black || bid.color === Player.White)) {
-                setLiveGames((currentGames) => {
-                    const game = currentGames[gameId];
-                    if (
-                        !game ||
-                        (game.gameStatus !== 'base_same_color_points_bid' && game.gameStatus !== 'komi_bidding')
-                    ) {
-                        return currentGames;
+                const updateKomiMutate = (game: LiveGameSession): LiveGameSession | null => {
+                    if (game.gameStatus !== 'base_same_color_points_bid' && game.gameStatus !== 'komi_bidding') {
+                        return null;
                     }
                     const pairHostId = (game.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)?.pairGame
                         ?.pairLobbyOwnerId;
@@ -2077,17 +2328,16 @@ export const useApp = () => {
                         pairHostId === uid && bidFor && (bidFor === game.player1.id || bidFor === game.player2.id)
                             ? bidFor
                             : uid;
-                    if (pairHostId === uid && bidFor && bidFor !== uid && subjectId !== bidFor) return currentGames;
-                    if (!(pairHostId === uid && bidFor) && bidFor && bidFor !== uid) return currentGames;
+                    if (pairHostId === uid && bidFor && bidFor !== uid && subjectId !== bidFor) return null;
+                    if (!(pairHostId === uid && bidFor) && bidFor && bidFor !== uid) return null;
                     const prevBids = { ...(game.komiBids ?? {}) } as Record<string, { color: Player; komi: number } | null>;
-                    if (prevBids[subjectId] != null) return currentGames;
+                    if (prevBids[subjectId] != null) return null;
                     const k = Math.floor(Number(bid.komi));
                     prevBids[subjectId] = { color: bid.color, komi: Number.isFinite(k) ? Math.max(0, Math.min(100, k)) : 0 };
-                    return {
-                        ...currentGames,
-                        [gameId]: { ...game, komiBids: prevBids } as any,
-                    };
-                });
+                    return { ...game, komiBids: prevBids } as any;
+                };
+                setLiveGames((c) => patchLiveGameInMapById(c, gameId, updateKomiMutate));
+                setSinglePlayerGames((c) => patchLiveGameInMapById(c, gameId, updateKomiMutate));
             }
         }
 
@@ -2096,9 +2346,8 @@ export const useApp = () => {
             const gameId = payload?.gameId;
             const uid = currentUserRef.current?.id;
             if (gameId && uid != null) {
-                setLiveGames((currentGames) => {
-                    const game = currentGames[gameId];
-                    if (!game || game.gameStatus !== 'base_placement') return currentGames;
+                const resetBaseMutate = (game: LiveGameSession): LiveGameSession | null => {
+                    if (game.gameStatus !== 'base_placement') return null;
                     const pairHostId = (game.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)
                         ?.pairGame?.pairLobbyOwnerId;
                     const n2 = ((game as any).baseStones_p2 as Point[] | undefined)?.length ?? 0;
@@ -2116,14 +2365,13 @@ export const useApp = () => {
                             ? { ...prevReady, [game.player1.id]: false, [game.player2.id]: false }
                             : { ...prevReady, [uid]: false };
                     return {
-                        ...currentGames,
-                        [gameId]: {
-                            ...game,
-                            [myKey]: [],
-                            basePlacementReady: nextReady,
-                        } as any,
-                    };
-                });
+                        ...game,
+                        [myKey]: [],
+                        basePlacementReady: nextReady,
+                    } as any;
+                };
+                setLiveGames((c) => patchLiveGameInMapById(c, gameId, resetBaseMutate));
+                setSinglePlayerGames((c) => patchLiveGameInMapById(c, gameId, resetBaseMutate));
             }
         }
 
@@ -2132,9 +2380,8 @@ export const useApp = () => {
             const gameId = payload?.gameId;
             const uid = currentUserRef.current?.id;
             if (gameId && uid != null) {
-                setLiveGames((currentGames) => {
-                    const game = currentGames[gameId];
-                    if (!game || game.gameStatus !== 'base_placement') return currentGames;
+                const undoBaseMutate = (game: LiveGameSession): LiveGameSession | null => {
+                    if (game.gameStatus !== 'base_placement') return null;
                     const pairHostId = (game.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)
                         ?.pairGame?.pairLobbyOwnerId;
                     const n2 = ((game as any).baseStones_p2 as Point[] | undefined)?.length ?? 0;
@@ -2147,21 +2394,20 @@ export const useApp = () => {
                               ? 'baseStones_p1'
                               : 'baseStones_p2';
                     const myArr = ((game as any)[myKey] as Point[] | undefined) ?? [];
-                    if (myArr.length === 0) return currentGames;
+                    if (myArr.length === 0) return null;
                     const prevReady = ((game as any).basePlacementReady ?? {}) as Record<string, boolean>;
                     const nextReadyUndo =
                         pairHostId && uid === pairHostId
                             ? { ...prevReady, [game.player1.id]: false, [game.player2.id]: false }
                             : { ...prevReady, [uid]: false };
                     return {
-                        ...currentGames,
-                        [gameId]: {
-                            ...game,
-                            [myKey]: myArr.slice(0, -1),
-                            basePlacementReady: nextReadyUndo,
-                        } as any,
-                    };
-                });
+                        ...game,
+                        [myKey]: myArr.slice(0, -1),
+                        basePlacementReady: nextReadyUndo,
+                    } as any;
+                };
+                setLiveGames((c) => patchLiveGameInMapById(c, gameId, undoBaseMutate));
+                setSinglePlayerGames((c) => patchLiveGameInMapById(c, gameId, undoBaseMutate));
             }
         }
 
@@ -2170,9 +2416,8 @@ export const useApp = () => {
             const gameId = payload?.gameId;
             const uid = currentUserRef.current?.id;
             if (gameId && uid != null) {
-                setLiveGames((currentGames) => {
-                    const game = currentGames[gameId];
-                    if (!game || game.gameStatus !== 'base_placement') return currentGames;
+                const randomRemainingMutate = (game: LiveGameSession): LiveGameSession | null => {
+                    if (game.gameStatus !== 'base_placement') return null;
                     const prevReady = ((game as any).basePlacementReady ?? {}) as Record<string, boolean>;
                     const pairHostId = (game.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)
                         ?.pairGame?.pairLobbyOwnerId;
@@ -2180,11 +2425,10 @@ export const useApp = () => {
                         pairHostId && uid === pairHostId
                             ? { ...prevReady, [game.player1.id]: false, [game.player2.id]: false }
                             : { ...prevReady, [uid]: false };
-                    return {
-                        ...currentGames,
-                        [gameId]: { ...game, basePlacementReady: nextReadyRand } as any,
-                    };
-                });
+                    return { ...game, basePlacementReady: nextReadyRand } as any;
+                };
+                setLiveGames((c) => patchLiveGameInMapById(c, gameId, randomRemainingMutate));
+                setSinglePlayerGames((c) => patchLiveGameInMapById(c, gameId, randomRemainingMutate));
             }
         }
         
@@ -4994,6 +5238,11 @@ export const useApp = () => {
                     effectiveGameId = (action.payload as any)?.gameId;
                     console.log(`[handleAction] ${action.type} - gameId not in response, using payload gameId:`, effectiveGameId);
                 }
+                if (!effectiveGameId && (action.type === 'CONFIRM_BASE_REVEAL' || action.type === 'CONFIRM_BASE_KOMI_SUMMARY')) {
+                    effectiveGameId =
+                        ('payload' in action ? (action as { payload?: { gameId?: string } }).payload?.gameId : undefined) ||
+                        (game as any)?.id;
+                }
                 if (!effectiveGameId && (action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' && game)) {
                     effectiveGameId = (action.payload as any)?.gameId || (game as any)?.id;
                     console.log(`[handleAction] ${action.type} - using payload/game gameId:`, effectiveGameId);
@@ -5166,6 +5415,8 @@ export const useApp = () => {
                         action.type === 'CONFIRM_TOWER_GAME_START' ||
                         action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||
                         action.type === 'CONFIRM_AI_GAME_START' ||
+                        action.type === 'CONFIRM_BASE_REVEAL' ||
+                        action.type === 'CONFIRM_BASE_KOMI_SUMMARY' ||
                         action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' ||
                         action.type === 'SINGLE_PLAYER_SYNC_PENDING_STAGE' ||
                         action.type === 'SINGLE_PLAYER_ADMIN_JUMP_PENDING_STAGE' ||
@@ -5199,6 +5450,8 @@ export const useApp = () => {
                             setSinglePlayerGames(currentGames => {
                                 const shouldUpdate =
                                     action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||
+                                    action.type === 'CONFIRM_BASE_REVEAL' ||
+                                    action.type === 'CONFIRM_BASE_KOMI_SUMMARY' ||
                                     action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' ||
                                     action.type === 'SINGLE_PLAYER_SYNC_PENDING_STAGE' ||
                                     action.type === 'SINGLE_PLAYER_ADMIN_JUMP_PENDING_STAGE' ||
@@ -6344,7 +6597,7 @@ export const useApp = () => {
                     softCloseWebSocket(oldWs);
                 }
                 
-                // WebSocket URL: apiConfig.ts와 동일 (DEV에서 VITE_* / :4000 자동 감지 시 API와 같은 호스트로 /ws)
+                // WebSocket URL: apiConfig.ts와 동일 (DEV 기본은 같은 탭 origin → Vite `/ws` 프록시)
                 const wsUrl = getWebSocketUrlFor('/ws');
                 
                 console.log('[WebSocket] Connecting to:', wsUrl);
@@ -7032,6 +7285,10 @@ export const useApp = () => {
                                     PLAYFUL_GAME_MODES.some((m) => m.mode === game.mode) ||
                                     (!!existingForThrottle &&
                                         PLAYFUL_GAME_MODES.some((m) => m.mode === existingForThrottle.mode));
+                                const singlePlayerBaseFlowThrottleBypass =
+                                    (game.gameCategory === 'singleplayer' || game.isSinglePlayer) &&
+                                    (isSinglePlayerBaseFlowUpdateThrottleBypass(game) ||
+                                        isSinglePlayerBaseFlowUpdateThrottleBypass(existingForThrottle));
                                 // 흑선 가져오기(capture bidding/reveal/tiebreaker) 종료 후 playing 전환은
                                 // 이동 수(moveHistory)가 없더라도 반드시 모달을 닫고 다음 화면으로 넘어가야 함.
                                 const isCaptureBidExitToPlaying =
@@ -7061,6 +7318,7 @@ export const useApp = () => {
                                     );
                                 if (
                                     !playfulGameThrottleBypass &&
+                                    !singlePlayerBaseFlowThrottleBypass &&
                                     !hasNewMoves &&
                                     !isPlayfulBoardUpdate &&
                                     !isDiceRollAnimationUpdate &&
@@ -7503,6 +7761,19 @@ export const useApp = () => {
                                                     };
                                                 }
                                             }
+                                        }
+                                        if (updatedGames[gameId]) {
+                                            updatedGames[gameId] = preserveStrategicSessionOverlaysIfIncomingOmitted(
+                                                updatedGames[gameId],
+                                                game,
+                                                existingGame
+                                            );
+                                            updatedGames[gameId] = alignBaseModeCurrentPlayerWithExistingWhenSlimDrift(
+                                                updatedGames[gameId],
+                                                game,
+                                                existingGame,
+                                                {}
+                                            );
                                         }
                                         const updatedSinglePlayerGame = updatedGames[gameId];
                                         const lastSinglePlayerMove = Array.isArray(game.moveHistory)
@@ -8254,6 +8525,17 @@ export const useApp = () => {
                                                 mergedGame.captures as LiveGameSession['captures']
                                             ) ?? mergedGame.captures,
                                         };
+                                        mergedGame = alignBaseModeCurrentPlayerWithExistingWhenSlimDrift(
+                                            mergedGame,
+                                            game,
+                                            existingGame,
+                                            { playfulTrustEmptyServerBoardSnapshot }
+                                        );
+                                        mergedGame = preserveStrategicSessionOverlaysIfIncomingOmitted(
+                                            mergedGame,
+                                            game,
+                                            existingGame
+                                        );
                                         updatedGames[gameId] = mergedGame;
 
                                         // 전략바둑 AI(KATA 등) 수: 짧은 지연 후 표시 (바로 두면 연출·턴 표시가 어색함)

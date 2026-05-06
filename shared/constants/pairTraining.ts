@@ -1,4 +1,4 @@
-import type { PairPetTrainingSlotState, User } from '../types/entities.js';
+import type { PairPetMeta, PairPetTrainingSlotState, User } from '../types/entities.js';
 import { isFunctionVipActive } from '../utils/rewardVip.js';
 
 /** 페어 경기장 수련 슬롯 수 (일반 5 + 기능 VIP 전용 1) */
@@ -220,10 +220,35 @@ export function getPairTrainingSlotDef(slotIndex: number): PairTrainingSlotDef |
     return PAIR_TRAINING_SLOT_DEFS[slotIndex];
 }
 
-export function trainingEndsAt(startedAt: number, slotIndex: number): number {
+/**
+ * 특화「수련 시간 -N%」: 기본 소요 시간에 (1 - N/100)을 곱함.
+ * N은 0~99로 클램프해 비정상 데이터로 0ms 이하가 되지 않게 함.
+ */
+export function pairPetTrainingTimeMultiplier(meta: PairPetMeta | null | undefined): number {
+    if (!meta?.specialization || meta.specialization.kind !== 'trainingTime') return 1;
+    const rawPct = Number(meta.specialization.pct);
+    if (!Number.isFinite(rawPct) || rawPct <= 0) return 1;
+    const pct = Math.min(99, Math.max(0, rawPct));
+    return Math.max(0.01, 1 - pct / 100);
+}
+
+/** 슬롯 기본 `durationMs`에 펫 수련 시간 특화를 반영한 실제 수련 길이(ms). */
+export function effectivePairTrainingDurationMs(slotIndex: number, meta: PairPetMeta | null | undefined): number {
+    const def = getPairTrainingSlotDef(slotIndex);
+    if (!def) return 0;
+    return Math.max(1, Math.floor(def.durationMs * pairPetTrainingTimeMultiplier(meta)));
+}
+
+/**
+ * @param meta `undefined`이면 슬롯 기본 시간만 사용(구동기·테스트 호환).
+ * `null` 또는 인벤에서 찾은 메타: `trainingTime` 특화 시 단축된 종료 시각.
+ */
+export function trainingEndsAt(startedAt: number, slotIndex: number, meta?: PairPetMeta | null): number {
     const def = getPairTrainingSlotDef(slotIndex);
     if (!def) return startedAt;
-    return startedAt + def.durationMs;
+    const durationMs =
+        meta === undefined ? def.durationMs : effectivePairTrainingDurationMs(slotIndex, meta);
+    return startedAt + durationMs;
 }
 
 export function isItemIdInPairTraining(

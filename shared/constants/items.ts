@@ -5,6 +5,8 @@ import {
     PAIR_PET_KIND_NAMES,
     PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS,
     PAIR_SOULSTONE_NAMES,
+    PAIR_WELCOME_EGG_MATERIAL_NAME,
+    PAIR_WELCOME_EGG_TEMPLATE_ID,
     pairSoulStoneMaterialSellGoldPerUnit,
 } from './petLobby.js';
 
@@ -176,6 +178,16 @@ export const MATERIAL_ITEMS: Record<string, Omit<InventoryItem, 'id'|'createdAt'
         slot: null,
         image: PAIR_EGG_DISPLAY_IMAGE,
         grade: ItemGrade.Normal,
+    },
+    [PAIR_WELCOME_EGG_MATERIAL_NAME]: {
+        name: PAIR_WELCOME_EGG_MATERIAL_NAME,
+        description:
+            '신비로운 알과 같은 모습이지만, 어떤 부화 슬롯에서든 부화 시간이 1분이며 부화 시 레벨 5 AI 펫이 나옵니다.',
+        type: 'material',
+        slot: null,
+        image: PAIR_EGG_DISPLAY_IMAGE,
+        grade: ItemGrade.Normal,
+        templateId: PAIR_WELCOME_EGG_TEMPLATE_ID,
     },
     /** @deprecated 키만 구버전 — 표기·이미지는 신비로운알과 동일 */
     '페어 미스터리 알': {
@@ -464,6 +476,7 @@ export const MATERIAL_SELL_PRICES: Record<string, number> = {
     신비로운알: 120,
     /** 구 인벤 호환 */
     '페어 미스터리 알': 120,
+    [PAIR_WELCOME_EGG_MATERIAL_NAME]: 120,
 };
 
 for (const soulName of PAIR_SOULSTONE_NAMES) {

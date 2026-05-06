@@ -7,17 +7,10 @@
 
 // Get API base URL from environment variable
 // Vite exposes env variables prefixed with VITE_
-const deriveDevBackendBaseFromHost = (): string | null => {
-    if (typeof window === 'undefined') return null;
-    const host = window.location.hostname;
-    if (!host) return null;
-    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-    return `${protocol}//${host}:4000`;
-};
-
 const getApiBaseUrl = (): string => {
-    // In development, prefer explicit backend URL if provided.
-    // (Some setups don't run Vite proxy or backend on localhost:4000.)
+    // In development: 기본은 상대 경로 → Vite가 `/api` 등을 백엔드로 프록시(`vite.config.ts`).
+    // 예전에는 여기서 항상 `:4000`으로 직접 붙여, 프론트만 켠 경우 `ERR_CONNECTION_REFUSED`가 났음.
+    // 백엔드를 다른 호스트/포트로 띄울 때만 `VITE_API_URL` / `VITE_BACKEND_URL`을 설정한다.
     if (import.meta.env.DEV) {
         const devApiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL;
         if (devApiUrl) {
@@ -25,12 +18,7 @@ const getApiBaseUrl = (): string => {
             console.log('[API Config] Development mode: using explicit API URL:', cleanUrl);
             return cleanUrl;
         }
-        const autoDevApi = deriveDevBackendBaseFromHost();
-        if (autoDevApi) {
-            console.log('[API Config] Development mode: using auto-detected API URL:', autoDevApi);
-            return autoDevApi;
-        }
-        console.log('[API Config] Development mode: using relative paths (Vite proxy)');
+        console.log('[API Config] Development mode: using relative paths (Vite proxy → backend)');
         return '';
     }
     
@@ -63,23 +51,26 @@ const getApiBaseUrl = (): string => {
 
 // Get WebSocket URL from environment variable
 const getWebSocketUrl = (): string => {
-    // In development, prefer explicit WS URL if provided, otherwise same-origin (Vite proxy).
+    // In development: 기본은 현재 탭 origin의 `/ws` → Vite WS 프록시. 직접 `:4000`에 붙이지 않는다.
     if (import.meta.env.DEV) {
         const devWsUrl = import.meta.env.VITE_WS_URL || import.meta.env.VITE_BACKEND_WS_URL;
         if (devWsUrl) {
             console.log('[API Config] Development mode: using explicit WebSocket URL:', devWsUrl);
             return devWsUrl;
         }
-        const autoDevApi = deriveDevBackendBaseFromHost();
-        if (autoDevApi) {
-            const protocol = autoDevApi.startsWith('https://') ? 'wss:' : 'ws:';
-            const host = autoDevApi.replace(/^https?:\/\//, '');
-            const autoWs = `${protocol}//${host}`;
-            console.log('[API Config] Development mode: using auto-detected WebSocket URL:', autoWs);
-            return autoWs;
+        const devApiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL;
+        if (devApiUrl) {
+            const clean = devApiUrl.replace(/\/$/, '');
+            const protocol = clean.startsWith('https://') ? 'wss:' : 'ws:';
+            const host = clean.replace(/^https?:\/\//, '');
+            const derived = `${protocol}//${host}`;
+            console.log('[API Config] Development mode: WebSocket derived from VITE_API_URL:', derived);
+            return derived;
         }
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        return `${protocol}//${window.location.host}`;
+        const sameTab = `${protocol}//${window.location.host}`;
+        console.log('[API Config] Development mode: WebSocket via Vite proxy (same host):', sameTab);
+        return sameTab;
     }
     
     // In production, use environment variable if set

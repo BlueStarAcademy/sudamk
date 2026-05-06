@@ -29,9 +29,13 @@ import {
     PAIR_SOULSTONE_NAMES,
     PAIR_EGG_DISPLAY_IMAGE,
     PAIR_EGG_MATERIAL_NAME,
+    PAIR_WELCOME_EGG_MATERIAL_NAME,
+    PAIR_WELCOME_EGG_TEMPLATE_ID,
     PAIR_SOULSTONE_TEMPLATE_IDS,
+    findFirstHatchablePairEgg,
     getPairPetDefinition,
     isPairEggItem,
+    isPairWelcomeEggItem,
     isPairPetMaterial,
     isPairSoulStoneItem,
     pairPetLobbyInventorySlots,
@@ -58,6 +62,7 @@ import {
     canUnlockPairHatcherySlot,
     canUsePairHatcherySlot,
     getPairHatcherySlotDef,
+    getPairHatcheryDurationMs,
     hatcheryEndsAt,
     normalizePairPetHatcherySessions,
     normalizePairPetHatcherySlotUnlocked,
@@ -82,7 +87,9 @@ function pairTrainingBadgeVariantForItem(currentUser: User, itemId: string): 'in
     for (let si = 0; si < slots.length; si += 1) {
         const sess = slots[si];
         if (!sess || sess.itemId !== itemId) continue;
-        return now >= trainingEndsAt(sess.startedAt, si) ? 'claim_ready' : 'in_progress';
+        const petRowForSess = currentUser.inventory.find((x) => x.id === sess.itemId);
+        const sessMeta = petRowForSess ? resolvePairPetMetaFromInventoryRow(petRowForSess) : null;
+        return now >= trainingEndsAt(sess.startedAt, si, sessMeta) ? 'claim_ready' : 'in_progress';
     }
     return 'in_progress';
 }
@@ -506,7 +513,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             if (!canUsePairHatcherySlot(currentUser, idx)) continue;
             const session = sessions[idx];
             if (!session) continue;
-            if (now >= hatcheryEndsAt(session.startedAt, idx)) return true;
+            if (now >= hatcheryEndsAt(session.startedAt, idx, session)) return true;
         }
         return false;
     }, [currentUser, hatcheryTick, pairLobbyPendingTick]);
@@ -521,7 +528,9 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             if (!isPairTrainingSlotUnlocked(currentUser, i)) continue;
             const session = slots[i];
             if (!session) continue;
-            if (now < trainingEndsAt(session.startedAt, i)) continue;
+            const petRowSess = inventory.find((x) => x.id === session.itemId);
+            const sessMeta = petRowSess ? resolvePairPetMetaFromInventoryRow(petRowSess) : null;
+            if (now < trainingEndsAt(session.startedAt, i, sessMeta)) continue;
             if (inventory.some((x) => x.id === session.itemId)) return true;
         }
         return false;
@@ -830,7 +839,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             if (!def) return null;
             const usable = canUsePairHatcherySlot(currentUser, slotIndex);
             const session = sessions[slotIndex];
-            const endAt = session ? hatcheryEndsAt(session.startedAt, slotIndex) : 0;
+            const endAt = session ? hatcheryEndsAt(session.startedAt, slotIndex, session) : 0;
             const canClaim = Boolean(session && now >= endAt);
             const remainMs = session && !canClaim ? Math.max(0, endAt - now) : 0;
             const instantDiamondCost =
@@ -842,11 +851,27 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             const winsOk = pairWins >= (def.unlockWinsRequired ?? 0);
             const showUnlockBtn = !isVip && slotIndex > 0 && !unlocked[slotIndex] && winsOk;
 
-            const levelOutcome = hatcheryLevelOutcomeLine(def);
+            const firstHatchEgg = findFirstHatchablePairEgg(currentUser.inventory);
+            const hatchUsesWelcomeEgg = Boolean(
+                (session && session.eggTemplateId === PAIR_WELCOME_EGG_TEMPLATE_ID) ||
+                    (!session && firstHatchEgg && isPairWelcomeEggItem(firstHatchEgg)),
+            );
+            const levelOutcome = hatchUsesWelcomeEgg ? (
+                <span className="text-[clamp(0.62rem,1.85vmin,0.8125rem)] font-semibold tabular-nums leading-snug text-amber-200">
+                    부화 펫 레벨 : 5
+                </span>
+            ) : (
+                hatcheryLevelOutcomeLine(def)
+            );
             const eggImgForSlot =
                 MATERIAL_ITEMS[PAIR_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS]?.image ?? PAIR_EGG_DISPLAY_IMAGE;
 
-            const durationHMS = formatHatcheryDurationHMS(def.durationMs);
+            const effectiveDurationMs = session
+                ? getPairHatcheryDurationMs(slotIndex, session)
+                : firstHatchEgg && isPairWelcomeEggItem(firstHatchEgg)
+                  ? 60_000
+                  : def.durationMs;
+            const durationHMS = formatHatcheryDurationHMS(effectiveDurationMs);
 
             const infoPanelShell = isVip
                 ? 'border-amber-500/20 bg-gradient-to-br from-black/40 via-black/25 to-amber-950/22 shadow-[inset_0_1px_0_rgba(251,191,36,0.06)]'
@@ -1344,7 +1369,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         const isVipTrainingSlot = Boolean(def.requiresFunctionVip);
                         const session = trainingSlots[i];
                         const petRow = session ? inventory.find((x) => x.id === session.itemId) : null;
-                        const endAt = session ? trainingEndsAt(session.startedAt, i) : 0;
+                        const sessionMeta = petRow ? resolvePairPetMetaFromInventoryRow(petRow) : null;
+                        const endAt = session ? trainingEndsAt(session.startedAt, i, sessionMeta) : 0;
                         const canClaim = Boolean(session && now >= endAt);
                         const rowClaimReady = Boolean(unlocked && session && petRow && canClaim);
                         const remainMs = session && !canClaim ? Math.max(0, endAt - now) : 0;
@@ -2297,9 +2323,23 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     {(() => {
                         const idx = hatcheryConfirmSlotIndex;
                         const d = idx !== null ? getPairHatcherySlotDef(idx) : undefined;
-                        const outcome = d ? hatcheryLevelOutcomeLine(d) : null;
+                        const startEgg = findFirstHatchablePairEgg(currentUser.inventory);
+                        const startWelcome = Boolean(startEgg && isPairWelcomeEggItem(startEgg));
+                        const outcome =
+                            startWelcome ? (
+                                <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-950/25 px-3 py-2 text-xs font-semibold text-amber-100/95">
+                                    <span className="tabular-nums">부화 펫 레벨 : 5</span>
+                                </div>
+                            ) : d ? (
+                                <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-950/25 px-3 py-2 text-xs font-semibold text-amber-100/95">
+                                    {hatcheryLevelOutcomeLine(d)}
+                                </div>
+                            ) : null;
                         const eggImg =
                             MATERIAL_ITEMS[PAIR_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS]?.image ?? PAIR_EGG_DISPLAY_IMAGE;
+                        const confirmDurMs =
+                            startWelcome && d ? 60_000 : d ? d.durationMs : 0;
+                        const eggTitle = startWelcome ? `${PAIR_WELCOME_EGG_MATERIAL_NAME} ×1` : '신비로운알 ×1';
                         return (
                             <div className="relative overflow-hidden">
                                 <div
@@ -2326,18 +2366,14 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             />
                                         </div>
                                         <h3 className="bg-gradient-to-r from-fuchsia-100 via-white to-violet-200 bg-clip-text text-lg font-black tracking-tight text-transparent sm:text-xl">
-                                            신비로운알 ×1
+                                            {eggTitle}
                                         </h3>
-                                        {d ? (
+                                        {confirmDurMs > 0 ? (
                                             <p className="mt-3 font-mono text-sm font-semibold tabular-nums tracking-tight text-fuchsia-200/95">
-                                                부화 시간 : {formatHatcheryDurationHMS(d.durationMs)}
+                                                부화 시간 : {formatHatcheryDurationHMS(confirmDurMs)}
                                             </p>
                                         ) : null}
-                                        {outcome ? (
-                                            <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-950/25 px-3 py-2 text-xs font-semibold text-amber-100/95">
-                                                {outcome}
-                                            </div>
-                                        ) : null}
+                                        {outcome}
                                     </div>
                                     <div className="mx-auto flex max-w-sm flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
                                         <button
@@ -2396,7 +2432,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         const sessionsM = normalizePairPetHatcherySessions(currentUser.pairPetHatcherySessions);
                         const sessionM = si !== null ? sessionsM[si] : null;
                         const nowM = Date.now();
-                        const endM = sessionM && si !== null ? hatcheryEndsAt(sessionM.startedAt, si) : 0;
+                        const endM =
+                            sessionM && si !== null ? hatcheryEndsAt(sessionM.startedAt, si, sessionM) : 0;
                         const canClaimM = Boolean(sessionM && nowM >= endM);
                         const remainMsM = sessionM && !canClaimM ? Math.max(0, endM - nowM) : 0;
                         const costM =
