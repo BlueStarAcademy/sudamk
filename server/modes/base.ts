@@ -385,10 +385,12 @@ const placeRemainingStonesRandomly = (game: types.LiveGameSession, playerKey: 'b
     }
 };
 
-const resolveBasePlacementAndTransition = (game: types.LiveGameSession, now: number) => {
+/**
+ * 부족분 무작위 보충·겹침 제거·즉시 따임 판정으로 `baseStones_p1`/`p2`만 갱신. `gameStatus`는 바꾸지 않는다.
+ */
+const runBasePlacementAutoFillAndValidate = (game: types.LiveGameSession) => {
     const target = game.settings.baseStones ?? 4;
 
-    // Place remaining stones for any player who hasn't finished
     if ((game.baseStones_p1?.length ?? 0) < target) {
         placeRemainingStonesRandomly(game, 'baseStones_p1');
     }
@@ -420,14 +422,14 @@ const resolveBasePlacementAndTransition = (game: types.LiveGameSession, now: num
     let validP2Stones = p2Stones.filter(p => !overlappingCoords.has(`${p.x},${p.y}`));
     if (validP1Stones.length > 0 || validP2Stones.length > 0) {
         const tempBoard: types.BoardState = Array(boardSize).fill(0).map(() => Array(boardSize).fill(types.Player.None));
-        validP1Stones.forEach(p => tempBoard[p.y][p.x] = types.Player.Black);
-        validP2Stones.forEach(p => tempBoard[p.y][p.x] = types.Player.White);
+        validP1Stones.forEach(p => (tempBoard[p.y][p.x] = types.Player.Black));
+        validP2Stones.forEach(p => (tempBoard[p.y][p.x] = types.Player.White));
         const tempGame = { boardState: tempBoard, settings: { boardSize } } as types.LiveGameSession;
         const logic = getGoLogic(tempGame);
         const stonesToRemove = new Set<string>();
         const allStones = [
             ...validP1Stones.map(p => ({ ...p, player: types.Player.Black })),
-            ...validP2Stones.map(p => ({ ...p, player: types.Player.White }))
+            ...validP2Stones.map(p => ({ ...p, player: types.Player.White })),
         ];
         for (const stone of allStones) {
             const group = logic.findGroup(stone.x, stone.y, stone.player, tempBoard);
@@ -440,11 +442,15 @@ const resolveBasePlacementAndTransition = (game: types.LiveGameSession, now: num
             validP2Stones = validP2Stones.filter(p => !stonesToRemove.has(`${p.x},${p.y}`));
         }
     }
-    
+
     game.baseStones_p1 = validP1Stones;
     game.baseStones_p2 = validP2Stones;
     game.basePlacementDeadline = undefined;
     game.basePlacementReady = undefined;
+};
+
+const resolveBasePlacementAndTransition = (game: types.LiveGameSession, now: number) => {
+    runBasePlacementAutoFillAndValidate(game);
 
     game.gameStatus = 'base_stone_color_choice';
     game.baseStoneColorChoices = { [game.player1.id]: null, [game.player2.id]: null };
@@ -461,7 +467,29 @@ const resolveBasePlacementAndTransition = (game: types.LiveGameSession, now: num
 const oppositeStoneColor = (c: types.Player): types.Player =>
     c === types.Player.Black ? types.Player.White : types.Player.Black;
 
-/** 선호 색이 다르면 즉시 흑·백·판·덤(백 +0.5) 확정 후 대국 시작 */
+/**
+ * 배치 단계와 동일하게 p1이 둔 좌표는 항상 판에서 흑, p2는 백으로 고정한다.
+ * 덤으로 정해지는 것은 `blackPlayerId`/`whitePlayerId`뿐이며, 놓인 베이스 돌의 색을 뒤집지 않는다.
+ */
+const commitBaseStonesToBoardPreservingPlacementColors = (
+    game: types.LiveGameSession,
+    newBoardState: types.BoardState,
+) => {
+    game.baseStones = [];
+    (game.baseStones_p1 || []).forEach((p) => {
+        newBoardState[p.y][p.x] = types.Player.Black;
+        game.baseStones!.push({ ...p, player: types.Player.Black });
+    });
+    (game.baseStones_p2 || []).forEach((p) => {
+        newBoardState[p.y][p.x] = types.Player.White;
+        game.baseStones!.push({ ...p, player: types.Player.White });
+    });
+    game.boardState = newBoardState;
+    game.baseStones_p1 = [];
+    game.baseStones_p2 = [];
+};
+
+/** 선호 색이 다르면 즉시 흑·백 유저·덤(백 +0.5)·판(배치 색 유지) 확정 후 대국 시작 */
 const finalizeBaseDifferentStoneColorChoices = (
     game: types.LiveGameSession,
     now: number,
@@ -478,24 +506,11 @@ const finalizeBaseDifferentStoneColorChoices = (
     game.blackPlayerId = blackPlayerId;
     game.whitePlayerId = whitePlayerId;
     game.finalKomi = finalKomi;
-    game.baseStones = [];
     const newBoardState = Array(game.settings.boardSize)
         .fill(0)
         .map(() => Array(game.settings.boardSize).fill(types.Player.None));
-    const p1Color = p1.id === blackPlayerId ? types.Player.Black : types.Player.White;
-    const p2Color = p2.id === whitePlayerId ? types.Player.White : types.Player.Black;
-    (game.baseStones_p1 || []).forEach((p) => {
-        newBoardState[p.y][p.x] = p1Color;
-        game.baseStones!.push({ ...p, player: p1Color });
-    });
-    (game.baseStones_p2 || []).forEach((p) => {
-        newBoardState[p.y][p.x] = p2Color;
-        game.baseStones!.push({ ...p, player: p2Color });
-    });
-    game.boardState = newBoardState;
+    commitBaseStonesToBoardPreservingPlacementColors(game, newBoardState);
     /** 본대국에서는 `game.baseStones`만 베이스 좌표 소스 — p1/p2가 남으면 빈 자리 재착수가 베이스로 오인될 수 있음 */
-    game.baseStones_p1 = [];
-    game.baseStones_p2 = [];
     (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(newBoardState);
     (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(newBoardState);
     game.baseKomiBidsSnapshot = {
@@ -632,23 +647,10 @@ const applyBaseKomiBidResolution = (game: types.LiveGameSession, now: number) =>
         game.blackPlayerId = blackPlayerId;
         game.whitePlayerId = whitePlayerId;
         game.finalKomi = finalKomi;
-        game.baseStones = [];
         const newBoardState = Array(game.settings.boardSize)
             .fill(0)
             .map(() => Array(game.settings.boardSize).fill(types.Player.None));
-        const p1Color = p1.id === blackPlayerId ? types.Player.Black : types.Player.White;
-        const p2Color = p2.id === whitePlayerId ? types.Player.White : types.Player.Black;
-        (game.baseStones_p1 || []).forEach(p => {
-            newBoardState[p.y][p.x] = p1Color;
-            game.baseStones!.push({ ...p, player: p1Color });
-        });
-        (game.baseStones_p2 || []).forEach(p => {
-            newBoardState[p.y][p.x] = p2Color;
-            game.baseStones!.push({ ...p, player: p2Color });
-        });
-        game.boardState = newBoardState;
-        game.baseStones_p1 = [];
-        game.baseStones_p2 = [];
+        commitBaseStonesToBoardPreservingPlacementColors(game, newBoardState);
         (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(newBoardState);
         (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(newBoardState);
         if (useBaseColorRoulettePhase) {

@@ -107,4 +107,49 @@ describe('PVE item client sync', () => {
 
         expect(game.currentPlayer).toBe(Player.White);
     });
+
+    it('preserveServerHiddenPlacementMeta ignores client hiddenMoves / aiInitialHiddenStone relabeling', () => {
+        const board = emptyBoard(5);
+        board[1][1] = Player.Black;
+        board[2][2] = Player.White;
+        const game: any = {
+            id: 'pve-hidden-handshake',
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            blackPlayerId: 'human-1',
+            whitePlayerId: 'ai-player-01',
+            boardState: board,
+            moveHistory: [
+                { x: 1, y: 1, player: Player.Black },
+                { x: 2, y: 2, player: Player.White },
+            ],
+            currentPlayer: Player.Black,
+            gameStatus: 'playing',
+            mode: 'hidden',
+            settings: { mixedModes: [] },
+            hiddenMoves: { '1': true },
+            aiInitialHiddenStone: { x: 2, y: 2 },
+        };
+
+        applyPveItemActionClientSync(
+            game,
+            {
+                clientSync: {
+                    boardState: board.map((row) => [...row]),
+                    moveHistory: [
+                        { x: 1, y: 1, player: Player.Black },
+                        { x: 2, y: 2, player: Player.White },
+                    ],
+                    hiddenMoves: { '0': true },
+                    aiInitialHiddenStone: { x: 1, y: 1 },
+                    currentPlayer: Player.Black,
+                    gameStatus: 'playing',
+                },
+            },
+            { preserveServerHiddenPlacementMeta: true },
+        );
+
+        expect(game.hiddenMoves).toEqual({ '1': true });
+        expect(game.aiInitialHiddenStone).toEqual({ x: 2, y: 2 });
+    });
 });

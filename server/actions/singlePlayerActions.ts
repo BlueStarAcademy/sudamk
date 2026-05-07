@@ -659,12 +659,11 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 };
             }
 
-            // 게임 상태를 playing으로 변경하고 시간 시작
             game.gameStatus = 'playing';
             game.turnStartTime = now;
             (game as any).startTime = now;
             (game as any).gameStartTime = now; // 경과 시간은 실제 시작 시점부터 (pending 시 0 표시)
-            
+
             // 싱글플레이 시간 설정: 비스피드 모드는 무제한(제한시간/초읽기 0, 초읽기 소리 없음)
             const enforcedMainTimeMinutes = isSpeedMode ? (game.settings.timeLimit || 5) : 0;
             const enforcedByoyomiCount = isSpeedMode ? 0 : 0;
@@ -1380,7 +1379,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             }
             console.log(`[handleSinglePlayerAction] ${type}: Game found, gameStatus=${game.gameStatus}, currentPlayer=${game.currentPlayer}`);
             const { applyPveItemActionClientSync } = await import('../pveItemSync.js');
-            applyPveItemActionClientSync(game, payload);
+            applyPveItemActionClientSync(game, payload, { preserveServerHiddenPlacementMeta: true });
             const { handleSinglePlayerHiddenAction } = await import('../modes/singlePlayerHidden.js');
             console.log(`[handleSinglePlayerAction] Before handleSinglePlayerHiddenAction: gameStatus=${game.gameStatus}, type=${type}`);
             const result = handleSinglePlayerHiddenAction(volatileState, game, action, user);

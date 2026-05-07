@@ -128,14 +128,16 @@ const EquipmentSlotDisplay: React.FC<{
     onClick?: () => void;
     /** 프로필 모달 등: 슬롯·아이콘을 줄여 상단 패널 높이 절약 */
     compact?: boolean;
-}> = ({ slot, item, onClick, compact }) => {
+    /** 타인 프로필: compact 슬롯 안에서 장비 아이콘만 살짝 확대 */
+    largerCompactIcon?: boolean;
+}> = ({ slot, item, onClick, compact, largerCompactIcon }) => {
     const clickableClass = item && onClick ? 'cursor-pointer hover:scale-105 transition-transform' : '';
     const round = compact ? 'rounded-lg' : 'rounded-xl';
 
     if (item) {
         const isTranscendent = item.grade === ItemGrade.Transcendent;
-        const iconPct = compact ? '68%' : '80%';
-        const iconPad = compact ? 'p-1.5' : 'p-3';
+        const iconPct = compact ? (largerCompactIcon ? '76%' : '68%') : '80%';
+        const iconPad = compact ? (largerCompactIcon ? 'p-1' : 'p-1.5') : 'p-3';
         return (
             <div
                 className={`relative aspect-square w-full border border-white/[0.1] bg-gradient-to-br from-zinc-900/90 to-black/60 shadow-inner ring-1 ring-inset ring-white/[0.05] ${round} ${clickableClass} ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
@@ -614,13 +616,15 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                     <div className="relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-slate-950 p-3 shadow-[0_24px_48px_-24px_rgba(0,0,0,0.75)] ring-1 ring-inset ring-amber-500/[0.07]">
                         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/20 to-transparent" aria-hidden />
                         <p className="mb-1 text-center text-[0.6rem] font-bold uppercase tracking-[0.18em] text-amber-200/70">장비</p>
-                        <div className="mx-auto mb-2 grid w-full max-w-[12rem] grid-cols-3 gap-1.5 sm:max-w-[12.5rem]">
-                            <EquipmentSlotDisplay slot="fan" item={getItemForSlot('fan')} compact onClick={() => getItemForSlot('fan') && onViewItem(getItemForSlot('fan')!, false)} />
-                            <EquipmentSlotDisplay slot="board" item={getItemForSlot('board')} compact onClick={() => getItemForSlot('board') && onViewItem(getItemForSlot('board')!, false)} />
-                            <EquipmentSlotDisplay slot="top" item={getItemForSlot('top')} compact onClick={() => getItemForSlot('top') && onViewItem(getItemForSlot('top')!, false)} />
-                            <EquipmentSlotDisplay slot="bottom" item={getItemForSlot('bottom')} compact onClick={() => getItemForSlot('bottom') && onViewItem(getItemForSlot('bottom')!, false)} />
-                            <EquipmentSlotDisplay slot="bowl" item={getItemForSlot('bowl')} compact onClick={() => getItemForSlot('bowl') && onViewItem(getItemForSlot('bowl')!, false)} />
-                            <EquipmentSlotDisplay slot="stones" item={getItemForSlot('stones')} compact onClick={() => getItemForSlot('stones') && onViewItem(getItemForSlot('stones')!, false)} />
+                        <div
+                            className={`mx-auto mb-2 grid w-full grid-cols-3 gap-1.5 ${isSelfProfile ? 'max-w-[12rem] sm:max-w-[12.5rem]' : 'max-w-[13rem] sm:max-w-[13.75rem]'}`}
+                        >
+                            <EquipmentSlotDisplay slot="fan" item={getItemForSlot('fan')} compact largerCompactIcon={!isSelfProfile} onClick={() => getItemForSlot('fan') && onViewItem(getItemForSlot('fan')!, false)} />
+                            <EquipmentSlotDisplay slot="board" item={getItemForSlot('board')} compact largerCompactIcon={!isSelfProfile} onClick={() => getItemForSlot('board') && onViewItem(getItemForSlot('board')!, false)} />
+                            <EquipmentSlotDisplay slot="top" item={getItemForSlot('top')} compact largerCompactIcon={!isSelfProfile} onClick={() => getItemForSlot('top') && onViewItem(getItemForSlot('top')!, false)} />
+                            <EquipmentSlotDisplay slot="bottom" item={getItemForSlot('bottom')} compact largerCompactIcon={!isSelfProfile} onClick={() => getItemForSlot('bottom') && onViewItem(getItemForSlot('bottom')!, false)} />
+                            <EquipmentSlotDisplay slot="bowl" item={getItemForSlot('bowl')} compact largerCompactIcon={!isSelfProfile} onClick={() => getItemForSlot('bowl') && onViewItem(getItemForSlot('bowl')!, false)} />
+                            <EquipmentSlotDisplay slot="stones" item={getItemForSlot('stones')} compact largerCompactIcon={!isSelfProfile} onClick={() => getItemForSlot('stones') && onViewItem(getItemForSlot('stones')!, false)} />
                         </div>
                         <div className="min-h-0 flex-1 border-t border-white/[0.07] pt-2">
                             <p className="mb-1 text-center text-[0.6rem] font-bold uppercase tracking-[0.14em] text-slate-400/90">능력치</p>

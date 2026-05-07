@@ -1854,9 +1854,13 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     // 미사일 선택 가능 여부는 최신 boardState를 기준으로 확인 (새로 놓은 돌도 포함)
                     // displayBoardState와 동일 소스만 사용 (서버 boardState 참조가 순간적으로 어긋나면 히든 문양이 잘못 붙는 현상 방지)
                     const actualPlayer = player;
+                    /** 아직 `baseStones`에 남은 좌표는 베이스 링 우선(소비 목록만 남아 링이 꺼지는 버그 방지). */
+                    const atRecordedBaseStone =
+                        (baseStones?.some((bs) => bs.x === x && bs.y === y) ?? false);
                     /** 문양·베이스·히든 특수돌이 따인 뒤 같은 좌표에 다시 둔 돌은 항상 일반돌로만 표시 */
                     const isPlainStoneReuseIntersection =
-                        consumedPatternIntersections?.some((p) => p.x === x && p.y === y) ?? false;
+                        !atRecordedBaseStone &&
+                        (consumedPatternIntersections?.some((p) => p.x === x && p.y === y) ?? false);
 
                     const isSingleLastMove = showLastMoveMarker && isLastMoveMarkerEnabled && lastMove && lastMove.x === x && lastMove.y === y;
                     const isMultiLastMove = showLastMoveMarker && isLastMoveMarkerEnabled && lastTurnStones && lastTurnStones.some(p => p.x === x && p.y === y);

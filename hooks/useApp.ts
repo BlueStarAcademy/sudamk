@@ -380,6 +380,29 @@ function alignBaseModeCurrentPlayerWithExistingWhenSlimDrift(
     opts: { playfulTrustEmptyServerBoardSnapshot?: boolean } = {}
 ): LiveGameSession {
     if (!existing) return merged;
+    // 흑/백 좌석이 서버에서 바뀐 직후: 판·수순 문자열은 같아 보여도 currentPlayer는 서버(merged)를 신뢰해야 한다.
+    if (
+        existing.blackPlayerId &&
+        existing.whitePlayerId &&
+        merged.blackPlayerId &&
+        merged.whitePlayerId &&
+        (existing.blackPlayerId !== merged.blackPlayerId || existing.whitePlayerId !== merged.whitePlayerId)
+    ) {
+        // 슬림·낡은 패킷: 수순·판은 동일한데 좌석만 바뀐 경우 — 본대국 중에는 잘못된 덮어쓰기로 간주하고 기존 좌석 유지
+        if (
+            merged.gameStatus === 'playing' &&
+            (existing.moveHistory?.length ?? 0) > 0 &&
+            stableStringify(merged.moveHistory) === stableStringify(existing.moveHistory) &&
+            stableStringify(merged.boardState) === stableStringify(existing.boardState)
+        ) {
+            return {
+                ...merged,
+                blackPlayerId: existing.blackPlayerId,
+                whitePlayerId: existing.whitePlayerId,
+            };
+        }
+        return merged;
+    }
     if (!liveSessionIncludesBaseMode(merged) || merged.gameStatus !== 'playing') return merged;
     if (merged.mode === GameMode.Dice || merged.mode === GameMode.Thief) return merged;
     if (opts.playfulTrustEmptyServerBoardSnapshot) return merged;
@@ -619,9 +642,22 @@ function sanitizeSessionBoardOverlayMarkers(merged: LiveGameSession): LiveGameSe
     let next = merged;
 
     if (Array.isArray(merged.baseStones) && merged.baseStones.length > 0 && Array.isArray(board) && board.length > 0) {
+        const boardHasAnyStone = board.some(
+            (row) => Array.isArray(row) && row.some((c) => c === Player.Black || c === Player.White),
+        );
+        // moveHistory만으로 복원한 슬림 패킷 등: 판이 통째로 비어 있는데 수는 있는 경우 — 마커를 지우면 베이스 링이 전부 사라짐
+        if (
+            !boardHasAnyStone &&
+            (merged.moveHistory?.length ?? 0) > 0 &&
+            liveSessionIncludesBaseMode(merged) &&
+            merged.gameStatus === 'playing'
+        ) {
+            return next;
+        }
         const filtered = merged.baseStones.filter((p) => {
             const row = board[p.y];
-            const cell = row?.[p.x];
+            if (!row || !Array.isArray(row) || p.x < 0 || p.x >= row.length) return true;
+            const cell = row[p.x];
             return cell === Player.Black || cell === Player.White;
         });
         if (filtered.length !== merged.baseStones.length) {
@@ -675,7 +711,11 @@ function preserveStrategicSessionOverlaysIfIncomingOmitted(
         if (!Object.prototype.hasOwnProperty.call(incoming, 'baseStones')) {
             const prev = existing!.baseStones;
             if (Array.isArray(prev) && prev.length > 0) {
-                next = { ...next, baseStones: prev };
+                const mergedBs = merged.baseStones;
+                // 병합 단계에서 이미 보정된 baseStones(예: 흑백 좌석 전환 후 플립)을 incoming 생략으로 덮어쓰지 않음
+                if (!Array.isArray(mergedBs) || mergedBs.length === 0) {
+                    next = { ...next, baseStones: prev };
+                }
             }
         }
         if (!Object.prototype.hasOwnProperty.call(incoming, 'hiddenMoves')) {
@@ -759,6 +799,10 @@ function augmentPveFromSessionStorageSnapshot(
 
     if (!midGame) return incoming;
 
+    /** 서버(INITIAL/rejoin) 수순이 더 길면 sessionStorage는 과거 스냅샷 — 옛 판·짧은 수순으로 덮어쓰면 베이스 재배치·초기화처럼 보임 */
+    const serverAheadOnMoves = incMoves > stMoves;
+    const incHasBoardGrid = hasHydratedBoardGridForRejoin(incoming);
+
     const incPending = (incoming.gameStatus || '') === 'pending';
     const storedStatus = String((parsed as { gameStatus?: string }).gameStatus || '');
     const playingish = [
@@ -779,21 +823,31 @@ function augmentPveFromSessionStorageSnapshot(
         out.moveHistory = pm;
     }
     const pb = (parsed as { boardState?: LiveGameSession['boardState'] }).boardState;
-    if (Array.isArray(pb) && pb.length > 0 && Array.isArray(pb[0]) && (pb[0] as unknown[]).length > 0) {
+    if (
+        !serverAheadOnMoves &&
+        Array.isArray(pb) &&
+        pb.length > 0 &&
+        Array.isArray(pb[0]) &&
+        (pb[0] as unknown[]).length > 0
+    ) {
         const pbOk = pb.some(
             (row: unknown) =>
                 Array.isArray(row) && row.some((c: unknown) => c !== 0 && c !== null && c !== undefined)
         );
-        if (pbOk) out.boardState = pb;
+        if (pbOk && (stMoves > incMoves || !incHasBoardGrid)) {
+            out.boardState = pb;
+        }
     }
     if (typeof stTotalRaw === 'number' && Number.isFinite(stTotalRaw) && stTotalRaw > (out.totalTurns ?? 0)) {
         (out as { totalTurns?: number }).totalTurns = stTotalRaw;
     }
-    if (cap && typeof cap === 'object') out.captures = cap as LiveGameSession['captures'];
+    if (!serverAheadOnMoves && cap && typeof cap === 'object') out.captures = cap as LiveGameSession['captures'];
     const bsc = (parsed as { baseStoneCaptures?: unknown }).baseStoneCaptures;
-    if (bsc && typeof bsc === 'object') (out as { baseStoneCaptures?: unknown }).baseStoneCaptures = bsc;
+    if (!serverAheadOnMoves && bsc && typeof bsc === 'object')
+        (out as { baseStoneCaptures?: unknown }).baseStoneCaptures = bsc;
     const hsc = (parsed as { hiddenStoneCaptures?: unknown }).hiddenStoneCaptures;
-    if (hsc && typeof hsc === 'object') (out as { hiddenStoneCaptures?: unknown }).hiddenStoneCaptures = hsc;
+    if (!serverAheadOnMoves && hsc && typeof hsc === 'object')
+        (out as { hiddenStoneCaptures?: unknown }).hiddenStoneCaptures = hsc;
 
     if (incPending && (playingish || stMoves > 0)) {
         if (playingish && storedStatus) (out as { gameStatus?: string }).gameStatus = storedStatus as LiveGameSession['gameStatus'];
@@ -818,21 +872,23 @@ function augmentPveFromSessionStorageSnapshot(
     if (btb != null) (out as { blackTurnLimitBonus?: number }).blackTurnLimitBonus = Number(btb) || 0;
 
     const sbp = (parsed as { blackPatternStones?: unknown }).blackPatternStones;
-    if (Array.isArray(sbp)) out.blackPatternStones = sbp as LiveGameSession['blackPatternStones'];
+    if (!serverAheadOnMoves && (stMoves > incMoves || incMoves === 0) && Array.isArray(sbp))
+        out.blackPatternStones = sbp as LiveGameSession['blackPatternStones'];
     const swp = (parsed as { whitePatternStones?: unknown }).whitePatternStones;
-    if (Array.isArray(swp)) out.whitePatternStones = swp as LiveGameSession['whitePatternStones'];
-    if ((parsed as { lastMove?: unknown }).lastMove != null)
+    if (!serverAheadOnMoves && (stMoves > incMoves || incMoves === 0) && Array.isArray(swp))
+        out.whitePatternStones = swp as LiveGameSession['whitePatternStones'];
+    if (!serverAheadOnMoves && (parsed as { lastMove?: unknown }).lastMove != null)
         out.lastMove = (parsed as { lastMove: LiveGameSession['lastMove'] }).lastMove;
-    if ((parsed as { koInfo?: unknown }).koInfo !== undefined)
+    if (!serverAheadOnMoves && (parsed as { koInfo?: unknown }).koInfo !== undefined)
         out.koInfo = (parsed as { koInfo: LiveGameSession['koInfo'] }).koInfo;
     const hm = (parsed as { hiddenMoves?: unknown }).hiddenMoves;
-    if (hm && typeof hm === 'object') out.hiddenMoves = hm as LiveGameSession['hiddenMoves'];
+    if (!serverAheadOnMoves && hm && typeof hm === 'object') out.hiddenMoves = hm as LiveGameSession['hiddenMoves'];
     const pr = (parsed as { permanentlyRevealedStones?: unknown }).permanentlyRevealedStones;
-    if (Array.isArray(pr)) out.permanentlyRevealedStones = pr as LiveGameSession['permanentlyRevealedStones'];
+    if (!serverAheadOnMoves && Array.isArray(pr)) out.permanentlyRevealedStones = pr as LiveGameSession['permanentlyRevealedStones'];
     const h1 = (parsed as { hidden_stones_p1?: unknown }).hidden_stones_p1;
-    if (typeof h1 === 'number') (out as { hidden_stones_p1?: number }).hidden_stones_p1 = h1;
+    if (!serverAheadOnMoves && typeof h1 === 'number') (out as { hidden_stones_p1?: number }).hidden_stones_p1 = h1;
     const h2 = (parsed as { hidden_stones_p2?: unknown }).hidden_stones_p2;
-    if (typeof h2 === 'number') (out as { hidden_stones_p2?: number }).hidden_stones_p2 = h2;
+    if (!serverAheadOnMoves && typeof h2 === 'number') (out as { hidden_stones_p2?: number }).hidden_stones_p2 = h2;
 
     return out;
 }
@@ -6148,10 +6204,24 @@ export const useApp = () => {
                                         const parsed = JSON.parse(stored);
                                         if (parsed.gameId === id) {
                                             const storedTotal = needsRestore && typeof parsed.totalTurns === 'number' && parsed.totalTurns > 0 ? parsed.totalTurns : null;
-                                            const storedMoves = Array.isArray(parsed.moveHistory) && parsed.moveHistory.length > 0 ? parsed.moveHistory : null;
-                                            const inferredCurrentPlayer = needsCurrentPlayerRestore && storedMoves && storedMoves.length > 0
-                                                ? ((last: { player?: number }) => last && (last.player === Player.Black ? Player.White : Player.Black))(storedMoves[storedMoves.length - 1])
-                                                : null;
+                                            const storedMovesRaw =
+                                                Array.isArray(parsed.moveHistory) && parsed.moveHistory.length > 0
+                                                    ? parsed.moveHistory
+                                                    : null;
+                                            const incLen = Array.isArray(g.moveHistory) ? g.moveHistory.length : 0;
+                                            const stLen = storedMovesRaw?.length ?? 0;
+                                            const useStoredMoves =
+                                                storedMovesRaw != null &&
+                                                (stLen > incLen || (incLen === 0 && stLen > 0));
+                                            const storedMoves = useStoredMoves ? storedMovesRaw : null;
+                                            const inferredCurrentPlayer =
+                                                needsCurrentPlayerRestore && storedMoves && storedMoves.length > 0
+                                                    ? ((last: { player?: number }) =>
+                                                          last &&
+                                                          (last.player === Player.Black ? Player.White : Player.Black))(
+                                                          storedMoves[storedMoves.length - 1]
+                                                      )
+                                                    : null;
                                             if (storedTotal != null || storedMoves != null || inferredCurrentPlayer != null) {
                                                 next[id] = {
                                                     ...g,
@@ -6356,10 +6426,18 @@ export const useApp = () => {
                                                 parsed.totalTurns > 0
                                                     ? parsed.totalTurns
                                                     : null;
-                                            const storedMoves =
+                                            const storedMovesRaw =
                                                 Array.isArray(parsed.moveHistory) && parsed.moveHistory.length > 0
                                                     ? (parsed.moveHistory as LiveGameSession['moveHistory'])
                                                     : null;
+                                            const incLen = Array.isArray(fromPayload.moveHistory)
+                                                ? fromPayload.moveHistory.length
+                                                : 0;
+                                            const stLen = storedMovesRaw?.length ?? 0;
+                                            const useStoredMoves =
+                                                storedMovesRaw != null &&
+                                                (stLen > incLen || (incLen === 0 && stLen > 0));
+                                            const storedMoves = useStoredMoves ? storedMovesRaw : null;
                                             const inferredCurrentPlayer =
                                                 needsCurrentPlayerRestore &&
                                                 storedMoves &&
@@ -6443,10 +6521,18 @@ export const useApp = () => {
                                                 parsed.totalTurns > 0
                                                     ? parsed.totalTurns
                                                     : null;
-                                            const storedMoves =
+                                            const storedMovesRaw =
                                                 Array.isArray(parsed.moveHistory) && parsed.moveHistory.length > 0
                                                     ? (parsed.moveHistory as LiveGameSession['moveHistory'])
                                                     : null;
+                                            const incLen = Array.isArray(fromPayload.moveHistory)
+                                                ? fromPayload.moveHistory.length
+                                                : 0;
+                                            const stLen = storedMovesRaw?.length ?? 0;
+                                            const useStoredMoves =
+                                                storedMovesRaw != null &&
+                                                (stLen > incLen || (incLen === 0 && stLen > 0));
+                                            const storedMoves = useStoredMoves ? storedMovesRaw : null;
                                             const inferredCurrentPlayer =
                                                 needsCurrentPlayerRestore &&
                                                 storedMoves &&
@@ -7723,7 +7809,11 @@ export const useApp = () => {
                                                     (wasScanningAnimating || wasMissileAnimatingToPlaying) && (!serverBoardValid && existingBoardValid);
                                                 const preserveMoveHistoryFromExisting =
                                                     (wasScanningAnimating || wasMissileAnimatingToPlaying) && (!serverMoveHistoryValid && existingMoveHistoryValid);
-                                                const finalBoardState = preserveBoardFromExisting ? existingGame.boardState : (serverBoardValid ? game.boardState : (existingGame?.boardState ?? game.boardState));
+                                                const finalBoardState = preserveBoardFromExisting
+                                                    ? existingGame.boardState
+                                                    : serverBoardValid
+                                                      ? game.boardState
+                                                      : (existingGame?.boardState ?? game.boardState);
                                                 const finalMoveHistory = preserveMoveHistoryFromExisting ? existingGame.moveHistory : (serverMoveHistoryValid ? game.moveHistory : (existingGame?.moveHistory ?? game.moveHistory));
                                                 const existingRevealedGen = existingGame?.permanentlyRevealedStones ?? [];
                                                 const serverRevealedGen = game.permanentlyRevealedStones ?? [];
@@ -8336,6 +8426,27 @@ export const useApp = () => {
                                         } else if (!isDiceOrThiefMode && !hasServerBoard && moveHistoryToDerive && moveHistoryToDerive.length > 0 && game.settings?.boardSize) {
                                             const boardSize = game.settings.boardSize;
                                             const derivedBoard: number[][] = Array(boardSize).fill(null).map(() => Array(boardSize).fill(Player.None));
+                                            const baseListRaw =
+                                                Array.isArray((game as any).baseStones) && (game as any).baseStones.length > 0
+                                                    ? ((game as any).baseStones as { x: number; y: number; player: number }[])
+                                                    : Array.isArray(existingGame?.baseStones) && (existingGame!.baseStones as any[]).length > 0
+                                                      ? (existingGame!.baseStones as { x: number; y: number; player: number }[])
+                                                      : [];
+                                            for (const bs of baseListRaw) {
+                                                if (
+                                                    bs &&
+                                                    typeof bs.x === 'number' &&
+                                                    typeof bs.y === 'number' &&
+                                                    typeof bs.player === 'number' &&
+                                                    bs.x >= 0 &&
+                                                    bs.x < boardSize &&
+                                                    bs.y >= 0 &&
+                                                    bs.y < boardSize &&
+                                                    (bs.player === Player.Black || bs.player === Player.White)
+                                                ) {
+                                                    derivedBoard[bs.y][bs.x] = bs.player;
+                                                }
+                                            }
                                             for (const move of moveHistoryToDerive) {
                                                 if (move && move.x >= 0 && move.x < boardSize && move.y >= 0 && move.y < boardSize) {
                                                     derivedBoard[move.y][move.x] = move.player;

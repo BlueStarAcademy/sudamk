@@ -2,7 +2,8 @@
  * 바둑 AI 봇 시스템
  * 싱글플레이, 도전의탑, 전략·모험 AI 대국 등에서 사용하는 1단계~10단계 바둑 AI.
  * 전략 goAi 경로는 KataServer 응답을 우선 사용한다.
- * KataServer 미설정·API 오류·무효/PASS 응답은 서버 합법수/종료 폴백으로 안전 처리해 AI 턴 정지를 막는다.
+ * KataServer가 설정된 경우 AI 착수는 Kata 응답만 사용한다(국면 불일치 시 AI가 보는 판으로 재인코딩·재질의).
+ * Kata 미설정 시에만 서버 합법수/종료 폴백으로 AI 턴 정지를 막는다.
  */
 
 import { randomUUID } from 'crypto';
@@ -16,7 +17,7 @@ import { volatileState } from './state.js';
 import { broadcastToGameParticipants } from './socket.js';
 import { hasTimeControl, shouldEnforceTimeControl } from './modes/shared.js';
 import { isFischerStyleTimeControl } from '../shared/utils/gameTimeControl.js';
-import { generateKataServerMoveCandidateDetails, generateKataServerMoveCandidates, isKataServerAvailable } from './kataServerService.js';
+import { generateKataServerMoveCandidateDetails, isKataServerAvailable } from './kataServerService.js';
 import {
     advancePairTurn,
     getCurrentPairTurnSeat,
@@ -1205,11 +1206,12 @@ function buildKataMoveHistory(
 
     if (
         (game as any).kataPveKataMovesFromBoardStateOnly === true &&
-        game.boardState?.length === bs &&
-        game.boardState.every((row: unknown[]) => Array.isArray(row) && row.length === bs)
+        replayTargetBoard?.length === bs &&
+        replayTargetBoard.every((row: unknown[]) => Array.isArray(row) && row.length === bs)
     ) {
+        // 히든 PVE: Kata 입력은 AI가 보는 판과 동일해야 함(전체 판이면 미공개 흑이 들어가 국면이 틀어짐)
         return appendPassesUntilSideToMove(
-            encodeBoardStateAsKataSetupMovesFromEmpty(game.boardState),
+            encodeBoardStateAsKataSetupMovesFromEmpty(replayTargetBoard),
             game.currentPlayer,
         );
     }
@@ -1267,7 +1269,7 @@ function buildKataMoveHistory(
             );
             (game as any).kataPveKataMovesFromBoardStateOnly = true;
             return appendPassesUntilSideToMove(
-                encodeBoardStateAsKataSetupMovesFromEmpty(game.boardState),
+                encodeBoardStateAsKataSetupMovesFromEmpty(replayTargetBoard),
                 game.currentPlayer,
             );
         }
@@ -1303,7 +1305,7 @@ function buildKataMoveHistory(
         );
         (game as any).kataPveKataMovesFromBoardStateOnly = true;
         return appendPassesUntilSideToMove(
-            encodeBoardStateAsKataSetupMovesFromEmpty(game.boardState),
+            encodeBoardStateAsKataSetupMovesFromEmpty(replayTargetBoard),
             game.currentPlayer,
         );
     }
@@ -1666,6 +1668,181 @@ function appendPairPetGameChat(game: types.LiveGameSession, text: string): void 
     );
 }
 
+/** Kata만 두기: 수순 불일치 시 AI 시야 판으로 전부 다시 보내 재질의 */
+const KATA_EXCLUSIVE_MAX_BOARD_RESYNC = 8;
+
+function buildKataMoveHistoryBoardOnlyFromAiVisibleBoard(
+    game: types.LiveGameSession,
+    aiPlayerEnum: types.Player,
+): Array<{ x: number; y: number; player: number }> {
+    const bs = game.settings?.boardSize ?? game.boardState?.length ?? 19;
+    const board = getBoardStateForAi(game, aiPlayerEnum);
+    if (
+        board?.length === bs &&
+        board.every((row: unknown[]) => Array.isArray(row) && row.length === bs)
+    ) {
+        return appendPassesUntilSideToMove(
+            encodeBoardStateAsKataSetupMovesFromEmpty(board),
+            game.currentPlayer,
+        );
+    }
+    if (
+        game.boardState?.length === bs &&
+        game.boardState.every((row: unknown[]) => Array.isArray(row) && row.length === bs)
+    ) {
+        return appendPassesUntilSideToMove(
+            encodeBoardStateAsKataSetupMovesFromEmpty(game.boardState),
+            game.currentPlayer,
+        );
+    }
+    const raw = getMoveHistoryForKataServer(game, aiPlayerEnum);
+    return buildKataMoveHistory(game, raw, aiPlayerEnum);
+}
+
+type KataExclusivePickResult = {
+    picked: Point | null;
+    kataBestMove: Point | null;
+    kataCandidates: Point[];
+    usedPassFromKata: boolean;
+};
+
+async function pickKataMoveExclusiveWithBoardResync(params: {
+    game: types.LiveGameSession;
+    aiPlayerEnum: types.Player;
+    opponentPlayerEnum: types.Player;
+    kataLevel: number;
+    kataAllowPass: boolean;
+    guildWarKataRetries: number;
+    isHiddenMode: boolean;
+    tagSuffix: string;
+}): Promise<KataExclusivePickResult> {
+    const {
+        game,
+        aiPlayerEnum,
+        opponentPlayerEnum,
+        kataLevel,
+        kataAllowPass,
+        guildWarKataRetries,
+        isHiddenMode,
+        tagSuffix,
+    } = params;
+
+    let lastCandidates: Point[] = [];
+    let lastBest: Point | null = null;
+
+    for (let resync = 0; resync < KATA_EXCLUSIVE_MAX_BOARD_RESYNC; resync++) {
+        const moveHistory =
+            resync === 0
+                ? buildKataMoveHistory(
+                      game,
+                      getMoveHistoryForKataServer(game, aiPlayerEnum),
+                      aiPlayerEnum,
+                  )
+                : buildKataMoveHistoryBoardOnlyFromAiVisibleBoard(game, aiPlayerEnum);
+
+        const kataParams = {
+            boardSize: game.settings.boardSize || 19,
+            player: (aiPlayerEnum === types.Player.White ? 'white' : 'black') as 'white' | 'black',
+            moveHistory,
+            level: kataLevel,
+            komi: Number(game.finalKomi ?? game.settings.komi),
+            gameId: game.id,
+            kataSessionTag: composeKataSessionTagForGame(
+                game,
+                `${tagSuffix}-rs${resync}-${randomUUID().slice(0, 8)}`,
+            ),
+            allowPass: kataAllowPass,
+            moveApiRetries: guildWarKataRetries,
+        };
+
+        let kataDetails: Awaited<ReturnType<typeof generateKataServerMoveCandidateDetails>>;
+        try {
+            kataDetails = await generateKataServerMoveCandidateDetails(kataParams);
+        } catch (e: any) {
+            console.error(
+                `[pickKataMoveExclusiveWithBoardResync] KataServer 호출 실패 (${tagSuffix} resync=${resync}) game=${game.id}:`,
+                e?.message ?? e,
+            );
+            continue;
+        }
+
+        const kataCandidates = kataDetails.candidates;
+        lastCandidates = kataCandidates;
+        lastBest = kataDetails.bestMove;
+
+        const kataPassCandidate =
+            kataAllowPass
+                ? kataCandidates.find((cand) => cand.x === -1 && cand.y === -1) ?? null
+                : null;
+        if (kataAllowPass && kataPassCandidate) {
+            return {
+                picked: kataPassCandidate,
+                kataBestMove: lastBest,
+                kataCandidates,
+                usedPassFromKata: true,
+            };
+        }
+
+        if (
+            kataCandidates.length === 0 ||
+            (kataCandidates.length === 1 &&
+                kataCandidates[0]!.x === -1 &&
+                kataCandidates[0]!.y === -1)
+        ) {
+            console.warn(
+                `[pickKataMoveExclusiveWithBoardResync] empty/PASS-only (${tagSuffix} resync=${resync + 1}/${KATA_EXCLUSIVE_MAX_BOARD_RESYNC}) game=${game.id}`,
+            );
+            continue;
+        }
+
+        for (const cand of kataCandidates) {
+            if (cand.x === -1 && cand.y === -1) continue;
+            const trial = processMove(
+                game.boardState,
+                { ...cand, player: aiPlayerEnum },
+                game.koInfo,
+                game.moveHistory.length,
+            );
+            if (trial.isValid) {
+                return {
+                    picked: cand,
+                    kataBestMove: lastBest,
+                    kataCandidates,
+                    usedPassFromKata: false,
+                };
+            }
+            if (isHiddenMode && shouldMaskUserHiddenFromAi(game)) {
+                const stoneAt = game.boardState[cand.y]?.[cand.x];
+                if (
+                    stoneAt === opponentPlayerEnum &&
+                    isCurrentUnrevealedHiddenStoneAt(game, cand.x, cand.y, opponentPlayerEnum)
+                ) {
+                    return {
+                        picked: cand,
+                        kataBestMove: lastBest,
+                        kataCandidates,
+                        usedPassFromKata: false,
+                    };
+                }
+            }
+            console.warn(
+                `[pickKataMoveExclusiveWithBoardResync] Kata candidate (${cand.x},${cand.y}) invalid on server board; trying next, game=${game.id}`,
+            );
+        }
+
+        console.warn(
+            `[pickKataMoveExclusiveWithBoardResync] all coords invalid (${tagSuffix} resync=${resync + 1}/${KATA_EXCLUSIVE_MAX_BOARD_RESYNC}); board-only AI view retry, game=${game.id}`,
+        );
+    }
+
+    return {
+        picked: null,
+        kataBestMove: lastBest,
+        kataCandidates: lastCandidates,
+        usedPassFromKata: false,
+    };
+}
+
 export async function makeGoAiBotMove(
     game: types.LiveGameSession,
     aiLevel: number
@@ -1697,7 +1874,29 @@ export async function makeGoAiBotMove(
         console.log(`[makeGoAiBotMove] Game ${game.id} is manually paused, skipping AI move`);
         return;
     }
-    
+
+    // 베이스·착색 등 본대국 전 단계에서 Kata/일반 착수를 실행하면 수순·베이스·히든 메타가 꼬일 수 있음
+    const strategicGoMainBoardAllowedStatuses = new Set([
+        'playing',
+        'hidden_placing',
+        'scanning',
+        'scanning_animating',
+        'missile_selecting',
+        'missile_animating',
+    ]);
+    const gsGuard = String(game.gameStatus);
+    if (!strategicGoMainBoardAllowedStatuses.has(gsGuard)) {
+        if (process.env.NODE_ENV === 'development') {
+            const mh = (game.moveHistory || []).filter((m) => m && typeof m.x === 'number' && typeof m.y === 'number' && m.x >= 0 && m.y >= 0).length;
+            if (mh > 0) {
+                console.warn(
+                    `[makeGoAiBotMove] Skipping main-board AI: gameStatus=${gsGuard} playableMoves=${mh} game=${game.id}`,
+                );
+            }
+        }
+        return;
+    }
+
     const pairClassicGame = isPairClassicGame(game.settings, game.mode);
     const captureRuleGame = modeIncludesCaptureRule(game);
     const pairCurrentSeat = pairClassicGame ? getCurrentPairTurnSeat(game.settings) : null;
@@ -1710,8 +1909,11 @@ export async function makeGoAiBotMove(
 
     rehydratePendingAiHiddenKataFromStoredAnimation(game);
 
-    const isHiddenMode = game.mode === types.GameMode.Hidden ||
-        (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
+    const isHiddenMode = Boolean(
+        game.mode === types.GameMode.Hidden ||
+            (game.mode === types.GameMode.Mix &&
+                !!game.settings.mixedModes?.includes(types.GameMode.Hidden)),
+    );
     /** 페어 AI전(`pairMode === 'ai'`)에서만: 인간 팀(teamA) 동료 펫은 히든 미사용. 상대(teamB) 펫·AI는 기존 히든 로직 유지 */
     const pairAllyPetSeatBlocksAiHidden =
         isHiddenMode &&
@@ -1881,6 +2083,7 @@ export async function makeGoAiBotMove(
                 !game.aiHiddenItemUsed &&
                 recordedAiHiddenMoves === 0 &&
                 typeof game.aiHiddenItemTurn === 'number' &&
+                game.aiHiddenItemTurn >= 1 &&
                 currentAiTurnIndex >= game.aiHiddenItemTurn
             )
         );
@@ -2188,114 +2391,92 @@ export async function makeGoAiBotMove(
 
     if (!selectedMove) {
         const kataLevel = resolvedKataLevel;
-        const rawMoveHistory = getMoveHistoryForKataServer(game, aiPlayerEnum);
-        const moveHistory = buildKataMoveHistory(game, rawMoveHistory, aiPlayerEnum);
-
-        const kataParamsBase = {
-            boardSize: game.settings.boardSize || 19,
-            player: (aiPlayerEnum === types.Player.White ? 'white' : 'black') as 'white' | 'black',
-            moveHistory,
-            level: kataLevel,
-            komi: Number(game.finalKomi ?? game.settings.komi),
-            gameId: game.id,
-            kataSessionTag: composeKataSessionTagForGame(game, undefined),
-            allowPass: pairKataAllowPass,
-            moveApiRetries: guildWarKataRetries,
-        };
         let kataCandidates: Point[] = [];
         let kataBestMove: Point | null = null;
-        if (isKataServerAvailable()) {
-            try {
-                const kataDetails = await generateKataServerMoveCandidateDetails(kataParamsBase);
-                kataCandidates = kataDetails.candidates;
-                kataBestMove = kataDetails.bestMove;
-            } catch (e: any) {
-                console.error(
-                    `[makeGoAiBotMove] KataServer 호출 실패; 서버 합법수 폴백으로 진행합니다. game=${game.id}:`,
-                    e?.message ?? e
-                );
-            }
-        }
-
-        const kataPassCandidate = kataCandidates.find((cand) => cand.x === -1 && cand.y === -1) ?? null;
-        if (pairKataAllowPass && kataPassCandidate) {
-            selectedMove = kataPassCandidate;
-            console.log(`[makeGoAiBotMove] Pair pet Kata selected PASS in endgame, game=${game.id}`);
-        } else if (
-            kataCandidates.length === 0 ||
-            (kataCandidates.length === 1 &&
-                kataCandidates[0]!.x === -1 &&
-                kataCandidates[0]!.y === -1)
-        ) {
-            console.warn(
-                `[makeGoAiBotMove] KataServerMoveCandidates returned empty or PASS-only; fallback to server legal move search, game=${game.id}`,
-            );
-        }
-
         let pickedFromKata: Point | null = null;
-        for (const cand of selectedMove ? [] : kataCandidates) {
-            if (cand.x === -1 && cand.y === -1) continue;
-            const trial = processMove(
-                game.boardState,
-                { ...cand, player: aiPlayerEnum },
-                game.koInfo,
-                game.moveHistory.length
-            );
-            if (trial.isValid) {
-                pickedFromKata = cand;
-                break;
+
+        if (isKataServerAvailable()) {
+            const kataPick = await pickKataMoveExclusiveWithBoardResync({
+                game,
+                aiPlayerEnum,
+                opponentPlayerEnum,
+                kataLevel,
+                kataAllowPass: pairKataAllowPass,
+                guildWarKataRetries,
+                isHiddenMode,
+                tagSuffix: 'mv',
+            });
+            kataCandidates = kataPick.kataCandidates;
+            kataBestMove = kataPick.kataBestMove;
+            if (kataPick.usedPassFromKata && kataPick.picked) {
+                selectedMove = kataPick.picked;
+                console.log(`[makeGoAiBotMove] Pair pet Kata selected PASS in endgame, game=${game.id}`);
+            } else if (kataPick.picked) {
+                pickedFromKata = kataPick.picked;
             }
-            // Kata는 마스킹 수순으로 빈 칸으로 본 착점이, 실제 판에서는 유저 미공개 히든 → 아래 isTargetHiddenOpponentStone과 동일하게 공개 연출로 처리
-            if (isHiddenMode && shouldMaskUserHiddenFromAi(game)) {
-                const stoneAt = game.boardState[cand.y]?.[cand.x];
-                if (stoneAt === opponentPlayerEnum && isCurrentUnrevealedHiddenStoneAt(game, cand.x, cand.y, opponentPlayerEnum)) {
-                    pickedFromKata = cand;
-                    break;
-                }
-            }
-            console.warn(
-                `[makeGoAiBotMove] Kata candidate (${cand.x},${cand.y}) invalid on server board; trying next, game=${game.id}`
-            );
         }
 
         if (!selectedMove && !pickedFromKata) {
-            const logicFb = getGoLogic(game);
-            let legalFb = findAllValidMoves(game, logicFb, aiPlayerEnum);
-            if (
-                getUserUnrevealedHiddenPoints(game, aiPlayerEnum).length > 0 &&
-                legalFb.length > 0
-            ) {
-                legalFb = legalFb.filter(
-                    m => !isInvalidAiHiddenNeighborhoodForKataAndHeuristic(game, m.x, m.y, aiPlayerEnum)
-                );
-            }
-            if (legalFb.length === 0) {
-                if (pairHasFixedScoringTurnLimit && pairCurrentSeat) {
-                    const totalTurns = getProgressTurnCount(game);
-                    console.warn(`[makeGoAiBotMove] pair fixed-turn game has no legal fallback moves → scoring, game=${game.id}, turns=${totalTurns}`);
-                    game.totalTurns = totalTurns;
-                    game.gameStatus = 'scoring';
-                    await db.saveGame(game);
-                    const { getGameResult } = await import('./gameModes.js');
-                    await getGameResult(game);
-                    return;
-                } else if (pairKataAllowPass && pairCurrentSeat) {
-                    selectedMove = { x: -1, y: -1 };
-                    console.warn(`[makeGoAiBotMove] pair endgame has no legal fallback moves → PASS, game=${game.id}`);
-                    pickedFromKata = null;
-                } else {
-                    console.warn(`[makeGoAiBotMove] no legal move after Kata PASS/invalid coords → resign, game=${game.id}`);
-                    await summaryService.endGame(game, opponentPlayerEnum, 'resign');
-                    return;
+            if (!isKataServerAvailable()) {
+                const logicFb = getGoLogic(game);
+                let legalFb = findAllValidMoves(game, logicFb, aiPlayerEnum);
+                if (
+                    getUserUnrevealedHiddenPoints(game, aiPlayerEnum).length > 0 &&
+                    legalFb.length > 0
+                ) {
+                    legalFb = legalFb.filter(
+                        (m) => !isInvalidAiHiddenNeighborhoodForKataAndHeuristic(game, m.x, m.y, aiPlayerEnum),
+                    );
                 }
-            }
-            if (selectedMove) {
-                // Pair endgame PASS fallback was selected above.
-            } else {
-                pickedFromKata = legalFb[0]!;
+                if (legalFb.length === 0) {
+                    if (pairHasFixedScoringTurnLimit && pairCurrentSeat) {
+                        const totalTurns = getProgressTurnCount(game);
+                        console.warn(
+                            `[makeGoAiBotMove] pair fixed-turn (no Kata): no legal moves → scoring, game=${game.id}, turns=${totalTurns}`,
+                        );
+                        game.totalTurns = totalTurns;
+                        game.gameStatus = 'scoring';
+                        await db.saveGame(game);
+                        const { getGameResult } = await import('./gameModes.js');
+                        await getGameResult(game);
+                        return;
+                    } else if (pairKataAllowPass && pairCurrentSeat) {
+                        selectedMove = { x: -1, y: -1 };
+                        console.warn(
+                            `[makeGoAiBotMove] pair endgame (no Kata): no legal moves → PASS, game=${game.id}`,
+                        );
+                        pickedFromKata = null;
+                    } else {
+                        console.warn(
+                            `[makeGoAiBotMove] no legal move (Kata unavailable) → resign, game=${game.id}`,
+                        );
+                        await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+                        return;
+                    }
+                }
+                if (!selectedMove) {
+                    pickedFromKata = legalFb[0]!;
+                    console.warn(
+                        `[makeGoAiBotMove] Kata unavailable; server legal move (${pickedFromKata.x},${pickedFromKata.y}), game=${game.id}`,
+                    );
+                }
+            } else if (pairHasFixedScoringTurnLimit && pairCurrentSeat) {
+                const totalTurns = getProgressTurnCount(game);
                 console.warn(
-                    `[makeGoAiBotMove] all Kata coords invalid; using first legal (${pickedFromKata.x},${pickedFromKata.y}), game=${game.id}`
+                    `[makeGoAiBotMove] Kata-only exhausted; pair fixed-turn → scoring, game=${game.id}, turns=${totalTurns}`,
                 );
+                game.totalTurns = totalTurns;
+                game.gameStatus = 'scoring';
+                await db.saveGame(game);
+                const { getGameResult } = await import('./gameModes.js');
+                await getGameResult(game);
+                return;
+            } else {
+                console.error(
+                    `[makeGoAiBotMove] Kata-only: no valid Kata move after ${KATA_EXCLUSIVE_MAX_BOARD_RESYNC} board resyncs → resign, game=${game.id}`,
+                );
+                await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+                return;
             }
         }
 
@@ -2378,32 +2559,64 @@ export async function makeGoAiBotMove(
         pairCurrentSeat &&
         pairHasFixedScoringTurnLimit
     ) {
-        const logicPairNoPass = getGoLogic(game);
-        let legalPairNoPass = findAllValidMoves(game, logicPairNoPass, aiPlayerEnum);
-        if (
-            getUserUnrevealedHiddenPoints(game, aiPlayerEnum).length > 0 &&
-            legalPairNoPass.length > 0
-        ) {
-            legalPairNoPass = legalPairNoPass.filter(
-                (m) => !isInvalidAiHiddenNeighborhoodForKataAndHeuristic(game, m.x, m.y, aiPlayerEnum),
-            );
-        }
-        if (legalPairNoPass.length === 0) {
-            const totalTurnsEnd = getProgressTurnCount(game);
+        if (isKataServerAvailable()) {
+            const noPassPick = await pickKataMoveExclusiveWithBoardResync({
+                game,
+                aiPlayerEnum,
+                opponentPlayerEnum,
+                kataLevel: resolvedKataLevel,
+                kataAllowPass: false,
+                guildWarKataRetries,
+                isHiddenMode,
+                tagSuffix: 'nopass',
+            });
+            const np = noPassPick.picked;
+            if (np && !(np.x === -1 && np.y === -1)) {
+                selectedMove = { x: np.x, y: np.y };
+                pendingPairPetKataChatMessage = null;
+                console.warn(
+                    `[makeGoAiBotMove] pair fixed-turn: Kata non-PASS (${selectedMove.x},${selectedMove.y}), game=${game.id}`,
+                );
+            } else {
+                const totalTurnsEnd = getProgressTurnCount(game);
+                console.warn(
+                    `[makeGoAiBotMove] pair fixed-turn: Kata non-PASS 없음 → scoring, game=${game.id}, turns=${totalTurnsEnd}`,
+                );
+                game.totalTurns = totalTurnsEnd;
+                game.gameStatus = 'scoring';
+                await db.saveGame(game);
+                const { getGameResult } = await import('./gameModes.js');
+                await getGameResult(game);
+                return;
+            }
+        } else {
+            const logicPairNoPass = getGoLogic(game);
+            let legalPairNoPass = findAllValidMoves(game, logicPairNoPass, aiPlayerEnum);
+            if (
+                getUserUnrevealedHiddenPoints(game, aiPlayerEnum).length > 0 &&
+                legalPairNoPass.length > 0
+            ) {
+                legalPairNoPass = legalPairNoPass.filter(
+                    (m) => !isInvalidAiHiddenNeighborhoodForKataAndHeuristic(game, m.x, m.y, aiPlayerEnum),
+                );
+            }
+            if (legalPairNoPass.length === 0) {
+                const totalTurnsEnd = getProgressTurnCount(game);
+                console.warn(
+                    `[makeGoAiBotMove] pair fixed-turn blocked AI PASS (no legal) → scoring, game=${game.id}, turns=${totalTurnsEnd}`,
+                );
+                game.totalTurns = totalTurnsEnd;
+                game.gameStatus = 'scoring';
+                await db.saveGame(game);
+                const { getGameResult } = await import('./gameModes.js');
+                await getGameResult(game);
+                return;
+            }
+            selectedMove = { x: legalPairNoPass[0]!.x, y: legalPairNoPass[0]!.y };
             console.warn(
-                `[makeGoAiBotMove] pair fixed-turn blocked AI PASS (no legal) → scoring, game=${game.id}, turns=${totalTurnsEnd}`,
+                `[makeGoAiBotMove] pair fixed-turn blocked AI PASS (no Kata) → (${selectedMove.x},${selectedMove.y}), game=${game.id}`,
             );
-            game.totalTurns = totalTurnsEnd;
-            game.gameStatus = 'scoring';
-            await db.saveGame(game);
-            const { getGameResult } = await import('./gameModes.js');
-            await getGameResult(game);
-            return;
         }
-        selectedMove = { x: legalPairNoPass[0]!.x, y: legalPairNoPass[0]!.y };
-        console.warn(
-            `[makeGoAiBotMove] pair fixed-turn blocked AI PASS → (${selectedMove.x},${selectedMove.y}), game=${game.id}`,
-        );
     }
 
     if (selectedMove.x === -1 && selectedMove.y === -1 && pairCurrentSeat) {
@@ -2459,80 +2672,27 @@ export async function makeGoAiBotMove(
             console.warn(
                 `[makeGoAiBotMove] Kata chose (${x},${y}) on unrevealed user hidden — full reveal (no animation) & same-turn Kata re-query (game=${game.id})`
             );
-            const kataLevel = resolvedKataLevel;
-            const rawMoveHistory = getMoveHistoryForKataServer(game, aiPlayerEnum);
-            const moveHistory = buildKataMoveHistory(game, rawMoveHistory, aiPlayerEnum);
             const hiddenRevealTag = bumpKataHiddenRevealCacheTag(game);
-            const kataParamsReveal = {
-                boardSize: game.settings.boardSize || 19,
-                player: (aiPlayerEnum === types.Player.White ? 'white' : 'black') as 'white' | 'black',
-                moveHistory,
-                level: kataLevel,
-                komi: Number(game.finalKomi ?? game.settings.komi),
-                gameId: game.id,
-                kataSessionTag: composeKataSessionTagForGame(game, hiddenRevealTag),
-                allowPass: pairKataAllowPass,
-                moveApiRetries: guildWarKataRetries,
-            };
-            let kataCandidatesReveal: Point[] = [];
-            if (isKataServerAvailable()) {
-                try {
-                    kataCandidatesReveal = await generateKataServerMoveCandidates(kataParamsReveal);
-                } catch (e: any) {
-                    console.error(
-                        `[makeGoAiBotMove] KataServer 재질의 실패; 서버 합법수 폴백으로 진행합니다. game=${game.id}:`,
-                        e?.message ?? e
-                    );
-                }
-            }
-
-            if (
-                kataCandidatesReveal.length === 0 ||
-                (kataCandidatesReveal.length === 1 &&
-                    kataCandidatesReveal[0]!.x === -1 &&
-                    kataCandidatesReveal[0]!.y === -1)
-            ) {
-                console.warn(
-                    `[makeGoAiBotMove] Kata re-query returned empty or PASS-only; fallback to server legal move search, game=${game.id}`,
-                );
-            }
-
             let pickedReveal: Point | null = null;
-            for (const cand of kataCandidatesReveal) {
-                if (cand.x === -1 && cand.y === -1) continue;
-                const trial = processMove(
-                    game.boardState,
-                    { ...cand, player: aiPlayerEnum },
-                    game.koInfo,
-                    game.moveHistory.length
-                );
-                if (trial.isValid) {
-                    pickedReveal = cand;
-                    break;
-                }
-                console.warn(
-                    `[makeGoAiBotMove] Kata re-query candidate (${cand.x},${cand.y}) invalid; trying next, game=${game.id}`
-                );
+            if (isKataServerAvailable()) {
+                const revealPick = await pickKataMoveExclusiveWithBoardResync({
+                    game,
+                    aiPlayerEnum,
+                    opponentPlayerEnum,
+                    kataLevel: resolvedKataLevel,
+                    kataAllowPass: pairKataAllowPass,
+                    guildWarKataRetries,
+                    isHiddenMode,
+                    tagSuffix: `hrq-${hiddenRevealTag}`,
+                });
+                pickedReveal = revealPick.picked;
             }
             if (!pickedReveal) {
-                const logicFb = getGoLogic(game);
-                let legalFb = findAllValidMoves(game, logicFb, aiPlayerEnum);
-                if (
-                    getUserUnrevealedHiddenPoints(game, aiPlayerEnum).length > 0 &&
-                    legalFb.length > 0
-                ) {
-                    legalFb = legalFb.filter(
-                        m => !isInvalidAiHiddenNeighborhoodForKataAndHeuristic(game, m.x, m.y, aiPlayerEnum)
-                    );
-                }
-                if (legalFb.length === 0) {
-                    await summaryService.endGame(game, opponentPlayerEnum, 'resign');
-                    return;
-                }
-                pickedReveal = legalFb[0]!;
-                console.warn(
-                    `[makeGoAiBotMove] Kata re-query all coords invalid; legal (${pickedReveal.x},${pickedReveal.y}), game=${game.id}`
+                console.error(
+                    `[makeGoAiBotMove] Kata re-query after hidden reveal failed (no Kata move) → resign, game=${game.id}`,
                 );
+                await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+                return;
             }
             selectedMove = { x: pickedReveal.x, y: pickedReveal.y };
             pendingPairPetKataChatMessage = null;
@@ -2575,44 +2735,91 @@ export async function makeGoAiBotMove(
             );
                 await summaryService.endGame(game, opponentPlayerEnum, 'resign');
                 return;
+        } else if (isKataServerAvailable()) {
+            const emergencyPick = await pickKataMoveExclusiveWithBoardResync({
+                game,
+                aiPlayerEnum,
+                opponentPlayerEnum,
+                kataLevel: resolvedKataLevel,
+                kataAllowPass: pairKataAllowPass,
+                guildWarKataRetries,
+                isHiddenMode,
+                tagSuffix: 'emg',
+            });
+            const ep = emergencyPick.picked;
+            if (ep && !(ep.x === -1 && ep.y === -1)) {
+                const retry = processMove(
+                    game.boardState,
+                    { ...ep, player: aiPlayerEnum },
+                    game.koInfo,
+                    game.moveHistory.length,
+                );
+                if (retry.isValid) {
+                    console.warn(
+                        `[makeGoAiBotMove] processMove invalid on first Kata pick; Kata 재질의 착수 (${ep.x},${ep.y}), game=${game.id}`,
+                    );
+                    selectedMove = ep;
+                    pendingPairPetKataChatMessage = null;
+                    result = retry;
+                }
+            } else if (emergencyPick.usedPassFromKata && ep) {
+                const retryPass = processMove(
+                    game.boardState,
+                    { ...ep, player: aiPlayerEnum },
+                    game.koInfo,
+                    game.moveHistory.length,
+                );
+                if (retryPass.isValid) {
+                    selectedMove = ep;
+                    pendingPairPetKataChatMessage = null;
+                    result = retryPass;
+                }
+            }
+            if (!result.isValid) {
+                console.error(
+                    `[makeGoAiBotMove] Kata-only emergency: still invalid after re-query (${selectedMove.x},${selectedMove.y}) → resign, game=${game.id}`,
+                );
+                await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+                return;
+            }
         } else {
             const logicEmergency = getGoLogic(game);
             let legalEmergency = findAllValidMoves(game, logicEmergency, aiPlayerEnum);
-        if (
-            getUserUnrevealedHiddenPoints(game, aiPlayerEnum).length > 0 &&
-            legalEmergency.length > 0
-        ) {
-            legalEmergency = legalEmergency.filter(
-                m => !isInvalidAiHiddenNeighborhoodForKataAndHeuristic(game, m.x, m.y, aiPlayerEnum)
-            );
-        }
-        if (legalEmergency.length > 0) {
-            const fb = legalEmergency[0]!;
-            const retry = processMove(
-                game.boardState,
-                { ...fb, player: aiPlayerEnum },
-                game.koInfo,
-                game.moveHistory.length
-            );
-            if (retry.isValid) {
-                console.warn(
-                    `[makeGoAiBotMove] invalid Kata/hidden coord (${selectedMove.x},${selectedMove.y}); emergency legal (${fb.x},${fb.y}), game=${game.id}`
+            if (
+                getUserUnrevealedHiddenPoints(game, aiPlayerEnum).length > 0 &&
+                legalEmergency.length > 0
+            ) {
+                legalEmergency = legalEmergency.filter(
+                    (m) => !isInvalidAiHiddenNeighborhoodForKataAndHeuristic(game, m.x, m.y, aiPlayerEnum),
                 );
-                selectedMove = fb;
-                pendingPairPetKataChatMessage = null;
-                result = retry;
             }
-        }
-        if (legalEmergency.length === 0) {
-            console.warn(`[makeGoAiBotMove] no legal move in emergency fallback → resign, game=${game.id}`);
-            await summaryService.endGame(game, opponentPlayerEnum, 'resign');
-            return;
-        }
-        if (!result.isValid) {
-            throw new Error(
-                `[makeGoAiBotMove] Kata가 고른 수가 규칙상 무효입니다 (${selectedMove.x},${selectedMove.y}). game=${game.id}`
-            );
-        }
+            if (legalEmergency.length > 0) {
+                const fb = legalEmergency[0]!;
+                const retry = processMove(
+                    game.boardState,
+                    { ...fb, player: aiPlayerEnum },
+                    game.koInfo,
+                    game.moveHistory.length,
+                );
+                if (retry.isValid) {
+                    console.warn(
+                        `[makeGoAiBotMove] invalid coord (${selectedMove.x},${selectedMove.y}); emergency legal (no Kata) (${fb.x},${fb.y}), game=${game.id}`,
+                    );
+                    selectedMove = fb;
+                    pendingPairPetKataChatMessage = null;
+                    result = retry;
+                }
+            }
+            if (legalEmergency.length === 0) {
+                console.warn(`[makeGoAiBotMove] no legal move in emergency fallback → resign, game=${game.id}`);
+                await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+                return;
+            }
+            if (!result.isValid) {
+                throw new Error(
+                    `[makeGoAiBotMove] 선택 수가 규칙상 무효입니다 (${selectedMove.x},${selectedMove.y}). game=${game.id}`,
+                );
+            }
         }
     }
 

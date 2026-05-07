@@ -632,7 +632,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     const { updateSinglePlayerHiddenState } = await import('./modes/singlePlayerHidden.js');
                     await updateSinglePlayerHiddenState(game, nowSync);
                 }
-                applyPveItemActionClientSync(game, payload);
+                applyPveItemActionClientSync(game, payload, { preserveServerHiddenPlacementMeta: true });
                 if (game.gameCategory === 'tower' && actionTypeStr === 'SCAN_BOARD' && game.gameStatus === 'scanning') {
                     towerScanBoardRevert = {
                         scans_p1: game.scans_p1,
@@ -889,6 +889,53 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                             String(currentActorIdForServerAi).startsWith('dungeon-bot-'))));
             const isPveLikeAiGame =
                 game.gameCategory === 'tower' || game.isSinglePlayer || game.gameCategory === 'adventure';
+            /** 전략바둑 본대국 전 단계 — Kata 착수 금지(복구 요청은 noop). 수순이 이미 있으면 아래에서 playing으로 정합성 보정 */
+            const pveStrategicPrePlayStatuses = new Set([
+                'negotiating',
+                'nigiri_choosing',
+                'nigiri_guessing',
+                'nigiri_reveal',
+                'pair_order_reveal',
+                'base_placement',
+                'base_stone_color_choice',
+                'base_same_color_points_bid',
+                'komi_bidding',
+                'komi_bid_reveal',
+                'base_color_roulette',
+                'base_komi_result',
+                'base_game_start_confirmation',
+                'capture_bidding',
+                'capture_reveal',
+                'capture_tiebreaker',
+                'color_start_confirmation',
+                'turn_preference_selection',
+                'turn_preference_roulette',
+            ]);
+            const countPvePlayableMoves = (): number =>
+                (game.moveHistory || []).filter(
+                    (m) =>
+                        m &&
+                        typeof m.x === 'number' &&
+                        typeof m.y === 'number' &&
+                        Number.isInteger(m.x) &&
+                        Number.isInteger(m.y) &&
+                        m.x >= 0 &&
+                        m.y >= 0,
+                ).length;
+            if (isPveLikeAiGame) {
+                const st0 = String(game.gameStatus);
+                const playable0 = countPvePlayableMoves();
+                if (pveStrategicPrePlayStatuses.has(st0) && playable0 > 0) {
+                    if (process.env.NODE_ENV === 'development') {
+                        console.warn(
+                            `[REQUEST_SERVER_AI_MOVE] Coherence: pre-play status=${st0} with ${playable0} moves -> playing game=${game.id}`,
+                        );
+                    }
+                    (game as any).gameStatus = 'playing';
+                    game.itemUseDeadline = undefined;
+                    game.pausedTurnTimeLeft = undefined;
+                }
+            }
             const transitionalStatusesForPve = new Set([
                 'hidden_reveal_animating',
                 'scanning',
@@ -899,6 +946,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 'ended',
                 'no_contest',
                 'pending',
+                ...pveStrategicPrePlayStatuses,
             ]);
             const pveNonErrorNoop = (): { clientResponse: { serverAiMoveDone: boolean; skippedReason: string; game: types.LiveGameSession } } => ({
                 clientResponse: {

@@ -1,6 +1,11 @@
 import type { LiveGameSession, PveItemActionClientSync } from '../shared/types/index.js';
 import { GameMode, Player } from '../types/index.js';
 
+/** 히든/스캔 모드 진입 등: 클라 `hiddenMoves`·`aiInitialHiddenStone` 병합으로 잘못된 돌이 히든으로 보이는 것을 막음 */
+export type ApplyPveItemActionClientSyncOptions = {
+    preserveServerHiddenPlacementMeta?: boolean;
+};
+
 const DEFAULT_AI_USER_ID = 'ai-player-01';
 
 function isAiControlledPlayer(game: LiveGameSession, player: Player): boolean {
@@ -140,11 +145,22 @@ function reconcileMoveHistoryCoordsToBoardState(game: LiveGameSession): void {
 }
 
 /** PVE: 클라(TOWER_CLIENT_MOVE 등)만 앞서 있는 판·hiddenMoves를 아이템 액션 직전 서버 세션에 반영 */
-export function applyPveItemActionClientSync(game: LiveGameSession, payload: unknown): void {
+export function applyPveItemActionClientSync(
+    game: LiveGameSession,
+    payload: unknown,
+    opts?: ApplyPveItemActionClientSyncOptions,
+): void {
     const sync = (payload as { clientSync?: PveItemActionClientSync })?.clientSync;
     if (!sync || typeof sync !== 'object') return;
     if (!Array.isArray(sync.boardState) || sync.boardState.length === 0) return;
     if (!Array.isArray(sync.moveHistory)) return;
+    const preserveHiddenMeta = opts?.preserveServerHiddenPlacementMeta === true;
+    const serverHiddenMovesSnapshot = preserveHiddenMeta ? { ...(game.hiddenMoves ?? {}) } : null;
+    const serverAiInitialHidden = preserveHiddenMeta ? (game as { aiInitialHiddenStone?: unknown }).aiInitialHiddenStone : undefined;
+    const serverAiInitialHiddenPre = preserveHiddenMeta
+        ? (game as { aiInitialHiddenStoneIsPrePlaced?: unknown }).aiInitialHiddenStoneIsPrePlaced
+        : undefined;
+
     const serverCurrentPlayer = game.currentPlayer;
     const serverMoveHistoryLength = Array.isArray(game.moveHistory) ? game.moveHistory.length : 0;
     const syncedBoardState = sync.boardState.map((row: number[]) => [...row]);
@@ -153,7 +169,7 @@ export function applyPveItemActionClientSync(game: LiveGameSession, payload: unk
     keepServerAiMoveHistoryStable(game, syncedMoveHistory, syncedBoardState);
     game.boardState = syncedBoardState;
     game.moveHistory = syncedMoveHistory;
-    if (sync.hiddenMoves != null && typeof sync.hiddenMoves === 'object') {
+    if (!preserveHiddenMeta && sync.hiddenMoves != null && typeof sync.hiddenMoves === 'object') {
         // Stale clientSync must never erase server-confirmed hidden metadata.
         // In particular, AI hidden item flow records hiddenMoves on the server after the thinking animation.
         // A client snapshot from before that move can arrive with an empty hiddenMoves object.
@@ -165,21 +181,23 @@ export function applyPveItemActionClientSync(game: LiveGameSession, payload: unk
     if (Array.isArray(sync.permanentlyRevealedStones)) {
         game.permanentlyRevealedStones = sync.permanentlyRevealedStones.map((p) => ({ ...p }));
     }
-    if (sync.aiInitialHiddenStone === null) {
-        if (!syncAdvancesServerMoves && (game as { aiInitialHiddenStone?: unknown }).aiInitialHiddenStone) {
-            // Do not let stale client snapshots clear server-confirmed AI hidden coordinates.
-        } else {
-        (game as { aiInitialHiddenStone?: unknown }).aiInitialHiddenStone = undefined;
+    if (!preserveHiddenMeta) {
+        if (sync.aiInitialHiddenStone === null) {
+            if (!syncAdvancesServerMoves && (game as { aiInitialHiddenStone?: unknown }).aiInitialHiddenStone) {
+                // Do not let stale client snapshots clear server-confirmed AI hidden coordinates.
+            } else {
+                (game as { aiInitialHiddenStone?: unknown }).aiInitialHiddenStone = undefined;
+            }
+        } else if (
+            sync.aiInitialHiddenStone &&
+            typeof (sync.aiInitialHiddenStone as { x?: number }).x === 'number' &&
+            typeof (sync.aiInitialHiddenStone as { y?: number }).y === 'number'
+        ) {
+            (game as { aiInitialHiddenStone?: { x: number; y: number } }).aiInitialHiddenStone = {
+                x: sync.aiInitialHiddenStone.x,
+                y: sync.aiInitialHiddenStone.y,
+            };
         }
-    } else if (
-        sync.aiInitialHiddenStone &&
-        typeof (sync.aiInitialHiddenStone as { x?: number }).x === 'number' &&
-        typeof (sync.aiInitialHiddenStone as { y?: number }).y === 'number'
-    ) {
-        (game as { aiInitialHiddenStone?: { x: number; y: number } }).aiInitialHiddenStone = {
-            x: sync.aiInitialHiddenStone.x,
-            y: sync.aiInitialHiddenStone.y,
-        };
     }
     if (sync.currentPlayer !== undefined && sync.currentPlayer !== null) {
         const staleSyncWouldSkipAiTurn =
@@ -216,6 +234,12 @@ export function applyPveItemActionClientSync(game: LiveGameSession, payload: unk
         game.totalTurns = sync.totalTurns;
     }
     reconcileMoveHistoryCoordsToBoardState(game);
+
+    if (preserveHiddenMeta && serverHiddenMovesSnapshot != null) {
+        game.hiddenMoves = { ...serverHiddenMovesSnapshot };
+        (game as { aiInitialHiddenStone?: unknown }).aiInitialHiddenStone = serverAiInitialHidden;
+        (game as { aiInitialHiddenStoneIsPrePlaced?: unknown }).aiInitialHiddenStoneIsPrePlaced = serverAiInitialHiddenPre;
+    }
 
     const gc = String((game as any).gameCategory ?? '');
     const pveLike =
