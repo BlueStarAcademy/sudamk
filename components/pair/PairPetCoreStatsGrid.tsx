@@ -25,6 +25,12 @@ function dispositionFlatBonus(
     if (disposition.kind === 'single' && disposition.stat === stat) {
         return Math.round((baseForDisposition * disposition.pct) / 100);
     }
+    if (disposition.kind === 'convert') {
+        const slice = Math.round((baseForDisposition * disposition.pct) / 100);
+        if (stat === disposition.fromStat) return -slice;
+        if (stat === disposition.toStat) return 2 * slice;
+        return 0;
+    }
     return 0;
 }
 
@@ -115,11 +121,12 @@ const PairPetCoreStatsGrid: React.FC<PairPetCoreStatsGridProps> = ({
                 const corrected = shown < rawBase;
                 const bonus = dispositionFlatBonus(disposition, stat, rawBaseNoLvl);
                 const statLabel = CORE_STATS_DATA[stat]?.name ?? stat;
+                const bonusTitle = bonus !== 0 ? ` (${bonus > 0 ? '+' : ''}${bonus})` : '';
                 return (
                     <div
                         key={stat}
                         className={`flex min-w-0 flex-nowrap items-center justify-between ${micro || fit ? 'gap-0.5' : 'gap-1.5'} ${cell}`}
-                        title={`${statLabel} ${shown}${bonus > 0 ? ` (+${bonus})` : ''}`}
+                        title={`${statLabel} ${shown}${bonusTitle}`}
                     >
                         <span
                             className={`shrink-0 font-semibold text-slate-400 ${
@@ -142,8 +149,15 @@ const PairPetCoreStatsGrid: React.FC<PairPetCoreStatsGridProps> = ({
                             } ${corrected ? 'text-rose-300' : 'text-slate-100'}`}
                         >
                             {shown}
-                            {bonus > 0 ? (
-                                <span className="font-semibold text-fuchsia-300/95">(+{bonus})</span>
+                            {bonus !== 0 ? (
+                                <span
+                                    className={`font-semibold ${
+                                        bonus > 0 ? 'text-fuchsia-300/95' : 'text-amber-200/90'
+                                    }`}
+                                >
+                                    ({bonus > 0 ? '+' : ''}
+                                    {bonus})
+                                </span>
                             ) : null}
                         </span>
                     </div>

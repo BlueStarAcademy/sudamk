@@ -1,22 +1,33 @@
 import type { ServerAction, User, VolatileState } from '../../shared/types/index.js';
-import { GameMode } from '../../shared/types/enums.js';
 import { Player } from '../../shared/types/enums.js';
 import * as db from '../db.js';
 import { DEFAULT_GAME_SETTINGS, getAiScoringTurnLimitByBoardSize, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../shared/constants/index.js';
 import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
-import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
+import {
+    getAdventureEncounterCountdownMinutes,
+    getAdventureDesignScoringTurnLimit,
+} from '../../shared/utils/adventureBattleBoard.js';
 import { applyAdventureRegionalFlatBonusToHumanCaptures } from '../utils/adventureHeadStartCaptures.js';
-
-function modeIncludesCaptureRule(mode: any, settings: any): boolean {
-  return mode === GameMode.Capture || (mode === GameMode.Mix && Boolean(settings?.mixedModes?.includes?.(GameMode.Capture)));
-}
+import { modeIncludesCaptureRule, resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 
 function normalizeStrategicAiScoringSettings(game: any): void {
   if (!SPECIAL_GAME_MODES.some((m) => m.mode === game.mode)) return;
+  const preMergePolicy = resolveArenaSessionPolicy(game);
+
   game.settings = { ...DEFAULT_GAME_SETTINGS, ...(game.settings || {}) };
   if (modeIncludesCaptureRule(game.mode, game.settings)) {
     game.settings.scoringTurnLimit = 0;
     delete game.settings.autoScoringTurns;
+    return;
+  }
+  // 모험: 로비 AI 기본값(`getAiScoringTurnLimitByBoardSize`의 11줄=85 등)으로 덮지 않고, 판 크기별 설계 상한으로 고정
+  if (preMergePolicy.usesAdventureScoringCap) {
+    const rawBs = Number(game.settings?.boardSize ?? game.adventureBoardSize);
+    const bs = Number.isFinite(rawBs) && rawBs > 0 ? Math.floor(rawBs) : 19;
+    const cap = getAdventureDesignScoringTurnLimit(bs);
+    if (cap != null && cap > 0) {
+      game.settings.scoringTurnLimit = cap;
+    }
     return;
   }
   game.settings.scoringTurnLimit = getAiScoringTurnLimitByBoardSize(

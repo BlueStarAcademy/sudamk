@@ -1,5 +1,6 @@
 import React from 'react';
 import { GameProps, Player, GameMode, Point } from '../types.js';
+import { resolveArenaKind } from '../shared/utils/liveSessionArenaKind.js';
 
 // Import the new arena components
 import GoGameArena from './arenas/GoGameArena.js';
@@ -73,14 +74,15 @@ const GameArena: React.FC<GameArenaProps> = (props) => {
         onboardingForcedFirstMovePoint,
         intro1TutorialHighlight,
     };
-    const { mode, isSinglePlayer, gameCategory } = session;
+    const { mode } = session;
+    const arenaKind = resolveArenaKind(session as any);
     
     // 도전의 탑 게임도 싱글플레이어 아레나와 동일하게 처리 (바둑 게임이므로)
-    if (isSinglePlayer || gameCategory === 'tower') {
+    if (arenaKind === 'singleplayer' || arenaKind === 'tower') {
         return <SinglePlayerArena {...sharedProps} isPaused={isSinglePlayerPaused} showBoardGlow={showBoardGlow} resumeCountdown={resumeCountdown} isBoardLocked={isBoardLocked} />;
     }
 
-    if (gameCategory === 'adventure') {
+    if (arenaKind === 'adventure') {
         switch (mode) {
             case GameMode.Alkkagi:
                 return <AlkkagiArena {...sharedProps} />;

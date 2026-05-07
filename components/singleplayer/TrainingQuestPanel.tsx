@@ -435,7 +435,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                 : embeddedInTab
                                   ? 'h-full grid-cols-3 grid-rows-2 gap-1'
                                   : inModal
-                                    ? 'h-full min-h-0 w-full flex-1 grid-cols-2 grid-rows-3 items-start gap-0.5 overflow-hidden sm:gap-1'
+                                    ? 'h-full min-h-0 w-full flex-1 grid-cols-2 grid-rows-3 items-start gap-1.5 overflow-hidden sm:gap-2'
                                     : 'grid h-full grid-cols-2 gap-1 sm:gap-1.5'
                         }`}
                     >

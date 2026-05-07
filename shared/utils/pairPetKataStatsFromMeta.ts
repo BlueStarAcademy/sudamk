@@ -11,16 +11,23 @@ const PET_BASE_STAT = 50;
  */
 export function computePairPetKataCoreStatsSixFromMeta(meta: PairPetMeta, petGrade: ItemGrade): PairPetCoreStatsSix {
     const rawBaseNoLvl = Math.round(PET_BASE_STAT * pairPetStatMultiplierFromGrade(petGrade));
+    const d = meta.disposition;
+    const convertSlice = d.kind === 'convert' ? Math.round((rawBaseNoLvl * d.pct) / 100) : 0;
     const valueFor = (stat: CoreStat): number => {
         const lvl = meta.levelUpCoreBonuses?.[stat] ?? 0;
         const base = rawBaseNoLvl + lvl;
-        const bonus =
-            meta.disposition.kind === 'all'
-                ? Math.round((rawBaseNoLvl * meta.disposition.pct) / 100)
-                : meta.disposition.kind === 'single' && meta.disposition.stat === stat
-                  ? Math.round((rawBaseNoLvl * meta.disposition.pct) / 100)
-                  : 0;
-        return base + bonus;
+        if (d.kind === 'all') {
+            return base + Math.round((rawBaseNoLvl * d.pct) / 100);
+        }
+        if (d.kind === 'single') {
+            return base + (d.stat === stat ? Math.round((rawBaseNoLvl * d.pct) / 100) : 0);
+        }
+        if (d.kind === 'convert') {
+            if (stat === d.fromStat) return base - convertSlice;
+            if (stat === d.toStat) return base + 2 * convertSlice;
+            return base;
+        }
+        return base;
     };
     return {
         concentration: valueFor(CoreStat.Concentration),

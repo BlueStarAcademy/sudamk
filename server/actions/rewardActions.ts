@@ -31,6 +31,7 @@ import { isRewardVipActive } from '../../shared/utils/rewardVip.js';
 import {
     CASH_SHOP_DIAMOND_PACKAGE_IDS,
     CASH_SHOP_EQUIPMENT_PACKAGE_IDS,
+    CASH_SHOP_REMOVE_ADS_PACKAGE_ID,
     type CashShopDiamondPackageId,
     type CashShopEquipmentPackageId,
 } from '../../shared/constants/cashShopPackages.js';
@@ -122,6 +123,8 @@ async function grantCashShopPackagesFromMailAttachment(user: User, lines: { pack
                 if (bonus) await guildService.recordGuildEpicPlusEquipmentAcquisition(user, [bonus]);
                 equipItems.push(...loot);
             }
+        } else if (pid === CASH_SHOP_REMOVE_ADS_PACKAGE_ID) {
+            user.removeAdsPurchased = true;
         }
     }
     return equipItems;
@@ -233,6 +236,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 'activeDiamondPackageTier',
                 'diamondPackageExpiresAt',
                 'diamondPackageLastMailDayKST',
+                'removeAdsPurchased',
             ]);
             
             return {
@@ -324,6 +328,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 'activeDiamondPackageTier',
                 'diamondPackageExpiresAt',
                 'diamondPackageLastMailDayKST',
+                'removeAdsPurchased',
             ]);
             
             const reward: QuestReward = {

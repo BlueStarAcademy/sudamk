@@ -22,6 +22,8 @@ import {
 import IngameMobileFooterAd from './IngameMobileFooterAd.js';
 
 interface GuildWarHiddenTowerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
+    showResultModal?: boolean;
+    allowPostGameFooterActions?: boolean;
     setShowResultModal?: (show: boolean) => void;
     setConfirmModalType?: (type: 'resign' | null) => void;
     isMoveInFlight?: boolean;
@@ -69,6 +71,8 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
     session,
     onAction,
     currentUser,
+    showResultModal = false,
+    allowPostGameFooterActions = true,
     setShowResultModal,
     setConfirmModalType,
     isMoveInFlight = false,
@@ -171,6 +175,7 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
     };
 
     if (gameStatus === 'ended' || gameStatus === 'no_contest') {
+        const blockPostGameFooter = allowPostGameFooterActions === false;
         const handleShowResults = () => setShowResultModal?.(true);
         const handleExit = async () => {
             sessionStorage.setItem('postGameRedirect', '#/guildwar');
@@ -193,6 +198,7 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                         onClick={handleShowResults}
                         colorScheme="none"
                         className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}
+                        disabled={blockPostGameFooter && !!showResultModal}
                     >
                         결과 보기
                     </Button>
@@ -201,6 +207,7 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                         onClick={handleExit}
                         colorScheme="none"
                         className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}
+                        disabled={blockPostGameFooter}
                     >
                         대기실로
                     </Button>

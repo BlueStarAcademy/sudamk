@@ -93,6 +93,11 @@ import {
     diffPairPetLevelUpCoreBonuses,
 } from '../../shared/utils/pairPetRoll.js';
 import { getEquippedPairPetInventoryRow, reconcileEquippedPairPetInventoryItem } from '../../shared/utils/pairEquippedPet.js';
+import {
+    effectivePairRankedApCostForUser,
+    effectiveStrategicRankedQueueApCostForUser,
+    trainingSoulBonusQuantityFromMeta,
+} from '../../shared/utils/pairPetArenaApDiscount.js';
 import { getPairPetXpRequirementForLevel } from '../../shared/utils/strategyLevelXp.js';
 import {
     resolveAiLobbyProfileStepFromSettings,
@@ -332,6 +337,7 @@ function trainingXpMultiplier(meta: PairPetMeta): number {
     return meta.specialization.kind === 'trainingXp' ? 1 + meta.specialization.pct / 100 : 1;
 }
 
+/** 수련 보상(`PAIR_PET_CLAIM_TRAINING`) 영혼석 추가 지급 1차 판정 — `soulDrop` 특화는 슬롯 기본 확률에 N%p 가산 */
 function trainingSoulChance(meta: PairPetMeta, baseChance: number): number {
     const extra = meta.specialization.kind === 'soulDrop' ? meta.specialization.pct / 100 : 0;
     return Math.min(0.999, Math.max(0, baseChance + extra));
@@ -1816,14 +1822,16 @@ async function assertAndConsumePairRankedMatchActionPoints(
     pricingRoom: types.PairRoomState,
     nowMs: number,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-    const cost = pairRankedActionPointCostForPairRoom(pricingRoom);
+    const baseCost = pairRankedActionPointCostForPairRoom(pricingRoom);
     for (const u of participants) {
         await applyPassiveActionPointRegenToUser(u, nowMs);
+        const cost = effectivePairRankedApCostForUser(u, baseCost, pricingRoom);
         if (u.actionPoints.current < cost && !u.isAdmin) {
-            return { ok: false, error: `행동력이 부족합니다. (인당 ⚡${cost} 필요)` };
+            return { ok: false, error: `행동력이 부족합니다. (인당 최대 ⚡${baseCost} — 대표 펫 특화로 감소 가능)` };
         }
     }
     for (const u of participants) {
+        const cost = effectivePairRankedApCostForUser(u, baseCost, pricingRoom);
         if (!u.isAdmin && cost > 0) {
             u.actionPoints.current -= cost;
             u.lastActionPointUpdate = nowMs;
@@ -3080,6 +3088,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
 
             const targetUser = await db.getUser(targetUserId);
             if (!targetUser) return { error: '대상을 찾을 수 없습니다.' };
+            if (targetUser.blockArenaPartnerInvites === true) {
+                return { error: '상대가 초대를 받지 않도록 설정했습니다.' };
+            }
             if (room.roomKind === 'friendly_2p' && !hasUsableEquippedPairPet(targetUser)) {
                 return { error: '상대가 대표 펫을 장착해야 2인 친선에 초대할 수 있습니다.' };
             }
@@ -5102,10 +5113,11 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
 
             const soulDrop = rollSoulDropForSlot(slotIndex, metaForBonuses);
             if (soulDrop) {
+                const soulQty = soulDrop.quantity + trainingSoulBonusQuantityFromMeta(metaForBonuses);
                 const soulStack = makePairMaterialStack(
                     soulDrop.materialName,
                     soulTemplateIdFromMaterialName(soulDrop.materialName),
-                    soulDrop.quantity
+                    soulQty
                 );
                 if (!user.inventorySlots) {
                     user.inventorySlots = { equipment: 30, consumable: 30, material: 30 };
@@ -5119,7 +5131,12 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
 
             user.gold = (user.gold ?? 0) + goldGain;
 
-            const soulDropPublic = soulDrop ? { materialName: soulDrop.materialName, quantity: soulDrop.quantity } : null;
+            const soulDropPublic = soulDrop
+                ? {
+                      materialName: soulDrop.materialName,
+                      quantity: soulDrop.quantity + trainingSoulBonusQuantityFromMeta(metaForBonuses),
+                  }
+                : null;
 
             let pairTrainingClaimSummary: PairTrainingClaimClientSummary;
 
@@ -5332,6 +5349,30 @@ const tryMatchPlayersUnlocked = async (volatileState: VolatileState, lobbyType: 
         broadcast({ type: 'RANKED_MATCHING_UPDATE', payload: { queue: volatileState.rankedMatchingQueue } });
         return;
     }
+
+    const matchNowMs = Date.now();
+    await applyPassiveActionPointRegenToUser(player1, matchNowMs);
+    await applyPassiveActionPointRegenToUser(player2, matchNowMs);
+    const rankedAp1 = effectiveStrategicRankedQueueApCostForUser(player1);
+    const rankedAp2 = effectiveStrategicRankedQueueApCostForUser(player2);
+    if ((!player1.isAdmin && player1.actionPoints.current < rankedAp1) || (!player2.isAdmin && player2.actionPoints.current < rankedAp2)) {
+        if (!player1.isAdmin && player1.actionPoints.current < rankedAp1) delete queue[entry1.userId];
+        if (!player2.isAdmin && player2.actionPoints.current < rankedAp2) delete queue[entry2.userId];
+        broadcast({ type: 'RANKED_MATCHING_UPDATE', payload: { queue: volatileState.rankedMatchingQueue } });
+        return;
+    }
+    if (!player1.isAdmin && rankedAp1 > 0) {
+        player1.actionPoints.current -= rankedAp1;
+        player1.lastActionPointUpdate = matchNowMs;
+    }
+    if (!player2.isAdmin && rankedAp2 > 0) {
+        player2.actionPoints.current -= rankedAp2;
+        player2.lastActionPointUpdate = matchNowMs;
+    }
+    await db.updateUser(player1);
+    await db.updateUser(player2);
+    broadcastUserUpdate(player1, ['actionPoints', 'lastActionPointUpdate']);
+    broadcastUserUpdate(player2, ['actionPoints', 'lastActionPointUpdate']);
     
     const negotiation: Negotiation = {
         id: `neg-ranked-${randomUUID()}`,

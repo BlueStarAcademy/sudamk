@@ -108,6 +108,48 @@ describe('PVE item client sync', () => {
         expect(game.currentPlayer).toBe(Player.White);
     });
 
+    it('does not let stale base opening sync skip the AI first move', () => {
+        const board = emptyBoard(5);
+        board[1][1] = Player.Black;
+        board[3][3] = Player.White;
+        const game: any = {
+            id: 'pve-base-opening-stability',
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            blackPlayerId: 'ai-player-01',
+            whitePlayerId: 'human-1',
+            boardState: board,
+            moveHistory: [],
+            currentPlayer: Player.Black,
+            gameStatus: 'playing',
+            mode: 'base',
+            settings: { baseStones: 1, mixedModes: [] },
+            baseStones: [
+                { x: 1, y: 1, player: Player.Black },
+                { x: 3, y: 3, player: Player.White },
+            ],
+        };
+
+        applyPveItemActionClientSync(game, {
+            clientSync: {
+                boardState: emptyBoard(5),
+                moveHistory: [],
+                currentPlayer: Player.White,
+                gameStatus: 'playing',
+                totalTurns: 0,
+            },
+        });
+
+        expect(game.currentPlayer).toBe(Player.Black);
+        expect(game.moveHistory).toEqual([]);
+        expect(game.baseStones).toEqual([
+            { x: 1, y: 1, player: Player.Black },
+            { x: 3, y: 3, player: Player.White },
+        ]);
+        expect(game.boardState[1][1]).toBe(Player.Black);
+        expect(game.boardState[3][3]).toBe(Player.White);
+    });
+
     it('preserveServerHiddenPlacementMeta ignores client hiddenMoves / aiInitialHiddenStone relabeling', () => {
         const board = emptyBoard(5);
         board[1][1] = Player.Black;
@@ -151,5 +193,55 @@ describe('PVE item client sync', () => {
 
         expect(game.hiddenMoves).toEqual({ '1': true });
         expect(game.aiInitialHiddenStone).toEqual({ x: 2, y: 2 });
+    });
+
+    it('carries PVE overlay metadata from the client before a server AI hidden move', () => {
+        const board = emptyBoard(5);
+        board[1][1] = Player.Black;
+        board[3][3] = Player.White;
+        const game: any = {
+            id: 'pve-overlay-sync',
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            blackPlayerId: 'human-1',
+            whitePlayerId: 'ai-player-01',
+            boardState: emptyBoard(5),
+            moveHistory: [],
+            currentPlayer: Player.White,
+            gameStatus: 'playing',
+            mode: 'mix',
+            settings: { mixedModes: ['base', 'hidden'] },
+            captures: { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
+            baseStoneCaptures: { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
+            hiddenStoneCaptures: { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
+        };
+
+        applyPveItemActionClientSync(game, {
+            clientSync: {
+                boardState: board,
+                moveHistory: [],
+                currentPlayer: Player.White,
+                gameStatus: 'playing',
+                baseStones: [
+                    { x: 1, y: 1, player: Player.Black },
+                    { x: 3, y: 3, player: Player.White },
+                ],
+                blackPatternStones: [{ x: 1, y: 1 }],
+                whitePatternStones: [{ x: 3, y: 3 }],
+                baseStoneCaptures: { [Player.None]: 0, [Player.Black]: 2, [Player.White]: 0 },
+                hiddenStoneCaptures: { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 1 },
+                captures: { [Player.None]: 0, [Player.Black]: 10, [Player.White]: 5 },
+            },
+        });
+
+        expect(game.baseStones).toEqual([
+            { x: 1, y: 1, player: Player.Black },
+            { x: 3, y: 3, player: Player.White },
+        ]);
+        expect(game.blackPatternStones).toEqual([{ x: 1, y: 1 }]);
+        expect(game.whitePatternStones).toEqual([{ x: 3, y: 3 }]);
+        expect(game.baseStoneCaptures[Player.Black]).toBe(2);
+        expect(game.hiddenStoneCaptures[Player.White]).toBe(1);
+        expect(game.captures[Player.Black]).toBe(10);
     });
 });

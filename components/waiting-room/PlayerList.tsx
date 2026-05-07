@@ -102,6 +102,8 @@ interface PlayerListProps {
     disableStatusSelect?: boolean;
     /** 유저 목록 제목(h2) 바로 아래 · 내 정보(본인 행) 위 — 전체/친구/길드원 등 */
     listScopeTabs?: ReactNode;
+    /** 전략·놀이·페어 집계 로비: 본인 행에 파트너 초대 수신 거부(초대금지) 체크 */
+    showArenaPartnerInviteBlockToggle?: boolean;
 }
 
 const PlayerList: React.FC<PlayerListProps> = ({
@@ -117,6 +119,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
     inviteCooldownTicker = 0,
     disableStatusSelect = false,
     listScopeTabs,
+    showArenaPartnerInviteBlockToggle = false,
 }) => {
     const { handlers } = useAppContext();
     const isStrategicLobby = lobbyType === 'strategic';
@@ -300,6 +303,31 @@ const PlayerList: React.FC<PlayerListProps> = ({
 
     const hideListHeading = Boolean(pairInvite?.modalLayout);
 
+    const arenaInviteBlockControl =
+        showArenaPartnerInviteBlockToggle ? (
+            <label
+                className={`flex cursor-pointer select-none items-center gap-1 rounded-md border border-cyan-500/35 bg-cyan-950/40 px-1.5 py-0.5 text-cyan-100/95 ${
+                    pairAlignedNativeCompact ? 'text-[0.62rem] sm:text-[10px]' : 'text-[10px] sm:text-xs'
+                }`}
+                title="켜면 다른 플레이어가 페어 경기장에서 나를 파트너로 초대할 수 없습니다."
+                onClick={(e) => e.stopPropagation()}
+            >
+                <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 shrink-0 rounded border-color accent-cyan-500"
+                    checked={currentUser.blockArenaPartnerInvites === true}
+                    onChange={(e) => {
+                        e.stopPropagation();
+                        onAction({
+                            type: 'SET_BLOCK_ARENA_PARTNER_INVITES',
+                            payload: { blocked: e.target.checked },
+                        });
+                    }}
+                />
+                <span className="whitespace-nowrap font-bold">초대금지</span>
+            </label>
+        ) : null;
+
     return (
         <div
             className={`flex min-h-0 flex-col text-on-panel ${
@@ -307,25 +335,29 @@ const PlayerList: React.FC<PlayerListProps> = ({
             }`}
         >
             {!hideListHeading && (
-             <h2
-                className={`flex flex-shrink-0 items-center justify-between border-b border-color pb-2 font-semibold ${
-                    listScopeTabs ? 'mb-1.5' : 'mb-2'
-                } ${pairAlignedNativeCompact ? 'text-sm sm:text-base' : 'text-xl'}`}
-            >
-                <span className="flex items-center gap-1.5 sm:gap-2">
-                    유저 목록
-                    {userCount !== undefined && (
-                        <span
-                            className={`font-normal text-secondary ${
-                                pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs' : 'text-sm'
-                            }`}
-                        >
-                            ({userCount}명 접속 중)
-                        </span>
-                    )}
-                </span>
-            </h2>
+                <h2
+                    className={`flex min-h-0 w-full flex-shrink-0 items-center justify-between gap-2 border-b border-color pb-2 font-semibold ${
+                        listScopeTabs ? 'mb-1.5' : 'mb-2'
+                    } ${pairAlignedNativeCompact ? 'text-sm sm:text-base' : 'text-xl'}`}
+                >
+                    <span className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
+                        유저 목록
+                        {userCount !== undefined && (
+                            <span
+                                className={`truncate font-normal text-secondary ${
+                                    pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs' : 'text-sm'
+                                }`}
+                            >
+                                ({userCount}명 접속 중)
+                            </span>
+                        )}
+                    </span>
+                    {arenaInviteBlockControl}
+                </h2>
             )}
+            {hideListHeading && arenaInviteBlockControl ? (
+                <div className="mb-2 flex shrink-0 justify-end border-b border-white/10 pb-2">{arenaInviteBlockControl}</div>
+            ) : null}
             {listScopeTabs ? <div className="mb-2 shrink-0">{listScopeTabs}</div> : null}
             {me && (
               <div className="flex-shrink-0 mb-2">

@@ -324,7 +324,9 @@ const AppContent: React.FC = () => {
     /** 8인치+ 태블릿(PC 셸)은 세로 스크롤 여유를 PC 화면 보기와 동일하게 둔다 */
     const pcShellUsesScrollLayout = pcLikeMobileLayout || isLargeTouchTablet;
     /** 스케일 셸 전용: 네이티브 모드에서는 좌우 레일·하단 배너로 대체 */
-    const showLobbySideAds = Boolean(currentUser && !isGameView && !isNativeMobile);
+    const showLobbySideAds = Boolean(
+        currentUser && !isGameView && !isNativeMobile && !currentUserWithStatus?.removeAdsPurchased,
+    );
     /** 닉네임 설정: PC main 세로 스크롤로 빈 영역·이중 스크롤 방지 */
     const lockPcMainScroll = currentUser && currentRoute.view === 'set-nickname';
     /** 챔피언십 인게임 경기장: 퀵스트립 없이 본문만 풀 높이 (로비 #/tournament 는 유지) */
@@ -358,7 +360,7 @@ const AppContent: React.FC = () => {
         Boolean(championshipVenueType) &&
         (hasChampionshipVenueSession || hasPendingChampionshipDungeon);
 
-    /** 네이티브 셸 상단 퀵스트립: 프로필 홈/경기장, 전략/놀이/페어 대기실, 길드, 모험, 챔피언십 로비(인게임 제외) — 항상 동일 컴포넌트·동일 슬롯(헤더 바로 아래) */
+    /** 네이티브 셸 상단 퀵스트립: 프로필 홈/경기장, 도전의 탑, 전략/놀이/페어 대기실, 길드, 모험, 챔피언십 로비(인게임 제외) — 항상 동일 컴포넌트·동일 슬롯(헤더 바로 아래) */
     const showNativeTopQuickStrip =
         Boolean(currentUser) &&
         isNativeMobile &&
@@ -366,6 +368,7 @@ const AppContent: React.FC = () => {
         !hideAppHeader &&
         ((currentRoute.view === 'profile' &&
             ['home', 'arena'].includes(((currentRoute.params?.tab as string | undefined) ?? 'home')) ) ||
+            currentRoute.view === 'tower' ||
             currentRoute.view === 'waiting' ||
             currentRoute.view === 'pair' ||
             currentRoute.view === 'guild' ||
@@ -734,13 +737,19 @@ const AppContent: React.FC = () => {
     );
 };
 
+/** `removeAdsPurchased` 시 배너·스크립트 비활성화 */
+const AdProviderFromUser: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { currentUserWithStatus } = useAppContext();
+    return <AdProvider isAdFree={Boolean(currentUserWithStatus?.removeAdsPurchased)}>{children}</AdProvider>;
+};
+
 const App: React.FC = () => {
     return (
         <div className="app-container">
             <AppProvider>
-                <AdProvider>
+                <AdProviderFromUser>
                     <AppContent />
-                </AdProvider>
+                </AdProviderFromUser>
             </AppProvider>
         </div>
     );

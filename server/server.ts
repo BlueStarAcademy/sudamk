@@ -100,6 +100,9 @@ const OFFLINE_REGEN_SKIP_RSS_MB = _replicaLimitMb > 4000 ? 8000 : (process.env.R
 let lastOfflineRegenAt = 0;
 const DAILY_TASK_CHECK_INTERVAL_MS = 60_000; // 1 minute
 let lastDailyTaskCheckAt = 0;
+/** VIP 상점 30일 자동갱신(만료 시 연장) — 전체 유저 스캔 부하 분산 */
+const VIP_SHOP_AUTO_RENEW_INTERVAL_MS = 60_000;
+let lastVipShopAutoRenewAt = 0;
 /** 0시 스케줄러 완료 브로드캐스트를 해당 날짜에 이미 보냈는지 (KST 0시 기준 타임스탬프) */
 let lastSchedulerMidnightBroadcastDay = 0;
 let lastBotScoreUpdateAt = 0;
@@ -1495,6 +1498,16 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 cleanupExpiredNegotiations(volatileState, now);
             } catch (negError: any) {
                 console.error('[MainLoop] Error in negotiation cleanup:', negError?.message);
+            }
+
+            if (now - lastVipShopAutoRenewAt >= VIP_SHOP_AUTO_RENEW_INTERVAL_MS) {
+                lastVipShopAutoRenewAt = now;
+                try {
+                    const { processVipShopAutoRenewals } = await import('./scheduledTasks.js');
+                    await processVipShopAutoRenewals(now);
+                } catch (vipRenewErr: any) {
+                    console.error('[MainLoop] Error in processVipShopAutoRenewals:', vipRenewErr?.message || vipRenewErr);
+                }
             }
             
             // 만료된 메일 정리 (5일 지난 메일 자동 삭제)

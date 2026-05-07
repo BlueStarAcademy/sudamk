@@ -30,20 +30,13 @@ describe('single-player stage stability', () => {
             {
                 ...target,
                 actionPointCost: 7,
-                rewards: {
-                    ...target.rewards,
-                    repeatClear: {
-                        ...target.rewards.repeatClear,
-                        gold: target.rewards.repeatClear.gold + 123,
-                    },
-                },
             },
         ]);
 
         expect(normalized).toHaveLength(DEFAULT_SINGLE_PLAYER_STAGES.length);
         expect(normalized.map((stage) => stage.id)).toEqual(DEFAULT_SINGLE_PLAYER_STAGES.map((stage) => stage.id));
-        expect(normalized[2].actionPointCost).toBe(7);
-        expect(normalized[2].rewards.repeatClear.gold).toBe(target.rewards.repeatClear.gold + 123);
+        const mergedById = normalized.find((s) => s.id === target.id);
+        expect(mergedById?.actionPointCost).toBe(7);
         expect(normalized[0].id).toBe(DEFAULT_SINGLE_PLAYER_STAGES[0].id);
     });
 

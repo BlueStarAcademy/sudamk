@@ -283,9 +283,8 @@ const TowerLobby: React.FC = () => {
     const stageColClass = isNativeMobile
         ? 'flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-lg border-2 border-amber-600/40 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 p-1 shadow-lg shadow-amber-900/40 backdrop-blur-md sm:p-2'
         : 'flex-[7_1_0%] min-w-0 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 sm:p-3 flex flex-col min-h-0 overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50';
-    const quickColClass = isNativeMobile
-        ? `flex h-[min(30dvh,280px)] min-h-[200px] flex-col overflow-hidden self-center ${PC_QUICK_RAIL_COLUMN_CLASS}`
-        : `overflow-hidden ${PC_QUICK_RAIL_COLUMN_CLASS}`;
+    /** 프로필 홈(Profile) 우측 퀵 레일과 동일한 열 래핑 */
+    const quickColClass = `flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`;
 
     const renderTowerFloorRows = () =>
         stages.map((floor) => {
@@ -1158,15 +1157,10 @@ const TowerLobby: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 우측 끝: 퀵메뉴 (PC: 기존 밀도·세로 분배 유지 / 네이티브는 별도 상단 행) */}
-                <div className={quickColClass}>
-                    <div className="bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-1 backdrop-blur-md shadow-2xl shadow-amber-900/50">
-                        <QuickAccessSidebar
-                            fillHeight={!isNativeMobile}
-                            compact={isNativeMobile}
-                            dense={isNativeMobile}
-                            mobile={isNativeMobile}
-                        />
+                {/* 우측 끝: 퀵메뉴 — 프로필 홈과 동일 패널(App 네이티브 상단 퀵스트립과 동일 컴포넌트) */}
+                <div className={quickColClass} aria-label="퀵 메뉴">
+                    <div className="flex h-full min-h-0 flex-col rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40">
+                        <QuickAccessSidebar fillHeight={true} />
                     </div>
                 </div>
             </>

@@ -441,6 +441,7 @@ export const getUsersBrief = async (
         borderId?: string | null;
         isAdmin?: boolean;
         staffNicknameDisplayEligibility?: boolean;
+        blockArenaPartnerInvites?: boolean;
     }>
 > => {
     return prismaGetUsersBrief(ids);

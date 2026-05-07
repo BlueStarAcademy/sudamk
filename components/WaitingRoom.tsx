@@ -287,7 +287,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                         <QuickAccessSidebar />
                     </div>
                 </div>
-                <div className="flex-1 min-h-0"><PlayerList users={usersInThisRoom} mode={mode} onAction={handlers.handleAction} currentUser={currentUserWithStatus} onViewUser={handlers.openViewingUser} lobbyType={lobbyType} /></div>
+                <div className="flex-1 min-h-0"><PlayerList users={usersInThisRoom} mode={mode} onAction={handlers.handleAction} currentUser={currentUserWithStatus} onViewUser={handlers.openViewingUser} lobbyType={lobbyType} showArenaPartnerInviteBlockToggle={isStrategic || isPlayful} /></div>
                 <div className="flex-1 min-h-0 border-t border-color">
                     {isStrategic ? (
                         <RankingList
@@ -341,7 +341,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
             <div className="col-span-2 grid grid-rows-2 gap-4">
               <div className="flex flex-row gap-4 items-stretch min-h-0">
                 <div className={`flex-1 min-w-0 rounded-xl border p-1 ${theme.panel} ${theme.glow}`}>
-                  <PlayerList users={usersInThisRoom} mode={mode} onAction={handlers.handleAction} currentUser={currentUserWithStatus} onViewUser={handlers.openViewingUser} lobbyType={lobbyType} />
+                  <PlayerList users={usersInThisRoom} mode={mode} onAction={handlers.handleAction} currentUser={currentUserWithStatus} onViewUser={handlers.openViewingUser} lobbyType={lobbyType} showArenaPartnerInviteBlockToggle={isStrategic || isPlayful} />
                 </div>
                 <div className={PC_QUICK_RAIL_COLUMN_CLASS}>
                   <QuickAccessSidebar />

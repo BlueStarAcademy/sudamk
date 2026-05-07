@@ -15,7 +15,13 @@ import { initializeBase, updateBaseState, handleBaseAction } from './base.js';
 import { initializeCapture, updateCaptureState, handleCaptureAction } from './capture.js';
 import { initializeHidden, updateHiddenState, handleHiddenAction } from './hidden.js';
 import { initializeMissile, updateMissileState, handleMissileAction } from './missile.js';
-import { handleSharedAction, transitionToPlaying, hasTimeControl, shouldEnforceTimeControl } from './shared.js';
+import {
+    handleSharedAction,
+    transitionToPlaying,
+    hasTimeControl,
+    shouldEnforceTimeControl,
+    enforceBaseSeatLockIfDriftedDuringPlay,
+} from './shared.js';
 import { isFischerStyleTimeControl, getFischerIncrementSeconds } from '../../shared/utils/gameTimeControl.js';
 import {
     advancePairTurn,
@@ -51,6 +57,12 @@ import {
 } from './hiddenRevealPolicy.js';
 import { isHiddenMoveIndexSoftRevealedByAnyPlayer } from './hiddenScanShared.js';
 import { PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS } from '../constants/pveStrategicAiSchedule.js';
+import {
+    arenaUsesClientAuthoritativeScoringSnapshot,
+    getArenaTurnCount,
+    resolveArenaFixedScoringTurnLimit,
+    resolveArenaTurnLimitState,
+} from '../utils/arenaTurnPolicy.js';
 
 function modeIncludesCaptureRule(game: types.LiveGameSession): boolean {
     return game.mode === types.GameMode.Capture ||
@@ -80,9 +92,6 @@ const addSpeedConsumedSeconds = (game: types.LiveGameSession, player: types.Play
     }
     syncSpeedTimePressureCaptures(game, Date.now());
 };
-import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
-import { resolveSinglePlayerAutoScoringTurnCap } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
-
 function findLatestMoveIndexAt(
     moveHistory: types.LiveGameSession['moveHistory'] | undefined,
     x: number,
@@ -580,6 +589,8 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
     updateNigiriState(game, now);
     updateCaptureState(game, now);
     updateBaseState(game, now);
+    /** 본경기 단계로 진입한 베이스 세션은 어떤 업데이트 단계 이후에도 흑/백 좌석이 잠금에서 벗어나선 안 된다. */
+    enforceBaseSeatLockIfDriftedDuringPlay(game);
     
     // 싱글플레이 게임인 경우 싱글플레이용 업데이트 함수 사용
     if (game.isSinglePlayer) {
@@ -715,6 +726,8 @@ const handleStandardAction = async (
 const handleStandardActionCore = async (volatileState: types.VolatileState, game: types.LiveGameSession, action: types.ServerAction, user: types.User): Promise<types.HandleActionResult | null> => {
     const { type, payload } = action as any;
     const now = Date.now();
+    /** 베이스 본경기 좌석 잠금이 어긋나 있으면 액션 처리 직전에 잠금값으로 돌려놓는다(흑/백 영구 스왑 방지). */
+    enforceBaseSeatLockIfDriftedDuringPlay(game);
     const pairClassicGame = isPairClassicGame(game.settings, game.mode);
     const pairCurrentSeat = pairClassicGame ? getCurrentPairTurnSeat(game.settings) : null;
     const myPlayerEnum = pairCurrentSeat
@@ -729,40 +742,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
     const isMyTurn = pairCurrentSeat
         ? user.id === pairCurrentSeat.participantId && pairCurrentSeat.player === game.currentPlayer
         : myPlayerEnum === game.currentPlayer;
-    const resolveFixedScoringTurnState = async () => {
-        let fixedScoringTurnLimit: number | undefined;
-        let countPassAsTurn = false;
-        if (pairClassicGame) {
-            // AI가 포함된 페어바둑은 설정된 제한 수순으로 계가한다. 4인 유저 페어는 기존처럼 모두 PASS가 필요하다.
-            fixedScoringTurnLimit = modeIncludesCaptureRule(game)
-                ? undefined
-                : (game.settings as any)?.scoringTurnLimit;
-            const currentTurnCount = (game.moveHistory || []).filter(m => m && m.x !== -1 && m.y !== -1).length;
-            return { fixedScoringTurnLimit, countPassAsTurn, currentTurnCount };
-        }
-        if ((game as any).gameCategory === 'guildwar') {
-            fixedScoringTurnLimit = (game.settings as any)?.autoScoringTurns;
-        } else if (game.gameCategory === GameCategory.Tower) {
-            fixedScoringTurnLimit = (game.settings as any)?.autoScoringTurns;
-        } else if (game.isSinglePlayer && game.stageId) {
-            const stage = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId);
-            fixedScoringTurnLimit = resolveSinglePlayerAutoScoringTurnCap(game.settings as any, stage);
-        } else {
-            fixedScoringTurnLimit = (game.settings as any)?.autoScoringTurns ?? (game.settings as any)?.scoringTurnLimit;
-            // scoringTurnLimit에서 PASS를 턴으로 포함할지 결정.
-            // - PvP 전략바둑: PASS 포함(기존 규칙 유지)
-            // - 모험/AI/PvE 계열: PASS 제외(실제 착수 수 기준으로 종료)
-            countPassAsTurn =
-                !game.isSinglePlayer &&
-                !game.isAiGame &&
-                String(game.gameCategory ?? '') !== String(GameCategory.Tower) &&
-                String(game.gameCategory ?? '') !== String(GameCategory.Adventure);
-        }
-        const currentTurnCount = countPassAsTurn
-            ? (game.moveHistory || []).length
-            : (game.moveHistory || []).filter(m => m && m.x !== -1 && m.y !== -1).length;
-        return { fixedScoringTurnLimit, countPassAsTurn, currentTurnCount };
-    };
+    const resolveFixedScoringTurnState = () => resolveArenaTurnLimitState(game);
 
     if (type === 'REQUEST_STRATEGIC_PET_HINT') {
         const { handleStrategicPetHintRequest } = await import('../strategicPetHintAction.js');
@@ -801,8 +781,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 }
                 // 온라인 전략바둑/PVP/AI 대국에서는 항상 서버의 게임 상태를 기준으로 계가해야 함
                 // (클라이언트가 새로고침 후 잘못된 boardState를 보내면 오계가 발생할 수 있음)
-                const isClientAuthoritative =
-                    game.isSinglePlayer || game.gameCategory === GameCategory.Tower || game.gameCategory === 'singleplayer';
+                const isClientAuthoritative = arenaUsesClientAuthoritativeScoringSnapshot(game);
 
                 if (isClientAuthoritative) {
                     // 싱글플레이/도전의 탑: 클라이언트가 보낸 최종 보드/수순을 우선 사용
@@ -854,36 +833,10 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     updateGameCache(game);
                 }
                 
-                // 0/N 도달 검증: 싱글/탑은 유효 착수 수, 온라인(PVP 등)은 moveHistory 길이(PASS 포함) — strategic.ts·scoringTurnLimit와 동일
-                const validMoves = (game.moveHistory || []).filter((m: { x: number; y: number }) => m && m.x !== -1 && m.y !== -1);
-                const useMoveHistoryCountForLimit =
-                    !game.isSinglePlayer &&
-                    !game.isAiGame &&
-                    game.gameCategory !== 'tower' &&
-                    game.gameCategory !== GameCategory.Adventure;
-                const totalTurns = useMoveHistoryCountForLimit
-                    ? (game.moveHistory || []).length
-                    : validMoves.length;
+                // 0/N 도달 검증은 경기장 정책의 PASS 포함 여부를 단일 기준으로 사용한다.
+                const totalTurns = getArenaTurnCount(game);
                 game.totalTurns = totalTurns;
-                let autoScoringTurns: number | undefined;
-                if (game.gameCategory === GameCategory.Tower) {
-                    autoScoringTurns = (game.settings as any)?.autoScoringTurns;
-                    if (autoScoringTurns == null && (game.stageId != null || game.towerFloor != null)) {
-                        const { TOWER_STAGES } = await import('../../constants/towerConstants.js');
-                        const stage =
-                            game.stageId != null
-                                ? TOWER_STAGES.find((s: { id: string }) => s.id === game.stageId)
-                                : game.towerFloor != null && Number(game.towerFloor) >= 1
-                                  ? TOWER_STAGES[Number(game.towerFloor) - 1]
-                                  : undefined;
-                        autoScoringTurns = stage?.autoScoringTurns;
-                    }
-                } else if (game.isSinglePlayer && game.stageId) {
-                    const spStage = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId);
-                    autoScoringTurns = resolveSinglePlayerAutoScoringTurnCap(game.settings as any, spStage);
-                } else {
-                    autoScoringTurns = (game.settings as any)?.autoScoringTurns ?? (game.settings as any)?.scoringTurnLimit;
-                }
+                const autoScoringTurns = await resolveArenaFixedScoringTurnLimit(game);
                 const remainingTurns = autoScoringTurns != null ? Math.max(0, autoScoringTurns - totalTurns) : 0;
                 if (autoScoringTurns != null && remainingTurns > 0) {
                     console.warn(`[handleStandardAction] triggerAutoScoring ignored: remainingTurns=${remainingTurns} (totalTurns=${totalTurns}, autoScoringTurns=${autoScoringTurns})`);
@@ -931,40 +884,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 if (payload.hiddenMoves != null && typeof payload.hiddenMoves === 'object') {
                     game.hiddenMoves = { ...payload.hiddenMoves };
                 }
-                const validMovesSync = (game.moveHistory || []).filter(
-                    (m: { x: number; y: number }) => m && m.x !== -1 && m.y !== -1
-                );
-                const useMoveHistoryCountForLimitSync =
-                    !game.isSinglePlayer &&
-                    !game.isAiGame &&
-                    game.gameCategory !== 'tower' &&
-                    game.gameCategory !== GameCategory.Adventure;
-                const totalTurnsSync = useMoveHistoryCountForLimitSync
-                    ? (game.moveHistory || []).length
-                    : validMovesSync.length;
+                const totalTurnsSync = getArenaTurnCount(game);
                 game.totalTurns = totalTurnsSync;
-                let autoScoringTurnsSync: number | undefined;
-                if (game.gameCategory === GameCategory.Tower) {
-                    autoScoringTurnsSync = (game.settings as any)?.autoScoringTurns;
-                    if (autoScoringTurnsSync == null && (game.stageId != null || game.towerFloor != null)) {
-                        const { TOWER_STAGES } = await import('../../constants/towerConstants.js');
-                        const stage =
-                            game.stageId != null
-                                ? TOWER_STAGES.find((s: { id: string }) => s.id === game.stageId)
-                                : game.towerFloor != null && Number(game.towerFloor) >= 1
-                                  ? TOWER_STAGES[Number(game.towerFloor) - 1]
-                                  : undefined;
-                        autoScoringTurnsSync = stage?.autoScoringTurns;
-                    }
-                } else if (game.isSinglePlayer && game.stageId) {
-                    const spStageSync = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId);
-                    autoScoringTurnsSync = resolveSinglePlayerAutoScoringTurnCap(game.settings as any, spStageSync);
-                } else {
-                    autoScoringTurnsSync =
-                        game.mode === types.GameMode.Capture
-                            ? undefined
-                            : (game.settings as any)?.autoScoringTurns ?? (game.settings as any)?.scoringTurnLimit;
-                }
+                const autoScoringTurnsSync = await resolveArenaFixedScoringTurnLimit(game);
                 const remainingTurnsSync = autoScoringTurnsSync != null ? Math.max(0, autoScoringTurnsSync - totalTurnsSync) : 0;
                 if (autoScoringTurnsSync != null && remainingTurnsSync <= 0) {
                     if (game.endTime == null) game.endTime = Date.now();
@@ -1261,7 +1183,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             
             if (effectiveIsHidden) {
                 // 히든 아이템 개수 확인 및 감소 (스캔 아이템처럼)
-                const hiddenKey = user.id === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
+                // p1/p2는 흑/백을 의미한다 — player1 좌석과 무관 (페어바둑 파트너 user.id가 player1.id와 다른 경우 대비)
+                const myIsBlack = myPlayerEnum === types.Player.Black;
+                const hiddenKey = myIsBlack ? 'hidden_stones_p1' : 'hidden_stones_p2';
                 if ((game as any).gameCategory === 'tower' && hiddenKey === 'hidden_stones_p1' && game.player1?.id === user.id) {
                     const { syncTowerP1ConsumableSessionFromInventory } = await import('./towerPlayerHidden.js');
                     syncTowerP1ConsumableSessionFromInventory(game, user, 'hidden');
@@ -1273,7 +1197,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 game[hiddenKey] = currentHidden - 1;
                 
                 // 사용 횟수도 추적 (통계용)
-                const usedKey = user.id === game.player1.id ? 'hidden_stones_used_p1' : 'hidden_stones_used_p2';
+                const usedKey = myIsBlack ? 'hidden_stones_used_p1' : 'hidden_stones_used_p2';
                 game[usedKey] = (game[usedKey] || 0) + 1;
             }
 
@@ -1650,43 +1574,20 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             }
 
             // 싱글플레이/도전의 탑/길드전(히든·미사일) 자동 계가: 사용자가 돌을 놓은 후 totalTurns 업데이트 및 계가 트리거
-            const guildWarAutoScoring =
-                (game as any).gameCategory === 'guildwar' &&
-                (game.settings as any)?.autoScoringTurns != null &&
-                (game.settings as any)?.autoScoringTurns > 0;
-            const pairAutoScoring =
-                pairClassicGame &&
-                !modeIncludesCaptureRule(game) &&
-                (game.settings as any)?.scoringTurnLimit != null &&
-                (game.settings as any)?.scoringTurnLimit > 0;
-            const isAutoScoringMode =
-                (((game.isSinglePlayer || game.gameCategory === GameCategory.Tower) && game.stageId) || guildWarAutoScoring || pairAutoScoring);
+            const autoScoringTurns = await resolveArenaFixedScoringTurnLimit(game);
+            const isAutoScoringMode = autoScoringTurns != null && autoScoringTurns > 0;
             if (isAutoScoringMode) {
-                let autoScoringTurns: number | undefined;
-                if (pairAutoScoring) {
-                    autoScoringTurns = (game.settings as any)?.scoringTurnLimit;
-                } else if (guildWarAutoScoring) {
-                    autoScoringTurns = (game.settings as any)?.autoScoringTurns;
-                } else if (game.gameCategory === GameCategory.Tower) {
-                    autoScoringTurns = (game.settings as any)?.autoScoringTurns;
-                } else {
-                    const stage = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId);
-                    autoScoringTurns = resolveSinglePlayerAutoScoringTurnCap(game.settings as any, stage);
-                }
-                
                 if (autoScoringTurns !== undefined) {
-                    // 유효한 수만 카운팅 (패스 제외)
-                    const validMoves = game.moveHistory.filter(m => m.x !== -1 && m.y !== -1);
-                    const newTotalTurns = validMoves.length;
+                    const newTotalTurns = getArenaTurnCount(game);
                     game.totalTurns = newTotalTurns;
                     
                     // totalTurns가 autoScoringTurns 이상이면 계가 트리거 (사용자가 마지막 수를 둔 경우)
                     if (newTotalTurns >= autoScoringTurns) {
                         const gameType = game.gameCategory === GameCategory.Tower
                             ? 'Tower'
-                            : guildWarAutoScoring
+                            : (game as any).gameCategory === 'guildwar'
                               ? 'GuildWar'
-                              : pairAutoScoring
+                              : pairClassicGame
                                 ? 'Pair'
                               : 'SinglePlayer';
                         console.log(`[handleStandardAction] Auto-scoring triggered (user placed last stone): totalTurns=${newTotalTurns}, autoScoringTurns=${autoScoringTurns}, ${gameType}`);

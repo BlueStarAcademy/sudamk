@@ -473,6 +473,10 @@ const applyDefaults = (
     mbti: user.mbti ?? null,
     rejectedGameModes: user.rejectedGameModes ?? [],
     isMbtiPublic: user.isMbtiPublic ?? false,
+    blockArenaPartnerInvites: !!(
+      user.blockArenaPartnerInvites ??
+      (status?.serializedUser as User | undefined)?.blockArenaPartnerInvites
+    ),
     statResetCountToday: user.statResetCountToday ?? 0,
     lastStatResetDate: user.lastStatResetDate ?? null,
     singlePlayerProgress: user.singlePlayerProgress ?? 0,
@@ -571,6 +575,12 @@ const applyDefaults = (
         user.diamondPackageLastMailDayKST ??
         (status?.serializedUser as User | undefined)?.diamondPackageLastMailDayKST ??
         undefined,
+    removeAdsPurchased:
+        user.removeAdsPurchased ??
+        (status?.serializedUser as User | undefined)?.removeAdsPurchased ??
+        false,
+    vipShopAutoRenew:
+        user.vipShopAutoRenew ?? (status?.serializedUser as User | undefined)?.vipShopAutoRenew ?? undefined,
   };
   const withExchangeFlags = reconcileExchangeListedInventoryFlags(out);
   reconcileEquippedPairPetInventoryItem(withExchangeFlags);
@@ -709,6 +719,7 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
           options: meta?.options || itemInfo?.options || [],
           enhancementFails: meta?.enhancementFails || 0,
           ...(meta.isExchangeListed === true ? { isExchangeListed: true as const } : {}),
+          ...(meta.source === 'tower' ? { source: 'tower' as const } : {}),
         };
         inventoryFromTable.push(normalizeInventoryEquipmentItem(item));
       }

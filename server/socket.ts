@@ -5,6 +5,48 @@ import { volatileState } from './state.js';
 import { releaseIpBindingForUser } from './ipLoginPolicy.js';
 import { scheduleWebSocketMetricsSample } from './serverLoadMetrics.js';
 import { WEBSOCKET_ADMIN_FORCE_LOGOUT_CLOSE_CODE } from '../shared/constants/auth.js';
+import { getArenaTurnCount } from './utils/arenaTurnPolicy.js';
+import { GameMode } from '../types/index.js';
+
+/**
+ * 베이스 세션의 본경기 단계 좌석 잠금 보호:
+ * `playingLockedBlackPlayerId/whitePlayerId`가 있고 본경기·아이템 연출 단계라면
+ * `blackPlayerId/whitePlayerId`를 잠금값으로 강제한다. (베이스 임시 좌석 잔재가 새어나가는 것을 차단)
+ * 순환 import 방지를 위해 socket.ts 내부에 두며, server/modes/shared.ts의 동명 함수와 동일 정책이다.
+ */
+const BASE_SEAT_LOCK_PROTECTED_STATUSES = new Set([
+    'playing',
+    'hidden_placing',
+    'scanning',
+    'scanning_animating',
+    'hidden_reveal_animating',
+    'hidden_final_reveal',
+    'missile_selecting',
+    'missile_animating',
+    'scoring',
+    'ended',
+    'no_contest',
+]);
+
+const enforceBaseSeatLockBeforeBroadcast = (game: unknown): void => {
+    if (!game || typeof game !== 'object') return;
+    const g = game as Record<string, any>;
+    const mode = g.mode;
+    const includesBase =
+        mode === GameMode.Base ||
+        (mode === GameMode.Mix &&
+            Array.isArray(g.settings?.mixedModes) &&
+            g.settings.mixedModes.includes(GameMode.Base));
+    if (!includesBase) return;
+    const lb = g.playingLockedBlackPlayerId;
+    const lw = g.playingLockedWhitePlayerId;
+    if (typeof lb !== 'string' || lb.length === 0 || typeof lw !== 'string' || lw.length === 0) return;
+    const status = String(g.gameStatus ?? '');
+    if (!BASE_SEAT_LOCK_PROTECTED_STATUSES.has(status)) return;
+    if (g.blackPlayerId === lb && g.whitePlayerId === lw) return;
+    g.blackPlayerId = lb;
+    g.whitePlayerId = lw;
+};
 
 let wss: WebSocketServer;
 // WebSocket 연결과 userId 매핑 (대역폭 최적화를 위해 게임 참가자에게만 전송)
@@ -314,14 +356,7 @@ export const createWebSocketServer = (server: Server) => {
                         if ((scoringLimit > 0 || (autoScoring != null && autoScoring > 0)) && (optimizedGame.totalTurns == null || optimizedGame.totalTurns === 0)) {
                             const moves = (optimizedGame as any).moveHistory;
                             if (Array.isArray(moves) && moves.length > 0) {
-                                const isPairGameForList = Boolean((optimizedGame.settings as any)?.pairGame);
-                                // 페어 AI 제한 수순은 실제 착수만 카운트한다. 일반 PvP scoringTurnLimit은 PASS 포함.
-                                if (scoringLimit > 0 && !isPairGameForList) {
-                                    (optimizedGame as any).totalTurns = moves.length;
-                                } else {
-                                    const validCount = moves.filter((m: { x: number; y: number }) => m.x !== -1 && m.y !== -1).length;
-                                    if (validCount > 0) (optimizedGame as any).totalTurns = validCount;
-                                }
+                                (optimizedGame as any).totalTurns = getArenaTurnCount(optimizedGame as any);
                             }
                         }
                         delete (optimizedGame as any).boardState; // 대역폭 절약
@@ -534,6 +569,13 @@ export const createWebSocketServer = (server: Server) => {
 // GAME_UPDATE인 경우 revealedHiddenMoves를 수신자별로 필터링: 본인은 자신의 스캔 정보만, 상대/관전자는 스캔 정보 미수신
 export const broadcastToGameParticipants = (gameId: string, message: any, game: any) => {
     if (!wss || !game) return;
+    /** 베이스 본경기 좌석 잠금 보호: 어떤 경로로든 흑/백 ID가 잠금에서 벗어나면 송신 직전에 되돌린다. */
+    enforceBaseSeatLockBeforeBroadcast(game);
+    if (message?.type === 'GAME_UPDATE' && message.payload && typeof message.payload === 'object') {
+        for (const g of Object.values(message.payload as Record<string, unknown>)) {
+            enforceBaseSeatLockBeforeBroadcast(g);
+        }
+    }
     const participantIds = new Set<string>();
     if (game.player1?.id) participantIds.add(game.player1.id);
     if (game.player2?.id) participantIds.add(game.player2.id);

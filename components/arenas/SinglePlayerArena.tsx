@@ -9,6 +9,8 @@ import { resolveSinglePlayerSurvivalMode } from '../../shared/utils/singlePlayer
 import { canViewerPlaceMoreBaseStones } from '../../shared/utils/basePlacementCanPlaceMore.js';
 
 interface SinglePlayerArenaProps extends GameProps {
+    /** 전략 대표펫 힌트: Game.tsx → GameArena → 바둑판 파란 점 */
+    strategicPetHintBoardOverlay?: { x: number; y: number; message: string; showBubble: boolean } | null;
     isMyTurn: boolean;
     myPlayerEnum: Player;
     handleBoardClick: (x: number, y: number) => void;
@@ -133,7 +135,15 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         onboardingForcedFirstMovePoint = null,
         intro1TutorialHighlight = null,
         singlePlayerStagesListRevision = 0,
+        strategicPetHintBoardOverlay = null,
     } = props;
+
+    const strategicPetHintDotOverlay = useMemo(() => {
+        if (!strategicPetHintBoardOverlay) return null;
+        const { x, y } = strategicPetHintBoardOverlay;
+        if (typeof x !== 'number' || typeof y !== 'number' || x < 0 || y < 0) return null;
+        return { x, y };
+    }, [strategicPetHintBoardOverlay]);
     
     const {
         boardState,
@@ -526,6 +536,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     highlightedPoints={intro1TutorialHighlight ? [intro1TutorialHighlight] : undefined}
                     highlightStyle="ring"
                     canPlaceMoreBaseStones={canPlaceMoreBaseStones}
+                    strategicPetHintOverlay={strategicPetHintDotOverlay}
                 />
                 {showBoardGlow && (
                     <div

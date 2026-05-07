@@ -171,48 +171,32 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
         const isFirstClear = !clearedStages.includes(currentStage.id);
         
         if (isWinner) {
-            const rewards = isFirstClear 
-                ? currentStage.rewards.firstClear 
-                : currentStage.rewards.repeatClear;
-            
+            if (!isFirstClear) {
+                return {
+                    gold: 0,
+                    xp: { initial: currentUser.userXp, change: 0, final: currentUser.userXp },
+                    items: [],
+                };
+            }
+            const rewards = currentStage.rewards.firstClear;
             return {
                 gold: rewards.gold || 0,
                 xp: {
                     initial: currentUser.userXp,
                     change: rewards.exp || 0,
-                    final: currentUser.userXp + (rewards.exp || 0)
+                    final: currentUser.userXp + (rewards.exp || 0),
                 },
-                items: rewards.items ? rewards.items.map((item: any) => ({
-                    id: `temp-${item.itemId}-${Date.now()}`,
-                    name: item.itemId,
-                    image: '/images/icon/item.png', // 기본 이미지
-                    type: 'consumable',
-                    grade: 'common',
-                    quantity: item.quantity || 1
-                })) : []
+                items: rewards.items
+                    ? rewards.items.map((item: any) => ({
+                          id: `temp-${item.itemId}-${Date.now()}`,
+                          name: item.itemId,
+                          image: '/images/icon/item.png',
+                          type: 'consumable',
+                          grade: 'common',
+                          quantity: item.quantity || 1,
+                      }))
+                    : [],
             };
-        } else {
-            // 실패시 보상: 재도전이고 기권이 아닌 경우에만 성공 보상의 10% 지급
-            const isResign = session.winReason === 'resign';
-            const isRepeatAttempt = clearedStages.includes(currentStage.id);
-            
-            if (isRepeatAttempt && !isResign) {
-                const successRewards = currentStage.rewards.repeatClear;
-                const failureRewards = {
-                    gold: Math.round(successRewards.gold * 0.1),
-                    exp: Math.round(successRewards.exp * 0.1)
-                };
-                
-                return {
-                    gold: failureRewards.gold,
-                    xp: {
-                        initial: currentUser.userXp,
-                        change: failureRewards.exp,
-                        final: currentUser.userXp + failureRewards.exp
-                    },
-                    items: []
-                };
-            }
         }
         
         return null;

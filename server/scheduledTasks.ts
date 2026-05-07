@@ -3161,3 +3161,63 @@ export async function tryRunDailyDatabaseBackup(now: number): Promise<void> {
         console.error('[DailyDbBackup] Failed:', res.error);
     }
 }
+
+/**
+ * 상점 VIP 「30일 자동갱신」: 해당 VIP 만료 후(만료 시각 ≤ now) 등록 구독이면
+ * 결제 성공을 가정하고 30일을 연장합니다. 실제 PG 연동 시 이전에 결제 승인을 호출하세요.
+ */
+export async function processVipShopAutoRenewals(nowMs: number = Date.now()): Promise<void> {
+    const { listUsers } = await import('./prisma/userService.js');
+    const { VIP_SHOP_PRODUCT_IDS, VIP_SHOP_DURATION_DAYS, getVipShopGrantFlagsForProductId } = await import(
+        '../shared/constants/vipShopProducts.js'
+    );
+    const { applyVipDurationExtensionToUser } = await import('../shared/utils/vipDurationGrant.js');
+    const { broadcastUserUpdate } = await import('./socket.js');
+
+    let users: Awaited<ReturnType<typeof listUsers>>;
+    try {
+        users = await listUsers({ includeEquipment: false, includeInventory: false });
+    } catch (e: any) {
+        console.warn('[VipShopAutoRenew] listUsers failed:', e?.message || e);
+        return;
+    }
+
+    let renewed = 0;
+    for (const user of users) {
+        const renew = user.vipShopAutoRenew;
+        if (!renew || typeof renew !== 'object') continue;
+
+        let changed = false;
+        for (const productId of VIP_SHOP_PRODUCT_IDS) {
+            if (renew[productId] !== true) continue;
+            const expField =
+                productId === 'reward_vip'
+                    ? 'rewardVipExpiresAt'
+                    : productId === 'function_vip'
+                      ? 'functionVipExpiresAt'
+                      : 'vvipExpiresAt';
+            const exp = (user as Record<string, unknown>)[expField];
+            const expMs = typeof exp === 'number' && Number.isFinite(exp) ? exp : 0;
+            if (!(expMs > 0) || expMs > nowMs) continue;
+
+            const flags = getVipShopGrantFlagsForProductId(productId);
+            const days = VIP_SHOP_DURATION_DAYS[productId];
+            applyVipDurationExtensionToUser(user, flags, days * 86400000, nowMs);
+            changed = true;
+        }
+
+        if (changed) {
+            try {
+                await db.updateUser(user);
+                broadcastUserUpdate(user, ['rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt']);
+                renewed++;
+            } catch (err: any) {
+                console.warn(`[VipShopAutoRenew] Failed user ${user.id}:`, err?.message || err);
+            }
+        }
+    }
+
+    if (renewed > 0) {
+        console.log(`[VipShopAutoRenew] Renewed VIP for ${renewed} user(s)`);
+    }
+}

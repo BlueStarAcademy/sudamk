@@ -151,6 +151,41 @@ const BASE_PRE_PLAY_STATUSES = new Set([
     'base_game_start_confirmation',
 ]);
 
+function isMissileLikePveGame(game: LiveGameSession): boolean {
+    const gc = String((game as { gameCategory?: string }).gameCategory ?? '');
+    const pveLike =
+        game.isSinglePlayer || gc === 'tower' || gc === 'singleplayer' || gc === 'guildwar' || gc === 'adventure';
+    if (!pveLike) return false;
+    const mode = String(game.mode ?? '');
+    return (
+        game.mode === GameMode.Missile ||
+        mode === 'missile' ||
+        (game.mode === GameMode.Mix &&
+            Array.isArray((game.settings as any)?.mixedModes) &&
+            (game.settings as any).mixedModes.includes(GameMode.Missile))
+    );
+}
+
+function applySameLengthHumanMoveHistorySync(
+    game: LiveGameSession,
+    syncedMoveHistory: LiveGameSession['moveHistory'],
+    serverMoveHistoryLength: number
+): void {
+    if (!isMissileLikePveGame(game)) return;
+    if (!Array.isArray(game.moveHistory) || !Array.isArray(syncedMoveHistory)) return;
+    if (syncedMoveHistory.length !== serverMoveHistoryLength || game.moveHistory.length !== serverMoveHistoryLength) return;
+
+    for (let i = 0; i < game.moveHistory.length; i++) {
+        const serverMove = game.moveHistory[i];
+        const syncedMove = syncedMoveHistory[i];
+        if (!serverMove || !syncedMove) continue;
+        if (serverMove.player !== syncedMove.player) continue;
+        if (isAiControlledPlayer(game, serverMove.player)) continue;
+        if (!isPlayablePoint(serverMove) || !isPlayablePoint(syncedMove)) continue;
+        game.moveHistory[i] = { ...serverMove, x: syncedMove.x, y: syncedMove.y };
+    }
+}
+
 function preserveBaseStonesAfterClientSync(
     game: LiveGameSession,
     serverBaseStonesSnapshot: NonNullable<LiveGameSession['baseStones']> | undefined,
@@ -172,6 +207,66 @@ function preserveBaseStonesAfterClientSync(
     game.baseStones = serverBaseStonesSnapshot
         .filter((stone) => game.boardState[stone.y]?.[stone.x] === stone.player)
         .map((stone) => ({ ...stone }));
+}
+
+function mergeMonotonicCountRecord<T extends LiveGameSession['captures'] | LiveGameSession['baseStoneCaptures']>(
+    current: T,
+    incoming: T | undefined
+): T {
+    if (!incoming || typeof incoming !== 'object') return current;
+    const keys = new Set<number>();
+    for (const src of [current, incoming]) {
+        if (!src || typeof src !== 'object') continue;
+        for (const key of Object.keys(src as object)) keys.add(Number(key));
+    }
+    const out: Record<number, number> = {};
+    for (const key of keys) {
+        out[key] = Math.max(Number((current as any)?.[key]) || 0, Number((incoming as any)?.[key]) || 0);
+    }
+    return out as T;
+}
+
+function applyClientBaseStoneSnapshotIfAuthoritative(
+    game: LiveGameSession,
+    sync: PveItemActionClientSync,
+    serverBaseStonesSnapshot: NonNullable<LiveGameSession['baseStones']> | undefined,
+    syncAdvancesServerMoves: boolean
+): void {
+    if (!Array.isArray(sync.baseStones) || !Array.isArray(game.boardState)) return;
+    if (!syncAdvancesServerMoves && serverBaseStonesSnapshot?.length) return;
+
+    game.baseStones = sync.baseStones
+        .filter((stone) => {
+            if (!stone || typeof stone.x !== 'number' || typeof stone.y !== 'number') return false;
+            return game.boardState[stone.y]?.[stone.x] === stone.player;
+        })
+        .map((stone) => ({ ...stone }));
+}
+
+function applyClientOverlaySnapshotsIfPresent(game: LiveGameSession, sync: PveItemActionClientSync): void {
+    if (Array.isArray(sync.blackPatternStones)) {
+        game.blackPatternStones = sync.blackPatternStones.map((p) => ({ ...p }));
+    }
+    if (Array.isArray(sync.whitePatternStones)) {
+        game.whitePatternStones = sync.whitePatternStones.map((p) => ({ ...p }));
+    }
+    if (Array.isArray(sync.consumedPatternIntersections)) {
+        (game as any).consumedPatternIntersections = sync.consumedPatternIntersections.map((p) => ({ ...p }));
+    }
+    game.baseStoneCaptures = mergeMonotonicCountRecord(game.baseStoneCaptures, sync.baseStoneCaptures);
+    game.hiddenStoneCaptures = mergeMonotonicCountRecord(game.hiddenStoneCaptures, sync.hiddenStoneCaptures);
+}
+
+function hasCommittedBaseOpeningWithoutMoves(
+    game: LiveGameSession,
+    serverBaseStonesSnapshot: NonNullable<LiveGameSession['baseStones']> | undefined,
+    serverMoveHistoryLength: number
+): boolean {
+    return (
+        serverMoveHistoryLength === 0 &&
+        !!serverBaseStonesSnapshot?.length &&
+        String(game.gameStatus) === 'playing'
+    );
 }
 
 /** PVE: 클라(TOWER_CLIENT_MOVE 등)만 앞서 있는 판·hiddenMoves를 아이템 액션 직전 서버 세션에 반영 */
@@ -196,15 +291,25 @@ export function applyPveItemActionClientSync(
     const syncedBoardState = sync.boardState.map((row: number[]) => [...row]);
     const syncedMoveHistory = sync.moveHistory.map((m) => ({ ...m }));
     const syncAdvancesServerMoves = syncedMoveHistory.length > serverMoveHistoryLength;
+    const serverBaseOpeningNoMoves = hasCommittedBaseOpeningWithoutMoves(
+        game,
+        serverBaseStonesSnapshot,
+        serverMoveHistoryLength
+    );
     const syncStatusString = String(sync.gameStatus ?? '');
     const syncCanReplaceServerProgress =
-        syncAdvancesServerMoves || (serverMoveHistoryLength === 0 && !BASE_PRE_PLAY_STATUSES.has(syncStatusString));
+        syncAdvancesServerMoves ||
+        (!serverBaseOpeningNoMoves && serverMoveHistoryLength === 0 && !BASE_PRE_PLAY_STATUSES.has(syncStatusString));
     keepServerAiMoveHistoryStable(game, syncedMoveHistory, syncedBoardState);
     if (syncCanReplaceServerProgress) {
         game.boardState = syncedBoardState;
         game.moveHistory = syncedMoveHistory;
+    } else {
+        applySameLengthHumanMoveHistorySync(game, syncedMoveHistory, serverMoveHistoryLength);
     }
     preserveBaseStonesAfterClientSync(game, serverBaseStonesSnapshot, syncAdvancesServerMoves);
+    applyClientBaseStoneSnapshotIfAuthoritative(game, sync, serverBaseStonesSnapshot, syncAdvancesServerMoves);
+    applyClientOverlaySnapshotsIfPresent(game, sync);
     if (!preserveHiddenMeta && sync.hiddenMoves != null && typeof sync.hiddenMoves === 'object') {
         // Stale clientSync must never erase server-confirmed hidden metadata.
         // In particular, AI hidden item flow records hiddenMoves on the server after the thinking animation.
@@ -263,7 +368,7 @@ export function applyPveItemActionClientSync(
         }
     }
     if (sync.captures && typeof sync.captures === 'object') {
-        game.captures = { ...game.captures, ...sync.captures } as typeof game.captures;
+        game.captures = mergeMonotonicCountRecord(game.captures, sync.captures);
     }
     if ('koInfo' in sync) {
         game.koInfo = sync.koInfo ?? null;
@@ -283,6 +388,8 @@ export function applyPveItemActionClientSync(
         (game as { aiInitialHiddenStoneIsPrePlaced?: unknown }).aiInitialHiddenStoneIsPrePlaced = serverAiInitialHiddenPre;
     }
 
+    enforcePlayingSeatLockOnPveItemSync(game);
+
     const gc = String((game as any).gameCategory ?? '');
     const pveLike =
         game.isSinglePlayer || gc === 'tower' || gc === 'singleplayer' || gc === 'guildwar' || gc === 'adventure';
@@ -290,4 +397,25 @@ export function applyPveItemActionClientSync(
         // clientSync 이후에도 남은 오프닝 스냅샷 + 수순 조합이 Kata 재생과 어긋나 Illegal move가 날 수 있음 → 다음 AI에서 재검증
         (game as any).kataPveKataMovesFromBoardStateOnly = false;
     }
+}
+
+/**
+ * 베이스 세션의 본경기 단계에서 `blackPlayerId/whitePlayerId`가 잠금과 어긋났으면 되돌린다.
+ * (베이스 임시 좌석 잔재가 어떤 경로로든 본경기에 새어나오지 않도록 추가 안전장치)
+ */
+function enforcePlayingSeatLockOnPveItemSync(game: LiveGameSession): void {
+    const includesBase =
+        game.mode === GameMode.Base ||
+        (game.mode === GameMode.Mix &&
+            Array.isArray((game.settings as any)?.mixedModes) &&
+            (game.settings as any).mixedModes.includes(GameMode.Base));
+    if (!includesBase) return;
+    const lb = (game as { playingLockedBlackPlayerId?: unknown }).playingLockedBlackPlayerId;
+    const lw = (game as { playingLockedWhitePlayerId?: unknown }).playingLockedWhitePlayerId;
+    if (typeof lb !== 'string' || lb.length === 0 || typeof lw !== 'string' || lw.length === 0) return;
+    const status = String(game.gameStatus ?? '');
+    if (status.startsWith('base_')) return;
+    if (game.blackPlayerId === lb && game.whitePlayerId === lw) return;
+    game.blackPlayerId = lb;
+    game.whitePlayerId = lw;
 }

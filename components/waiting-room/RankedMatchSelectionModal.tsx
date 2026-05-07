@@ -4,6 +4,8 @@ import Button from '../Button.js';
 import { GameMode, GameSettings } from '../../types.js';
 import { SPECIAL_GAME_MODES, RANKED_STRATEGIC_MODES, STRATEGIC_ACTION_POINT_COST } from '../../constants/index.js';
 import { RANKED_GAME_SETTINGS } from '../../constants/rankedGameSettings.js';
+import { useAppContext } from '../../hooks/useAppContext.js';
+import { effectiveStrategicRankedQueueApCostForUser } from '../../shared/utils/pairPetArenaApDiscount.js';
 
 interface RankedMatchSelectionModalProps {
     onClose: () => void;
@@ -73,7 +75,11 @@ const GameCard: React.FC<{
 };
 
 const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ onClose, onStartMatching }) => {
-    const actionPointCost = STRATEGIC_ACTION_POINT_COST;
+    const { currentUser } = useAppContext();
+    const actionPointCost = useMemo(
+        () => (currentUser ? effectiveStrategicRankedQueueApCostForUser(currentUser) : STRATEGIC_ACTION_POINT_COST),
+        [currentUser],
+    );
     const availableModes = useMemo(() => RANKED_STRATEGIC_MODES, []);
 
     const availableGameDefinitions = useMemo(() => {

@@ -46,8 +46,12 @@ export const getScoringTurnLimitOptionsByBoardSize = (boardSize: number): readon
 
 export const getAiScoringTurnLimitByBoardSize = (boardSize: number): number => {
   switch (boardSize) {
+    case 7:
+      return 30;
     case 9:
       return 50;
+    case 11:
+      return 60;
     case 13:
       return 80;
     case 19:

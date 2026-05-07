@@ -13,9 +13,17 @@ export function buildPveItemActionClientSync(session: LiveGameSession): PveItemA
         moveHistory: moveHistory.map((m) => ({ ...m })),
         hiddenMoves: session.hiddenMoves ? { ...session.hiddenMoves } : undefined,
         permanentlyRevealedStones: session.permanentlyRevealedStones?.map((p) => ({ ...p })),
+        baseStones: session.baseStones?.map((p) => ({ ...p })),
+        blackPatternStones: session.blackPatternStones?.map((p) => ({ ...p })),
+        whitePatternStones: session.whitePatternStones?.map((p) => ({ ...p })),
+        consumedPatternIntersections: Array.isArray((session as any).consumedPatternIntersections)
+            ? (session as any).consumedPatternIntersections.map((p: { x: number; y: number }) => ({ ...p }))
+            : undefined,
         currentPlayer: session.currentPlayer,
         gameStatus: session.gameStatus,
         captures: session.captures ? { ...session.captures } : undefined,
+        baseStoneCaptures: session.baseStoneCaptures ? { ...session.baseStoneCaptures } : undefined,
+        hiddenStoneCaptures: session.hiddenStoneCaptures ? { ...session.hiddenStoneCaptures } : undefined,
         koInfo: session.koInfo,
         totalTurns: session.totalTurns,
     };

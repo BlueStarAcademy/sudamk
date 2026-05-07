@@ -11,6 +11,7 @@ import { pairPetKataStatsSixFromEquippedUser } from '../shared/utils/pairPetKata
 import { pickStrategicPetHintLine } from '../shared/utils/strategicPetHintDialogue.js';
 import { computeStrategicPetKataHintMove } from './goAiBot.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
+import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 
 type HintPhaseState = { opening?: boolean; midgame?: boolean; endgame?: boolean };
 
@@ -29,9 +30,8 @@ function markHintPhaseUsed(game: types.LiveGameSession, userId: string, phase: P
 
 function isStrategicPetHintContext(game: types.LiveGameSession): boolean {
     if (!SPECIAL_GAME_MODES.some((m) => m.mode === game.mode)) return false;
-    if (game.isSinglePlayer) return false;
-    const cat = String((game as any).gameCategory ?? '');
-    if (cat === 'tower' || cat === 'singleplayer') return false;
+    const policy = resolveArenaSessionPolicy(game as any);
+    if (policy.isPairGame) return false;
     return true;
 }
 

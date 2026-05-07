@@ -21,6 +21,8 @@ import {
 import IngameMobileFooterAd from './IngameMobileFooterAd.js';
 
 interface GuildWarMissileTowerControlsProps extends Pick<GameProps, 'session' | 'onAction'> {
+    showResultModal?: boolean;
+    allowPostGameFooterActions?: boolean;
     setShowResultModal?: (show: boolean) => void;
     setConfirmModalType?: (type: 'resign' | null) => void;
     isMoveInFlight?: boolean;
@@ -67,6 +69,8 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
 const GuildWarMissileTowerControls: React.FC<GuildWarMissileTowerControlsProps> = ({
     session,
     onAction,
+    showResultModal = false,
+    allowPostGameFooterActions = true,
     setShowResultModal,
     setConfirmModalType,
     isMoveInFlight = false,
@@ -97,6 +101,7 @@ const GuildWarMissileTowerControls: React.FC<GuildWarMissileTowerControlsProps> 
     };
 
     if (gameStatus === 'ended' || gameStatus === 'no_contest') {
+        const blockPostGameFooter = allowPostGameFooterActions === false;
         const handleShowResults = () => setShowResultModal?.(true);
         const handleExit = async () => {
             sessionStorage.setItem('postGameRedirect', '#/guildwar');
@@ -119,6 +124,7 @@ const GuildWarMissileTowerControls: React.FC<GuildWarMissileTowerControlsProps> 
                         onClick={handleShowResults}
                         colorScheme="none"
                         className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}
+                        disabled={blockPostGameFooter && !!showResultModal}
                     >
                         결과 보기
                     </Button>
@@ -127,6 +133,7 @@ const GuildWarMissileTowerControls: React.FC<GuildWarMissileTowerControlsProps> 
                         onClick={handleExit}
                         colorScheme="none"
                         className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}
+                        disabled={blockPostGameFooter}
                     >
                         대기실로
                     </Button>

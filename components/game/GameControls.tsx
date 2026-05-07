@@ -57,6 +57,8 @@ interface ImageButtonProps {
     count?: number; // 아이템 남은 개수
     /** 모바일 푸터 한 줄 유지용 작은 크기 */
     compact?: boolean;
+    /** 이미지 영역 하단에 겹쳐 표시되는 짧은 라벨(펫 힌트 등) */
+    imageBottomOverlay?: string;
 }
 
 /** 모바일에서 아이콘을 가리지 않도록 버튼 밖 모서리(우하단)에 배치 */
@@ -88,7 +90,17 @@ function modeIncludesCaptureRule(mode: GameMode, settings: { mixedModes?: GameMo
     return mode === GameMode.Capture || (mode === GameMode.Mix && Boolean(settings.mixedModes?.includes(GameMode.Capture)));
 }
 
-const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled = false, title, variant = 'primary', count, compact = false }) => {
+const ImageButton: React.FC<ImageButtonProps> = ({
+    src,
+    alt,
+    onClick,
+    disabled = false,
+    title,
+    variant = 'primary',
+    count,
+    compact = false,
+    imageBottomOverlay,
+}) => {
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const longPressTriggeredRef = useRef(false);
@@ -184,6 +196,14 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
                 className={`relative block ${sizeClass} shrink-0 overflow-hidden border-2 bg-gradient-to-b from-white/[0.07] to-black/40 transition-all duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-950 ${variantClasses} ${disabled ? 'cursor-not-allowed border-slate-700 opacity-40 shadow-none ring-0' : 'cursor-pointer shadow-[0_12px_32px_-14px_rgba(0,0,0,0.8)] hover:scale-[1.04] hover:brightness-[1.06] active:scale-[0.96]'}`}
             >
                 <img src={src} alt={alt} className="pointer-events-none h-full w-full object-contain" />
+                {imageBottomOverlay ? (
+                    <span
+                        className={`pointer-events-none absolute inset-x-0 bottom-0 z-[2] flex items-end justify-center bg-gradient-to-t from-slate-950/95 via-slate-950/70 to-transparent pb-0.5 pt-2.5 font-bold leading-none tracking-wide text-sky-100 ring-1 ring-inset ring-sky-400/25 ${compact ? 'text-[7px]' : 'text-[8px] min-[1025px]:text-[9px]'}`}
+                        aria-hidden
+                    >
+                        {imageBottomOverlay}
+                    </span>
+                ) : null}
             </button>
             {isTooltipVisible && title && !disabled && (
                 <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 w-max max-w-[12.5rem] -translate-x-1/2 rounded-md border border-amber-300/45 bg-black/95 px-2.5 py-1.5 text-center text-[11px] font-semibold leading-tight text-amber-100 shadow-[0_8px_24px_-10px_rgba(0,0,0,0.9)]">
@@ -242,6 +262,10 @@ interface GameControlsProps {
     onLeaveOrResign?: () => void;
     /** 모험 등 결과 모달 표시 여부(푸터 버튼 라벨·토글용) */
     showResultModal?: boolean;
+    /** ended/no_contest: 결과 모달 확인 전에는 하단 재도전·나가기 등 비활성 */
+    allowPostGameFooterActions?: boolean;
+    /** 모험 등: 푸터에서 요약 닫을 때 Game.tsx와 동기(확인 처리) */
+    onDismissGameSummary?: () => void;
     /** 전략 펫 힌트: 바둑판이 아닌 푸터 버튼 위 말풍선 */
     strategicPetHintFooterBubble?: { message: string; visible: boolean } | null;
 }
@@ -1279,12 +1303,15 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         onOpenGameRecordList,
         onLeaveOrResign,
         showResultModal = false,
+        allowPostGameFooterActions = true,
+        onDismissGameSummary,
         strategicPetHintFooterBubble = null,
     } = props;
     const { negotiations } = useAppContext();
     const { id: gameId, mode, gameStatus, blackPlayerId, whitePlayerId, player1, player2 } = session;
     const isMixMode = mode === GameMode.Mix;
     const isGameEnded = ['ended', 'no_contest', 'rematch_pending'].includes(gameStatus);
+    const blockPostGameFooter = allowPostGameFooterActions === false;
     const showBaseGameFooterStrip = isBaseGameFooterPhase(session) && !isGameEnded;
     /** 모험 몬스터 베이스: 싱글과 동일 앰버 톤의 베이스 전·덤 푸터 */
     const basePregameSpStyleChrome =
@@ -1532,6 +1559,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         key="pet-hint-btn"
                         src={img}
                         alt={`펫 힌트 ${phaseCountdownLabel}`}
+                        imageBottomOverlay="힌트"
                         label={phaseCountdownLabel}
                         onClick={() => {
                             if (!canAttempt || petHintBusy) return;
@@ -1858,6 +1886,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         };
 
         const handleCloseResults = () => {
+            onDismissGameSummary?.();
             setShowResultModal(false);
 
             // 게임 종류에 따라 적절한 로비/대기실로 라우팅 (전략/놀이 대기실 AI를 먼저 판별해 싱글·탑으로 잘못 나가는 버그 방지)
@@ -1920,13 +1949,25 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 <footer className={`${arenaGameRoomControlsFooterClass} ${pveIngameFooterReservedHeightClass(!!isMobile)}`}>
                     <div className={arenaPostGamePanelShellClass}>
                         <div className={arenaPostGameIngameEndedRowClass}>
-                        <Button bare onClick={handleShowResults} colorScheme="none" className={endedIngameRowBtn()}>
+                        <Button
+                            bare
+                            onClick={handleShowResults}
+                            colorScheme="none"
+                            className={endedIngameRowBtn()}
+                            disabled={blockPostGameFooter && showResultModal}
+                        >
                             결과 보기
                         </Button>
-                        <Button bare onClick={handleNextStage} colorScheme="none" className={endedIngameRowBtn('min-w-0 truncate')} disabled={!canTryNextStage}>
+                        <Button
+                            bare
+                            onClick={handleNextStage}
+                            colorScheme="none"
+                            className={endedIngameRowBtn('min-w-0 truncate')}
+                            disabled={blockPostGameFooter || !canTryNextStage}
+                        >
                             {formatSinglePlayerNextFooterLabel(nextStage, canTryNextStage, nextStageActionPointCost)}
                         </Button>
-                        <Button bare onClick={handleRetry} colorScheme="none" className={endedIngameRowBtn()}>
+                        <Button bare onClick={handleRetry} colorScheme="none" className={endedIngameRowBtn()} disabled={blockPostGameFooter}>
                             {formatArenaRetryLabel(retryActionPointCost)}
                         </Button>
                         {isPvpRematchEligible && (
@@ -1943,7 +1984,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                         );
                                     }
                                 }}
-                                disabled={rematchRequested}
+                                disabled={blockPostGameFooter || rematchRequested}
                                 colorScheme="none"
                                 className={endedIngameRowBtn()}
                             >
@@ -1956,11 +1997,12 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 onClick={onOpenRematchSettings}
                                 colorScheme="none"
                                 className={endedIngameRowBtn()}
+                                disabled={blockPostGameFooter}
                             >
                                 재대결
                             </Button>
                         )}
-                        <Button bare onClick={handleCloseResults} colorScheme="none" className={endedIngameRowBtn()}>
+                        <Button bare onClick={handleCloseResults} colorScheme="none" className={endedIngameRowBtn()} disabled={blockPostGameFooter}>
                             대기실로
                         </Button>
                         </div>
@@ -2173,14 +2215,27 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     <>
                         <Button
                             bare
-                            onClick={() => setShowResultModal(!showResultModal)}
+                            onClick={() => {
+                                if (showResultModal) {
+                                    onDismissGameSummary?.();
+                                } else {
+                                    setShowResultModal(true);
+                                }
+                            }}
                             colorScheme="none"
                             className={endedIngameRowBtn()}
+                            disabled={blockPostGameFooter && showResultModal}
                         >
                             {showResultModal ? '확인' : '결과 보기'}
                         </Button>
                         {onLeaveOrResign && (
-                            <Button bare onClick={onLeaveOrResign} colorScheme="none" className={endedIngameRowBtn()}>
+                            <Button
+                                bare
+                                onClick={onLeaveOrResign}
+                                colorScheme="none"
+                                className={endedIngameRowBtn()}
+                                disabled={blockPostGameFooter}
+                            >
                                 맵으로 이동
                             </Button>
                         )}
@@ -2206,7 +2261,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                                 setSavingGameRecord(false);
                                             }
                                         }}
-                                        disabled={savingGameRecord || recordAlreadySaved}
+                                        disabled={blockPostGameFooter || savingGameRecord || recordAlreadySaved}
                                         colorScheme="none"
                                         className={`${endedIngameRowBtn()} ${recordAlreadySaved ? 'opacity-50' : ''}`}
                                     >
@@ -2214,7 +2269,13 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                     </Button>
                                 )}
                                 {onOpenGameRecordList && (
-                                    <Button bare onClick={() => onOpenGameRecordList()} colorScheme="none" className={endedIngameRowBtn()}>
+                                    <Button
+                                        bare
+                                        onClick={() => onOpenGameRecordList()}
+                                        colorScheme="none"
+                                        className={endedIngameRowBtn()}
+                                        disabled={blockPostGameFooter}
+                                    >
                                         기보 관리
                                     </Button>
                                 )}
@@ -2223,16 +2284,34 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     </>
                 ) : (
                 <>
-                    <Button bare onClick={() => setShowResultModal(true)} colorScheme="none" className={endedIngameRowBtn()}>
+                    <Button
+                        bare
+                        onClick={() => setShowResultModal(true)}
+                        colorScheme="none"
+                        className={endedIngameRowBtn()}
+                        disabled={blockPostGameFooter && showResultModal}
+                    >
                         결과 보기
                     </Button>
                     {isAiLobbyGame && onOpenRematchSettings && (
-                        <Button bare onClick={onOpenRematchSettings} colorScheme="none" className={endedIngameRowBtn()}>
+                        <Button
+                            bare
+                            onClick={onOpenRematchSettings}
+                            colorScheme="none"
+                            className={endedIngameRowBtn()}
+                            disabled={blockPostGameFooter}
+                        >
                             {formatAiRematchFooterLabel(aiLobbyRematchActionPointCost)}
                         </Button>
                     )}
                     {onLeaveOrResign && (
-                        <Button bare onClick={onLeaveOrResign} colorScheme="none" className={endedIngameRowBtn()}>
+                        <Button
+                            bare
+                            onClick={onLeaveOrResign}
+                            colorScheme="none"
+                            className={endedIngameRowBtn()}
+                            disabled={blockPostGameFooter}
+                        >
                             {isSpectator ? '관전종료' : '대기실로'}
                         </Button>
                     )}
@@ -2258,7 +2337,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                             setSavingGameRecord(false);
                                         }
                                     }}
-                                    disabled={savingGameRecord || recordAlreadySaved}
+                                    disabled={blockPostGameFooter || savingGameRecord || recordAlreadySaved}
                                     colorScheme="none"
                                     className={`${endedIngameRowBtn()} ${recordAlreadySaved ? 'opacity-50' : ''}`}
                                 >
@@ -2266,7 +2345,13 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 </Button>
                             )}
                             {onOpenGameRecordList && (
-                                <Button bare onClick={() => onOpenGameRecordList()} colorScheme="none" className={endedIngameRowBtn()}>
+                                <Button
+                                    bare
+                                    onClick={() => onOpenGameRecordList()}
+                                    colorScheme="none"
+                                    className={endedIngameRowBtn()}
+                                    disabled={blockPostGameFooter}
+                                >
                                     기보 관리
                                 </Button>
                             )}

@@ -555,7 +555,7 @@ export function getDungeonRankRewardNeighborhood(stage: number, rank: number): D
     return { gold: rankGoldNeighborhood(stage, rank) };
 }
 
-// 전국바둑대회 순위 보상: 1~2단계 하급, 3단계~ 중급, 5단계~ 상급, 7단계~ 최상급, 10단계 1위 신비의 강화석(마일스톤 상향)
+// 전국바둑대회 순위 보상: 1~2단계 하급, 3단계~ 중급, 5단계~ 상급, 7단계~ 최상급, 10단계 1위 신비의 강화석(마일스톤 상향). 4단계는 난이도 대비 순위 보상 ×2.
 const NATIONAL_RANK_QTY: Record<string, Record<number, number>> = {
     '하급 강화석': { 1: 30, 2: 22, 3: 16, 4: 12, 5: 9, 6: 6, 7: 4, 8: 2 },
     '중급 강화석': { 1: 20, 2: 15, 3: 12, 4: 9, 5: 7, 6: 5, 7: 3, 8: 2 },
@@ -572,7 +572,8 @@ function rankMaterialNational(stage: number, rank: number): Record<string, numbe
     else materialName = '최상급 강화석';
     const qty = NATIONAL_RANK_QTY[materialName]?.[rank] ?? 1;
     const m = getDungeonStageRewardMilestoneMultiplier(stage);
-    return { [materialName]: Math.max(1, Math.round(qty * m)) };
+    const nationalStage4RankRewardMultiplier = stage === 4 ? 2 : 1;
+    return { [materialName]: Math.max(1, Math.round(qty * m * nationalStage4RankRewardMultiplier)) };
 }
 
 export function getDungeonRankRewardNational(stage: number, rank: number): DungeonRankRewardResult {

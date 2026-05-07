@@ -85,7 +85,7 @@ const RankingList: React.FC<RankingListProps> = ({
 
     const myRankIndex = allRankedUsers.findIndex(u => u.id === currentUser.id);
 
-    /** API 목록에 없어도(페어 시즌 등) 전략과 동일하게 내 랭킹 블록 표시 */
+    /** API 목록에 없어도 내 랭킹 블록 표시(랭킹전 최소 판수 미만은 대시 플레이스홀더) */
     const myRankDataResolved = useMemo(() => {
         if (myRankIndex !== -1) {
             const row = allRankedUsers[myRankIndex];
@@ -93,7 +93,7 @@ const RankingList: React.FC<RankingListProps> = ({
                 user: row,
                 rank: row.rank || myRankIndex + 1,
                 score: row.avgScore,
-                pairPlaceholder: false as const,
+                dashPlaceholder: false as const,
             };
         }
         const u = currentUser;
@@ -111,7 +111,7 @@ const RankingList: React.FC<RankingListProps> = ({
                     ? RANKED_ELO_BASE_SCORE + (typeof pairDr.score === 'number' ? pairDr.score : 0)
                     : pairBlk.rankingScore;
             const rank = eligibleRankedUsers.filter((x) => x.avgScore > seasonScore).length + 1;
-            const pairPlaceholder = totalGames < minGamesForTierList;
+            const dashPlaceholder = totalGames < minGamesForTierList;
             return {
                 user: {
                     id: u.id,
@@ -129,33 +129,40 @@ const RankingList: React.FC<RankingListProps> = ({
                 },
                 rank,
                 score: seasonScore,
-                pairPlaceholder,
+                dashPlaceholder,
             };
         }
         if (lobbyType === 'strategic') {
             const blk = readStrategicRankedBlock(u.stats as Record<string, { wins?: number; losses?: number; rankingScore?: number }>);
-            const totalGames = blk.wins + blk.losses;
-            if (totalGames < minGamesForTierList) return null;
-            const score = blk.rankingScore;
-            const rank = eligibleRankedUsers.filter((x) => x.avgScore > score).length + 1;
+            const wins = blk.wins;
+            const losses = blk.losses;
+            const totalGames = wins + losses;
+            const strategicDr = u.dailyRankings?.strategic;
+            /** API·랭킹 행과 동일: 시즌 점수 = 기준(1200) + dailyRankings에 저장된 델타 */
+            const seasonScore =
+                strategicDr && typeof strategicDr.rank === 'number'
+                    ? RANKED_ELO_BASE_SCORE + (typeof strategicDr.score === 'number' ? strategicDr.score : 0)
+                    : blk.rankingScore;
+            const rank = eligibleRankedUsers.filter((x) => x.avgScore > seasonScore).length + 1;
+            const dashPlaceholder = totalGames < minGamesForTierList;
             return {
                 user: {
                     id: u.id,
                     nickname: u.nickname,
                     avatarId: u.avatarId,
                     borderId: u.borderId,
-                    avgScore: score,
+                    avgScore: seasonScore,
                     rank,
                     totalGames,
-                    wins: blk.wins,
-                    losses: blk.losses,
+                    wins,
+                    losses,
                     userLevel: typeof u.userLevel === 'number' ? u.userLevel : undefined,
                     stats: {} as any,
                     dailyRankings: {} as any,
                 },
                 rank,
-                score,
-                pairPlaceholder: false as const,
+                score: seasonScore,
+                dashPlaceholder,
             };
         }
         return null;
@@ -628,7 +635,7 @@ const RankingList: React.FC<RankingListProps> = ({
                         myRankDataResolved.user,
                         myRankDataResolved.rank,
                         true,
-                        lobbyType === 'pair' && myRankDataResolved.pairPlaceholder === true,
+                        myRankDataResolved.dashPlaceholder === true,
                     )}
                 </div>
             )}

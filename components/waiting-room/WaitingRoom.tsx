@@ -499,6 +499,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                         userCount={playersForListPanel.length}
                         pairAlignedNativeCompact
                         listScopeTabs={waitingUserScopeTabs}
+                        showArenaPartnerInviteBlockToggle
                       />
                     </div>
                   </div>
@@ -672,6 +673,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                           lobbyType={isStrategic ? 'strategic' : 'playful'}
                           userCount={playersForListPanel.length}
                           listScopeTabs={waitingUserScopeTabs}
+                          showArenaPartnerInviteBlockToggle
                         />
                       </div>
                     </div>
@@ -761,6 +763,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                         onViewUser={handlers.openViewingUser}
                         lobbyType={isStrategic ? 'strategic' : 'playful'}
                         userCount={usersInThisRoom.length}
+                        showArenaPartnerInviteBlockToggle
                       />
                     </div>
                   </div>

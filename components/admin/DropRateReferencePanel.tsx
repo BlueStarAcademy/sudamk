@@ -437,7 +437,7 @@ const DropRateReferencePanel: React.FC<DropRateReferencePanelProps> = ({ onBack 
                         <code className="rounded bg-black/30 px-1 py-px text-amber-200/90">pairTraining.ts</code>의{' '}
                         <code className="rounded bg-black/30 px-1 py-px text-amber-200/90">soulDropChance</code>로 추가 판정 후, 성공 시{' '}
                         <code className="rounded bg-black/30 px-1 py-px text-amber-200/90">soulTable</code> 가중치로{' '}
-                        <span className="font-semibold text-gray-200">한 종류</span>만 지급합니다. 펫 특성(영혼 드롭)은 동일 판정에 가산됩니다 (
+                        <span className="font-semibold text-gray-200">한 종류</span>만 지급합니다. 펫 특화「수련 영혼석 획득 +N%」는 동일 판정의 기본 확률에 N%p를 가산합니다 (
                         <code className="rounded bg-black/30 px-1 py-px text-amber-200/90">socialActions.ts</code> ·{' '}
                         <code className="rounded bg-black/30 px-1 py-px text-amber-200/90">trainingSoulChance</code>).
                     </p>

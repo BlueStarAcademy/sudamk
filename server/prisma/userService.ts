@@ -179,6 +179,7 @@ export async function getUsersBrief(ids: string[]): Promise<
     borderId?: string | null;
     isAdmin?: boolean;
     staffNicknameDisplayEligibility?: boolean;
+    blockArenaPartnerInvites?: boolean;
   }>
 > {
   if (!ids.length) return [];
@@ -191,14 +192,17 @@ export async function getUsersBrief(ids: string[]): Promise<
     });
     return rows.map((r) => {
       const status = r.status as Record<string, unknown> | null;
-      const serialized = status?.serializedUser as { staffNicknameDisplayEligibility?: boolean } | undefined;
+      const serialized = status?.serializedUser as
+        | { staffNicknameDisplayEligibility?: boolean; blockArenaPartnerInvites?: boolean }
+        | undefined;
       return {
         id: r.id,
         nickname: r.nickname,
         avatarId: (status?.avatarId as string | null) ?? null,
         borderId: (status?.borderId as string | null) ?? null,
         isAdmin: r.isAdmin,
-        staffNicknameDisplayEligibility: !!serialized?.staffNicknameDisplayEligibility
+        staffNicknameDisplayEligibility: !!serialized?.staffNicknameDisplayEligibility,
+        blockArenaPartnerInvites: serialized?.blockArenaPartnerInvites === true,
       };
     });
   } catch (error: any) {
@@ -484,11 +488,14 @@ async function syncEquipmentAndInventory(user: User): Promise<void> {
               }
               // ...m를 먼저 펼치면 레거시 m.options가 아래에서 덮어써져, 갱신된 item.options가 유실된다.
               const pairMeta = (item as any).pairPetMeta;
+              const itemSource = (item as { source?: string | null }).source;
+              delete (m as { source?: string }).source;
               return {
                 ...m,
                 options: item.options ?? (m as any).options ?? [],
                 enhancementFails: (item as any).enhancementFails ?? (m as any).enhancementFails ?? 0,
                 ...(pairMeta != null ? { pairPetMeta: pairMeta } : {}),
+                ...(itemSource === 'tower' ? { source: 'tower' as const } : {}),
               };
             })(),
             isEquipped: item.isEquipped || false

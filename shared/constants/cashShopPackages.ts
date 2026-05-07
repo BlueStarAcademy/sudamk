@@ -7,7 +7,14 @@ export type CashShopDiamondPackageId = (typeof CASH_SHOP_DIAMOND_PACKAGE_IDS)[nu
 export const CASH_SHOP_EQUIPMENT_PACKAGE_IDS = ['equipment_package_1', 'equipment_package_2', 'equipment_package_3'] as const;
 export type CashShopEquipmentPackageId = (typeof CASH_SHOP_EQUIPMENT_PACKAGE_IDS)[number];
 
-export const CASH_SHOP_PACKAGE_IDS = [...CASH_SHOP_DIAMOND_PACKAGE_IDS, ...CASH_SHOP_EQUIPMENT_PACKAGE_IDS] as const;
+/** 1회 구매 영구 적용 — 상점·배너 등 광고 비표시 */
+export const CASH_SHOP_REMOVE_ADS_PACKAGE_ID = 'remove_ads' as const;
+
+export const CASH_SHOP_PACKAGE_IDS = [
+    ...CASH_SHOP_DIAMOND_PACKAGE_IDS,
+    ...CASH_SHOP_EQUIPMENT_PACKAGE_IDS,
+    CASH_SHOP_REMOVE_ADS_PACKAGE_ID,
+] as const;
 export type CashShopPackageId = (typeof CASH_SHOP_PACKAGE_IDS)[number];
 
 /** 관리자 우편·UI 표기용 */
@@ -18,6 +25,7 @@ export const CASH_SHOP_PACKAGE_KO_LABEL: Record<CashShopPackageId, string> = {
     equipment_package_1: '장비상자 패키지 Ⅰ',
     equipment_package_2: '장비상자 패키지 Ⅱ',
     equipment_package_3: '장비상자 패키지 Ⅲ',
+    remove_ads: '광고 제거',
 };
 
 export const DIAMOND_PACKAGE_DURATION_DAYS: Record<CashShopDiamondPackageId, number> = {

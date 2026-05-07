@@ -2298,6 +2298,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     mobileViewportFit
                     mobileViewportMaxHeightVh={92}
                     bodyPaddingClassName="!px-2 !py-2 sm:!px-2.5 sm:!py-2.5"
+                    viewportPortal={useViewportSizedBagModal}
                 >
                     <div
                         className={`flex max-h-[min(82dvh,600px)] min-h-0 flex-col gap-1.5 overflow-y-auto ${BAG_SCROLLBAR_Y_CLASS}`}
@@ -2410,6 +2411,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     bodyScrollable
                     bodyPaddingClassName={MOBILE_EQUIPMENT_DETAIL_BODY_PADDING_CLASS}
                     hideFooter
+                    viewportPortal={useViewportSizedBagModal}
                 >
                     <div className="flex min-h-0 w-full min-w-0 flex-col gap-1.5">
                         <div className="min-h-0 w-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:thin]">
@@ -2586,11 +2588,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         bodyScrollable={narrowInventoryLayout}
                         bodyPaddingClassName={narrowInventoryLayout ? MOBILE_EQUIPMENT_DETAIL_BODY_PADDING_CLASS : 'p-2 sm:p-3'}
                         hideFooter={narrowInventoryLayout}
+                        viewportPortal={useViewportSizedBagModal}
+                        mobileLockViewportHeight={narrowInventoryLayout && useViewportSizedBagModal}
                     >
                         <div
                             className={`flex flex-col gap-1 overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-b-xl ${BAG_SCROLLBAR_Y_CLASS} ${
                                 narrowInventoryLayout
-                                    ? 'max-h-[min(90dvh,640px)] min-h-0'
+                                    ? 'h-full min-h-0 max-h-[min(90dvh,640px)]'
                                     : 'h-[min(78dvh,720px)] min-h-[min(50dvh,360px)]'
                             }`}
                             style={{ WebkitOverflowScrolling: 'touch' }}
@@ -2621,8 +2625,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                             );
                                         })}
                                     </div>
-                                    <div className="min-h-0 flex-1 p-1">
-                                        <div className="flex h-full min-h-0 gap-1.5">
+                                    <div className="flex min-h-0 flex-1 flex-col p-1">
+                                        <div className="flex min-h-0 flex-1 gap-1.5">
                                             <div className="flex min-h-0 w-[24%] min-w-0 flex-col gap-1">
                                                 <div className="flex min-h-0 flex-1 basis-0 flex-col rounded-md border border-cyan-500/35 bg-black/25 p-0.5">
                                                     <div className="mb-0.5 text-center text-[11px] font-semibold leading-snug text-cyan-200">현재 장착</div>

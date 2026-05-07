@@ -40,9 +40,59 @@ export const shouldEnforceTimeControl = (game: types.LiveGameSession): boolean =
     );
 };
 
+/** 베이스 바둑: 배치 단계의 임시 흑/백과 최종 좌석이 뒤섞이지 않도록 본대국 진입 시 좌석을 한 번만 고정 */
+const sessionIncludesBaseMode = (game: types.LiveGameSession): boolean =>
+    game.mode === types.GameMode.Base ||
+    (game.mode === types.GameMode.Mix &&
+        Array.isArray(game.settings?.mixedModes) &&
+        game.settings.mixedModes!.includes(types.GameMode.Base));
+
+/**
+ * `playingLockedBlackPlayerId/whitePlayerId`가 설정된 베이스 세션에서 본대국 단계 동안
+ * `blackPlayerId/whitePlayerId`가 어떤 경로로든 잠금과 어긋나면 잠금값으로 되돌린다.
+ * (베이스 임시 좌석으로의 역주입·재계산 결과 색이 영구적으로 뒤바뀌어 보이는 버그 방지)
+ */
+export const enforceBaseSeatLockIfDriftedDuringPlay = (game: types.LiveGameSession): boolean => {
+    if (!sessionIncludesBaseMode(game)) return false;
+    const lb = game.playingLockedBlackPlayerId;
+    const lw = game.playingLockedWhitePlayerId;
+    if (typeof lb !== 'string' || lb.length === 0 || typeof lw !== 'string' || lw.length === 0) return false;
+    const status = String(game.gameStatus ?? '');
+    /** 본경기·아이템 연출 등 좌석이 절대 바뀌어선 안 되는 단계만 강제한다(베이스 사전 단계는 예외) */
+    const protectedStatuses = new Set([
+        'playing',
+        'hidden_placing',
+        'scanning',
+        'scanning_animating',
+        'hidden_reveal_animating',
+        'hidden_final_reveal',
+        'missile_selecting',
+        'missile_animating',
+        'scoring',
+        'ended',
+        'no_contest',
+    ]);
+    if (!protectedStatuses.has(status)) return false;
+    if (game.blackPlayerId === lb && game.whitePlayerId === lw) return false;
+    game.blackPlayerId = lb;
+    game.whitePlayerId = lw;
+    return true;
+};
+
 export const transitionToPlaying = (game: types.LiveGameSession, now: number) => {
     game.gameStatus = 'playing';
     game.currentPlayer = types.Player.Black;
+    const sessionIncludesBase = sessionIncludesBaseMode(game);
+    if (
+        sessionIncludesBase &&
+        game.blackPlayerId &&
+        game.whitePlayerId &&
+        !game.playingLockedBlackPlayerId &&
+        !game.playingLockedWhitePlayerId
+    ) {
+        game.playingLockedBlackPlayerId = game.blackPlayerId;
+        game.playingLockedWhitePlayerId = game.whitePlayerId;
+    }
     if (isPairClassicGame(game.settings, game.mode) && game.settings.pairGame?.turnOrder?.length) {
         syncPairTurnOrderWithAssignedColors(game.settings.pairGame, game.blackPlayerId, game.whitePlayerId);
         const pairSeat = getCurrentPairTurnSeat(game.settings);
@@ -91,10 +141,32 @@ export const transitionToPlaying = (game: types.LiveGameSession, now: number) =>
     } else {
         game.turnDeadline = undefined;
         // 스피드 바둑 AI/싱글플레이: 유저 사용 시간 10초당 AI +1점 계산용 초기 시간 저장 (서버는 시간을 강제하지 않음)
-        const isSpeed = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
+        const isSpeed =
+            game.mode === types.GameMode.Speed ||
+            (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
         if (isSpeed && (game.isAiGame || game.isSinglePlayer) && game.blackTimeLeft != null && game.whiteTimeLeft != null) {
-            game.blackInitialTimeLeft = game.blackTimeLeft;
-            game.whiteInitialTimeLeft = game.whiteTimeLeft;
+            let b = Math.max(0, Number(game.blackTimeLeft));
+            let w = Math.max(0, Number(game.whiteTimeLeft));
+            const mainMin = Math.max(0, Number(game.settings?.timeLimit ?? 0));
+            if ((b === 0 || w === 0) && mainMin > 0) {
+                const sec = mainMin * 60;
+                b = sec;
+                w = sec;
+                game.blackTimeLeft = b;
+                game.whiteTimeLeft = w;
+            }
+            game.blackInitialTimeLeft = b;
+            game.whiteInitialTimeLeft = w;
+            const curPlayer = game.currentPlayer as types.Player;
+            if (
+                typeof curPlayer === 'number' &&
+                curPlayer !== types.Player.None &&
+                b > 0 &&
+                w > 0
+            ) {
+                const curSec = curPlayer === types.Player.Black ? b : w;
+                game.turnDeadline = now + curSec * 1000;
+            }
         }
     }
 

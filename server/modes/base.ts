@@ -497,6 +497,14 @@ const clearBasePrePlayState = (game: types.LiveGameSession) => {
     game.revealEndTime = undefined;
 };
 
+const markBaseFinalColorAssignment = (game: types.LiveGameSession, now: number) => {
+    (game as any).baseFinalColorAssignment = {
+        blackPlayerId: game.blackPlayerId,
+        whitePlayerId: game.whitePlayerId,
+        lockedAt: now,
+    };
+};
+
 /** 배치 당시 임시 흑/백에 따라 베이스돌을 판에 커밋한다. 최종 흑/백 유저는 이후 덮어쓴다. */
 const commitBaseStonesToBoardPreservingPlacementColors = (
     game: types.LiveGameSession,
@@ -538,6 +546,7 @@ const finalizeBaseDifferentStoneColorChoices = (
     commitBaseStonesToBoardPreservingPlacementColors(game, newBoardState);
     game.blackPlayerId = blackPlayerId;
     game.whitePlayerId = whitePlayerId;
+    markBaseFinalColorAssignment(game, now);
     game.finalKomi = finalKomi;
     /** 본대국에서는 `game.baseStones`만 베이스 좌표 소스 — p1/p2가 남으면 빈 자리 재착수가 베이스로 오인될 수 있음 */
     (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(newBoardState);
@@ -638,6 +647,7 @@ const applyBaseKomiBidResolution = (game: types.LiveGameSession, now: number) =>
     commitBaseStonesToBoardPreservingPlacementColors(game, newBoardState);
     game.blackPlayerId = finalBlackPlayerId;
     game.whitePlayerId = finalWhitePlayerId;
+    markBaseFinalColorAssignment(game, now);
     game.finalKomi = finalKomi;
     (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(newBoardState);
     (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(newBoardState);

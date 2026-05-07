@@ -65,6 +65,7 @@ const MAIL_PACKAGE_THUMB: Record<CashShopPackageId, string> = {
     equipment_package_1: '/images/Box/EquipmentBox5.png',
     equipment_package_2: '/images/Box/EquipmentBox5.png',
     equipment_package_3: '/images/Box/EquipmentBox6.png',
+    remove_ads: '/images/shop/remove_ads_package.svg',
 };
 
 function buildEquipmentAdminTooltip(slot: EquipmentSlot, grade: ItemGrade, description: string): string {

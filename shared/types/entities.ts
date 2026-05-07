@@ -7,13 +7,24 @@ import { UserStatusInfo, ChatMessage } from './api.js';
 /** 페어 AI 펫 인스턴스 메타(인벤 `pair-pet-*` 행에 부착) */
 export type PairPetDisposition =
     | { kind: 'single'; stat: CoreStat; pct: number }
-    | { kind: 'all'; pct: 5 };
+    | { kind: 'all'; pct: 5 }
+    /** 한 코어의 pct%(등급 기준 기본치 기준)만큼 감소, 그 절대값의 2배를 다른 코어에 가산 */
+    | { kind: 'convert'; fromStat: CoreStat; toStat: CoreStat; pct: number };
 
 export type PairPetSpecialization =
     | { kind: 'trainingXp'; pct: number }
     | { kind: 'trainingGold'; pct: number }
     | { kind: 'trainingTime'; pct: number }
-    | { kind: 'soulDrop'; pct: number };
+    /** 수련 보상 수령 시 영혼석 추가 판정 확률(`soulDropChance`)에 pct%p 가산(상한 99.9%) */
+    | { kind: 'soulDrop'; pct: number }
+    /** 수련 영혼석 지급 시 수량 +1 */
+    | { kind: 'trainingSoulQuantityPlusOne' }
+    /** 전략 경기장 탭 랭킹/대국 등 — 대표 펫 장착 시 해당 경기 행동력 소모 -1(최소 0) */
+    | { kind: 'strategicArenaApMinusOne' }
+    /** 페어 경기장(기본 pair 탭) 랭킹전 등 — 대표 펫 장착 시 인당 행동력 소모 -1(최소 0) */
+    | { kind: 'pairArenaApMinusOne' }
+    /** 놀이 경기장 탭 — 대표 펫 장착 시 해당 경기 행동력 소모 -1(최소 0) */
+    | { kind: 'playfulArenaApMinusOne' };
 
 /** 페어 펫 가위바위보 속성 — 1=가위, 2=바위, 3=보 */
 export type PairPetRpsAttribute = 1 | 2 | 3;
@@ -552,6 +563,8 @@ export type User = {
   mbti?: string | null;
   rejectedGameModes?: GameMode[];
   isMbtiPublic?: boolean;
+  /** 페어 경기장 파트너 초대 수신 거부(전략·놀이 집계 로비 유저 목록에서 설정) */
+  blockArenaPartnerInvites?: boolean;
   statResetCountToday?: number;
   lastStatResetDate?: string | null;
   singlePlayerProgress?: number;
@@ -645,6 +658,13 @@ export type User = {
     diamondPackageExpiresAt?: number;
     /** KST 기준 마지막 다이아 패키지 일일 우편 발송일 YYYY-MM-DD */
     diamondPackageLastMailDayKST?: string;
+    /** 상점 「광고 제거」 패키지 구매 시 true — 영구 */
+    removeAdsPurchased?: boolean;
+    /**
+     * 상점 VIP 탭: 상품별 30일 자동갱신(만료 시 등록 결제로 연장).
+     * PG 연동 시 결제 성공 후에만 true로 두는 것을 권장합니다.
+     */
+    vipShopAutoRenew?: Partial<Record<'reward_vip' | 'function_vip' | 'vvip', boolean>>;
 };
 
 export type GameRecord = {
@@ -1169,6 +1189,9 @@ export type LiveGameSession = {
   player2: User;
   blackPlayerId: string | null;
   whitePlayerId: string | null;
+  /** 베이스(순·믹스) 본대국 `playing` 최초 진입 시 고정된 흑/백 좌석 — 재동기화·슬림 WS에서 임시 배치 좌석이 덮어쓰지 않도록 함 */
+  playingLockedBlackPlayerId?: string | null;
+  playingLockedWhitePlayerId?: string | null;
   gameStatus: GameStatus;
   currentPlayer: Player;
   boardState: BoardState;

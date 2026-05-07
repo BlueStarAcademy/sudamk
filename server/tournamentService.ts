@@ -757,6 +757,33 @@ export const instantSkipChampionshipDungeonMatch = async (
     return {};
 };
 
+/** 던전 챔피언십: 남은 모든 유저 경기를 연속 스킵해 현재 대진표 세션이 종료될 때까지 진행 */
+const CHAMPIONSHIP_BULK_SKIP_MAX_STEPS = 64;
+
+export const instantSkipAllRemainingChampionshipDungeonMatches = async (
+    state: TournamentState,
+    user: User
+): Promise<{ error?: string }> => {
+    for (let step = 0; step < CHAMPIONSHIP_BULK_SKIP_MAX_STEPS; step++) {
+        if (state.status === 'complete' || state.status === 'eliminated') {
+            return {};
+        }
+        // 연속 스킵 시 다음 경기 카운트다운을 기다리지 않도록 정리
+        if (state.status === 'bracket_ready') {
+            state.nextRoundStartTime = null;
+        }
+
+        const one = await instantSkipChampionshipDungeonMatch(state, user);
+        if (one.error) {
+            if (step > 0 && (state.status === 'complete' || state.status === 'eliminated')) {
+                return {};
+            }
+            return one;
+        }
+    }
+    return { error: '스킵 처리 한도를 초과했습니다. 잠시 후 다시 시도해 주세요.' };
+};
+
 export const createTournament = (type: TournamentType, user: User, players: PlayerForTournament[]): TournamentState => {
     const definition = TOURNAMENT_DEFINITIONS[type];
     const rounds: Round[] = [];

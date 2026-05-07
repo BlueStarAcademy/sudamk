@@ -81,6 +81,11 @@ import { buildWeightedJustCapturedForStones } from '../shared/utils/sumWeightedC
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from '../client/logic/goLogic.js';
 import { normalizeInventoryAfterLoad } from '../utils/inventoryUtils.js';
 import { mergeAdventureProfileForPersistence } from '../utils/adventureProfileMerge.js';
+import {
+    coerceAdventureLiveGameScoringTurnLimit,
+    getClientArenaStateBucket,
+    mergeGameUpdateByArena,
+} from '../utils/clientGameMergePolicy.js';
 import { coerceUserLevelXpFromPayload } from '../shared/utils/userLevelMerge.js';
 import type { LevelUpCelebrationPayload } from '../types/levelUpModal.js';
 import type { MannerGradeChangePayload } from '../types/mannerGradeChangeModal.js';
@@ -370,6 +375,56 @@ function liveGamePayloadHasRenderableBoardGrid(game: LiveGameSession | undefined
     );
 }
 
+function getBaseFinalColorAssignment(game: LiveGameSession | undefined): { blackPlayerId: string; whitePlayerId: string } | null {
+    const assignment = (game as any)?.baseFinalColorAssignment;
+    const blackPlayerId = assignment?.blackPlayerId;
+    const whitePlayerId = assignment?.whitePlayerId;
+    if (typeof blackPlayerId === 'string' && typeof whitePlayerId === 'string') {
+        return { blackPlayerId, whitePlayerId };
+    }
+    return null;
+}
+
+function isBasePrePlayStatus(status: LiveGameSession['gameStatus'] | undefined): boolean {
+    return (
+        status === 'base_placement' ||
+        status === 'base_stone_color_choice' ||
+        status === 'base_same_color_points_bid' ||
+        status === 'base_game_start_confirmation'
+    );
+}
+
+/** `playing` 이후 서버가 고정한 흑/백 좌석을 유지·적용 (베이스 배치 단계 임시 좌석 역주입 방지) */
+function reconcilePlayingSeatLock(merged: LiveGameSession, existing?: LiveGameSession): LiveGameSession {
+    let next = merged;
+    const exB = existing?.playingLockedBlackPlayerId;
+    const exW = existing?.playingLockedWhitePlayerId;
+    if (
+        next.gameStatus === 'playing' &&
+        typeof exB === 'string' &&
+        exB.length > 0 &&
+        typeof exW === 'string' &&
+        exW.length > 0 &&
+        (!next.playingLockedBlackPlayerId || !next.playingLockedWhitePlayerId)
+    ) {
+        next = { ...next, playingLockedBlackPlayerId: exB, playingLockedWhitePlayerId: exW };
+    }
+    const lb = next.playingLockedBlackPlayerId;
+    const lw = next.playingLockedWhitePlayerId;
+    if (
+        next.gameStatus === 'playing' &&
+        typeof lb === 'string' &&
+        lb.length > 0 &&
+        typeof lw === 'string' &&
+        lw.length > 0
+    ) {
+        if (next.blackPlayerId !== lb || next.whitePlayerId !== lw) {
+            next = { ...next, blackPlayerId: lb, whitePlayerId: lw };
+        }
+    }
+    return next;
+}
+
 /**
  * 베이스(순·믹스) playing: 보드 생략 슬림 WS에서 수순·판은 로컬과 동일한데 currentPlayer만 어긋날 때(차례 역전) 로컬 턴으로 맞춘다.
  */
@@ -379,7 +434,34 @@ function alignBaseModeCurrentPlayerWithExistingWhenSlimDrift(
     existing: LiveGameSession | undefined,
     opts: { playfulTrustEmptyServerBoardSnapshot?: boolean } = {}
 ): LiveGameSession {
-    if (!existing) return merged;
+    const finish = (out: LiveGameSession) => reconcilePlayingSeatLock(out, existing);
+
+    if (!existing) return finish(merged);
+    const includesBase =
+        liveSessionIncludesBaseMode(merged) ||
+        liveSessionIncludesBaseMode(incoming) ||
+        liveSessionIncludesBaseMode(existing);
+    if (!includesBase) return finish(merged);
+
+    const existingFinalAssignment = getBaseFinalColorAssignment(existing);
+    const incomingFinalAssignment =
+        getBaseFinalColorAssignment(incoming) ?? getBaseFinalColorAssignment(merged);
+    if (existingFinalAssignment && !incomingFinalAssignment) {
+        if (isBasePrePlayStatus(incoming.gameStatus)) return finish(existing);
+        return finish({
+            ...merged,
+            blackPlayerId: existingFinalAssignment.blackPlayerId,
+            whitePlayerId: existingFinalAssignment.whitePlayerId,
+        });
+    }
+    if (incomingFinalAssignment) {
+        merged = {
+            ...merged,
+            blackPlayerId: incomingFinalAssignment.blackPlayerId,
+            whitePlayerId: incomingFinalAssignment.whitePlayerId,
+        };
+    }
+
     // 흑/백 좌석이 서버에서 바뀐 직후: 판·수순 문자열은 같아 보여도 currentPlayer는 서버(merged)를 신뢰해야 한다.
     if (
         existing.blackPlayerId &&
@@ -395,37 +477,37 @@ function alignBaseModeCurrentPlayerWithExistingWhenSlimDrift(
             stableStringify(merged.moveHistory) === stableStringify(existing.moveHistory) &&
             stableStringify(merged.boardState) === stableStringify(existing.boardState)
         ) {
-            return {
+            return finish({
                 ...merged,
                 blackPlayerId: existing.blackPlayerId,
                 whitePlayerId: existing.whitePlayerId,
-            };
+            });
         }
-        return merged;
+        return finish(merged);
     }
-    if (!liveSessionIncludesBaseMode(merged) || merged.gameStatus !== 'playing') return merged;
-    if (merged.mode === GameMode.Dice || merged.mode === GameMode.Thief) return merged;
-    if (opts.playfulTrustEmptyServerBoardSnapshot) return merged;
+    if (!liveSessionIncludesBaseMode(merged) || merged.gameStatus !== 'playing') return finish(merged);
+    if (merged.mode === GameMode.Dice || merged.mode === GameMode.Thief) return finish(merged);
+    if (opts.playfulTrustEmptyServerBoardSnapshot) return finish(merged);
 
     const incomingMoveCount = incoming.moveHistory?.length ?? 0;
     const existingMoveCount = existing.moveHistory?.length ?? 0;
-    if (incomingMoveCount > existingMoveCount) return merged;
+    if (incomingMoveCount > existingMoveCount) return finish(merged);
 
-    if (liveGamePayloadHasRenderableBoardGrid(incoming)) return merged;
+    if (liveGamePayloadHasRenderableBoardGrid(incoming)) return finish(merged);
 
     const eb = existing.boardState;
     const existingBoardValid =
         eb && Array.isArray(eb) && eb.length > 0 && eb[0] && Array.isArray(eb[0]) && eb[0].length > 0;
-    if (!existingBoardValid) return merged;
+    if (!existingBoardValid) return finish(merged);
 
     if (
         stableStringify(merged.moveHistory) !== stableStringify(existing.moveHistory) ||
         stableStringify(merged.boardState) !== stableStringify(existing.boardState)
     ) {
-        return merged;
+        return finish(merged);
     }
-    if (merged.currentPlayer === existing.currentPlayer) return merged;
-    return { ...merged, currentPlayer: existing.currentPlayer };
+    if (merged.currentPlayer === existing.currentPlayer) return finish(merged);
+    return finish({ ...merged, currentPlayer: existing.currentPlayer });
 }
 
 function liveSessionIncludesBaseMode(g: LiveGameSession | undefined): boolean {
@@ -650,11 +732,23 @@ function sanitizeSessionBoardOverlayMarkers(merged: LiveGameSession): LiveGameSe
         ) {
             return next;
         }
+        const keepEmptyBaseIntersections =
+            liveSessionIncludesBaseMode(merged) &&
+            merged.gameStatus === 'playing' &&
+            (merged.moveHistory?.length ?? 0) > 0;
         const filtered = merged.baseStones.filter((p) => {
             const row = board[p.y];
             if (!row || !Array.isArray(row) || p.x < 0 || p.x >= row.length) return true;
             const cell = row[p.x];
-            return cell === Player.Black || cell === Player.White;
+            if (cell === Player.None || cell == null) {
+                return keepEmptyBaseIntersections;
+            }
+            if (cell === Player.Black || cell === Player.White) {
+                // 베이스돌은 moveHistory에 없으므로, 같은 좌표의 일반 착수가 기록되어 있으면
+                // 따낸 뒤 재착수된 일반돌로 보고 마커를 제거한다.
+                return !(merged.moveHistory && lastMoveHistoryIndexAt(merged.moveHistory, p.x, p.y) >= 0);
+            }
+            return false;
         });
         if (filtered.length !== merged.baseStones.length) {
             next = { ...next, baseStones: filtered.length > 0 ? filtered : undefined };
@@ -704,12 +798,16 @@ function preserveStrategicSessionOverlaysIfIncomingOmitted(
     const shouldPreserve = !!st && OVERLAY_PRESERVE_GAME_STATUSES.has(st) && !!existing;
 
     if (shouldPreserve) {
-        if (!Object.prototype.hasOwnProperty.call(incoming, 'baseStones')) {
+        if (!Object.prototype.hasOwnProperty.call(incoming, 'baseStones') || incoming.baseStones?.length === 0) {
             const prev = existing!.baseStones;
             if (Array.isArray(prev) && prev.length > 0) {
                 const mergedBs = merged.baseStones;
-                // 병합 단계에서 이미 보정된 baseStones(예: 흑백 좌석 전환 후 플립)을 incoming 생략으로 덮어쓰지 않음
-                if (!Array.isArray(mergedBs) || mergedBs.length === 0) {
+                const board = next.boardState;
+                const prevStillOnBoard =
+                    Array.isArray(board) &&
+                    prev.some((stone) => board[stone.y]?.[stone.x] === stone.player);
+                // 병합 단계에서 이미 보정된 baseStones(예: 흑백 좌석 전환 후 플립)을 incoming 생략/빈 값으로 덮어쓰지 않음
+                if ((!Array.isArray(mergedBs) || mergedBs.length === 0) && prevStillOnBoard) {
                     next = { ...next, baseStones: prev };
                 }
             }
@@ -1449,6 +1547,7 @@ export const useApp = () => {
                 borderId?: string | null;
                 isAdmin?: boolean;
                 staffNicknameDisplayEligibility?: boolean;
+                blockArenaPartnerInvites?: boolean;
             }
         >
     >({});
@@ -1769,6 +1868,7 @@ export const useApp = () => {
                                 borderId?: string | null;
                                 isAdmin?: boolean;
                                 staffNicknameDisplayEligibility?: boolean;
+                                blockArenaPartnerInvites?: boolean;
                             }) => {
                                 if (b?.id)
                                     next[b.id] = {
@@ -1777,6 +1877,7 @@ export const useApp = () => {
                                         borderId: b.borderId,
                                         isAdmin: b.isAdmin,
                                         staffNicknameDisplayEligibility: b.staffNicknameDisplayEligibility,
+                                        blockArenaPartnerInvites: b.blockArenaPartnerInvites === true,
                                     };
                             },
                         );
@@ -1801,6 +1902,7 @@ export const useApp = () => {
                     borderId: currentUser.borderId,
                     isAdmin: currentUser.isAdmin,
                     staffNicknameDisplayEligibility: currentUser.staffNicknameDisplayEligibility,
+                    blockArenaPartnerInvites: currentUser.blockArenaPartnerInvites === true,
                 },
             }));
         }
@@ -1818,6 +1920,10 @@ export const useApp = () => {
                 isAdmin: (u as any).isAdmin ?? brief?.isAdmin ?? false,
                 staffNicknameDisplayEligibility:
                     (u as any).staffNicknameDisplayEligibility ?? brief?.staffNicknameDisplayEligibility ?? false,
+                blockArenaPartnerInvites:
+                    typeof (u as any).blockArenaPartnerInvites === 'boolean'
+                        ? (u as any).blockArenaPartnerInvites
+                        : brief?.blockArenaPartnerInvites === true,
             };
         });
     }, [onlineUsers, userBriefCache]);
@@ -4889,6 +4995,7 @@ export const useApp = () => {
                         'BUY_MATERIAL_BOX',
                         'BUY_CASH_PACKAGE',
                         'BUY_VIP_PACKAGE',
+                        'CANCEL_VIP_SHOP_AUTO_RENEW',
                         'ADMIN_SET_DIAMOND_PACKAGE_TEST',
                         'BUY_CONSUMABLE',
                         'BUY_CONDITION_POTION',
@@ -5050,6 +5157,7 @@ export const useApp = () => {
                         'COMBINE_ITEMS', 'DISASSEMBLE_ITEM', 'CRAFT_MATERIAL', 'BUY_SHOP_ITEM',
                         'BUY_CASH_PACKAGE',
                         'BUY_VIP_PACKAGE',
+                        'CANCEL_VIP_SHOP_AUTO_RENEW',
                         'ADMIN_SET_DIAMOND_PACKAGE_TEST',
                         'BUY_CONSUMABLE', 'BUY_CONDITION_POTION', 'USE_CONDITION_POTION', 'UPDATE_AVATAR', 
                         'UPDATE_BORDER', 'CHANGE_NICKNAME', 'UPDATE_MBTI', 'ALLOCATE_STAT_POINT',
@@ -5617,9 +5725,10 @@ export const useApp = () => {
                                 if (!mergeId || !game) return currentGames;
                                 const prev = currentGames[mergeId];
                                 // WS가 먼저 슬롯을 채운 경우에도 HTTP 응답으로 병합 (이전: 키 존재 시 무시 → 재대결 등에서 상태 정지)
+                                const mergedForSlot = { ...(prev || {}), ...game, id: mergeId } as LiveGameSession;
                                 return {
                                     ...currentGames,
-                                    [mergeId]: { ...(prev || {}), ...game, id: mergeId } as typeof game,
+                                    [mergeId]: coerceAdventureLiveGameScoringTurnLimit(mergedForSlot),
                                 };
                             });
                         }
@@ -6405,6 +6514,9 @@ export const useApp = () => {
                                     }
                                 }
                             }
+                            if (next[id]) {
+                                next[id] = coerceAdventureLiveGameScoringTurnLimit(next[id]!);
+                            }
                         }
                         return next;
                     });
@@ -6502,6 +6614,7 @@ export const useApp = () => {
                                     };
                                 }
                             }
+                            next[id] = reconcilePlayingSeatLock(next[id]!, prev[id]);
                         }
                         return next;
                     });
@@ -6597,6 +6710,7 @@ export const useApp = () => {
                                     };
                                 }
                             }
+                            next[id] = reconcilePlayingSeatLock(next[id]!, prev[id]);
                         }
                         return next;
                     });
@@ -7002,6 +7116,39 @@ export const useApp = () => {
                                 return updatedUsersMap;
                             });
 
+                            setOnlineUsers((prevOnline) => {
+                                if (!Array.isArray(prevOnline) || prevOnline.length === 0) return prevOnline;
+                                let changed = false;
+                                const next = prevOnline.map((u) => {
+                                    const patch = (payload as Record<string, any>)[u.id];
+                                    if (!patch || typeof patch !== 'object') return u;
+                                    changed = true;
+                                    const merged = { ...u } as Record<string, unknown>;
+                                    for (const [k, v] of Object.entries(patch)) {
+                                        if (v !== undefined) merged[k] = v;
+                                    }
+                                    return merged as unknown as UserWithStatus;
+                                });
+                                return changed ? next : prevOnline;
+                            });
+
+                            setUserBriefCache((prevBrief) => {
+                                let nextBrief: typeof prevBrief | null = null;
+                                for (const userId of Object.keys(payload as Record<string, unknown>)) {
+                                    const p = (payload as Record<string, any>)[userId];
+                                    if (!p || typeof p !== 'object' || !('blockArenaPartnerInvites' in p)) continue;
+                                    if (!nextBrief) nextBrief = { ...prevBrief };
+                                    const prevEntry = nextBrief[userId];
+                                    if (prevEntry) {
+                                        nextBrief[userId] = {
+                                            ...prevEntry,
+                                            blockArenaPartnerInvites: p.blockArenaPartnerInvites === true,
+                                        };
+                                    }
+                                }
+                                return nextBrief ?? prevBrief;
+                            });
+
                             if (currentUser && updatedCurrentUser && updatedCurrentUser.id === currentUser.id) {
                                 const now = Date.now();
                                 const timeSinceLastHttpUpdate = now - lastHttpUpdateTime.current;
@@ -7013,6 +7160,10 @@ export const useApp = () => {
                                 const isPostExchangePurchaseInventoryWs =
                                     lastHttpActionType.current === 'PURCHASE_EXCHANGE_LISTING' &&
                                     Array.isArray(updatedCurrentUser.inventory);
+                                /** 도전의 탑 종료 직후 서버 브로드캐스트 인벤 — HTTP 직후 디바운스에 걸리면 다음 층 가방 수가 안 바뀜 */
+                                const isPostTowerGameEndInventoryWs =
+                                    lastHttpActionType.current === 'END_TOWER_GAME' &&
+                                    Array.isArray(updatedCurrentUser.inventory);
 
                                 const hadHttpUpdate = lastHttpUpdateTime.current > 0;
                                 const httpUpdateHadUser = lastHttpHadUpdatedUser.current;
@@ -7020,6 +7171,7 @@ export const useApp = () => {
                                 if (!hasNicknameUpdate && !hasAdventureProfileUpdate && !hasExchangeStatePayload) {
                                     if (
                                         !isPostExchangePurchaseInventoryWs &&
+                                        !isPostTowerGameEndInventoryWs &&
                                         hadHttpUpdate &&
                                         httpUpdateHadUser &&
                                         timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS
@@ -7034,6 +7186,7 @@ export const useApp = () => {
                                     }
                                     if (
                                         !isPostExchangePurchaseInventoryWs &&
+                                        !isPostTowerGameEndInventoryWs &&
                                         hadHttpUpdate &&
                                         httpUpdateHadUser &&
                                         timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS * 2 &&
@@ -7448,7 +7601,13 @@ export const useApp = () => {
                                 lastGameUpdateTimeRef.current[gameId] = now;
                                 lastGameUpdateMoveCountRef.current[gameId] = incomingMoveCount;
                                 
-                                const gameCategory = game.gameCategory || (game.isSinglePlayer ? 'singleplayer' : 'normal');
+                                const gameBucket = getClientArenaStateBucket(game as LiveGameSession);
+                                const gameCategory =
+                                    gameBucket === 'singlePlayerGames'
+                                        ? 'singleplayer'
+                                        : gameBucket === 'towerGames'
+                                          ? 'tower'
+                                          : 'normal';
                                 
                                 // 성능 최적화: 불필요한 로깅 제거 (프로덕션)
                                 if (process.env.NODE_ENV === 'development') {
@@ -7569,6 +7728,20 @@ export const useApp = () => {
                                                 existingGame?.captures ??
                                                 game.captures ??
                                                 { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 };
+                                            const preservedBaseStoneCaptures =
+                                                mergeMonotonicCountRecord(
+                                                    existingGame?.baseStoneCaptures as LiveGameSession['baseStoneCaptures'],
+                                                    game.baseStoneCaptures as LiveGameSession['baseStoneCaptures']
+                                                ) ??
+                                                existingGame?.baseStoneCaptures ??
+                                                game.baseStoneCaptures;
+                                            const preservedHiddenStoneCaptures =
+                                                mergeMonotonicCountRecord(
+                                                    existingGame?.hiddenStoneCaptures as LiveGameSession['hiddenStoneCaptures'],
+                                                    game.hiddenStoneCaptures as LiveGameSession['hiddenStoneCaptures']
+                                                ) ??
+                                                existingGame?.hiddenStoneCaptures ??
+                                                game.hiddenStoneCaptures;
                                             
                                             if (isItemMode) {
                                                 const existingBoardStateValid = existingGame?.boardState && 
@@ -7654,6 +7827,8 @@ export const useApp = () => {
                                                     // totalTurns와 captures 보존 (미사일 애니메이션 중에는 서버 captures 적용)
                                                     totalTurns: preservedTotalTurns,
                                                     captures: finalCapturesForItemMode,
+                                                    baseStoneCaptures: preservedBaseStoneCaptures,
+                                                    hiddenStoneCaptures: preservedHiddenStoneCaptures,
                                                     // 시간 정보도 보존
                                                     blackTimeLeft: (game.blackTimeLeft !== undefined && game.blackTimeLeft !== null && game.blackTimeLeft > 0) 
                                                         ? game.blackTimeLeft 
@@ -7687,6 +7862,8 @@ export const useApp = () => {
                                                     revealAnimationEndTime: game.revealAnimationEndTime ?? existingGame.revealAnimationEndTime,
                                                     totalTurns: preservedTotalTurns !== undefined ? preservedTotalTurns : game.totalTurns,
                                                     captures: preservedCaptures ?? game.captures ?? existingGame.captures,
+                                                    baseStoneCaptures: preservedBaseStoneCaptures,
+                                                    hiddenStoneCaptures: preservedHiddenStoneCaptures,
                                                 };
                                             } else if (
                                                 game.gameStatus === 'playing' &&
@@ -7785,6 +7962,9 @@ export const useApp = () => {
                                                                     boardState: preservedBoardState,
                                                                     moveHistory: preservedMoveHistory,
                                                                     totalTurns: preservedTotalTurns,
+                                                                    captures: preservedCaptures,
+                                                                    baseStoneCaptures: preservedBaseStoneCaptures,
+                                                                    hiddenStoneCaptures: preservedHiddenStoneCaptures,
                                                                     blackTimeLeft: preservedBlackTimeLeft,
                                                                     whiteTimeLeft: preservedWhiteTimeLeft,
                                                                 };
@@ -7858,6 +8038,8 @@ export const useApp = () => {
                                                         permanentlyRevealedStones: mergedRevealed,
                                                         totalTurns: preservedTotalTurns !== undefined ? preservedTotalTurns : game.totalTurns,
                                                         captures: preservedCaptures,
+                                                        baseStoneCaptures: preservedBaseStoneCaptures,
+                                                        hiddenStoneCaptures: preservedHiddenStoneCaptures,
                                                     };
                                                 } else {
                                                     updatedGames[gameId] = {
@@ -8664,7 +8846,9 @@ export const useApp = () => {
                                             game,
                                             existingGame
                                         );
-                                        updatedGames[gameId] = mergedGame;
+                                        updatedGames[gameId] = mergeGameUpdateByArena(mergedGame, existingGame, {
+                                            source: 'game_update',
+                                        });
 
                                         // 전략바둑 AI(KATA 등) 수: 짧은 지연 후 표시 (바로 두면 연출·턴 표시가 어색함)
                                         // 주사위/도둑 등 놀이바둑은 지연을 쓰지 않음

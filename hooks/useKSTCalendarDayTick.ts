@@ -17,6 +17,9 @@ export function useKSTCalendarDayTick(): string {
             });
         };
 
+        /** 마운트 직후·탭 복귀 시에도 즉시 반영 (전날 한도 UI가 남는 경우 방지) */
+        sync();
+
         let timeoutId: ReturnType<typeof setTimeout>;
 
         const scheduleMidnight = () => {
@@ -31,6 +34,9 @@ export function useKSTCalendarDayTick(): string {
 
         scheduleMidnight();
 
+        /** 백그라운드 탭에서 setTimeout이 지연될 때를 대비해 주기적으로 KST 일자 확인 */
+        const intervalId = window.setInterval(sync, 60_000);
+
         const onVisibility = () => {
             if (document.visibilityState === 'visible') sync();
         };
@@ -39,6 +45,7 @@ export function useKSTCalendarDayTick(): string {
 
         return () => {
             clearTimeout(timeoutId);
+            window.clearInterval(intervalId);
             window.removeEventListener('focus', sync);
             document.removeEventListener('visibilitychange', onVisibility);
         };

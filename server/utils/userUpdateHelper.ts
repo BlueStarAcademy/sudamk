@@ -45,9 +45,11 @@ export function getSelectiveUserUpdate(
             'activeDiamondPackageTier',
             'diamondPackageExpiresAt',
             'diamondPackageLastMailDayKST',
+            'removeAdsPurchased',
             'quests',
         ],
-        'BUY_VIP_PACKAGE': ['rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt'],
+        'BUY_VIP_PACKAGE': ['rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt', 'vipShopAutoRenew'],
+        'CANCEL_VIP_SHOP_AUTO_RENEW': ['vipShopAutoRenew'],
         'BUY_BORDER': ['ownedBorders', 'gold', 'diamonds'],
         'PURCHASE_ACTION_POINTS': ['actionPoints', 'diamonds', 'actionPointPurchasesToday', 'lastActionPointPurchaseDate'],
         
@@ -85,6 +87,7 @@ export function getSelectiveUserUpdate(
         'CHANGE_NICKNAME': ['nickname', 'diamonds', 'staffNicknameDisplayEligibility'],
         'UPDATE_MBTI': ['mbti', 'isMbtiPublic', 'diamonds'],
         'UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT': ['pairPetLobbyInventorySort'],
+        'SET_BLOCK_ARENA_PARTNER_INVITES': ['blockArenaPartnerInvites'],
         'MANNER_ACTION': ['mannerScore', 'mannerMasteryApplied', 'actionPoints'],
         'RESET_STAT_POINTS': ['spentStatPoints', 'gold', 'lastStatResetDate', 'statResetCountToday'],
         'RESET_PAIR_ARENA_SINGLE_STAT': ['diamonds', 'pairArenaStatsByMode'],
@@ -115,6 +118,7 @@ export function getSelectiveUserUpdate(
             'activeDiamondPackageTier',
             'diamondPackageExpiresAt',
             'diamondPackageLastMailDayKST',
+            'removeAdsPurchased',
         ],
         'CLAIM_ALL_MAIL_ATTACHMENTS': [
             'inventory',
@@ -126,6 +130,7 @@ export function getSelectiveUserUpdate(
             'activeDiamondPackageTier',
             'diamondPackageExpiresAt',
             'diamondPackageLastMailDayKST',
+            'removeAdsPurchased',
         ],
         'DELETE_MAIL': ['mail'],
         'DELETE_ALL_CLAIMED_MAIL': ['mail'],
@@ -221,7 +226,7 @@ export function getUserDelta(oldUser: User | null, newUser: User): Partial<User>
         'inventorySlots', 'blacksmithLevel', 'blacksmithXp',
         'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament',
         'singlePlayerProgress', 'clearedSinglePlayerStages', 'onboardingTutorialPhase', 'onboardingTutorialPendingFirstHome', 'onboardingCompletionRewardClaimed', 'onboardingIntro1FanPendingClaim',
-        'rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt',
+        'rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt', 'vipShopAutoRenew',
     ];
     
     for (const field of fieldsToCompare) {

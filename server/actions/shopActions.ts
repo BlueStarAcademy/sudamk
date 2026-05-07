@@ -7,7 +7,13 @@ import { type ServerAction, type User, type VolatileState, type LiveGameSession,
 import * as shop from '../shop.js';
 import { SHOP_ITEMS } from '../shop.js';
 import { broadcast } from '../socket.js';
-import { isSameDayKST, isDifferentWeekKST, isDifferentMonthKST, getTodayKSTDateString } from '../../utils/timeUtils.js';
+import {
+    isSameDayKST,
+    isDifferentWeekKST,
+    isDifferentMonthKST,
+    getTodayKSTDateString,
+    shopPurchaseRecordDateMs,
+} from '../../shared/utils/timeUtils.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, ACTION_POINT_PURCHASE_COSTS_DIAMONDS, MAX_ACTION_POINT_PURCHASES_PER_DAY, ACTION_POINT_PURCHASE_REFILL_AMOUNT, SHOP_BORDER_ITEMS } from '../../constants';
 import { addItemsToInventory, createItemInstancesFromReward } from '../../utils/inventoryUtils.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
@@ -16,6 +22,7 @@ import { generateNewItem } from './inventoryActions.js';
 import {
     CASH_SHOP_DIAMOND_PACKAGE_IDS,
     CASH_SHOP_EQUIPMENT_PACKAGE_IDS,
+    CASH_SHOP_REMOVE_ADS_PACKAGE_ID,
     type CashShopDiamondPackageId,
     type CashShopEquipmentPackageId,
     DIAMOND_PACKAGE_DURATION_DAYS,
@@ -34,6 +41,7 @@ import {
 import { applyVipDurationExtensionToUser } from '../../shared/utils/vipDurationGrant.js';
 import * as guildService from '../guildService.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
+import { ItemGrade } from '../../shared/types/enums.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -676,15 +684,19 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
 
             const now = Date.now();
             const rewardConfig = await getRewardConfig();
-            const PER_TAB_DAILY_LIMIT = 2;
-            const GLOBAL_DAILY_LIMIT = 3;
+            /** 탭당 1회 · 장비/재료/소모품/다이아 네 탭 각 1회 */
+            const PER_TAB_DAILY_LIMIT = 1;
+            const GLOBAL_DAILY_LIMIT = 4;
             const purchaseKey = `ad_reward_${tab}`;
             const globalPurchaseKey = 'ad_reward_global';
             if (!user.dailyShopPurchases) user.dailyShopPurchases = {};
             const rec = user.dailyShopPurchases[purchaseKey];
-            const claimsToday = rec && isSameDayKST(rec.date, now) ? rec.quantity : 0;
+            const tabDateMs = shopPurchaseRecordDateMs(rec?.date);
+            const claimsToday = rec && tabDateMs > 0 && isSameDayKST(tabDateMs, now) ? rec.quantity : 0;
             const globalRec = user.dailyShopPurchases[globalPurchaseKey];
-            const globalClaimsToday = globalRec && isSameDayKST(globalRec.date, now) ? globalRec.quantity : 0;
+            const globalDateMs = shopPurchaseRecordDateMs(globalRec?.date);
+            const globalClaimsToday =
+                globalRec && globalDateMs > 0 && isSameDayKST(globalDateMs, now) ? globalRec.quantity : 0;
             if (!user.isAdmin && claimsToday >= PER_TAB_DAILY_LIMIT) {
                 return { error: '오늘 광고 보상 수령 한도에 도달했습니다.' };
             }
@@ -694,8 +706,22 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
 
             const obtainedItems: InventoryItem[] = [];
             if (tab === 'diamonds') {
-                const gainedDiamonds = addRewardBonus(5, rewardConfig.shopAdDiamondBonus);
+                const gainedDiamonds = addRewardBonus(10, rewardConfig.shopAdDiamondBonus);
                 user.diamonds = (user.diamonds || 0) + gainedDiamonds;
+                obtainedItems.push({
+                    id: `shop-ad-diamond-reward-${randomUUID()}`,
+                    name: '다이아몬드',
+                    description: '상점 광고 보상으로 획득한 다이아몬드입니다.',
+                    type: 'material',
+                    slot: null,
+                    quantity: gainedDiamonds,
+                    level: 1,
+                    isEquipped: false,
+                    createdAt: now,
+                    image: '/images/icon/Zem.png',
+                    grade: ItemGrade.Normal,
+                    stars: 0,
+                });
             } else {
                 let rewards: InventoryItem[] = [];
                 if (tab === 'equipment') {
@@ -762,7 +788,11 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
             };
         }
         case 'BUY_VIP_PACKAGE': {
-            const { packageId } = (payload || {}) as { packageId?: string };
+            const { packageId, billing } = (payload || {}) as {
+                packageId?: string;
+                /** 기본 일회성. `subscription`이면 동일 30일 연장 + 자동갱신 등록 */
+                billing?: 'one_time' | 'subscription';
+            };
             if (!packageId || typeof packageId !== 'string') {
                 return { error: '유효하지 않은 상품입니다.' };
             }
@@ -775,12 +805,43 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
             const id = packageId as VipShopProductId;
             const days = VIP_SHOP_DURATION_DAYS[id];
             const flags = getVipShopGrantFlagsForProductId(id);
-            applyVipDurationExtensionToUser(user, flags, days * 86400000, Date.now());
+            const now = Date.now();
+            applyVipDurationExtensionToUser(user, flags, days * 86400000, now);
+
+            if (billing === 'subscription') {
+                if (!user.vipShopAutoRenew) user.vipShopAutoRenew = {};
+                user.vipShopAutoRenew[id] = true;
+            }
 
             const updatedUser = getSelectiveUserUpdate(user, 'BUY_VIP_PACKAGE', { includeAll: true });
             db.updateUser(user).catch((err) => console.error(`[BUY_VIP_PACKAGE] Failed to save user ${user.id}:`, err));
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt']);
+            broadcastUserUpdate(user, ['rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt', 'vipShopAutoRenew']);
+            return { clientResponse: { updatedUser } };
+        }
+        case 'CANCEL_VIP_SHOP_AUTO_RENEW': {
+            const { packageId } = (payload || {}) as { packageId?: string };
+            if (!packageId || typeof packageId !== 'string') {
+                return { error: '유효하지 않은 상품입니다.' };
+            }
+            if (!(VIP_SHOP_PRODUCT_IDS as readonly string[]).includes(packageId)) {
+                return { error: '유효하지 않은 VIP 상품입니다.' };
+            }
+            if (!user.isAdmin) {
+                return { error: '아직 구현되지 않았습니다.' };
+            }
+            const id = packageId as VipShopProductId;
+            if (user.vipShopAutoRenew && user.vipShopAutoRenew[id]) {
+                const next = { ...user.vipShopAutoRenew };
+                delete next[id];
+                user.vipShopAutoRenew = Object.keys(next).length > 0 ? next : undefined;
+            }
+            const updatedUser = getSelectiveUserUpdate(user, 'CANCEL_VIP_SHOP_AUTO_RENEW', { includeAll: true });
+            db.updateUser(user).catch((err) =>
+                console.error(`[CANCEL_VIP_SHOP_AUTO_RENEW] Failed to save user ${user.id}:`, err),
+            );
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['vipShopAutoRenew']);
             return { clientResponse: { updatedUser } };
         }
         case 'BUY_CASH_PACKAGE': {
@@ -851,6 +912,18 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 const { broadcastUserUpdate } = await import('../socket.js');
                 broadcastUserUpdate(user, ['inventory', 'dailyShopPurchases', 'quests']);
                 return { clientResponse: { obtainedItemsBulk: obtainedItems, updatedUser } };
+            }
+
+            if (packageId === CASH_SHOP_REMOVE_ADS_PACKAGE_ID) {
+                if (user.removeAdsPurchased) {
+                    return { error: '이미 광고 제거 상품을 보유 중입니다.' };
+                }
+                user.removeAdsPurchased = true;
+                const updatedUser = getSelectiveUserUpdate(user, 'BUY_CASH_PACKAGE', { includeAll: true });
+                db.updateUser(user).catch((err) => console.error(`[BUY_CASH_PACKAGE] Failed to save user ${user.id}:`, err));
+                const { broadcastUserUpdate } = await import('../socket.js');
+                broadcastUserUpdate(user, ['removeAdsPurchased']);
+                return { clientResponse: { updatedUser } };
             }
 
             return { error: '알 수 없는 패키지입니다.' };

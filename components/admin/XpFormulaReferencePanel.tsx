@@ -150,7 +150,7 @@ const XpFormulaReferencePanel: React.FC<XpFormulaReferencePanelProps> = ({ onBac
                     <h3 className="mt-5 text-sm font-semibold text-primary">기타 출처</h3>
                     <BulletList
                         items={[
-                            '싱글플레이: 스테이지 `firstClear` / `repeatClear`의 exp. 재도전 실패 시(기권 아님·AI 아님) repeat 성공 exp의 10%.',
+                            '싱글플레이: 스테이지 `firstClear`의 exp·골드·아이템 — 최초 클리어 1회만 지급(재도전·재클리어 보상 없음).',
                             '도전의 탑: 해당 층 `TOWER_STAGES`의 `rewards.firstClear.exp` — 최초 클리어이며 이번 입장에 행동력이 실제 소모된 승리에만.',
                             '2인 페어바둑: 아래 「페어바둑 롤 구간」의 strategyXp를 굴린 뒤 난이도·승패 배율·보상 VIP를 적용 (별도 함수).',
                         ]}

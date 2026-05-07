@@ -1,0 +1,48 @@
+---
+description: Require ArenaKind policy path for game-session changes
+alwaysApply: true
+---
+
+# ArenaKind Policy Guard
+
+When changing game-session behavior, first classify the session through
+`shared/utils/liveSessionArenaKind.ts` and use the derived policy instead of
+adding new ad hoc checks against `gameCategory`, `isSinglePlayer`, `isAiGame`,
+`stageId`, id prefixes, or `settings.pairGame`.
+
+Apply this rule to changes touching:
+
+- `LiveGameSession`, `GameSettings`, `GameCategory`, or game routing/state maps.
+- `GAME_UPDATE`, `INITIAL_STATE`, HTTP action response merges, rejoin, or sessionStorage recovery.
+- scoring/turn-limit logic: `scoringTurnLimit`, `autoScoringTurns`, `totalTurns`, PASS counting, auto scoring.
+- AI turn processing for adventure, singleplayer, tower, guild war, strategy lobby AI, or pair games.
+- pair game team/seat logic, especially mixed human/AI/pet teams.
+
+Use these entry points:
+
+- `resolveArenaSessionPolicy(session)` for arena kind, PVE/PVP/mixed-pair axis, pair composition, and policy flags.
+- `server/utils/arenaTurnPolicy.ts` for server turn counts, turn caps, PASS counting, and scoring snapshot authority.
+- `utils/clientGameMergePolicy.ts` for client-side merge corrections and arena-aware game update handling.
+
+Do not introduce new direct branching like:
+
+```ts
+if (game.gameCategory === 'adventure') { ... }
+if (game.isSinglePlayer || game.gameCategory === 'tower') { ... }
+```
+
+Prefer:
+
+```ts
+const policy = resolveArenaSessionPolicy(game);
+if (policy.kind === 'adventure') { ... }
+if (policy.isClientAuthoritativeForScoringSnapshot) { ... }
+```
+
+If a behavior truly needs a new distinction, add it to `ArenaSessionPolicy` and cover it with focused tests, especially for:
+
+- PVE vs PVP PASS-count behavior.
+- adventure board-size scoring caps.
+- singleplayer/tower auto scoring.
+- guild war mirrored `autoScoringTurns` and `scoringTurnLimit`.
+- pair compositions: human+AI vs human+AI, human+human vs AI, human+AI vs AI.

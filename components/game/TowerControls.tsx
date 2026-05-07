@@ -30,8 +30,12 @@ import {
     pveIngameFooterReservedHeightClass,
 } from './arenaGameRoomStyles.js';
 import TowerItemShopModal from '../TowerItemShopModal.js';
+import { pairPetKataPhaseFromTotalPly, pairPetKataPliesRemainingInCurrentPhase } from '../../shared/constants/pairArena.js';
+import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
+import { getPairPetDefinition } from '../../shared/constants/petLobby.js';
 
 interface TowerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
+    allowPostGameFooterActions?: boolean;
     showResultModal?: boolean;
     setShowResultModal?: (show: boolean) => void;
     setConfirmModalType?: (type: 'resign' | null) => void;
@@ -53,9 +57,10 @@ interface ImageButtonProps {
     count?: number;
     maxCount?: number;
     compact?: boolean;
+    imageBottomOverlay?: string;
 }
 
-const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled = false, title, count, maxCount, compact = false }) => {
+const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled = false, title, count, maxCount, compact = false, imageBottomOverlay }) => {
     const sizeClass = compact
         ? 'h-12 w-12 shrink-0 rounded-lg sm:h-12 sm:w-12 md:h-12 md:w-12'
         : 'h-[4.25rem] w-[4.25rem] rounded-xl min-[1025px]:h-16 min-[1025px]:w-16';
@@ -68,6 +73,16 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
 			className={`relative ${sizeClass} border-2 border-amber-400 transition-transform duration-200 ease-out overflow-hidden focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-gray-900 ${disabled ? 'opacity-40 cursor-not-allowed border-gray-700' : 'hover:scale-105 active:scale-95 shadow-lg'}`}
         >
 			<img src={src} alt={alt} className="absolute inset-0 w-full h-full object-contain pointer-events-none p-1.5" />
+            {imageBottomOverlay ? (
+                <span
+                    className={`pointer-events-none absolute inset-x-0 bottom-0 z-[2] flex items-end justify-center bg-gradient-to-t from-slate-950/95 via-slate-950/70 to-transparent pb-0.5 pt-2.5 font-bold leading-none tracking-wide text-sky-100 ring-1 ring-inset ring-sky-400/25 ${
+                        compact ? 'text-[7px]' : 'text-[8px] min-[1025px]:text-[9px]'
+                    }`}
+                    aria-hidden
+                >
+                    {imageBottomOverlay}
+                </span>
+            ) : null}
             {count !== undefined && (
 				<div className={`absolute -bottom-0.5 -right-0.5 text-[11px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-purple-900 ${
                     count > 0 ? 'bg-yellow-400 text-gray-900' : 'bg-gray-600 text-gray-300'
@@ -79,12 +94,25 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
     );
 };
 
-const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, currentUser, showResultModal, setShowResultModal, setConfirmModalType, isMoveInFlight = false, isBoardLocked = false, isMobile = false }) => {
+const TowerControls: React.FC<TowerControlsProps> = ({
+    session,
+    onAction,
+    currentUser,
+    allowPostGameFooterActions = true,
+    showResultModal = false,
+    setShowResultModal,
+    setConfirmModalType,
+    isMoveInFlight = false,
+    isBoardLocked = false,
+    isMobile = false,
+    strategicPetHintFooterBubble = null,
+}) => {
     const [refreshConfirmModal, setRefreshConfirmModal] = useState(false);
     const [passConfirmModal, setPassConfirmModal] = useState(false);
     const [turnAddConfirmModal, setTurnAddConfirmModal] = useState(false);
     const [towerItemShopOpen, setTowerItemShopOpen] = useState(false);
     const [towerShopInitialItemId, setTowerShopInitialItemId] = useState<string | undefined>(undefined);
+    const [petHintBusy, setPetHintBusy] = useState(false);
 
     const openTowerItemShop = (itemId: string) => {
         if (!currentUser) return;
@@ -194,6 +222,8 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
             }
         };
 
+        const blockPostGameFooter = allowPostGameFooterActions === false;
+
         const handleRetry = async () => {
             try {
                 const result = await onAction({ type: 'START_TOWER_GAME', payload: { floor } });
@@ -244,16 +274,40 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
             >
                 <div className={arenaPostGamePanelShellClass}>
                     <div className={arenaPostGameButtonGridClass}>
-                    <Button bare onClick={handleShowResults} colorScheme="none" className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}>
+                    <Button
+                        bare
+                        onClick={handleShowResults}
+                        colorScheme="none"
+                        className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}
+                        disabled={blockPostGameFooter && !!showResultModal}
+                    >
                         결과 보기
                     </Button>
-                    <Button bare onClick={handleNextFloor} colorScheme="none" className={`${arenaPostGameButtonClass('neutral', !!isMobile, 'strip')} min-w-0 truncate`} disabled={!canTryNext}>
+                    <Button
+                        bare
+                        onClick={handleNextFloor}
+                        colorScheme="none"
+                        className={`${arenaPostGameButtonClass('neutral', !!isMobile, 'strip')} min-w-0 truncate`}
+                        disabled={blockPostGameFooter || !canTryNext}
+                    >
                         {formatTowerNextFooterLabel(nextFloor, canTryNext, effectiveNextFloorApCost)}
                     </Button>
-                    <Button bare onClick={handleRetry} colorScheme="none" className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}>
+                    <Button
+                        bare
+                        onClick={handleRetry}
+                        colorScheme="none"
+                        className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}
+                        disabled={blockPostGameFooter}
+                    >
                         {formatArenaRetryLabel(effectiveRetryApCost)}
                     </Button>
-                    <Button bare onClick={handleExitToLobby} colorScheme="none" className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}>
+                    <Button
+                        bare
+                        onClick={handleExitToLobby}
+                        colorScheme="none"
+                        className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}
+                        disabled={blockPostGameFooter}
+                    >
                         대기실로
                     </Button>
                     </div>
@@ -432,6 +486,95 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 
 	const colClass = isMobile ? 'flex flex-col items-center gap-1 shrink-0' : 'flex flex-col items-center gap-1.5';
 	const lbl = isMobile ? 'text-[10px]' : 'text-[12px]';
+    const petRow = currentUser ? getEquippedPairPetInventoryRow(currentUser) : null;
+    const petHintBoardSize = session.settings.boardSize || 19;
+    const petHintTotalPly = (session.moveHistory || []).filter((m) => m && m.x !== -1 && m.y !== -1).length + 1;
+    const petHintPhase = pairPetKataPhaseFromTotalPly(petHintBoardSize, petHintTotalPly);
+    const { remaining: petHintPhasePlyRemaining } = pairPetKataPliesRemainingInCurrentPhase(petHintBoardSize, petHintTotalPly);
+    const petHintUsed = ((session.settings as { strategicPetHintByUserId?: Record<string, Partial<Record<string, boolean>>> })
+        .strategicPetHintByUserId?.[currentUser.id] ?? {}) as Record<string, boolean>;
+    const petHintPhaseLabel = petHintPhase === 'opening' ? '초반' : petHintPhase === 'midgame' ? '중반' : '종반';
+    const petHintCountdownLabel =
+        petHintPhasePlyRemaining == null ? '종반' : `${petHintPhaseLabel} ${petHintPhasePlyRemaining}수`;
+    const petHintCanAttempt =
+        gameStatus === 'playing' &&
+        isMyTurn &&
+        !!petRow &&
+        !petHintUsed[petHintPhase] &&
+        !isMoveInFlight &&
+        !isBoardLocked &&
+        !hasPendingRevealResolution;
+    let petHintTitleBody = `${petHintPhaseLabel}에 한 번 — 대표 펫이 좋은 자리를 표시해 줘요.`;
+    if (!petRow) {
+        petHintTitleBody = '대표 펫을 장착하면 힌트를 사용할 수 있어요.';
+    } else if (gameStatus !== 'playing') {
+        petHintTitleBody = '대국이 진행 중일 때 사용할 수 있어요.';
+    } else if (!isMyTurn) {
+        petHintTitleBody = '내 차례에만 사용할 수 있어요.';
+    } else if (petHintUsed[petHintPhase]) {
+        petHintTitleBody = `${petHintPhaseLabel} 구간에서 이미 힌트를 사용했어요.`;
+    }
+    const petHintTitle =
+        petHintPhasePlyRemaining != null
+            ? `${petHintPhaseLabel} ${petHintPhasePlyRemaining}수 남음 — ${petHintTitleBody}`
+            : `${petHintPhaseLabel} — ${petHintTitleBody}`;
+    const petHintImg = petRow
+        ? ((petRow as { image?: string }).image ??
+              (petRow.templateId ? getPairPetDefinition(petRow.templateId)?.image : null) ??
+              '/images/button/hidden.png')
+        : null;
+    const showPetHintBubble = Boolean(strategicPetHintFooterBubble?.visible && strategicPetHintFooterBubble?.message);
+    const petHintSlot = (
+        <div className={`relative ${colClass}`}>
+            {showPetHintBubble && strategicPetHintFooterBubble?.message ? (
+                <div
+                    className="pointer-events-none absolute bottom-full left-1/2 z-[81] mb-2 w-max max-w-[min(17rem,78vw)] -translate-x-1/2 px-0.5"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <div className="relative rounded-xl border border-sky-400/45 bg-slate-950/96 px-2.5 pb-2 pt-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)] ring-1 ring-sky-500/25">
+                        <p className="line-clamp-2 break-words text-center text-[10px] font-medium leading-snug text-sky-50 sm:text-[11px]">
+                            {strategicPetHintFooterBubble.message}
+                        </p>
+                        <div
+                            className="absolute left-1/2 top-full -mt-px h-0 w-0 -translate-x-1/2 border-x-[7px] border-x-transparent border-t-[8px] border-t-slate-950/96 drop-shadow-[0_1px_0_rgba(56,189,248,0.35)]"
+                            aria-hidden
+                        />
+                    </div>
+                </div>
+            ) : null}
+            {petRow && petHintImg ? (
+                <ImageButton
+                    src={petHintImg}
+                    alt={`펫 힌트 ${petHintCountdownLabel}`}
+                    onClick={() => {
+                        if (!petHintCanAttempt || petHintBusy) return;
+                        setPetHintBusy(true);
+                        void Promise.resolve(onAction({ type: 'REQUEST_STRATEGIC_PET_HINT', payload: { gameId: session.id } })).finally(() =>
+                            setPetHintBusy(false),
+                        );
+                    }}
+                    disabled={!petHintCanAttempt || petHintBusy}
+                    title={petHintTitle}
+                    compact={isMobile}
+                    imageBottomOverlay="힌트"
+                />
+            ) : (
+                <button
+                    type="button"
+                    disabled
+                    className={`relative flex items-center justify-center overflow-hidden border-2 border-dashed border-slate-500/55 bg-slate-950/55 ${
+                        isMobile ? 'h-12 w-12 shrink-0 rounded-lg' : 'h-[4.25rem] w-[4.25rem] rounded-xl min-[1025px]:h-16 min-[1025px]:w-16'
+                    }`}
+                    title={petHintTitle}
+                    aria-label={`펫 힌트 ${petHintCountdownLabel} (대표 펫 미장착)`}
+                />
+            )}
+            <span className={`${lbl} font-semibold whitespace-nowrap ${petHintCanAttempt ? 'text-sky-100' : 'text-gray-500'}`}>
+                {petHintCountdownLabel}
+            </span>
+        </div>
+    );
 
 	const coreZone = (
 		<>
@@ -472,6 +615,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 				/>
 				<span className={`${lbl} font-semibold whitespace-nowrap ${refreshButtonDisabled ? 'text-gray-500' : 'text-amber-100'}`}>배치변경</span>
 			</div>
+            {petHintSlot}
 		</>
 	);
 

@@ -61,6 +61,12 @@ import { bumpGuildWarMaxSingleCapturePointsForPlayer } from '../shared/utils/gui
 import { reconcileStrategicAiBoardSizeWithGroundTruth } from './utils/effectiveBoardSize.js';
 import { getEffectiveSinglePlayerStages } from './singlePlayerStageConfigService.js';
 import { resolveSinglePlayerAutoScoringTurnCap } from '../shared/utils/singlePlayerStrategicRulePreset.js';
+import {
+    getArenaTurnCount,
+    getValidStoneMoveCount,
+    resolveArenaFixedScoringTurnLimit,
+} from './utils/arenaTurnPolicy.js';
+import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 
 /** 싱글·탑·로비 AI 등: 마지막 AI 수가 판에 보이고 착수음이 난 뒤 계가 — 클라 렌더·오디오 여유 */
 const PVE_DEFERRED_AUTO_SCORING_AFTER_LAST_AI_MS = 1200;
@@ -68,9 +74,7 @@ const pveDeferredAutoScoringTimers = new Map<string, ReturnType<typeof setTimeou
 const singlePlayerBlackTurnLimitFailTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function isPveDeferredAutoScoringGame(game: types.LiveGameSession): boolean {
-    const gc = String((game as any).gameCategory ?? '');
-    if (game.isSinglePlayer || gc === 'tower' || gc === 'singleplayer') return true;
-    return isLobbyAiStrategicGoGame(game);
+    return resolveArenaSessionPolicy(game as any).deferAutoScoringAfterAi;
 }
 
 /**
@@ -79,21 +83,7 @@ function isPveDeferredAutoScoringGame(game: types.LiveGameSession): boolean {
  * - 혹시 -1/-1 이력이 섞여 있어도 진행 턴수 계산에서는 제외한다.
  */
 function getProgressTurnCount(game: types.LiveGameSession): number {
-    return (game.moveHistory || []).filter((m) => m && m.x !== -1 && m.y !== -1).length;
-}
-
-/** PvP 전략바둑만 scoringTurnLimit에서 PASS를 턴으로 포함한다. */
-function shouldCountPassAsTurnForScoring(game: types.LiveGameSession): boolean {
-    const scoringLimit = Number((game.settings as any)?.scoringTurnLimit ?? 0);
-    const gc = String((game as any).gameCategory ?? '');
-    return (
-        scoringLimit > 0 &&
-        !isPairClassicGame(game.settings, game.mode) &&
-        !game.isSinglePlayer &&
-        !game.isAiGame &&
-        gc !== 'tower' &&
-        gc !== 'adventure'
-    );
+    return getValidStoneMoveCount(game);
 }
 
 function pairAiForcePassPlyThreshold(boardSize: number): number {
@@ -121,24 +111,9 @@ async function runDeferredPveAutoScoring(gameId: string): Promise<void> {
         (g as any).pendingAutoScoringKickoffAt = undefined;
         if (g.gameStatus !== 'playing' && (g.gameStatus as string) !== 'hidden_placing') return;
 
-        const scoringLimit = (g.settings as any)?.scoringTurnLimit;
-        const useScoringLimitAsAuto =
-            !modeIncludesCaptureRule(g) && scoringLimit != null && scoringLimit > 0;
-        const autoScoringTurns =
-            g.isSinglePlayer && g.stageId
-                ? resolveSinglePlayerAutoScoringTurnCap(
-                      g.settings as any,
-                      (await getEffectiveSinglePlayerStages()).find((s) => s.id === g.stageId)
-                  )
-                : String((g as any).gameCategory ?? '') === 'tower' ||
-                    String((g as any).gameCategory ?? '') === 'singleplayer'
-                  ? (g.settings as any)?.autoScoringTurns
-                  : useScoringLimitAsAuto
-                    ? scoringLimit
-                    : undefined;
+        const autoScoringTurns = await resolveArenaFixedScoringTurnLimit(g);
         if (!autoScoringTurns) return;
-        const countPassAsTurn = shouldCountPassAsTurnForScoring(g);
-        const totalTurns = countPassAsTurn ? (g.moveHistory || []).length : getProgressTurnCount(g);
+        const totalTurns = getArenaTurnCount(g);
         if (totalTurns < autoScoringTurns) return;
 
         const gameType = g.isSinglePlayer ? 'SinglePlayer' : 'PVE';
@@ -1619,6 +1594,32 @@ function isLegalAiMoveOnCurrentBoard(game: types.LiveGameSession, move: Point | 
     return processMove(game.boardState, { ...move, player }, game.koInfo, game.moveHistory.length).isValid;
 }
 
+function pickServerScoredLegalMove(
+    game: types.LiveGameSession,
+    aiPlayer: Player,
+    opponentPlayer: Player,
+    profileLevel: number
+): Point | null {
+    const logic = getGoLogic(game);
+    let legalMoves = findAllValidMovesFast(game, logic, aiPlayer);
+    if (legalMoves.length === 0) {
+        legalMoves = findAllValidMoves(game, logic, aiPlayer);
+    }
+    if (getUserUnrevealedHiddenPoints(game, aiPlayer).length > 0 && legalMoves.length > 0) {
+        legalMoves = legalMoves.filter(
+            (m) => !isInvalidAiHiddenNeighborhoodForKataAndHeuristic(game, m.x, m.y, aiPlayer),
+        );
+    }
+    if (legalMoves.length === 0) return null;
+
+    const profile = getGoAiBotProfile(profileLevel);
+    const scoredMoves =
+        (game.settings as any)?.isSurvivalMode
+            ? scoreMovesForAggressiveCapture(legalMoves, game, profile, logic, aiPlayer, opponentPlayer)
+            : scoreMovesFast(legalMoves, game, profile, logic, aiPlayer, opponentPlayer);
+    return scoredMoves[0]?.move ?? legalMoves[0] ?? null;
+}
+
 function countPairSeatOwnMoves(game: types.LiveGameSession, participantId: string): number {
     return (game.moveHistory || []).filter(
         (m: any) => m && m.x !== -1 && m.y !== -1 && m.actorId === participantId
@@ -1646,15 +1647,27 @@ function choosePairPetMistakeMove(game: types.LiveGameSession, bestMove: Point, 
     return null;
 }
 
-function appendPairPetGameChat(game: types.LiveGameSession, text: string): void {
+function appendPairPetGameChat(
+    game: types.LiveGameSession,
+    text: string,
+    opts?: { participantId: string; nickname: string },
+): void {
     if (!text) return;
-    const message: types.ChatMessage = {
-        id: `msg-${randomUUID()}`,
-        user: { id: 'pair-pet-ai', nickname: '페어 펫' },
-        text,
-        system: true,
-        timestamp: Date.now(),
-    };
+    const message: types.ChatMessage = opts
+        ? {
+              id: `msg-${randomUUID()}`,
+              user: { id: opts.participantId, nickname: opts.nickname.trim() || '펫' },
+              text,
+              system: false,
+              timestamp: Date.now(),
+          }
+        : {
+              id: `msg-${randomUUID()}`,
+              user: { id: 'pair-pet-ai', nickname: '페어 펫' },
+              text,
+              system: true,
+              timestamp: Date.now(),
+          };
     if (!volatileState.gameChats[game.id]) volatileState.gameChats[game.id] = [];
     volatileState.gameChats[game.id].push(message);
     if (volatileState.gameChats[game.id].length > 100) volatileState.gameChats[game.id].shift();
@@ -1668,7 +1681,7 @@ function appendPairPetGameChat(game: types.LiveGameSession, text: string): void 
     );
 }
 
-/** Kata만 두기: 수순 불일치 시 AI 시야 판으로 전부 다시 보내 재질의 */
+/** Kata만 두기: 실제 수순 대신 현재 AI 시야 판 좌표 전체를 합성 수열로 보내 판단한다. */
 const KATA_EXCLUSIVE_MAX_BOARD_RESYNC = 8;
 
 function buildKataMoveHistoryBoardOnlyFromAiVisibleBoard(
@@ -1731,14 +1744,7 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
     let lastBest: Point | null = null;
 
     for (let resync = 0; resync < KATA_EXCLUSIVE_MAX_BOARD_RESYNC; resync++) {
-        const moveHistory =
-            resync === 0
-                ? buildKataMoveHistory(
-                      game,
-                      getMoveHistoryForKataServer(game, aiPlayerEnum),
-                      aiPlayerEnum,
-                  )
-                : buildKataMoveHistoryBoardOnlyFromAiVisibleBoard(game, aiPlayerEnum);
+        const moveHistory = buildKataMoveHistoryBoardOnlyFromAiVisibleBoard(game, aiPlayerEnum);
 
         const kataParams = {
             boardSize: game.settings.boardSize || 19,
@@ -1759,9 +1765,13 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
         try {
             kataDetails = await generateKataServerMoveCandidateDetails(kataParams);
         } catch (e: any) {
+            const message = String(e?.message ?? e);
+            if (/Illegal move/i.test(message)) {
+                (game as any).kataPveKataMovesFromBoardStateOnly = true;
+            }
             console.error(
                 `[pickKataMoveExclusiveWithBoardResync] KataServer 호출 실패 (${tagSuffix} resync=${resync}) game=${game.id}:`,
-                e?.message ?? e,
+                message,
             );
             continue;
         }
@@ -2216,7 +2226,7 @@ export async function makeGoAiBotMove(
         );
     }
 
-    // 6초 연출만 시작하고 Kata는 호출하지 않는다. 만료 후 다음 makeGoAiBotMove 틱에서 Kata로 수를 정해 히든으로 둔다.
+    // 공유 상수 길이의 연출만 시작하고 Kata는 호출하지 않는다. 만료 후 다음 makeGoAiBotMove 틱에서 Kata로 수를 정해 히든으로 둔다.
     if (
         isHiddenMode &&
         !pairAllyPetSeatBlocksAiHidden &&
@@ -2323,7 +2333,8 @@ export async function makeGoAiBotMove(
     }
     
     let selectedMove: Point | null = null;
-    let pendingPairPetKataChatMessage: string | null = null;
+    type PendingPairPetKataGameChat = { text: string; participantId: string; nickname: string };
+    let pendingPairPetKataGameChat: PendingPairPetKataGameChat | null = null;
     const configuredAiHiddenPlacementsRaw = (game.settings as any)?.singlePlayerAiHiddenItemPlacements;
     const configuredAiHiddenPlacements: Point[] = Array.isArray(configuredAiHiddenPlacementsRaw)
         ? configuredAiHiddenPlacementsRaw
@@ -2471,6 +2482,30 @@ export async function makeGoAiBotMove(
                 const { getGameResult } = await import('./gameModes.js');
                 await getGameResult(game);
                 return;
+            } else if (isSinglePlayerOrTowerPve(game)) {
+                const fallbackMove = pickServerScoredLegalMove(
+                    game,
+                    aiPlayerEnum,
+                    opponentPlayerEnum,
+                    goAiProfileLevel,
+                );
+                if (fallbackMove) {
+                    pickedFromKata = fallbackMove;
+                    console.warn(
+                        `[makeGoAiBotMove] Kata-only exhausted; using server-scored legal move (${fallbackMove.x},${fallbackMove.y}), game=${game.id}`,
+                    );
+                } else {
+                    const totalTurns = getProgressTurnCount(game);
+                    console.warn(
+                        `[makeGoAiBotMove] Kata-only exhausted and no legal move; scoring instead of resign, game=${game.id}, turns=${totalTurns}`,
+                    );
+                    game.totalTurns = totalTurns;
+                    game.gameStatus = 'scoring';
+                    await db.saveGame(game);
+                    const { getGameResult } = await import('./gameModes.js');
+                    await getGameResult(game);
+                    return;
+                }
             } else {
                 console.error(
                     `[makeGoAiBotMove] Kata-only: no valid Kata move after ${KATA_EXCLUSIVE_MAX_BOARD_RESYNC} board resyncs → resign, game=${game.id}`,
@@ -2495,8 +2530,8 @@ export async function makeGoAiBotMove(
                 kataBestMove &&
                 isLegalAiMoveOnCurrentBoard(game, kataBestMove, aiPlayerEnum)
             );
-            if (canCheckPairPetEvent && kataBestMove) {
-                const petName = pairPetSeat?.name || '펫';
+            if (canCheckPairPetEvent && kataBestMove && pairPetSeat) {
+                const petName = pairPetSeat.name || '펫';
                 const pickedMistakeBranch = Math.random() < 0.5;
                 if (pickedMistakeBranch) {
                     const ability = pairPetKataAbilityScore(pairKataPhase!, pairKataStats!);
@@ -2505,14 +2540,22 @@ export async function makeGoAiBotMove(
                         const mistakeMove = choosePairPetMistakeMove(game, kataBestMove, aiPlayerEnum);
                         if (mistakeMove) {
                             selectedMove = { x: mistakeMove.x, y: mistakeMove.y };
-                            pendingPairPetKataChatMessage = `${petName} : 앗! 실수..`;
+                            pendingPairPetKataGameChat = {
+                                text: '앗! 실수..',
+                                participantId: pairPetSeat.participantId,
+                                nickname: petName,
+                            };
                         } else {
                             selectedMove = { x: kataBestMove.x, y: kataBestMove.y };
                         }
                     }
                 } else {
                     selectedMove = { x: kataBestMove.x, y: kataBestMove.y };
-                    pendingPairPetKataChatMessage = `${petName} : 신의 한 수!`;
+                    pendingPairPetKataGameChat = {
+                        text: '신의 한 수!',
+                        participantId: pairPetSeat.participantId,
+                        nickname: petName,
+                    };
                 }
             }
             console.log(
@@ -2573,7 +2616,7 @@ export async function makeGoAiBotMove(
             const np = noPassPick.picked;
             if (np && !(np.x === -1 && np.y === -1)) {
                 selectedMove = { x: np.x, y: np.y };
-                pendingPairPetKataChatMessage = null;
+                pendingPairPetKataGameChat = null;
                 console.warn(
                     `[makeGoAiBotMove] pair fixed-turn: Kata non-PASS (${selectedMove.x},${selectedMove.y}), game=${game.id}`,
                 );
@@ -2688,14 +2731,23 @@ export async function makeGoAiBotMove(
                 pickedReveal = revealPick.picked;
             }
             if (!pickedReveal) {
-                console.error(
-                    `[makeGoAiBotMove] Kata re-query after hidden reveal failed (no Kata move) → resign, game=${game.id}`,
+                const fallbackRevealMove = isSinglePlayerOrTowerPve(game)
+                    ? pickServerScoredLegalMove(game, aiPlayerEnum, opponentPlayerEnum, goAiProfileLevel)
+                    : null;
+                if (!fallbackRevealMove) {
+                    console.error(
+                        `[makeGoAiBotMove] Kata re-query after hidden reveal failed (no Kata move) → resign, game=${game.id}`,
+                    );
+                    await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+                    return;
+                }
+                console.warn(
+                    `[makeGoAiBotMove] Kata re-query after hidden reveal failed; using server-scored legal move (${fallbackRevealMove.x},${fallbackRevealMove.y}), game=${game.id}`,
                 );
-                await summaryService.endGame(game, opponentPlayerEnum, 'resign');
-                return;
+                pickedReveal = fallbackRevealMove;
             }
             selectedMove = { x: pickedReveal.x, y: pickedReveal.y };
-            pendingPairPetKataChatMessage = null;
+            pendingPairPetKataGameChat = null;
         }
     }
 
@@ -2759,7 +2811,7 @@ export async function makeGoAiBotMove(
                         `[makeGoAiBotMove] processMove invalid on first Kata pick; Kata 재질의 착수 (${ep.x},${ep.y}), game=${game.id}`,
                     );
                     selectedMove = ep;
-                    pendingPairPetKataChatMessage = null;
+                    pendingPairPetKataGameChat = null;
                     result = retry;
                 }
             } else if (emergencyPick.usedPassFromKata && ep) {
@@ -2771,16 +2823,37 @@ export async function makeGoAiBotMove(
                 );
                 if (retryPass.isValid) {
                     selectedMove = ep;
-                    pendingPairPetKataChatMessage = null;
+                    pendingPairPetKataGameChat = null;
                     result = retryPass;
                 }
             }
             if (!result.isValid) {
-                console.error(
-                    `[makeGoAiBotMove] Kata-only emergency: still invalid after re-query (${selectedMove.x},${selectedMove.y}) → resign, game=${game.id}`,
-                );
-                await summaryService.endGame(game, opponentPlayerEnum, 'resign');
-                return;
+                const fallbackMove = isSinglePlayerOrTowerPve(game)
+                    ? pickServerScoredLegalMove(game, aiPlayerEnum, opponentPlayerEnum, goAiProfileLevel)
+                    : null;
+                if (fallbackMove) {
+                    const retry = processMove(
+                        game.boardState,
+                        { ...fallbackMove, player: aiPlayerEnum },
+                        game.koInfo,
+                        game.moveHistory.length,
+                    );
+                    if (retry.isValid) {
+                        console.warn(
+                            `[makeGoAiBotMove] Kata-only emergency invalid; using server-scored legal move (${fallbackMove.x},${fallbackMove.y}), game=${game.id}`,
+                        );
+                        selectedMove = fallbackMove;
+                        pendingPairPetKataGameChat = null;
+                        result = retry;
+                    }
+                }
+                if (!result.isValid) {
+                    console.error(
+                        `[makeGoAiBotMove] Kata-only emergency: still invalid after re-query (${selectedMove.x},${selectedMove.y}) → resign, game=${game.id}`,
+                    );
+                    await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+                    return;
+                }
             }
         } else {
             const logicEmergency = getGoLogic(game);
@@ -2806,7 +2879,7 @@ export async function makeGoAiBotMove(
                         `[makeGoAiBotMove] invalid coord (${selectedMove.x},${selectedMove.y}); emergency legal (no Kata) (${fb.x},${fb.y}), game=${game.id}`,
                     );
                     selectedMove = fb;
-                    pendingPairPetKataChatMessage = null;
+                    pendingPairPetKataGameChat = null;
                     result = retry;
                 }
             }
@@ -2839,9 +2912,12 @@ export async function makeGoAiBotMove(
         y: selectedMove.y,
         ...(pairCurrentSeat ? { actorId: pairCurrentSeat.participantId, pairSeatId: pairCurrentSeat.seatId } : {}),
     });
-    if (pendingPairPetKataChatMessage) {
-        appendPairPetGameChat(game, pendingPairPetKataChatMessage);
-        pendingPairPetKataChatMessage = null;
+    if (pendingPairPetKataGameChat) {
+        appendPairPetGameChat(game, pendingPairPetKataGameChat.text, {
+            participantId: pendingPairPetKataGameChat.participantId,
+            nickname: pendingPairPetKataGameChat.nickname,
+        });
+        pendingPairPetKataGameChat = null;
     }
     if (treatAsAiHiddenStone) {
         if (!game.hiddenMoves) game.hiddenMoves = {};
@@ -2962,23 +3038,10 @@ export async function makeGoAiBotMove(
     const isItemMode = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating'].includes(game.gameStatus);
     
     if (!isItemMode) {
-        const scoringLimit = (game.settings as any)?.scoringTurnLimit;
-        const useScoringLimitAsAuto =
-            !modeIncludesCaptureRule(game) && scoringLimit != null && scoringLimit > 0;
-        const autoScoringTurns = game.isSinglePlayer && game.stageId
-            ? resolveSinglePlayerAutoScoringTurnCap(
-                  game.settings as any,
-                  (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId)
-              )
-            : (game as any).gameCategory === 'tower'
-                ? (game.settings as any)?.autoScoringTurns
-                : (useScoringLimitAsAuto ? scoringLimit : undefined);
+        const autoScoringTurns = await resolveArenaFixedScoringTurnLimit(game);
         
         if (autoScoringTurns !== undefined || (game.isSinglePlayer && game.stageId)) {
-            // AI/PvE 계열은 PASS를 허용하지 않으므로 유효 착수 수만 카운트한다.
-            const countPassAsTurn = shouldCountPassAsTurnForScoring(game);
-            const validMoves = game.moveHistory.filter(m => m.x !== -1 && m.y !== -1);
-            const totalTurns = countPassAsTurn ? game.moveHistory.length : getProgressTurnCount(game);
+            const totalTurns = getArenaTurnCount(game);
             game.totalTurns = totalTurns;
         
         if (autoScoringTurns) {
@@ -2988,7 +3051,7 @@ export async function makeGoAiBotMove(
                 // 게임 상태를 먼저 확인하여 중복 트리거 방지
                 if (game.gameStatus === 'playing' || (game.gameStatus as string) === 'hidden_placing') {
                     const gameType = game.isSinglePlayer ? 'SinglePlayer' : 'AiGame';
-                    console.log(`[GoAiBot][${gameType}] Auto-scoring triggered at ${totalTurns} turns (stageId: ${game.stageId || 'N/A'}, validMovesLength: ${validMoves.length}, gameStatus: ${game.gameStatus})`);
+                    console.log(`[GoAiBot][${gameType}] Auto-scoring triggered at ${totalTurns} turns (stageId: ${game.stageId || 'N/A'}, gameStatus: ${game.gameStatus})`);
                     // 싱글·탑 PVE: 마지막 수가 AI일 때 클라에 돌 착수 애니가 보인 뒤 계가가 이어지도록 약간 지연(턴 전환·저장·브로드캐스트는 아래로 진행)
                     const isHiddenModeForAutoScoring =
                         game.mode === types.GameMode.Hidden ||

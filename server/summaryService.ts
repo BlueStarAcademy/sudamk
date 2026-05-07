@@ -19,8 +19,6 @@ import {
     RANKED_ELO_K_FACTOR,
     RANKED_ELO_MIN_CHANGE,
     RANKED_ELO_MAX_CHANGE,
-    STRATEGIC_ACTION_POINT_COST,
-    PLAYFUL_ACTION_POINT_COST,
 } from '../constants';
 import { TOWER_AI_BOT_DISPLAY_NAME, TOWER_STAGES } from '../constants/towerConstants.js';
 import { updateQuestProgress } from './questService.js';
@@ -90,6 +88,8 @@ import {
     PAIR_RANKED_MATCH_RECORD_KEY,
 } from '../shared/constants/userRankedStats.js';
 import { readStrategicRankedBlock, readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
+import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+import { effectivePvpEntryApCostForUser } from '../shared/utils/pairPetArenaApDiscount.js';
 
 function resetPairRoomAfterGame(room: any): void {
     room.matchStartedAt = undefined;
@@ -254,96 +254,65 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
     
     // 최초 클리어 여부 확인: clearedSinglePlayerStages에 스테이지 ID가 없으면 최초 클리어
     const isFirstClear = !user.clearedSinglePlayerStages.includes(stage.id);
-    const isRepeatAttempt = !isFirstClear; // 재도전 여부
-    
-    console.log(`[SP Summary] Stage ${stage.id} - isFirstClear: ${isFirstClear}, clearedStages: ${JSON.stringify(user.clearedSinglePlayerStages)}`);
-    
-    if (isWinner) {
-        const rewards = isFirstClear 
-            ? stage.rewards.firstClear 
-            : stage.rewards.repeatClear;
-        
-        console.log(`[SP Summary] Stage ${stage.id} - isFirstClear: ${isFirstClear}, rewards: gold=${rewards.gold}, exp=${rewards.exp}`);
 
-        // 최초 클리어인 경우 clearedSinglePlayerStages에 추가
-        if (isFirstClear) {
-            user.clearedSinglePlayerStages.push(stage.id);
-            console.log(`[SP Summary] Added stage ${stage.id} to clearedSinglePlayerStages`);
-        }
-        
+    console.log(`[SP Summary] Stage ${stage.id} - isFirstClear: ${isFirstClear}, clearedStages: ${JSON.stringify(user.clearedSinglePlayerStages)}`);
+
+    if (isWinner) {
         // singlePlayerProgress는 순차 진행 여부를 추적 (다음 스테이지 언락용)
-        // 미션 성공 시(남은 턴 0 포함) 항상 다음 단계가 열리도록 Math.max 사용 (캐시/경계 조건 보정)
         const nextProgress = stageIndex + 1;
         if (currentProgress <= stageIndex) {
             user.singlePlayerProgress = Math.max(currentProgress, nextProgress);
-            console.log(`[SP Summary] singlePlayerProgress updated: ${currentProgress} -> ${user.singlePlayerProgress} (stage ${stage.id} cleared)`);
+            console.log(
+                `[SP Summary] singlePlayerProgress updated: ${currentProgress} -> ${user.singlePlayerProgress} (stage ${stage.id} cleared)`,
+            );
         }
 
-        // 골드와 경험치는 항상 지급 (아이템과 독립적)
-        const initialXp = user.userXp;
-        user.gold += rewards.gold;
-        user.userXp += rewards.exp;
-        
-        summary.gold = rewards.gold;
-        summary.xp = { initial: initialXp, change: rewards.exp, final: user.userXp };
-        
-        console.log(`[SP Summary] Rewards applied - summary.gold=${summary.gold}, summary.xp.change=${summary.xp.change}, user.gold=${user.gold}, user.userXp=${user.userXp}`);
-        
-        // 아이템 보상 처리 (입문-1 첫 클리어 부채 포함, 즉시 지급)
-        const itemsToCreate = rewards.items?.length ? createItemInstancesFromReward(rewards.items) : [];
-        const { success, updatedInventory } = addItemsToInventory([...user.inventory], user.inventorySlots, itemsToCreate);
-        
-        if (!success) {
-            console.error(`[SP Summary] Insufficient inventory space for user ${user.id} on stage ${stage.id}. Items not granted.`);
-            summary.items = []; // 아이템은 지급하지 않음
-            // Optionally, send items via mail here in the future
-        } else {
-            // Update inventory with the returned updatedInventory
-            user.inventory = updatedInventory;
-            summary.items = itemsToCreate;
-        }
+        // 화폐·경험·아이템·보너스: 최초 클리어 1회만 (재도전·재클리어 보상 없음)
+        if (isFirstClear) {
+            user.clearedSinglePlayerStages.push(stage.id);
+            console.log(`[SP Summary] Added stage ${stage.id} to clearedSinglePlayerStages`);
 
-        // 보너스 능력치 포인트(구 `스탯N` / `능력치N`) — bonusStatPoints에 반영
-        const statBonusMatch =
-            typeof rewards.bonus === 'string' ? rewards.bonus.match(/^(?:스탯|능력치)\s*(\d+)$/) : null;
-        if (statBonusMatch) {
-            const points = parseInt(statBonusMatch[1], 10);
-            if (!isNaN(points) && points > 0) {
-                user.bonusStatPoints = (user.bonusStatPoints || 0) + points;
-                grantedBonusStatPoints = true;
-                if (!summary.items) summary.items = [];
-                summary.items.push({
-                    id: `stat-points-${Date.now()}`,
-                    name: `보너스 능력치`,
-                    image: '/images/icons/stat_point.png',
-                    type: 'consumable',
-                    grade: 'rare',
-                    quantity: points
-                } as any);
-            }
-        }
-    } else {
-        // 실패시 보상: 재도전이고 기권이 아닌 경우에만 성공 보상의 10% 지급
-        const isResign = game.winReason === 'resign';
-        
-        if (isRepeatAttempt && !isResign && !game.isAiGame) {
-            // 재도전 실패 보상: 성공시 보상의 10% (골드, 경험치만)
-            const successRewards = stage.rewards.repeatClear;
-            
-            const failureRewards = {
-                gold: Math.round(successRewards.gold * 0.1),
-                exp: Math.round(successRewards.exp * 0.1)
-            };
-            
-            console.log(`[SP Summary] Stage ${stage.id} - Failure reward (10% of success): gold=${failureRewards.gold}, exp=${failureRewards.exp}`);
-            
-            user.gold += failureRewards.gold;
+            const rewards = stage.rewards.firstClear;
+            console.log(
+                `[SP Summary] Stage ${stage.id} - first clear rewards: gold=${rewards.gold}, exp=${rewards.exp}`,
+            );
+
             const initialXp = user.userXp;
-            user.userXp += failureRewards.exp;
-            
-            summary.gold = failureRewards.gold;
-            summary.xp = { initial: initialXp, change: failureRewards.exp, final: user.userXp };
-            summary.items = [];
+            user.gold += rewards.gold;
+            user.userXp += rewards.exp;
+
+            summary.gold = rewards.gold;
+            summary.xp = { initial: initialXp, change: rewards.exp, final: user.userXp };
+
+            const itemsToCreate = rewards.items?.length ? createItemInstancesFromReward(rewards.items) : [];
+            const { success, updatedInventory } = addItemsToInventory([...user.inventory], user.inventorySlots, itemsToCreate);
+
+            if (!success) {
+                console.error(`[SP Summary] Insufficient inventory space for user ${user.id} on stage ${stage.id}. Items not granted.`);
+                summary.items = [];
+            } else {
+                user.inventory = updatedInventory;
+                summary.items = itemsToCreate;
+            }
+
+            const statBonusMatch =
+                typeof rewards.bonus === 'string' ? rewards.bonus.match(/^(?:스탯|능력치)\s*(\d+)$/) : null;
+            if (statBonusMatch) {
+                const points = parseInt(statBonusMatch[1], 10);
+                if (!isNaN(points) && points > 0) {
+                    user.bonusStatPoints = (user.bonusStatPoints || 0) + points;
+                    grantedBonusStatPoints = true;
+                    if (!summary.items) summary.items = [];
+                    summary.items.push({
+                        id: `stat-points-${Date.now()}`,
+                        name: `보너스 능력치`,
+                        image: '/images/icons/stat_point.png',
+                        type: 'consumable',
+                        grade: 'rare',
+                        quantity: points,
+                    } as any);
+                }
+            }
         }
     }
 
@@ -622,6 +591,19 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
     if (!towerFloorUpdated && !hasRewards && !levelUpOccurred) {
         console.log(`[Tower Summary] No changes to save for user ${user.nickname} (floor ${floor}, already cleared: ${floor <= userTowerFloor})`);
     }
+
+    // updateUser가 UserInventory 동기화를 백그라운드로만 돌려, 직후 getUser(관계형 인벤)가 구 스냅샷을 읽으면
+    // END_TOWER_GAME HTTP 응답·가방 배지가 보상 반영 전으로 남는 레이스가 난다. 탑 정산 직후에는 동기화를 끝까지 기다린다.
+    const towerUserPersisted =
+        towerFloorUpdated || hasRewards || (levelUpOccurred && !towerFloorUpdated && !hasRewards);
+    if (towerUserPersisted) {
+        try {
+            const { syncInventoryEquipmentToDatabase } = await import('./prisma/userService.js');
+            await syncInventoryEquipmentToDatabase(user);
+        } catch (e: any) {
+            console.error(`[Tower Summary] syncInventoryEquipmentToDatabase failed for ${user.id}:`, e?.message ?? e);
+        }
+    }
 };
 
 export const endGame = async (game: LiveGameSession, winner: Player, winReason: WinReason): Promise<void> => {
@@ -779,33 +761,25 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
     }
 };
 
-/** 랭킹전·친선 등 PVP 입장에 소모되는 행동력(조기 종료 환불 안내·환불액과 동일) */
-function getPvpEntryActionPointCost(mode: GameMode): number {
-    if (SPECIAL_GAME_MODES.some((m) => m.mode === mode)) {
-        return STRATEGIC_ACTION_POINT_COST;
-    }
-    if (PLAYFUL_GAME_MODES.some((m) => m.mode === mode)) {
-        return PLAYFUL_ACTION_POINT_COST;
-    }
-    return STRATEGIC_ACTION_POINT_COST;
-}
-
 // 행동력 환불 함수
 const refundActionPointsForEarlyTermination = async (
     game: LiveGameSession, 
     badMannerPlayerId: string | null
 ): Promise<void> => {
-    const cost = getPvpEntryActionPointCost(game.mode);
     const player1 = await db.getUser(game.player1.id);
     const player2 = await db.getUser(game.player2.id);
     
     if (!player1 || !player2) return;
+
+    const lobbyCh = game.settings?.pairGame?.lobbyChannel;
+    const refundP1 = effectivePvpEntryApCostForUser(player1, game.mode, lobbyCh);
+    const refundP2 = effectivePvpEntryApCostForUser(player2, game.mode, lobbyCh);
     
     // 비매너 행동자가 아닌 사람에게만 환불
     if (badMannerPlayerId !== player1.id && !player1.isAdmin) {
         player1.actionPoints.current = Math.min(
             player1.actionPoints.max, 
-            player1.actionPoints.current + cost
+            player1.actionPoints.current + refundP1
         );
         player1.lastActionPointUpdate = Date.now();
         await db.updateUser(player1);
@@ -814,7 +788,7 @@ const refundActionPointsForEarlyTermination = async (
     if (badMannerPlayerId !== player2.id && !player2.isAdmin) {
         player2.actionPoints.current = Math.min(
             player2.actionPoints.max, 
-            player2.actionPoints.current + cost
+            player2.actionPoints.current + refundP2
         );
         player2.lastActionPointUpdate = Date.now();
         await db.updateUser(player2);
@@ -872,7 +846,11 @@ const sendBadMannerPenaltyMail = async (
     const summary = game.summary?.[badMannerPlayerId] as GameSummary | undefined;
     const rankDelta = summary?.rating?.change;
     const mannerDelta = summary?.manner?.change;
-    const apCost = getPvpEntryActionPointCost(game.mode);
+    const apCost = effectivePvpEntryApCostForUser(
+        badMannerPlayer,
+        game.mode,
+        game.settings?.pairGame?.lobbyChannel,
+    );
 
     const penaltyLines: string[] = [];
     if (isRanked) {
@@ -2135,16 +2113,15 @@ const processPlayerSummary = async (
         };
     }
 
+    const arenaPolicy = resolveArenaSessionPolicy(game as any);
     const strategicPetXpBonusEligible =
         isStrategic &&
         !isPlayful &&
+        !arenaPolicy.isPairGame &&
         !isPairGoRewardGame(game) &&
         !isNoContest &&
         xpGain > 0 &&
-        player.id !== aiUserId &&
-        !game.isSinglePlayer &&
-        String((game as any).gameCategory ?? '') !== 'tower' &&
-        String((game as any).gameCategory ?? '') !== 'singleplayer';
+        player.id !== aiUserId;
 
     let pairPetStrategicBonusSummary: ReturnType<typeof applyPairPetRewardXp> | undefined;
     if (strategicPetXpBonusEligible) {
@@ -2498,8 +2475,9 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
 
     // 전략바둑 무효처리 시 행동력 환불 처리
     if (isNoContest && isStrategic && !game.isSinglePlayer && !game.isAiGame) {
-        const { STRATEGIC_ACTION_POINT_COST } = await import('../constants');
-        const cost = STRATEGIC_ACTION_POINT_COST;
+        const lobbyChNc = game.settings?.pairGame?.lobbyChannel;
+        const refundNcP1 = effectivePvpEntryApCostForUser(p1 as User, game.mode, lobbyChNc);
+        const refundNcP2 = effectivePvpEntryApCostForUser(p2 as User, game.mode, lobbyChNc);
         
         // 기권으로 무효처리된 경우: 기권한 유저는 행동력 소모 유지, 상대방은 행동력 환불
         if (winReason === 'resign' && winner !== Player.None) {
@@ -2513,7 +2491,7 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
             if (resignedPlayerId === p1.id && p2.id !== aiUserId && !p2.isAdmin) {
                 p2.actionPoints.current = Math.min(
                     p2.actionPoints.max,
-                    p2.actionPoints.current + cost
+                    p2.actionPoints.current + refundNcP2
                 );
                 p2.lastActionPointUpdate = Date.now();
                 await db.updateUser(p2);
@@ -2521,7 +2499,7 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
             } else if (resignedPlayerId === p2.id && p1.id !== aiUserId && !p1.isAdmin) {
                 p1.actionPoints.current = Math.min(
                     p1.actionPoints.max,
-                    p1.actionPoints.current + cost
+                    p1.actionPoints.current + refundNcP1
                 );
                 p1.lastActionPointUpdate = Date.now();
                 await db.updateUser(p1);
@@ -2537,7 +2515,7 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
             if (disconnectedPlayerId === p1.id && p2.id !== aiUserId && !p2.isAdmin) {
                 p2.actionPoints.current = Math.min(
                     p2.actionPoints.max,
-                    p2.actionPoints.current + cost
+                    p2.actionPoints.current + refundNcP2
                 );
                 p2.lastActionPointUpdate = Date.now();
                 await db.updateUser(p2);
@@ -2545,7 +2523,7 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
             } else if (disconnectedPlayerId === p2.id && p1.id !== aiUserId && !p1.isAdmin) {
                 p1.actionPoints.current = Math.min(
                     p1.actionPoints.max,
-                    p1.actionPoints.current + cost
+                    p1.actionPoints.current + refundNcP1
                 );
                 p1.lastActionPointUpdate = Date.now();
                 await db.updateUser(p1);
@@ -2556,7 +2534,7 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
             if (p1.id !== aiUserId && !p1.isAdmin) {
                 p1.actionPoints.current = Math.min(
                     p1.actionPoints.max,
-                    p1.actionPoints.current + cost
+                    p1.actionPoints.current + refundNcP1
                 );
                 p1.lastActionPointUpdate = Date.now();
                 await db.updateUser(p1);
@@ -2564,7 +2542,7 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
             if (p2.id !== aiUserId && !p2.isAdmin) {
                 p2.actionPoints.current = Math.min(
                     p2.actionPoints.max,
-                    p2.actionPoints.current + cost
+                    p2.actionPoints.current + refundNcP2
                 );
                 p2.lastActionPointUpdate = Date.now();
                 await db.updateUser(p2);

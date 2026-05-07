@@ -526,36 +526,13 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                     </div>
                                 )}
 
-                                {/* 보상 표시: 가로 한 줄 우선, 공간 부족 시 자동으로 작은 폰트 */}
-                                <div className="w-full mb-1.5 min-w-0">
-                                    {isCleared ? (
-                                        <div className="flex w-full items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden text-[clamp(8px,0.62vw,12px)] text-gray-300">
-                                            {stage.rewards.repeatClear.gold > 0 && (
-                                                <span className="flex min-w-0 items-center gap-0.5">
-                                                    <img src="/images/icon/Gold.png" alt="골드" className="w-3.5 h-3.5" />
-                                                    <span className="truncate">+{stage.rewards.repeatClear.gold}</span>
-                                                </span>
-                                            )}
-                                            {stage.rewards.repeatClear.exp > 0 && (
-                                                <span className="truncate">+{stage.rewards.repeatClear.exp} XP</span>
-                                            )}
-                                            {stage.rewards.repeatClear.items && stage.rewards.repeatClear.items.length > 0 && (
-                                                <span className="flex min-w-0 items-center gap-0.5">
-                                                    {stage.rewards.repeatClear.items.slice(0, 3).map((item, idx) => {
-                                                        const itemTemplate = CONSUMABLE_ITEMS.find(i => i.name === item.itemId);
-                                                        return itemTemplate ? (
-                                                            <img key={idx} src={itemTemplate.image} alt={item.itemId} className="w-3.5 h-3.5" title={item.itemId} />
-                                                        ) : null;
-                                                    })}
-                                                    {stage.rewards.repeatClear.items.length > 3 && <span>…</span>}
-                                                </span>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="flex w-full items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden font-semibold text-[clamp(8px,0.65vw,13px)] text-amber-200/95">
+                                {/* 최초 클리어 보상만 표시(이미 클리어한 스테이지는 재클리어 보상 없음) */}
+                                {!isCleared && (
+                                    <div className="mb-1.5 w-full min-w-0">
+                                        <div className="flex w-full items-center justify-center gap-1.5 overflow-hidden whitespace-nowrap font-semibold text-[clamp(8px,0.65vw,13px)] text-amber-200/95">
                                             {stage.rewards.firstClear.gold > 0 && (
                                                 <span className="flex min-w-0 items-center gap-0.5">
-                                                    <img src="/images/icon/Gold.png" alt="골드" className="w-3.5 h-3.5" />
+                                                    <img src="/images/icon/Gold.png" alt="골드" className="h-3.5 w-3.5" />
                                                     <span className="truncate">+{stage.rewards.firstClear.gold}</span>
                                                 </span>
                                             )}
@@ -565,17 +542,17 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                             {stage.rewards.firstClear.items && stage.rewards.firstClear.items.length > 0 && (
                                                 <span className="flex min-w-0 items-center gap-0.5">
                                                     {stage.rewards.firstClear.items.slice(0, 3).map((item, idx) => {
-                                                        const itemTemplate = CONSUMABLE_ITEMS.find(i => i.name === item.itemId);
+                                                        const itemTemplate = CONSUMABLE_ITEMS.find((i) => i.name === item.itemId);
                                                         return itemTemplate ? (
-                                                            <img key={idx} src={itemTemplate.image} alt={item.itemId} className="w-3.5 h-3.5" title={item.itemId} />
+                                                            <img key={idx} src={itemTemplate.image} alt={item.itemId} className="h-3.5 w-3.5" title={item.itemId} />
                                                         ) : null;
                                                     })}
                                                     {stage.rewards.firstClear.items.length > 3 && <span>…</span>}
                                                 </span>
                                             )}
                                         </div>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
 
                                 {!isLocked ? (
                                     <Button

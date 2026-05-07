@@ -89,9 +89,11 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
         game.currentPlayer = timedOutPlayerEnum;
 
         // 아이템 소멸 처리 (착수 완료와 동일하게 재고 감소 + used 증가, 턴은 그대로)
+        // p1/p2는 흑/백을 의미한다 — player1 좌석과 무관 (페어바둑 파트너 user.id가 player1.id와 다른 경우 대비)
+        const timedOutIsBlack = timedOutPlayerEnum === types.Player.Black;
         if (currentItemMode === 'hidden_placing') {
-            const hiddenInvKey = timedOutPlayerId === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
-            const usedKey = timedOutPlayerId === game.player1.id ? 'hidden_stones_used_p1' : 'hidden_stones_used_p2';
+            const hiddenInvKey = timedOutIsBlack ? 'hidden_stones_p1' : 'hidden_stones_p2';
+            const usedKey = timedOutIsBlack ? 'hidden_stones_used_p1' : 'hidden_stones_used_p2';
             const currentHidden = game[hiddenInvKey] ?? game.settings.hiddenStoneCount ?? 0;
             if (currentHidden > 0) {
                 game[hiddenInvKey] = currentHidden - 1;
@@ -99,7 +101,7 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
             }
         } else if (currentItemMode === 'scanning') {
             // 스캔 아이템 소멸
-            const scanKey = timedOutPlayerId === game.player1.id ? 'scans_p1' : 'scans_p2';
+            const scanKey = timedOutIsBlack ? 'scans_p1' : 'scans_p2';
             const currentScans = game[scanKey] ?? 0;
             if (currentScans > 0) {
                 game[scanKey] = currentScans - 1;
@@ -375,13 +377,16 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
     // 히든·스캔 시작은 본인 차례에만 (미사일·펫 힌트와 동일). 페어는 좌석 participantId·색이 일치할 때만(흑1/흑2 교대).
     const canUseItem = isMyTurn;
 
+    // p1/p2는 흑/백을 의미한다 — player1 좌석과 무관 (페어바둑 파트너 user.id가 player1.id와 다른 경우 대비)
+    const myIsBlack = myPlayerEnum === types.Player.Black;
+
     switch(type) {
         case 'START_HIDDEN_PLACEMENT': {
             if (!canUseItem || game.gameStatus !== 'playing') return { error: "Not your turn to use an item." };
             // Mix/타워: 히든 개수 확인 (없으면 진입 불가)
             const isMixOrHidden = game.mode === types.GameMode.Hidden || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
             if (isMixOrHidden) {
-                const hiddenKey = user.id === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
+                const hiddenKey = myIsBlack ? 'hidden_stones_p1' : 'hidden_stones_p2';
                 const left = game[hiddenKey] ?? game.settings.hiddenStoneCount ?? 0;
                 if (left <= 0) return { error: "No hidden stones left." };
             }
@@ -391,7 +396,7 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
         }
         case 'START_SCANNING': {
             if (!canUseItem || game.gameStatus !== 'playing') return { error: "Not your turn to use an item." };
-            const scanKeyStart = user.id === game.player1.id ? 'scans_p1' : 'scans_p2';
+            const scanKeyStart = myIsBlack ? 'scans_p1' : 'scans_p2';
             if ((game[scanKeyStart] ?? 0) <= 0) return { error: "No scans left." };
             const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
             const isMixWithHidden =
@@ -411,7 +416,7 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
         case 'SCAN_BOARD':
             if (game.gameStatus !== 'scanning') return { error: "Not in scanning mode." };
             const { x, y } = payload;
-            const scanKey = user.id === game.player1.id ? 'scans_p1' : 'scans_p2';
+            const scanKey = myIsBlack ? 'scans_p1' : 'scans_p2';
             if ((game[scanKey] ?? 0) <= 0) return { error: "No scans left." };
 
             const evalResult = evaluateHiddenScanBoard(game, user.id, x, y);

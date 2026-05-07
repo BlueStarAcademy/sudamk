@@ -40,11 +40,16 @@ function getWinsLossesFromRounds(state: TournamentState): Record<string, { wins:
         round.matches?.forEach(m => {
             if (!m.isFinished || !m.winner) return;
             const winnerId = m.winner?.id ?? (m.winner as { id?: string })?.id;
-            if (winnerId && result[winnerId] !== undefined) {
-                result[winnerId].wins++;
-                const loser = m.players?.find((p: { id: string } | null) => p && p.id !== winnerId);
-                if (loser && result[loser.id] !== undefined) result[loser.id].losses++;
+            if (!winnerId || result[winnerId] === undefined) return;
+            const participantIds: string[] = [];
+            for (const p of m.players || []) {
+                if (p && typeof p.id === 'string' && p.id.length > 0) participantIds.push(p.id);
             }
+            // 승자가 이 매치의 실제 참가자일 때만 집계 (동기화 오류로 봇전에 유저 승이 박힌 경우 등 방지)
+            if (!participantIds.includes(winnerId)) return;
+            result[winnerId].wins++;
+            const loserId = participantIds.find(id => id !== winnerId);
+            if (loserId && result[loserId] !== undefined) result[loserId].losses++;
         });
     });
     return result;
@@ -1020,7 +1025,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             const tournamentState = (freshUser as any)[stateKey] as types.TournamentState | null;
             if (!tournamentState) return { error: '토너먼트 정보를 찾을 수 없습니다.' };
 
-            const skipRes = await tournamentService.instantSkipChampionshipDungeonMatch(tournamentState, freshUser);
+            const skipRes = await tournamentService.instantSkipAllRemainingChampionshipDungeonMatches(tournamentState, freshUser);
             if (skipRes.error) return { error: skipRes.error };
 
             if (!volatileState.activeTournaments) volatileState.activeTournaments = {};
@@ -1296,12 +1301,36 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                     }
                 }
                 
-                // 여전히 찾지 못했으면 가장 최근 라운드의 가장 최근 경기 사용
+                // 여전히 찾지 못했을 때: 마지막 경기로 폴백하면 봇전에 유저 승이 기록될 수 있음 → 던전은 유저 매치만
                 if (roundIndex < 0 && tournamentState.rounds.length > 0) {
-                    const lastRound = tournamentState.rounds[tournamentState.rounds.length - 1];
-                    if (lastRound.matches.length > 0) {
-                        roundIndex = tournamentState.rounds.length - 1;
-                        matchIndex = lastRound.matches.length - 1;
+                    outer: for (let r = tournamentState.rounds.length - 1; r >= 0; r--) {
+                        const round = tournamentState.rounds[r];
+                        for (let m = round.matches.length - 1; m >= 0; m--) {
+                            const match = round.matches[m];
+                            if (
+                                !match.isFinished &&
+                                match.isUserMatch &&
+                                match.players?.some(p => p && p.id === user.id)
+                            ) {
+                                roundIndex = r;
+                                matchIndex = m;
+                                break outer;
+                            }
+                        }
+                    }
+                    if (roundIndex < 0) {
+                        for (let r = tournamentState.rounds.length - 1; r >= 0; r--) {
+                            const round = tournamentState.rounds[r];
+                            for (let m = round.matches.length - 1; m >= 0; m--) {
+                                const match = round.matches[m];
+                                if (!match.isFinished && match.players?.some(p => p && p.id === user.id)) {
+                                    roundIndex = r;
+                                    matchIndex = m;
+                                    break;
+                                }
+                            }
+                            if (roundIndex >= 0) break;
+                        }
                     }
                 }
             }

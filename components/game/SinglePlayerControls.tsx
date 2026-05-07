@@ -25,8 +25,14 @@ import {
 } from './arenaGameRoomStyles.js';
 import BaseGameFooterPanel, { BasePlacementControlStrip, isBaseGameFooterPhase } from './BaseGameFooterPanel.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
+import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
+import { pairPetKataPhaseFromTotalPly, pairPetKataPliesRemainingInCurrentPhase } from '../../shared/constants/pairArena.js';
+import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
+import { getPairPetDefinition } from '../../shared/constants/petLobby.js';
 
 interface SinglePlayerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser' | 'isSpectator'> {
+    showResultModal?: boolean;
+    allowPostGameFooterActions?: boolean;
     setShowResultModal?: (show: boolean) => void;
     isMoveInFlight?: boolean;
     isBoardLocked?: boolean;
@@ -46,9 +52,10 @@ interface ImageButtonProps {
     variant?: 'primary' | 'danger';
     count?: number; // 개수 표시 (옵션)
     compact?: boolean;
+    imageBottomOverlay?: string;
 }
 
-const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled = false, title, variant = 'primary', count, compact = false }) => {
+const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled = false, title, variant = 'primary', count, compact = false, imageBottomOverlay }) => {
     const variantClasses = variant === 'danger'
         ? 'border-red-400 shadow-red-500/40 focus:ring-red-400'
         : 'border-amber-400 shadow-amber-500/30 focus:ring-amber-300';
@@ -65,6 +72,16 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
             className={`relative ${sizeClass} border-2 transition-transform duration-200 ease-out overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 ${variantClasses} ${disabled ? 'opacity-40 cursor-not-allowed border-gray-700' : 'hover:scale-105 active:scale-95 shadow-lg'}`}
         >
             <img src={src} alt={alt} className="absolute inset-0 w-full h-full object-contain pointer-events-none p-1" />
+            {imageBottomOverlay ? (
+                <span
+                    className={`pointer-events-none absolute inset-x-0 bottom-0 z-[2] flex items-end justify-center bg-gradient-to-t from-slate-950/95 via-slate-950/70 to-transparent pb-0.5 pt-2.5 font-bold leading-none tracking-wide text-sky-100 ring-1 ring-inset ring-sky-400/25 ${
+                        compact ? 'text-[7px]' : 'text-[8px] min-[1025px]:text-[9px]'
+                    }`}
+                    aria-hidden
+                >
+                    {imageBottomOverlay}
+                </span>
+            ) : null}
             {/* 개수 표시 우측 하단 (옵션) */}
             {count !== undefined && (
                 <span
@@ -119,15 +136,21 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     onAction,
     currentUser,
     isSpectator = false,
+    showResultModal = false,
+    allowPostGameFooterActions = true,
     setShowResultModal,
     isMoveInFlight = false,
     isBoardLocked = false,
     isMobile = false,
+    strategicPetHintFooterBubble = null,
 }) => {
     const myUserId = currentUser?.id;
     const [alertModal, setAlertModal] = useState<{ title?: string; message: string } | null>(null);
     const [confirmModal, setConfirmModal] = useState<{ title?: string; message: string; onConfirm: () => void } | null>(null);
+    const [petHintBusy, setPetHintBusy] = useState(false);
     const hasPendingRevealResolution = !!session.pendingCapture || !!session.revealAnimationEndTime;
+    const arenaPolicy = React.useMemo(() => resolveArenaSessionPolicy(session as any), [session]);
+    const isSinglePlayerArena = arenaPolicy.kind === 'singleplayer';
     
     // 게임 모드별 아이템 로직 (hooks 규칙 준수를 위해 early return 전에 선언)
     const refreshesUsed = session.singlePlayerPlacementRefreshesUsed || 0;
@@ -148,13 +171,16 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
         session.mode === GameMode.Hidden || (session.mode === GameMode.Mix && mixedModes.includes(GameMode.Hidden));
     const isMissileModeByRule =
         session.mode === GameMode.Missile || (session.mode === GameMode.Mix && mixedModes.includes(GameMode.Missile));
-    const isHiddenMode = session.isSinglePlayer && isHiddenModeByRule;
-    const isMissileMode = session.isSinglePlayer && isMissileModeByRule;
+    const isHiddenMode = isSinglePlayerArena && isHiddenModeByRule;
+    const isMissileMode = isSinglePlayerArena && isMissileModeByRule;
     const isMissileOnlyMode = isMissileMode && hiddenCountSetting === 0 && scanCountSetting === 0;
     const moveCount = session.moveHistory?.length ?? 0;
-    const myMissilesLeftForRefresh = Number.isFinite(Number(session.missiles_p1))
-        ? Math.max(0, Number(session.missiles_p1))
-        : 0;
+    const resolvePveItemCount = (sessionValue: unknown, fallback: number): number => {
+        const n = Number(sessionValue);
+        if (Number.isFinite(n)) return Math.max(0, n);
+        return Math.max(0, fallback);
+    };
+    const myMissilesLeftForRefresh = resolvePveItemCount(session.missiles_p1, missileCountSetting);
     const usedMissileBeforeFirstMove = isMissileOnlyMode && moveCount === 0 && (missileCountSetting - myMissilesLeftForRefresh) > 0;
     const refreshDisabled = !canRefresh || !canAfford || usedMissileBeforeFirstMove;
 
@@ -162,7 +188,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     const gameStatus = session.gameStatus;
     
     // 히든 아이템 (스캔 아이템처럼 개수 기반)
-    const hiddenLeft = session.hidden_stones_p1 ?? hiddenCountSetting;
+    const hiddenLeft = resolvePveItemCount(session.hidden_stones_p1, hiddenCountSetting);
     const hiddenDisabled = isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing' || hiddenLeft <= 0;
     
     const handleUseHidden = React.useCallback(() => {
@@ -175,16 +201,15 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     }, [session, gameStatus, onAction, isMoveInFlight, isBoardLocked, hasPendingRevealResolution, isMyTurn]);
     
     // 스캔 아이템: 상대(백/AI)에 미공개 히든돌이 1개라도 있을 때만 활성화
-    const myScansLeft = session.scans_p1 ?? scanCountSetting;
+    const myScansLeft = resolvePveItemCount(session.scans_p1, scanCountSetting);
     const canScan = React.useMemo(() => {
         const board = session.boardState;
         if (!Array.isArray(board) || board.length === 0) return false;
 
         const scannedAiInitialByMe = !!myUserId && !!(session as any).scannedAiInitialHiddenByUser?.[myUserId];
-        // AI가 히든 아이템으로 둔 돌만 스캔 대상 (미리 배치된 돌은 제외)
+        // AI 초기/아이템 히든 모두 서버 스캔 판정 대상이다. 클라이언트도 같은 기준으로 버튼을 활성화한다.
         const aiInitialHiddenStone = (session as any).aiInitialHiddenStone;
-        const aiHiddenIsPrePlaced = (session as any).aiInitialHiddenStoneIsPrePlaced;
-        if (aiInitialHiddenStone && !aiHiddenIsPrePlaced) {
+        if (aiInitialHiddenStone) {
             const { x, y } = aiInitialHiddenStone;
             const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
             if (inBounds && board[y][x] === Player.White) {
@@ -217,7 +242,6 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
         session.permanentlyRevealedStones,
         session.revealedHiddenMoves,
         (session as any).aiInitialHiddenStone,
-        (session as any).aiInitialHiddenStoneIsPrePlaced,
         (session as any).scannedAiInitialHiddenByUser,
     ]);
     
@@ -241,9 +265,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     }, [session, gameStatus, onAction, isMoveInFlight, isBoardLocked, hasPendingRevealResolution, isMyTurn]);
     
     // 미사일 아이템
-    const myMissilesLeft = Number.isFinite(Number(session.missiles_p1))
-        ? Math.max(0, Number(session.missiles_p1))
-        : 0;
+    const myMissilesLeft = resolvePveItemCount(session.missiles_p1, missileCountSetting);
     
     const canUseMissile = isMyTurn;
     
@@ -381,6 +403,8 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
             }
         };
 
+        const blockPostGameFooter = allowPostGameFooterActions === false;
+
         const endedRowBtn = (extra?: string) =>
             `${arenaPostGameButtonClass('neutral', !!isMobile, 'strip')} ${arenaPostGameButtonInRowModifier}${extra ? ` ${extra}` : ''}`;
 
@@ -390,16 +414,28 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
             >
                 <div className={arenaPostGamePanelShellClass}>
                     <div className={arenaPostGameIngameEndedRowClass}>
-                    <Button bare onClick={handleShowResults} colorScheme="none" className={endedRowBtn()}>
+                    <Button
+                        bare
+                        onClick={handleShowResults}
+                        colorScheme="none"
+                        className={endedRowBtn()}
+                        disabled={blockPostGameFooter && showResultModal}
+                    >
                         결과 보기
                     </Button>
-                    <Button bare onClick={handleNextStage} colorScheme="none" className={endedRowBtn('min-w-0 truncate')} disabled={!canTryNext}>
+                    <Button
+                        bare
+                        onClick={handleNextStage}
+                        colorScheme="none"
+                        className={endedRowBtn('min-w-0 truncate')}
+                        disabled={blockPostGameFooter || !canTryNext}
+                    >
                         {formatSinglePlayerNextFooterLabel(nextStage, canTryNext, nextStageActionPointCost)}
                     </Button>
-                    <Button bare onClick={handleRetry} colorScheme="none" className={endedRowBtn()}>
+                    <Button bare onClick={handleRetry} colorScheme="none" className={endedRowBtn()} disabled={blockPostGameFooter}>
                         {formatArenaRetryLabel(retryActionPointCost)}
                     </Button>
-                    <Button bare onClick={handleExitToLobby} colorScheme="none" className={endedRowBtn()}>
+                    <Button bare onClick={handleExitToLobby} colorScheme="none" className={endedRowBtn()} disabled={blockPostGameFooter}>
                         대기실로
                     </Button>
                     </div>
@@ -445,6 +481,97 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
 
     const colClass = isMobile ? 'flex flex-col items-center gap-0.5 shrink-0' : 'flex flex-col items-center gap-1.5';
     const lblBase = isMobile ? 'text-[10px]' : 'text-[12px]';
+    const petRow = currentUser ? getEquippedPairPetInventoryRow(currentUser) : null;
+    const petHintBoardSize = session.settings.boardSize || 19;
+    const petHintTotalPly = (session.moveHistory || []).filter((m) => m && m.x !== -1 && m.y !== -1).length + 1;
+    const petHintPhase = pairPetKataPhaseFromTotalPly(petHintBoardSize, petHintTotalPly);
+    const { remaining: petHintPhasePlyRemaining } = pairPetKataPliesRemainingInCurrentPhase(petHintBoardSize, petHintTotalPly);
+    const petHintUsed = ((session.settings as { strategicPetHintByUserId?: Record<string, Partial<Record<string, boolean>>> })
+        .strategicPetHintByUserId?.[currentUser.id] ?? {}) as Record<string, boolean>;
+    const petHintPhaseLabel = petHintPhase === 'opening' ? '초반' : petHintPhase === 'midgame' ? '중반' : '종반';
+    const petHintCountdownLabel =
+        petHintPhasePlyRemaining == null ? '종반' : `${petHintPhaseLabel} ${petHintPhasePlyRemaining}수`;
+    const petHintCanAttempt =
+        isSinglePlayerArena &&
+        !isSpectator &&
+        gameStatus === 'playing' &&
+        isMyTurn &&
+        !!petRow &&
+        !petHintUsed[petHintPhase] &&
+        !isMoveInFlight &&
+        !isBoardLocked &&
+        !hasPendingRevealResolution;
+    let petHintTitleBody = `${petHintPhaseLabel}에 한 번 — 대표 펫이 좋은 자리를 표시해 줘요.`;
+    if (!petRow) {
+        petHintTitleBody = '대표 펫을 장착하면 힌트를 사용할 수 있어요.';
+    } else if (gameStatus !== 'playing') {
+        petHintTitleBody = '대국이 진행 중일 때 사용할 수 있어요.';
+    } else if (!isMyTurn) {
+        petHintTitleBody = '내 차례에만 사용할 수 있어요.';
+    } else if (petHintUsed[petHintPhase]) {
+        petHintTitleBody = `${petHintPhaseLabel} 구간에서 이미 힌트를 사용했어요.`;
+    }
+    const petHintTitle =
+        petHintPhasePlyRemaining != null
+            ? `${petHintPhaseLabel} ${petHintPhasePlyRemaining}수 남음 — ${petHintTitleBody}`
+            : `${petHintPhaseLabel} — ${petHintTitleBody}`;
+    const petHintImg = petRow
+        ? ((petRow as { image?: string }).image ??
+              (petRow.templateId ? getPairPetDefinition(petRow.templateId)?.image : null) ??
+              '/images/button/hidden.png')
+        : null;
+    const showPetHintBubble = Boolean(strategicPetHintFooterBubble?.visible && strategicPetHintFooterBubble?.message);
+    const petHintSlot = (
+        <div className={`relative ${colClass}`}>
+            {showPetHintBubble && strategicPetHintFooterBubble?.message ? (
+                <div
+                    className="pointer-events-none absolute bottom-full left-1/2 z-[81] mb-2 w-max max-w-[min(17rem,78vw)] -translate-x-1/2 px-0.5"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <div className="relative rounded-xl border border-sky-400/45 bg-slate-950/96 px-2.5 pb-2 pt-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)] ring-1 ring-sky-500/25">
+                        <p className="line-clamp-2 break-words text-center text-[10px] font-medium leading-snug text-sky-50 sm:text-[11px]">
+                            {strategicPetHintFooterBubble.message}
+                        </p>
+                        <div
+                            className="absolute left-1/2 top-full -mt-px h-0 w-0 -translate-x-1/2 border-x-[7px] border-x-transparent border-t-[8px] border-t-slate-950/96 drop-shadow-[0_1px_0_rgba(56,189,248,0.35)]"
+                            aria-hidden
+                        />
+                    </div>
+                </div>
+            ) : null}
+            {petRow && petHintImg ? (
+                <ImageButton
+                    src={petHintImg}
+                    alt={`펫 힌트 ${petHintCountdownLabel}`}
+                    onClick={() => {
+                        if (!petHintCanAttempt || petHintBusy) return;
+                        setPetHintBusy(true);
+                        void Promise.resolve(onAction({ type: 'REQUEST_STRATEGIC_PET_HINT', payload: { gameId: session.id } })).finally(() =>
+                            setPetHintBusy(false),
+                        );
+                    }}
+                    disabled={!petHintCanAttempt || petHintBusy}
+                    title={petHintTitle}
+                    compact={isMobile}
+                    imageBottomOverlay="힌트"
+                />
+            ) : (
+                <button
+                    type="button"
+                    disabled
+                    className={`relative flex items-center justify-center overflow-hidden border-2 border-dashed border-slate-500/55 bg-slate-950/55 ${
+                        isMobile ? 'h-12 w-12 shrink-0 rounded-lg' : 'h-[4.25rem] w-[4.25rem] rounded-xl min-[1025px]:h-16 min-[1025px]:w-16'
+                    }`}
+                    title={petHintTitle}
+                    aria-label={`펫 힌트 ${petHintCountdownLabel} (대표 펫 미장착)`}
+                />
+            )}
+            <span className={`${lblBase} font-semibold whitespace-nowrap ${petHintCanAttempt ? 'text-sky-100' : 'text-gray-500'}`}>
+                {petHintCountdownLabel}
+            </span>
+        </div>
+    );
 
     const coreZoneSp = (
         <>
@@ -478,6 +605,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
                     </span>
                 )}
             </div>
+            {petHintSlot}
         </>
     );
 

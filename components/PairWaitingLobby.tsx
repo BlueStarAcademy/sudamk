@@ -3504,6 +3504,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                     userCount={playersForLobbyUserList.length}
                     disableStatusSelect={Boolean(myRoom)}
                     pairAlignedNativeCompact={Boolean(aggregateLobbyMode && isHandheld)}
+                    showArenaPartnerInviteBlockToggle
                     listScopeTabs={
                         <div className="grid grid-cols-3 gap-1 rounded-lg border border-white/10 bg-black/25 p-1">
                             <button

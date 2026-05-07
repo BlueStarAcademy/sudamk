@@ -1,19 +1,26 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { UserWithStatus, ServerAction, InventoryItemType } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import { gradeStyles } from '../shared/constants/items.js';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import { ACTION_POINT_PURCHASE_COSTS_DIAMONDS, MAX_ACTION_POINT_PURCHASES_PER_DAY, ACTION_POINT_PURCHASE_REFILL_AMOUNT } from '../constants';
-import { isDifferentWeekKST } from '../utils/timeUtils.js';
-import { isDifferentMonthKST } from '../shared/utils/timeUtils.js';
+import {
+    isSameDayKST,
+    isDifferentWeekKST,
+    isDifferentMonthKST,
+    getTodayKSTDateString,
+    shopPurchaseRecordDateMs,
+} from '../shared/utils/timeUtils.js';
 import {
     CASH_SHOP_DIAMOND_PACKAGE_IDS,
     CASH_SHOP_EQUIPMENT_PACKAGE_IDS,
+    CASH_SHOP_REMOVE_ADS_PACKAGE_ID,
     EQUIPMENT_PACKAGE_MONTHLY_LIMIT,
 } from '../shared/constants/cashShopPackages.js';
-import { VIP_SHOP_DURATION_DAYS } from '../shared/constants/vipShopProducts.js';
+import { VIP_SHOP_DURATION_DAYS, VIP_SHOP_PRODUCT_IDS } from '../shared/constants/vipShopProducts.js';
 import PurchaseQuantityModal from './PurchaseQuantityModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useKSTCalendarDayTick } from '../hooks/useKSTCalendarDayTick.js';
@@ -57,7 +64,8 @@ type MiscPackageVisual =
           bonusLine?: string;
           /** `+ "[등급] 장비"` + 줄바꿈 + `확정지급` (장비상자 패키지) */
           equipmentBonusGradeWord?: '에픽' | '전설' | '신화';
-      };
+      }
+    | { type: 'remove_ads_image'; imageSrc: string };
 
 interface MiscShopProduct {
     id: string;
@@ -89,41 +97,37 @@ const SHOP_EQUIPMENT_PACKAGE_BONUS_GRADE: Record<'에픽' | '전설' | '신화',
     신화: ItemGrade.Mythic,
 };
 
-/** 원화(현금) 결제 미연동 — 일반 유저 차단, 관리자만 `BUY_CASH_PACKAGE`·`BUY_VIP_PACKAGE` 허용 */
+/** 원화(현금) 결제 미연동 — 일반 유저 차단, 관리자만 `BUY_CASH_PACKAGE`·`BUY_VIP_PACKAGE`·`CANCEL_VIP_SHOP_AUTO_RENEW` 허용 */
 const CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE = '아직 구현되지 않았습니다.';
 
 type ShopAdRewardTab = 'equipment' | 'materials' | 'consumables' | 'diamonds';
 
 /** 서버 `CLAIM_SHOP_AD_REWARD`와 동일 */
-const SHOP_AD_TAB_DAILY_LIMIT = 2;
-const SHOP_AD_GLOBAL_DAILY_LIMIT = 3;
+const SHOP_AD_TAB_DAILY_LIMIT = 1;
+const SHOP_AD_GLOBAL_DAILY_LIMIT = 4;
 
-function getShopAdTabClaimsToday(user: UserWithStatus, tab: ShopAdRewardTab): number {
+function getShopAdTabClaimsToday(user: UserWithStatus, tab: ShopAdRewardTab, kstDayKey: string): number {
     const rec = user.dailyShopPurchases?.[`ad_reward_${tab}`];
-    return rec && isSameDayKST(rec.date, Date.now()) ? rec.quantity : 0;
+    if (!rec) return 0;
+    const d = shopPurchaseRecordDateMs(rec.date);
+    if (!(d > 0)) return 0;
+    return getTodayKSTDateString(d) === kstDayKey ? rec.quantity : 0;
 }
 
-function getShopAdGlobalClaimsToday(user: UserWithStatus): number {
+function getShopAdGlobalClaimsToday(user: UserWithStatus, kstDayKey: string): number {
     const rec = user.dailyShopPurchases?.['ad_reward_global'];
-    return rec && isSameDayKST(rec.date, Date.now()) ? rec.quantity : 0;
+    if (!rec) return 0;
+    const d = shopPurchaseRecordDateMs(rec.date);
+    if (!(d > 0)) return 0;
+    return getTodayKSTDateString(d) === kstDayKey ? rec.quantity : 0;
 }
 
-/** 이 탭에서 오늘 추가 시청 가능 횟수(탭·전체 한도 중 작은 값) */
-function getShopAdRemainingForTab(user: UserWithStatus, tab: ShopAdRewardTab): number {
-    const tabRem = Math.max(0, SHOP_AD_TAB_DAILY_LIMIT - getShopAdTabClaimsToday(user, tab));
-    const globRem = Math.max(0, SHOP_AD_GLOBAL_DAILY_LIMIT - getShopAdGlobalClaimsToday(user));
+/** 이 탭에서 오늘 추가 시청 가능 횟수(탭·전체 한도 중 작은 값). `kstDayKey`는 KST 일자 문자열로 자정 이후 UI와 서버 판정을 맞춥니다. */
+function getShopAdRemainingForTab(user: UserWithStatus, tab: ShopAdRewardTab, kstDayKey: string): number {
+    const tabRem = Math.max(0, SHOP_AD_TAB_DAILY_LIMIT - getShopAdTabClaimsToday(user, tab, kstDayKey));
+    const globRem = Math.max(0, SHOP_AD_GLOBAL_DAILY_LIMIT - getShopAdGlobalClaimsToday(user, kstDayKey));
     return Math.min(tabRem, globRem);
 }
-
-const isSameDayKST = (ts1: number, ts2: number): boolean => {
-    if (!ts1 || !ts2) return false;
-    const KST_OFFSET = 9 * 60 * 60 * 1000;
-    const d1 = new Date(ts1 + KST_OFFSET);
-    const d2 = new Date(ts2 + KST_OFFSET);
-    return d1.getUTCFullYear() === d2.getUTCFullYear() &&
-           d1.getUTCMonth() === d2.getUTCMonth() &&
-           d1.getUTCDate() === d2.getUTCDate();
-};
 
 const formatDescription = (desc: string): string => {
     if (!desc) return '';
@@ -143,11 +147,109 @@ const formatDescription = (desc: string): string => {
     return cleaned;
 };
 
+/** 모바일 상점 카드 `overflow-hidden` 밖에서 설명을 보이게 하기 위한 뷰포트 고정 레이어 */
+const SHOP_IMAGE_DESC_POPOVER_Z = 100_000;
+
+type ShopMobileDescBox = { left: number; top: number; maxW: number; transform: string };
+
+function computeShopMobileDescBox(anchor: HTMLElement): ShopMobileDescBox {
+    const rect = anchor.getBoundingClientRect();
+    const margin = 10;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const maxW = Math.min(288, vw - margin * 2);
+    const centerX = rect.left + rect.width / 2;
+    const left = Math.max(margin + maxW / 2, Math.min(vw - margin - maxW / 2, centerX));
+    const gap = 8;
+    const spaceBelow = vh - rect.bottom - margin;
+    const spaceAbove = rect.top - margin;
+    const preferBelow = spaceBelow >= 96 || spaceBelow >= spaceAbove;
+    if (preferBelow) {
+        return { left, top: rect.bottom + gap, maxW, transform: 'translate(-50%, 0)' };
+    }
+    return { left, top: rect.top - gap, maxW, transform: 'translate(-50%, -100%)' };
+}
+
+const ShopMobileImageDescriptionPortal: React.FC<{
+    open: boolean;
+    anchorRef: React.RefObject<HTMLDivElement | null>;
+    onRequestClose: () => void;
+    children: React.ReactNode;
+}> = ({ open, anchorRef, onRequestClose, children }) => {
+    const [box, setBox] = useState<ShopMobileDescBox | null>(null);
+
+    const recompute = useCallback(() => {
+        if (!open) {
+            setBox(null);
+            return;
+        }
+        const el = anchorRef.current;
+        if (!el) {
+            setBox(null);
+            return;
+        }
+        setBox(computeShopMobileDescBox(el));
+    }, [open, anchorRef]);
+
+    useLayoutEffect(() => {
+        if (!open) {
+            setBox(null);
+            return;
+        }
+        recompute();
+        const el = anchorRef.current;
+        const ro = typeof ResizeObserver !== 'undefined' && el ? new ResizeObserver(recompute) : null;
+        if (el && ro) ro.observe(el);
+        window.addEventListener('resize', recompute);
+        window.addEventListener('scroll', recompute, true);
+        return () => {
+            ro?.disconnect();
+            window.removeEventListener('resize', recompute);
+            window.removeEventListener('scroll', recompute, true);
+        };
+    }, [open, recompute, anchorRef]);
+
+    if (!open || typeof document === 'undefined') return null;
+
+    return createPortal(
+        <>
+            <div
+                className="fixed inset-0 bg-transparent"
+                style={{ zIndex: SHOP_IMAGE_DESC_POPOVER_Z - 1, touchAction: 'manipulation' }}
+                aria-hidden
+                onPointerDown={(e) => {
+                    e.preventDefault();
+                    onRequestClose();
+                }}
+            />
+            {box ? (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    className="pointer-events-auto fixed max-h-[min(50dvh,320px)] overflow-y-auto rounded-lg border border-indigo-400/50 bg-gray-950/98 p-2.5 text-left shadow-2xl [scrollbar-width:thin]"
+                    style={{
+                        zIndex: SHOP_IMAGE_DESC_POPOVER_Z,
+                        left: box.left,
+                        top: box.top,
+                        transform: box.transform,
+                        width: box.maxW,
+                        maxWidth: box.maxW,
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                >
+                    {children}
+                </div>
+            ) : null}
+        </>,
+        document.body
+    );
+};
+
 const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void }> = ({ currentUser, onBuy }) => {
     const now = Date.now();
-    const purchasesToday = isSameDayKST(currentUser.lastActionPointPurchaseDate || 0, now) 
-        ? (currentUser.actionPointPurchasesToday || 0) 
-        : 0;
+    const apPurchaseMs = shopPurchaseRecordDateMs(currentUser.lastActionPointPurchaseDate);
+    const purchasesToday =
+        apPurchaseMs > 0 && isSameDayKST(apPurchaseMs, now) ? currentUser.actionPointPurchasesToday || 0 : 0;
 
     const costIndex = Math.min(purchasesToday, ACTION_POINT_PURCHASE_COSTS_DIAMONDS.length - 1);
     const cost = ACTION_POINT_PURCHASE_COSTS_DIAMONDS[costIndex] ?? ACTION_POINT_PURCHASE_COSTS_DIAMONDS[ACTION_POINT_PURCHASE_COSTS_DIAMONDS.length - 1];
@@ -208,8 +310,10 @@ const ShopAdRewardCard: React.FC<{
     onClaim: (tab: ShopAdRewardTab) => void;
     mobile?: boolean;
 }> = ({ tab, rewardDescription, remaining, onClaim, mobile = false }) => {
+    const { isAdFree } = useAdContext();
     const exhausted = remaining <= 0;
     const [showDescription, setShowDescription] = useState(false);
+    const imageAnchorRef = useRef<HTMLDivElement>(null);
     const refinedDescription = formatDescription(rewardDescription);
 
     return (
@@ -219,14 +323,27 @@ const ShopAdRewardCard: React.FC<{
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent" />
             <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-20 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.35),transparent_65%)]" />
             <div
+                ref={imageAnchorRef}
                 className="relative mb-1.5 flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] transition-transform hover:scale-105"
                 onClick={() => setShowDescription(!showDescription)}
-                onMouseEnter={() => setShowDescription(true)}
-                onMouseLeave={() => setShowDescription(false)}
+                onMouseEnter={() => {
+                    if (!mobile) setShowDescription(true);
+                }}
+                onMouseLeave={() => {
+                    if (!mobile) setShowDescription(false);
+                }}
             >
-                <span className="text-3xl drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" role="img" aria-label="광고 보상">
-                    🎬
-                </span>
+                {isAdFree ? (
+                    <img
+                        src="/images/shop/remove_ads_package.svg"
+                        alt=""
+                        className="h-14 w-14 object-contain drop-shadow-[0_6px_12px_rgba(220,38,38,0.35)]"
+                    />
+                ) : (
+                    <span className="text-3xl drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" role="img" aria-label="광고 보상">
+                        🎬
+                    </span>
+                )}
             </div>
             <h3
                 className={`w-full min-w-0 shrink-0 px-0 text-center font-semibold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] ${
@@ -238,11 +355,20 @@ const ShopAdRewardCard: React.FC<{
             >
                 광고 보상
             </h3>
-            {showDescription && (
-                <div
-                    className={`absolute z-50 left-1/2 -translate-x-1/2 bg-gray-900/95 border border-indigo-400/50 rounded-lg shadow-xl ${mobile ? 'top-24 w-56 p-2.5' : 'top-20 w-52 p-2'}`}
+            {showDescription && mobile && (
+                <ShopMobileImageDescriptionPortal
+                    open
+                    anchorRef={imageAnchorRef}
+                    onRequestClose={() => setShowDescription(false)}
                 >
-                    <p className={`${mobile ? 'text-[11px]' : 'text-[10px]'} text-left text-slate-200/90 leading-relaxed`}>{refinedDescription}</p>
+                    <p className="text-[11px] text-left leading-relaxed text-slate-200/90">{refinedDescription}</p>
+                </ShopMobileImageDescriptionPortal>
+            )}
+            {showDescription && !mobile && (
+                <div
+                    className={`absolute z-50 left-1/2 -translate-x-1/2 bg-gray-900/95 border border-indigo-400/50 rounded-lg shadow-xl top-20 w-52 p-2`}
+                >
+                    <p className="text-[10px] text-left text-slate-200/90 leading-relaxed">{refinedDescription}</p>
                 </div>
             )}
             <div className="mt-1.5 flex w-full flex-shrink-0 flex-col items-stretch justify-center gap-1">
@@ -254,7 +380,9 @@ const ShopAdRewardCard: React.FC<{
                     className={`flex w-full flex-col items-center justify-center gap-0.5 rounded-lg border border-emerald-300/45 bg-gradient-to-r from-emerald-400/90 to-cyan-500/90 px-2 py-1.5 text-center font-semibold leading-tight text-slate-900 transition-colors hover:from-emerald-300 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-50 ${mobile ? 'h-[2.95rem] min-h-[2.95rem] max-h-[2.95rem] text-[11px]' : 'min-h-[3.5rem] py-2 text-xs sm:text-sm'}`}
                 >
                     <span className="flex flex-wrap items-center justify-center gap-x-1">
-                        <span className="font-bold">{exhausted ? '오늘 수령 완료' : '광고 보기'}</span>
+                        <span className="font-bold">
+                            {exhausted ? '오늘 수령 완료' : isAdFree ? '무료 보상' : '광고 보기'}
+                        </span>
                         <span className="tabular-nums font-extrabold opacity-90">
                             ({remaining}/{SHOP_AD_GLOBAL_DAILY_LIMIT})
                         </span>
@@ -281,6 +409,7 @@ const ShopItemCard: React.FC<{
     );
     const refinedDescription = formatDescription(description);
     const [showDescription, setShowDescription] = useState(false);
+    const imageAnchorRef = useRef<HTMLDivElement>(null);
 
     const now = Date.now();
     const purchaseRecord = currentUser.dailyShopPurchases?.[item.itemId];
@@ -310,10 +439,15 @@ const ShopItemCard: React.FC<{
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent pointer-events-none" />
             <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.35),transparent_65%)] pointer-events-none" />
             <div 
+                ref={imageAnchorRef}
                 className={`relative bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent rounded-lg mb-1.5 flex items-center justify-center shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] cursor-pointer hover:scale-105 transition-transform ${mobile ? 'w-16 h-16' : 'w-16 h-16'}`}
                 onClick={() => setShowDescription(!showDescription)}
-                onMouseEnter={() => setShowDescription(true)}
-                onMouseLeave={() => setShowDescription(false)}
+                onMouseEnter={() => {
+                    if (!mobile) setShowDescription(true);
+                }}
+                onMouseLeave={() => {
+                    if (!mobile) setShowDescription(false);
+                }}
             >
                 {(item.itemId === 'action_point_10' || item.itemId === 'action_point_20' || item.itemId === 'action_point_30') ? (
                     <span className="text-3xl drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" aria-label={name}>⚡</span>
@@ -336,11 +470,18 @@ const ShopItemCard: React.FC<{
             >
                 {name}
             </h3>
-            {showDescription && (
-                <div className={`absolute z-50 left-1/2 -translate-x-1/2 bg-gray-900/95 border border-indigo-400/50 rounded-lg shadow-xl ${mobile ? 'top-24 w-56 p-2.5' : 'top-20 w-48 p-2'}`}>
-                    <p className={`${mobile ? 'text-[11px]' : 'text-[10px]'} text-slate-200/90 leading-relaxed`}>
-                        {refinedDescription}
-                    </p>
+            {showDescription && mobile && (
+                <ShopMobileImageDescriptionPortal
+                    open
+                    anchorRef={imageAnchorRef}
+                    onRequestClose={() => setShowDescription(false)}
+                >
+                    <p className="text-[11px] leading-relaxed text-slate-200/90">{refinedDescription}</p>
+                </ShopMobileImageDescriptionPortal>
+            )}
+            {showDescription && !mobile && (
+                <div className="absolute z-50 left-1/2 top-20 w-48 -translate-x-1/2 rounded-lg border border-indigo-400/50 bg-gray-900/95 p-2 shadow-xl">
+                    <p className="text-[10px] leading-relaxed text-slate-200/90">{refinedDescription}</p>
                 </div>
             )}
             <div className="mt-1.5 flex w-full flex-shrink-0 flex-col items-stretch justify-center gap-1">
@@ -575,6 +716,8 @@ const MiscShopCard: React.FC<{
     const now = Date.now();
     const isDiamondPkg = (CASH_SHOP_DIAMOND_PACKAGE_IDS as readonly string[]).includes(product.id);
     const isEquipmentPkg = (CASH_SHOP_EQUIPMENT_PACKAGE_IDS as readonly string[]).includes(product.id);
+    const isRemoveAdsPkg = product.id === CASH_SHOP_REMOVE_ADS_PACKAGE_ID;
+    const removeAdsOwned = Boolean(currentUser.removeAdsPurchased);
     const diamondActive = (currentUser.diamondPackageExpiresAt ?? 0) > now;
     const diamondBlocked = isDiamondPkg && diamondActive;
     let equipLimit = 0;
@@ -587,10 +730,15 @@ const MiscShopCard: React.FC<{
         equipRemaining = Math.max(0, equipLimit - usedThisMonth);
         equipBlocked = !currentUser.isAdmin && equipRemaining <= 0;
     }
-    const purchaseDisabled = diamondBlocked || equipBlocked;
+    const removeAdsBlocked = isRemoveAdsPkg && removeAdsOwned;
+    const purchaseDisabled = diamondBlocked || equipBlocked || removeAdsBlocked;
     const handleMiscCashBuy = () => {
         if (!currentUser.isAdmin) {
             setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
+            return;
+        }
+        if (removeAdsBlocked) {
+            setToastMessage('이미 광고 제거 상품을 보유 중입니다.');
             return;
         }
         if (diamondBlocked) {
@@ -677,6 +825,28 @@ const MiscShopCard: React.FC<{
                     ) : null}
                 </div>
             )}
+            {visual?.type === 'remove_ads_image' && (
+                <div
+                    className={`mb-1 flex min-h-0 w-full min-w-0 shrink-0 flex-col border border-rose-500/30 bg-black/25 ${packageVisualMinHClass} ${
+                        denseNested ? 'rounded border-rose-500/20 px-0.5 py-0.5' : compact ? 'rounded-md px-1 py-1' : 'rounded-lg px-2 py-2'
+                    }`}
+                >
+                    <div className="flex min-h-0 flex-1 items-center justify-center">
+                        <img
+                            src={visual.imageSrc}
+                            alt=""
+                            className={
+                                denseNested
+                                    ? 'h-12 w-12 object-contain sm:h-14 sm:w-14'
+                                    : compact
+                                      ? 'h-16 w-16 object-contain sm:h-[4.5rem] sm:w-[4.5rem]'
+                                      : 'h-20 w-20 object-contain sm:h-24 sm:w-24'
+                            }
+                        />
+                    </div>
+                    <p className={`${visualBoxFooterClass} text-rose-100/85`}>계정당 1회 · 영구 적용</p>
+                </div>
+            )}
             {!visual && (
                 <ul className={`mt-2 space-y-1 text-slate-200/90 ${mobile ? 'text-[11px]' : 'text-xs sm:text-sm'}`}>
                     {product.benefits.map((benefit, index) => (
@@ -707,7 +877,7 @@ const MiscShopCard: React.FC<{
                             : 'min-h-[2.65rem] px-2 py-2 text-sm sm:min-h-[2.75rem] sm:text-base'
                     }`}
                 >
-                    {product.priceKRW.toLocaleString()}원
+                    {removeAdsBlocked ? '보유 중' : `${product.priceKRW.toLocaleString()}원`}
                 </Button>
             </div>
         </div>
@@ -718,13 +888,18 @@ const VipShopCard: React.FC<{
     product: MiscShopProduct;
     mobile?: boolean;
     currentUser: UserWithStatus;
-    onBuyVip: (packageId: string) => void;
+    onBuyVip: (packageId: string, billing: 'one_time' | 'subscription') => void;
+    onCancelVipSubscription: (packageId: string) => void;
     setToastMessage: (msg: string | null) => void;
-}> = ({ product, mobile = false, currentUser, onBuyVip, setToastMessage }) => {
+}> = ({ product, mobile = false, currentUser, onBuyVip, onCancelVipSubscription, setToastMessage }) => {
     const durationDays =
         product.id in VIP_SHOP_DURATION_DAYS
             ? VIP_SHOP_DURATION_DAYS[product.id as keyof typeof VIP_SHOP_DURATION_DAYS]
             : 30;
+    const vipProductId = product.id as (typeof VIP_SHOP_PRODUCT_IDS)[number];
+    const isSubscribed = Boolean(
+        (VIP_SHOP_PRODUCT_IDS as readonly string[]).includes(product.id) && currentUser.vipShopAutoRenew?.[vipProductId],
+    );
 
     return (
         <div
@@ -764,7 +939,16 @@ const VipShopCard: React.FC<{
             >
                 중복 구매 시 기간 연장
             </div>
-            <div className="mt-auto shrink-0 pt-2">
+            {isSubscribed ? (
+                <p
+                    className={`mt-1.5 shrink-0 text-center font-semibold text-emerald-300/95 ${
+                        mobile ? 'text-[9px]' : 'text-[10px] sm:text-xs'
+                    }`}
+                >
+                    자동갱신 구독 중 · 만료 시 동일 요금으로 30일 연장
+                </p>
+            ) : null}
+            <div className={`mt-auto flex shrink-0 flex-col ${mobile ? 'gap-1 pt-1.5' : 'gap-1.5 pt-2'}`}>
                 <Button
                     type="button"
                     colorScheme="none"
@@ -774,16 +958,55 @@ const VipShopCard: React.FC<{
                             setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
                             return;
                         }
-                        onBuyVip(product.id);
+                        onBuyVip(product.id, 'one_time');
                     }}
-                    className={`flex w-full flex-wrap items-center justify-center gap-x-1 gap-y-0 rounded-md border border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 px-1.5 py-2 font-semibold tabular-nums text-slate-900 shadow-[0_8px_22px_-12px_rgba(251,191,36,0.75)] sm:rounded-lg sm:shadow-[0_10px_28px_-14px_rgba(251,191,36,0.85)] ${
-                        mobile ? 'min-h-[2.35rem] text-[10px] leading-tight sm:text-xs' : 'min-h-[2.65rem] text-xs sm:min-h-[2.75rem] sm:text-sm'
+                    className={`flex w-full flex-col items-center justify-center gap-0 rounded-md border border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 px-1.5 font-semibold tabular-nums text-slate-900 shadow-[0_8px_22px_-12px_rgba(251,191,36,0.75)] sm:rounded-lg sm:shadow-[0_10px_28px_-14px_rgba(251,191,36,0.85)] ${
+                        mobile ? 'min-h-[2.35rem] py-1.5 text-[10px] leading-tight sm:text-xs' : 'min-h-[2.65rem] py-2 text-xs sm:min-h-[2.75rem] sm:text-sm'
                     }`}
                 >
-                    <span className="min-w-0 text-center leading-tight">
-                        {product.priceKRW.toLocaleString()}원 ({durationDays}일 적용)
+                    <span className="min-w-0 text-center leading-tight">일회성 결제</span>
+                    <span className="min-w-0 text-center text-[10px] font-bold tabular-nums opacity-95 sm:text-xs">
+                        {product.priceKRW.toLocaleString()}원 · {durationDays}일
                     </span>
                 </Button>
+                <Button
+                    type="button"
+                    colorScheme="none"
+                    bare
+                    onClick={() => {
+                        if (!currentUser.isAdmin) {
+                            setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
+                            return;
+                        }
+                        onBuyVip(product.id, 'subscription');
+                    }}
+                    className={`flex w-full flex-col items-center justify-center gap-0 rounded-md border border-violet-400/55 bg-gradient-to-r from-violet-600/92 via-indigo-600/90 to-violet-700/92 px-1.5 font-semibold text-amber-50 shadow-[0_8px_22px_-12px_rgba(139,92,246,0.55)] sm:rounded-lg ${
+                        mobile ? 'min-h-[2.35rem] py-1.5 text-[9px] leading-tight sm:text-[10px]' : 'min-h-[2.65rem] py-2 text-[10px] sm:min-h-[2.75rem] sm:text-xs'
+                    }`}
+                >
+                    <span className="text-center font-bold leading-tight">구독 (30일마다 자동결제)</span>
+                    <span className="text-center text-[9px] font-medium leading-tight text-violet-100/90 sm:text-[10px]">
+                        만료 시점에 등록 결제로 {product.priceKRW.toLocaleString()}원 청구 후 연장
+                    </span>
+                </Button>
+                {isSubscribed ? (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (!currentUser.isAdmin) {
+                                setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
+                                return;
+                            }
+                            onCancelVipSubscription(product.id);
+                            setToastMessage('VIP 자동갱신 구독을 해지했습니다.');
+                        }}
+                        className={`w-full rounded-md border border-amber-200/25 bg-black/20 py-1 text-center font-medium text-amber-200/90 underline-offset-2 hover:bg-black/35 hover:underline ${
+                            mobile ? 'text-[9px]' : 'text-[10px] sm:text-xs'
+                        }`}
+                    >
+                        구독 해지
+                    </button>
+                ) : null}
             </div>
         </div>
     );
@@ -1085,6 +1308,16 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                 ],
             },
         },
+        {
+            id: CASH_SHOP_REMOVE_ADS_PACKAGE_ID,
+            name: '광고 제거',
+            priceKRW: 9900,
+            benefits: [
+                '로비·대국 등 게임 내 배너·전면 광고 비표시',
+                '상점 보상형 광고 없이 동일 보상 수령(일일 한도 유지)',
+            ],
+            packageVisual: { type: 'remove_ads_image', imageSrc: '/images/shop/remove_ads_package.svg' },
+        },
     ];
     const diamondProducts = [
         { id: 'diamond_50', diamonds: 50, priceKRW: 1900 },
@@ -1095,14 +1328,13 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
     ] as const;
 
     const handleClaimShopAdReward = (tab: ShopAdRewardTab) => {
-        const remaining = getShopAdRemainingForTab(currentUser, tab);
+        const remaining = getShopAdRemainingForTab(currentUser, tab, kstCalendarDay);
         if (remaining <= 0) {
             setToastMessage('오늘 광고 보상 수령이 모두 완료되었습니다.');
             return;
         }
         showShopAdRewardInterstitial(() => {
             onAction({ type: 'CLAIM_SHOP_AD_REWARD', payload: { tab } });
-            setToastMessage('광고 보상을 수령했습니다.');
         });
     };
 
@@ -1166,12 +1398,20 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         onAction({ type: 'BUY_CASH_PACKAGE', payload: { packageId } });
     };
 
-    const handleBuyVipPackage = (packageId: string) => {
+    const handleBuyVipPackage = (packageId: string, billing: 'one_time' | 'subscription' = 'one_time') => {
         if (!currentUser.isAdmin) {
             setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
             return;
         }
-        onAction({ type: 'BUY_VIP_PACKAGE', payload: { packageId } });
+        onAction({ type: 'BUY_VIP_PACKAGE', payload: { packageId, billing } });
+    };
+
+    const handleCancelVipSubscription = (packageId: string) => {
+        if (!currentUser.isAdmin) {
+            setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
+            return;
+        }
+        onAction({ type: 'CANCEL_VIP_SHOP_AUTO_RENEW', payload: { packageId } });
     };
 
     const renderContent = () => {
@@ -1191,7 +1431,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                         <ShopAdRewardCard
                             tab="equipment"
                             rewardDescription="장비 상자 II를 1회 연 것과 동일한 규칙으로 장비 1개가 지급됩니다. 일반~에픽 등급 장비입니다."
-                            remaining={getShopAdRemainingForTab(currentUser, 'equipment')}
+                            remaining={getShopAdRemainingForTab(currentUser, 'equipment', kstCalendarDay)}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
                         />
@@ -1204,7 +1444,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                         <ShopAdRewardCard
                             tab="materials"
                             rewardDescription="재료 상자 II를 1회 연 것과 동일한 규칙으로 강화석 5개가 지급됩니다. 하급~상급 강화석이 포함됩니다."
-                            remaining={getShopAdRemainingForTab(currentUser, 'materials')}
+                            remaining={getShopAdRemainingForTab(currentUser, 'materials', kstCalendarDay)}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
                         />
@@ -1216,8 +1456,8 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                     <div className={gridClassName}>
                         <ShopAdRewardCard
                             tab="diamonds"
-                            rewardDescription="다이아몬드가 지급됩니다. 서버 보상 설정에 따라 기본 지급량에 보너스가 더해질 수 있습니다."
-                            remaining={getShopAdRemainingForTab(currentUser, 'diamonds')}
+                            rewardDescription="다이아몬드 10개가 지급됩니다. 서버 보상 설정에 따라 추가 보너스가 더해질 수 있습니다."
+                            remaining={getShopAdRemainingForTab(currentUser, 'diamonds', kstCalendarDay)}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
                         />
@@ -1265,6 +1505,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                                 mobile={mobileShop}
                                 currentUser={currentUser}
                                 onBuyVip={handleBuyVipPackage}
+                                onCancelVipSubscription={handleCancelVipSubscription}
                                 setToastMessage={setToastMessage}
                             />
                         ))}
@@ -1285,7 +1526,9 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                 ];
                 const actionPointShopItems = ACTION_POINT_ITEMS.map(({ itemId, name, description, dailyLimit, prices, badge }) => {
                     const purchaseRecord = currentUser.dailyShopPurchases?.[itemId];
-                    const purchasesToday = (purchaseRecord && isSameDayKST(purchaseRecord.date, Date.now())) ? purchaseRecord.quantity : 0;
+                    const prDate = shopPurchaseRecordDateMs(purchaseRecord?.date);
+                    const purchasesToday =
+                        purchaseRecord && prDate > 0 && isSameDayKST(prDate, Date.now()) ? purchaseRecord.quantity : 0;
                     const nextPriceIndex = Math.min(purchasesToday, prices.length - 1);
                     const nextPrice = prices[nextPriceIndex] ?? prices[prices.length - 1];
                     return {
@@ -1307,7 +1550,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                         <ShopAdRewardCard
                             tab="consumables"
                             rewardDescription="행동력 회복제(+10) 1개가 지급됩니다."
-                            remaining={getShopAdRemainingForTab(currentUser, 'consumables')}
+                            remaining={getShopAdRemainingForTab(currentUser, 'consumables', kstCalendarDay)}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
                         />

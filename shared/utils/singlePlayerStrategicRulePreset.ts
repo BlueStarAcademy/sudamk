@@ -60,12 +60,6 @@ export const resolveSinglePlayerStrategicGameMode = (stage: SinglePlayerStageInf
     }
 };
 
-export const resolveSinglePlayerSpeedTimeMode = (stage: SinglePlayerStageInfo): boolean => {
-    const p = stage.strategicRulePreset;
-    if (p && p !== 'auto') return p === 'speed';
-    return stage.timeControl?.type === 'fischer';
-};
-
 export const resolveSinglePlayerSurvivalMode = (stage: SinglePlayerStageInfo): boolean => {
     const p = stage.strategicRulePreset;
     if (p && p !== 'auto') return p === 'survival';
@@ -140,4 +134,15 @@ export const resolveSinglePlayerMixedModes = (stage: SinglePlayerStageInfo): Gam
         if (cleaned.length >= 2) return cleaned.slice(0, 5);
     }
     return [...DEFAULT_MIX];
+};
+
+/** 스테이지에 싱글/AI 스피드 시간 압박(10초당 1점)이 적용되는지 — 믹스+스피드 포함 */
+export const resolveSinglePlayerSpeedTimeMode = (stage: SinglePlayerStageInfo): boolean => {
+    const p = stage.strategicRulePreset;
+    if (p === 'speed') return true;
+    if (p === 'mix') {
+        return resolveSinglePlayerMixedModes(stage).includes(GameMode.Speed);
+    }
+    if (p && p !== 'auto') return false;
+    return stage.timeControl?.type === 'fischer';
 };

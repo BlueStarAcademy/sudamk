@@ -138,6 +138,7 @@ export function getAdventureEncounterCountdownMinutes(boardSize: number): number
     return ADVENTURE_ENCOUNTER_COUNTDOWN_MINUTES[boardSize] ?? 10;
 }
 
+/** 자동 계가까지의 유효 착수 상한(모험). 9/11/13/19줄: 40·60·80·200수 */
 const ADVENTURE_BOARD_RULES: Record<7 | 9 | 11 | 13 | 19, BoardRuleRow> = {
     7: {
         scoringTurnLimit: 30,
@@ -156,7 +157,7 @@ const ADVENTURE_BOARD_RULES: Record<7 | 9 | 11 | 13 | 19, BoardRuleRow> = {
         missileCount: 1,
     },
     11: {
-        scoringTurnLimit: 50,
+        scoringTurnLimit: 60,
         captureTarget: 8,
         baseStones: 3,
         hiddenStoneCount: 1,
@@ -164,7 +165,7 @@ const ADVENTURE_BOARD_RULES: Record<7 | 9 | 11 | 13 | 19, BoardRuleRow> = {
         missileCount: 2,
     },
     13: {
-        scoringTurnLimit: 60,
+        scoringTurnLimit: 80,
         captureTarget: 10,
         baseStones: 4,
         hiddenStoneCount: 1,
@@ -176,6 +177,12 @@ const ADVENTURE_BOARD_RULES: Record<7 | 9 | 11 | 13 | 19, BoardRuleRow> = {
         missileCount: 3,
     },
 };
+
+/** 자동 계가까지 수순 상한(모험·따내기 제외 룰). DB/캐시에 잘못된 값이 있을 때 보정용 */
+export function getAdventureDesignScoringTurnLimit(boardSize: number): number | undefined {
+    const bs = boardSize as 7 | 9 | 11 | 13 | 19;
+    return ADVENTURE_BOARD_RULES[bs]?.scoringTurnLimit;
+}
 
 /** 맵·도감 풍선용 — 판 줄·계가·룰별 수치 한 줄씩 */
 export function formatAdventureBattleQuickLines(boardSize: number, mode: GameMode): string[] {

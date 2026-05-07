@@ -185,6 +185,25 @@ export const getStartOfDayKST = (timestamp: number = Date.now()): number => {
     return kstDate.getTime() - KST_OFFSET;
 };
 
+/**
+ * `dailyShopPurchases` 등에 저장된 `date` 값 정규화.
+ * JSON 직렬화·DB에서 숫자 밀리초, ISO 문자열, `Date` 등으로 올 수 있어 KST 일일 판정이 어긋나지 않게 처리합니다.
+ */
+export function shopPurchaseRecordDateMs(raw: unknown): number {
+    if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+    if (raw instanceof Date) {
+        const t = raw.getTime();
+        return Number.isFinite(t) ? t : 0;
+    }
+    if (typeof raw === 'string') {
+        const n = Number(raw);
+        if (Number.isFinite(n)) return n;
+        const parsed = Date.parse(raw);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+}
+
 /** KST 기준 오늘 날짜 문자열 'YYYY-MM-DD' (길드 보스 일일 참여 등에 사용) */
 export const getTodayKSTDateString = (date: Date | number = Date.now()): string => {
     const d = getKSTDate(date);

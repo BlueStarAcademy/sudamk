@@ -429,12 +429,12 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
         if (rewardItems.length === 0) {
             return <p className="py-0.5 text-center text-[10px] text-zinc-500">보상 없음</p>;
         }
-        /** 한 줄 유지: 줄바꿈 대신 가로 스크롤, 월드 등 아이템 많을 때 칩을 살짝 축소 */
+        /** 한 줄 유지: 줄바꿈 대신 가로 스크롤, 월드 등 아이템 많을 때만 살짝 축소 */
         const worldCompact = dungeonType === 'world' && rewardItems.length >= 5;
-        const chipBox = worldCompact ? 'h-8 w-8' : 'h-9 w-9';
-        const imgInBox = worldCompact ? 'h-5 w-5' : 'h-6 w-6';
-        const colW = worldCompact ? 'w-[2.15rem]' : 'w-[2.5rem]';
-        const footerText = worldCompact ? 'text-[6px]' : 'text-[7px]';
+        const chipBox = worldCompact ? 'h-10 w-10' : 'h-12 w-12';
+        const imgInBox = worldCompact ? 'h-7 w-7' : 'h-9 w-9';
+        const colW = worldCompact ? 'w-[2.7rem]' : 'w-[3.15rem]';
+        const footerText = worldCompact ? 'text-[7px]' : 'text-[8px]';
 
         return (
             <div
@@ -463,7 +463,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                                         <img
                                             src={item.image?.startsWith('/') ? item.image : `/${item.image}`}
                                             alt=""
-                                            className="pointer-events-none absolute left-1/2 top-1/2 w-[74%] max-h-[74%] -translate-x-1/2 -translate-y-1/2 object-contain"
+                                            className="pointer-events-none absolute left-1/2 top-1/2 w-[80%] max-h-[80%] -translate-x-1/2 -translate-y-1/2 object-contain"
                                             loading="lazy"
                                             decoding="async"
                                         />
@@ -492,7 +492,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                                 </div>
                                 {footerNum ? (
                                     <span
-                                        className={`max-w-[2.5rem] truncate text-center ${footerText} font-bold tabular-nums leading-none text-amber-200/95`}
+                                        className={`max-w-[3.25rem] truncate text-center ${footerText} font-bold tabular-nums leading-none text-amber-200/95`}
                                     >
                                         {footerNum}
                                     </span>
@@ -631,70 +631,14 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                                     </div>
 
                                     <div
-                                        className={`${panelCardClass} flex w-full max-w-3xl min-h-[140px] flex-col items-center p-2.5 sm:min-h-[160px] sm:p-3`}
+                                        className={`${panelCardClass} flex w-full max-w-3xl min-h-[112px] flex-col items-center p-2.5 sm:min-h-[136px] sm:p-3`}
                                     >
                                         <h3 className={`${sectionTitleClass} mb-2 w-full flex-shrink-0 text-center`}>보상 내역</h3>
-                                    {rewardItems.length > 0 ? (
-                                        <div className="grid w-full max-w-full grid-cols-5 justify-items-center gap-1.5 sm:gap-2">
-                                            {rewardItems.map((item, index) => {
-                                                const chip = item as RewardChip;
-                                                const isWorldEquip = dungeonType === 'world' && chip.grade;
-                                                const footerNum = rewardChipFooterNumber(chip);
-
-                                                if (isWorldEquip && chip.grade) {
-                                                    const grade = chip.grade;
-                                                    const bg = gradeBackgrounds[grade] || gradeBackgrounds[ItemGrade.Normal];
-
-                                                    return (
-                                                        <div
-                                                            key={index}
-                                                            className="flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg"
-                                                            title={item.name}
-                                                        >
-                                                            <div className="relative aspect-square h-12 w-12 overflow-hidden rounded-lg ring-1 ring-amber-400/25 sm:h-14 sm:w-14">
-                                                                <img
-                                                                    src={bg}
-                                                                    alt=""
-                                                                    className="absolute inset-0 h-full w-full rounded-md object-cover"
-                                                                    aria-hidden
-                                                                />
-                                                                <img
-                                                                    src={item.image?.startsWith('/') ? item.image : `/${item.image}`}
-                                                                    alt=""
-                                                                    className="pointer-events-none absolute left-1/2 top-1/2 w-[78%] max-h-[78%] -translate-x-1/2 -translate-y-1/2 object-contain"
-                                                                    loading="lazy"
-                                                                    decoding="async"
-                                                                />
-                                                            </div>
-                                                            {footerNum ? (
-                                                                <span className="text-[9px] font-bold tabular-nums text-amber-200">{footerNum}</span>
-                                                            ) : null}
-                                                        </div>
-                                                    );
-                                                }
-
-                                                const src = item.image?.startsWith('/') ? item.image : item.image ? `/${item.image}` : '';
-                                                return (
-                                                    <div
-                                                        key={index}
-                                                        className="flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-white/10 bg-black/35 p-1.5 ring-1 ring-inset ring-white/[0.04] sm:p-2"
-                                                        title={item.name}
-                                                    >
-                                                        <div className="flex h-10 w-10 items-center justify-center sm:h-11 sm:w-11">
-                                                            {src ? <img src={src} alt="" className="h-7 w-7 object-contain sm:h-8 sm:w-8" /> : null}
-                                                        </div>
-                                                        {footerNum ? (
-                                                            <span className="w-full truncate text-center text-[9px] font-bold tabular-nums text-amber-200">
-                                                                {footerNum}
-                                                            </span>
-                                                        ) : null}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    ) : (
-                                        <p className="py-2 text-center text-sm text-zinc-500">보상 없음</p>
-                                    )}
+                                        {rewardItems.length > 0 ? (
+                                            <div className="w-full min-w-0 max-w-full px-0.5">{renderMobileRewardStrip()}</div>
+                                        ) : (
+                                            <p className="py-2 text-center text-sm text-zinc-500">보상 없음</p>
+                                        )}
                                     </div>
                                 </div>
                             </div>

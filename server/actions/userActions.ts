@@ -772,6 +772,17 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             broadcastUserUpdate(user, ['pairPetLobbyInventorySort']);
             return { clientResponse: { updatedUser } };
         }
+        case 'SET_BLOCK_ARENA_PARTNER_INVITES': {
+            const { blocked } = payload as { blocked?: unknown };
+            user.blockArenaPartnerInvites = blocked === true;
+            const updatedUser = getSelectiveUserUpdate(user, 'SET_BLOCK_ARENA_PARTNER_INVITES');
+            db.updateUser(user).catch((err) => {
+                console.error(`[UserAction] Failed to save user ${user.id} after SET_BLOCK_ARENA_PARTNER_INVITES:`, err);
+            });
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['blockArenaPartnerInvites']);
+            return { clientResponse: { updatedUser } };
+        }
         case 'SAVE_PRESET': {
             const { preset, index } = payload as { preset: types.EquipmentPreset, index: number };
             if (!user.equipmentPresets) {

@@ -67,6 +67,7 @@ const PairPartnerInviteModal: React.FC<Props> = ({
     const getInviteDisabledReason = (u: UserWithStatus, tab: PairInviteListTab): string | null => {
         if (currentUser.status === UserStatus.Resting) return '휴식 중에는 파트너를 초대할 수 없습니다.';
         if (u.id === currentUserId) return '본인은 초대할 수 없습니다.';
+        if (u.blockArenaPartnerInvites === true) return '상대가 초대를 받지 않도록 설정했습니다.';
         if (u.status === UserStatus.Resting) return '휴식 중인 유저는 초대할 수 없습니다.';
         if (u.status === UserStatus.InGame || u.status === UserStatus.Negotiating) {
             return '경기 또는 협상 중인 유저는 초대할 수 없습니다.';
@@ -162,6 +163,7 @@ const PairPartnerInviteModal: React.FC<Props> = ({
                         currentUser={currentUser}
                         onViewUser={onViewUser}
                         lobbyType="strategic"
+                        showArenaPartnerInviteBlockToggle
                         pairInvite={{
                             listTab: userTab,
                             getInviteDisabledReason,

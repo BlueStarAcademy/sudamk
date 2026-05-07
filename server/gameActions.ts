@@ -1456,7 +1456,13 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             ]);
             const shouldHandleBaseFlowOnStrategicPve =
                 pveStrategicBaseFlow && baseFlowServerActionTypes.has(type);
-            if (type !== 'RESIGN_GAME' && !shouldHandlePlaceStoneOnServer && !shouldHandleBaseFlowOnStrategicPve) {
+            // 펫 힌트는 상태 변경 없이 clientResponse만 반환 — 아래 `handleStrategicGameAction`으로 넘긴다.
+            if (
+                type !== 'RESIGN_GAME' &&
+                type !== 'REQUEST_STRATEGIC_PET_HINT' &&
+                !shouldHandlePlaceStoneOnServer &&
+                !shouldHandleBaseFlowOnStrategicPve
+            ) {
                 return {};
             }
         }
@@ -1802,9 +1808,17 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         }
     }
     
-    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'SAVE_EXCHANGE_STATE', 'PURCHASE_EXCHANGE_LISTING', 'CLAIM_EXCHANGE_SETTLEMENT', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS', 'UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT', 'SAVE_GAME_RECORD', 'DELETE_GAME_RECORD', 'RECORD_ADVENTURE_MONSTER_DEFEAT', 'START_ADVENTURE_MONSTER_BATTLE', 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST', 'CONFIRM_ADVENTURE_MAP_TREASURE_CHEST', 'ABANDON_ADVENTURE_MAP_TREASURE_PICK', 'REROLL_ADVENTURE_REGIONAL_BUFF', 'ENHANCE_ADVENTURE_REGIONAL_BUFF', 'ADVANCE_ONBOARDING_TUTORIAL', 'BEGIN_ONBOARDING_ON_FIRST_HOME', 'SKIP_ONBOARDING_TUTORIAL', 'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD', 'CLAIM_ONBOARDING_INTRO1_FAN', 'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL', 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ', 'ADMIN_SET_VIP_TEST_FLAGS', 'ADMIN_SET_DIAMOND_PACKAGE_TEST', 'RESET_PAIR_ARENA_SINGLE_STAT', 'RESET_PAIR_ARENA_STRATEGIC_ALL'].includes(type)) return handleUserAction(volatileState, action, userData);
+    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'SAVE_EXCHANGE_STATE', 'PURCHASE_EXCHANGE_LISTING', 'CLAIM_EXCHANGE_SETTLEMENT', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS', 'UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT', 'SET_BLOCK_ARENA_PARTNER_INVITES', 'SAVE_GAME_RECORD', 'DELETE_GAME_RECORD', 'RECORD_ADVENTURE_MONSTER_DEFEAT', 'START_ADVENTURE_MONSTER_BATTLE', 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST', 'CONFIRM_ADVENTURE_MAP_TREASURE_CHEST', 'ABANDON_ADVENTURE_MAP_TREASURE_PICK', 'REROLL_ADVENTURE_REGIONAL_BUFF', 'ENHANCE_ADVENTURE_REGIONAL_BUFF', 'ADVANCE_ONBOARDING_TUTORIAL', 'BEGIN_ONBOARDING_ON_FIRST_HOME', 'SKIP_ONBOARDING_TUTORIAL', 'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD', 'CLAIM_ONBOARDING_INTRO1_FAN', 'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL', 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ', 'ADMIN_SET_VIP_TEST_FLAGS', 'ADMIN_SET_DIAMOND_PACKAGE_TEST', 'RESET_PAIR_ARENA_SINGLE_STAT', 'RESET_PAIR_ARENA_STRATEGIC_ALL'].includes(type)) return handleUserAction(volatileState, action, userData);
     if (type.startsWith('CLAIM_') || type.startsWith('DELETE_MAIL') || type === 'DELETE_ALL_CLAIMED_MAIL' || type === 'MARK_MAIL_AS_READ') return handleRewardAction(volatileState, action, userData);
-    if (type.startsWith('BUY_') || type === 'PURCHASE_ACTION_POINTS' || type === 'EXPAND_INVENTORY' || type === 'BUY_TOWER_ITEM' || type === 'CLAIM_SHOP_AD_REWARD') return handleShopAction(volatileState, action, userData);
+    if (
+        type.startsWith('BUY_') ||
+        type === 'PURCHASE_ACTION_POINTS' ||
+        type === 'EXPAND_INVENTORY' ||
+        type === 'BUY_TOWER_ITEM' ||
+        type === 'CLAIM_SHOP_AD_REWARD' ||
+        type === 'CANCEL_VIP_SHOP_AUTO_RENEW'
+    )
+        return handleShopAction(volatileState, action, userData);
     if (type.startsWith('TOURNAMENT') || 
         type.startsWith('START_TOURNAMENT') || 
         type.startsWith('SKIP_TOURNAMENT') || 

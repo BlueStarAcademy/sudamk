@@ -1146,16 +1146,40 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         session.gameCategory === 'adventure' && isLeftAi ? emptyAdventureCdProps : adventureCdProps;
     const rightAdventureCdProps =
         session.gameCategory === 'adventure' && isRightAi ? emptyAdventureCdProps : adventureCdProps;
-    const isGuildWarAi = session.gameCategory === 'guildwar' && session.isAiGame;
-    const leftShowElapsedOnly = isGuildWarAi ? isLeftAi : session.gameCategory === 'adventure' ? isLeftAi : !enforceTime;
-    const rightShowElapsedOnly = isGuildWarAi ? isRightAi : session.gameCategory === 'adventure' ? isRightAi : !enforceTime;
     const isSpeedLikeMode =
         mode === GameMode.Speed ||
         (mode === GameMode.Mix && Boolean(session.settings?.mixedModes?.includes(GameMode.Speed)));
-    /** 스피드 + 시계: 라이브 사용 시간 보너스 UI(서버가 playing 중 `captures`에 시간 압박 반영) */
-    const isSpeedLiveBonusUi = isSpeedLikeMode && enforceTime && session.gameStatus === 'playing';
-    /** 본장 중에는 따낸 숫자에 이미 반영되므로 `(+N)` 중복 표기 숨김 */
-    const hideSpeedTimePressureInlineBonus = isSpeedLikeMode && session.gameStatus === 'playing';
+    /** 제한시간·초읽기가 있는 대국만(스피드/믹스+스피드 시계 UI) */
+    const sessionHasStrategicClock =
+        (settings.timeLimit ?? 0) > 0 ||
+        ((settings.byoyomiCount ?? 0) > 0 && (settings.byoyomiTime ?? 0) > 0);
+    /** 스피드 + 시계: 라이브 사용 시간 보너스 UI(서버가 `captures`에 시간 압박 반영). PVP뿐 아니라 AI 대국도 동일 표시 */
+    const isSpeedLiveBonusUi =
+        isSpeedLikeMode &&
+        sessionHasStrategicClock &&
+        (session.gameStatus === 'playing' || session.gameStatus === 'hidden_placing');
+    /** 시간 보너스는 집 숫자에만 반영 — `(+N)` 별도 표기 없음 */
+    const hideSpeedTimePressureInlineBonus = isSpeedLikeMode;
+    /** 스피드·믹스+스피드: 경과시간 대신 제한시간 막대(스피드 단독과 동일). AI 대국도 turnDeadline·blackTimeLeft 기반 */
+    const useSpeedLikeCountdownUi =
+        isSpeedLikeMode &&
+        sessionHasStrategicClock &&
+        (session.gameStatus === 'playing' || session.gameStatus === 'hidden_placing');
+    const isGuildWarAi = session.gameCategory === 'guildwar' && session.isAiGame;
+    const leftShowElapsedOnly = isGuildWarAi
+        ? isLeftAi
+        : session.gameCategory === 'adventure'
+          ? isLeftAi
+          : useSpeedLikeCountdownUi
+            ? false
+            : !enforceTime;
+    const rightShowElapsedOnly = isGuildWarAi
+        ? isRightAi
+        : session.gameCategory === 'adventure'
+          ? isRightAi
+          : useSpeedLikeCountdownUi
+            ? false
+            : !enforceTime;
     /** PvE/AI 대국 + 스피드 — 봇 턴·히든 연출은 유저 사용에서 제외 */
     const isAiSpeedLiveBonusUi =
         (Boolean(session.isAiGame) || Boolean(session.isSinglePlayer)) && isSpeedLiveBonusUi;

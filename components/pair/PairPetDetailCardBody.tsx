@@ -19,6 +19,11 @@ function dispositionLabel(meta: PairPetMeta['disposition']): string {
     if (meta.kind === 'all') {
         return `모든 능력치 +${meta.pct}%`;
     }
+    if (meta.kind === 'convert') {
+        const fromName = CORE_STATS_DATA[meta.fromStat]?.name ?? meta.fromStat;
+        const toName = CORE_STATS_DATA[meta.toStat]?.name ?? meta.toStat;
+        return `${fromName} ${meta.pct}% → ${toName} (2배 전환)`;
+    }
     const name = CORE_STATS_DATA[meta.stat]?.name ?? meta.stat;
     return `${name} +${meta.pct}%`;
 }
@@ -32,7 +37,15 @@ function specializationLabel(spec: PairPetMeta['specialization']): string {
         case 'trainingTime':
             return `수련 시간 -${spec.pct}%`;
         case 'soulDrop':
-            return `영혼석 획득 확률 +${spec.pct}%`;
+            return `수련 영혼석 획득 +${spec.pct}%`;
+        case 'trainingSoulQuantityPlusOne':
+            return '수련 영혼석 획득 수량 +1';
+        case 'strategicArenaApMinusOne':
+            return '전략 경기장 필요 행동력 -1';
+        case 'pairArenaApMinusOne':
+            return '페어 경기장 필요 행동력 -1';
+        case 'playfulArenaApMinusOne':
+            return '놀이 경기장 필요 행동력 -1';
         default:
             return '';
     }

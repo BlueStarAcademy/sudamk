@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import * as db from '../db.js';
 import { type ServerAction, type User, type VolatileState, type GameSettings, Negotiation, GameMode, UserStatus, Player } from '../../types/index.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST, DEFAULT_GAME_SETTINGS, OPPONENT_INSUFFICIENT_ACTION_POINTS_MESSAGE, getAiScoringTurnLimitByBoardSize } from '../../constants';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS, OPPONENT_INSUFFICIENT_ACTION_POINTS_MESSAGE, getAiScoringTurnLimitByBoardSize } from '../../constants';
 import { initializeGame } from '../gameModes.js';
 import { aiUserId, getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
@@ -11,6 +11,7 @@ import { maybeDeleteDetachedEndedPvpGame } from '../maybeDeleteDetachedEndedPvpG
 import { clampAiLobbyStrategicItemCaps } from '../../shared/utils/strategicAiLobbyItemCaps.js';
 import { isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
 import { arenaChannelForGameMode, arenaChannelForGameSession } from '../../shared/utils/arenaChannel.js';
+import { effectiveNegotiationApCostForUser } from '../../shared/utils/pairPetArenaApDiscount.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -62,16 +63,6 @@ async function restoreUserToWaitingLobby(
         await maybeDeleteDetachedEndedPvpGame(volatileState, oldGameId);
     }
 }
-
-const getActionPointCost = (mode: GameMode): number => {
-    if (SPECIAL_GAME_MODES.some(m => m.mode === mode)) {
-        return STRATEGIC_ACTION_POINT_COST;
-    }
-    if (PLAYFUL_GAME_MODES.some(m => m.mode === mode)) {
-        return PLAYFUL_ACTION_POINT_COST;
-    }
-    return STRATEGIC_ACTION_POINT_COST; // Default to strategic cost
-};
 
 export const handleNegotiationAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
     const { type, payload } = action as any;
@@ -182,12 +173,13 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 }
 
                 await applyPassiveActionPointRegenToUser(opponent, now);
-                if (opponent.actionPoints.current < getActionPointCost(mode) && !opponent.isAdmin) {
+                const oppNeed = effectiveNegotiationApCostForUser(opponent, mode);
+                if (opponent.actionPoints.current < oppNeed && !opponent.isAdmin) {
                     return { error: OPPONENT_INSUFFICIENT_ACTION_POINTS_MESSAGE };
                 }
             }
             
-            const cost = getActionPointCost(mode);
+            const cost = effectiveNegotiationApCostForUser(user, mode);
             await applyPassiveActionPointRegenToUser(user, now);
             if (user.actionPoints.current < cost && !user.isAdmin) {
                 return { error: `액션 포인트가 부족합니다. (필요: ${cost})` };
@@ -235,7 +227,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 return { error: 'Invalid challenge.' };
             }
 
-            const cost = getActionPointCost(negotiation.mode);
+            const cost = effectiveNegotiationApCostForUser(user, negotiation.mode);
             await applyPassiveActionPointRegenToUser(user, now);
             if (user.actionPoints.current < cost && !user.isAdmin) {
                 return { error: `액션 포인트가 부족합니다. (필요: ${cost})` };
@@ -263,7 +255,8 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                     return { error: 'Opponent not found.' };
                 }
                 await applyPassiveActionPointRegenToUser(freshOpponent, now);
-                if (freshOpponent.actionPoints.current < cost && !freshOpponent.isAdmin) {
+                const oppSendCost = effectiveNegotiationApCostForUser(freshOpponent, negotiation.mode);
+                if (freshOpponent.actionPoints.current < oppSendCost && !freshOpponent.isAdmin) {
                     delete volatileState.negotiations[negotiationId];
                     await restoreUserToWaitingLobby(volatileState, user.id, negotiation.mode);
                     broadcast({ type: 'NEGOTIATION_UPDATE', payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses } });
@@ -343,10 +336,14 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             const opponent = await db.getUser(negotiation.opponent.id);
             if (!challenger || !opponent) return { error: "One of the players could not be found." };
 
-            const cost = getActionPointCost(negotiation.mode);
+            const costChallenger = effectiveNegotiationApCostForUser(challenger, negotiation.mode);
+            const costOpponent = effectiveNegotiationApCostForUser(opponent, negotiation.mode);
             await applyPassiveActionPointRegenToUser(challenger, now);
             await applyPassiveActionPointRegenToUser(opponent, now);
-            if ((challenger.actionPoints.current < cost && !challenger.isAdmin) || (opponent.actionPoints.current < cost && !opponent.isAdmin)) {
+            if (
+                (challenger.actionPoints.current < costChallenger && !challenger.isAdmin) ||
+                (opponent.actionPoints.current < costOpponent && !opponent.isAdmin)
+            ) {
                 await restoreUserToWaitingLobby(volatileState, challenger.id, negotiation.mode);
                 await restoreUserToWaitingLobby(volatileState, opponent.id, negotiation.mode);
                 delete volatileState.negotiations[negotiationId];
@@ -354,11 +351,11 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             }
 
             if (!challenger.isAdmin) {
-                challenger.actionPoints.current -= cost;
+                challenger.actionPoints.current -= costChallenger;
                 challenger.lastActionPointUpdate = now;
             }
             if (!opponent.isAdmin) {
-                opponent.actionPoints.current -= cost;
+                opponent.actionPoints.current -= costOpponent;
                 opponent.lastActionPointUpdate = now;
             }
 
@@ -509,7 +506,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                     : incomingSettings;
                 // 대기실 AI 대국은 페어 전용 `pairGame` 메타와 무관 — 잔존 시 인게임 분기 오류 방지
                 delete (settings as { pairGame?: unknown }).pairGame;
-                const cost = getActionPointCost(mode);
+                const cost = effectiveNegotiationApCostForUser(user, mode);
                 await applyPassiveActionPointRegenToUser(user, now);
                 if (user.actionPoints.current < cost && !user.isAdmin) {
                     return { error: `액션 포인트가 부족합니다. (필요: ${cost})` };
@@ -592,8 +589,8 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             } catch (err: any) {
                 // 실패 시 액션 포인트 복구
                 if (!user.isAdmin && payload?.mode) {
-                    const cost = getActionPointCost(payload.mode);
-                    user.actionPoints.current += cost;
+                    const refundAp = effectiveNegotiationApCostForUser(user, payload.mode as GameMode);
+                    user.actionPoints.current += refundAp;
                     user.lastActionPointUpdate = now;
                 }
                 console.error('[START_AI_GAME] Error:', err?.message || err, err?.stack);

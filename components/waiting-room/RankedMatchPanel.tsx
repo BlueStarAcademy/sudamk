@@ -3,7 +3,8 @@ import { GameMode, ServerAction, UserWithStatus } from '../../types.js';
 import type { RankingEntry } from '../../hooks/useRanking.js';
 import Button from '../Button.js';
 import PairPetRankedMatchModeModal from '../pair/PairPetRankedMatchModeModal.js';
-import { RANKING_TIERS, SPECIAL_GAME_MODES, STRATEGIC_ACTION_POINT_COST } from '../../constants';
+import { RANKING_TIERS, SPECIAL_GAME_MODES } from '../../constants';
+import { effectiveStrategicRankedQueueApCostForUser } from '../../shared/utils/pairPetArenaApDiscount.js';
 import { readStrategicRankedBlock } from '../../shared/utils/unifiedRankedStatsMigration.js';
 import { RANKED_STRATEGIC_MODES } from '../../constants/rankedGameSettings.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
@@ -147,7 +148,10 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
         return counts;
     }, [rankedMatchingQueue]);
 
-    const rankedActionPointCost = STRATEGIC_ACTION_POINT_COST;
+    const rankedActionPointCost = useMemo(
+        () => effectiveStrategicRankedQueueApCostForUser(currentUser),
+        [currentUser],
+    );
 
     const currentSeasonTierAndScore = useMemo(() => {
         const eligible = rankings.filter((r) => (r.totalGames ?? 0) >= 10);

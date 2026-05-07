@@ -601,6 +601,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     const [confirmModalType, setConfirmModalType] = useState<'resign' | null>(null);
     const [showResultModal, setShowResultModal] = useState(false);
+    /** ended/no_contest: 결과 모달에서 확인한 뒤에만 하단 재도전·나가기 등 허용 */
+    const [postGameSummaryAcknowledged, setPostGameSummaryAcknowledged] = useState(false);
     const delayedResultModalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [showFinalTerritory, setShowFinalTerritory] = useState(false);
     const [justScanned, setJustScanned] = useState(false);
@@ -766,6 +768,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     });
     
     const prevGameStatus = usePrevious(gameStatus);
+
+    useEffect(() => {
+        setPostGameSummaryAcknowledged(false);
+    }, [session.id]);
+
+    useEffect(() => {
+        const isTerminal = gameStatus === 'ended' || gameStatus === 'no_contest';
+        const wasTerminal = prevGameStatus === 'ended' || prevGameStatus === 'no_contest';
+        if (isTerminal && !wasTerminal) {
+            setPostGameSummaryAcknowledged(false);
+        }
+    }, [gameStatus, prevGameStatus]);
     const prevCurrentPlayer = usePrevious(currentPlayer);
     const prevCaptures = usePrevious(session.captures);
     const prevAnimationType = usePrevious(session.animation?.type);
@@ -1846,7 +1860,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         pveAiHiddenPostAnimRequestDoneRef.current = null;
     }, [session.id]);
 
-    // 길드전 히든: 6초 연출(클라 타이머) 종료 시 휴리스틱으로 AI 히든 착수 (한 번만)
+    // 길드전 히든: 클라 타이머 종료 시 휴리스틱으로 AI 히든 착수 (한 번만)
     useEffect(() => {
         if (aiHiddenItemEffectEndTime == null) return;
         if (Date.now() < aiHiddenItemEffectEndTime) return;
@@ -1939,7 +1953,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.gameCategory,
     ]);
 
-    // 도전의 탑·싱글: 서버 6초 생각 연출 종료 직후 Kata 착수를 위해 REQUEST_SERVER_AI_MOVE 1회
+    // 도전의 탑·싱글: 서버 생각 연출 종료 직후 Kata 착수를 위해 REQUEST_SERVER_AI_MOVE 1회
     useEffect(() => {
         if (!isTower && !session.isSinglePlayer) return;
         if (session.gameStatus !== 'playing') return;
@@ -1947,8 +1961,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (anim?.type !== 'ai_thinking') return;
         const endFromServer = (session as any).aiHiddenItemAnimationEndTime as number | undefined;
         const startAt = Number(anim.startTime ?? 0);
-        // 서버가 endTime을 누락하는 케이스 대비: startTime 기준 6초(+buffer)로 만료 시각을 보정
-        const fallbackEnd = Number.isFinite(startAt) && startAt > 0 ? startAt + 6050 : Date.now();
+        // 서버가 endTime을 누락하는 케이스 대비: 공유 상수 기준으로 만료 시각을 보정
+        const fallbackEnd = Number.isFinite(startAt) && startAt > 0 ? startAt + AI_HIDDEN_ITEM_THINKING_DURATION_MS + 50 : Date.now();
         const end = Number.isFinite(endFromServer as number) ? Number(endFromServer) : fallbackEnd;
 
         const sid = String(session.id ?? '');
@@ -1962,7 +1976,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             const animNow = s.animation as { type?: string } | undefined;
             const endNowFromServer = (s as any).aiHiddenItemAnimationEndTime as number | undefined;
             const startNow = Number((s.animation as { startTime?: number } | undefined)?.startTime ?? 0);
-            const fallbackEndNow = Number.isFinite(startNow) && startNow > 0 ? startNow + 6050 : Date.now();
+            const fallbackEndNow = Number.isFinite(startNow) && startNow > 0 ? startNow + AI_HIDDEN_ITEM_THINKING_DURATION_MS + 50 : Date.now();
             const endNow = Number.isFinite(endNowFromServer as number) ? Number(endNowFromServer) : fallbackEndNow;
             if (animNow?.type !== 'ai_thinking' || endNow < Date.now() || s.gameStatus !== 'playing') return;
             const aiPlayerId = s.currentPlayer === Player.Black ? s.blackPlayerId : s.whitePlayerId;
@@ -3520,7 +3534,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const aiThinkingAnim = session.animation as { type?: string; startTime?: number } | undefined;
         const aiThinkingEndTime = (session as any).aiHiddenItemAnimationEndTime as number | undefined;
         const aiThinkingStart = Number(aiThinkingAnim?.startTime ?? 0);
-        const aiThinkingFallbackEnd = Number.isFinite(aiThinkingStart) && aiThinkingStart > 0 ? aiThinkingStart + 6050 : 0;
+        const aiThinkingFallbackEnd = Number.isFinite(aiThinkingStart) && aiThinkingStart > 0
+            ? aiThinkingStart + AI_HIDDEN_ITEM_THINKING_DURATION_MS + 50
+            : 0;
         const aiThinkingEffectiveEnd = Number.isFinite(aiThinkingEndTime as number)
             ? Number(aiThinkingEndTime)
             : aiThinkingFallbackEnd;
@@ -3870,6 +3886,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     
     const handleAdventureLeaveToMap = useCallback(() => {
         if (!gameId || session.gameCategory !== 'adventure') return;
+        setPostGameSummaryAcknowledged(true);
         setShowResultModal(false);
         const stageId = session.adventureStageId;
         sessionStorage.setItem('postGameRedirect', stageId ? `#/adventure/${stageId}` : '#/adventure');
@@ -3877,6 +3894,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [gameId, session.gameCategory, session.adventureStageId, handlers.handleAction]);
 
     const handleCloseResults = useCallback(() => {
+        setPostGameSummaryAcknowledged(true);
         setShowResultModal(false);
         if (!session.analysisResult?.['system']) {
             setShowFinalTerritory(false);
@@ -4025,11 +4043,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.gameCategory !== 'tower' &&
         session.gameCategory !== 'singleplayer';
 
+    const allowPostGameFooterActions =
+        (gameStatus !== 'ended' && gameStatus !== 'no_contest') || postGameSummaryAcknowledged;
+
     const gameControlsProps = {
         session, isMyTurn, isSpectator, onAction: ingameHandleAction, setShowResultModal, setConfirmModalType, currentUser: currentUserWithStatus,
         onlineUsers, pendingMove, onConfirmMove: handleConfirmMove, onCancelMove: handleCancelMove, settings, isMobile,
         onUpdateFeatureSetting: updateFeatureSetting,
         showResultModal,
+        allowPostGameFooterActions,
+        onDismissGameSummary: handleCloseResults,
         isMoveInFlight,
         isBoardLocked,
         // AI 게임 일시 정지 관련 props
@@ -4624,6 +4647,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 <GuildWarMissileTowerControls
                                     session={session}
                                     onAction={handlers.handleAction}
+                                    showResultModal={showResultModal}
+                                    allowPostGameFooterActions={allowPostGameFooterActions}
                                     setShowResultModal={setShowResultModal}
                                     setConfirmModalType={setConfirmModalType}
                                     isMoveInFlight={isMoveInFlight}
@@ -4635,6 +4660,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     session={session}
                                     onAction={handlers.handleAction}
                                     currentUser={currentUserWithStatus}
+                                    showResultModal={showResultModal}
+                                    allowPostGameFooterActions={allowPostGameFooterActions}
                                     setShowResultModal={setShowResultModal}
                                     setConfirmModalType={setConfirmModalType}
                                     isMoveInFlight={isMoveInFlight}

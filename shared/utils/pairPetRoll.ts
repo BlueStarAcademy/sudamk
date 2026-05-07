@@ -19,6 +19,7 @@ export const PAIR_PET_HATCH_DISPOSITION_ENCYCLOPEDIA_LINES: readonly string[] = 
         return `${name} +10%~20%`;
     }),
     '모든 능력치 +5%',
+    '임의 한 능력치의 10~15%를 다른 한 능력치로 전환 (빠진 만큼의 2배를 대상에 합산)',
 ];
 
 /** 도감용 — 부화 시 특화 종류·수치 범위 (`rollPairPetMetaForHatch` 와 동일) */
@@ -26,7 +27,11 @@ export const PAIR_PET_HATCH_SPECIALIZATION_ENCYCLOPEDIA_LINES: readonly string[]
     '수련 경험치 +10%~20%',
     '수련 골드 +10%~20%',
     '수련 시간 -10%~20%',
-    '영혼석 획득 확률 +10%~20%',
+    '수련 영혼석 획득 +10%~20%',
+    '수련 영혼석 획득 수량 +1',
+    '전략 경기장 필요 행동력 -1',
+    '페어 경기장 필요 행동력 -1',
+    '놀이 경기장 필요 행동력 -1',
 ];
 
 /** 도감용 — 부화 시 가위·바위·보 중 하나 */
@@ -71,29 +76,52 @@ function rollInt(rng: () => number, min: number, max: number): number {
     return min + Math.floor(rng() * (max - min + 1));
 }
 
+function rollConvertDisposition(rng: () => number): PairPetDisposition {
+    const pct = rollInt(rng, 10, 15);
+    const fromStat = CORE_ORDER[Math.floor(rng() * CORE_ORDER.length)]!;
+    let toStat: CoreStat;
+    do {
+        toStat = CORE_ORDER[Math.floor(rng() * CORE_ORDER.length)]!;
+    } while (toStat === fromStat);
+    return { kind: 'convert', fromStat, toStat, pct };
+}
+
+/** 0~5: 단일 코어 +10~20%, 6: 전체 +5%, 7: 전환 성향 */
+function rollPairPetDispositionForHatch(rng: () => number): PairPetDisposition {
+    const disBucket = Math.floor(rng() * 8);
+    if (disBucket >= 7) {
+        return rollConvertDisposition(rng);
+    }
+    if (disBucket >= 6) {
+        return { kind: 'all', pct: 5 };
+    }
+    return {
+        kind: 'single',
+        stat: CORE_ORDER[disBucket]!,
+        pct: rollInt(rng, 10, 20),
+    };
+}
+
+/** 0~3: pct형 특화 10~20, 4~7: 고정 효과 특화 */
+function rollPairPetSpecializationForHatch(rng: () => number): PairPetSpecialization {
+    const specKind = Math.floor(rng() * 8);
+    if (specKind >= 4) {
+        if (specKind === 4) return { kind: 'trainingSoulQuantityPlusOne' };
+        if (specKind === 5) return { kind: 'strategicArenaApMinusOne' };
+        if (specKind === 6) return { kind: 'pairArenaApMinusOne' };
+        return { kind: 'playfulArenaApMinusOne' };
+    }
+    const sp = rollInt(rng, 10, 20);
+    if (specKind === 0) return { kind: 'trainingXp', pct: sp };
+    if (specKind === 1) return { kind: 'trainingGold', pct: sp };
+    if (specKind === 2) return { kind: 'trainingTime', pct: sp };
+    return { kind: 'soulDrop', pct: sp };
+}
+
 export function rollPairPetMetaForHatch(): PairPetMeta {
     const rng = () => Math.random();
-    const disBucket = Math.floor(rng() * 7);
-    let disposition: PairPetDisposition;
-    if (disBucket >= 6) {
-        disposition = { kind: 'all', pct: 5 };
-    } else {
-        disposition = {
-            kind: 'single',
-            stat: CORE_ORDER[disBucket]!,
-            pct: rollInt(rng, 10, 20),
-        };
-    }
-    const specKind = Math.floor(rng() * 4);
-    const sp = rollInt(rng, 10, 20);
-    const specialization: PairPetSpecialization =
-        specKind === 0
-            ? { kind: 'trainingXp', pct: sp }
-            : specKind === 1
-              ? { kind: 'trainingGold', pct: sp }
-              : specKind === 2
-                ? { kind: 'trainingTime', pct: sp }
-                : { kind: 'soulDrop', pct: sp };
+    const disposition = rollPairPetDispositionForHatch(rng);
+    const specialization = rollPairPetSpecializationForHatch(rng);
     return {
         level: 1,
         xp: 0,
@@ -210,27 +238,8 @@ export function rollPairPetMetaForHatchAtLevel(level: number): PairPetMeta {
 /** 서버 부화와 동일 규칙의 결정론적 메타(구 인벤·스택 호환) */
 export function derivePairPetMetaFallback(itemId: string, createdAt: number): PairPetMeta {
     const rng = mulberry32(hashSeed(`${itemId}|${createdAt}`));
-    const disBucket = Math.floor(rng() * 7);
-    let disposition: PairPetDisposition;
-    if (disBucket >= 6) {
-        disposition = { kind: 'all', pct: 5 };
-    } else {
-        disposition = {
-            kind: 'single',
-            stat: CORE_ORDER[disBucket]!,
-            pct: rollInt(rng, 10, 20),
-        };
-    }
-    const specKind = Math.floor(rng() * 4);
-    const sp = rollInt(rng, 10, 20);
-    const specialization: PairPetSpecialization =
-        specKind === 0
-            ? { kind: 'trainingXp', pct: sp }
-            : specKind === 1
-              ? { kind: 'trainingGold', pct: sp }
-              : specKind === 2
-                ? { kind: 'trainingTime', pct: sp }
-                : { kind: 'soulDrop', pct: sp };
+    const disposition = rollPairPetDispositionForHatch(rng);
+    const specialization = rollPairPetSpecializationForHatch(rng);
     return {
         level: 1,
         xp: 0,

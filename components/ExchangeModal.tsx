@@ -110,6 +110,8 @@ const VERIFICATION_MS = 30 * 1000;
 const TRADE_LISTING_TICKET_NAME = '거래 등록권';
 /** 모달 최초 오픈 시 구매 목록 API와 동시에 보여줄 최소 대기 시간(ms) */
 const EXCHANGE_MODAL_OPENING_LOAD_MS = 3000;
+/** 만료 물품 연속 회수 시 서버 검증·동기화 간격(회수 버튼 공통 쿨다운) */
+const EXCHANGE_LISTING_RECOVER_COOLDOWN_MS = 5000;
 
 function cloneListedEquipmentSnapshot(item: InventoryItem): InventoryItem {
     try {
@@ -373,6 +375,10 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
     const [sellSlotFocusItemId, setSellSlotFocusItemId] = useState<string>('');
     const [listings, setListings] = useState<ExchangeListing[]>(() => (currentUser.exchangeState?.listings as ExchangeListing[] | undefined) ?? []);
     const [settlements, setSettlements] = useState<SettlementItem[]>(() => (currentUser.exchangeState?.settlements as SettlementItem[] | undefined) ?? []);
+    /** 0이면 비활성. 만료 회수 쿨다운 종료 시각(ms). */
+    const [exchangeListingRecoverCooldownUntilMs, setExchangeListingRecoverCooldownUntilMs] = useState(0);
+    const exchangeListingRecoverCooldownRef = useRef(false);
+    const exchangeListingRecoverCooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const functionVipActive = isFunctionVipActive(currentUser);
     const isAdminUser = Boolean(currentUser.isAdmin);
@@ -559,6 +565,31 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
         const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
         return () => window.clearInterval(timer);
     }, []);
+    React.useEffect(() => {
+        return () => {
+            if (exchangeListingRecoverCooldownTimerRef.current) {
+                clearTimeout(exchangeListingRecoverCooldownTimerRef.current);
+                exchangeListingRecoverCooldownTimerRef.current = null;
+            }
+        };
+    }, []);
+    React.useEffect(() => {
+        if (exchangeListingRecoverCooldownUntilMs <= 0) return;
+        if (nowMs < exchangeListingRecoverCooldownUntilMs) return;
+        exchangeListingRecoverCooldownRef.current = false;
+        setExchangeListingRecoverCooldownUntilMs(0);
+        if (exchangeListingRecoverCooldownTimerRef.current) {
+            clearTimeout(exchangeListingRecoverCooldownTimerRef.current);
+            exchangeListingRecoverCooldownTimerRef.current = null;
+        }
+    }, [nowMs, exchangeListingRecoverCooldownUntilMs]);
+    const listingRecoverCooldownSecondsLeft = useMemo(
+        () =>
+            exchangeListingRecoverCooldownUntilMs > 0
+                ? Math.max(0, Math.ceil((exchangeListingRecoverCooldownUntilMs - nowMs) / 1000))
+                : 0,
+        [exchangeListingRecoverCooldownUntilMs, nowMs],
+    );
     const buyRefreshButtonDisabled =
         isRefreshingBuyListings || nowMs < buyManualRefreshCooldownUntilMs;
     const serverListingsSig = useMemo(
@@ -903,8 +934,21 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
     };
 
     const handleRecoverListing = (listingId: string) => {
+        if (exchangeListingRecoverCooldownRef.current) return;
         const target = listings.find((entry) => entry.id === listingId);
         if (!target || target.status !== 'listed') return;
+        if (exchangeListingRecoverCooldownTimerRef.current) {
+            clearTimeout(exchangeListingRecoverCooldownTimerRef.current);
+            exchangeListingRecoverCooldownTimerRef.current = null;
+        }
+        exchangeListingRecoverCooldownRef.current = true;
+        const until = Date.now() + EXCHANGE_LISTING_RECOVER_COOLDOWN_MS;
+        setExchangeListingRecoverCooldownUntilMs(until);
+        exchangeListingRecoverCooldownTimerRef.current = setTimeout(() => {
+            exchangeListingRecoverCooldownTimerRef.current = null;
+            exchangeListingRecoverCooldownRef.current = false;
+            setExchangeListingRecoverCooldownUntilMs(0);
+        }, EXCHANGE_LISTING_RECOVER_COOLDOWN_MS);
         setListings((prev) => prev.filter((entry) => entry.id !== listingId));
         void onAction?.({ type: 'UNMARK_ITEM_EXCHANGE_LISTED', payload: { itemId: target.itemId } });
     };
@@ -2254,25 +2298,41 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                                         />
                                                                     </div>
                                                                 </div>
-                                                                <div className="flex min-w-[5.5rem] shrink-0 flex-col items-center gap-0.5">
+                                                                <div className="flex min-w-[6.25rem] shrink-0 flex-col items-center gap-0.5">
                                                                     <span
                                                                         className={`w-full text-center text-[11px] font-semibold leading-tight ${verification === 'verifying' ? 'text-cyan-200' : isExpired ? 'text-rose-300' : 'text-emerald-200'}`}
                                                                     >
                                                                         {verification === 'verifying' ? '등록중' : isExpired ? '만료됨' : `${remainingDays}일 ${remainingHours}시간`}
                                                                     </span>
-                                                                    <Button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            isExpired ? handleRecoverListing(slot.id) : handleRequestCancelListing(slot.id);
-                                                                        }}
-                                                                        className={`!flex !min-h-[22px] !w-[4.85rem] !items-center !justify-center !border !px-1.5 !py-0.5 !text-[11px] !font-semibold !leading-none !tracking-wide rounded-md ${
-                                                                            isExpired
-                                                                                ? '!border-rose-300/40 !bg-gradient-to-b !from-rose-500/80 !to-rose-700/90'
-                                                                                : '!border-slate-500/50 !bg-gradient-to-b !from-slate-700/90 !to-slate-900/95'
-                                                                        }`}
-                                                                    >
-                                                                        {isExpired ? '회수' : '판매취소'}
-                                                                    </Button>
+                                                                    <div className="flex items-center justify-center gap-1">
+                                                                        <Button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                isExpired ? handleRecoverListing(slot.id) : handleRequestCancelListing(slot.id);
+                                                                            }}
+                                                                            disabled={isExpired && listingRecoverCooldownSecondsLeft > 0}
+                                                                            title={
+                                                                                isExpired && listingRecoverCooldownSecondsLeft > 0
+                                                                                    ? `${listingRecoverCooldownSecondsLeft}초 뒤에 다시 회수할 수 있습니다.`
+                                                                                    : undefined
+                                                                            }
+                                                                            className={`!flex !min-h-[22px] !w-[4.85rem] !shrink-0 !items-center !justify-center !border !px-1.5 !py-0.5 !text-[11px] !font-semibold !leading-none !tracking-wide rounded-md ${
+                                                                                isExpired
+                                                                                    ? '!border-rose-300/40 !bg-gradient-to-b !from-rose-500/80 !to-rose-700/90'
+                                                                                    : '!border-slate-500/50 !bg-gradient-to-b !from-slate-700/90 !to-slate-900/95'
+                                                                            }`}
+                                                                        >
+                                                                            {isExpired ? '회수' : '판매취소'}
+                                                                        </Button>
+                                                                        {isExpired && listingRecoverCooldownSecondsLeft > 0 ? (
+                                                                            <span
+                                                                                className="min-w-[0.85rem] shrink-0 text-center text-[11px] font-bold tabular-nums leading-none text-rose-200"
+                                                                                aria-live="polite"
+                                                                            >
+                                                                                {listingRecoverCooldownSecondsLeft}
+                                                                            </span>
+                                                                        ) : null}
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </button>
@@ -2383,25 +2443,41 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                                             />
                                                                         </div>
                                                                     </div>
-                                                                    <div className="flex min-w-[5.5rem] shrink-0 flex-col items-center gap-1">
+                                                                    <div className="flex min-w-[6.5rem] shrink-0 flex-col items-center gap-1">
                                                                         <span
                                                                             className={`w-full text-center text-xs font-semibold leading-tight ${verification === 'verifying' ? 'text-cyan-200' : isExpired ? 'text-rose-300' : 'text-emerald-200'}`}
                                                                         >
                                                                             {verification === 'verifying' ? '등록중' : isExpired ? '만료됨' : `${remainingDays}일 ${remainingHours}시간`}
                                                                         </span>
-                                                                        <Button
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                isExpired ? handleRecoverListing(slot.id) : handleRequestCancelListing(slot.id);
-                                                                            }}
-                                                                            className={`!flex !w-[78px] !items-center !justify-center min-h-[26px] rounded-md !border px-1.5 py-0.5 text-xs leading-none font-semibold tracking-wide ${
-                                                                                isExpired
-                                                                                    ? '!border-rose-300/40 !bg-gradient-to-b !from-rose-500/80 !to-rose-700/90'
-                                                                                    : '!border-slate-500/50 !bg-gradient-to-b !from-slate-700/90 !to-slate-900/95'
-                                                                            }`}
-                                                                        >
-                                                                            {isExpired ? '회수' : '판매취소'}
-                                                                        </Button>
+                                                                        <div className="flex items-center justify-center gap-1.5">
+                                                                            <Button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    isExpired ? handleRecoverListing(slot.id) : handleRequestCancelListing(slot.id);
+                                                                                }}
+                                                                                disabled={isExpired && listingRecoverCooldownSecondsLeft > 0}
+                                                                                title={
+                                                                                    isExpired && listingRecoverCooldownSecondsLeft > 0
+                                                                                        ? `${listingRecoverCooldownSecondsLeft}초 뒤에 다시 회수할 수 있습니다.`
+                                                                                        : undefined
+                                                                                }
+                                                                                className={`!flex !w-[78px] !shrink-0 !items-center !justify-center min-h-[26px] rounded-md !border px-1.5 py-0.5 text-xs leading-none font-semibold tracking-wide ${
+                                                                                    isExpired
+                                                                                        ? '!border-rose-300/40 !bg-gradient-to-b !from-rose-500/80 !to-rose-700/90'
+                                                                                        : '!border-slate-500/50 !bg-gradient-to-b !from-slate-700/90 !to-slate-900/95'
+                                                                                }`}
+                                                                            >
+                                                                                {isExpired ? '회수' : '판매취소'}
+                                                                            </Button>
+                                                                            {isExpired && listingRecoverCooldownSecondsLeft > 0 ? (
+                                                                                <span
+                                                                                    className="min-w-[0.9rem] shrink-0 text-center text-xs font-bold tabular-nums leading-none text-rose-200"
+                                                                                    aria-live="polite"
+                                                                                >
+                                                                                    {listingRecoverCooldownSecondsLeft}
+                                                                                </span>
+                                                                            ) : null}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </button>

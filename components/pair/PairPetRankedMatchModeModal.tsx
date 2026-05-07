@@ -6,8 +6,14 @@ import {
     RANKING_TIERS,
     RANKED_ELO_BASE_SCORE,
     SPECIAL_GAME_MODES,
+    PLAYFUL_GAME_MODES,
     STRATEGIC_ACTION_POINT_COST,
+    PLAYFUL_ACTION_POINT_COST,
 } from '../../constants.js';
+import {
+    effectivePairRankedApCostForUser,
+    effectiveStrategicRankedQueueApCostForUser,
+} from '../../shared/utils/pairPetArenaApDiscount.js';
 import { RANKED_STRATEGIC_MODES } from '../../constants/rankedGameSettings.js';
 import { buildRankedStrategicMatchLobbySettingRows } from '../../shared/utils/pairLobbyGameSettingRows.js';
 import {
@@ -52,6 +58,12 @@ function lobbyGameModeBriefDescription(description: string | undefined, fallback
     const sp = slice.lastIndexOf(' ');
     if (sp > 72) return `${slice.slice(0, sp)}…`;
     return `${slice}…`;
+}
+
+function pairRankedBaseApForSelectedMode(mode: GameMode): number {
+    if (SPECIAL_GAME_MODES.some((m) => m.mode === mode)) return STRATEGIC_ACTION_POINT_COST;
+    if (PLAYFUL_GAME_MODES.some((m) => m.mode === mode)) return PLAYFUL_ACTION_POINT_COST;
+    return STRATEGIC_ACTION_POINT_COST;
 }
 
 function resolveMyStrategicRankedTierForMode(user: User | null | undefined, mode: GameMode): {
@@ -213,6 +225,15 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                 : resolveMyPairRankedTierForPairArena(currentUser),
         [variant, currentUser, selected],
     );
+
+    const displayedQueueApCost = useMemo(() => {
+        if (!currentUser) return STRATEGIC_ACTION_POINT_COST;
+        if (variant === 'strategic_arena') {
+            return effectiveStrategicRankedQueueApCostForUser(currentUser);
+        }
+        const base = pairRankedBaseApForSelectedMode(selected);
+        return effectivePairRankedApCostForUser(currentUser, base, { lobbyChannel: 'pair' });
+    }, [variant, currentUser, selected]);
 
     /** 1:1 전략 랭킹 큐는 인원, 페어 방 랭킹은 팀 */
     const queueCountUnitLabel = variant === 'pair_pet' || variant === 'duo_arena' ? '팀' : '명';
@@ -425,7 +446,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                         isHandheld ? 'py-2.5 text-sm' : 'py-3 text-base'
                     }`}
                 >
-                    매칭 대기 (⚡{STRATEGIC_ACTION_POINT_COST})
+                    매칭 대기 (⚡{displayedQueueApCost})
                 </Button>
             </div>
         </div>
@@ -498,7 +519,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                                 onClick={() => void onQueue(selected)}
                                 className="inline-flex !min-h-[2.58rem] min-w-0 !w-auto flex-[1.22] items-center justify-center !rounded-xl border border-amber-400/48 bg-gradient-to-b from-amber-600/88 to-amber-950/95 px-3 text-[12.5px] font-extrabold tracking-wide text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.11)] ring-1 ring-amber-400/18 transition-all hover:brightness-[1.06] active:scale-[0.99] disabled:!cursor-not-allowed disabled:!opacity-45"
                             >
-                                매칭 대기 (⚡{STRATEGIC_ACTION_POINT_COST})
+                                매칭 대기 (⚡{displayedQueueApCost})
                             </Button>
                         </div>
                     </div>

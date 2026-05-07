@@ -18,10 +18,16 @@ export type PveItemActionClientSync = {
     hiddenMoves?: Record<string, boolean>;
     permanentlyRevealedStones?: Point[];
     aiInitialHiddenStone?: Point | null;
+    baseStones?: LiveGameSession['baseStones'];
+    blackPatternStones?: Point[];
+    whitePatternStones?: Point[];
+    consumedPatternIntersections?: Point[];
     currentPlayer?: Player;
     /** 클라가 본 경기 단계(탑/싱글 PVE에서 서버만 애니 상태로 남는 경우 REQUEST_SERVER_AI_MOVE 정합용) */
     gameStatus?: LiveGameSession['gameStatus'];
     captures?: LiveGameSession['captures'];
+    baseStoneCaptures?: LiveGameSession['baseStoneCaptures'];
+    hiddenStoneCaptures?: LiveGameSession['hiddenStoneCaptures'];
     koInfo?: LiveGameSession['koInfo'] | null;
     totalTurns?: number;
 };
@@ -306,6 +312,7 @@ export type ServerAction =
     | { type: 'SET_USER_STATUS', payload: { status: any } }
     | { type: 'UPDATE_REJECTION_SETTINGS', payload: { rejectedGameModes: GameMode[] } }
     | { type: 'UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT', payload: { sortMode: string } }
+    | { type: 'SET_BLOCK_ARENA_PARTNER_INVITES', payload: { blocked: boolean } }
     | { type: 'ENTER_WAITING_ROOM', payload: { mode: GameMode | 'strategic' | 'playful' } }
     | { type: 'LEAVE_WAITING_ROOM', payload?: never }
     | { type: 'LEAVE_GAME_ROOM', payload: { gameId: string } }
@@ -553,7 +560,8 @@ export type ServerAction =
     | { type: 'EXPAND_INVENTORY', payload: { category: InventoryItemType } }
     | { type: 'BUY_BORDER', payload: { borderId: string } }
     | { type: 'BUY_CASH_PACKAGE', payload: { packageId: string } }
-    | { type: 'BUY_VIP_PACKAGE', payload: { packageId: string } }
+    | { type: 'BUY_VIP_PACKAGE', payload: { packageId: string; billing?: 'one_time' | 'subscription' } }
+    | { type: 'CANCEL_VIP_SHOP_AUTO_RENEW', payload: { packageId: string } }
     // Admin
     | { type: 'ADMIN_APPLY_SANCTION', payload: { targetUserId: string; sanctionType: 'chat' | 'connection'; durationMinutes: number; reason: string; reasonDetail?: string } }
     | { type: 'ADMIN_LIFT_SANCTION', payload: { targetUserId: string; sanctionType: 'chat' | 'connection' } }

@@ -627,6 +627,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             const mixModes = ((game.settings as any)?.mixedModes ?? []) as GameMode[];
             const confirmRuleFlags = getSinglePlayerRuleFlags(game.mode, mixModes);
             const isSpeedMode =
+                resolveSinglePlayerSpeedTimeMode(latestStage) ||
                 game.mode === GameMode.Speed ||
                 (game.mode === GameMode.Mix && Array.isArray(mixModes) && mixModes.includes(GameMode.Speed));
 
@@ -683,6 +684,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 game.settings.timeIncrement = 0;
             } else {
                 game.settings.timeIncrement = enforcedIncrement;
+                game.settings.timeLimit = enforcedMainTimeMinutes;
             }
 
             // 싱글플레이 스피드: 초기 시간 설정 (유저 사용 시간 10초당 AI +1점 계산용 blackInitialTimeLeft/whiteInitialTimeLeft 보관)
