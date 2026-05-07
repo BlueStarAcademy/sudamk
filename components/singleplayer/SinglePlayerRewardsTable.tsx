@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js';
+import { getSinglePlayerStages, SINGLE_PLAYER_CLASS_BAR_REWARDS } from '../../constants/singlePlayerConstants.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { SinglePlayerLevel } from '../../types.js';
 import type { SinglePlayerStageInfo } from '../../types.js';
-import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, EQUIPMENT_POOL } from '../../constants/index.js';
+import { getItemTemplateByName } from '../../utils/itemTemplateLookup.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
 const CLASS_TABS: { level: SinglePlayerLevel; label: string }[] = [
@@ -16,12 +16,11 @@ const CLASS_TABS: { level: SinglePlayerLevel; label: string }[] = [
 
 type RewardCell = SinglePlayerStageInfo['rewards']['firstClear'];
 
-const resolveItemImage = (itemId: string): string | null => {
-    const c = CONSUMABLE_ITEMS.find((it) => it.name === itemId);
-    if (c?.image) return c.image;
-    if (MATERIAL_ITEMS[itemId]?.image) return MATERIAL_ITEMS[itemId].image;
-    const eq = EQUIPMENT_POOL.find((it) => it.name === itemId);
-    return eq?.image ?? null;
+const resolveItemImageSrc = (itemId: string): string | null => {
+    const t = getItemTemplateByName(itemId);
+    const raw = (t as { image?: string } | null)?.image;
+    if (!raw) return null;
+    return raw.startsWith('/') ? raw : `/${raw}`;
 };
 
 const RewardBadge: React.FC<{
@@ -100,7 +99,7 @@ const RewardBadges: React.FC<{ reward: RewardCell | undefined }> = ({ reward }) 
             )}
             {hasItems &&
                 reward.items!.map((item, idx) => {
-                    const image = resolveItemImage(item.itemId);
+                    const image = resolveItemImageSrc(item.itemId);
                     return (
                         <RewardBadge
                             key={`${item.itemId}-${idx}`}
@@ -155,6 +154,17 @@ const SinglePlayerRewardsTable: React.FC<SinglePlayerRewardsTableProps> = ({
         });
     }, [activeLevel, singlePlayerStagesListRevision]);
 
+    const classBarDef = SINGLE_PLAYER_CLASS_BAR_REWARDS[activeLevel];
+    const classBarLabel = CLASS_TABS.find((t) => t.level === activeLevel)?.label ?? activeLevel;
+
+    const apBadgeForTable = (itemId: string): string | null => {
+        if (itemId.startsWith('행동력 회복제')) {
+            const m = itemId.match(/\(\+(\d+)\)/);
+            return m ? `+${m[1]}` : null;
+        }
+        return null;
+    };
+
     return (
         <div className="flex flex-col gap-2 min-h-0">
             <div
@@ -187,6 +197,72 @@ const SinglePlayerRewardsTable: React.FC<SinglePlayerRewardsTableProps> = ({
                 })}
             </div>
 
+            <div className="mb-2 rounded-md border border-amber-600/35 bg-gradient-to-r from-amber-950/40 via-gray-900/80 to-emerald-950/30 px-3 py-2 text-[12px] sm:text-[13px] leading-snug">
+                <p className="mb-1.5 font-semibold text-amber-100/95">{classBarLabel} · 클리어 수 추가 보상 (대기실 막대에서 수령)</p>
+                <div className="flex flex-col gap-1.5 text-gray-200 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="shrink-0 font-semibold tabular-nums text-slate-300">10개</span>
+                        {(() => {
+                            const { itemId, quantity } = classBarDef.milestone10;
+                            const ap = apBadgeForTable(itemId);
+                            const src = ap ? null : resolveItemImageSrc(itemId);
+                            return (
+                                <RewardBadge
+                                    tone="item"
+                                    label={itemId}
+                                    value={`×${quantity}`}
+                                    icon={
+                                        ap ? (
+                                            <span className="relative inline-flex h-4 w-4 items-center justify-center text-[11px]">
+                                                ⚡
+                                                <span className="absolute -right-1 -top-0.5 rounded bg-gray-900/95 px-0.5 text-[8px] font-bold text-cyan-300">
+                                                    {ap}
+                                                </span>
+                                            </span>
+                                        ) : src ? (
+                                            <img src={src} alt="" className="h-4 w-4 object-contain" />
+                                        ) : (
+                                            <span className="inline-flex h-4 w-4 items-center justify-center text-[12px]">🎁</span>
+                                        )
+                                    }
+                                    title={itemId}
+                                />
+                            );
+                        })()}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="shrink-0 font-semibold tabular-nums text-slate-300">20개</span>
+                        {(() => {
+                            const { itemId, quantity } = classBarDef.milestone20;
+                            const ap = apBadgeForTable(itemId);
+                            const src = ap ? null : resolveItemImageSrc(itemId);
+                            return (
+                                <RewardBadge
+                                    tone="item"
+                                    label={itemId}
+                                    value={`×${quantity}`}
+                                    icon={
+                                        ap ? (
+                                            <span className="relative inline-flex h-4 w-4 items-center justify-center text-[11px]">
+                                                ⚡
+                                                <span className="absolute -right-1 -top-0.5 rounded bg-gray-900/95 px-0.5 text-[8px] font-bold text-cyan-300">
+                                                    {ap}
+                                                </span>
+                                            </span>
+                                        ) : src ? (
+                                            <img src={src} alt="" className="h-4 w-4 object-contain" />
+                                        ) : (
+                                            <span className="inline-flex h-4 w-4 items-center justify-center text-[12px]">🎁</span>
+                                        )
+                                    }
+                                    title={itemId}
+                                />
+                            );
+                        })()}
+                    </div>
+                </div>
+            </div>
+
             <div className="rounded-md border border-gray-600 overflow-hidden bg-gray-900/80 min-h-0 flex flex-col">
                 <div className="overflow-auto max-h-[min(52vh,420px)]">
                     <table className="w-full text-left text-sm sm:text-[15px] border-collapse">
@@ -196,7 +272,7 @@ const SinglePlayerRewardsTable: React.FC<SinglePlayerRewardsTableProps> = ({
                                     스테이지 ID
                                 </th>
                                 <th className="px-3 py-2.5 font-semibold min-w-[220px]">
-                                    최초 클리어
+                                    최초 클리어 (골드·EXP·장비 등)
                                 </th>
                             </tr>
                         </thead>

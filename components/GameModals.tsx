@@ -14,11 +14,9 @@ import ThiefRoundSummary from './ThiefRoundSummary.js';
 import CurlingRoundSummary from './CurlingRoundSummary.js';
 import Button from './Button.js';
 import DiceRoundSummary from './DiceRoundSummary.js';
-import KomiBiddingPanel from './KomiBiddingPanel.js';
 import NegotiationModal from './NegotiationModal.js';
 import DiceGoTurnSelectionModal from './DiceGoTurnSelectionModal.js';
 import BaseStartConfirmationModal from './BaseStartConfirmationModal.js';
-import BaseColorRouletteModal from './BaseColorRouletteModal.js';
 import DiceGoStartConfirmationModal from './DiceGoStartConfirmationModal.js';
 import CurlingStartConfirmationModal from './CurlingStartConfirmationModal.js';
 import AlkkagiStartConfirmationModal from './AlkkagiStartConfirmationModal.js';
@@ -57,7 +55,6 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         const playerOnlyStates: GameStatus[] = [
             'nigiri_choosing', 'nigiri_guessing',
             'base_placement',
-            'komi_bidding',
             'capture_bidding',
             'dice_rps', 'thief_rps', 'alkkagi_rps', 'curling_rps', 'omok_rps', 'ttamok_rps',
             'turn_preference_selection',
@@ -81,8 +78,6 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         if (!isSpectator && gameStatus === 'pair_order_reveal' && session.settings.pairGame?.turnOrder?.length) return <PairTurnOrderModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'capture_bidding') return <CaptureBidModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (['capture_tiebreaker', 'capture_reveal'].includes(gameStatus)) return <CaptureTiebreakerModal session={session} currentUser={currentUser} onAction={onAction} />;
-        if (gameStatus === 'komi_bidding') return <KomiBiddingPanel session={session} currentUser={currentUser} onAction={onAction} />;
-        if (gameStatus === 'base_color_roulette') return <BaseColorRouletteModal session={session} />;
         if (gameStatus === 'base_game_start_confirmation') return <BaseStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (rpsStates.includes(gameStatus)) return <RPSMinigame session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'alkkagi_start_confirmation') return <AlkkagiStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;

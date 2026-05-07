@@ -6,6 +6,7 @@
  * - singlePlayerProgress: 0
  * - clearedSinglePlayerStages: []
  * - singlePlayerMissions: {}
+ * - singlePlayerClassBarClaims: {}
  * - towerFloor: 0
  * - lastTowerClearTime: null
  * - monthlyTowerFloor: 0
@@ -29,6 +30,7 @@ const resetSinglePlayerAndTower = async () => {
       (u.singlePlayerProgress ?? 0) !== 0 ||
       (u.clearedSinglePlayerStages?.length ?? 0) > 0 ||
       (u.singlePlayerMissions && Object.keys(u.singlePlayerMissions).length > 0) ||
+      (u.singlePlayerClassBarClaims && Object.keys(u.singlePlayerClassBarClaims).length > 0) ||
       (u.towerFloor ?? 0) !== 0 ||
       (u.lastTowerClearTime != null) ||
       (u.monthlyTowerFloor ?? 0) !== 0;
@@ -39,6 +41,7 @@ const resetSinglePlayerAndTower = async () => {
     updatedUser.singlePlayerProgress = 0;
     updatedUser.clearedSinglePlayerStages = [];
     updatedUser.singlePlayerMissions = {};
+    updatedUser.singlePlayerClassBarClaims = {};
     updatedUser.towerFloor = 0;
     updatedUser.lastTowerClearTime = undefined;
     updatedUser.monthlyTowerFloor = 0;

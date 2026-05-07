@@ -308,9 +308,6 @@ export function updateGameStateAfterMove(
         removeCapturedBaseStoneMarkersFromSession(scratch, capturedStones);
         updatedBaseStones = scratch.baseStones?.length ? [...(scratch.baseStones as Point[])] : undefined;
     }
-    if (!isHidden && updatedBaseStones && updatedBaseStones.length > 0) {
-        updatedBaseStones = updatedBaseStones.filter((p) => !(p.x === x && p.y === y));
-    }
     if (updatedBaseStones && updatedBaseStones.length === 0) {
         updatedBaseStones = undefined;
     }

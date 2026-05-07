@@ -43,7 +43,7 @@ import BaseGameFooterPanel, { BasePlacementControlStrip, isBaseGameFooterPhase }
 import IngameMobileFooterAd from './IngameMobileFooterAd.js';
 import { isPairCooperativeTwoHumansVsAi, pairSeatMatchesViewerUser } from '../../shared/utils/pairGameTurn.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
-import { pairPetKataPhaseFromTotalPly } from '../../shared/constants/pairArena.js';
+import { pairPetKataPhaseFromTotalPly, pairPetKataPliesRemainingInCurrentPhase } from '../../shared/constants/pairArena.js';
 import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
 import { getPairPetDefinition } from '../../shared/constants/petLobby.js';
 
@@ -1463,9 +1463,12 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         const totalPly =
             (session.moveHistory || []).filter((m) => m && m.x !== -1 && m.y !== -1).length + 1;
         const phase = pairPetKataPhaseFromTotalPly(bs, totalPly);
+        const { remaining: phasePlyRemaining } = pairPetKataPliesRemainingInCurrentPhase(bs, totalPly);
         const used = ((session.settings as { strategicPetHintByUserId?: Record<string, Partial<Record<string, boolean>>> })
             .strategicPetHintByUserId?.[currentUser.id] ?? {}) as Record<string, boolean>;
         const phaseLabel = phase === 'opening' ? '초반' : phase === 'midgame' ? '중반' : '종반';
+        const phaseCountdownLabel =
+            phasePlyRemaining == null ? '종반' : `${phaseLabel} ${phasePlyRemaining}수`;
 
         const canAttempt =
             effectiveGameStatus === 'playing' &&
@@ -1474,16 +1477,20 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             !!petRow &&
             !used[phase];
 
-        let title = `${phaseLabel}에 한 번 — 대표 펫이 좋은 자리를 표시해 줘요.`;
+        let titleBody = `${phaseLabel}에 한 번 — 대표 펫이 좋은 자리를 표시해 줘요.`;
         if (!petRow) {
-            title = '대표 펫을 장착하면 힌트를 사용할 수 있어요.';
+            titleBody = '대표 펫을 장착하면 힌트를 사용할 수 있어요.';
         } else if (effectiveGameStatus !== 'playing') {
-            title = '대국이 진행 중일 때 사용할 수 있어요.';
+            titleBody = '대국이 진행 중일 때 사용할 수 있어요.';
         } else if (!isMyTurn || myPlayerEnum === Player.None) {
-            title = '내 차례에만 사용할 수 있어요.';
+            titleBody = '내 차례에만 사용할 수 있어요.';
         } else if (used[phase]) {
-            title = `${phaseLabel} 구간에서 이미 힌트를 사용했어요.`;
+            titleBody = `${phaseLabel} 구간에서 이미 힌트를 사용했어요.`;
         }
+        const title =
+            phasePlyRemaining != null
+                ? `${phaseLabel} ${phasePlyRemaining}수 남음 — ${titleBody}`
+                : `${phaseLabel} — ${titleBody}`;
 
         const img = petRow
             ? ((petRow as { image?: string }).image ??
@@ -1524,8 +1531,8 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     <LabeledControlButton
                         key="pet-hint-btn"
                         src={img}
-                        alt="펫 힌트"
-                        label="펫 힌트"
+                        alt={`펫 힌트 ${phaseCountdownLabel}`}
+                        label={phaseCountdownLabel}
                         onClick={() => {
                             if (!canAttempt || petHintBusy) return;
                             setPetHintBusy(true);
@@ -1544,14 +1551,14 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             disabled
                             className={`relative flex shrink-0 items-center justify-center border-2 border-dashed border-slate-500/55 bg-slate-950/55 ring-1 ring-inset ring-slate-600/20 ${emptySlotSize}`}
                             title={title}
-                            aria-label="펫 힌트 (대표 펫 미장착)"
+                            aria-label={`펫 힌트 ${phaseCountdownLabel} (대표 펫 미장착)`}
                         />
                         <span
                             className={`text-center font-semibold leading-none tracking-wide text-slate-500 ${
                                 isMobile ? 'max-w-[3.5rem] truncate text-[8px]' : 'whitespace-nowrap text-[10px] min-[1025px]:text-[9px]'
                             }`}
                         >
-                            펫 힌트
+                            {phaseCountdownLabel}
                         </span>
                     </div>
                 )}

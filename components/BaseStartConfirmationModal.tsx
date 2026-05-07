@@ -26,13 +26,9 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
         whitePlayerId,
         preGameConfirmations,
         finalKomi,
-        gameStatus,
         baseKomiBidsSnapshot
     } = session;
-    const isKomiResultPhase = gameStatus === 'base_komi_result';
-    const hasConfirmed = isKomiResultPhase
-        ? !!session.preGameKomiSummaryAck?.[currentUser.id]
-        : !!preGameConfirmations?.[currentUser.id];
+    const hasConfirmed = !!preGameConfirmations?.[currentUser.id];
 
     if (!blackPlayerId || !whitePlayerId) return null;
 
@@ -111,21 +107,19 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
                 </div>
             </div>
             <p className="text-center text-xs leading-relaxed text-stone-400">
-                {isKomiResultPhase
-                    ? '흑·백·덤을 확인한 뒤 다음 단계로 진행해 주세요.'
-                    : '준비가 끝나면 시작하기를 눌러 대국을 시작해 주세요.'}
+                준비가 끝나면 시작하기를 눌러 대국을 시작해 주세요.
             </p>
             <Button
                 onClick={() =>
                     onAction({
-                        type: isKomiResultPhase ? 'CONFIRM_BASE_KOMI_SUMMARY' : 'CONFIRM_BASE_REVEAL',
+                        type: 'CONFIRM_BASE_REVEAL',
                         payload: { gameId }
                     })
                 }
                 disabled={!!hasConfirmed}
                 className="w-full !rounded-xl !border !border-cyan-400/30 !bg-gradient-to-r !from-cyan-900/80 !to-slate-800/90 !py-2.5 !text-[0.95rem] !font-bold !text-cyan-50 hover:!from-cyan-800 hover:!to-slate-700 disabled:!opacity-50"
             >
-                {hasConfirmed ? '상대방 확인 대기 중…' : isKomiResultPhase ? '다음 단계' : '시작하기'}
+                {hasConfirmed ? '상대방 확인 대기 중…' : '시작하기'}
             </Button>
         </div>
     );

@@ -24,6 +24,7 @@ const BaseStoneColorChoicePanel: React.FC<Props> = ({
 }) => {
     const gameId = session.id;
     const isAdventure = session.gameCategory === GameCategory.Adventure;
+    const showCountdown = !session.isAiGame && !isAdventure;
     const pairLobbyOwnerId = (session.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)?.pairGame
         ?.pairLobbyOwnerId;
     const isPairHostChoice = Boolean(pairLobbyOwnerId && currentUser.id === pairLobbyOwnerId);
@@ -41,7 +42,7 @@ const BaseStoneColorChoicePanel: React.FC<Props> = ({
             return;
         }
         const d = session.baseColorChoiceDeadline;
-        if (!d || isAdventure) {
+        if (!d || !showCountdown) {
             setTimer(COLOR_CHOICE_SEC);
             return;
         }
@@ -49,7 +50,7 @@ const BaseStoneColorChoicePanel: React.FC<Props> = ({
         tick();
         const id = setInterval(tick, 250);
         return () => clearInterval(id);
-    }, [colorChoicePhaseDone, session.baseColorChoiceDeadline, isAdventure]);
+    }, [colorChoicePhaseDone, session.baseColorChoiceDeadline, showCountdown]);
 
     const btnBase = `rounded-lg border text-center font-bold transition-colors ${
         isSinglePlayer
@@ -108,7 +109,7 @@ const BaseStoneColorChoicePanel: React.FC<Props> = ({
             <p className="text-center text-[11px] font-semibold leading-snug text-stone-200 sm:text-xs">
                 {isPairHostChoice ? '방장: 양 참가자의 선호 돌을 차례로 선택하세요.' : '마음에 드는 돌을 선택하세요.'}
             </p>
-            {!isAdventure && session.baseColorChoiceDeadline != null && (
+            {showCountdown && session.baseColorChoiceDeadline != null && (
                 <>
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/40 ring-1 ring-white/10">
                         <div

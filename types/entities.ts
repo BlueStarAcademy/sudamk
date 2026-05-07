@@ -569,6 +569,8 @@ export type User = {
    */
   onboardingSpResultTutorialStep?: number;
   clearedSinglePlayerStages?: string[]; // 클리어한 스테이지 ID 배열 (최초 클리어 여부 추적용)
+  /** 반별 스테이지 클리어 수 10·20점 막대 보상 수령 여부 */
+  singlePlayerClassBarClaims?: Partial<Record<SinglePlayerLevel, { m10?: boolean; m20?: boolean }>>;
   bonusStatPoints?: number;
   /**
    * 통합 레벨 구조 변경 시 서버가 1회 `spentStatPoints`를 비운 뒤 true.
@@ -1348,8 +1350,6 @@ export type LiveGameSession = {
   };
   stonesThrownThisRound?: { [playerId: string]: number };
   preGameConfirmations?: { [playerId: string]: boolean | number };
-  /** 베이스(구버전): `base_komi_result` 단계에서 각 참가자 확인 — 신규 경기는 `base_game_start_confirmation`만 사용 */
-  preGameKomiSummaryAck?: { [playerId: string]: boolean };
   roundEndConfirmations?: { [playerId: string]: number };
   rematchRejectionCount?: { [playerId: string]: number };
   timeoutFouls?: { [playerId: string]: number };

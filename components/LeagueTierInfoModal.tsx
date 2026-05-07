@@ -154,7 +154,7 @@ const LeagueTierInfoModal: React.FC<LeagueTierInfoModalProps> = ({ onClose, isTo
         <DraggableWindow title="랭킹전 리그 안내" onClose={onClose} windowId="league-tier-info-modal" initialWidth={550} isTopmost={isTopmost}>
             <div className="space-y-4">
                 <p className="text-sm text-gray-300 text-center">
-                    전략바둑·놀이바둑 랭킹전 PVP에서 얻는 점수에 따라 티어가 결정됩니다. 주간 종료 시 순위에 따라 승급·잔류·강등이 적용되며, 티어별 보상을 받을 수 있습니다.
+                    전략바둑 랭킹전 PVP에서 얻는 점수에 따라 티어가 결정됩니다. 주간 종료 시 순위에 따라 승급·잔류·강등이 적용되며, 티어별 보상을 받을 수 있습니다.
                 </p>
 
                 <ul className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">

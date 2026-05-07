@@ -1222,7 +1222,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         const markActive = () =>
             handleActionRef.current({
                 type: 'PAIR_SET_LOBBY_SCREEN',
-                payload: { active: true, clientId },
+                payload: { active: true, clientId, lobbyChannel: lobbyChannelRef.current },
             }).catch(() => undefined);
         markActive();
         const heartbeatId = window.setInterval(markActive, 15000);
@@ -1230,7 +1230,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             window.clearInterval(heartbeatId);
             handleActionRef.current({
                 type: 'PAIR_SET_LOBBY_SCREEN',
-                payload: { active: false, clientId },
+                payload: { active: false, clientId, lobbyChannel: lobbyChannelRef.current },
             }).catch(() => undefined);
         };
     }, []);
@@ -1339,6 +1339,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                 ...userBase,
                 status: UserStatus.Waiting,
                 waitingLobby: isStrategicLobby ? 'strategic' : 'playful',
+                arenaChannel: isStrategicLobby ? 'strategic' : 'playful',
             };
             return [currentUserInRoom, ...all];
         }
@@ -1427,9 +1428,9 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             !myRoom?.pairDuoRankedLobbyProposal &&
             ((myRoom?.phase ?? 'waiting') === 'waiting' || myRoom?.phase === 'ready'),
     );
-    /** 2인 페어(`duo_match`) 듀오 인간 랭킹전: 경기장에서 랭킹/제안/매칭 단계일 때만 — 친선 대기 방은 제외 */
+    /** 2인 페어(`duo_match`) 듀오 인간 랭킹전: 전략 경기장에서 랭킹/제안/매칭 단계일 때만 — 놀이/페어는 제외 */
     const isDuoArenaRanked = Boolean(
-        myRoom?.roomKind === 'duo_match' && lobbyChannel !== 'pair' && !isArenaFriendlyDuoWaitingRoom,
+        myRoom?.roomKind === 'duo_match' && lobbyChannel === 'strategic' && !isArenaFriendlyDuoWaitingRoom,
     );
 
     const handheldLobbyMainTabGridColsClass = useMemo(() => {
@@ -3567,7 +3568,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     const userListPanel = (
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
             {!(isHandheld && showHandheldRankedTab) && handheldStrategicRankedMatchPanel}
-            {aggregateLobbyMode && pairLobbyAggregateAiChallengeCardEl ? (
+            {aggregateLobbyMode === 'playful' && pairLobbyAggregateAiChallengeCardEl ? (
                 <div className="shrink-0">{pairLobbyAggregateAiChallengeCardEl}</div>
             ) : null}
             {!(isHandheld && showHandheldRankedTab) && renderPairLobbyPairRankedStats()}

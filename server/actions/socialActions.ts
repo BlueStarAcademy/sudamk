@@ -54,6 +54,11 @@ import {
 } from '../../shared/utils/pairGameTurn.js';
 import { readStrategicRankedBlock, readPairRankedBlock } from '../../shared/utils/unifiedRankedStatsMigration.js';
 import { userInUnifiedArenaLobbyUserList } from '../../shared/utils/unifiedArenaLobbyUserList.js';
+import {
+    arenaChannelForGameMode,
+    arenaChannelForGameSession,
+    normalizeArenaChannel,
+} from '../../shared/utils/arenaChannel.js';
 import { enrichPairRoomsForClientPayload } from '../utils/pairRoomClientPayload.js';
 import {
     rollPairPetSoulConvertRewardQuantity,
@@ -133,6 +138,22 @@ import {
 
 const soulTemplateIdFromMaterialName = (materialName: string): string =>
     pairSoulTemplateIdFromTier(pairSoulTierFromMaterialName(materialName));
+
+const arenaChannelFromPairLobbyChannel = (channel: unknown): types.ArenaChannel =>
+    normalizeArenaChannel(channel) ?? 'pair';
+
+const setInGameUserStatusForArena = (
+    volatileState: VolatileState,
+    userId: string,
+    game: Pick<types.LiveGameSession, 'mode' | 'id' | 'settings'>,
+): void => {
+    volatileState.userStatuses[userId] = {
+        status: UserStatus.InGame,
+        mode: game.mode,
+        gameId: game.id,
+        arenaChannel: arenaChannelForGameSession(game) ?? undefined,
+    };
+};
 
 const makePairMaterialStack = (materialName: string, templateId: string, quantity: number): InventoryItem => {
     const base = MATERIAL_ITEMS[materialName as keyof typeof MATERIAL_ITEMS];
@@ -1924,8 +1945,8 @@ async function finalizePairRankedPetRankedGame(
     refreshPairRoomTeams(roomA);
     refreshPairRoomTeams(roomB);
 
-    volatileState.userStatuses[ownerA.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
-    volatileState.userStatuses[ownerB.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
+    setInGameUserStatusForArena(volatileState, ownerA.id, game);
+    setInGameUserStatusForArena(volatileState, ownerB.id, game);
 
     const player1Rating = getPairArenaRankedRating(ownerA);
     const player2Rating = getPairArenaRankedRating(ownerB);
@@ -2075,7 +2096,7 @@ async function finalizePairRankedDuoHumanGame(
     refreshPairRoomTeams(roomB);
 
     for (const uid of [ownerA.id, partnerA.id, ownerB.id, partnerB.id]) {
-        volatileState.userStatuses[uid] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
+        setInGameUserStatusForArena(volatileState, uid, game);
     }
 
     const player1Rating = getPairArenaRankedRating(ownerA);
@@ -2455,7 +2476,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             // strategic/playful: GameMode 대신 waitingLobby로 로비 구분 (클라이언트 목록 분리)
             if (mode === 'strategic' || mode === 'playful') {
                 const prev = volatileState.userStatuses[user.id];
-                const next: UserStatusInfo = { status: UserStatus.Waiting, waitingLobby: mode };
+                const next: UserStatusInfo = { status: UserStatus.Waiting, waitingLobby: mode, arenaChannel: mode };
                 if (prev?.gameId && prev.waitingLobby === mode) {
                     const g = await db.getLiveGame(prev.gameId);
                     if (g && isLingerEndedPvpRoomCandidate(g)) {
@@ -2465,7 +2486,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 }
                 volatileState.userStatuses[user.id] = next;
             } else {
-                volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, mode: mode as GameMode };
+                const arenaChannel = arenaChannelForGameMode(mode as GameMode) ?? undefined;
+                volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, mode: mode as GameMode, arenaChannel };
             }
             broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
             return {};
@@ -2477,6 +2499,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 userStatus.status = UserStatus.Online;
                 delete userStatus.mode; // 대기실 모드 정보 제거
                 delete userStatus.waitingLobby;
+                delete userStatus.arenaChannel;
                 delete userStatus.gameId;
             }
 
@@ -2531,6 +2554,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     delete userStatus.spectatingGameId;
                     delete userStatus.mode;
                     delete userStatus.waitingLobby;
+                    delete userStatus.arenaChannel;
                 } else {
                     volatileState.userStatuses[user.id] = { status: UserStatus.Online };
                 }
@@ -2539,7 +2563,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             }
 
             if (volatileState.userStatuses[user.id]) {
-                const isPairGameLeave = Boolean((game.settings as { pairGame?: unknown } | undefined)?.pairGame);
+                const leaveArenaChannel = arenaChannelForGameSession(game);
+                const isPairGameLeave = leaveArenaChannel === 'pair';
                 // 싱글플레이 게임이 아닌 경우, 게임 모드를 strategic/playful로 변환 (페어 국은 전략 대기실이 아닌 페어 경기장으로 복귀)
                 let lobbyMode: GameMode | 'strategic' | 'playful' | undefined = undefined;
                 if (!game.isSinglePlayer && !isPairGameLeave) {
@@ -2566,20 +2591,22 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                                 prev.waitingLobby === 'strategic' || prev.waitingLobby === 'playful'
                                     ? prev.waitingLobby
                                     : lobbyMode;
-                            volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, waitingLobby: wl };
+                            volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, waitingLobby: wl, arenaChannel: wl };
                             await maybeDeleteDetachedEndedPvpGame(volatileState, gameId);
                         } else if (linger) {
                             volatileState.userStatuses[user.id] = {
                                 status: UserStatus.Waiting,
                                 waitingLobby: lobbyMode,
+                                arenaChannel: lobbyMode,
                                 gameId: game.id,
                                 mode: game.mode,
                             };
                         } else {
-                            volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, waitingLobby: lobbyMode };
+                            volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, waitingLobby: lobbyMode, arenaChannel: lobbyMode };
                         }
                     } else {
-                        volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, mode: lobbyMode as GameMode };
+                        const arenaChannel = arenaChannelForGameMode(lobbyMode as GameMode) ?? undefined;
+                        volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, mode: lobbyMode as GameMode, arenaChannel };
                     }
                 }
             }
@@ -2683,11 +2710,13 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     volatileState.userStatuses[user.id] = { status: UserStatus.Online };
                     delete volatileState.userStatuses[user.id].mode;
                     delete volatileState.userStatuses[user.id].gameId;
+                    delete volatileState.userStatuses[user.id].arenaChannel;
                 } else {
                     if (lobbyMode === 'strategic' || lobbyMode === 'playful') {
-                        volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, waitingLobby: lobbyMode };
+                        volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, waitingLobby: lobbyMode, arenaChannel: lobbyMode };
                     } else {
-                        volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, mode: lobbyMode as GameMode };
+                        const arenaChannel = arenaChannelForGameMode(lobbyMode as GameMode) ?? undefined;
+                        volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, mode: lobbyMode as GameMode, arenaChannel };
                     }
                 }
             }
@@ -2715,7 +2744,12 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             const { gameId } = payload;
             const game = await db.getLiveGame(gameId);
             if (!game) return { error: 'Game not found.' };
-            volatileState.userStatuses[user.id] = { status: UserStatus.Spectating, spectatingGameId: gameId, mode: game.mode };
+            volatileState.userStatuses[user.id] = {
+                status: UserStatus.Spectating,
+                spectatingGameId: gameId,
+                mode: game.mode,
+                arenaChannel: arenaChannelForGameSession(game) ?? undefined,
+            };
             broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
             // 관전자가 게임 화면을 바로 볼 수 있도록 전체 게임 데이터 반환 (중립 관전)
             return { clientResponse: { game } };
@@ -2956,8 +2990,13 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             };
         }
         case 'PAIR_SET_LOBBY_SCREEN': {
-            const { active, clientId } = payload as { active?: unknown; clientId?: unknown };
+            const { active, clientId, lobbyChannel } = payload as {
+                active?: unknown;
+                clientId?: unknown;
+                lobbyChannel?: unknown;
+            };
             const on = active === true;
+            const screenChannel = arenaChannelFromPairLobbyChannel(lobbyChannel);
             if (!volatileState.userStatuses[user.id]) {
                 volatileState.userStatuses[user.id] = { status: UserStatus.Online };
             }
@@ -2969,7 +3008,14 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     ...(volatileState.pairLobbyScreenClients[user.id] || {}),
                     [normalizedClientId]: Date.now(),
                 };
-                volatileState.userStatuses[user.id] = { ...base, inPairLobby: true };
+                volatileState.userStatuses[user.id] = {
+                    ...base,
+                    inPairLobby: screenChannel === 'pair',
+                    arenaChannel: screenChannel,
+                    ...(screenChannel === 'strategic' || screenChannel === 'playful'
+                        ? { waitingLobby: screenChannel }
+                        : {}),
+                };
             } else {
                 delete volatileState.pairLobbyScreenClients[user.id]?.[normalizedClientId];
                 prunePairLobbyScreenClients(volatileState, user.id);
@@ -3211,13 +3257,11 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     error: '페어 경기장에서는 2인 듀오 랭킹 방을 만들 수 없습니다. 페어 랭킹전은 유저 목록 위쪽 「페어 펫 랭킹전」에서 시작해 주세요.',
                 };
             }
-            if (normalizedKind === 'arena_ai' && (normalizedChannel === 'strategic' || normalizedChannel === 'playful')) {
-                return {
-                    error: '전략·놀이 경기장에서는 친선(2인 페어)방만 만들 수 있습니다. 랭킹전·AI 대결은 유저 목록 상단 패널에서 시작해 주세요.',
-                };
-            }
             if (normalizedKind === 'arena_ai' && normalizedChannel !== 'strategic' && normalizedChannel !== 'playful') {
                 return { error: 'AI와 대결 방은 전략·놀이 경기장에서만 만들 수 있습니다.' };
+            }
+            if (normalizedKind === 'duo_match' && normalizedChannel === 'playful') {
+                // 놀이 경기장은 친선 듀오만 허용한다. 랭킹 제안은 별도 액션에서 차단한다.
             }
             if (normalizedKind === 'ai_duel' && normalizedChannel !== 'pair') {
                 return { error: '펫 랭킹 방은 페어 경기장에서만 만들 수 있습니다.' };
@@ -3787,8 +3831,11 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     error: '페어 경기장에서는 이 방식의 랭킹전을 사용할 수 없습니다. 「페어 펫 랭킹전」을 이용해 주세요.',
                 };
             }
-            if (lobbyCh !== 'strategic' && lobbyCh !== 'playful') {
-                return { error: '전략·놀이 경기장 방에서만 사용할 수 있습니다.' };
+            if (lobbyCh === 'playful') {
+                return { error: '놀이바둑 경기장에서는 랭킹전을 지원하지 않습니다.' };
+            }
+            if (lobbyCh !== 'strategic') {
+                return { error: '전략 경기장 방에서만 사용할 수 있습니다.' };
             }
             if (!target.partnerId || isPetAiId(target.partnerId)) return { error: '파트너가 입장한 뒤에 진행해 주세요.' };
             if (target.phase === 'matching' || target.phase === 'match_pending' || target.pairRankedPetProposal) {
@@ -3984,7 +4031,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 }
                 await db.saveGame(gameDuo);
                 for (const uid of inGameUserIds) {
-                    volatileState.userStatuses[uid] = { status: UserStatus.InGame, mode: gameDuo.mode, gameId: gameDuo.id };
+                    setInGameUserStatusForArena(volatileState, uid, gameDuo);
                 }
                 target.matchStartedAt = Date.now();
                 target.phase = 'in_game';
@@ -4052,8 +4099,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 const game = await initializeGame(negotiation);
                 configurePairClassicGameStart(game, user, [user, partnerUser]);
                 await db.saveGame(game);
-                volatileState.userStatuses[game.player1.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
-                volatileState.userStatuses[game.player2.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
+                setInGameUserStatusForArena(volatileState, game.player1.id, game);
+                setInGameUserStatusForArena(volatileState, game.player2.id, game);
                 target.matchStartedAt = Date.now();
                 target.phase = 'in_game';
                 clearPairInvitesForRoom(volatileState, target.id);
@@ -4125,8 +4172,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             const game = await initializeGame(negotiation);
             configurePairClassicGameStart(game, user, partnerUser.id === aiUserId ? [user] : [user, partnerUser]);
             await db.saveGame(game);
-            volatileState.userStatuses[game.player1.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
-            volatileState.userStatuses[game.player2.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
+            setInGameUserStatusForArena(volatileState, game.player1.id, game);
+            setInGameUserStatusForArena(volatileState, game.player2.id, game);
             target.matchStartedAt = Date.now();
             target.phase = 'in_game';
             clearPairInvitesForRoom(volatileState, target.id);
@@ -4296,8 +4343,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 typeof payloadRoomIdRaw === 'string' && payloadRoomIdRaw.trim() ? payloadRoomIdRaw.trim() : undefined;
 
             const resolvePairStartAiMatchTargetRoom = (): types.PairRoomState | undefined => {
+                const pairRooms = volatileState.pairRooms ?? {};
                 if (payloadRoomId) {
-                    const byId = volatileState.pairRooms![payloadRoomId];
+                    const byId = pairRooms[payloadRoomId];
                     if (
                         byId &&
                         userInActivePairLobbyRoom(byId, user.id) &&
@@ -4307,15 +4355,28 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                         return byId;
                     }
                 }
-                const candidates = Object.values(volatileState.pairRooms).filter((room) =>
+                const candidates = Object.values(pairRooms).filter((room) =>
                     userInActivePairLobbyRoom(room, user.id),
                 );
                 if (candidates.length === 0) return undefined;
-                // 집계 경기장 `arena_ai` 껍데기 방과 페어 채널 `ai_duel` 방을 동시에 가질 때 `.find` 순서로 잘못된 방이 잡히는 버그 방지: 페어 채널 AI 펫 방 우선
+                const userArenaChannel = normalizeArenaChannel(volatileState.userStatuses[user.id]?.arenaChannel);
+                const preferredChannel = userArenaChannel ?? (candidates.length === 1 ? (candidates[0].lobbyChannel ?? 'pair') : null);
+                if (preferredChannel) {
+                    const sameChannel = candidates.filter((r) => (r.lobbyChannel ?? 'pair') === preferredChannel);
+                    if (sameChannel.length > 0) {
+                        return (
+                            sameChannel.find((r) => preferredChannel === 'pair' && r.roomKind === 'ai_duel') ??
+                            sameChannel.find((r) => preferredChannel !== 'pair' && r.roomKind === 'arena_ai') ??
+                            sameChannel.find((r) => r.roomKind === 'duo_match') ??
+                            sameChannel[0]
+                        );
+                    }
+                }
+                // 여러 경기장 방이 남아 있을 때는 현재 프레즌스 채널 우선, 없으면 페어 채널 AI 펫 방을 마지막 안전망으로 둔다.
                 return (
-                    candidates.find((r) => (r.lobbyChannel ?? 'pair') === 'pair' && r.roomKind === 'ai_duel') ??
-                    candidates.find((r) => r.roomKind === 'duo_match') ??
                     candidates.find((r) => r.roomKind === 'arena_ai') ??
+                    candidates.find((r) => r.roomKind === 'duo_match') ??
+                    candidates.find((r) => (r.lobbyChannel ?? 'pair') === 'pair' && r.roomKind === 'ai_duel') ??
                     candidates.find((r) => r.roomKind === 'ai_duel') ??
                     candidates[0]
                 );
@@ -4346,6 +4407,13 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             }
             if (isPetPairAiDuel && (target.extraPairMembers?.length ?? 0) > 0) {
                 return { error: '상대가 입장한 펫 페어 방에서는 친선 대국을 시작해 주세요.' };
+            }
+            const targetLobbyChannel = target.lobbyChannel ?? 'pair';
+            if (isPetPairAiDuel && targetLobbyChannel !== 'pair') {
+                return { error: '펫 페어 AI 대전은 페어 경기장에서만 시작할 수 있습니다.' };
+            }
+            if ((target.roomKind === 'arena_ai' || isDuoPairAiDuel) && targetLobbyChannel !== 'strategic' && targetLobbyChannel !== 'playful') {
+                return { error: 'AI와 대결은 전략·놀이 경기장에서만 시작할 수 있습니다.' };
             }
             if (isDuoPairAiDuel) {
                 const duoPartner = getDuoPairAiPartner(target);
@@ -4398,8 +4466,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             const game = await initializeGame(negotiation);
             configurePairClassicGameStart(game, user, isDuoPairAiDuel ? [user, partnerUser] : [user]);
             await db.saveGame(game);
-            volatileState.userStatuses[game.player1.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
-            volatileState.userStatuses[game.player2.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
+            setInGameUserStatusForArena(volatileState, game.player1.id, game);
+            setInGameUserStatusForArena(volatileState, game.player2.id, game);
             if (!ephemeralPairPetAiDuelShell) {
                 target.matchStartedAt = Date.now();
                 target.phase = 'in_game';
@@ -5290,8 +5358,8 @@ const tryMatchPlayersUnlocked = async (volatileState: VolatileState, lobbyType: 
     }
     
     // 사용자 상태 업데이트
-    volatileState.userStatuses[game.player1.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
-    volatileState.userStatuses[game.player2.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
+    setInGameUserStatusForArena(volatileState, game.player1.id, game);
+    setInGameUserStatusForArena(volatileState, game.player2.id, game);
     
     // 예상 랭킹 점수 변동 계산
     const { calculateEloChange } = await import('../summaryService.js');

@@ -14,8 +14,10 @@ import Lobby from './Lobby.js';
 import Game from '../Game.js';
 import Admin from './Admin.js';
 import TournamentLobby from './TournamentLobby.js';
-import PairWaitingLobby from './PairWaitingLobby.js';
 import TournamentArena from './arenas/TournamentArena.js';
+import StrategicWaitingArena from './arenas/waiting/StrategicWaitingArena.js';
+import PairWaitingArena from './arenas/waiting/PairWaitingArena.js';
+import PlayfulWaitingArena from './arenas/waiting/PlayfulWaitingArena.js';
 import SinglePlayerLobby from './SinglePlayerLobby.js';
 import TowerLobby from './TowerLobby.js';
 import GuildHome from './guild/GuildHome.js';
@@ -214,11 +216,7 @@ const Router: React.FC = () => {
             if (currentRoute.params.mode) {
                 const mode = currentRoute.params.mode;
                 if (mode === 'strategic' || mode === 'playful') {
-                    return (
-                        <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
-                            <PairWaitingLobby lobbyChannel={mode as 'strategic' | 'playful'} />
-                        </div>
-                    );
+                    return mode === 'strategic' ? <StrategicWaitingArena /> : <PlayfulWaitingArena />;
                 }
                 console.warn('Router: Individual game mode waiting room access denied, redirecting to profile:', mode);
                 window.location.hash = '#/profile';
@@ -227,11 +225,7 @@ const Router: React.FC = () => {
             window.location.hash = '#/profile';
             return null;
         case 'pair':
-            return (
-                <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
-                    <PairWaitingLobby />
-                </div>
-            );
+            return <PairWaitingArena />;
         case 'game':
             if (currentRoute.params.id) {
                 const gameId = currentRoute.params.id;

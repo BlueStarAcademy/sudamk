@@ -1,7 +1,7 @@
 import type { User } from '../types/index.js';
 import type { ArenaEntranceKey } from '../../constants/arenaEntrance.js';
 
-/** 입문-1 온보딩 첫 클리어 축하 보상 부채(`singlePlayerConstants` firstClear itemId와 동일) */
+/** 온보딩 첫 클리어 축하 보상 부채(`singlePlayerConstants` 입문-5 firstClear itemId와 동일) */
 export const ONBOARDING_INTRO1_FAN_ITEM_ID = '푸른 바람 부채' as const;
 
 /** 입문-1 승리 직후(결과 모달) — 부채 수령 전 안내 */

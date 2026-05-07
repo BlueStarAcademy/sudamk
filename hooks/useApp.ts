@@ -443,7 +443,6 @@ function isSinglePlayerBaseFlowUpdateThrottleBypass(g: LiveGameSession | undefin
     if (!g?.isSinglePlayer || !liveSessionIncludesBaseMode(g)) return false;
     const st = String(g.gameStatus);
     if (st.startsWith('base_')) return true;
-    if (g.gameStatus === 'komi_bidding') return true;
     if (st === 'capture_bidding' || st === 'capture_reveal' || st === 'capture_tiebreaker') return true;
     return false;
 }
@@ -502,7 +501,6 @@ function shouldDropStaleStrategicGameUpdate(
 
     const existingIsBaseOrKomiPreplay =
         String(existing.gameStatus).startsWith('base_') ||
-        existing.gameStatus === 'komi_bidding' ||
         ['capture_bidding', 'capture_reveal', 'capture_tiebreaker'].includes(String(existing.gameStatus));
 
     // 베이스 대국 준비(및 덤 입찰 등) → playing(수순 0): revision·플래그 누락과 무관하게 절대 버리지 않음
@@ -538,7 +536,6 @@ function shouldDropStaleStrategicGameUpdate(
             incomingMoves === 0 &&
             existingMoves === 0 &&
             (String(incoming.gameStatus).startsWith('base_') ||
-                incoming.gameStatus === 'komi_bidding' ||
                 ['capture_bidding', 'capture_reveal', 'capture_tiebreaker'].includes(String(incoming.gameStatus)) ||
                 spBaseEnterPlayingNoMoves);
         if (!spBasePreMoveNoMainLine) {
@@ -614,7 +611,6 @@ const OVERLAY_PRESERVE_GAME_STATUSES = new Set([
     'playing',
     'scoring',
     'base_game_start_confirmation',
-    'base_komi_result',
     'hidden_placing',
     'scanning',
     'missile_selecting',
@@ -1105,6 +1101,10 @@ export const useApp = () => {
             // 기타 중첩 객체들도 병합
             equipmentPresets: patch.equipmentPresets !== undefined ? patch.equipmentPresets : base.equipmentPresets,
             clearedSinglePlayerStages: patch.clearedSinglePlayerStages !== undefined ? patch.clearedSinglePlayerStages : base.clearedSinglePlayerStages,
+            singlePlayerClassBarClaims:
+                patch.singlePlayerClassBarClaims !== undefined
+                    ? { ...(base.singlePlayerClassBarClaims ?? {}), ...patch.singlePlayerClassBarClaims }
+                    : base.singlePlayerClassBarClaims,
             // singlePlayerMissions는 객체이므로 병합
             singlePlayerMissions: patch.singlePlayerMissions !== undefined ? { ...base.singlePlayerMissions, ...patch.singlePlayerMissions } : base.singlePlayerMissions,
             // 챔피언십 토너먼트 상태(누적 보상 등)는 서버 응답으로 완전히 교체
@@ -2375,7 +2375,7 @@ export const useApp = () => {
             const bidFor = typeof payload?.bidForUserId === 'string' ? payload.bidForUserId : undefined;
             if (gameId && uid != null && bid && (bid.color === Player.Black || bid.color === Player.White)) {
                 const updateKomiMutate = (game: LiveGameSession): LiveGameSession | null => {
-                    if (game.gameStatus !== 'base_same_color_points_bid' && game.gameStatus !== 'komi_bidding') {
+                    if (game.gameStatus !== 'base_same_color_points_bid') {
                         return null;
                     }
                     const pairHostId = (game.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)?.pairGame
@@ -2389,7 +2389,9 @@ export const useApp = () => {
                     const prevBids = { ...(game.komiBids ?? {}) } as Record<string, { color: Player; komi: number } | null>;
                     if (prevBids[subjectId] != null) return null;
                     const k = Math.floor(Number(bid.komi));
-                    prevBids[subjectId] = { color: bid.color, komi: Number.isFinite(k) ? Math.max(0, Math.min(100, k)) : 0 };
+                    const locked = game.baseSameColorTieColor;
+                    if (locked !== Player.Black && locked !== Player.White) return null;
+                    prevBids[subjectId] = { color: locked, komi: Number.isFinite(k) ? Math.max(0, Math.min(100, k)) : 0 };
                     return { ...game, komiBids: prevBids } as any;
                 };
                 setLiveGames((c) => patchLiveGameInMapById(c, gameId, updateKomiMutate));
@@ -4877,6 +4879,7 @@ export const useApp = () => {
                         'CLAIM_TOURNAMENT_REWARD',
                         'CLAIM_ACTIVITY_MILESTONE',
                         'CLAIM_SINGLE_PLAYER_MISSION_REWARD',
+                        'CLAIM_SINGLE_PLAYER_CLASS_BAR_REWARD',
                         'CLAIM_ALL_TRAINING_QUEST_REWARDS',
                         'SINGLE_PLAYER_REFRESH_PLACEMENT',
                         'TOWER_REFRESH_PLACEMENT',
@@ -4973,11 +4976,25 @@ export const useApp = () => {
                         }
                     }
 
-                    if ((action.type === 'CLAIM_SINGLE_PLAYER_MISSION_REWARD' || action.type === 'CLAIM_ALL_TRAINING_QUEST_REWARDS') && updatedUserFromResponse.singlePlayerMissions) {
+                    if (
+                        (action.type === 'CLAIM_SINGLE_PLAYER_MISSION_REWARD' ||
+                            action.type === 'CLAIM_ALL_TRAINING_QUEST_REWARDS') &&
+                        updatedUserFromResponse.singlePlayerMissions
+                    ) {
                         try {
                             updatedUserFromResponse.singlePlayerMissions = JSON.parse(JSON.stringify(updatedUserFromResponse.singlePlayerMissions));
                         } catch (error) {
                             console.warn(`[handleAction] ${action.type} - Failed to deep copy singlePlayerMissions`, error);
+                        }
+                    }
+
+                    if (action.type === 'CLAIM_SINGLE_PLAYER_CLASS_BAR_REWARD' && updatedUserFromResponse.singlePlayerClassBarClaims) {
+                        try {
+                            (updatedUserFromResponse as { singlePlayerClassBarClaims: unknown }).singlePlayerClassBarClaims = JSON.parse(
+                                JSON.stringify(updatedUserFromResponse.singlePlayerClassBarClaims)
+                            );
+                        } catch (error) {
+                            console.warn(`[handleAction] ${action.type} - Failed to deep copy singlePlayerClassBarClaims`, error);
                         }
                     }
                     
@@ -5040,7 +5057,10 @@ export const useApp = () => {
                         'DELETE_MAIL', 'DELETE_ALL_CLAIMED_MAIL', 'CLAIM_MAIL_ATTACHMENTS', 
                         'CLAIM_ALL_MAIL_ATTACHMENTS', 'MARK_MAIL_AS_READ',
                         'CLAIM_QUEST_REWARD', 'CLAIM_ACTIVITY_MILESTONE',
-                        'CLAIM_SINGLE_PLAYER_MISSION_REWARD', 'CLAIM_ALL_TRAINING_QUEST_REWARDS', 'LEVEL_UP_TRAINING_QUEST',
+                        'CLAIM_SINGLE_PLAYER_MISSION_REWARD',
+                        'CLAIM_SINGLE_PLAYER_CLASS_BAR_REWARD',
+                        'CLAIM_ALL_TRAINING_QUEST_REWARDS',
+                        'LEVEL_UP_TRAINING_QUEST',
                         'SINGLE_PLAYER_REFRESH_PLACEMENT', 'TOWER_REFRESH_PLACEMENT',
                         'MANNER_ACTION',
                         'START_GUILD_BOSS_BATTLE',
@@ -5294,7 +5314,7 @@ export const useApp = () => {
                     effectiveGameId = (action.payload as any)?.gameId;
                     console.log(`[handleAction] ${action.type} - gameId not in response, using payload gameId:`, effectiveGameId);
                 }
-                if (!effectiveGameId && (action.type === 'CONFIRM_BASE_REVEAL' || action.type === 'CONFIRM_BASE_KOMI_SUMMARY')) {
+                if (!effectiveGameId && action.type === 'CONFIRM_BASE_REVEAL') {
                     effectiveGameId =
                         ('payload' in action ? (action as { payload?: { gameId?: string } }).payload?.gameId : undefined) ||
                         (game as any)?.id;
@@ -5472,7 +5492,6 @@ export const useApp = () => {
                         action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||
                         action.type === 'CONFIRM_AI_GAME_START' ||
                         action.type === 'CONFIRM_BASE_REVEAL' ||
-                        action.type === 'CONFIRM_BASE_KOMI_SUMMARY' ||
                         action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' ||
                         action.type === 'SINGLE_PLAYER_SYNC_PENDING_STAGE' ||
                         action.type === 'SINGLE_PLAYER_ADMIN_JUMP_PENDING_STAGE' ||
@@ -5507,7 +5526,6 @@ export const useApp = () => {
                                 const shouldUpdate =
                                     action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||
                                     action.type === 'CONFIRM_BASE_REVEAL' ||
-                                    action.type === 'CONFIRM_BASE_KOMI_SUMMARY' ||
                                     action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' ||
                                     action.type === 'SINGLE_PLAYER_SYNC_PENDING_STAGE' ||
                                     action.type === 'SINGLE_PLAYER_ADMIN_JUMP_PENDING_STAGE' ||
@@ -7978,8 +7996,7 @@ export const useApp = () => {
                                             // 종료 후 같은 gameId로 베이스 사전 단계 패킷이 늦게 오면 결과 모달 대신 시작 확인이 뜨는 레이스 방지
                                             if (
                                                 localAdvanced &&
-                                                (game.gameStatus === 'base_game_start_confirmation' ||
-                                                    game.gameStatus === 'base_komi_result')
+                                                game.gameStatus === 'base_game_start_confirmation'
                                             ) {
                                                 if (process.env.NODE_ENV === 'development') {
                                                     console.warn(
@@ -9230,8 +9247,21 @@ export const useApp = () => {
             // 새로고침(F5) 후 서버가 게임 없음/권한 없음으로 확정한 경우에만 리다이렉트한다.
             if (gameRejoinFailure?.gameId === urlGameId && gameRejoinFailure.reason === 'notFound') {
                 let targetHash = '#/profile';
-                if (currentUserWithStatus?.status === 'waiting' && currentUserWithStatus?.mode) {
-                    targetHash = `#/waiting/${encodeURIComponent(currentUserWithStatus.mode)}`;
+                if (currentUserWithStatus?.status === 'waiting') {
+                    if (currentUserWithStatus.arenaChannel === 'pair') {
+                        targetHash = '#/pair';
+                    } else if (currentUserWithStatus.waitingLobby === 'strategic' || currentUserWithStatus.arenaChannel === 'strategic') {
+                        targetHash = '#/waiting/strategic';
+                    } else if (currentUserWithStatus.waitingLobby === 'playful' || currentUserWithStatus.arenaChannel === 'playful') {
+                        targetHash = '#/waiting/playful';
+                    } else if (currentUserWithStatus.mode) {
+                        const waitingRoomMode = SPECIAL_GAME_MODES.some((m) => m.mode === currentUserWithStatus.mode)
+                            ? 'strategic'
+                            : PLAYFUL_GAME_MODES.some((m) => m.mode === currentUserWithStatus.mode)
+                              ? 'playful'
+                              : null;
+                        if (waitingRoomMode) targetHash = `#/waiting/${waitingRoomMode}`;
+                    }
                 }
                 if (currentHash !== targetHash) {
                     replaceAppHash(targetHash);
@@ -9491,11 +9521,16 @@ export const useApp = () => {
     }, [enhancementResult]);
 
     const handleEnterWaitingRoom = (mode: GameMode) => {
+        const waitingRoomMode = SPECIAL_GAME_MODES.some((x) => x.mode === mode)
+            ? 'strategic'
+            : PLAYFUL_GAME_MODES.some((x) => x.mode === mode)
+              ? 'playful'
+              : null;
         if (!isClientAdmin(currentUser)) {
             const m = arenaEntranceAvailabilityResolved;
-            const lobbyKey: ArenaEntranceKey | null = SPECIAL_GAME_MODES.some((x) => x.mode === mode)
+            const lobbyKey: ArenaEntranceKey | null = waitingRoomMode === 'strategic'
                 ? 'strategicLobby'
-                : PLAYFUL_GAME_MODES.some((x) => x.mode === mode)
+                : waitingRoomMode === 'playful'
                   ? 'playfulLobby'
                   : null;
             if (lobbyKey && !m[lobbyKey]) {
@@ -9503,8 +9538,12 @@ export const useApp = () => {
                 return;
             }
         }
-        handleAction({ type: 'ENTER_WAITING_ROOM', payload: { mode } });
-        window.location.hash = `#/waiting/${encodeURIComponent(mode)}`;
+        if (!waitingRoomMode) {
+            window.location.hash = '#/profile';
+            return;
+        }
+        handleAction({ type: 'ENTER_WAITING_ROOM', payload: { mode: waitingRoomMode } });
+        window.location.hash = `#/waiting/${waitingRoomMode}`;
     };
     
     const handleViewUser = useCallback(async (userId: string) => {

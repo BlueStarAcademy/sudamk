@@ -6,6 +6,7 @@ import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants/gameMode
 import { resolveSinglePlayerAutoScoringCapForClientSession } from '../../shared/utils/liveSessionSinglePlayerStage.js';
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
 import { getEffectivePairLobbyOwnerId } from '../../shared/utils/effectivePairLobbyOwnerId.js';
+import { canViewerPlaceMoreBaseStones } from '../../shared/utils/basePlacementCanPlaceMore.js';
 
 interface GoGameArenaProps extends GameProps {
     isMyTurn: boolean;
@@ -181,17 +182,20 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         gameStatus === 'base_placement' ||
         gameStatus === 'base_stone_color_choice' ||
         gameStatus === 'base_same_color_points_bid' ||
-        gameStatus === 'komi_bidding' ||
-        gameStatus === 'komi_bid_reveal' ||
-        gameStatus === 'base_color_roulette' ||
-        gameStatus === 'base_komi_result' ||
         gameStatus === 'base_game_start_confirmation';
+    const baseStonesP1Player = session.blackPlayerId === session.player1.id ? Player.Black : Player.White;
+    const baseStonesP2Player = session.blackPlayerId === session.player2.id ? Player.Black : Player.White;
 
     const isPairBasePlacementHost = useMemo(() => {
         if (gameStatus !== 'base_placement') return false;
         const owner = getEffectivePairLobbyOwnerId(session);
         return Boolean(owner && props.currentUser.id === owner);
     }, [gameStatus, session, props.currentUser.id]);
+
+    const canPlaceMoreBaseStones = useMemo(
+        () => canViewerPlaceMoreBaseStones(session, props.currentUser.id),
+        [session, props.currentUser.id]
+    );
 
     const backgroundClass = useMemo(() => {
         if (session.gameCategory === 'guildwar') {
@@ -367,6 +371,8 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 showLastMoveMarker={showLastMoveMarker}
                 baseStones_p1={showPlacedBaseStoneArrays ? session.baseStones_p1 : undefined}
                 baseStones_p2={showPlacedBaseStoneArrays ? session.baseStones_p2 : undefined}
+                baseStonesP1Player={baseStonesP1Player}
+                baseStonesP2Player={baseStonesP2Player}
                 currentUser={props.currentUser}
                 blackPlayerNickname={blackPlayer?.nickname || '흑'}
                 whitePlayerNickname={whitePlayer?.nickname || '백'}
@@ -380,6 +386,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 onBoardRuleFlash={props.onBoardRuleFlash}
                 strategicPetHintOverlay={strategicPetHintDotOverlay}
                 isPairBasePlacementHost={isPairBasePlacementHost}
+                canPlaceMoreBaseStones={canPlaceMoreBaseStones}
                 />
                 </div>
                 {showBoardGlow && (

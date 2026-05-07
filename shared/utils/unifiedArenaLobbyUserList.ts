@@ -1,5 +1,7 @@
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants/gameModes.js';
 import { GameMode, UserStatus } from '../types/enums.js';
+import type { ArenaChannel } from '../types/api.js';
+import { ARENA_CHANNEL_LABEL, arenaChannelForUserStatus } from './arenaChannel.js';
 
 /** 서버 `UserStatusInfo`와 동일한 최소 필드 — 전략·놀이·페어 연동 대국실 유저 목록에 사용 */
 export type UnifiedArenaLobbyUserPick = {
@@ -7,6 +9,7 @@ export type UnifiedArenaLobbyUserPick = {
     mode?: GameMode | null;
     waitingLobby?: 'strategic' | 'playful';
     inPairLobby?: boolean;
+    arenaChannel?: ArenaChannel;
 };
 
 /** 전략/놀이 집계 대기실에 속하는지 (서버 waitingLobby 우선, 구버전 호환으로 mode 카테고리) */
@@ -51,4 +54,9 @@ export function userInUnifiedArenaLobbyUserList(u: UnifiedArenaLobbyUserPick): b
         return matchesStrategicOrPlayfulAggregate;
     }
     return false;
+}
+
+export function userArenaChannelBadge(u: UnifiedArenaLobbyUserPick): { channel: ArenaChannel; label: string } | null {
+    const channel = arenaChannelForUserStatus({ ...u, mode: u.mode ?? undefined });
+    return channel ? { channel, label: ARENA_CHANNEL_LABEL[channel] } : null;
 }

@@ -1,7 +1,8 @@
 import { randomUUID } from 'crypto';
 import * as db from '../db.js';
 import { type ServerAction, type User, type VolatileState, LiveGameSession, Player, GameMode, Point, BoardState, SinglePlayerStageInfo, SinglePlayerMissionState, UserStatus, SinglePlayerLevel } from '../../types/index.js';
-import { SINGLE_PLAYER_MISSIONS } from '../../shared/constants/singlePlayerConstants';
+import { SINGLE_PLAYER_MISSIONS, SINGLE_PLAYER_CLASS_BAR_REWARDS } from '../../shared/constants/singlePlayerConstants.js';
+import { addItemsToInventory, createItemInstancesFromReward } from '../../utils/inventoryUtils.js';
 import { getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
 import {
@@ -1036,6 +1037,78 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                     },
                     rewardSummary
                 } 
+            };
+        }
+        case 'CLAIM_SINGLE_PLAYER_CLASS_BAR_REWARD': {
+            const spBarGate = await requireArenaEntranceOpen(user.isAdmin, 'singleplayer', user);
+            if (!spBarGate.ok) return { error: spBarGate.error };
+            const raw = payload as { level?: SinglePlayerLevel; milestone?: number };
+            const level = raw.level;
+            const milestone = raw.milestone;
+            if (!level || !Object.values(SinglePlayerLevel).includes(level)) {
+                return { error: '잘못된 반입니다.' };
+            }
+            if (milestone !== 10 && milestone !== 20) {
+                return { error: '잘못된 목표 점수입니다.' };
+            }
+            const stages = await getEffectiveSinglePlayerStages();
+            const progress = reconcileSinglePlayerProgress(stages, user.clearedSinglePlayerStages, user.singlePlayerProgress);
+            const classStages = stages
+                .filter((s) => s.level === level)
+                .sort((a, b) => parseInt(a.id.split('-')[1]!, 10) - parseInt(b.id.split('-')[1]!, 10));
+            let clearedInClass = 0;
+            for (const s of classStages) {
+                if (isSinglePlayerStageCleared(stages, progress, s.id)) clearedInClass += 1;
+            }
+            if (clearedInClass < milestone) {
+                return { error: '해당 점수만큼 스테이지를 클리어해야 합니다.' };
+            }
+            if (!user.singlePlayerClassBarClaims) {
+                user.singlePlayerClassBarClaims = {};
+            }
+            const prevClaims = user.singlePlayerClassBarClaims[level] ?? {};
+            const claimKey = milestone === 10 ? 'm10' : 'm20';
+            if (prevClaims[claimKey]) {
+                return { error: '이미 수령한 보상입니다.' };
+            }
+            const rewardRow = SINGLE_PLAYER_CLASS_BAR_REWARDS[level];
+            if (!rewardRow) {
+                return { error: '보상 설정을 찾을 수 없습니다.' };
+            }
+            const itemDef = milestone === 10 ? rewardRow.milestone10 : rewardRow.milestone20;
+            const itemsToCreate = createItemInstancesFromReward([itemDef]);
+            const { success, finalItemsToAdd, updatedInventory } = addItemsToInventory(
+                [...user.inventory],
+                user.inventorySlots,
+                itemsToCreate
+            );
+            if (!success) {
+                return { error: '보상을 받기에 인벤토리 공간이 부족합니다.' };
+            }
+            user.inventory = updatedInventory;
+            user.singlePlayerClassBarClaims = {
+                ...user.singlePlayerClassBarClaims,
+                [level]: { ...prevClaims, [claimKey]: true },
+            };
+
+            db.updateUser(user).catch((err) => {
+                console.error(`[CLAIM_SINGLE_PLAYER_CLASS_BAR_REWARD] Failed to save user ${user.id}:`, err);
+            });
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['inventory', 'singlePlayerClassBarClaims']);
+
+            const { getSelectiveUserUpdate } = await import('../utils/userUpdateHelper.js');
+            const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_SINGLE_PLAYER_CLASS_BAR_REWARD');
+            const levelTitle = level === SinglePlayerLevel.유단자 ? '유단자' : `${level}반`;
+            return {
+                clientResponse: {
+                    updatedUser,
+                    rewardSummary: {
+                        reward: {},
+                        items: finalItemsToAdd ?? itemsToCreate,
+                        title: `${levelTitle} 스테이지 ${milestone}점 보상`,
+                    },
+                },
             };
         }
         case 'CLAIM_ALL_TRAINING_QUEST_REWARDS': {

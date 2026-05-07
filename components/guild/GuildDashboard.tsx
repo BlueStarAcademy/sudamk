@@ -1071,6 +1071,17 @@ type GuildWarDashboardWarStats = {
         enemyScore: number;
         guildXp?: number;
         researchPoints?: number;
+        rewardPreview?: {
+            guildCoins: { min: number; max: number };
+            guildXp: number;
+            researchPoints: { min: number; max: number };
+            gold: { min: number; max: number };
+            diamonds: { min: number; max: number };
+        };
+        rewardClaimed?: boolean;
+        rewardClaimable?: boolean;
+        rewardAvailableAt?: number;
+        isBotGuild?: boolean;
     } | null;
     myRecordInLastWar?: { contributedStars: number } | null;
 };
@@ -1234,12 +1245,12 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                 const wr = p.warStats ?? null;
                 setWarStats(wr);
                 setMyRecordInCurrentWar(p.myRecordInCurrentWar ?? null);
+                setCanClaimReward(!!p.guildWarRewardClaimable);
+                setIsClaimed(!!p.guildWarLatestCompletedRewardClaimed);
                 
                 if (!war) {
                     setActiveWar(null);
                     setOpponentGuild(null);
-                    setCanClaimReward(false);
-                    setIsClaimed(false);
                     return;
                 }
 
@@ -1272,9 +1283,6 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                     setOpponentGuild(null);
                     setMyWarAttempts(0);
                 }
-
-                setCanClaimReward(!!p.guildWarRewardClaimable);
-                setIsClaimed(!!p.guildWarLatestCompletedRewardClaimed);
             } catch (error) {
                 console.error('[WarPanel] Failed to fetch war data:', error);
             } finally {
@@ -1564,6 +1572,12 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
             </div>
         );
     };
+    const formatRewardRange = (value?: { min: number; max: number } | number) => {
+        if (typeof value === 'number') return value.toLocaleString();
+        if (!value) return '-';
+        return value.min === value.max ? value.min.toLocaleString() : `${value.min.toLocaleString()}~${value.max.toLocaleString()}`;
+    };
+    const lastWarRewardPreview = warStats?.lastOpponent?.rewardPreview;
 
     return (
         <>
@@ -1690,6 +1704,11 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                             >
                                                 {warStats.lastOpponent.name}
                                             </p>
+                                            {warStats.lastOpponent.isBotGuild ? (
+                                                <p className="text-center text-[10px] font-semibold text-cyan-200/90 sm:text-xs">
+                                                    AI봇 길드전 결과
+                                                </p>
+                                            ) : null}
                                             <GuildWarUnifiedScoreboard
                                                 variant="embedded"
                                                 compact
@@ -1725,10 +1744,27 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                 </div>
                                 <div className="flex shrink-0 flex-col gap-2 border-t border-stone-600/40 px-2 py-2">
                                     <div className="rounded-lg border border-stone-700/50 bg-black/25 px-2 py-2">
-                                        {warStats?.lastOpponent?.guildXp != null && warStats?.lastOpponent?.researchPoints != null ? (
-                                            <div className="flex items-center justify-center gap-3">
-                                                <img src="/images/guild/tokken.png" alt="길드 코인 보상" className="h-6 w-6 object-contain drop-shadow" />
-                                                <img src="/images/guild/button/guildlab.png" alt="연구 포인트 보상" className="h-6 w-6 object-contain drop-shadow" />
+                                        {lastWarRewardPreview ? (
+                                            <div className="grid grid-cols-2 gap-1.5 text-[10px] font-bold text-stone-200 sm:text-xs">
+                                                <div className="flex items-center gap-1 rounded-md bg-stone-900/60 px-1.5 py-1">
+                                                    <img src="/images/icon/Gold.png" alt="" className="h-4 w-4 object-contain" />
+                                                    <span>{formatRewardRange(lastWarRewardPreview.gold)}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1 rounded-md bg-stone-900/60 px-1.5 py-1">
+                                                    <img src="/images/icon/Diamond.png" alt="" className="h-4 w-4 object-contain" />
+                                                    <span>{formatRewardRange(lastWarRewardPreview.diamonds)}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1 rounded-md bg-stone-900/60 px-1.5 py-1">
+                                                    <img src="/images/guild/tokken.png" alt="" className="h-4 w-4 object-contain" />
+                                                    <span>{formatRewardRange(lastWarRewardPreview.guildCoins)}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1 rounded-md bg-stone-900/60 px-1.5 py-1">
+                                                    <img src="/images/guild/button/guildlab.png" alt="" className="h-4 w-4 object-contain" />
+                                                    <span>{formatRewardRange(lastWarRewardPreview.researchPoints)}</span>
+                                                </div>
+                                                <div className="col-span-2 flex items-center justify-center rounded-md bg-stone-900/60 px-1.5 py-1 text-blue-200">
+                                                    길드 경험치 +{formatRewardRange(lastWarRewardPreview.guildXp)}
+                                                </div>
                                             </div>
                                         ) : (
                                             <div className="flex items-center justify-center gap-3 opacity-40">
@@ -1745,8 +1781,8 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                             isClaimed
                                                 ? '이미 직전 길드전 보상을 수령했습니다.'
                                                 : canClaimReward
-                                                  ? '직전 길드전 보상을 받습니다.'
-                                                  : '받을 보상이 없거나 수령 가능 시각이 아닙니다. (전쟁 종료 1시간 후 ~ 이번 길드전 종료 시점)'
+                                                  ? '직전 길드전 보상을 받습니다. 다음 길드전이 종료되면 이전 보상은 사라집니다.'
+                                                  : '받을 보상이 없거나 수령 가능 시각이 아닙니다. (전쟁 종료 1시간 후부터 다음 길드전 종료 전까지)'
                                         }
                                         onClick={(e) => {
                                             e.stopPropagation();

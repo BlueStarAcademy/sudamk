@@ -2897,12 +2897,25 @@ export async function createAndStartDemoGuildWar(guildId: string): Promise<{ act
 }
 
 // 전쟁 종료 체크 및 결과 계산
+const GUILD_WAR_COMPLETED_HISTORY_KV = 'guildWarCompletedHistory';
+const parseGuildWarHistoryEpochMs = (value: unknown): number => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+        const parsed = Date.parse(value);
+        if (Number.isFinite(parsed)) return parsed;
+        const numeric = Number(value);
+        if (Number.isFinite(numeric)) return numeric;
+    }
+    return 0;
+};
+
 export async function processGuildWarEnd(): Promise<void> {
     const now = Date.now();
     const activeWars = await db.getKV<any[]>('activeGuildWars') || [];
     const guilds = await db.getKV<Record<string, types.Guild>>('guilds') || {};
     
     let updated = false;
+    const completedSnapshots: any[] = [];
     
     for (const war of activeWars) {
         if (war.status !== 'active') continue;
@@ -2960,6 +2973,7 @@ export async function processGuildWarEnd(): Promise<void> {
             guild1Stars: guild1Stars,
             guild2Stars: guild2Stars,
         };
+        completedSnapshots.push(JSON.parse(JSON.stringify(war)));
         
         // DB GuildWar에 결과 반영 (영구 저장)
         try {
@@ -2979,6 +2993,17 @@ export async function processGuildWarEnd(): Promise<void> {
     
     if (updated) {
         await db.setKV('activeGuildWars', activeWars);
+        if (completedSnapshots.length > 0) {
+            const prevHistory = await db.getKV<any[]>(GUILD_WAR_COMPLETED_HISTORY_KV) || [];
+            const byId = new Map<string, any>();
+            for (const war of [...prevHistory, ...completedSnapshots]) {
+                if (war?.id) byId.set(String(war.id), war);
+            }
+            const nextHistory = Array.from(byId.values())
+                .sort((a: any, b: any) => parseGuildWarHistoryEpochMs(b.endTime) - parseGuildWarHistoryEpochMs(a.endTime))
+                .slice(0, 50);
+            await db.setKV(GUILD_WAR_COMPLETED_HISTORY_KV, nextHistory);
+        }
         
         const { broadcast } = await import('./socket.js');
         await broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars } });

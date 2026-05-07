@@ -4,10 +4,12 @@ import {
     QuestReward, DailyQuestData, WeeklyQuestData, MonthlyQuestData, TournamentState, UserWithStatus, EquipmentPreset, GameSettings, CommentaryLine, HomeBoardPost, SinglePlayerStageInfo,
     PairPetMeta,
 } from './entities.js';
-import { GameMode, RPSChoice, Point, Player, UserStatus, TournamentType, InventoryItemType, GameCategory, EquipmentSlot, BoardState, Move, ItemGrade } from './enums.js';
+import { GameMode, RPSChoice, Point, Player, UserStatus, TournamentType, InventoryItemType, GameCategory, EquipmentSlot, BoardState, Move, ItemGrade, SinglePlayerLevel } from './enums.js';
 import type { WinReason } from './enums.js';
 import type { ArenaEntranceKey } from '../../constants/arenaEntrance.js';
 import type { KataServerRuntimeOverrides } from './kataServerRuntime.js';
+
+export type ArenaChannel = 'strategic' | 'pair' | 'playful';
 
 /** 싱글/탑 PVE: 클라 전용 수순 반영 후 서버 캐시가 뒤처질 때 히든·스캔 액션과 함께 전송 */
 export type PveItemActionClientSync = {
@@ -286,6 +288,8 @@ export interface UserStatusInfo {
     mode?: GameMode;
     /** 집계 대기실(전략/놀이) 구분 — mode와 별도로 서버가 설정 */
     waitingLobby?: 'strategic' | 'playful';
+    /** 현재 위치한 경기장. 목록 배지와 방/AI/복귀 경로 분리에 사용 */
+    arenaChannel?: ArenaChannel;
     gameId?: string;
     spectatingGameId?: string;
     gameCategory?: GameCategory;
@@ -365,7 +369,7 @@ export type ServerAction =
           type: 'PAIR_LOBBY_ROOM_GRID_SLICE';
           payload: { lobbyChannel: 'pair' | 'strategic' | 'playful'; fromSlot: number; toSlot: number };
       }
-    | { type: 'PAIR_SET_LOBBY_SCREEN', payload: { active: boolean; clientId?: string } }
+    | { type: 'PAIR_SET_LOBBY_SCREEN', payload: { active: boolean; clientId?: string; lobbyChannel?: ArenaChannel } }
     | { type: 'PAIR_INVITE_PARTNER', payload: { targetUserId: string; targetTeam?: 'teamA' | 'teamB'; targetIndex?: 0 | 1 } }
     | { type: 'PAIR_RESPOND_PARTNER_INVITE', payload: { inviteId: string; accept: boolean } }
     | { type: 'PAIR_PET_PURCHASE', payload: { sku: string; quantity?: number } }
@@ -411,7 +415,6 @@ export type ServerAction =
     | { type: 'CONFIRM_BASE_PLACEMENT_COMPLETE', payload: { gameId: string } }
     | { type: 'SUBMIT_BASE_STONE_COLOR_CHOICE', payload: { gameId: string; color: Player; choiceForUserId?: string } }
     | { type: 'UPDATE_KOMI_BID', payload: { gameId: string, bid: KomiBid; bidForUserId?: string } }
-    | { type: 'CONFIRM_BASE_KOMI_SUMMARY', payload: { gameId: string } }
     | { type: 'CONFIRM_BASE_REVEAL', payload: { gameId: string } }
     // Hidden Go
     | { type: 'START_HIDDEN_PLACEMENT', payload: { gameId: string; clientSync?: PveItemActionClientSync } }
@@ -645,6 +648,7 @@ export type ServerAction =
     | { type: 'PAIR_GAME_CLIENT_MOVE', payload: { gameId: string; x: number; y: number; newBoardState: BoardState; capturedStones: Point[]; newKoInfo: LiveGameSession['koInfo']; movePlayer?: Player } }
     | { type: 'START_SINGLE_PLAYER_MISSION', payload: { missionId: string } }
     | { type: 'CLAIM_SINGLE_PLAYER_MISSION_REWARD', payload: { missionId: string } }
+    | { type: 'CLAIM_SINGLE_PLAYER_CLASS_BAR_REWARD', payload: { level: SinglePlayerLevel; milestone: 10 | 20 } }
     | { type: 'CLAIM_ALL_TRAINING_QUEST_REWARDS', payload?: never }
     | { type: 'LEVEL_UP_TRAINING_QUEST', payload: { missionId: string } }
     | { type: 'MANNER_ACTION', payload: { targetUserId: string, actionType: 'up' | 'down' } }

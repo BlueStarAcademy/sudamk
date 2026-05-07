@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { GameMode, LiveGameSession, ServerAction, User, GameStatus } from '../../types.js';
-import KomiBiddingPanel from '../KomiBiddingPanel.js';
 import BaseStoneColorChoicePanel from '../BaseStoneColorChoicePanel.js';
 import BaseSameColorPointsBidPanel from '../BaseSameColorPointsBidPanel.js';
-import { BaseColorRouletteContent } from '../BaseColorRouletteModal.js';
 import { getEffectivePairLobbyOwnerId } from '../../shared/utils/effectivePairLobbyOwnerId.js';
 
 const BASE_PLACEMENT_TIME_LIMIT_SEC = 30;
@@ -12,9 +10,6 @@ const BASE_FOOTER_PHASES: readonly GameStatus[] = [
     'base_placement',
     'base_stone_color_choice',
     'base_same_color_points_bid',
-    'komi_bidding',
-    'base_color_roulette',
-    'base_komi_result',
     'base_game_start_confirmation',
 ];
 
@@ -125,7 +120,7 @@ export const BasePlacementControlStrip: React.FC<{
                 }
                 className={`${btnBase} min-w-[5.5rem] flex-1 sm:min-w-[6.5rem] ${
                     !stripBasePlacementComplete || myReady ? 'cursor-not-allowed opacity-55' : ''
-                }`}
+                } ${stripBasePlacementComplete && !myReady ? (isSinglePlayer ? 'animate-base-complete-border-amber' : 'animate-base-complete-border-cyan') : ''}`}
                 title={
                     myReady
                         ? '상대의 배치 완료를 기다리는 중입니다.'
@@ -194,23 +189,7 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
         );
     }
 
-    if (gameStatus === 'komi_bidding') {
-        return (
-            <div className="flex w-full min-w-0 flex-col gap-1">
-                <KomiBiddingPanel session={session} currentUser={currentUser} onAction={onAction as (a: ServerAction) => void} layout="inline" />
-            </div>
-        );
-    }
-
-    if (gameStatus === 'base_color_roulette') {
-        return (
-            <div className="flex w-full min-w-0 max-h-[min(48vh,380px)] flex-col gap-0 overflow-y-auto">
-                <BaseColorRouletteContent session={session} />
-            </div>
-        );
-    }
-
-    if (gameStatus === 'base_komi_result' || gameStatus === 'base_game_start_confirmation') {
+    if (gameStatus === 'base_game_start_confirmation') {
         return (
             <div className="w-full min-w-0 px-1 py-1 text-center text-[11px] leading-snug text-stone-500 sm:text-xs">
                 흑·백·덤 확정과 대국 시작은 화면 중앙 모달에서 진행합니다.
@@ -388,7 +367,7 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
                     }
                     className={`${btnBase} min-w-[5.5rem] flex-1 sm:min-w-[6.5rem] ${
                         !footerBasePlacementComplete || myReady ? 'cursor-not-allowed opacity-55' : ''
-                    }`}
+                    } ${footerBasePlacementComplete && !myReady ? (isSinglePlayer ? 'animate-base-complete-border-amber' : 'animate-base-complete-border-cyan') : ''}`}
                     title={
                         myReady
                             ? '상대의 배치 완료를 기다리는 중입니다.'

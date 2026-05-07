@@ -899,10 +899,6 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 'base_placement',
                 'base_stone_color_choice',
                 'base_same_color_points_bid',
-                'komi_bidding',
-                'komi_bid_reveal',
-                'base_color_roulette',
-                'base_komi_result',
                 'base_game_start_confirmation',
                 'capture_bidding',
                 'capture_reveal',
@@ -1455,9 +1451,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 'UNDO_LAST_BASE_STONE_PLACEMENT',
                 'CONFIRM_BASE_PLACEMENT_COMPLETE',
                 'SUBMIT_BASE_STONE_COLOR_CHOICE',
-                'SUBMIT_BASE_STONE_COLOR_CHOICE',
                 'UPDATE_KOMI_BID',
-                'CONFIRM_BASE_KOMI_SUMMARY',
                 'CONFIRM_BASE_REVEAL',
             ]);
             const shouldHandleBaseFlowOnStrategicPve =
@@ -1523,10 +1517,6 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             'base_placement',
             'base_stone_color_choice',
             'base_same_color_points_bid',
-            'komi_bidding',
-            'komi_bid_reveal',
-            'base_color_roulette',
-            'base_komi_result',
             'base_game_start_confirmation',
         ]);
         const mixForBaseTick = (((game.settings as { mixedModes?: GameMode[] } | undefined)?.mixedModes ??
@@ -1779,7 +1769,13 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
     // Non-Game actions
     // ADMIN_ 액션은 위에서 이미 처리됨
     if (type.includes('NEGOTIATION') || type === 'START_AI_GAME' || type === 'REQUEST_REMATCH' || type === 'CHALLENGE_USER' || type === 'SEND_CHALLENGE') return handleNegotiationAction(volatileState, action, userData);
-    if (type === 'CLAIM_SINGLE_PLAYER_MISSION_REWARD' || type === 'CLAIM_ALL_TRAINING_QUEST_REWARDS' || type === 'START_SINGLE_PLAYER_MISSION' || type === 'LEVEL_UP_TRAINING_QUEST') {
+    if (
+        type === 'CLAIM_SINGLE_PLAYER_MISSION_REWARD' ||
+        type === 'CLAIM_SINGLE_PLAYER_CLASS_BAR_REWARD' ||
+        type === 'CLAIM_ALL_TRAINING_QUEST_REWARDS' ||
+        type === 'START_SINGLE_PLAYER_MISSION' ||
+        type === 'LEVEL_UP_TRAINING_QUEST'
+    ) {
         return handleSinglePlayerAction(volatileState, action, userData);
     }
     // 타워 액션은 위에서 이미 처리됨 (중복 제거)

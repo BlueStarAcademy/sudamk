@@ -6,6 +6,7 @@ import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js'
 import { resolveSinglePlayerAutoScoringCapForClientSession } from '../../shared/utils/liveSessionSinglePlayerStage.js';
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
 import { resolveSinglePlayerSurvivalMode } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
+import { canViewerPlaceMoreBaseStones } from '../../shared/utils/basePlacementCanPlaceMore.js';
 
 interface SinglePlayerArenaProps extends GameProps {
     isMyTurn: boolean;
@@ -204,15 +205,18 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         'base_placement',
         'base_stone_color_choice',
         'base_same_color_points_bid',
-        'komi_bidding',
-        'komi_bid_reveal',
-        'base_color_roulette',
-        'base_komi_result',
         'base_game_start_confirmation',
     ];
     const isBasePrePlayOnBoard = basePrePlayStatusesForBoard.includes(gameStatus);
     const allowBackBoardBaseStonesOnMobile = !isMobile || stageDescriptionCollapsed || isBasePrePlayOnBoard;
     const showPlacedBaseStoneArrays = allowBackBoardBaseStonesOnMobile && isBasePrePlayOnBoard;
+    const baseStonesP1Player = session.blackPlayerId === session.player1.id ? Player.Black : Player.White;
+    const baseStonesP2Player = session.blackPlayerId === session.player2.id ? Player.Black : Player.White;
+
+    const canPlaceMoreBaseStones = useMemo(
+        () => canViewerPlaceMoreBaseStones(session, currentUser.id),
+        [session, currentUser.id]
+    );
 
     const myRevealedMoveIndices = useMemo(() => {
         const uid = currentUser?.id;
@@ -506,6 +510,8 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     baseStones={baseStones}
                     baseStones_p1={showPlacedBaseStoneArrays ? baseStones_p1 : undefined}
                     baseStones_p2={showPlacedBaseStoneArrays ? baseStones_p2 : undefined}
+                    baseStonesP1Player={baseStonesP1Player}
+                    baseStonesP2Player={baseStonesP2Player}
                     analysisResult={session.analysisResult?.[currentUser.id] ?? ((gameStatus === 'ended' || (gameStatus === 'scoring' && session.analysisResult?.['system'])) ? session.analysisResult?.['system'] : null)}
                     showTerritoryOverlay={showTerritoryOverlay}
                     isSinglePlayer={true}
@@ -519,6 +525,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     onboardingForcedFirstMovePoint={onboardingForcedFirstMovePoint}
                     highlightedPoints={intro1TutorialHighlight ? [intro1TutorialHighlight] : undefined}
                     highlightStyle="ring"
+                    canPlaceMoreBaseStones={canPlaceMoreBaseStones}
                 />
                 {showBoardGlow && (
                     <div

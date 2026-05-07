@@ -23,6 +23,7 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
     const gameId = session.id;
     const locked = session.baseSameColorTieColor;
     const isAdventure = session.gameCategory === GameCategory.Adventure;
+    const showCountdown = !session.isAiGame && !isAdventure;
     const { komiBids, komiBiddingDeadline, player1, player2 } = session;
     const pairLobbyOwnerId = (session.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)?.pairGame
         ?.pairLobbyOwnerId;
@@ -51,7 +52,7 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
             setTimer(0);
             return;
         }
-        if (isAdventure || !komiBiddingDeadline) {
+        if (!showCountdown || !komiBiddingDeadline) {
             setTimer(BID_SEC);
             return;
         }
@@ -59,7 +60,7 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
             setTimer(Math.max(0, Math.ceil((komiBiddingDeadline - Date.now()) / 1000)));
         }, 250);
         return () => clearInterval(id);
-    }, [timerPaused, komiBiddingDeadline, isAdventure]);
+    }, [timerPaused, komiBiddingDeadline, showCountdown]);
 
     useEffect(() => {
         setKomiValue(0);
@@ -101,12 +102,12 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
     }, [session.id, session.gameStatus, komiBiddingDeadline]);
 
     useEffect(() => {
-        if (timerPaused || isAdventure || !komiBiddingDeadline || isPairHostBid) return;
+        if (timerPaused || !showCountdown || !komiBiddingDeadline || isPairHostBid) return;
         if (timer <= 0 && !didAutoSubmitRef.current) {
             didAutoSubmitRef.current = true;
             handleSubmit();
         }
-    }, [timer, timerPaused, isAdventure, komiBiddingDeadline, handleSubmit, isPairHostBid]);
+    }, [timer, timerPaused, showCountdown, komiBiddingDeadline, handleSubmit, isPairHostBid]);
 
     const adjust = (d: number) => {
         setKomiValue((v) => Math.max(0, Math.min(100, v + d)));
@@ -164,7 +165,7 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
                 </p>
             )}
             <p className="text-center text-[10px] font-medium leading-snug text-stone-300 sm:text-[11px]">{guide}</p>
-            {!isAdventure && komiBiddingDeadline != null && (
+            {showCountdown && komiBiddingDeadline != null && (
                 <>
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/40 ring-1 ring-white/10">
                         <div

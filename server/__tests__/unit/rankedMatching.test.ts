@@ -89,8 +89,10 @@ describe('ranked matching', () => {
         expect(volatileState.rankedMatchingQueue!.strategic!['user-2']).toBeUndefined();
         expect(volatileState.userStatuses['user-1']?.status).toBe('in-game');
         expect(volatileState.userStatuses['user-1']?.gameId).toBe('game-ranked-test-1');
+        expect(volatileState.userStatuses['user-1']?.arenaChannel).toBe('strategic');
         expect(volatileState.userStatuses['user-2']?.status).toBe('in-game');
         expect(volatileState.userStatuses['user-2']?.gameId).toBe('game-ranked-test-1');
+        expect(volatileState.userStatuses['user-2']?.arenaChannel).toBe('strategic');
     });
 
     it('tryMatchPlayers does not match players over the 400 point rating limit', async () => {

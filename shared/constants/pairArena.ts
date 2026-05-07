@@ -102,6 +102,30 @@ export function pairPetKataPhaseFromTotalPly(boardSize: number, totalPly: number
     });
 }
 
+const PAIR_PET_KATA_PHASE_TABLES_DEFAULT = {
+    nine: PAIR_PET_KATA_PHASE_PLY_9,
+    thirteen: PAIR_PET_KATA_PHASE_PLY_13,
+    nineteen: PAIR_PET_KATA_PHASE_PLY_19,
+} as const;
+
+/**
+ * `pairPetKataPhaseFromTotalPly`와 동일한 합산 수순(1부터) 기준으로, 현재 페이즈 구간이 끝날 때까지 남은 착수 수(카운트다운).
+ * 종반(`to === null`)은 `remaining: null`.
+ */
+export function pairPetKataPliesRemainingInCurrentPhase(
+    boardSize: number,
+    totalPly: number,
+): { phase: PairPetKataPhase; remaining: number | null } {
+    const phase = pairPetKataPhaseFromTotalPlyWithTables(boardSize, totalPly, PAIR_PET_KATA_PHASE_TABLES_DEFAULT);
+    const table = phaseTableFromRuntime(boardSize, PAIR_PET_KATA_PHASE_TABLES_DEFAULT) ?? PAIR_PET_KATA_PHASE_TABLES_DEFAULT.nineteen;
+    const n = Math.max(1, Math.floor(totalPly));
+    const { to } = table[phase];
+    if (to == null) {
+        return { phase, remaining: null };
+    }
+    return { phase, remaining: Math.max(0, to - n) };
+}
+
 /** 가중 능력치 점수(반올림 정수) */
 export function pairPetKataAbilityScore(
     phase: PairPetKataPhase,

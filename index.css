@@ -851,6 +851,38 @@ input, textarea {
   padding: 0.5rem; /* p-2 */
 }
 
+@keyframes base-complete-border-glow-cyan {
+  0%,
+  100% {
+    border-color: rgba(34, 211, 238, 0.42);
+    box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.2);
+  }
+  50% {
+    border-color: rgba(103, 232, 249, 0.95);
+    box-shadow: 0 0 0 1px rgba(103, 232, 249, 0.55), 0 0 14px 3px rgba(34, 211, 238, 0.45);
+  }
+}
+
+.animate-base-complete-border-cyan {
+  animation: base-complete-border-glow-cyan 1.35s ease-in-out infinite;
+}
+
+@keyframes base-complete-border-glow-amber {
+  0%,
+  100% {
+    border-color: rgba(251, 191, 36, 0.45);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.22);
+  }
+  50% {
+    border-color: rgba(253, 224, 71, 0.95);
+    box-shadow: 0 0 0 1px rgba(253, 224, 71, 0.5), 0 0 14px 3px rgba(251, 191, 36, 0.42);
+  }
+}
+
+.animate-base-complete-border-amber {
+  animation: base-complete-border-glow-amber 1.35s ease-in-out infinite;
+}
+
 /** 페어 바둑 모바일 인게임: 내 차례일 때 팀 요약 패널 테두리·글로우 깜빡임 */
 @keyframes pair-mobile-my-turn-panel-dark {
   0%,

@@ -58,11 +58,7 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
         const preStartStatuses = [
             'pending',
             'base_placement',
-            'komi_bidding',
-            'base_komi_result',
             'base_game_start_confirmation',
-            'base_color_roulette',
-            'komi_bid_reveal',
             'nigiri_reveal',
             'color_start_confirmation',
         ];
@@ -255,7 +251,6 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             'base_placement',
             'base_stone_color_choice',
             'base_same_color_points_bid',
-            'komi_bidding',
             'capture_bidding',
             'alkkagi_simultaneous_placement'
         ].includes(session.gameStatus);

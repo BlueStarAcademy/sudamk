@@ -17,13 +17,11 @@ import CurlingRoundSummary from '../CurlingRoundSummary.js';
 import Button from '../Button.js';
 import DiceRoundSummary from '../DiceRoundSummary.js';
 import AlkkagiRoundSummary from '../AlkkagiRoundSummary.js';
-import KomiBiddingPanel from '../KomiBiddingPanel.js';
 import BaseStoneColorChoicePanel from '../BaseStoneColorChoicePanel.js';
 import BaseSameColorPointsBidPanel from '../BaseSameColorPointsBidPanel.js';
 import NegotiationModal from '../NegotiationModal.js';
 import DiceGoTurnSelectionModal from '../DiceGoTurnSelectionModal.js';
 import BaseStartConfirmationModal from '../BaseStartConfirmationModal.js';
-import BaseColorRouletteModal from '../BaseColorRouletteModal.js';
 import DiceGoStartConfirmationModal from '../DiceGoStartConfirmationModal.js';
 import CurlingStartConfirmationModal from '../CurlingStartConfirmationModal.js';
 import AlkkagiStartConfirmationModal from '../AlkkagiStartConfirmationModal.js';
@@ -110,11 +108,9 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
             'base_placement',
             'base_stone_color_choice',
             'base_same_color_points_bid',
-            'komi_bidding',
             'capture_bidding',
             'dice_rps', 'thief_rps', 'alkkagi_rps', 'curling_rps', 'omok_rps', 'ttamok_rps',
             'color_start_confirmation',
-            'base_komi_result',
             'turn_preference_selection',
             'turn_preference_roulette',
             'thief_deathmatch_role_roulette',
@@ -163,15 +159,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
                 </div>
             );
         }
-        if (gameStatus === 'komi_bidding') {
-            if (baseUsesBottomStrip && gameStatus === 'komi_bidding') return null;
-            return <KomiBiddingPanel session={session} currentUser={currentUser} onAction={onAction} />;
-        }
-        if (gameStatus === 'base_color_roulette') {
-            if (baseUsesBottomStrip) return null;
-            return <BaseColorRouletteModal session={session} />;
-        }
-        if (gameStatus === 'base_komi_result' || gameStatus === 'base_game_start_confirmation') {
+        if (gameStatus === 'base_game_start_confirmation') {
             if (isSpectator || !session.blackPlayerId || !session.whitePlayerId) return null;
             return <BaseStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
         }

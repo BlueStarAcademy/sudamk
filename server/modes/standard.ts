@@ -1576,12 +1576,10 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 removeCapturedBaseStoneMarkersFromSession(game, result.capturedStones);
             }
 
-            // 같은 교차점에 일반 착수 시, 과거 히든 공개 마커·베이스 마커가 남아 문양이 꼬이지 않게 한다.
+            // 같은 교차점에 일반 착수 시, 과거 히든 공개 마커가 남아 문양이 꼬이지 않게 한다.
+            // 베이스 마커는 실제로 따인 좌표만 위 removeCapturedBaseStoneMarkersFromSession에서 제거한다.
             if (!effectiveIsHidden && game.permanentlyRevealedStones?.length) {
                 game.permanentlyRevealedStones = game.permanentlyRevealedStones.filter((p) => !(p.x === x && p.y === y));
-            }
-            if (!effectiveIsHidden && game.baseStones?.length) {
-                game.baseStones = game.baseStones.filter((p) => !(p.x === x && p.y === y));
             }
 
             const playerWhoMoved = myPlayerEnum;

@@ -10,6 +10,7 @@ import { applyPassiveActionPointRegenToUser } from '../effectService.js';
 import { maybeDeleteDetachedEndedPvpGame } from '../maybeDeleteDetachedEndedPvpGame.js';
 import { clampAiLobbyStrategicItemCaps } from '../../shared/utils/strategicAiLobbyItemCaps.js';
 import { isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
+import { arenaChannelForGameMode, arenaChannelForGameSession } from '../../shared/utils/arenaChannel.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -46,12 +47,15 @@ async function restoreUserToWaitingLobby(
     st.gameId = undefined;
     if (SPECIAL_GAME_MODES.some((m) => m.mode === gameMode)) {
         st.waitingLobby = 'strategic';
+        st.arenaChannel = 'strategic';
         delete st.mode;
     } else if (PLAYFUL_GAME_MODES.some((m) => m.mode === gameMode)) {
         st.waitingLobby = 'playful';
+        st.arenaChannel = 'playful';
         delete st.mode;
     } else {
         st.mode = gameMode;
+        st.arenaChannel = arenaChannelForGameMode(gameMode) ?? undefined;
         delete st.waitingLobby;
     }
     if (oldGameId) {
@@ -544,8 +548,18 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 const game = await initializeGame(negotiation);
                 await db.saveGame(game);
                 
-                volatileState.userStatuses[game.player1.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
-                volatileState.userStatuses[game.player2.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
+                volatileState.userStatuses[game.player1.id] = {
+                    status: UserStatus.InGame,
+                    mode: game.mode,
+                    gameId: game.id,
+                    arenaChannel: arenaChannelForGameSession(game) ?? undefined,
+                };
+                volatileState.userStatuses[game.player2.id] = {
+                    status: UserStatus.InGame,
+                    mode: game.mode,
+                    gameId: game.id,
+                    arenaChannel: arenaChannelForGameSession(game) ?? undefined,
+                };
                 
                 const draftNegId = Object.keys(volatileState.negotiations).find(id => {
                     const neg = volatileState.negotiations[id];

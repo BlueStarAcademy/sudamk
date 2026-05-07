@@ -1160,9 +1160,6 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             if (!isHidden && game.permanentlyRevealedStones?.length) {
                 game.permanentlyRevealedStones = game.permanentlyRevealedStones.filter((p) => !(p.x === x && p.y === y));
             }
-            if (!isHidden && game.baseStones?.length) {
-                game.baseStones = game.baseStones.filter((p) => !(p.x === x && p.y === y));
-            }
 
             const playerWhoMoved = myPlayerEnum;
             if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {

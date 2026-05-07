@@ -865,10 +865,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         'base_placement',
         'base_stone_color_choice',
         'base_same_color_points_bid',
-        'komi_bidding',
-        'komi_bid_reveal',
-        'base_color_roulette',
-        'base_komi_result',
         'base_game_start_confirmation',
     ];
     const freezeElapsedForBaseSetup = isBaseRules && basePrePlayFreezeStatuses.includes(session.gameStatus);

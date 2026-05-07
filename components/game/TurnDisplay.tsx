@@ -142,15 +142,8 @@ const getGameStatusText = (session: LiveGameSession): string => {
             return '선호하는 돌(흑/백)을 선택하세요.';
         case 'base_same_color_points_bid':
             return '같은 돌 선택 — 상대에게 줄 점수를 정하세요.';
-        case 'komi_bidding':
-        case 'komi_bid_reveal':
-            return '원하는 돌 색과 추가 덤을 정하세요.';
-        case 'base_komi_result':
-            return '흑·백·덤 확정을 확인해 주세요.';
         case 'base_game_start_confirmation':
             return '대국 시작 버튼을 누르면 착수가 시작됩니다.';
-        case 'base_color_roulette':
-            return '흑·백 룰렛으로 선공을 정하는 중입니다…';
         case 'ended':
             return '대국 종료';
         case 'no_contest':
@@ -399,8 +392,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             (session.mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Base))));
 
     const isKomiBiddingScoreboard =
-        (session.gameStatus === 'komi_bidding' ||
-            session.gameStatus === 'base_stone_color_choice' ||
+        (session.gameStatus === 'base_stone_color_choice' ||
             session.gameStatus === 'base_same_color_points_bid') &&
         (session.mode === GameMode.Base ||
             (session.mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Base))));

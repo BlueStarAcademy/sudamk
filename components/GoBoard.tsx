@@ -630,12 +630,18 @@ interface GoBoardProps {
   strategicPetHintOverlay?: { x: number; y: number } | null;
   /** 페어 방장: 양측 베이스돌을 모두 직접 배치할 때 오버레이·중복클릭 방지에 p1+p2를 함께 사용 */
   isPairBasePlacementHost?: boolean;
+  baseStonesP1Player?: Player;
+  baseStonesP2Player?: Player;
+  /** `base_placement`에서 아직 놓을 베이스돌이 있을 때만 교차점 호버 미리보기. 미전달이면 기존과 동일 */
+  canPlaceMoreBaseStones?: boolean;
 }
 
 const GoBoard: React.FC<GoBoardProps> = (props) => {
     const { 
         boardState, boardSize, onBoardClick, onMissileLaunch, lastMove, lastTurnStones, isBoardDisabled, 
         stoneColor, winningLine, hiddenMoves, moveHistory, baseStones, baseStones_p1, baseStones_p2,
+        baseStonesP1Player = Player.Black,
+        baseStonesP2Player = Player.White,
         myPlayerEnum,
         gameStatus,
         highlightedPoints,
@@ -658,6 +664,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         onboardingForcedFirstMovePoint = null,
         strategicPetHintOverlay = null,
         isPairBasePlacementHost = false,
+        canPlaceMoreBaseStones,
     } = props;
     /** playing 중에 세션에 남은 stale newlyRevealed로 스파클·가시성이 매 수 재생되는 것 방지 */
     const isHiddenRevealStatus =
@@ -1435,8 +1442,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
     const myBaseStonesForPlacement = useMemo(() => {
         if (gameStatus !== 'base_placement') return null;
-        return myPlayerEnum === Player.Black ? baseStones_p1 : baseStones_p2;
-    }, [gameStatus, myPlayerEnum, baseStones_p1, baseStones_p2]);
+        if (baseStonesP1Player === myPlayerEnum) return baseStones_p1;
+        if (baseStonesP2Player === myPlayerEnum) return baseStones_p2;
+        return null;
+    }, [gameStatus, myPlayerEnum, baseStones_p1, baseStones_p2, baseStonesP1Player, baseStonesP2Player]);
 
 
     const isOpponentHiddenStoneAtPos = (pos: Point): boolean => {
@@ -1455,10 +1464,18 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     
     const isGameFinished = gameStatus === 'ended' || gameStatus === 'no_contest';
 
-    const showHoverPreview = hoverPos && !isBoardDisabled && gameStatus !== 'scanning' && !isMissileSelectingActive && (
-        displayBoardState[hoverPos.y][hoverPos.x] === Player.None || 
-        isOpponentHiddenStoneAtPos(hoverPos)
-    );
+    const basePlacementHoverAllowed =
+        gameStatus !== 'base_placement' ||
+        canPlaceMoreBaseStones === undefined ||
+        canPlaceMoreBaseStones === true;
+
+    const showHoverPreview =
+        basePlacementHoverAllowed &&
+        hoverPos &&
+        !isBoardDisabled &&
+        gameStatus !== 'scanning' &&
+        !isMissileSelectingActive &&
+        (displayBoardState[hoverPos.y][hoverPos.x] === Player.None || isOpponentHiddenStoneAtPos(hoverPos));
     
     const renderDeadStoneMarkers = () => {
         if (!showTerritoryOverlay || !analysisResult || !analysisResult.deadStones) return null;
@@ -1987,7 +2004,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                             const { cx, cy } = toSvgCoords(stone);
                             return (
                                 <g key={`my-base-p1-${i}`} opacity={0.7} className="animate-fade-in">
-                                    <Stone player={Player.Black} cx={cx} cy={cy} isBaseStone radius={stone_radius} />
+                                    <Stone player={baseStonesP1Player} cx={cx} cy={cy} isBaseStone radius={stone_radius} />
                                 </g>
                             );
                         })}
@@ -1995,7 +2012,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                             const { cx, cy } = toSvgCoords(stone);
                             return (
                                 <g key={`my-base-p2-${i}`} opacity={0.7} className="animate-fade-in">
-                                    <Stone player={Player.White} cx={cx} cy={cy} isBaseStone radius={stone_radius} />
+                                    <Stone player={baseStonesP2Player} cx={cx} cy={cy} isBaseStone radius={stone_radius} />
                                 </g>
                             );
                         })}
@@ -2010,8 +2027,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         );
                     })
                 )}
-                {(gameStatus === 'komi_bidding' ||
-                    gameStatus === 'base_stone_color_choice' ||
+                {(gameStatus === 'base_stone_color_choice' ||
                     gameStatus === 'base_same_color_points_bid') && (
                     <>
                         {baseStones_p1?.map((stone, i) => {
@@ -2019,7 +2035,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                             return (
                                 <Stone
                                     key={`komi-base-p1-${i}`}
-                                    player={Player.Black}
+                                    player={baseStonesP1Player}
                                     cx={cx}
                                     cy={cy}
                                     isBaseStone
@@ -2032,7 +2048,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                             return (
                                 <Stone
                                     key={`komi-base-p2-${i}`}
-                                    player={Player.White}
+                                    player={baseStonesP2Player}
                                     cx={cx}
                                     cy={cy}
                                     isBaseStone

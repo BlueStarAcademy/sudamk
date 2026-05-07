@@ -92,6 +92,22 @@ type GuildWarDataCacheEntry = {
 };
 const guildWarDataCacheByUser = new Map<string, GuildWarDataCacheEntry>();
 const GUILD_WAR_DATA_CACHE_MS = 5000;
+const GUILD_WAR_COMPLETED_HISTORY_KV = 'guildWarCompletedHistory';
+
+type GuildWarRewardBundle = {
+    guildCoins: number;
+    guildXp: number;
+    researchPoints: number;
+    gold: number;
+    diamonds: number;
+};
+type GuildWarRewardRangeBundle = {
+    guildCoins: { min: number; max: number };
+    guildXp: number;
+    researchPoints: { min: number; max: number };
+    gold: { min: number; max: number };
+    diamonds: { min: number; max: number };
+};
 
 function parseEpochMs(value: unknown): number | null {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -102,6 +118,65 @@ function parseEpochMs(value: unknown): number | null {
         if (Number.isFinite(n)) return n;
     }
     return null;
+}
+
+function dedupeCompletedGuildWars(wars: any[]): any[] {
+    const byId = new Map<string, any>();
+    for (const war of wars) {
+        if (!war?.id || String(war.status).toLowerCase() !== 'completed' || !war.result?.winnerId) continue;
+        byId.set(String(war.id), war);
+    }
+    return Array.from(byId.values()).sort((a: any, b: any) => {
+        const bEnd = parseEpochMs(b.endTime) ?? parseEpochMs(b.updatedAt) ?? 0;
+        const aEnd = parseEpochMs(a.endTime) ?? parseEpochMs(a.updatedAt) ?? 0;
+        return bEnd - aEnd;
+    });
+}
+
+function getGuildWarRewardRanges(isWinner: boolean, isFriSunWar: boolean): GuildWarRewardRangeBundle {
+    if (isFriSunWar) {
+        return {
+            guildCoins: isWinner ? { min: 150, max: 280 } : { min: 20, max: 70 },
+            guildXp: isWinner ? 15000 : 3500,
+            researchPoints: isWinner ? { min: 1500, max: 4000 } : { min: 200, max: 1200 },
+            gold: isWinner ? { min: 4500, max: 7000 } : { min: 800, max: 1500 },
+            diamonds: isWinner ? { min: 30, max: 70 } : { min: 8, max: 18 },
+        };
+    }
+    return {
+        guildCoins: isWinner ? { min: 100, max: 200 } : { min: 10, max: 50 },
+        guildXp: isWinner ? 10000 : 2000,
+        researchPoints: isWinner ? { min: 1000, max: 3000 } : { min: 100, max: 1000 },
+        gold: isWinner ? { min: 3000, max: 5000 } : { min: 500, max: 1000 },
+        diamonds: isWinner ? { min: 20, max: 50 } : { min: 5, max: 10 },
+    };
+}
+
+function rollGuildWarRewards(isWinner: boolean, isFriSunWar: boolean): GuildWarRewardBundle {
+    const ranges = getGuildWarRewardRanges(isWinner, isFriSunWar);
+    return {
+        guildCoins: getRandomInt(ranges.guildCoins.min, ranges.guildCoins.max),
+        guildXp: ranges.guildXp,
+        researchPoints: getRandomInt(ranges.researchPoints.min, ranges.researchPoints.max),
+        gold: getRandomInt(ranges.gold.min, ranges.gold.max),
+        diamonds: getRandomInt(ranges.diamonds.min, ranges.diamonds.max),
+    };
+}
+
+async function upsertCompletedGuildWarHistory(updatedWar: any): Promise<void> {
+    if (!updatedWar?.id) return;
+    const history = await db.getKV<any[]>(GUILD_WAR_COMPLETED_HISTORY_KV) || [];
+    const byId = new Map<string, any>();
+    for (const war of history) {
+        if (war?.id) byId.set(String(war.id), war);
+    }
+    byId.set(String(updatedWar.id), JSON.parse(JSON.stringify(updatedWar)));
+    const nextHistory = Array.from(byId.values()).sort((a: any, b: any) => {
+        const bEnd = parseEpochMs(b.endTime) ?? parseEpochMs(b.updatedAt) ?? 0;
+        const aEnd = parseEpochMs(a.endTime) ?? parseEpochMs(a.updatedAt) ?? 0;
+        return bEnd - aEnd;
+    }).slice(0, 50);
+    await db.setKV(GUILD_WAR_COMPLETED_HISTORY_KV, nextHistory);
 }
 
 /**
@@ -2405,18 +2480,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 warActionCooldown = lastWarAction + cooldownTime;
             }
 
-            const completedForGuild = activeWars
-                .filter(
-                    (w: any) =>
-                        (w.guild1Id === user.guildId || w.guild2Id === user.guildId) &&
-                        w.status === 'completed' &&
-                        w.result?.winnerId
-                )
-                .sort((a: any, b: any) => {
-                    const bEnd = parseEpochMs(b.endTime) ?? 0;
-                    const aEnd = parseEpochMs(a.endTime) ?? 0;
-                    return bEnd - aEnd;
-                });
+            const completedHistory = await db.getKV<any[]>(GUILD_WAR_COMPLETED_HISTORY_KV) || [];
+            const completedForGuild = dedupeCompletedGuildWars([...activeWars, ...completedHistory]).filter(
+                (w: any) => w.guild1Id === user.guildId || w.guild2Id === user.guildId
+            );
             const latestCompletedWar = completedForGuild[0];
             const activeWar =
                 warInProgress
@@ -2430,12 +2497,6 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const claimedRewards = await db.getKV<Record<string, string[]>>('guildWarClaimedRewards') || {};
             let guildWarLatestCompletedRewardClaimed = false;
             let guildWarRewardClaimable = false;
-            const claimWindowActiveWar = activeWars.find(
-                (w: any) =>
-                    (w.guild1Id === user.guildId || w.guild2Id === user.guildId) &&
-                    String((w as { status?: unknown }).status ?? '').toLowerCase() === 'active'
-            );
-            const claimWindowEndsAt = claimWindowActiveWar ? (parseEpochMs((claimWindowActiveWar as any).endTime) ?? null) : null;
             if (latestCompletedWar?.id) {
                 guildWarLatestCompletedRewardClaimed = !!claimedRewards[latestCompletedWar.id]?.includes(effectiveUserId);
                 const latestCompletedEndMs = parseEpochMs((latestCompletedWar as any).endTime) ?? 0;
@@ -2444,16 +2505,15 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     latestCompletedEndMs + 60 * 60 * 1000;
                 guildWarRewardClaimable =
                     !guildWarLatestCompletedRewardClaimed &&
-                    now >= rewardAvailableAt &&
-                    (claimWindowEndsAt == null || now <= claimWindowEndsAt);
+                    now >= rewardAvailableAt;
             }
             
             // 누적 전쟁 기록 및 마지막 상대 기록 계산
             const myGuildId = user.guildId;
-            const completedWars = activeWars.filter((w: any) => w.status === 'completed' && w.result?.winnerId);
+            const completedWars = completedForGuild;
             let totalWins = 0;
             let totalLosses = 0;
-            let lastOpponent: { name: string; isWin: boolean; ourStars: number; enemyStars: number; ourScore: number; enemyScore: number; guildXp?: number; researchPoints?: number } | null = null;
+            let lastOpponent: { name: string; isWin: boolean; ourStars: number; enemyStars: number; ourScore: number; enemyScore: number; guildXp?: number; researchPoints?: number; rewardPreview?: GuildWarRewardRangeBundle; rewardClaimed?: boolean; rewardClaimable?: boolean; rewardAvailableAt?: number; isBotGuild?: boolean } | null = null;
             
             for (const w of completedWars) {
                 const isGuild1 = w.guild1Id === myGuildId;
@@ -2463,26 +2523,32 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             }
             
             // 마지막 완료된 전쟁 (가장 최근)
-            const lastCompleted = [...completedWars].sort((a: any, b: any) => {
-                const bTs = parseEpochMs(b.endTime) ?? parseEpochMs(b.updatedAt) ?? 0;
-                const aTs = parseEpochMs(a.endTime) ?? parseEpochMs(a.updatedAt) ?? 0;
-                return bTs - aTs;
-            })[0];
+            const lastCompleted = completedWars[0];
             let myRecordInLastWar: { contributedStars: number } | null = null;
             if (lastCompleted && lastCompleted.result) {
                 const isGuild1 = lastCompleted.guild1Id === myGuildId;
                 const opponentId = isGuild1 ? lastCompleted.guild2Id : lastCompleted.guild1Id;
+                const isBotOpponent = (lastCompleted as any).isBotGuild || opponentId === GUILD_WAR_BOT_GUILD_ID;
                 const opponentGuild = guilds[opponentId];
                 const r = lastCompleted.result;
+                const isWin = r.winnerId === myGuildId;
+                const rewardAvailableAt =
+                    (lastCompleted as any).rewardAvailableAt ??
+                    (parseEpochMs((lastCompleted as any).endTime) ?? 0) + 60 * 60 * 1000;
                 lastOpponent = {
-                    name: opponentGuild?.name ?? '상대 길드',
-                    isWin: r.winnerId === myGuildId,
+                    name: opponentGuild?.name ?? (isBotOpponent ? '[시스템] 길드전 AI' : '상대 길드'),
+                    isWin,
                     ourStars: isGuild1 ? (r.guild1Stars ?? 0) : (r.guild2Stars ?? 0),
                     enemyStars: isGuild1 ? (r.guild2Stars ?? 0) : (r.guild1Stars ?? 0),
                     ourScore: isGuild1 ? (r.guild1Score ?? 0) : (r.guild2Score ?? 0),
                     enemyScore: isGuild1 ? (r.guild2Score ?? 0) : (r.guild1Score ?? 0),
                     guildXp: (lastCompleted as any).sharedRewards?.guildXp,
                     researchPoints: (lastCompleted as any).sharedRewards?.researchPoints,
+                    rewardPreview: getGuildWarRewardRanges(isWin, (lastCompleted as any).warType === 'fri_sun'),
+                    rewardClaimed: guildWarLatestCompletedRewardClaimed,
+                    rewardClaimable: guildWarRewardClaimable,
+                    rewardAvailableAt,
+                    isBotGuild: isBotOpponent,
                 };
                 let contributedStars = 0;
                 for (const board of Object.values(lastCompleted.boards || {})) {
@@ -3746,71 +3812,30 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const claimedRewards = await db.getKV<Record<string, string[]>>('guildWarClaimedRewards') || {};
             const now = Date.now();
 
-            const myCompletedWars = activeWars
-                .filter(
-                    (w) =>
-                        w.status === 'completed' &&
-                        (w.guild1Id === user.guildId || w.guild2Id === user.guildId) &&
-                        w.result?.winnerId
-                )
-                .sort((a: any, b: any) => (b.endTime ?? 0) - (a.endTime ?? 0));
-            const claimWindowActiveWar = activeWars.find(
-                (w: any) =>
-                    (w.guild1Id === user.guildId || w.guild2Id === user.guildId) &&
-                    String((w as { status?: unknown }).status ?? '').toLowerCase() === 'active'
+            const completedHistory = await db.getKV<any[]>(GUILD_WAR_COMPLETED_HISTORY_KV) || [];
+            const myCompletedWars = dedupeCompletedGuildWars([...activeWars, ...completedHistory]).filter(
+                (w: any) => w.guild1Id === user.guildId || w.guild2Id === user.guildId
             );
-            const claimWindowEndsAt = claimWindowActiveWar ? (parseEpochMs((claimWindowActiveWar as any).endTime) ?? null) : null;
 
-            let myWar: any = null;
-            let blockedByCooldown = false;
-            let blockedByClaimWindow = false;
-            for (const w of myCompletedWars) {
-                if (claimedRewards[w.id]?.includes(effectiveUserId)) continue;
-                const rewardAvailableAt =
-                    (w as any).rewardAvailableAt ?? (w.endTime ?? 0) + 60 * 60 * 1000;
-                if (now < rewardAvailableAt) {
-                    blockedByCooldown = true;
-                    continue;
-                }
-                if (claimWindowEndsAt != null && now > claimWindowEndsAt) {
-                    blockedByClaimWindow = true;
-                    continue;
-                }
-                myWar = w;
-                break;
-            }
+            const myWar = myCompletedWars[0] ?? null;
+            const rewardAvailableAt = myWar
+                ? (myWar as any).rewardAvailableAt ?? (parseEpochMs((myWar as any).endTime) ?? 0) + 60 * 60 * 1000
+                : 0;
 
             if (!myWar) {
-                if (myCompletedWars.length === 0) {
-                    return { error: '받을 수 있는 보상이 없습니다.' };
-                }
-                if (blockedByCooldown) {
-                    return { error: '전쟁 종료 1시간 후(목요일·월요일 0시)부터 보상을 수령할 수 있습니다.' };
-                }
-                if (blockedByClaimWindow) {
-                    return { error: '직전 길드전 보상은 이번 길드전 종료 시점까지만 수령할 수 있습니다.' };
-                }
-                return { error: '이미 보상을 받았습니다.' };
+                return { error: '받을 수 있는 직전 길드전 보상이 없습니다.' };
+            }
+            if (claimedRewards[myWar.id]?.includes(effectiveUserId)) {
+                return { error: '이미 직전 길드전 보상을 받았습니다.' };
+            }
+            if (now < rewardAvailableAt) {
+                return { error: '전쟁 종료 1시간 후(목요일·월요일 0시)부터 보상을 수령할 수 있습니다.' };
             }
             
             const isWinner = myWar.result?.winnerId === user.guildId;
             const isFriSunWar = (myWar as any).warType === 'fri_sun'; // 금~일 전쟁은 보상 상향
 
-            const rewards = isFriSunWar
-                ? {
-                    guildCoins: isWinner ? getRandomInt(150, 280) : getRandomInt(20, 70),
-                    guildXp: isWinner ? 15000 : 3500,
-                    researchPoints: isWinner ? getRandomInt(1500, 4000) : getRandomInt(200, 1200),
-                    gold: isWinner ? getRandomInt(4500, 7000) : getRandomInt(800, 1500),
-                    diamonds: isWinner ? getRandomInt(30, 70) : getRandomInt(8, 18),
-                  }
-                : {
-                    guildCoins: isWinner ? getRandomInt(100, 200) : getRandomInt(10, 50),
-                    guildXp: isWinner ? 10000 : 2000,
-                    researchPoints: isWinner ? getRandomInt(1000, 3000) : getRandomInt(100, 1000),
-                    gold: isWinner ? getRandomInt(3000, 5000) : getRandomInt(500, 1000),
-                    diamonds: isWinner ? getRandomInt(20, 50) : getRandomInt(5, 10),
-                  };
+            const rewards = rollGuildWarRewards(isWinner, isFriSunWar);
             
             // 최신 사용자 데이터 로드
             const freshUser = await db.getUser(user.id);
@@ -3832,8 +3857,13 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             // 공동보상(길드경험치, 연구포인트) 저장 - 마지막 상대 기록 표시용
             if (!(myWar as any).sharedRewards) {
                 (myWar as any).sharedRewards = { guildXp: rewards.guildXp, researchPoints: rewards.researchPoints };
-                await db.setKV('activeGuildWars', activeWars);
+                const activeWarToUpdate = activeWars.find((w: any) => w?.id === myWar.id);
+                if (activeWarToUpdate) {
+                    (activeWarToUpdate as any).sharedRewards = (myWar as any).sharedRewards;
+                    await db.setKV('activeGuildWars', activeWars);
+                }
             }
+            await upsertCompletedGuildWarHistory(myWar);
             // 받기 기록 저장
             if (!claimedRewards[myWar.id]) {
                 claimedRewards[myWar.id] = [];
@@ -3841,6 +3871,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             claimedRewards[myWar.id].push(effectiveUserId);
             await db.setKV('guildWarClaimedRewards', claimedRewards);
             await db.setKV('guilds', guilds);
+            guildWarDataCacheByUser.delete(effectiveUserId);
             
             await db.updateUser(freshUser);
             

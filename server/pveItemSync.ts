@@ -144,6 +144,36 @@ function reconcileMoveHistoryCoordsToBoardState(game: LiveGameSession): void {
     }
 }
 
+const BASE_PRE_PLAY_STATUSES = new Set([
+    'base_placement',
+    'base_stone_color_choice',
+    'base_same_color_points_bid',
+    'base_game_start_confirmation',
+]);
+
+function preserveBaseStonesAfterClientSync(
+    game: LiveGameSession,
+    serverBaseStonesSnapshot: NonNullable<LiveGameSession['baseStones']> | undefined,
+    syncAdvancesServerMoves: boolean
+): void {
+    if (!serverBaseStonesSnapshot?.length || !Array.isArray(game.boardState)) return;
+
+    if (!syncAdvancesServerMoves) {
+        game.baseStones = serverBaseStonesSnapshot.map((stone) => ({ ...stone }));
+        for (const stone of game.baseStones) {
+            if (game.boardState[stone.y]?.[stone.x] !== undefined) {
+                game.boardState[stone.y][stone.x] = stone.player;
+            }
+        }
+        return;
+    }
+
+    // 클라 수순이 서버보다 앞선 경우에는 해당 좌표가 비었거나 다른 색이면 실제로 잡힌 것으로 본다.
+    game.baseStones = serverBaseStonesSnapshot
+        .filter((stone) => game.boardState[stone.y]?.[stone.x] === stone.player)
+        .map((stone) => ({ ...stone }));
+}
+
 /** PVE: 클라(TOWER_CLIENT_MOVE 등)만 앞서 있는 판·hiddenMoves를 아이템 액션 직전 서버 세션에 반영 */
 export function applyPveItemActionClientSync(
     game: LiveGameSession,
@@ -161,14 +191,20 @@ export function applyPveItemActionClientSync(
         ? (game as { aiInitialHiddenStoneIsPrePlaced?: unknown }).aiInitialHiddenStoneIsPrePlaced
         : undefined;
 
-    const serverCurrentPlayer = game.currentPlayer;
     const serverMoveHistoryLength = Array.isArray(game.moveHistory) ? game.moveHistory.length : 0;
+    const serverBaseStonesSnapshot = game.baseStones?.map((stone) => ({ ...stone }));
     const syncedBoardState = sync.boardState.map((row: number[]) => [...row]);
     const syncedMoveHistory = sync.moveHistory.map((m) => ({ ...m }));
     const syncAdvancesServerMoves = syncedMoveHistory.length > serverMoveHistoryLength;
+    const syncStatusString = String(sync.gameStatus ?? '');
+    const syncCanReplaceServerProgress =
+        syncAdvancesServerMoves || (serverMoveHistoryLength === 0 && !BASE_PRE_PLAY_STATUSES.has(syncStatusString));
     keepServerAiMoveHistoryStable(game, syncedMoveHistory, syncedBoardState);
-    game.boardState = syncedBoardState;
-    game.moveHistory = syncedMoveHistory;
+    if (syncCanReplaceServerProgress) {
+        game.boardState = syncedBoardState;
+        game.moveHistory = syncedMoveHistory;
+    }
+    preserveBaseStonesAfterClientSync(game, serverBaseStonesSnapshot, syncAdvancesServerMoves);
     if (!preserveHiddenMeta && sync.hiddenMoves != null && typeof sync.hiddenMoves === 'object') {
         // Stale clientSync must never erase server-confirmed hidden metadata.
         // In particular, AI hidden item flow records hiddenMoves on the server after the thinking animation.
@@ -200,12 +236,10 @@ export function applyPveItemActionClientSync(
         }
     }
     if (sync.currentPlayer !== undefined && sync.currentPlayer !== null) {
-        const staleSyncWouldSkipAiTurn =
-            !syncAdvancesServerMoves &&
-            isAiControlledPlayer(game, serverCurrentPlayer) &&
-            !isAiControlledPlayer(game, sync.currentPlayer);
-        if (!staleSyncWouldSkipAiTurn) {
-        game.currentPlayer = sync.currentPlayer;
+        // 오래된 sync는 서버의 최신 차례를 절대 되감지 않는다.
+        // 베이스 시작 직후 stale sync가 유저 턴을 다시 AI(흑) 턴으로 바꿔 흑이 두 번 두는 문제가 있었다.
+        if (syncCanReplaceServerProgress) {
+            game.currentPlayer = sync.currentPlayer;
         }
     }
     if (sync.gameStatus !== undefined && sync.gameStatus !== null) {
@@ -220,7 +254,11 @@ export function applyPveItemActionClientSync(
             srv === 'scanning' ||
             srv === 'scanning_animating' ||
             srv === 'hidden_reveal_animating';
-        if (!(serverItemUi && cli === 'playing')) {
+        const staleBasePrePlayRewind =
+            !syncCanReplaceServerProgress &&
+            (srv === 'playing' || srv === 'hidden_placing') &&
+            BASE_PRE_PLAY_STATUSES.has(cli);
+        if (!(serverItemUi && cli === 'playing') && !staleBasePrePlayRewind) {
             (game as { gameStatus: LiveGameSession['gameStatus'] }).gameStatus = sync.gameStatus;
         }
     }
@@ -231,7 +269,11 @@ export function applyPveItemActionClientSync(
         game.koInfo = sync.koInfo ?? null;
     }
     if (sync.totalTurns != null && Number.isFinite(sync.totalTurns)) {
-        game.totalTurns = sync.totalTurns;
+        const serverTotalTurns = Number(game.totalTurns ?? 0);
+        const syncedTotalTurns = Math.floor(sync.totalTurns);
+        if (syncCanReplaceServerProgress || syncedTotalTurns >= serverTotalTurns) {
+            game.totalTurns = syncedTotalTurns;
+        }
     }
     reconcileMoveHistoryCoordsToBoardState(game);
 

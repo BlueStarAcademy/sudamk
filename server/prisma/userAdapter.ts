@@ -477,6 +477,10 @@ const applyDefaults = (
     lastStatResetDate: user.lastStatResetDate ?? null,
     singlePlayerProgress: user.singlePlayerProgress ?? 0,
     clearedSinglePlayerStages: user.clearedSinglePlayerStages ?? [],
+    singlePlayerClassBarClaims:
+        user.singlePlayerClassBarClaims ??
+        (status?.serializedUser as User | undefined)?.singlePlayerClassBarClaims ??
+        {},
     bonusStatPoints: user.bonusStatPoints ?? 0,
     singlePlayerMissions: user.singlePlayerMissions ?? {},
     guildId: user.guildId ?? undefined,

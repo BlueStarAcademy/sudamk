@@ -1,6 +1,7 @@
 import * as db from './db.js';
 import {
     DEFAULT_SINGLE_PLAYER_STAGES,
+    SINGLE_PLAYER_STAGES_BASE,
 } from '../shared/constants/singlePlayerConstants.js';
 import { GameMode, SinglePlayerAiBaseKomiBid, SinglePlayerStageInfo, SinglePlayerStrategicRulePreset } from '../types/index.js';
 import { ensureMixModesMinTwoAfterBaseCaptureSanitize } from '../shared/utils/singlePlayerMixBaseCaptureExclusive.js';
@@ -8,6 +9,11 @@ import { ensureMixModesMinTwoAfterBaseCaptureSanitize } from '../shared/utils/si
 const SINGLE_PLAYER_STAGE_OVERRIDE_KV_KEY = 'singlePlayerStagesOverride';
 
 type StageRow = (typeof DEFAULT_SINGLE_PLAYER_STAGES)[number];
+
+/** KV·관리자 편집은 스테이지 파라미터만 바꾸고, 골드·EXP·아이템·보너스 보상은 코드 기본값만 사용 */
+const CANONICAL_SINGLE_PLAYER_REWARDS_BY_ID = new Map(
+    SINGLE_PLAYER_STAGES_BASE.map((s) => [s.id, s.rewards] as const)
+);
 
 const clampInt = (value: unknown, min: number, max: number, fallback: number): number => {
     const n = Number(value);
@@ -432,26 +438,24 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
         forceAiResponsesOnHiddenTurnsOnly: row.forceAiResponsesOnHiddenTurnsOnly === true ? true : undefined,
         missileCount: normalizeOptionalPositiveIntFromRow(row, 'missileCount', 99),
         autoScoringTurns: normalizeOptionalPositiveIntFromRow(row, 'autoScoringTurns', 999),
-        rewards: {
-            firstClear: {
-                gold: clampInt((row.rewards as any)?.firstClear?.gold, 0, 9999999, fallback.rewards.firstClear.gold),
-                exp: clampInt((row.rewards as any)?.firstClear?.exp, 0, 9999999, fallback.rewards.firstClear.exp),
-                bonus:
-                    typeof (row.rewards as any)?.firstClear?.bonus === 'string'
-                        ? (row.rewards as any).firstClear.bonus
-                        : fallback.rewards.firstClear.bonus,
-                items: normalizeItemRewardList((row.rewards as any)?.firstClear?.items) ?? fallback.rewards.firstClear.items,
-            },
-            repeatClear: {
-                gold: clampInt((row.rewards as any)?.repeatClear?.gold, 0, 9999999, fallback.rewards.repeatClear.gold),
-                exp: clampInt((row.rewards as any)?.repeatClear?.exp, 0, 9999999, fallback.rewards.repeatClear.exp),
-                bonus:
-                    typeof (row.rewards as any)?.repeatClear?.bonus === 'string'
-                        ? (row.rewards as any).repeatClear.bonus
-                        : fallback.rewards.repeatClear.bonus,
-                items: normalizeItemRewardList((row.rewards as any)?.repeatClear?.items) ?? fallback.rewards.repeatClear.items,
-            },
-        },
+        rewards: (() => {
+            const src = CANONICAL_SINGLE_PLAYER_REWARDS_BY_ID.get(fallback.id) ?? fallback.rewards;
+            const cloneCell = (cell: SinglePlayerStageInfo['rewards']['firstClear']): SinglePlayerStageInfo['rewards']['firstClear'] => {
+                const out: SinglePlayerStageInfo['rewards']['firstClear'] = {
+                    gold: cell.gold,
+                    exp: cell.exp,
+                };
+                if (typeof cell.bonus === 'string' && cell.bonus.length > 0) out.bonus = cell.bonus;
+                if (Array.isArray(cell.items) && cell.items.length > 0) {
+                    out.items = cell.items.map((i) => ({ itemId: i.itemId, quantity: i.quantity }));
+                }
+                return out;
+            };
+            return {
+                firstClear: cloneCell(src.firstClear),
+                repeatClear: cloneCell(src.repeatClear),
+            };
+        })(),
         baseStones: normalizeOptionalPositiveIntFromRow(row, 'baseStones', 20),
         singlePlayerAiBaseKomiBid: normalizeSinglePlayerAiBaseKomiBid((row as Record<string, unknown>).singlePlayerAiBaseKomiBid),
         fixedOpening: fixedOpening?.length ? fixedOpening : undefined,

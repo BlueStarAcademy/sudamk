@@ -1150,13 +1150,10 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                     game.gameStatus === 'scanning' ||
                     game.gameStatus === 'missile_selecting' ||
                     // 베이스/니기리/따내기 등 사전 단계: 모험·길드전은 isPVEGame 때문에 루프에서 빠지면
-                    // updateStrategicGameState가 호출되지 않아 배치 완료 후 멈춤(komi_bidding 미진입 등)이 난다.
+                    // updateStrategicGameState가 호출되지 않아 배치 완료 후 다음 단계 진입이 멈춘다.
                     game.gameStatus === 'base_placement' ||
                     game.gameStatus === 'base_stone_color_choice' ||
                     game.gameStatus === 'base_same_color_points_bid' ||
-                    game.gameStatus === 'komi_bidding' ||
-                    game.gameStatus === 'komi_bid_reveal' ||
-                    game.gameStatus === 'base_color_roulette' ||
                     game.gameStatus === 'base_game_start_confirmation' ||
                     game.gameStatus === 'nigiri_choosing' ||
                     game.gameStatus === 'nigiri_guessing' ||
@@ -1174,10 +1171,6 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                     'base_placement',
                     'base_stone_color_choice',
                     'base_same_color_points_bid',
-                    'komi_bidding',
-                    'komi_bid_reveal',
-                    'base_color_roulette',
-                    'base_komi_result',
                     'base_game_start_confirmation',
                 ].includes(game.gameStatus);
             // 싱글 베이스 사전 단계는 `needsSinglePlayerBasePrePlayTick`으로 처리(도전의 탑 등에는 베이스 모드 없음).

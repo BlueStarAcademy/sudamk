@@ -7,6 +7,7 @@ import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { readPairRankedBlock } from '../../shared/utils/unifiedRankedStatsMigration.js';
 import { RANKED_ELO_BASE_SCORE } from '../../shared/constants/rules.js';
+import { userArenaChannelBadge } from '../../shared/utils/unifiedArenaLobbyUserList.js';
 
 type UserListStats = { wins: number; losses: number; winRate: number; score?: number };
 
@@ -69,6 +70,12 @@ const statusDisplay: Record<UserStatus, { text: string; color: string; }> = {
   'offline': { text: '오프라인', color: 'text-gray-500' },
 };
 
+const arenaBadgeClass: Record<string, string> = {
+    strategic: 'border-sky-400/40 bg-sky-500/15 text-sky-100',
+    pair: 'border-fuchsia-400/40 bg-fuchsia-500/15 text-fuchsia-100',
+    playful: 'border-amber-400/40 bg-amber-500/15 text-amber-100',
+};
+
 export type PairInviteListTab = 'users' | 'friends' | 'guild';
 
 interface PlayerListProps {
@@ -125,6 +132,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
 
     const renderUserItem = (user: UserWithStatus, isCurrentUser: boolean) => {
         const statusInfo = statusDisplay[user.status] ?? statusDisplay.offline;
+        const arenaBadge = userArenaChannelBadge(user);
         const isDiceGo = mode === GameMode.Dice;
 
         const listStats = computeUserListStats(user, mode);
@@ -181,13 +189,25 @@ const PlayerList: React.FC<PlayerListProps> = ({
                             )}
                         </div>
                         <div className="mt-0.5 flex min-w-0 w-full items-center justify-between gap-2">
-                            <span
-                                className={`shrink-0 ${statusInfo.color} ${
-                                    pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs' : 'text-xs'
-                                }`}
-                            >
-                                ● {statusInfo.text}
-                            </span>
+                            <div className="flex min-w-0 items-center gap-1.5">
+                                <span
+                                    className={`shrink-0 ${statusInfo.color} ${
+                                        pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs' : 'text-xs'
+                                    }`}
+                                >
+                                    ● {statusInfo.text}
+                                </span>
+                                {arenaBadge && (
+                                    <span
+                                        className={`shrink-0 rounded-full border px-1.5 py-0.5 font-bold leading-none ${
+                                            arenaBadgeClass[arenaBadge.channel] ?? arenaBadgeClass.strategic
+                                        } ${pairAlignedNativeCompact ? 'text-[0.58rem] sm:text-[10px]' : 'text-[10px]'}`}
+                                        title={`${arenaBadge.label} 경기장`}
+                                    >
+                                        {arenaBadge.label}
+                                    </span>
+                                )}
+                            </div>
                             {listStats ? (
                                 <span
                                     className={`shrink-0 text-right font-semibold tabular-nums text-secondary ${
