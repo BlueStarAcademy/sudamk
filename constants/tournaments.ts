@@ -8,6 +8,8 @@ export const TOURNAMENT_DEFINITIONS: Record<TournamentType, TournamentDefinition
     world: { id: 'world', name: '월드챔피언십', description: '세계 각국의 강자들이 모인 16강 토너먼트입니다.', format: 'tournament', players: 16, image: '/images/championship/Champ3.png' },
 };
 
+export { CHAMPIONSHIP_VENUE_LOBBY_BG_IMAGE, CHAMPIONSHIP_PVP_VENUE_BG_WEBP } from '../shared/constants/tournaments.js';
+
 export type TournamentRewardInfo = QuestReward;
 
 // 동네바둑리그 리그별 경기 보상 (승리/패배)
@@ -88,19 +90,7 @@ export const TOURNAMENT_SCORE_REWARDS: Record<TournamentType, Record<number, num
 
 // === 던전 시스템 상수 ===
 
-// 단계별 봇 능력치 범위 (각 능력치 개별 값)
-export const DUNGEON_STAGE_BOT_STATS: Record<number, { minStat: number; maxStat: number }> = {
-    1: { minStat: 120, maxStat: 120 },
-    2: { minStat: 140, maxStat: 140 },
-    3: { minStat: 180, maxStat: 180 },
-    4: { minStat: 240, maxStat: 240 },
-    5: { minStat: 300, maxStat: 300 },
-    6: { minStat: 360, maxStat: 360 },
-    7: { minStat: 420, maxStat: 420 },
-    8: { minStat: 500, maxStat: 500 },
-    9: { minStat: 560, maxStat: 560 },
-    10: { minStat: 620, maxStat: 620 },
-};
+export { DUNGEON_STAGE_BOT_STATS, DUNGEON_BOT_CORE_STAT_HALF_SPREAD } from '../shared/constants/tournaments.js';
 
 // 던전 타입별 능력치 배율
 export const DUNGEON_TYPE_MULTIPLIER: Record<TournamentType, number> = {

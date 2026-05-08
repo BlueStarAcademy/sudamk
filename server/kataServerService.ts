@@ -159,6 +159,8 @@ export interface GenerateKataServerMoveParams {
      * 길드전 등 서버 봇 경로에서만 소량 지정하는 것을 권장 (최대 5로 캡).
      */
     moveApiRetries?: number;
+    /** 대량 사전 생성용: 응답 후 체감 지연 없이 즉시 후보를 반환한다. */
+    skipApplyDelay?: boolean;
 }
 
 const inFlightKataServerMoveRequests = new Map<string, Promise<KataServerMoveCandidateDetails>>();
@@ -313,7 +315,9 @@ async function generateKataServerMoveCandidatesUncached(params: GenerateKataServ
             const r = await singleHttpAttempt();
             const hasCandidates = r.candidates.length > 0;
             if (hasCandidates || attempt === maxAttempts - 1) {
-                await sleep(KATA_APPLY_MOVE_DELAY_MS);
+                if (!params.skipApplyDelay) {
+                    await sleep(KATA_APPLY_MOVE_DELAY_MS);
+                }
                 return r;
             }
             console.warn(

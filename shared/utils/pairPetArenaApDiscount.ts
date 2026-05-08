@@ -90,3 +90,16 @@ export function effectivePvpEntryApCostForUser(
 export function trainingSoulBonusQuantityFromMeta(meta: Pick<PairPetMeta, 'specialization'> | null | undefined): number {
     return meta?.specialization?.kind === 'trainingSoulQuantityPlusOne' ? 1 : 0;
 }
+
+/**
+ * 버튼·푸터 등: 실제 소모량 + 대표 펫 할인 표기. 예: 기본 3·실제 2 → `2 (-1)`.
+ * (⚡ 접두는 호출부에서 붙인다)
+ */
+export function formatActionPointCostWithPetDiscount(baseCost: number, effectiveCost: number): string {
+    const base = Number(baseCost);
+    const eff = Number(effectiveCost);
+    if (!Number.isFinite(base) || !Number.isFinite(eff)) return String(Number.isFinite(eff) ? eff : base);
+    const discount = base - eff;
+    if (discount <= 0) return String(eff);
+    return `${eff} (-${discount})`;
+}

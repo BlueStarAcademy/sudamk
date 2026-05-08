@@ -1078,7 +1078,22 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
         
         case 'MISSILE_ANIMATION_COMPLETE' as any: {
             // 클라이언트가 애니메이션 완료를 알림
+            if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') {
+                return { clientResponse: { gameUpdated: true } };
+            }
             if (game.gameStatus !== 'missile_animating' && game.gameStatus !== 'playing') {
+                const spMissileAnimDupOk = new Set([
+                    'hidden_placing',
+                    'hidden_reveal_animating',
+                    'scanning',
+                    'scanning_animating',
+                    'hidden_final_reveal',
+                    'scoring',
+                    'missile_selecting',
+                ]);
+                if (spMissileAnimDupOk.has(String(game.gameStatus))) {
+                    return { clientResponse: { gameUpdated: true } };
+                }
                 console.warn(`[SinglePlayer Missile] MISSILE_ANIMATION_COMPLETE failed: gameStatus=${game.gameStatus}, expected=missile_animating or playing, gameId=${game.id}`);
                 return { error: "Not in missile animation state." };
             }

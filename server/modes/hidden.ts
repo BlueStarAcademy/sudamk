@@ -24,6 +24,7 @@ import {
 } from './hiddenScanShared.js';
 import { isStrategicAiGoSession } from '../../shared/utils/strategicBoardItemTurn.js';
 import { getCurrentPairTurnSeat, isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
+import { applyPairTurnAfterHiddenRevealCaptureResolved } from '../utils/pairTurnAfterHiddenRevealAnim.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -239,10 +240,6 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                             (game as any).aiInitialHiddenStone &&
                             (game as any).aiInitialHiddenStone.x === stone.x &&
                             (game as any).aiInitialHiddenStone.y === stone.y;
-                        const wasRevealedHidden = !!game.permanentlyRevealedStones?.some(
-                            (p) => p.x === stone.x && p.y === stone.y
-                        );
-                        
                         let points = 1;
                         let wasHiddenForEntry = false;
                         if (isBaseStone) {
@@ -257,7 +254,7 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                             const wasPattern = pveLike && consumeOpponentPatternStoneIfAny(game, stone, opponentPlayerEnum);
                             if (wasPattern) {
                                 points = 2;
-                            } else if (wasHidden || wasAiInitialHidden || wasRevealedHidden) {
+                            } else if (wasHidden || wasAiInitialHidden) {
                                 game.hiddenStoneCaptures[myPlayerEnum] = (game.hiddenStoneCaptures[myPlayerEnum] || 0) + 1;
                                 points = 5;
                                 wasHiddenForEntry = true;
@@ -269,7 +266,7 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                         game.justCaptured.push({
                             point: stone,
                             player: opponentPlayerEnum,
-                            wasHidden: wasHiddenForEntry || wasAiInitialHidden || wasRevealedHidden,
+                            wasHidden: wasHiddenForEntry || wasAiInitialHidden,
                             capturePoints: points,
                             ...(isBaseStone ? { wasBaseStone: true as const } : {}),
                         });
@@ -323,7 +320,16 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                 }
                 
                 const preserveTurnAfterOpponentHiddenReveal = !!(cap as any).preserveTurnAfterOpponentHiddenReveal;
-                game.currentPlayer = preserveTurnAfterOpponentHiddenReveal ? playerWhoMoved : nextPlayer;
+                if (isPairClassicGame(game.settings, game.mode)) {
+                    applyPairTurnAfterHiddenRevealCaptureResolved(
+                        game,
+                        now,
+                        preserveTurnAfterOpponentHiddenReveal,
+                        playerWhoMoved
+                    );
+                } else {
+                    game.currentPlayer = preserveTurnAfterOpponentHiddenReveal ? playerWhoMoved : nextPlayer;
+                }
 
                 if (shouldEnforceTimeControl(game) && game.settings.timeLimit > 0) {
                     const nextTimeKey = game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';

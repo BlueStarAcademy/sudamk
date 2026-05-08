@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     apCostAfterPairPetArenaDiscount,
     effectiveStrategicRankedQueueApCostForUser,
+    formatActionPointCostWithPetDiscount,
     trainingSoulBonusQuantityFromMeta,
 } from '../../../shared/utils/pairPetArenaApDiscount.js';
 import { STRATEGIC_ACTION_POINT_COST } from '../../../shared/constants/rules.js';
@@ -26,5 +27,11 @@ describe('pairPetArenaApDiscount', () => {
 
     it('clamps ap at zero', () => {
         expect(apCostAfterPairPetArenaDiscount(1, 'strategic', { kind: 'strategicArenaApMinusOne' })).toBe(0);
+    });
+
+    it('formatActionPointCostWithPetDiscount shows (-n) when discounted', () => {
+        expect(formatActionPointCostWithPetDiscount(3, 2)).toBe('2 (-1)');
+        expect(formatActionPointCostWithPetDiscount(5, 5)).toBe('5');
+        expect(formatActionPointCostWithPetDiscount(5, 4)).toBe('4 (-1)');
     });
 });

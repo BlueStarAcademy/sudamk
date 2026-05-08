@@ -7,6 +7,7 @@ import Button from '../Button';
 import { TOURNAMENT_DEFINITIONS } from '../../constants';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
+import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 
 // Error Boundary for TournamentBracket
 class TournamentBracketErrorBoundary extends Component<
@@ -63,6 +64,9 @@ interface TournamentArenaProps {
 const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
     const { currentUserWithStatus, handlers, allUsers } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
+    const isHandheldViewport = useIsHandheldDevice(1025);
+    /** 네이티브 앱만이 아니라 좁은 뷰포트(모바일 브라우저)에서도 챔피언십 모바일 UI·하단 보상바를 쓴다 */
+    const isChampionshipMobileLayout = isNativeMobile || isHandheldViewport;
 
     // stateKey 결정
     let stateKey: keyof Pick<UserWithStatus, 'lastNeighborhoodTournament' | 'lastNationalTournament' | 'lastWorldTournament'>;
@@ -180,7 +184,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
     }
 
     return (
-        <div className="p-8 w-full flex flex-col h-full relative overflow-hidden min-h-0">
+        <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden text-white">
             {tournamentState && (
                 <TournamentBracketErrorBoundary>
                     <TournamentBracket 
@@ -210,7 +214,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
                         onReset={() => handlers.handleAction({ type: 'CLEAR_TOURNAMENT_SESSION', payload: { type: type } })}
                         onSkip={() => handlers.handleAction({ type: 'SKIP_TOURNAMENT_END', payload: { type: type } })}
                         onOpenShop={() => handlers.openShop('consumables')}
-                        isMobile={isNativeMobile}
+                        isMobile={isChampionshipMobileLayout}
                     />
                 </TournamentBracketErrorBoundary>
             )}

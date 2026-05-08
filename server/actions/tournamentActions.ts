@@ -3,7 +3,7 @@ import * as db from '../db.js';
 import { type ServerAction, type User, type VolatileState, TournamentType, PlayerForTournament, InventoryItem, InventoryItemType, TournamentState, LeagueTier, CoreStat, EquipmentSlot } from '../../types/index.js';
 import { ItemGrade } from '../../types/enums.js';
 import * as types from '../../types/index.js';
-import { TOURNAMENT_DEFINITIONS, BASE_TOURNAMENT_REWARDS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, TOURNAMENT_SCORE_REWARDS, BOT_NAMES, AVATAR_POOL, BORDER_POOL, DUNGEON_STAGE_BOT_STATS, DUNGEON_TYPE_MULTIPLIER, DUNGEON_RANK_REWARD_MULTIPLIER, DUNGEON_DEFAULT_REWARD_MULTIPLIER, DUNGEON_STAGE_BASE_REWARDS_GOLD, DUNGEON_STAGE_BASE_REWARDS_MATERIAL, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT, DUNGEON_STAGE_BASE_SCORE, DUNGEON_RANK_SCORE_BONUS, DUNGEON_DEFAULT_SCORE_BONUS, getDungeonRankRewardNeighborhood, getDungeonRankRewardNational, getDungeonRankRewardWorld } from '../../shared/constants';
+import { TOURNAMENT_DEFINITIONS, BASE_TOURNAMENT_REWARDS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, BOT_NAMES, AVATAR_POOL, BORDER_POOL, DUNGEON_STAGE_BOT_STATS, DUNGEON_TYPE_MULTIPLIER, DUNGEON_RANK_REWARD_MULTIPLIER, DUNGEON_DEFAULT_REWARD_MULTIPLIER, DUNGEON_STAGE_BASE_REWARDS_GOLD, DUNGEON_STAGE_BASE_REWARDS_MATERIAL, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT, DUNGEON_STAGE_BASE_SCORE, DUNGEON_RANK_SCORE_BONUS, DUNGEON_DEFAULT_SCORE_BONUS, getDungeonRankRewardNeighborhood, getDungeonRankRewardNational, getDungeonRankRewardWorld } from '../../shared/constants';
 import { updateQuestProgress } from '../questService.js';
 import { createItemFromTemplate, SHOP_ITEMS } from '../shop.js';
 import { isSameDayKST, getStartOfDayKST } from '../../utils/timeUtils.js';
@@ -17,6 +17,7 @@ import { createDefaultQuests } from '../initialData.js';
 import { getCachedUser, updateUserCache } from '../gameCache.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
+import { generateChampionshipRealMatch } from '../championshipRealMatchService.js';
 
 
 type HandleActionResult = { 
@@ -26,6 +27,48 @@ type HandleActionResult = {
 
 const ALL_SLOTS: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
 const GRADE_ORDER: ItemGrade[] = [ItemGrade.Normal, ItemGrade.Uncommon, ItemGrade.Rare, ItemGrade.Epic, ItemGrade.Legendary, ItemGrade.Mythic];
+
+async function scoreChampionshipRealGameWithKataGo(realGame: types.ChampionshipRealGameState, matchId: string) {
+    try {
+        const { analyzeGame, getScoringKataGoLimits } = await import('../kataGoService.js');
+        const limits = getScoringKataGoLimits();
+        const analysis = await analyzeGame({
+            id: `championship-scoring-${matchId}`,
+            boardState: realGame.boardState,
+            currentPlayer: types.Player.Black,
+            settings: { boardSize: realGame.boardSize, komi: 6.5 },
+            finalKomi: 6.5,
+            captures: {
+                [types.Player.None]: 0,
+                [types.Player.Black]: 0,
+                [types.Player.White]: 0,
+            },
+            moveHistory: realGame.moves,
+            baseStones: [],
+        } as any, {
+            maxVisits: limits.maxVisits,
+            maxTimeSec: limits.maxTimeSec,
+            includePolicy: false,
+            includeOwnership: true,
+        });
+
+        const black = analysis.areaScore?.black;
+        const white = analysis.areaScore?.white;
+        if (typeof black !== 'number' || typeof white !== 'number' || !Number.isFinite(black) || !Number.isFinite(white)) {
+            return null;
+        }
+
+        return {
+            black,
+            white,
+            scoreLead: black - white,
+            winnerId: black > white ? realGame.blackPlayerId : realGame.whitePlayerId,
+        };
+    } catch (error) {
+        console.warn(`[ChampionshipRealGame] KataGo scoring failed for match ${matchId}; using precomputed score.`, error);
+        return null;
+    }
+}
 
 const getRandomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -485,15 +528,15 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                         return; // 유저의 컨디션은 건드리지 않음
                     }
                     
-                    // 컨디션이 undefined, null, 1000이거나 유효 범위(40-100)를 벗어나면 새로 부여
-                    // 이미 유효한 컨디션이 있으면(40-100 사이) 다시 부여하지 않음
+                    // 컨디션이 undefined, null, 1000이거나 유효 범위(1-100)를 벗어나면 새로 부여
+                    // 이미 유효한 컨디션이 있으면(1-100 사이) 다시 부여하지 않음
                     const hasValidCondition = p.condition !== undefined && 
                                              p.condition !== null && 
                                              p.condition !== 1000 && 
-                                             p.condition >= 40 && 
+                                             p.condition >= 1 && 
                                              p.condition <= 100;
                     if (!hasValidCondition) {
-                        p.condition = Math.floor(Math.random() * 61) + 40; // 40-100
+                        p.condition = Math.floor(Math.random() * 100) + 1; // 1-100
                     }
                 });
             }
@@ -696,9 +739,9 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             
             // 회복제 타입별 정보
             const potionInfo = {
-                small: { name: '컨디션회복제(소)', minRecovery: 1, maxRecovery: 10, price: 100 },
-                medium: { name: '컨디션회복제(중)', minRecovery: 10, maxRecovery: 20, price: 150 },
-                large: { name: '컨디션회복제(대)', minRecovery: 20, maxRecovery: 30, price: 200 }
+                small: { name: '컨디션회복제(소)', minRecovery: 5, maxRecovery: 15, price: 100 },
+                medium: { name: '컨디션회복제(중)', minRecovery: 15, maxRecovery: 25, price: 150 },
+                large: { name: '컨디션회복제(대)', minRecovery: 25, maxRecovery: 35, price: 200 }
             }[potionType];
 
             if (!potionInfo) {
@@ -954,10 +997,10 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                     console.log(`[START_TOURNAMENT_MATCH] Player conditions before match start: p1=${p1?.condition}, p2=${p2?.condition}`);
                 }
                 // 컨디션이 유효하지 않으면(undefined, null, 1000, 또는 범위 밖) 경고
-                if (p1 && (p1.condition === undefined || p1.condition === null || p1.condition === 1000 || p1.condition < 40 || p1.condition > 100)) {
+                if (p1 && (p1.condition === undefined || p1.condition === null || p1.condition === 1000 || p1.condition < 1 || p1.condition > 100)) {
                     console.warn(`[START_TOURNAMENT_MATCH] Invalid condition for p1: ${p1.condition}`);
                 }
-                if (p2 && (p2.condition === undefined || p2.condition === null || p2.condition === 1000 || p2.condition < 40 || p2.condition > 100)) {
+                if (p2 && (p2.condition === undefined || p2.condition === null || p2.condition === 1000 || p2.condition < 1 || p2.condition > 100)) {
                     console.warn(`[START_TOURNAMENT_MATCH] Invalid condition for p2: ${p2.condition}`);
                 }
             }
@@ -965,12 +1008,23 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             // 경기 시작: 상태를 round_in_progress로 변경
             tournamentState.status = 'round_in_progress';
             tournamentState.currentSimulatingMatch = { roundIndex, matchIndex };
-            tournamentState.currentMatchCommentary = [];
+            // 중계는 매 경기 초기화하지 않고 직전 경기 멘트 위에 이어 붙인다.
+            // 경기 시작 멘트는 클라이언트 시뮬레이션이 ply===0에서 [경기 시작] 한 줄만 추가하므로
+            // 서버는 별도의 "...줄 챔피언십 실제 대국이 시작되었습니다." 멘트를 더하지 않는다 (중복 방지).
+            const accumulatedCommentary = Array.isArray(tournamentState.currentMatchCommentary)
+                ? tournamentState.currentMatchCommentary
+                : [];
             tournamentState.timeElapsed = 0;
             tournamentState.currentMatchScores = { player1: 0, player2: 0 };
-            
-            // 클라이언트 시뮬레이션을 위한 시드 생성
-            tournamentState.simulationSeed = randomUUID();
+
+            const realMatch = await generateChampionshipRealMatch(match, tournamentState.players, freshUser);
+            match.championshipRealGame = realMatch.game;
+            tournamentState.currentMatchScores = {
+                player1: realMatch.scorePercent.player1,
+                player2: realMatch.scorePercent.player2,
+            };
+            tournamentState.currentMatchCommentary = [...accumulatedCommentary];
+            tournamentState.simulationSeed = undefined;
             
             // 개발 모드에서만 상세 로그 출력
             if (process.env.NODE_ENV === 'development') {
@@ -1032,60 +1086,6 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             volatileState.activeTournaments[freshUser.id] = tournamentState;
 
             const justFinished = tournamentState.status === 'complete' || tournamentState.status === 'eliminated';
-            if (justFinished) {
-                let statusKey: keyof User;
-                switch (type) {
-                    case 'neighborhood':
-                        statusKey = 'neighborhoodRewardClaimed';
-                        break;
-                    case 'national':
-                        statusKey = 'nationalRewardClaimed';
-                        break;
-                    case 'world':
-                        statusKey = 'worldRewardClaimed';
-                        break;
-                    default:
-                        statusKey = 'neighborhoodRewardClaimed';
-                }
-
-                const alreadyClaimed = (freshUser as any)[statusKey];
-                if (!alreadyClaimed) {
-                    const { calculateRanks } = await import('../tournamentService.js');
-                    const { TOURNAMENT_SCORE_REWARDS } = await import('../../constants.js');
-
-                    try {
-                        const rankings = calculateRanks(tournamentState);
-                        const userRanking = rankings.find(r => r.id === freshUser.id);
-
-                        if (userRanking) {
-                            const userRank = userRanking.rank;
-                            const scoreRewardInfo = TOURNAMENT_SCORE_REWARDS[type];
-                            let scoreRewardKey: number;
-
-                            if (type === 'neighborhood') {
-                                scoreRewardKey = userRank;
-                            } else if (type === 'national') {
-                                scoreRewardKey = userRank <= 4 ? userRank : 5;
-                            } else {
-                                if (userRank <= 4) scoreRewardKey = userRank;
-                                else if (userRank <= 8) scoreRewardKey = 5;
-                                else scoreRewardKey = 9;
-                            }
-
-                            const scoreReward = scoreRewardInfo[scoreRewardKey];
-                            if (scoreReward !== undefined) {
-                                const oldCumulativeScore = freshUser.cumulativeTournamentScore || 0;
-                                freshUser.cumulativeTournamentScore = oldCumulativeScore + scoreReward;
-                                const oldScore = freshUser.tournamentScore || 0;
-                                freshUser.tournamentScore = oldScore + scoreReward;
-                                console.log(`[SKIP_CHAMPIONSHIP_MATCH] Auto-added score for ${type}: rank=${userRank}, scoreReward=${scoreReward}`);
-                            }
-                        }
-                    } catch (error: any) {
-                        console.error(`[SKIP_CHAMPIONSHIP_MATCH] Error calculating ranks for auto-score:`, error);
-                    }
-                }
-            }
 
             updateUserCache(freshUser);
             if (justFinished) {
@@ -1137,68 +1137,6 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             const advanced = await advanceSimulation(tournamentState, freshUser);
             if (!advanced) {
                 return {}; // 아직 진행할 시간이 안 됨
-            }
-
-            // 토너먼트 완료 시점에 점수 자동 합산 (보상 수령 여부와 관계없이)
-            // 하루에 한번씩 각 경기장에서 모은 점수를 합산하여 주간 경쟁에 사용
-            if ((tournamentState.status === 'complete' || tournamentState.status === 'eliminated') && 
-                (prevStatus !== 'complete' && prevStatus !== 'eliminated')) {
-                // 토너먼트가 방금 완료된 경우에만 점수 추가 (중복 추가 방지)
-                let statusKey: keyof User;
-                switch (type) {
-                    case 'neighborhood':
-                        statusKey = 'neighborhoodRewardClaimed';
-                        break;
-                    case 'national':
-                        statusKey = 'nationalRewardClaimed';
-                        break;
-                    case 'world':
-                        statusKey = 'worldRewardClaimed';
-                        break;
-                    default:
-                        statusKey = 'neighborhoodRewardClaimed';
-                }
-                
-                // 보상을 이미 수령했는지 확인 (중복 추가 방지)
-                const alreadyClaimed = (freshUser as any)[statusKey];
-                if (!alreadyClaimed) {
-                    // 순위 계산 및 점수 추가
-                    const { calculateRanks } = await import('../tournamentService.js');
-                    const { TOURNAMENT_SCORE_REWARDS } = await import('../../constants.js');
-                    
-                    try {
-                        const rankings = calculateRanks(tournamentState);
-                        const userRanking = rankings.find(r => r.id === freshUser.id);
-                        
-                        if (userRanking) {
-                            const userRank = userRanking.rank;
-                            const scoreRewardInfo = TOURNAMENT_SCORE_REWARDS[type];
-                            let scoreRewardKey: number;
-                            
-                            if (type === 'neighborhood') {
-                                scoreRewardKey = userRank;
-                            } else if (type === 'national') {
-                                scoreRewardKey = userRank <= 4 ? userRank : 5;
-                            } else { // world
-                                if (userRank <= 4) scoreRewardKey = userRank;
-                                else if (userRank <= 8) scoreRewardKey = 5;
-                                else scoreRewardKey = 9;
-                            }
-                            
-                            const scoreReward = scoreRewardInfo[scoreRewardKey];
-                            if (scoreReward !== undefined) {
-                                const oldCumulativeScore = freshUser.cumulativeTournamentScore || 0;
-                                freshUser.cumulativeTournamentScore = oldCumulativeScore + scoreReward;
-                                const oldScore = freshUser.tournamentScore || 0;
-                                freshUser.tournamentScore = oldScore + scoreReward;
-                                console.log(`[ADVANCE_TOURNAMENT_SIMULATION] Auto-added score for ${type}: rank=${userRank}, scoreReward=${scoreReward}, tournamentScore: ${oldScore} -> ${freshUser.tournamentScore}, cumulativeTournamentScore: ${oldCumulativeScore} -> ${freshUser.cumulativeTournamentScore}`);
-                            }
-                        }
-                    } catch (error: any) {
-                        console.error(`[ADVANCE_TOURNAMENT_SIMULATION] Error calculating ranks for auto-score:`, error);
-                        // 에러가 발생해도 계속 진행 (보상 수령 시점에 점수가 추가될 수 있음)
-                    }
-                }
             }
 
             // Keep volatile state reference updated
@@ -1376,6 +1314,53 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 return { error: '플레이어를 찾을 수 없습니다.' };
             }
 
+            const realGame = match.championshipRealGame;
+            if (realGame?.winnerId && realGame.finalScore) {
+                const kataScore = await scoreChampionshipRealGameWithKataGo(realGame, match.id);
+                const resolvedFinalScore = kataScore
+                    ? { black: kataScore.black, white: kataScore.white, scoreLead: kataScore.scoreLead }
+                    : realGame.finalScore;
+                const resolvedWinnerId = kataScore?.winnerId ?? realGame.winnerId;
+                const realWinner = tournamentState.players.find(p => p.id === resolvedWinnerId) || null;
+                if (!realWinner) {
+                    return { error: '실제 대국 승자를 찾을 수 없습니다.' };
+                }
+
+                const blackIsPlayer1 = match.players[0]?.id === realGame.blackPlayerId;
+                const player1Score = blackIsPlayer1 ? resolvedFinalScore.black : resolvedFinalScore.white;
+                const player2Score = blackIsPlayer1 ? resolvedFinalScore.white : resolvedFinalScore.black;
+                const totalScore = Math.max(1, player1Score + player2Score);
+
+                match.winner = realWinner;
+                match.isFinished = true;
+                match.commentary = [
+                    ...(result.commentary || []),
+                    {
+                        text: `[최종계가] ${realWinner.nickname}, ${Math.abs(resolvedFinalScore.scoreLead).toFixed(1)}집 승리`,
+                        phase: 'end',
+                        isRandomEvent: false,
+                    },
+                ];
+                match.timeElapsed = result.timeElapsed || realGame.moves.length;
+                match.score = { player1: player1Score, player2: player2Score };
+                match.finalScore = {
+                    player1: (player1Score / totalScore) * 100,
+                    player2: (player2Score / totalScore) * 100,
+                };
+                match.championshipRealGame = {
+                    ...realGame,
+                    currentPly: realGame.moves.length,
+                    status: 'finished',
+                    finalScore: resolvedFinalScore,
+                    winnerId: resolvedWinnerId,
+                    timeMetrics: {
+                        generatedAt: realGame.timeMetrics?.generatedAt ?? Date.now(),
+                        generationMs: realGame.timeMetrics?.generationMs ?? 0,
+                        playbackCompletedAt: Date.now(),
+                        scoringCompletedAt: Date.now(),
+                    },
+                };
+            } else
             // simulationSeed가 있으면 서버 검증 시뮬레이션 실행
             if (tournamentState.simulationSeed) {
                 try {
@@ -1460,9 +1445,8 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 };
             }
 
-            // 시뮬레이션 관련 데이터 초기화
+            // 시뮬레이션 관련 데이터 초기화 (중계 멘트는 다음 경기에도 이어지도록 비우지 않음)
             tournamentState.currentSimulatingMatch = null;
-            tournamentState.currentMatchCommentary = [];
             tournamentState.timeElapsed = 0;
             tournamentState.currentMatchScores = { player1: 0, player2: 0 };
             tournamentState.simulationSeed = undefined; // 시드 초기화
@@ -1602,46 +1586,6 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                         // 다음 단계는 1~3위일 때만 위에서 추가함. 순위 무관 보정 제거(버그: 4위 이하도 다음 단계가 열리던 문제)
                     }
                     
-                    // 보상을 이미 수령했는지 확인 (중복 추가 방지)
-                    const alreadyClaimed = (freshUser as any)[statusKey];
-                    if (!alreadyClaimed) {
-                        // 순위 계산 및 점수 추가
-                        const { calculateRanks } = await import('../tournamentService.js');
-                        const { TOURNAMENT_SCORE_REWARDS } = await import('../../constants.js');
-                        
-                        try {
-                            const rankings = calculateRanks(tournamentState);
-                            const userRanking = rankings.find(r => r.id === freshUser.id);
-                            
-                            if (userRanking) {
-                                const userRank = userRanking.rank;
-                                const scoreRewardInfo = TOURNAMENT_SCORE_REWARDS[type];
-                                let scoreRewardKey: number;
-                                
-                                if (type === 'neighborhood') {
-                                    scoreRewardKey = userRank;
-                                } else if (type === 'national') {
-                                    scoreRewardKey = userRank <= 4 ? userRank : 5;
-                                } else { // world
-                                    if (userRank <= 4) scoreRewardKey = userRank;
-                                    else if (userRank <= 8) scoreRewardKey = 5;
-                                    else scoreRewardKey = 9;
-                                }
-                                
-                                const scoreReward = scoreRewardInfo[scoreRewardKey];
-                                if (scoreReward !== undefined) {
-                                    const oldCumulativeScore = freshUser.cumulativeTournamentScore || 0;
-                                    freshUser.cumulativeTournamentScore = oldCumulativeScore + scoreReward;
-                                    const oldScore = freshUser.tournamentScore || 0;
-                                    freshUser.tournamentScore = oldScore + scoreReward;
-                                    console.log(`[COMPLETE_TOURNAMENT_SIMULATION] Auto-added score for ${type}: rank=${userRank}, scoreReward=${scoreReward}, tournamentScore: ${oldScore} -> ${freshUser.tournamentScore}, cumulativeTournamentScore: ${oldCumulativeScore} -> ${freshUser.cumulativeTournamentScore}`);
-                                }
-                            }
-                        } catch (error: any) {
-                            console.error(`[COMPLETE_TOURNAMENT_SIMULATION] Error calculating ranks for auto-score:`, error);
-                            // 에러가 발생해도 계속 진행 (보상 수령 시점에 점수가 추가될 수 있음)
-                        }
-                    }
                 }
             } else {
                 // processMatchCompletion에서 다음 경기 자동 시작을 처리
@@ -1667,16 +1611,22 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
 
             // 사용자 캐시 업데이트
             updateUserCache(freshUser);
-            // DB 저장
-            await db.updateUser(freshUser);
 
-            // WebSocket으로 사용자 업데이트 브로드캐스트 (dungeonProgress 포함해 대기실 단계 잠금 해제 반영)
-            const { broadcastUserUpdate } = await import('../socket.js');
+            // DB 저장과 브로드캐스트는 백그라운드로 처리해 응답이 빠르게 돌아가도록 한다.
+            // 탈락/완료 후 남은 경기 결과 화면이 즉시 보이도록 하는 것이 중요하다.
             const broadcastFields = ['lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament'];
             if (tournamentState.currentStageAttempt != null && (tournamentState.status === 'complete' || tournamentState.status === 'eliminated')) {
                 broadcastFields.push('dungeonProgress');
             }
-            broadcastUserUpdate(freshUser, broadcastFields);
+            void (async () => {
+                try {
+                    await db.updateUser(freshUser);
+                    const { broadcastUserUpdate } = await import('../socket.js');
+                    broadcastUserUpdate(freshUser, broadcastFields);
+                } catch (err) {
+                    console.error('[COMPLETE_TOURNAMENT_SIMULATION] background persistence/broadcast failed:', err);
+                }
+            })();
 
             return { clientResponse: { updatedUser: freshUser } };
         }
@@ -2098,41 +2048,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 console.log(`[COMPLETE_DUNGEON_STAGE] Stage unlock condition not met: userRank=${userRank}, stage=${stage}, need: userRank <= 3 and stage < 10`);
             }
             
-            // 일일 랭킹 점수 계산 및 누적 (타입·단계·순위별 점수표 사용, 일일 획득 가능 점수 패널과 동일)
-            const { getDungeonStageScore } = await import('../../shared/constants/tournaments.js');
-            const finalScore = getDungeonStageScore(dungeonType, stage, userRank);
-            if (finalScore > 0 && userRank >= 1) {
-                
-                // 이전에 해당 단계에서 받은 점수가 있는지 확인
-                const previousScore = dungeonProgress.stageResults[stage]?.dailyScore || 0;
-                const scoreDifference = finalScore - previousScore;
-                
-                // 순위가 있으면 점수 지급 (cleared 조건과 독립적)
-                dungeonProgress.stageResults[stage].dailyScore = finalScore;
-                dungeonProgress.stageResults[stage].rank = userRank; // 순위 저장
-                
-                // 일일 던전 점수 누적 (이전 점수가 있으면 차이만 추가하여 중복 누적 방지)
-                if (!freshUser.dailyDungeonScore) {
-                    freshUser.dailyDungeonScore = 0;
-                }
-                if (scoreDifference !== 0) {
-                    freshUser.dailyDungeonScore += scoreDifference;
-                    console.log(`[COMPLETE_DUNGEON_STAGE] Updated daily score: previous=${previousScore}, new=${finalScore}, difference=${scoreDifference}, total: ${freshUser.dailyDungeonScore}`);
-                } else {
-                    console.log(`[COMPLETE_DUNGEON_STAGE] Daily score unchanged: ${finalScore} (already recorded)`);
-                }
-                
-                // 누적 챔피언십 점수에 추가 (홈 화면 랭킹용, 중복 누적 방지)
-                if (!freshUser.cumulativeTournamentScore) {
-                    freshUser.cumulativeTournamentScore = 0;
-                }
-                if (scoreDifference !== 0) {
-                    freshUser.cumulativeTournamentScore += scoreDifference;
-                    console.log(`[COMPLETE_DUNGEON_STAGE] Updated cumulative score: previous=${previousScore}, new=${finalScore}, difference=${scoreDifference}, total: ${freshUser.cumulativeTournamentScore}`);
-                } else {
-                    console.log(`[COMPLETE_DUNGEON_STAGE] Cumulative score unchanged: ${finalScore} (already recorded)`);
-                }
-            }
+            dungeonProgress.stageResults[stage].rank = userRank;
             
             if (cleared) {
                 dungeonProgress.stageResults[stage].cleared = true;
@@ -2289,34 +2205,38 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 grantedEquipmentDrops,
                 nextStageUnlocked,
                 nextStageWasAlreadyUnlocked: nextStageWasAlreadyUnlocked ?? false,
-                dailyScore: finalScore,
                 claimedAt: now,
             };
 
-            // DB 저장 및 캐시 업데이트 (한 번만)
-            await db.updateUser(freshUser);
+            // 캐시·휘발 상태는 즉시 갱신해 보상 모달과 후속 액션이 최신값을 사용하도록 한다.
             updateUserCache(freshUser);
-            const { invalidateRankingCache } = await import('../rankingCache.js');
-            invalidateRankingCache();
-
-            // 대기실 입장 카드와 보상내역 버튼에 최신 상태 반영
-            const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(freshUser, [
-                'dungeonProgress',
-                'stats',
-                'inventory',
-                'gold',
-                'diamonds',
-                'lastNeighborhoodTournament',
-                'lastNationalTournament',
-                'lastWorldTournament',
-            ]);
-
             if (volatileState.activeTournaments?.[user.id]) {
                 delete volatileState.activeTournaments[user.id];
             }
             if (!volatileState.activeTournaments) volatileState.activeTournaments = {};
             volatileState.activeTournaments[freshUser.id] = dungeonState;
+
+            // DB 저장과 브로드캐스트는 백그라운드로 처리해 보상 모달 응답이 즉시 돌아가도록 한다.
+            void (async () => {
+                try {
+                    await db.updateUser(freshUser);
+                    const { invalidateRankingCache } = await import('../rankingCache.js');
+                    invalidateRankingCache();
+                    const { broadcastUserUpdate } = await import('../socket.js');
+                    broadcastUserUpdate(freshUser, [
+                        'dungeonProgress',
+                        'stats',
+                        'inventory',
+                        'gold',
+                        'diamonds',
+                        'lastNeighborhoodTournament',
+                        'lastNationalTournament',
+                        'lastWorldTournament',
+                    ]);
+                } catch (err) {
+                    console.error('[COMPLETE_DUNGEON_STAGE] background persistence/broadcast failed:', err);
+                }
+            })();
 
             return { 
                 clientResponse: { 
@@ -2330,7 +2250,6 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                     grantedEquipmentDrops,
                     nextStageUnlocked,
                     nextStageWasAlreadyUnlocked: nextStageWasAlreadyUnlocked ?? false,
-                    dailyScore: finalScore,
                     updatedUser: freshUser 
                 } 
             };

@@ -1552,11 +1552,12 @@ const makePairPetAiDuelSettings = (room: types.PairRoomState): types.GameSetting
     const settings = buildPairGameSettings(room);
     if (settings.pairGame) {
         settings.pairGame.pairMode = 'ai';
+        const syntheticOpponentPetDisplayName = getPairPetDefinition('pair-pet-2')?.displayName ?? '상대 펫';
         settings.pairGame.teamB = {
             name: '상대 AI 팀',
             members: [
                 { id: 'pair-opponent-ai', name: '상대 AI', kind: 'ai' as const, slot: 'opponentAi' },
-                { id: 'pair-opponent-pet', name: '상대 펫 AI', kind: 'pet' as const, slot: 'opponentPet' },
+                { id: 'pair-opponent-pet', name: syntheticOpponentPetDisplayName, kind: 'pet' as const, slot: 'opponentPet' },
             ],
         };
         const snap = getKataServerRuntimeSnapshot();
@@ -1577,6 +1578,7 @@ const makePairPetAiDuelSettings = (room: types.PairRoomState): types.GameSetting
 const makeDuoPairAiDuelSettings = (room: types.PairRoomState): types.GameSettings => {
     const partnerId = room.partnerId && !isPetAiId(room.partnerId) ? room.partnerId : null;
     const partnerName = room.partnerName || '파트너';
+    const syntheticOpponentPetDisplayName = getPairPetDefinition('pair-pet-2')?.displayName ?? '상대 펫';
     const settings: types.GameSettings = {
         ...room.settings,
         pairGame: {
@@ -1594,7 +1596,7 @@ const makeDuoPairAiDuelSettings = (room: types.PairRoomState): types.GameSetting
                 name: '상대 AI 팀',
                 members: [
                     { id: 'pair-opponent-ai', name: '상대 AI', kind: 'ai' as const, slot: 'opponentAi' },
-                    { id: 'pair-opponent-pet', name: '상대 펫 AI', kind: 'pet' as const, slot: 'opponentPet' },
+                    { id: 'pair-opponent-pet', name: syntheticOpponentPetDisplayName, kind: 'pet' as const, slot: 'opponentPet' },
                 ],
             },
         },

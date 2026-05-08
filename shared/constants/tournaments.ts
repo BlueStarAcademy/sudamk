@@ -8,6 +8,16 @@ export const TOURNAMENT_DEFINITIONS: Record<TournamentType, TournamentDefinition
     world: { id: 'world', name: '월드챔피언십', description: '세계 각국의 강자들이 모인 16강 토너먼트입니다.', format: 'tournament', players: 16, image: '/images/championship/Champ3.png' },
 };
 
+/** 로비 입장 카드·모달 헤더 등 가로형 배경 (public/images/bg) */
+export const CHAMPIONSHIP_VENUE_LOBBY_BG_IMAGE: Record<TournamentType, string> = {
+    neighborhood: '/images/bg/champ1.webp',
+    national: '/images/bg/champ2.webp',
+    world: '/images/bg/champ3.webp',
+};
+
+/** PVE 던전과 별도 — PVP 챔피언십(예정) 로비 카드·향후 인게임 배경 등 */
+export const CHAMPIONSHIP_PVP_VENUE_BG_WEBP = '/images/bg/champ4.webp';
+
 export type TournamentRewardInfo = QuestReward;
 
 // 동네바둑리그 리그별 경기 보상 (승리/패배)
@@ -88,19 +98,39 @@ export const TOURNAMENT_SCORE_REWARDS: Record<TournamentType, Record<number, num
 
 // === 던전 시스템 상수 ===
 
-// 단계별 봇 능력치 범위 (각 능력치 개별 값)
-export const DUNGEON_STAGE_BOT_STATS: Record<number, { minStat: number; maxStat: number }> = {
-    1: { minStat: 120, maxStat: 120 },
-    2: { minStat: 140, maxStat: 140 },
-    3: { minStat: 180, maxStat: 180 },
-    4: { minStat: 240, maxStat: 240 },
-    5: { minStat: 300, maxStat: 300 },
-    6: { minStat: 360, maxStat: 360 },
-    7: { minStat: 420, maxStat: 420 },
-    8: { minStat: 500, maxStat: 500 },
-    9: { minStat: 560, maxStat: 560 },
-    10: { minStat: 620, maxStat: 620 },
+/**
+ * 던전 단계 봇 6코어 능력치 설계 평균(기대 산술평균).
+ * 실제 스폰 시 각 스탯은 [평균 − HALF_SPREAD, 평균 + HALF_SPREAD]에서 독립 균등 랜덤 정수.
+ * (예: 평균 500, HALF_SPREAD 20 → 각 스탯 480~520)
+ */
+export const DUNGEON_BOT_CORE_STAT_HALF_SPREAD = 20;
+
+const DUNGEON_STAGE_BOT_CORE_STAT_AVERAGE: Record<number, number> = {
+    1: 120,
+    2: 140,
+    3: 180,
+    4: 240,
+    5: 300,
+    6: 360,
+    7: 420,
+    8: 500,
+    9: 560,
+    10: 620,
 };
+
+function buildDungeonStageBotStatBounds(): Record<number, { minStat: number; maxStat: number }> {
+    const h = DUNGEON_BOT_CORE_STAT_HALF_SPREAD;
+    const out: Record<number, { minStat: number; maxStat: number }> = {};
+    for (let s = 1; s <= 10; s++) {
+        const avg = DUNGEON_STAGE_BOT_CORE_STAT_AVERAGE[s];
+        if (avg == null) continue;
+        out[s] = { minStat: avg - h, maxStat: avg + h };
+    }
+    return out;
+}
+
+/** 단계별 봇 능력치 스폰 구간 (min/max 포함, `server/tournamentService` `createDungeonStageBot`에서 스탯별 독립 롤) */
+export const DUNGEON_STAGE_BOT_STATS: Record<number, { minStat: number; maxStat: number }> = buildDungeonStageBotStatBounds();
 
 // 던전 타입별 능력치 배율
 export const DUNGEON_TYPE_MULTIPLIER: Record<TournamentType, number> = {

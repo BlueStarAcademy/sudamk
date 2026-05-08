@@ -32,6 +32,13 @@ const GRADE_NAMES_KO: Record<ItemGrade, string> = {
     transcendent: '초월',
 };
 
+function formatDisassemblyExpectedYield(min: number, max: number): string {
+    const lo = Math.trunc(min);
+    const hi = Math.trunc(max);
+    if (lo === hi) return lo.toLocaleString();
+    return `${lo.toLocaleString()}~${hi.toLocaleString()}`;
+}
+
 /** 하단 장비 인벤토리 그리드와 동일한 별 표시 (`compact`: 44px 선택 칸용) */
 const renderStarDisplay = (stars: number, compact?: boolean) => {
     if (stars === 0) return null;
@@ -293,7 +300,7 @@ const DisassemblyPreviewPanel: React.FC<{
                                             nativeMobile ? 'text-[15px] font-semibold' : 'text-sm'
                                         }`}
                                     >
-                                        {range ? `${range.min.toLocaleString()}~${range.max.toLocaleString()}` : '0'}
+                                        {range ? formatDisassemblyExpectedYield(range.min, range.max) : '0'}
                                     </span>
                                 </div>
                             );

@@ -13,6 +13,7 @@ import {
 import {
     effectivePairRankedApCostForUser,
     effectiveStrategicRankedQueueApCostForUser,
+    formatActionPointCostWithPetDiscount,
 } from '../../shared/utils/pairPetArenaApDiscount.js';
 import { RANKED_STRATEGIC_MODES } from '../../constants/rankedGameSettings.js';
 import { buildRankedStrategicMatchLobbySettingRows } from '../../shared/utils/pairLobbyGameSettingRows.js';
@@ -227,12 +228,16 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
     );
 
     const displayedQueueApCost = useMemo(() => {
-        if (!currentUser) return STRATEGIC_ACTION_POINT_COST;
         if (variant === 'strategic_arena') {
-            return effectiveStrategicRankedQueueApCostForUser(currentUser);
+            const base = STRATEGIC_ACTION_POINT_COST;
+            if (!currentUser) return String(base);
+            const eff = effectiveStrategicRankedQueueApCostForUser(currentUser);
+            return formatActionPointCostWithPetDiscount(base, eff);
         }
         const base = pairRankedBaseApForSelectedMode(selected);
-        return effectivePairRankedApCostForUser(currentUser, base, { lobbyChannel: 'pair' });
+        if (!currentUser) return String(base);
+        const eff = effectivePairRankedApCostForUser(currentUser, base, { lobbyChannel: 'pair' });
+        return formatActionPointCostWithPetDiscount(base, eff);
     }, [variant, currentUser, selected]);
 
     /** 1:1 전략 랭킹 큐는 인원, 페어 방 랭킹은 팀 */

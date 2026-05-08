@@ -33,6 +33,19 @@ type PairParticipantLike = {
 
 export const PAIR_TURN_SEAT_IDS: PairGameTurnSeatId[] = ['black1', 'white1', 'black2', 'white2'];
 
+/** 대국실 채팅 등: 페어 좌석 ID를 짧은 한글 라벨로 */
+export function pairTurnSeatIdShortLabel(seatId: string): string {
+    return seatId === 'black1'
+        ? '흑1'
+        : seatId === 'black2'
+          ? '흑2'
+          : seatId === 'white1'
+            ? '백1'
+            : seatId === 'white2'
+              ? '백2'
+              : seatId;
+}
+
 export function isPairClassicGame(settings: Pick<GameSettings, 'pairGame'> | undefined, mode?: GameMode): boolean {
     return Boolean(settings?.pairGame && (mode == null || PAIR_GO_GAME_MODES.includes(mode)));
 }

@@ -42,6 +42,11 @@ import {
 import BaseGameFooterPanel, { BasePlacementControlStrip, isBaseGameFooterPhase } from './BaseGameFooterPanel.js';
 import IngameMobileFooterAd from './IngameMobileFooterAd.js';
 import { isPairCooperativeTwoHumansVsAi, pairSeatMatchesViewerUser } from '../../shared/utils/pairGameTurn.js';
+import {
+    basePvpActionPointCostForMode,
+    effectiveNegotiationApCostForUser,
+    formatActionPointCostWithPetDiscount,
+} from '../../shared/utils/pairPetArenaApDiscount.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 import { pairPetKataPhaseFromTotalPly, pairPetKataPliesRemainingInCurrentPhase } from '../../shared/constants/pairArena.js';
 import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
@@ -1327,12 +1332,11 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const pairCoopTwoHumansVsAi = isPairCooperativeTwoHumansVsAi(session.settings);
     const showMannerActionRow = !isSinglePlayer && !session.isAiGame && !pairCoopTwoHumansVsAi;
     const showMannerAiLobbyHintRow = !isSinglePlayer && session.isAiGame && !pairCoopTwoHumansVsAi;
-    const aiLobbyRematchActionPointCost =
-        SPECIAL_GAME_MODES.some(m => m.mode === mode)
-            ? STRATEGIC_ACTION_POINT_COST
-            : PLAYFUL_GAME_MODES.some(m => m.mode === mode)
-              ? PLAYFUL_ACTION_POINT_COST
-              : STRATEGIC_ACTION_POINT_COST;
+    const aiLobbyRematchActionPointCostLabel = useMemo(() => {
+        const base = basePvpActionPointCostForMode(mode);
+        const eff = effectiveNegotiationApCostForUser(currentUser as User, mode);
+        return formatActionPointCostWithPetDiscount(base, eff);
+    }, [mode, currentUser]);
     const isAiLobbyGame =
         session.isAiGame &&
         !session.isSinglePlayer &&
@@ -1605,6 +1609,10 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             Array.isArray(board[0]) &&
             board[0].length > 0;
 
+        const isPairHiddenBoard =
+            Boolean(session.settings.pairGame?.turnOrder?.length) &&
+            (mode === GameMode.Hidden || (mode === GameMode.Mix && (session.settings.mixedModes || []).includes(GameMode.Hidden)));
+
         const myRevealed = session.revealedHiddenMoves?.[currentUser.id];
         const fromHistory =
             session.hiddenMoves &&
@@ -1623,7 +1631,11 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 if (boardOk) {
                     const row = board[y];
                     if (!row || x < 0 || x >= row.length) return false;
-                    if (row[x] !== opponentPlayerEnum) return false;
+                    const cell = row[x];
+                    if (cell === opponentPlayerEnum) return true;
+                    // 페어 히든: 클라가 미공개 히든을 빈칸으로만 받는 경우에도 서버 START_SCANNING과 맞춘다.
+                    if (isPairHiddenBoard && cell === Player.None) return true;
+                    return false;
                 }
                 return true;
             });
@@ -1644,7 +1656,10 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             if (boardOk) {
                 const row = board[aiPt.y];
                 if (!row || aiPt.x < 0 || aiPt.x >= row.length) return false;
-                if (row[aiPt.x] !== opponentPlayerEnum) return false;
+                const cell = row[aiPt.x];
+                if (cell === opponentPlayerEnum) return true;
+                if (isPairHiddenBoard && cell === Player.None) return true;
+                return false;
             }
             return true;
         }
@@ -1660,6 +1675,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         session.blackPlayerId,
         session.whitePlayerId,
         session.isAiGame,
+        session.settings.pairGame,
+        session.settings.mixedModes,
+        mode,
         opponentPlayerEnum,
         currentUser.id,
         (session as any).scannedAiInitialHiddenByUser,
@@ -2301,7 +2319,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             className={endedIngameRowBtn()}
                             disabled={blockPostGameFooter}
                         >
-                            {formatAiRematchFooterLabel(aiLobbyRematchActionPointCost)}
+                            {formatAiRematchFooterLabel(aiLobbyRematchActionPointCostLabel)}
                         </Button>
                     )}
                     {onLeaveOrResign && (

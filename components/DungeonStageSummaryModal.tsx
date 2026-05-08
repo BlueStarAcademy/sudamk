@@ -37,9 +37,6 @@ export interface DungeonStageSummaryModalProps {
     nextStageUnlocked: boolean;
     /** 이미 클리어한 단계를 다시 클리어한 경우 true (다음 단계가 이미 열려있습니다 표시) */
     nextStageWasAlreadyUnlocked?: boolean;
-    dailyScore?: number;
-    previousRank?: number;
-    currentRank?: number;
     onClose: () => void;
     isTopmost?: boolean;
 }
@@ -56,9 +53,6 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
     grantedEquipmentDrops,
     nextStageUnlocked,
     nextStageWasAlreadyUnlocked,
-    dailyScore,
-    previousRank,
-    currentRank,
     onClose,
     isTopmost
 }) => {
@@ -329,12 +323,6 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                         </div>
                     </div>
                 </div>
-                <div className="flex flex-col items-center gap-0.5 text-center">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">획득 점수</span>
-                    <span className="text-base font-bold tabular-nums text-amber-200">
-                        {dailyScore !== undefined ? `+${dailyScore.toLocaleString()}점` : '-'}
-                    </span>
-                </div>
                 {nextStage !== null ? (
                     <div
                         className={`w-full max-w-[15.5rem] rounded-lg px-3 py-2 text-center text-[10px] leading-snug ring-1 ${
@@ -379,12 +367,6 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                     <span className="text-xs text-zinc-400 sm:text-sm">위</span>
                 </div>
             </div>
-            <div className="flex w-full items-center justify-between gap-2 border-t border-white/[0.06] pt-1.5 text-sm max-sm:hidden sm:text-base">
-                <span className="shrink-0 text-xs text-zinc-500 sm:text-inherit">획득 점수</span>
-                <span className="min-w-0 truncate text-right font-bold tabular-nums text-amber-200">
-                    {dailyScore !== undefined ? `+${dailyScore.toLocaleString()}점` : '-'}
-                </span>
-            </div>
             {nextStage !== null ? (
                 <div
                     className={`flex max-sm:hidden w-full max-w-full flex-col gap-1 rounded-lg px-2 py-1.5 text-xs leading-snug sm:flex-row sm:items-center sm:justify-between sm:text-sm ${
@@ -425,24 +407,43 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
         </div>
     );
 
-    const renderMobileRewardStrip = () => {
+    /**
+     * 보상 칩 스트립 렌더러.
+     * - `compact`(모바일/협소 영역): 작은 칩으로 한 줄에 많이 들어가도록.
+     * - `large`(데스크톱 결과 모달 본문): 보상 이미지/수치가 잘 보이도록 충분히 큰 사이즈.
+     * 두 사이즈 모두 아이템 수가 많을 때(특히 월드) 한 단계 축소된 변형을 사용한다.
+     */
+    const renderRewardStrip = (size: 'compact' | 'large' = 'compact') => {
         if (rewardItems.length === 0) {
-            return <p className="py-0.5 text-center text-[10px] text-zinc-500">보상 없음</p>;
+            return <p className={size === 'large' ? 'py-1 text-center text-sm text-zinc-500' : 'py-0.5 text-center text-[10px] text-zinc-500'}>보상 없음</p>;
         }
-        /** 한 줄 유지: 줄바꿈 대신 가로 스크롤, 월드 등 아이템 많을 때만 살짝 축소 */
+
+        // 월드는 매 경기 장비 + 순위 보상까지 더해 칩이 많아지므로, 큰 사이즈도 한 단계 줄여서 보여준다.
         const worldCompact = dungeonType === 'world' && rewardItems.length >= 5;
-        const chipBox = worldCompact ? 'h-10 w-10' : 'h-12 w-12';
-        const imgInBox = worldCompact ? 'h-7 w-7' : 'h-9 w-9';
-        const colW = worldCompact ? 'w-[2.7rem]' : 'w-[3.15rem]';
-        const footerText = worldCompact ? 'text-[7px]' : 'text-[8px]';
+
+        const chipBox = size === 'large'
+            ? worldCompact ? 'h-14 w-14' : 'h-[4.25rem] w-[4.25rem]'
+            : worldCompact ? 'h-10 w-10' : 'h-12 w-12';
+        const imgInBox = size === 'large'
+            ? worldCompact ? 'h-10 w-10' : 'h-12 w-12'
+            : worldCompact ? 'h-7 w-7' : 'h-9 w-9';
+        const colW = size === 'large'
+            ? worldCompact ? 'w-[3.75rem]' : 'w-[4.6rem]'
+            : worldCompact ? 'w-[2.7rem]' : 'w-[3.15rem]';
+        const footerText = size === 'large'
+            ? worldCompact ? 'text-[11px]' : 'text-[12px]'
+            : worldCompact ? 'text-[7px]' : 'text-[8px]';
+        const truncateMaxW = size === 'large' ? 'max-w-[4.5rem]' : 'max-w-[3.25rem]';
+        const colGap = size === 'large' ? 'gap-x-[clamp(6px,1.4vw,12px)]' : 'gap-x-[clamp(3px,1.2vw,6px)]';
+        const colItemGap = size === 'large' ? 'gap-0.5' : 'gap-px';
 
         return (
             <div
-                className="w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-0.5 pt-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] [scrollbar-color:rgba(251,191,36,0.35)_transparent]"
+                className="w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-1 pt-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] [scrollbar-color:rgba(251,191,36,0.35)_transparent]"
                 role="region"
                 aria-label="보상 아이콘"
             >
-                <div className="mx-auto flex w-max max-w-none flex-nowrap items-end justify-center gap-x-[clamp(3px,1.2vw,6px)] px-0.5" role="list">
+                <div className={`mx-auto flex w-max max-w-none flex-nowrap items-end justify-center ${colGap} px-0.5`} role="list">
                     {rewardItems.map((item, index) => {
                         const maybeEquip = item as RewardChip;
                         const isWorldEquip = dungeonType === 'world' && maybeEquip.grade;
@@ -454,7 +455,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                             return (
                                 <div
                                     key={index}
-                                    className={`flex ${colW} shrink-0 flex-col items-center gap-px`}
+                                    className={`flex ${colW} shrink-0 flex-col items-center ${colItemGap}`}
                                     role="listitem"
                                     title={item.name}
                                 >
@@ -479,7 +480,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                         return (
                             <div
                                 key={index}
-                                className={`flex ${colW} shrink-0 flex-col items-center gap-px`}
+                                className={`flex ${colW} shrink-0 flex-col items-center ${colItemGap}`}
                                 role="listitem"
                                 title={item.name}
                             >
@@ -492,7 +493,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                                 </div>
                                 {footerNum ? (
                                     <span
-                                        className={`max-w-[3.25rem] truncate text-center ${footerText} font-bold tabular-nums leading-none text-amber-200/95`}
+                                        className={`${truncateMaxW} truncate text-center ${footerText} font-bold tabular-nums leading-none text-amber-200/95`}
                                     >
                                         {footerNum}
                                     </span>
@@ -515,6 +516,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
             closeOnOutsideClick={false}
             isTopmost={isTopmost}
             zIndex={isMobile ? 85 : 70}
+            viewportPortal={isMobile}
             modal
             mobileViewportFit={isMobile}
             mobileViewportMaxHeightCss={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS : '92dvh'}
@@ -607,7 +609,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                                     <h3 className="mb-0.5 border-b border-white/[0.08] pb-0.5 text-center text-[9px] font-bold uppercase tracking-[0.12em] text-amber-200/65">
                                         보상 내역
                                     </h3>
-                                    {renderMobileRewardStrip()}
+                                    {renderRewardStrip('compact')}
                                 </div>
                                 <Button
                                     bare
@@ -631,11 +633,11 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                                     </div>
 
                                     <div
-                                        className={`${panelCardClass} flex w-full max-w-3xl min-h-[112px] flex-col items-center p-2.5 sm:min-h-[136px] sm:p-3`}
+                                        className={`${panelCardClass} flex w-full max-w-3xl min-h-[152px] flex-col items-center p-3 sm:min-h-[176px] sm:p-3.5`}
                                     >
                                         <h3 className={`${sectionTitleClass} mb-2 w-full flex-shrink-0 text-center`}>보상 내역</h3>
                                         {rewardItems.length > 0 ? (
-                                            <div className="w-full min-w-0 max-w-full px-0.5">{renderMobileRewardStrip()}</div>
+                                            <div className="w-full min-w-0 max-w-full px-0.5">{renderRewardStrip('large')}</div>
                                         ) : (
                                             <p className="py-2 text-center text-sm text-zinc-500">보상 없음</p>
                                         )}

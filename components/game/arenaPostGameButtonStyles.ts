@@ -74,9 +74,11 @@ export function formatArenaRetryLabel(actionPointCost: number): string {
     return actionPointCost > 0 ? `재도전 (⚡${actionPointCost})` : '재도전';
 }
 
-/** 대기실 AI 대국 종료 푸터 재대결 라벨 */
-export function formatAiRematchFooterLabel(actionPointCost: number): string {
-    return actionPointCost > 0 ? `재대결 (⚡${actionPointCost})` : '재대결';
+/** 대기실 AI 대국 종료 푸터 재대결 라벨 (`2 (-1)` 등 대표 펫 할인 문자열 허용) */
+export function formatAiRematchFooterLabel(actionPointCost: number | string): string {
+    const hasCost = typeof actionPointCost === 'string' ? actionPointCost.length > 0 : actionPointCost > 0;
+    const token = typeof actionPointCost === 'number' ? String(actionPointCost) : actionPointCost;
+    return hasCost ? `재대결 (⚡${token})` : '재대결';
 }
 
 /** 경기 종료 버튼 묶음: 열 폭 균등 (좁으면 자동으로 줄바꿈) — 결과 모달·넓은 푸터용 */

@@ -10,6 +10,7 @@ const CORE_STAT_CAP = 1500;
 
 import {
     TOURNAMENT_DEFINITIONS,
+    CHAMPIONSHIP_VENUE_LOBBY_BG_IMAGE,
     DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT,
     DUNGEON_STAGE_BASE_REWARDS_MATERIAL,
     DUNGEON_STAGE_BOT_STATS,
@@ -650,6 +651,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
     isTopmost,
 }) => {
     const definition = TOURNAMENT_DEFINITIONS[type];
+    const venueLobbyBg = CHAMPIONSHIP_VENUE_LOBBY_BG_IMAGE[type];
     const isHandheld = useIsHandheldDevice(1025);
     const entryModalWidth = useMemo(() => {
         if (typeof window === 'undefined') return 760;
@@ -797,8 +799,8 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                 <div className="pointer-events-none absolute -bottom-16 -left-16 h-40 w-40 rounded-full bg-amber-600/10 blur-3xl" aria-hidden />
 
                 <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-0.5 p-1 sm:gap-1 sm:p-2 md:gap-1.5 md:p-3">
-                    <div className="relative flex h-[2.45rem] shrink-0 overflow-hidden rounded-lg ring-1 ring-amber-500/25 sm:h-[3.35rem] sm:rounded-xl md:h-[5rem]">
-                        <img src={definition.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                    <div className="relative flex h-[2.05rem] shrink-0 overflow-hidden rounded-lg ring-1 ring-amber-500/25 sm:h-[2.72rem] sm:rounded-xl md:h-[3.85rem]">
+                        <img src={venueLobbyBg} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
                         <div className="absolute inset-0 bg-gradient-to-r from-black/92 via-black/55 to-black/25" />
                         <div className="relative z-[1] flex flex-1 flex-col justify-center px-2 py-1 sm:px-3.5 sm:py-2">
                             <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-amber-200/80 sm:text-[10px] sm:tracking-[0.2em] md:text-xs">

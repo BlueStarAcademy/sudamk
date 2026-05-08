@@ -776,6 +776,57 @@ input, textarea {
   animation: fade-in 0.3s ease-out forwards;
 }
 
+/* 챔피언십 실대국 계가중 연출 — 바둑판을 좌→우로 스캔하듯 덮는다.
+   기존엔 빔이 자기 너비(22%) 기준의 translateX(120%)만 이동해 부모의 약 1/4 거리만 가서
+   "끝까지 못 가는" 짧은 연출이 됐었다. 이를 부모 너비를 그대로 따르는 left(%) 애니메이션으로 교체해
+   왼쪽 바깥에서 시작해 오른쪽 바깥까지 한 번에 쭉 통과하도록 한다.
+   본 hook 측에서는 약 3.0s 동안 'scoring' 상태를 유지한 뒤 결과 카드를 띄운다. (스캔 2.6s + ~0.4s hold) */
+@keyframes championship-scoring-veil-fill {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes championship-scoring-beam-sweep {
+  from { left: -28%; }
+  to   { left: 108%; }
+}
+
+@keyframes championship-finished-result-pop {
+  0% { opacity: 0; transform: scale(0.94); }
+  60% { opacity: 1; transform: scale(1.015); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.championship-scoring-veil {
+  background: linear-gradient(
+    90deg,
+    rgba(2, 6, 18, 0.0) 0%,
+    rgba(2, 6, 18, 0.55) 18%,
+    rgba(2, 6, 18, 0.7) 100%
+  );
+  animation: championship-scoring-veil-fill 2.6s ease-out forwards;
+}
+
+.championship-scoring-beam {
+  width: 22%;
+  background: linear-gradient(
+    90deg,
+    rgba(34, 211, 238, 0) 0%,
+    rgba(34, 211, 238, 0.18) 30%,
+    rgba(34, 211, 238, 0.7) 50%,
+    rgba(34, 211, 238, 0.18) 70%,
+    rgba(34, 211, 238, 0) 100%
+  );
+  filter: drop-shadow(0 0 22px rgba(34, 211, 238, 0.55));
+  /* both: 시작 전엔 from-state(left:-28%)를 적용해 오른쪽에서 갑자기 등장하지 않게 하고,
+     종료 후엔 to-state(left:108%)를 유지해 화면 밖에 머물도록 한다. */
+  animation: championship-scoring-beam-sweep 2.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) both;
+}
+
+.championship-finished-result-card {
+  animation: championship-finished-result-pop 420ms cubic-bezier(0.18, 0.89, 0.32, 1.28) both;
+}
+
 @keyframes sparkle {
   0%, 100% {
     filter: brightness(1);
@@ -1983,6 +2034,12 @@ input[type="range"]::-moz-range-thumb {
 
 .go-board-panel::before {
     display: none !important;
+}
+
+.championship-real-board .go-board-panel {
+    border-color: transparent !important;
+    box-shadow: none !important;
+    background: transparent !important;
 }
 
 .bg-single-player-background {

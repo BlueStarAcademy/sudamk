@@ -21,7 +21,7 @@ export function getSelectiveUserUpdate(
         'USE_ITEM': ['inventory', 'gold', 'diamonds', 'actionPoints', 'quests'],
         'USE_ALL_ITEMS_OF_TYPE': ['inventory', 'gold', 'diamonds', 'actionPoints', 'quests'],
         'TOGGLE_EQUIP_ITEM': ['inventory', 'equipment', 'actionPoints', 'lastActionPointUpdate'],
-        'MARK_ITEM_EXCHANGE_LISTED': ['inventory', 'gold', 'diamonds'],
+        'MARK_ITEM_EXCHANGE_LISTED': ['inventory', 'gold', 'diamonds', 'equipmentPresets'],
         'UNMARK_ITEM_EXCHANGE_LISTED': ['inventory', 'exchangeState'],
         'CLAIM_EXCHANGE_SETTLEMENT': ['exchangeState', 'gold', 'diamonds'],
         'SELL_ITEM': ['inventory', 'gold', 'equippedPairPetTemplateId', 'equippedPairPetInventoryItemId'],

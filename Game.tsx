@@ -854,6 +854,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const isGuildWarTowerStyleUi =
         isGuildWarGame && (mode === GameMode.Missile || mode === GameMode.Hidden);
     const isPlayfulMode = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
+    /** 놀이바둑(대기실 AI·PVP): `session.summary`가 WS로 늦게 붙을 수 있어, 내 보상 행이 붙은 뒤에 결과 모달을 연다. */
+    const playfulResultModalWaitSummary =
+        isPlayfulMode && !isSinglePlayer && !isTower && !isSpectator;
+    const hasMyGameSummary = Boolean(session.summary?.[currentUser.id]);
+    const prevHasMyGameSummary = usePrevious(hasMyGameSummary) ?? false;
+    const playfulGameSummaryJustArrived =
+        playfulResultModalWaitSummary &&
+        gameStatus === 'ended' &&
+        hasMyGameSummary &&
+        !prevHasMyGameSummary;
     /** 종료·계가·재대결 대기 등에서는 착수 패널이 뷰포트/사이드바를 가리지 않도록 숨김 */
     const hideMoveConfirmForStatus: GameStatus[] = ['ended', 'no_contest', 'scoring', 'rematch_pending', 'disconnected'];
     const showMoveConfirmPanel =
@@ -1433,10 +1443,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             (isTower && gameHasJustEnded) ||
             (isSinglePlayer && gameHasJustEnded) ||
             (gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended');
-        const shouldShowModal = (isSinglePlayer || isTower)
-            ? pveAutoResultModal
-            : gameHasJustEnded ||
-              (gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended');
+        const basePvpShouldShowModal =
+            (gameHasJustEnded &&
+                !(playfulResultModalWaitSummary && gameStatus === 'ended' && !hasMyGameSummary)) ||
+            (gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended') ||
+            playfulGameSummaryJustArrived;
+        const shouldShowModal = (isSinglePlayer || isTower) ? pveAutoResultModal : basePvpShouldShowModal;
 
         /** 따내기 승: 계가 연출 직후 ended인 경우(prev scoring)에도 착수·포획 연출 대기 후 모달을 연다 */
         const shouldDelayCaptureResultModal =
@@ -1478,6 +1490,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         isTower,
         session.winReason,
         session.justCaptured,
+        playfulResultModalWaitSummary,
+        hasMyGameSummary,
+        playfulGameSummaryJustArrived,
     ]);
 
     /** 다른 대국으로 바뀌거나 화면을 떠날 때만 지연 모달 타이머 정리 (이펙트 재실행마다 지우면 모달이 영원히 안 뜸) */
@@ -2599,7 +2614,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             const boardStateForOnline = restoredBoardState || session.boardState;
             const opponentEnumOnline = myPlayerEnum === Player.Black ? Player.White : Player.Black;
             let isOpponentHiddenRevealOnline = false;
-            if (gameStatus === 'hidden_placing' && boardStateForOnline && session.moveHistory) {
+            if ((gameStatus === 'playing' || gameStatus === 'hidden_placing') && boardStateForOnline && session.moveHistory) {
                 const st = boardStateForOnline[y][x];
                 const mi = findLatestMoveIndexAt(session.moveHistory, x, y, opponentEnumOnline);
                 isOpponentHiddenRevealOnline =
@@ -2856,7 +2871,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 const boardStateToUse = restoredBoardState || session.boardState;
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
                 let isOpponentHiddenReveal = false;
-                if (gameStatus === 'hidden_placing' && boardStateToUse && session.moveHistory) {
+                if ((gameStatus === 'playing' || gameStatus === 'hidden_placing') && boardStateToUse && session.moveHistory) {
                     const stoneAtTarget = boardStateToUse[y][x];
                     const moveIndexAtTarget = findLatestMoveIndexAt(session.moveHistory, x, y, opponentPlayerEnum);
                     isOpponentHiddenReveal =

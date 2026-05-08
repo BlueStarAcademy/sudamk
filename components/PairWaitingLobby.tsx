@@ -38,6 +38,11 @@ import {
     PLAYFUL_ACTION_POINT_COST,
 } from '../constants.js';
 import {
+    effectivePairRankedApCostForUser,
+    effectiveStrategicRankedQueueApCostForUser,
+    formatActionPointCostWithPetDiscount,
+} from '../shared/utils/pairPetArenaApDiscount.js';
+import {
     type WaitingLobbyPanelTone,
     aiChallengeFeatureShellClass,
     aiChallengeFeatureTopHairlineClass,
@@ -1421,6 +1426,17 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         () => rooms.find((r) => userInPairRoomClient(r, currentUserId)) || null,
         [rooms, currentUserId],
     );
+    const pairRankedMatchApButtonLabel = useMemo(() => {
+        const base = pairRankedLobbyActionPointCost(lobbyChannel, myRoom?.selectedGameMode);
+        if (!currentUserWithStatus) return String(base);
+        const eff = effectivePairRankedApCostForUser(currentUserWithStatus as User, base, { lobbyChannel });
+        return formatActionPointCostWithPetDiscount(base, eff);
+    }, [lobbyChannel, myRoom?.selectedGameMode, currentUserWithStatus]);
+    const strategicArenaRankedApButtonLabel = useMemo(() => {
+        if (!currentUserWithStatus) return String(STRATEGIC_ACTION_POINT_COST);
+        const eff = effectiveStrategicRankedQueueApCostForUser(currentUserWithStatus as User);
+        return formatActionPointCostWithPetDiscount(STRATEGIC_ACTION_POINT_COST, eff);
+    }, [currentUserWithStatus]);
     /** 전략·놀이 경기장 `duo_match` 친선 대기(랭킹 제안·매칭 단계 제외) — UI는 페어 4칸이 아닌 팀당 1슬롯·「경기 시작」 흐름 */
     const isArenaFriendlyDuoWaitingRoom = Boolean(
         myRoom?.roomKind === 'duo_match' &&
@@ -3198,7 +3214,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                 <span className={`flex items-center justify-center ${isHandheld ? 'gap-0.5' : 'gap-1.5'}`}>
                                     <span className={isHandheld ? 'text-[0.65rem] sm:text-xs' : ''}>⚔️</span>
                                     <span className={isHandheld ? 'text-[0.65rem] sm:text-xs' : ''}>
-                                        {`${isHandheld ? '시작' : '랭킹전 시작'} (⚡${pairRankedLobbyActionPointCost(lobbyChannel, undefined)})`}
+                                        {`${isHandheld ? '시작' : '랭킹전 시작'} (⚡${pairRankedMatchApButtonLabel})`}
                                     </span>
                                 </span>
                             </Button>
@@ -4408,7 +4424,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                         : `rounded-lg border-2 border-amber-400/80 bg-gradient-to-b from-amber-600/95 to-amber-950/95 px-4 py-3.5 text-sm font-extrabold text-amber-50 shadow-[0_6px_22px_-6px_rgba(251,191,36,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:brightness-110 disabled:pointer-events-none disabled:opacity-45 sm:rounded-xl min-h-[3.35rem]`
                                 }
                             >
-                                랭킹전 매칭 (⚡{pairRankedLobbyActionPointCost(lobbyChannel, myRoom?.selectedGameMode)})
+                                랭킹전 매칭 (⚡{pairRankedMatchApButtonLabel})
                             </button>
                         ) : !aggregateLobbyMode && isArenaStrategicAiRoom && lobbyChannel === 'strategic' && inStrategicRankedQueue ? (
                             <button
@@ -4434,7 +4450,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                         : `rounded-lg border-2 border-amber-400/80 bg-gradient-to-b from-amber-600/95 to-amber-950/95 px-4 py-3.5 text-sm font-extrabold text-amber-50 shadow-[0_6px_22px_-6px_rgba(251,191,36,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:brightness-110 disabled:pointer-events-none disabled:opacity-45 sm:rounded-xl min-h-[3.35rem]`
                                 }
                             >
-                                랭킹전 매칭 (⚡{STRATEGIC_ACTION_POINT_COST})
+                                랭킹전 매칭 (⚡{strategicArenaRankedApButtonLabel})
                             </button>
                         ) : aggregateLobbyMode && isArenaStrategicAiRoom ? null : lobbyChannel === 'pair' && isPairPetRoom ? null : (
                             <button
@@ -4448,7 +4464,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                 }
                             >
                                 {isPairPetRoom
-                                    ? `랭킹전 매칭 (⚡${pairRankedLobbyActionPointCost(lobbyChannel, myRoom?.selectedGameMode)})`
+                                    ? `랭킹전 매칭 (⚡${pairRankedMatchApButtonLabel})`
                                     : myRoom?.roomKind === 'friendly_4p' ||
                                         myRoom?.roomKind === 'friendly_2p' ||
                                         (aggregateLobbyMode && !isDuoArenaRanked) ||

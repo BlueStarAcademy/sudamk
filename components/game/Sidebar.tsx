@@ -20,6 +20,7 @@ import UserNicknameText from '../UserNicknameText.js';
 import { containsProfanity } from '../../profanity.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
+import { pairSeatMatchesViewerUser, pairTurnSeatIdShortLabel } from '../../shared/utils/pairGameTurn.js';
 import { formatDiceGoSpecialDiceSummary } from '../../shared/utils/diceGoSettings.js';
 import {
     getGuildWarBoardMode,
@@ -456,6 +457,13 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
 
         if (channel === 'global') {
             payload.location = locationPrefix;
+        } else if (channel === session.id && session.settings?.pairGame?.turnOrder?.length && currentUserWithStatus) {
+            const viewerSeat = session.settings.pairGame.turnOrder.find((s) =>
+                pairSeatMatchesViewerUser(s, currentUserWithStatus.id),
+            );
+            if (viewerSeat?.seatId) {
+                payload.location = `[${pairTurnSeatIdShortLabel(viewerSeat.seatId)}]`;
+            }
         }
 
         onAction({ type: 'SEND_CHAT_MESSAGE', payload });

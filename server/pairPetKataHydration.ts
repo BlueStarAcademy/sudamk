@@ -2,7 +2,12 @@ import { randomUUID } from 'crypto';
 
 import type { LiveGameSession, User, InventoryItem, ChatMessage } from '../types/index.js';
 
-import { PAIR_GO_GAME_MODES, buildTeamPreservingPairTurnOrder, type PairGameTurnSeat } from '../shared/utils/pairGameTurn.js';
+import {
+    PAIR_GO_GAME_MODES,
+    buildTeamPreservingPairTurnOrder,
+    pairTurnSeatIdShortLabel,
+    type PairGameTurnSeat,
+} from '../shared/utils/pairGameTurn.js';
 
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 
@@ -62,7 +67,7 @@ function pairSeatOwnerUserForChat(session: LiveGameSession, seat: PairGameTurnSe
 
 
 
-function resolvePairSeatPetNicknameForChat(session: LiveGameSession, seat: PairGameTurnSeat): string {
+export function resolvePairSeatPetNicknameForChat(session: LiveGameSession, seat: PairGameTurnSeat): string {
 
     const owner = pairSeatOwnerUserForChat(session, seat);
 
@@ -138,6 +143,8 @@ function appendPairPetRpsDebuffChats(game: LiveGameSession, debuffedParticipantI
 
         const nickname = resolvePairSeatPetNicknameForChat(game, seat);
 
+        const location = seat.seatId ? `[${pairTurnSeatIdShortLabel(seat.seatId)}]` : undefined;
+
         const message: ChatMessage = {
 
             id: `msg-${randomUUID()}`,
@@ -149,6 +156,8 @@ function appendPairPetRpsDebuffChats(game: LiveGameSession, debuffedParticipantI
             system: false,
 
             timestamp: Date.now(),
+
+            ...(location ? { location } : {}),
 
         };
 

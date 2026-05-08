@@ -5,8 +5,8 @@ import { LOBBY_MOBILE_HEADER_BACK_BTN_CLASS } from '../game/PreGameDescriptionLa
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH } from '../../constants/ads.js';
-import { GameMode, ServerAction, GameSettings, Player, AlkkagiPlacementType } from '../../types.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST } from '../../constants';
+import { GameMode, ServerAction, GameSettings, Player, AlkkagiPlacementType, User } from '../../types.js';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS, STRATEGIC_ACTION_POINT_COST } from '../../constants';
 import { 
   BOARD_SIZES, TIME_LIMITS, BYOYOMI_COUNTS, BYOYOMI_TIMES, CAPTURE_BOARD_SIZES, 
   CAPTURE_TARGETS, TTAMOK_CAPTURE_TARGETS, SPEED_BOARD_SIZES, SPEED_TIME_LIMITS, BASE_STONE_COUNTS,
@@ -34,6 +34,12 @@ import { getRankedGameSettings } from '../../constants/rankedGameSettings.js';
 import { buildPairArenaDuoRankedLobbySettingRows } from '../../shared/utils/pairLobbyGameSettingRows.js';
 import { mixSubRuleDisplayName } from '../../shared/utils/mixSubRuleDisplayName.js';
 import { stableStringify } from '../../utils/appUtils.js';
+import { useAppContext } from '../../hooks/useAppContext.js';
+import {
+    basePvpActionPointCostForMode,
+    effectiveNegotiationApCostForUser,
+    formatActionPointCostWithPetDiscount,
+} from '../../shared/utils/pairPetArenaApDiscount.js';
 import {
     type AiChallengeModalChromeKind,
     aiChallengeFeatureTopHairlineClass,
@@ -439,6 +445,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     pairFriendlyHumanClock = false,
     preferredGameSettingsBucket,
 }) => {
+    const { currentUser: appCurrentUser } = useAppContext();
     const prefsBucket = preferredGameSettingsBucket;
     const modalChrome = useMemo(
         () => aiChallengeModalChromeFromBucket(preferredGameSettingsBucket),
@@ -481,12 +488,13 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             ? `${seedFromSession?.mode ?? ''}\0${stableStringify(seedFromSession?.settings ?? {})}\0${stableStringify(seedFromSession?.settingsByMode ?? {})}`
             : '__no_embed_parent_sync__';
 
-    const actionPointCost = useMemo(() => {
-        if (!selectedGameMode) return STRATEGIC_ACTION_POINT_COST;
-        if (SPECIAL_GAME_MODES.some(m => m.mode === selectedGameMode)) return STRATEGIC_ACTION_POINT_COST;
-        if (PLAYFUL_GAME_MODES.some(m => m.mode === selectedGameMode)) return PLAYFUL_ACTION_POINT_COST;
-        return STRATEGIC_ACTION_POINT_COST;
-    }, [selectedGameMode]);
+    const actionPointCostDisplay = useMemo(() => {
+        if (!selectedGameMode) return String(STRATEGIC_ACTION_POINT_COST);
+        const base = basePvpActionPointCostForMode(selectedGameMode);
+        if (!appCurrentUser) return String(base);
+        const eff = effectiveNegotiationApCostForUser(appCurrentUser as User, selectedGameMode);
+        return formatActionPointCostWithPetDiscount(base, eff);
+    }, [selectedGameMode, appCurrentUser]);
 
     const { isNativeMobile } = useNativeMobileShell();
     const isCompactViewport = useIsHandheldDevice(1024);
@@ -2047,7 +2055,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                     disabled={!selectedGameMode}
                                     className={`${handheldStackedFooterBtnClass} ${pairHandheldNextChromeClass}`}
                                 >
-                                    {showActionPointCost ? `${submitLabel} (⚡${actionPointCost})` : submitLabel}
+                                    {showActionPointCost ? `${submitLabel} (⚡${actionPointCostDisplay})` : submitLabel}
                                 </Button>
                             </div>
                         </div>
@@ -2134,7 +2142,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                             disabled={!selectedGameMode}
                                             className="min-h-[2.75rem] rounded-xl border border-emerald-400/50 bg-emerald-900/55 px-5 py-2.5 text-sm font-extrabold text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] sm:min-h-[2.85rem] sm:text-base disabled:cursor-not-allowed disabled:opacity-45"
                                         >
-                                            {showActionPointCost ? `${submitLabel} (⚡${actionPointCost})` : submitLabel}
+                                            {showActionPointCost ? `${submitLabel} (⚡${actionPointCostDisplay})` : submitLabel}
                                         </Button>
                                     </div>
                                 ) : null}

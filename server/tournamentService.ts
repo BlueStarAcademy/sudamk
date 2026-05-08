@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { TOURNAMENT_DEFINITIONS, NEIGHBORHOOD_MATCH_REWARDS, NATIONAL_MATCH_REWARDS, WORLD_MATCH_REWARDS, DUNGEON_STAGE_BOT_STATS, DUNGEON_STAGE_BASE_REWARDS_GOLD, DUNGEON_STAGE_BASE_REWARDS_MATERIAL, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT, getDungeonMatchGoldReward, getDungeonMatchMaterialReward, getDungeonMatchEquipmentGrade } from '../shared/constants';
 import { ItemGrade } from '../shared/types/enums.js';
 import { generateNewItem } from './actions/inventoryActions.js';
+import { assignChampionshipCondition } from './championshipRealMatchService.js';
 
 const EARLY_GAME_DURATION = 15;
 const MID_GAME_DURATION = 20;
@@ -187,11 +188,11 @@ const simulateAndFinishMatch = (match: Match, players: PlayerForTournament[], us
     // 컨디션은 처음 세팅된 값을 유지 (변경하지 않음)
     // 유효하지 않은 컨디션(undefined, null, 1000, 또는 범위 밖)인 경우에만 경고만 출력
     if (p1.condition === undefined || p1.condition === null || p1.condition === 1000 || 
-        p1.condition < 40 || p1.condition > 100) {
+        p1.condition < 1 || p1.condition > 100) {
         console.warn(`[simulateAndFinishMatch] Invalid condition for p1 (${p1.id}): ${p1.condition}, keeping as is`);
     }
     if (p2.condition === undefined || p2.condition === null || p2.condition === 1000 || 
-        p2.condition < 40 || p2.condition > 100) {
+        p2.condition < 1 || p2.condition > 100) {
         console.warn(`[simulateAndFinishMatch] Invalid condition for p2 (${p2.id}): ${p2.condition}, keeping as is`);
     }
 
@@ -326,14 +327,14 @@ const startNextMatchAutomatically = async (
             }
         }
 
-        // 5초 카운트다운 후 경기 시작
-        const now = Date.now();
-        state.nextRoundStartTime = now + 5000; // 5초 후
-        state.status = 'bracket_ready'; // 자동 시작 대기 중
-        
-        // 경기 정보는 아직 설정하지 않음 (카운트다운 후 START_TOURNAMENT_MATCH에서 설정)
+        // 챔피언십 던전: 매 경기 결과를 충분히 확인할 수 있도록 자동 카운트다운을 두지 않고,
+        // 유저가 "다음 경기" 버튼을 직접 눌러서 진행하도록 한다. 상태만 bracket_ready로 둔다.
+        state.nextRoundStartTime = null;
+        state.status = 'bracket_ready'; // 다음 경기 수동 시작 대기
 
-        console.log(`[startNextMatchAutomatically] Set countdown for next match: roundIndex=${roundIndex}, matchIndex=${matchIndex}, startTime=${state.nextRoundStartTime}, status=bracket_ready`);
+        // 경기 정보는 아직 설정하지 않음 (유저의 START_TOURNAMENT_MATCH 액션에서 설정)
+
+        console.log(`[startNextMatchAutomatically] Awaiting user "다음 경기" tap for next match: roundIndex=${roundIndex}, matchIndex=${matchIndex}, status=bracket_ready`);
         return true;
     } catch (error: any) {
         console.error(`[startNextMatchAutomatically] Error auto-starting match:`, error);
@@ -748,8 +749,15 @@ export const instantSkipChampionshipDungeonMatch = async (
 
     await processMatchCompletion(state, user, match, roundIndex);
 
+    // 스킵된 경기 결과도 누적된 중계에 한 줄 남겨, 다음 경기와 자연스럽게 이어지도록 한다.
+    const previousCommentary = Array.isArray(state.currentMatchCommentary) ? state.currentMatchCommentary : [];
+    const skipResultLine: CommentaryLine = {
+        text: `[경기 결과] ${match.winner?.nickname ?? '승자'} 승리 (스킵)`,
+        phase: 'end',
+        isRandomEvent: false,
+    };
+    state.currentMatchCommentary = [...previousCommentary, skipNote, skipResultLine];
     state.timeElapsed = 0;
-    state.currentMatchCommentary = [];
     state.currentMatchScores = { player1: 0, player2: 0 };
     state.simulationSeed = undefined;
     state.currentSimulatingMatch = null;
@@ -775,7 +783,8 @@ export const instantSkipAllRemainingChampionshipDungeonMatches = async (
 
         const one = await instantSkipChampionshipDungeonMatch(state, user);
         if (one.error) {
-            if (step > 0 && (state.status === 'complete' || state.status === 'eliminated')) {
+            const statusAfterSkip = state.status as TournamentSimulationStatus;
+            if (step > 0 && (statusAfterSkip === 'complete' || statusAfterSkip === 'eliminated')) {
                 return {};
             }
             return one;
@@ -788,7 +797,7 @@ export const createTournament = (type: TournamentType, user: User, players: Play
     const definition = TOURNAMENT_DEFINITIONS[type];
     const rounds: Round[] = [];
     
-    // 경기 시작 전에 컨디션을 40~100 사이로 랜덤 부여
+    // 경기 시작 전에 컨디션을 1~100 사이로 랜덤 부여
     // 단, 유저 플레이어는 오늘 이미 참여한 적이 있으면 기존 컨디션 유지
     const stateKey: keyof User = type === 'neighborhood' ? 'lastNeighborhoodTournament' : type === 'national' ? 'lastNationalTournament' : 'lastWorldTournament';
     const dateKey: keyof User = type === 'neighborhood' ? 'lastNeighborhoodPlayedDate' : type === 'national' ? 'lastNationalPlayedDate' : 'lastWorldPlayedDate';
@@ -811,7 +820,7 @@ export const createTournament = (type: TournamentType, user: User, players: Play
     // 뒤로 나갔다 재입장 시: 세션은 없지만 오늘자 스냅샷이 있으면 그 컨디션 유지 (편법 방지)
     if (userCondition === undefined) {
         const snapshot = (user as any).dungeonConditionSnapshot?.[type];
-        if (snapshot && isSameDayKST(snapshot.dateStartOfDayKST, now) && snapshot.condition >= 40 && snapshot.condition <= 100) {
+        if (snapshot && isSameDayKST(snapshot.dateStartOfDayKST, now) && snapshot.condition >= 1 && snapshot.condition <= 100) {
             userCondition = snapshot.condition;
         }
     }
@@ -820,7 +829,7 @@ export const createTournament = (type: TournamentType, user: User, players: Play
         if (p.id === user.id && userCondition !== undefined) {
             p.condition = userCondition; // 오늘 이미 참여했으면 기존 컨디션 유지
         } else {
-            p.condition = Math.floor(Math.random() * 61) + 40; // 랜덤 부여
+            p.condition = assignChampionshipCondition(); // 랜덤 부여
         }
     });
 
@@ -955,8 +964,7 @@ export const startNextRound = (state: TournamentState, user: User) => {
             // 컨디션은 변경하지 않음 (처음 설정된 값 유지)
         });
         
-        // 다음 회차로 넘어갈 때 중계 내용 초기화
-        state.currentMatchCommentary = [];
+        // 다음 회차로 넘어갈 때도 중계 멘트는 비우지 않고 이어서 표시한다.
         state.currentSimulatingMatch = null;
         state.timeElapsed = 0;
         state.currentMatchScores = { player1: 0, player2: 0 };
@@ -1011,8 +1019,7 @@ export const startNextRound = (state: TournamentState, user: User) => {
         // 컨디션은 변경하지 않음 (처음 설정된 값 유지)
     });
     
-    // 다음 회차로 넘어갈 때 중계 내용 초기화
-    state.currentMatchCommentary = [];
+    // 다음 회차로 넘어갈 때도 중계 멘트는 비우지 않고 이어서 표시한다.
     state.currentSimulatingMatch = null;
     state.timeElapsed = 0;
     state.currentMatchScores = { player1: 0, player2: 0 };
@@ -1235,23 +1242,23 @@ export const advanceSimulation = async (state: TournamentState, user: User): Pro
         }
 
         // 경기 시작 시 컨디션은 절대 변경하지 않음 (이미 부여된 컨디션이나 회복제로 변경된 컨디션 유지)
-        // 단, 컨디션이 1000(초기값)이거나 undefined/null이거나 유효 범위(40-100)를 벗어난 경우에만 랜덤 부여 (하위 호환성)
-        // 유효한 컨디션(40-100 사이)이 이미 부여되어 있으면 절대 변경하지 않음
+        // 단, 컨디션이 1000(초기값)이거나 undefined/null이거나 유효 범위(1-100)를 벗어난 경우에만 랜덤 부여 (하위 호환성)
+        // 유효한 컨디션(1-100 사이)이 이미 부여되어 있으면 절대 변경하지 않음
         if (state.status === 'round_in_progress') {
             // p1 컨디션 확인 및 부여 (유효한 컨디션이 없을 때만)
             // 유저의 경우 컨디션을 절대 변경하지 않음 (회복제로 변경된 컨디션 유지)
             if (p1.id === user.id) {
                 // 유저의 컨디션은 절대 변경하지 않음
                 if (p1.condition === undefined || p1.condition === null || p1.condition === 1000 || 
-                    p1.condition < 40 || p1.condition > 100) {
+                    p1.condition < 1 || p1.condition > 100) {
                     // 유저의 컨디션이 유효하지 않은 경우에만 부여 (하위 호환성)
-                    p1.condition = Math.floor(Math.random() * 61) + 40; // 40-100
+                    p1.condition = assignChampionshipCondition();
                 }
             } else {
                 // 상대방의 경우에만 컨디션 확인 및 부여 (유효한 컨디션이 없을 때만)
                 if (p1.condition === undefined || p1.condition === null || p1.condition === 1000 || 
-                    p1.condition < 40 || p1.condition > 100) {
-                    p1.condition = Math.floor(Math.random() * 61) + 40; // 40-100
+                    p1.condition < 1 || p1.condition > 100) {
+                    p1.condition = assignChampionshipCondition();
                 }
             }
             // p2 컨디션 확인 및 부여 (유효한 컨디션이 없을 때만)
@@ -1259,15 +1266,15 @@ export const advanceSimulation = async (state: TournamentState, user: User): Pro
             if (p2.id === user.id) {
                 // 유저의 컨디션은 절대 변경하지 않음
                 if (p2.condition === undefined || p2.condition === null || p2.condition === 1000 || 
-                    p2.condition < 40 || p2.condition > 100) {
+                    p2.condition < 1 || p2.condition > 100) {
                     // 유저의 컨디션이 유효하지 않은 경우에만 부여 (하위 호환성)
-                    p2.condition = Math.floor(Math.random() * 61) + 40; // 40-100
+                    p2.condition = assignChampionshipCondition();
                 }
             } else {
                 // 상대방의 경우에만 컨디션 확인 및 부여 (유효한 컨디션이 없을 때만)
                 if (p2.condition === undefined || p2.condition === null || p2.condition === 1000 || 
-                    p2.condition < 40 || p2.condition > 100) {
-                    p2.condition = Math.floor(Math.random() * 61) + 40; // 40-100
+                    p2.condition < 1 || p2.condition > 100) {
+                    p2.condition = assignChampionshipCondition();
                 }
             }
         }
@@ -1664,8 +1671,9 @@ export const calculateRanks = (tournament: TournamentState): { id: string, nickn
                         } else if (round.name.includes('강')) {
                             const roundNum = parseInt(round.name.replace('강', ''), 10);
                             if (!isNaN(roundNum) && roundNum >= 8) {
-                                // 8강·16강 탈락 = 5~8위(또는 9~16위). 동일하게 5위로 묶음
-                                rank = Math.min(5, roundNum);
+                                // n강 탈락자 공동 순위 = n/2 + 1
+                                //   16강 탈락 → 9위, 8강 탈락 → 5위, 32강 탈락 → 17위
+                                rank = Math.floor(roundNum / 2) + 1;
                             }
                         } else if (round.name.includes('결승')) {
                             rank = 2;
@@ -1761,8 +1769,8 @@ export const createDungeonStageBot = (
     
     console.log(`[createDungeonStageBot] Bot ${botName} (stage ${stage}, ${dungeonType}) created with stats:`, baseStats);
     
-    // 컨디션 랜덤 설정 (40~100)
-    const condition = Math.floor(Math.random() * 61) + 40;
+    // 컨디션 랜덤 설정 (1~100)
+    const condition = assignChampionshipCondition();
     
     // PlayerForTournament 객체 생성
     const bot: PlayerForTournament = {

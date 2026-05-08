@@ -24,8 +24,10 @@ import {
     isPairAiSeat,
     isPairClassicGame,
     markPairSeatPassed,
+    pairTurnSeatIdShortLabel,
     resetPairPasses,
 } from '../shared/utils/pairGameTurn.js';
+import { resolvePairSeatPetNicknameForChat } from './pairPetKataHydration.js';
 import {
     pairPetKataAbilityScore,
     pairPetKataLevelForTotalPly,
@@ -1647,12 +1649,21 @@ function choosePairPetMistakeMove(game: types.LiveGameSession, bestMove: Point, 
     return null;
 }
 
+function pairGameChatLocationForParticipant(game: types.LiveGameSession, participantId: string): string | undefined {
+    const order = game.settings?.pairGame?.turnOrder;
+    if (!order?.length) return undefined;
+    const seat = order.find((s) => s.participantId === participantId);
+    if (!seat?.seatId) return undefined;
+    return `[${pairTurnSeatIdShortLabel(seat.seatId)}]`;
+}
+
 function appendPairPetGameChat(
     game: types.LiveGameSession,
     text: string,
     opts?: { participantId: string; nickname: string },
 ): void {
     if (!text) return;
+    const location = opts ? pairGameChatLocationForParticipant(game, opts.participantId) : undefined;
     const message: types.ChatMessage = opts
         ? {
               id: `msg-${randomUUID()}`,
@@ -1660,6 +1671,7 @@ function appendPairPetGameChat(
               text,
               system: false,
               timestamp: Date.now(),
+              ...(location ? { location } : {}),
           }
         : {
               id: `msg-${randomUUID()}`,
@@ -2534,7 +2546,7 @@ export async function makeGoAiBotMove(
                 isLegalAiMoveOnCurrentBoard(game, kataBestMove, aiPlayerEnum)
             );
             if (canCheckPairPetEvent && kataBestMove && pairPetSeat) {
-                const petName = pairPetSeat.name || '펫';
+                const petChatName = resolvePairSeatPetNicknameForChat(game, pairPetSeat);
                 const pickedMistakeBranch = Math.random() < 0.5;
                 if (pickedMistakeBranch) {
                     const ability = pairPetKataAbilityScore(pairKataPhase!, pairKataStats!);
@@ -2546,7 +2558,7 @@ export async function makeGoAiBotMove(
                             pendingPairPetKataGameChat = {
                                 text: '앗! 실수..',
                                 participantId: pairPetSeat.participantId,
-                                nickname: petName,
+                                nickname: petChatName,
                             };
                         } else {
                             selectedMove = { x: kataBestMove.x, y: kataBestMove.y };
@@ -2557,7 +2569,7 @@ export async function makeGoAiBotMove(
                     pendingPairPetKataGameChat = {
                         text: '신의 한 수!',
                         participantId: pairPetSeat.participantId,
-                        nickname: petName,
+                        nickname: petChatName,
                     };
                 }
             }

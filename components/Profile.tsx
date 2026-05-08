@@ -61,6 +61,7 @@ import { NEW_FEATURE_BADGE_CLASS } from '../utils/newFeatureBadges.js';
 import PairPetProfilePanel from './pair/PairPetProfilePanel.js';
 import PairPetDetailEmbedPanel from './pair/PairPetDetailEmbedPanel.js';
 import PairPetHomeEmptyDetailFrame from './pair/PairPetHomeEmptyDetailFrame.js';
+import HomeNativeMergedEquipmentAbilityPanel from './HomeNativeMergedEquipmentAbilityPanel.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 
 function isVipExpiresActive(exp?: number): boolean {
@@ -2039,33 +2040,35 @@ const Profile: React.FC<ProfileProps> = () => {
             >
                 {ProfilePanelContent}
                 <div className="min-h-0 w-full min-w-0 border-t border-amber-500/25 pt-1">
-                    {AbilityBadukBannerContent}
-                    <div className={`mt-1 flex min-h-0 w-full min-w-0 flex-row items-stretch ${nativeCompactHome ? 'gap-1.5 sm:gap-2' : 'gap-2 sm:gap-2.5'}`}>
-                        {/** min-w-0 금지: flex-1 능력치 열에 폭을 다 뺏겨 장비 썸네일이 극단적으로 작아짐 — 폭은 min(18rem,행 100%)으로 고정 */}
-                        <div
-                            className={`flex flex-none flex-col justify-start ${nativeCompactHome ? 'w-[min(15.5rem,100%)]' : 'w-[min(18rem,100%)]'}`}
-                        >
-                            {EquipmentPanelContent}
-                        </div>
-                        <div
-                            className="w-px shrink-0 self-stretch bg-gradient-to-b from-amber-600/5 via-amber-400/50 to-amber-600/5"
-                            aria-hidden
-                        />
-                        <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center overflow-x-hidden py-0.5">
-                            {AbilityCoreStatsGridContent}
-                        </div>
-                    </div>
+                    <HomeNativeMergedEquipmentAbilityPanel
+                        equippedItems={equippedItems}
+                        presets={presets}
+                        selectedPreset={selectedPreset}
+                        onPresetChange={handlePresetChange}
+                        onOpenEquipmentEffects={handlers.openEquipmentEffectsModal}
+                        onOpenStatAllocation={handlers.openStatAllocationModal}
+                        onViewEquippedItem={(item) => handlers.openViewingItem(item, true)}
+                        finalByStat={coreStatComputeBundle.finalByStat}
+                        baseByStat={coreStatComputeBundle.baseByStat}
+                        badukAbilityTotal={coreStatComputeBundle.badukAbilityTotal}
+                        availablePoints={availablePoints}
+                        framed={false}
+                        compactLayout={nativeCompactHome}
+                    />
                 </div>
                 <div className="min-h-0 w-full min-w-0 shrink-0 pt-0.5">{ProfileGuildPanelContent}</div>
             </div>
         ),
         [
             ProfilePanelContent,
-            EquipmentPanelContent,
-            AbilityBadukBannerContent,
-            AbilityCoreStatsGridContent,
             ProfileGuildPanelContent,
-            readableHome,
+            equippedItems,
+            presets,
+            selectedPreset,
+            handlePresetChange,
+            handlers,
+            coreStatComputeBundle,
+            availablePoints,
             nativeCompactHome,
         ],
     );

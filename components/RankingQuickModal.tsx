@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import GameRankingBoard from './GameRankingBoard.js';
-import ChampionshipRankingPanel from './ChampionshipRankingPanel.js';
 import RankingList from './waiting-room/RankingList.js';
 import MobileRankingGuidePanel from './MobileRankingGuidePanel.js';
 import TierInfoModal from './TierInfoModal.js';
@@ -33,6 +32,15 @@ const MOBILE_RANKING_TABS: { id: RankingMobileTab; label: string }[] = [
 
 const PC_MAIN_TAB_BTN =
     'rounded-xl border px-4 py-2 text-sm font-bold tracking-tight transition-all duration-200 sm:px-5 sm:py-2.5 sm:text-base';
+
+const RetiredChampionshipRankingPanel: React.FC = () => (
+    <div className="flex h-full min-h-0 flex-col items-center justify-center rounded-lg border border-amber-400/20 bg-zinc-950/70 p-4 text-center">
+        <div className="text-base font-bold text-amber-100">챔피언십 랭킹 종료</div>
+        <p className="mt-2 max-w-sm text-sm leading-relaxed text-zinc-300">
+            PVE 챔피언십은 일일 도전과 결과 보상 중심으로 개편되었습니다. 추후 PVP 챔피언십에서 결투점수 월간 랭킹이 열릴 예정입니다.
+        </p>
+    </div>
+);
 
 const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmost }) => {
     const isCompactViewport = useIsHandheldDevice(1024);
@@ -179,7 +187,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             tabKey: 'championship',
                                             panel: (
                                                 <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
-                                                    <ChampionshipRankingPanel compact lobbyNativeMobile />
+                                                    <RetiredChampionshipRankingPanel />
                                                 </div>
                                             ),
                                         },
@@ -336,7 +344,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                         />
                                     </div>
                                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
-                                        <ChampionshipRankingPanel compact lobbyNativeMobile />
+                                        <RetiredChampionshipRankingPanel />
                                     </div>
                                 </div>
                             )}

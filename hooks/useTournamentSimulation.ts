@@ -1,9 +1,45 @@
 import { useEffect, useRef, useState } from 'react';
-import { TournamentState, User } from '../types';
+import { BoardState, Player, TournamentState, User } from '../types';
 import { useAppContext } from './useAppContext';
 import { runClientSimulationStep, SeededRandom } from '../utils/tournamentSimulation';
+import { processMoveClient } from '../client/goLogicClient';
 
 const TOTAL_GAME_DURATION = 50;
+// 챔피언십 실대국 중계 배속별 수당 간격(ms).
+//   x0.5: 3초/수, x1: 1.5초/수, x2: 1초/수, x3: 0.5초/수.
+// UI에서 사용자가 선택한 배속을 매 틱마다 ref로 읽어 다음 setTimeout에 반영한다.
+export type ChampionshipPlaybackSpeed = 0.5 | 1 | 2 | 3;
+const REAL_MATCH_INTERVAL_BY_SPEED_MS: Record<string, number> = {
+    '0.5': 3000,
+    '1': 1500,
+    '2': 1000,
+    '3': 500,
+};
+const moveIntervalMsForSpeed = (speed: ChampionshipPlaybackSpeed): number =>
+    REAL_MATCH_INTERVAL_BY_SPEED_MS[String(speed)] ?? REAL_MATCH_INTERVAL_BY_SPEED_MS['1']!;
+// 모든 수를 둔 뒤 계가 화면(좌→우 스캔)을 충분히 보여주고 결과 카드로 넘어가기 위한 지연.
+// CSS 스캔 애니메이션이 2.6s 동안 빔을 부모 너비 끝까지 한 번 쭉 통과시키므로
+// 그 이후에도 약 0.4s 더 가려진 상태를 유지해 "스캔이 오른쪽 끝까지 간 뒤 결과가 등장한다"는
+// 흐름을 명확히 보여준다.
+const REAL_MATCH_SCORING_DELAY_MS = 3000;
+type CommentaryPhase = 'early' | 'mid' | 'end';
+
+const createEmptyBoard = (boardSize: number): BoardState =>
+    Array.from({ length: boardSize }, () => Array.from({ length: boardSize }, () => Player.None));
+
+const boardAfterMoves = (boardSize: number, moves: Array<{ x: number; y: number; player: Player }>, count: number): BoardState => {
+    let board = createEmptyBoard(boardSize);
+    let koInfo: { point: { x: number; y: number }; turn: number } | null = null;
+    const replayMoves = moves.slice(0, count);
+    for (let i = 0; i < replayMoves.length; i++) {
+        const move = replayMoves[i]!;
+        const result = processMoveClient(board, move, koInfo, i);
+        if (!result.isValid) continue;
+        board = result.newBoardState;
+        koInfo = result.newKoInfo;
+    }
+    return board;
+};
 
 type PersistedTournamentSimulation = {
     userId: string;
@@ -19,6 +55,72 @@ const getMatchKey = (tournament: TournamentState | null | undefined): string | n
 };
 
 const getStorageKey = (userId: string, type: TournamentState['type']) => `tournamentSimulation_${userId}_${type}`;
+
+// 좋은 수(bestMove) 이벤트 멘트 풀 — {nickname} 토큰을 선수 이름으로 치환해 사용한다.
+const BEST_MOVE_COMMENTARY_TEMPLATES: readonly string[] = [
+    '{nickname}의 좋은 수가 나왔습니다.',
+    '{nickname}의 신의 한 수가 나왔습니다!',
+    '{nickname}의 멋진 묘수가 빛납니다.',
+    '{nickname}의 날카로운 한 수가 작렬했습니다.',
+    '{nickname}의 노련한 한 수가 돋보입니다.',
+    '{nickname}이(가) 결정적인 호수를 두었습니다.',
+    '{nickname}의 침착한 명수가 형세를 흔듭니다.',
+    '{nickname}이(가) 절묘한 한 수로 응수합니다.',
+    '{nickname}의 통렬한 일격이 들어갔습니다!',
+    '{nickname}의 한 수에 해설진이 감탄합니다.',
+];
+
+// 실수(mistake) 이벤트 멘트 풀.
+const MISTAKE_COMMENTARY_TEMPLATES: readonly string[] = [
+    '{nickname}의 실수가 나왔습니다.',
+    '{nickname}의 한 수가 흔들립니다.',
+    '{nickname}이(가) 잠시 균형을 잃었습니다.',
+    '{nickname}의 착점이 다소 어긋났습니다.',
+    '{nickname}의 손길이 평소답지 않게 흔들렸습니다.',
+    '{nickname}의 판단이 살짝 빗나갑니다.',
+    '{nickname}의 수읽기에 빈틈이 보입니다.',
+    '{nickname}의 한 수가 아쉬움을 남깁니다.',
+    '{nickname}이(가) 의외의 악수를 둡니다.',
+    '{nickname}의 집중력이 잠시 흐트러졌습니다.',
+];
+
+const pickFromTemplates = (templates: readonly string[], nickname: string): string => {
+    const template = templates[Math.floor(Math.random() * templates.length)] ?? templates[0]!;
+    return template.replace('{nickname}', nickname);
+};
+
+const phaseMetaForPly = (ply: number, maxPly: number): { phase: CommentaryPhase; label: string } => {
+    const midStart = maxPly <= 90 ? 31 : 51;
+    const endStart = maxPly <= 90 ? 61 : 101;
+    if (ply >= endStart) return { phase: 'end', label: '종반전' };
+    if (ply >= midStart) return { phase: 'mid', label: '중반전' };
+    return { phase: 'early', label: '초반전' };
+};
+
+const phaseStartMessageForPly = (ply: number, maxPly: number): { phase: CommentaryPhase; text: string } | null => {
+    const midStart = maxPly <= 90 ? 31 : 51;
+    const endStart = maxPly <= 90 ? 61 : 101;
+    if (ply === 1) {
+        return { phase: 'early', text: '초반전이 시작되었습니다. 포석과 첫 전투 흐름을 살펴봅니다.' };
+    }
+    if (ply === midStart) {
+        return { phase: 'mid', text: '중반전이 시작되었습니다. 전투력과 판단력이 승부의 중심이 됩니다.' };
+    }
+    if (ply === endStart) {
+        return { phase: 'end', text: '종반전이 시작되었습니다. 계산력과 안정감으로 마지막 차이를 벌립니다.' };
+    }
+    return null;
+};
+
+const describeCurrentMatch = (tournament: TournamentState, match: NonNullable<TournamentState['rounds'][number]['matches'][number]>) => {
+    const roundIndex = tournament.currentSimulatingMatch?.roundIndex ?? -1;
+    const roundName = tournament.rounds[roundIndex]?.name ?? '현재 라운드';
+    const p1Name = match.players[0]?.nickname ?? '선수 1';
+    const p2Name = match.players[1]?.nickname ?? '선수 2';
+    const finishedUserMatches = tournament.rounds.flatMap(round => round.matches).filter(m => m.isUserMatch && m.isFinished).length;
+    const headline = finishedUserMatches > 0 ? '다음 경기가 시작되었습니다.' : '경기가 시작되었습니다.';
+    return { roundName, p1Name, p2Name, headline };
+};
 
 const readPersistedSimulation = (userId: string, type: TournamentState['type']): PersistedTournamentSimulation | null => {
     try {
@@ -83,7 +185,11 @@ const resolveInitialTournament = (tournament: TournamentState | null, currentUse
     return tournament;
 };
 
-export const useTournamentSimulation = (tournament: TournamentState | null, currentUser: User | null) => {
+export const useTournamentSimulation = (
+    tournament: TournamentState | null,
+    currentUser: User | null,
+    playbackSpeed: ChampionshipPlaybackSpeed = 1,
+) => {
     const { handlers } = useAppContext();
     const [localTournament, setLocalTournament] = useState<TournamentState | null>(() => resolveInitialTournament(tournament, currentUser));
 
@@ -97,6 +203,17 @@ export const useTournamentSimulation = (tournament: TournamentState | null, curr
     const player2ScoreRef = useRef(0);
     const commentaryRef = useRef<any[]>([]);
     const timeElapsedRef = useRef(0);
+    // 배속 변경을 진행 중인 중계 루프에 즉시 반영하기 위해 ref로 보관한다.
+    const playbackSpeedRef = useRef<ChampionshipPlaybackSpeed>(playbackSpeed);
+    useEffect(() => {
+        playbackSpeedRef.current = playbackSpeed;
+    }, [playbackSpeed]);
+
+    // 매 매치당 [경기 시작] 멘트를 단 한 번만 push하기 위한 가드.
+    // currentUser/socket 등으로 useEffect가 첫 tick(1.5s) 이전에 재실행되면
+    // realGame.currentPly가 아직 0이어서 if (ply === 0) 블록이 또 들어가 멘트가 중복된다.
+    // 같은 매치 키에 대해 이미 푸시했다면 건너뛴다.
+    const announcedStartMatchKeyRef = useRef<string | null>(null);
 
     // Track current match to detect changes
     const currentMatchKeyRef = useRef<string | null>(getMatchKey(localTournament));
@@ -199,7 +316,6 @@ export const useTournamentSimulation = (tournament: TournamentState | null, curr
         const shouldStartSimulation =
             localTournament.status === 'round_in_progress' &&
             localTournament.currentSimulatingMatch !== null &&
-            localTournament.simulationSeed !== undefined &&
             !isSimulatingRef.current &&
             !simulationIntervalRef.current;
 
@@ -224,6 +340,182 @@ export const useTournamentSimulation = (tournament: TournamentState | null, curr
                 hasPlayers: !!(match?.players[0] && match?.players[1])
             });
             return;
+        }
+
+        const realGame = match.championshipRealGame;
+        if (realGame?.moves?.length) {
+            isSimulatingRef.current = true;
+            let ply = Math.max(0, realGame.currentPly || 0);
+            const commentary = [...(localTournament.currentMatchCommentary || [])];
+            const matchDescription = describeCurrentMatch(localTournament, match);
+
+            if (ply === 0) {
+                // 매 경기 시작 시 [경기 시작] 멘트만 추가한다.
+                // "초반전이 시작되었습니다." 멘트는 아래 setInterval 내부에서 cappedPly === 1 시점에 한 번만 push하므로
+                // 여기서 firstPhaseMessage를 또 push하면 한 매치당 두 번씩 중복 출력되어 제거한다.
+                //
+                // 추가로 currentUser 등 deps 변경으로 useEffect가 첫 tick(1.5s) 이전에 재실행될 수 있는데,
+                // 이때 realGame.currentPly가 아직 0이라 다시 이 분기로 들어와 멘트가 중복된다.
+                // 같은 매치(roundIndex_matchIndex_seed/maxPly)에 대해 announcedStartMatchKeyRef로 1회만 푸시되도록 가드한다.
+                const sim = localTournament.currentSimulatingMatch;
+                const startMatchKey = sim
+                    ? `${localTournament.type}|${sim.roundIndex}|${sim.matchIndex}|${realGame.maxPly}|${realGame.boardSize}`
+                    : `${localTournament.type}|null|null|${realGame.maxPly}|${realGame.boardSize}`;
+                const alreadyAnnounced = announcedStartMatchKeyRef.current === startMatchKey;
+
+                if (!alreadyAnnounced) {
+                    announcedStartMatchKeyRef.current = startMatchKey;
+                    commentary.push({
+                        text: `[경기 시작] ${matchDescription.headline} ${matchDescription.roundName} - ${matchDescription.p1Name} vs ${matchDescription.p2Name}, ${realGame.boardSize}줄 ${realGame.maxPly}수 대국입니다.`,
+                        phase: 'early',
+                        isRandomEvent: false,
+                    });
+                    setLocalTournament(prev => {
+                        if (!prev?.currentSimulatingMatch) return prev;
+                        const updated = { ...prev, rounds: prev.rounds.map(r => ({ ...r, matches: r.matches.map(m => ({ ...m })) })) };
+                        const m = updated.rounds[prev.currentSimulatingMatch.roundIndex]?.matches[prev.currentSimulatingMatch.matchIndex];
+                        if (!m?.championshipRealGame) return updated;
+                        m.championshipRealGame = {
+                            ...m.championshipRealGame,
+                            boardState: createEmptyBoard(realGame.boardSize),
+                            currentPly: 0,
+                            lastMove: null,
+                            status: 'playing',
+                        };
+                        updated.timeElapsed = 0;
+                        updated.currentMatchCommentary = [...commentary];
+                        return updated;
+                    });
+                }
+            }
+
+            // setTimeout 체인으로 매 틱마다 최신 배속을 ref에서 읽어 다음 간격을 결정한다.
+            // 이렇게 하면 사용자가 진행 중에 배속 버튼을 눌러도 다음 수부터 즉시 반영된다.
+            const playMoveTick = () => {
+                ply++;
+                const cappedPly = Math.min(ply, realGame.moves.length);
+                const move = realGame.moves[cappedPly - 1];
+                const event = realGame.events?.find((e) => e.ply === cappedPly);
+                const phaseMeta = phaseMetaForPly(cappedPly, realGame.maxPly);
+                const phaseStartMessage = phaseStartMessageForPly(cappedPly, realGame.maxPly);
+
+                if (phaseStartMessage) {
+                    // 단계 전환은 한 매치당 한 번씩만 트리거되므로 직접 push해 매 경기 모두 표시되게 한다.
+                    commentary.push({ ...phaseStartMessage, isRandomEvent: false });
+                }
+
+                if (move) {
+                    const actor = localTournament.players.find(p => p.id === move.actorId);
+                    if (event) {
+                        const nickname = actor?.nickname ?? '선수';
+                        const eventBody = event.type === 'mistake'
+                            ? pickFromTemplates(MISTAKE_COMMENTARY_TEMPLATES, nickname)
+                            : pickFromTemplates(BEST_MOVE_COMMENTARY_TEMPLATES, nickname);
+                        commentary.push({
+                            // 이벤트가 발생한 수 번호를 멘트 앞에 [N수] 형태로 표기한다.
+                            text: `[${cappedPly}수] ${eventBody}`,
+                            phase: phaseMeta.phase,
+                            isRandomEvent: true,
+                        });
+                    }
+                }
+
+                setLocalTournament(prev => {
+                    if (!prev?.currentSimulatingMatch) return prev;
+                    const updated = { ...prev, rounds: prev.rounds.map(r => ({ ...r, matches: r.matches.map(m => ({ ...m })) })) };
+                    const m = updated.rounds[prev.currentSimulatingMatch.roundIndex]?.matches[prev.currentSimulatingMatch.matchIndex];
+                    if (!m?.championshipRealGame) return updated;
+                    m.championshipRealGame = {
+                        ...m.championshipRealGame,
+                        boardState: boardAfterMoves(realGame.boardSize, realGame.moves, cappedPly),
+                        currentPly: cappedPly,
+                        lastMove: move ? { x: move.x, y: move.y } : m.championshipRealGame.lastMove,
+                        status: cappedPly >= realGame.moves.length ? 'scoring' : 'playing',
+                        timeMetrics: {
+                            generatedAt: m.championshipRealGame.timeMetrics?.generatedAt ?? realGame.timeMetrics?.generatedAt ?? Date.now(),
+                            generationMs: m.championshipRealGame.timeMetrics?.generationMs ?? realGame.timeMetrics?.generationMs ?? 0,
+                            playbackStartedAt: m.championshipRealGame.timeMetrics?.playbackStartedAt ?? Date.now(),
+                        },
+                    };
+                    updated.timeElapsed = cappedPly;
+                    updated.currentMatchCommentary = [...commentary];
+                    return updated;
+                });
+
+                if (cappedPly >= realGame.moves.length) {
+                    if (simulationIntervalRef.current) {
+                        clearTimeout(simulationIntervalRef.current);
+                        simulationIntervalRef.current = null;
+                    }
+
+                    commentary.push({ text: `${realGame.maxPly}수 진행이 완료되어 계가 중입니다...`, phase: 'end', isRandomEvent: false });
+                    setLocalTournament(prev => {
+                        if (!prev?.currentSimulatingMatch) return prev;
+                        const updated = { ...prev, currentMatchCommentary: [...commentary], rounds: prev.rounds.map(r => ({ ...r, matches: r.matches.map(m => ({ ...m })) })) };
+                        const m = updated.rounds[prev.currentSimulatingMatch.roundIndex]?.matches[prev.currentSimulatingMatch.matchIndex];
+                        if (m?.championshipRealGame) {
+                            m.championshipRealGame = {
+                                ...m.championshipRealGame,
+                                boardState: realGame.boardState,
+                                currentPly: realGame.moves.length,
+                                status: 'scoring',
+                                timeMetrics: {
+                                    generatedAt: m.championshipRealGame.timeMetrics?.generatedAt ?? realGame.timeMetrics?.generatedAt ?? Date.now(),
+                                    generationMs: m.championshipRealGame.timeMetrics?.generationMs ?? realGame.timeMetrics?.generationMs ?? 0,
+                                    playbackStartedAt: m.championshipRealGame.timeMetrics?.playbackStartedAt,
+                                    scoringStartedAt: Date.now(),
+                                },
+                            };
+                        }
+                        return updated;
+                    });
+
+                    setTimeout(() => {
+                        const winner = localTournament.players.find(p => p.id === realGame.winnerId);
+                        const blackPlayer = localTournament.players.find(p => p.id === realGame.blackPlayerId);
+                        const whitePlayer = localTournament.players.find(p => p.id === realGame.whitePlayerId);
+                        commentary.push({
+                            text: `[최종계가] ${winner?.nickname ?? '승자'}, ${Math.abs(realGame.finalScore?.scoreLead ?? 0).toFixed(1)}집 승리`,
+                            phase: 'end',
+                            isRandomEvent: false,
+                        });
+                        commentary.push({
+                            text: `[경기 결과] ${matchDescription.roundName} 종료 - ${winner?.nickname ?? '승자'} 승리. 흑 ${blackPlayer?.nickname ?? '흑'} ${realGame.finalScore?.black.toFixed(1) ?? '-'}집, 백 ${whitePlayer?.nickname ?? '백'} ${realGame.finalScore?.white.toFixed(1) ?? '-'}집.`,
+                            phase: 'end',
+                            isRandomEvent: false,
+                        });
+                        const completionPayload = {
+                            type: localTournament.type,
+                            result: {
+                                timeElapsed: realGame.moves.length,
+                                player1Score: realGame.finalScore?.black ?? 0,
+                                player2Score: realGame.finalScore?.white ?? 0,
+                                commentary,
+                                winnerId: realGame.winnerId || '',
+                            }
+                        };
+                        void handlers.handleAction({
+                            type: 'COMPLETE_TOURNAMENT_SIMULATION',
+                            payload: completionPayload,
+                        });
+                        isSimulatingRef.current = false;
+                    }, REAL_MATCH_SCORING_DELAY_MS);
+                    return; // 마지막 수에 도달했으면 다음 틱을 예약하지 않는다.
+                }
+
+                // 다음 수: 매 틱마다 최신 배속을 읽어 적용 (사용자가 중간에 변경해도 즉시 반영).
+                simulationIntervalRef.current = setTimeout(playMoveTick, moveIntervalMsForSpeed(playbackSpeedRef.current));
+            };
+
+            simulationIntervalRef.current = setTimeout(playMoveTick, moveIntervalMsForSpeed(playbackSpeedRef.current));
+
+            return () => {
+                if (simulationIntervalRef.current) {
+                    clearTimeout(simulationIntervalRef.current);
+                    simulationIntervalRef.current = null;
+                }
+                isSimulatingRef.current = false;
+            };
         }
 
         const p1 = localTournament.players.find(p => p.id === match.players[0]!.id);

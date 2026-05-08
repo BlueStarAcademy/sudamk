@@ -790,6 +790,10 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
         case 'MISSILE_ANIMATION_COMPLETE' as any: {
             // 클라이언트가 애니메이션 완료를 알림 (모든 게임 모드에서 사용)
             // 게임 상태가 이미 playing으로 변경되었거나 애니메이션이 없는 경우에도 처리 (이미 완료된 경우 대비)
+            // 종료·무효: 서버는 이미 넘어갔는데 클라만 missile_animating 잔존 → 400이면 연출이 영원히 안 끝남
+            if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') {
+                return { clientResponse: { gameUpdated: true } };
+            }
             if (game.gameStatus !== 'missile_animating' && game.gameStatus !== 'playing') {
                 const pveMissileAnimDupOk = new Set([
                     'hidden_placing',
@@ -798,10 +802,16 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
                     'scanning_animating',
                     'hidden_final_reveal',
                     'scoring',
+                    // 레이스: 완료 신호가 늦게 오거나 서버가 먼저 선택 페이즈로 복귀한 경우
+                    'missile_selecting',
                 ]);
                 const gc = (game as any).gameCategory;
                 const pveLike =
-                    gc === 'adventure' || gc === 'tower' || game.isSinglePlayer === true;
+                    gc === 'adventure' ||
+                    gc === 'tower' ||
+                    gc === 'guildwar' ||
+                    gc === 'singleplayer' ||
+                    game.isSinglePlayer === true;
                 if (pveLike && pveMissileAnimDupOk.has(String(game.gameStatus))) {
                     return { clientResponse: { gameUpdated: true } };
                 }

@@ -1,11 +1,9 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { GameMode, UserWithStatus, GameSettings, Negotiation } from '../types';
+import { GameMode, User, UserWithStatus, GameSettings, Negotiation } from '../types';
 import {
   SPECIAL_GAME_MODES,
   PLAYFUL_GAME_MODES,
   DEFAULT_GAME_SETTINGS,
-  STRATEGIC_ACTION_POINT_COST,
-  PLAYFUL_ACTION_POINT_COST,
 } from '../constants';
 import { 
   BOARD_SIZES, TIME_LIMITS, BYOYOMI_COUNTS, BYOYOMI_TIMES, CAPTURE_BOARD_SIZES, 
@@ -46,6 +44,11 @@ import {
   PRE_GAME_MODAL_DANGER_BTN_CLASS,
 } from './game/PreGameDescriptionLayout.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout';
+import {
+    basePvpActionPointCostForMode,
+    effectiveNegotiationApCostForUser,
+    formatActionPointCostWithPetDiscount,
+} from '../shared/utils/pairPetArenaApDiscount.js';
 
 interface ChallengeSelectionModalProps {
   opponent: UserWithStatus;
@@ -232,7 +235,19 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
   const isWaitingForResponse = currentNegotiation?.status === 'pending' && currentNegotiation?.proposerId === opponent.id;
 
   const availableGames = lobbyType === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
-  const actionPointCost = lobbyType === 'strategic' ? STRATEGIC_ACTION_POINT_COST : PLAYFUL_ACTION_POINT_COST;
+  const actionPointModeForAp = useMemo(() => {
+      if (selectedMode) return selectedMode;
+      return availableGames[0]?.mode ?? GameMode.Standard;
+  }, [selectedMode, availableGames]);
+  const actionPointBase = useMemo(() => basePvpActionPointCostForMode(actionPointModeForAp), [actionPointModeForAp]);
+  const actionPointEffective = useMemo(() => {
+      if (!currentUser) return actionPointBase;
+      return effectiveNegotiationApCostForUser(currentUser as User, actionPointModeForAp);
+  }, [currentUser, actionPointBase, actionPointModeForAp]);
+  const actionPointCostDisplay = useMemo(
+      () => formatActionPointCostWithPetDiscount(actionPointBase, actionPointEffective),
+      [actionPointBase, actionPointEffective],
+  );
 
   // 친선전 표시 (현재 협상 시스템은 모두 친선전)
   const isCasual = true;
@@ -1429,7 +1444,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                           }
                     }
                   >
-                    대국 신청 (⚡{actionPointCost})
+                    대국 신청 (⚡{actionPointCostDisplay})
                   </Button>
                 </>
               )}

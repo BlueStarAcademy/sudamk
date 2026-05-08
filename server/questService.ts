@@ -22,6 +22,7 @@ export type QuestProgressEvent =
     | 'craft_attempt'
     | 'chat_greeting'
     | 'championship_play'
+    | 'championship_reward_claim'
     | 'adventure_win'
     | 'login'
     | 'claim_daily_milestone_100'
@@ -84,7 +85,13 @@ export const updateQuestProgress = (
             case '챔피언십 경기 완료하기':
             case '챔피언십 경기 진행하기':
             case '자동대국 토너먼트 참여하기':
-                if (type === 'championship_play' || type === 'tournament_participate') shouldUpdate = true;
+                if (
+                    type === 'championship_play' ||
+                    type === 'championship_reward_claim' ||
+                    type === 'tournament_participate'
+                ) {
+                    shouldUpdate = true;
+                }
                 break;
             case '장비 강화':
             case '장비 강화시도':
@@ -122,7 +129,11 @@ export const updateQuestProgress = (
         }
 
         if (shouldUpdate) {
-            quest.progress = Math.min(quest.target, quest.progress + amount);
+            if (type === 'championship_reward_claim') {
+                quest.progress = quest.target;
+            } else {
+                quest.progress = Math.min(quest.target, quest.progress + amount);
+            }
         }
     }
 };

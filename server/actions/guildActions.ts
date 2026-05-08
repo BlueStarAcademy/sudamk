@@ -32,7 +32,6 @@ import { addItemsToInventory, getItemTemplateByName } from '../../utils/inventor
 import { openGuildGradeBox } from '../shop.js';
 import { randomUUID } from 'crypto';
 import { updateQuestProgress } from '../questService.js';
-import { calculateGuildMissionXp } from '../../utils/guildUtils.js';
 import {
     calculateGuildBossBattleRewards,
     getCurrentGuildBossStage,
@@ -1578,11 +1577,22 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             // Mark as claimed by the current user
             if (!mission.claimedBy) mission.claimedBy = [];
             mission.claimedBy.push(effectiveUserId);
-            const gainedGuildXp = calculateGuildMissionXp(mission.guildReward?.guildXp ?? 0, guild.level ?? 1);
+
+            const rawPending = mission.guildXpPending;
+            const pendingGuildXp =
+                typeof rawPending === 'number' && Number.isFinite(rawPending)
+                    ? Math.max(0, Math.floor(rawPending))
+                    : 0;
+            if (pendingGuildXp > 0) {
+                guild.xp = (guild.xp ?? 0) + pendingGuildXp;
+                guildService.checkGuildLevelUp(guild);
+                delete mission.guildXpPending;
+            }
+
             const rewardSummary = {
                 reward: {
                     guildCoins: gainedGuildCoins,
-                    guildXp: gainedGuildXp,
+                    guildXp: pendingGuildXp,
                 },
                 items: [],
                 title: '주간 길드 미션 보상 수령',

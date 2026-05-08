@@ -74,6 +74,22 @@ type HandleActionResult = {
 };
 
 const ALL_SLOTS: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
+
+/** 거래소에 올린 장비는 프리셋 슬롯에서 제거한다. */
+function removeItemFromAllEquipmentPresets(user: User, itemId: string): void {
+    const presets = user.equipmentPresets;
+    if (!Array.isArray(presets) || presets.length === 0) return;
+    for (const preset of presets) {
+        const equipment = preset?.equipment;
+        if (!equipment || typeof equipment !== 'object') continue;
+        for (const slotKey of Object.keys(equipment) as EquipmentSlot[]) {
+            if (equipment[slotKey] === itemId) {
+                delete equipment[slotKey];
+            }
+        }
+    }
+}
+
 const GRADE_ORDER: ItemGrade[] = [
     ItemGrade.Normal,
     ItemGrade.Uncommon,
@@ -1161,6 +1177,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                     }
                 }
                 target.isExchangeListed = true;
+                removeItemFromAllEquipmentPresets(user, itemId);
             } else {
                 target.isExchangeListed = false;
                 const ex = user.exchangeState ?? { listings: [], settlements: [], history: [] };
@@ -1185,7 +1202,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             const { broadcastUserUpdate } = await import('../socket.js');
             const broadcastFields =
                 action.type === 'MARK_ITEM_EXCHANGE_LISTED'
-                    ? (['inventory', 'gold', 'diamonds'] as const)
+                    ? (['inventory', 'gold', 'diamonds', 'equipmentPresets'] as const)
                     : (['inventory', 'exchangeState'] as const);
             broadcastUserUpdate(user, [...broadcastFields]);
             return { clientResponse: { updatedUser } };

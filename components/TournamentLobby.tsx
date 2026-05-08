@@ -1,12 +1,21 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { UserWithStatus, TournamentState, TournamentType, User, LeagueTier, EquipmentSlot, InventoryItem, CoreStat, ItemGrade, SpecialStat } from '../types.js';
-import { TOURNAMENT_DEFINITIONS, AVATAR_POOL, LEAGUE_DATA, BORDER_POOL, GRADE_LEVEL_REQUIREMENTS, emptySlotImages, getDungeonStageScore, getHighestDungeonStageWhereUserAvgExceedsBot } from '../constants';
+import {
+    TOURNAMENT_DEFINITIONS,
+    CHAMPIONSHIP_VENUE_LOBBY_BG_IMAGE,
+    CHAMPIONSHIP_PVP_VENUE_BG_WEBP,
+    AVATAR_POOL,
+    LEAGUE_DATA,
+    BORDER_POOL,
+    GRADE_LEVEL_REQUIREMENTS,
+    emptySlotImages,
+    getHighestDungeonStageWhereUserAvgExceedsBot,
+} from '../constants';
 import Avatar from './Avatar.js';
 import { isSameDayKST } from '../utils/timeUtils.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import LeagueTierInfoModal from './LeagueTierInfoModal.js';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
-import PointsInfoPanel from './PointsInfoPanel.js';
 import Button from './Button.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposition.js';
@@ -14,7 +23,7 @@ import ChampionshipVenueEntryModal from './ChampionshipVenueEntryModal.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { normalizeDungeonProgress, isStageCleared } from '../utils/championshipDungeonProgress.js';
 import CoreStatsHexagonChart from './CoreStatsHexagonChart.js';
-import DraggableWindow from './DraggableWindow.js';
+import HomeNativeMergedEquipmentAbilityPanel from './HomeNativeMergedEquipmentAbilityPanel.js';
 
 /** 챔피언십 로비 패널: 경기장 배경 블러(전략/놀이 대기실과 동일 계열) */
 const CHAMPIONSHIP_PANEL_GLASS =
@@ -334,90 +343,57 @@ const RankItem: React.FC<RankItemProps> = ({ user, rank, isMyRankDisplay }) => {
     );
 };
 
-/** 던전별 챔피언십 랭킹점수표(단계 선택 + 순위별 점수) — 입장 카드 우측 패널·모달 공통 */
-const DungeonChampionshipRankingPointsPanel: React.FC<{
-    type: TournamentType;
-    currentUser: UserWithStatus;
-    /** 모바일 모달 등에서 패딩·글자 크기 축소 */
-    compact?: boolean;
-}> = ({ type, currentUser, compact = false }) => {
-    const dungeonProgress = normalizeDungeonProgress(currentUser?.dungeonProgress?.[type] || {
-        currentStage: 0,
-        unlockedStages: [1],
-        stageResults: {},
-        dailyStageAttempts: {},
-    });
-    const currentPointsStage = Math.min(10, Math.max(1, dungeonProgress.currentStage || 1));
-    const [pointsStage, setPointsStage] = useState<number>(currentPointsStage);
-    useEffect(() => {
-        setPointsStage(currentPointsStage);
-    }, [currentPointsStage]);
-
-    const buildRows = () => {
-        if (type === 'neighborhood') {
-            return Array.from({ length: 6 }, (_, i) => ({ label: `${i + 1}위`, rank: i + 1 }));
-        }
-        if (type === 'national') {
-            return [
-                ...Array.from({ length: 4 }, (_, i) => ({ label: `${i + 1}위`, rank: i + 1 })),
-                { label: '8강', rank: 8 },
-            ];
-        }
-        return [
-            ...Array.from({ length: 4 }, (_, i) => ({ label: `${i + 1}위`, rank: i + 1 })),
-            { label: '8강', rank: 8 },
-            { label: '16강', rank: 16 },
-        ];
-    };
-    const rows = buildRows();
-    const selClass = compact
-        ? 'min-w-[4.25rem] rounded border border-amber-400/35 bg-zinc-900/85 px-1 py-0.5 text-[11px] font-semibold text-amber-100 focus:border-amber-300/70 focus:outline-none'
-        : 'min-w-[5rem] rounded border border-amber-400/35 bg-zinc-900/85 px-1.5 py-0.5 text-[12px] font-semibold text-amber-100 focus:border-amber-300/70 focus:outline-none';
-    const gridClass = compact ? 'grid grid-cols-3 gap-0.5' : 'grid grid-cols-3 gap-1';
-    const headClass = compact
-        ? 'border-b border-white/10 px-0.5 py-0.5 text-center text-[11px] font-bold'
-        : 'border-b border-white/10 px-1 py-0.5 text-center text-[13px] font-bold';
-    const cellClass = compact
-        ? 'px-0.5 py-0.5 text-center font-mono text-[11px] font-semibold tabular-nums text-slate-100'
-        : 'px-1 py-0.5 text-center font-mono text-[13px] font-semibold tabular-nums text-slate-100';
-
-    return (
-        <div className="w-full min-w-0">
-            <div className={`mb-1 flex items-center justify-between gap-2 ${compact ? '' : ''}`}>
-                <div className={`text-center font-semibold text-slate-200/95 ${compact ? 'text-xs' : 'text-[14px]'}`}>챔피언십 랭킹점수</div>
-                <select
-                    value={pointsStage}
-                    onChange={(e) => setPointsStage(Number(e.target.value))}
-                    className={selClass}
-                    aria-label="점수 확인 단계 선택"
-                >
-                    {Array.from({ length: 10 }, (_, i) => i + 1).map((stage) => (
-                        <option key={stage} value={stage}>
-                            {stage}단계{stage === currentPointsStage ? ' (현재단계)' : ''}
-                        </option>
-                    ))}
-                </select>
+const PvpChampionshipComingSoonCard: React.FC<{
+    compactMerged: boolean;
+    mergedInfoPanelStretch?: boolean;
+}> = ({ compactMerged, mergedInfoPanelStretch = false }) => {
+    if (compactMerged) {
+        return (
+            <div
+                className={`flex w-full overflow-hidden rounded-2xl border border-slate-500/45 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10 ${
+                    mergedInfoPanelStretch
+                        ? 'aspect-[2.06/1] max-h-full min-h-0 w-full shrink-0'
+                        : 'h-full min-h-[5rem] max-h-[7.85rem]'
+                }`}
+            >
+                <div className="relative min-h-0 min-w-0 flex-[1.58] overflow-hidden rounded-l-2xl bg-slate-950/90">
+                    <img
+                        src={CHAMPIONSHIP_PVP_VENUE_BG_WEBP}
+                        alt=""
+                        className="absolute inset-0 h-full w-full object-cover object-center opacity-80 grayscale-[0.35]"
+                    />
+                    <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/60 via-black/25 to-black/80" />
+                    <div className="pointer-events-none absolute left-2 top-2 z-10 rounded-md border border-slate-400/40 bg-slate-950/85 px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-200 shadow-md sm:text-[11px]">
+                        Coming Soon
+                    </div>
+                </div>
+                <div className="flex min-h-0 min-w-0 max-w-[42%] flex-1 flex-col items-stretch justify-center border-l border-slate-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-2.5">
+                    <div className="inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-slate-400/35 bg-gradient-to-r from-slate-900/70 via-zinc-900/65 to-slate-900/70 px-1.5 py-1 text-[12px] font-black leading-tight tracking-tight text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:text-[13px]">
+                        PVP 챔피언십
+                    </div>
+                    <p className="mt-2 text-[11px] font-semibold leading-snug text-slate-400 sm:text-xs">결투 점수 기반 랭킹·대회 (준비 중)</p>
+                </div>
             </div>
-            <div className={gridClass}>
-                {rows.map(({ label, rank }) => {
-                    const score = getDungeonStageScore(type, pointsStage, rank);
-                    const rankTone =
-                        rank === 1
-                            ? 'text-yellow-300'
-                            : rank === 2
-                              ? 'text-slate-200'
-                              : rank === 3
-                                ? 'text-amber-300'
-                                : 'text-slate-300';
-                    return (
-                        <div key={`${label}-${rank}`} className="overflow-hidden rounded-md border border-white/12 bg-black/25">
-                            <div className={`${headClass} ${rankTone}`}>
-                                {label}{rank <= 3 ? ' (단계상승)' : ''}
-                            </div>
-                            <div className={cellClass}>{score}점</div>
-                        </div>
-                    );
-                })}
+        );
+    }
+    return (
+        <div className="flex aspect-[2.08/1] max-h-full min-h-0 w-full overflow-hidden rounded-2xl border border-slate-500/45 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10">
+            <div className="relative min-h-0 min-w-0 flex-[1.52] overflow-hidden rounded-l-2xl bg-slate-950/90">
+                <img
+                    src={CHAMPIONSHIP_PVP_VENUE_BG_WEBP}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover object-center opacity-85 grayscale-[0.25]"
+                />
+                <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
+                <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-md border border-slate-400/45 bg-slate-950/88 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-slate-100 shadow-md">
+                    Coming Soon
+                </div>
+            </div>
+            <div className="flex min-h-0 min-w-[200px] flex-[1.08] flex-col items-center justify-center border-l border-slate-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                <div className="mb-2 inline-flex w-full max-w-[16rem] items-center justify-center rounded-lg border border-slate-400/35 bg-gradient-to-r from-slate-900/70 via-zinc-900/65 to-slate-900/70 px-3 py-2 text-[17px] font-black tracking-tight text-slate-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
+                    PVP 챔피언십
+                </div>
+                <p className="max-w-[15rem] text-sm font-medium leading-relaxed text-slate-400">결투 점수 기반 랭킹과 대회가 열릴 예정입니다.</p>
             </div>
         </div>
     );
@@ -442,6 +418,7 @@ const TournamentCard: React.FC<{
     userDungeonCoreStatAverage?: number;
 }> = ({ type, onClick, onContinue, inProgress, currentUser, compact, compactInline, mergedInfoPanel = false, mergedInfoPanelCompact = false, mergedInfoPanelStretch = false, userDungeonCoreStatAverage }) => {
     const definition = TOURNAMENT_DEFINITIONS[type];
+    const lobbyVenueBg = CHAMPIONSHIP_VENUE_LOBBY_BG_IMAGE[type];
     const hasResultToView = inProgress && (inProgress.status === 'complete' || inProgress.status === 'eliminated');
 
     const now = Date.now();
@@ -505,10 +482,10 @@ const TournamentCard: React.FC<{
               : 'border-violet-500/50 ring-1 ring-violet-400/35 shadow-[0_2px_14px_rgba(167,139,250,0.2)]';
 
     const imageButtonClass = compactInline
-        ? 'relative flex aspect-[2.2/1] w-full shrink-0 overflow-hidden rounded-md bg-gray-800 ring-0 transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70 active:scale-[0.98]'
+        ? 'relative flex aspect-[2.65/1] w-full shrink-0 overflow-hidden rounded-md bg-gray-800 ring-0 transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70 active:scale-[0.98]'
         : compact
           ? 'relative flex min-h-0 w-full flex-1 overflow-hidden rounded-lg bg-gray-700 ring-0 transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 active:scale-[0.98]'
-          : 'relative flex aspect-video w-full flex-grow overflow-hidden rounded-lg bg-gray-700 ring-0 transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 active:scale-[0.99] group-hover:brightness-105';
+          : 'relative flex aspect-[2.12/1] w-full flex-grow overflow-hidden rounded-lg bg-gray-700 ring-0 transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 active:scale-[0.99] group-hover:brightness-105';
 
     const titleText = compactInline
         ? 'min-w-0 truncate text-left font-bold leading-tight text-white drop-shadow-md text-[11px] sm:text-[12px]'
@@ -544,17 +521,17 @@ const TournamentCard: React.FC<{
                         <div
                             className={`flex w-full overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10 ${
                                 mergedInfoPanelStretch
-                                    ? 'h-full min-h-0 flex-1'
-                                    : 'h-full min-h-[6.75rem] max-h-[11rem]'
+                                    ? 'aspect-[2.06/1] max-h-full min-h-0 w-full shrink-0'
+                                    : 'h-full min-h-[5rem] max-h-[7.85rem]'
                             }`}
                         >
                             <button
                                 type="button"
                                 onClick={() => setEntryModalOpen(true)}
-                                className="group relative min-h-0 min-w-0 flex-[1.45] overflow-hidden rounded-l-2xl text-left focus:outline-none"
+                                className="group relative min-h-0 min-w-0 flex-[1.58] overflow-hidden rounded-l-2xl text-left focus:outline-none"
                                 aria-label={`${definition.name} 입장 및 보상 안내`}
                             >
-                                <img src={definition.image} alt="" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
+                                <img src={lobbyVenueBg} alt="" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
                                 <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
                                 <div
                                     className={`pointer-events-none absolute right-1.5 top-1.5 z-20 max-w-[calc(100%-0.5rem)] rounded-md border px-1.5 py-0.5 text-[10px] font-extrabold leading-tight tracking-tight shadow-[0_4px_14px_rgba(0,0,0,0.35)] sm:right-2 sm:top-2 sm:px-2 sm:py-1 sm:text-[11px] ${participationBadgeTone}`}
@@ -563,7 +540,7 @@ const TournamentCard: React.FC<{
                                     {participationBadge}
                                 </div>
                             </button>
-                            <div className="flex min-h-0 min-w-0 max-w-[44%] flex-1 flex-col items-stretch border-l border-amber-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-2.5">
+                            <div className="flex min-h-0 min-w-0 max-w-[42%] flex-1 flex-col items-stretch border-l border-amber-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-2.5">
                                 <div className="inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-amber-300/35 bg-gradient-to-r from-amber-950/55 via-zinc-900/65 to-amber-950/55 px-1.5 py-1 text-[12px] font-black leading-tight tracking-tight text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_14px_-8px_rgba(251,191,36,0.4)] sm:text-[13px]">
                                     {definition.name}
                                 </div>
@@ -585,14 +562,14 @@ const TournamentCard: React.FC<{
                         </div>
                     </>
                 ) : (
-                <div className="flex h-full min-h-0 overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10">
+                <div className="flex aspect-[2.08/1] max-h-full min-h-0 w-full overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10">
                     <button
                         type="button"
                         onClick={() => setEntryModalOpen(true)}
-                        className="group relative min-h-0 min-w-0 flex-[1.35] overflow-hidden rounded-l-2xl text-left focus:outline-none"
+                        className="group relative min-h-0 min-w-0 flex-[1.52] overflow-hidden rounded-l-2xl text-left focus:outline-none"
                         aria-label={`${definition.name} 입장 및 보상 안내`}
                     >
-                        <img src={definition.image} alt="" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
+                        <img src={lobbyVenueBg} alt="" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
                         <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
                         <div
                             className={`pointer-events-none absolute right-2 top-2 z-20 rounded-md border px-2 py-1 text-[11px] font-extrabold tracking-tight shadow-[0_4px_14px_rgba(0,0,0,0.35)] ${participationBadgeTone}`}
@@ -619,9 +596,6 @@ const TournamentCard: React.FC<{
                                 </span>
                             </div>
                         </div>
-                        <div className="mt-auto w-full min-w-0 shrink-0 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-2">
-                            <DungeonChampionshipRankingPointsPanel type={type} currentUser={currentUser} />
-                        </div>
                     </div>
                 </div>
                 )
@@ -645,7 +619,7 @@ const TournamentCard: React.FC<{
                             className={imageButtonClass}
                             aria-label={`${definition.name} 입장 및 보상 안내`}
                         >
-                            <img src={definition.image} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+                            <img src={lobbyVenueBg} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
                             <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/20 to-black/75" aria-hidden />
                             <div className={`absolute inset-x-0 top-0 bg-gradient-to-b from-black/85 to-transparent ${compactInline ? 'px-1 pb-1.5 pt-0.5' : 'px-1.5 pb-3 pt-1 sm:px-2 sm:pt-1.5'}`}>
                                 <div className="flex items-start justify-between gap-0.5">
@@ -681,7 +655,7 @@ const TournamentCard: React.FC<{
                     className={imageButtonClass}
                     aria-label={`${definition.name} 입장 및 보상 안내`}
                 >
-                    <img src={definition.image} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+                    <img src={lobbyVenueBg} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
                     <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/20 to-black/75" aria-hidden />
                     <div className={`absolute inset-x-0 top-0 bg-gradient-to-b from-black/85 to-transparent ${compactInline ? 'px-1 pb-1.5 pt-0.5' : 'px-1.5 pb-3 pt-1 sm:px-2 sm:pt-1.5'}`}>
                         <div className="flex items-start justify-between gap-0.5">
@@ -809,7 +783,7 @@ const EquipmentSlotDisplay: React.FC<{
 };
 
 const TournamentLobby: React.FC = () => {
-    const { currentUserWithStatus, allUsers, handlers, presets } = useAppContext();
+    const { currentUserWithStatus, handlers, presets } = useAppContext();
     const { isNativeMobile, isNarrowViewport, pcLikeMobileLayout } = useNativeMobileShell();
     /** 네이티브 앱이 아니어도 좁은 화면(모바일 브라우저 등)에서는 입장카드 우측을 컴팩트 패널로 */
     const useCompactMergedChampionshipCards = isNarrowViewport && !pcLikeMobileLayout;
@@ -825,14 +799,6 @@ const TournamentLobby: React.FC = () => {
     const [hasRankChanged, setHasRankChanged] = useState(false);
     const [enrollingIn, setEnrollingIn] = useState<TournamentType | null>(null);
     const [selectedPreset, setSelectedPreset] = useState(0);
-    const [isChampionshipPresetModalOpen, setIsChampionshipPresetModalOpen] = useState(false);
-    const [isAcquiredScoreModalOpen, setIsAcquiredScoreModalOpen] = useState(false);
-
-    const championshipPresetModalWidth = useMemo(() => {
-        if (typeof window === 'undefined') return 760;
-        if (!isNativeMobile) return 760;
-        return Math.min(560, Math.max(328, window.innerWidth - 14));
-    }, [isNativeMobile]);
 
     if (!currentUserWithStatus) {
         return (
@@ -947,305 +913,98 @@ const TournamentLobby: React.FC = () => {
     const combinedLevel = currentUserWithStatus.userLevel || 0;
     const myAvatarUrl = AVATAR_POOL.find(a => a.id === currentUserWithStatus.avatarId)?.url;
     const myBorderUrl = BORDER_POOL.find(b => b.id === currentUserWithStatus.borderId)?.url;
-    const championshipScore = currentUserWithStatus.cumulativeTournamentScore || currentUserWithStatus.tournamentScore || 0;
-    const championshipRank = useMemo(() => {
-        if (championshipScore <= 0) return null;
-        const rankedByServer = (currentUserWithStatus.dailyRankings?.championship as { rank?: number } | undefined)
-            ?.rank;
-        if (typeof rankedByServer === 'number' && rankedByServer > 0) return rankedByServer;
-
-        const participantsMap = new Map<string, UserWithStatus>();
-        for (const user of allUsers || []) {
-            participantsMap.set(user.id, user as UserWithStatus);
-        }
-        participantsMap.set(currentUserWithStatus.id, currentUserWithStatus);
-
-        const participants = Array.from(participantsMap.values()).filter(
-            (u) => (u.cumulativeTournamentScore || u.tournamentScore || 0) > 0
-        );
-        if (participants.length === 0) return null;
-
-        participants.sort((a, b) => {
-            const aScore = a.cumulativeTournamentScore || a.tournamentScore || 0;
-            const bScore = b.cumulativeTournamentScore || b.tournamentScore || 0;
-            if (bScore !== aScore) return bScore - aScore;
-            return (a.nickname || '').localeCompare(b.nickname || '', 'ko');
-        });
-
-        const idx = participants.findIndex(u => u.id === currentUserWithStatus.id);
-        return idx >= 0 ? idx + 1 : null;
-    }, [allUsers, currentUserWithStatus, championshipScore]);
-
     return (
         <div
-            className={`relative flex w-full flex-col bg-lobby-shell-championship text-primary ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0.5 pb-0.5' : 'h-full p-2 sm:p-4 lg:p-2'}`}
+            className={`relative flex w-full flex-col bg-lobby-shell-championship text-primary ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-hidden overscroll-y-contain px-0.5 pb-0.5' : 'h-full p-2 sm:p-4 lg:p-2'}`}
             style={venueLobbyPanelStyle}
         >
             {isNativeMobile ? (
                 <>
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-[clamp(0.25rem,1.2dvh,0.5rem)] pb-[clamp(0.125rem,0.6dvh,0.25rem)]">
-                    {/* 좌: 뒤로가기+타이틀 + (프로필·점수·순위 한 패널) / 우: 프리셋·획득 점수 패널 */}
-                    <div className="flex min-h-0 w-full shrink-0 flex-row items-stretch gap-2">
-                        <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15">
-                            <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
-                            <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
-                            <div className="relative flex min-h-0 flex-col overflow-hidden p-2 text-on-panel">
-                                <div className="relative mb-2 flex shrink-0 items-center gap-2 rounded-xl border border-amber-500/35 bg-black/20 p-1.5">
-                                    <button
-                                        type="button"
-                                        onClick={() => { window.location.hash = '#/profile'; }}
-                                        className="relative z-[1] shrink-0 transition-transform active:scale-90 filter hover:drop-shadow-lg"
-                                        aria-label="프로필로 돌아가기"
-                                    >
-                                        <img src="/images/button/back.png" alt="" className="h-9 w-9" />
-                                    </button>
-                                    <h1 className="relative z-[1] min-w-0 truncate text-left text-lg font-bold text-amber-50">챔피언십</h1>
-                                </div>
-                                <div className="min-h-0 overflow-hidden rounded-xl border border-amber-500/25 bg-gradient-to-br from-black/35 via-zinc-950/50 to-amber-950/20 p-1.5 sm:p-2">
-                                    <div className="relative flex min-h-0 flex-col overflow-hidden rounded-lg border border-amber-400/25 bg-black/30 px-1.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:px-2">
-                                        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
-                                        {/* 프로필 · 챔피언십 점수 · 순위 — 한 줄 */}
-                                        <div className="flex min-h-0 min-w-0 flex-row items-stretch gap-1.5 sm:gap-2">
-                                            <div className="flex min-w-0 max-w-[min(42%,11rem)] shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-black/20 px-1.5 py-1 sm:gap-2 sm:px-2 sm:py-1.5">
-                                                <Avatar
-                                                    userId={currentUserWithStatus.id}
-                                                    userName={currentUserWithStatus.nickname}
-                                                    avatarUrl={myAvatarUrl}
-                                                    borderUrl={myBorderUrl}
-                                                    size={36}
-                                                />
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="truncate text-[11px] font-extrabold tracking-tight text-amber-50 sm:text-xs">{currentUserWithStatus.nickname}</p>
-                                                    <p className="mt-0.5 text-[10px] font-semibold text-amber-200/90 sm:text-[11px]">Lv.{combinedLevel}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center overflow-hidden rounded-lg border border-violet-300/45 bg-gradient-to-br from-violet-900/55 via-zinc-900/75 to-indigo-950/65 px-1 py-1 shadow-[0_6px_16px_-10px_rgba(99,102,241,0.45)] sm:px-1.5 sm:py-1.5">
-                                                <div className="text-center text-[9px] font-black leading-none tracking-wide text-violet-100/95 sm:text-[10px]">
-                                                    챔피언십
-                                                </div>
-                                                <div className="mt-0.5 flex min-h-[1.35rem] items-center justify-center sm:min-h-[1.5rem]">
-                                                    <span className="font-mono text-sm font-black leading-none tabular-nums text-violet-50 drop-shadow-[0_0_12px_rgba(167,139,250,0.4)] sm:text-base">
-                                                        {championshipScore.toLocaleString()}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center overflow-hidden rounded-lg border border-amber-300/45 bg-gradient-to-br from-amber-900/55 via-zinc-900/75 to-orange-950/65 px-1 py-1 shadow-[0_6px_16px_-10px_rgba(245,158,11,0.45)] sm:px-1.5 sm:py-1.5">
-                                                <div className="text-center text-[9px] font-black leading-none tracking-wide text-amber-50/95 sm:text-[10px]">
-                                                    순위
-                                                </div>
-                                                <div className="mt-0.5 flex min-h-[1.35rem] items-center justify-center sm:min-h-[1.5rem]">
-                                                    <span className="text-sm font-black leading-none tabular-nums text-amber-100 drop-shadow-[0_0_12px_rgba(251,191,36,0.4)] sm:text-base">
-                                                        {championshipRank != null ? `${championshipRank}위` : '-'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="flex w-[min(7.5rem,34vw)] min-w-[6.75rem] shrink-0 flex-col">
-                            <div className="relative flex h-full min-h-0 flex-1 flex-col justify-center gap-2 rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15 sm:p-3">
-                                <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
-                                <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
-                                <button
-                                    type="button"
-                                    onClick={() => setIsChampionshipPresetModalOpen(true)}
-                                    className="w-full shrink-0 rounded-lg border border-indigo-400/55 bg-gradient-to-b from-indigo-900/85 to-indigo-950/90 px-2 py-2.5 text-center text-[11px] font-bold leading-snug text-indigo-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition-colors active:scale-[0.99] sm:text-xs"
-                                >
-                                    프리셋 변경
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsAcquiredScoreModalOpen(true)}
-                                    className="w-full shrink-0 rounded-lg border border-violet-400/50 bg-gradient-to-b from-violet-900/80 to-zinc-950/90 px-2 py-2.5 text-center text-[11px] font-bold leading-snug text-violet-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] transition-colors active:scale-[0.99] sm:text-xs"
-                                >
-                                    획득 점수
-                                </button>
-                            </div>
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-[clamp(0.25rem,1.2dvh,0.5rem)] overflow-hidden pb-[clamp(0.125rem,0.6dvh,0.25rem)]">
+                    {/* 상단: 뒤로가기 + 타이틀 */}
+                    <div className="relative w-full shrink-0 overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15">
+                        <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
+                        <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
+                        <div className="relative flex items-center gap-2 p-2 text-on-panel">
+                            <button
+                                type="button"
+                                onClick={() => { window.location.hash = '#/profile'; }}
+                                className="relative z-[1] shrink-0 transition-transform active:scale-90 filter hover:drop-shadow-lg"
+                                aria-label="프로필로 돌아가기"
+                            >
+                                <img src="/images/button/back.png" alt="" className="h-9 w-9" />
+                            </button>
+                            <h1 className="relative z-[1] min-w-0 truncate text-left text-lg font-bold text-amber-50">챔피언십</h1>
                         </div>
                     </div>
 
-                    {/* 입장 카드 3개 — 남는 높이를 균등 분배 */}
+                    {/* 홈과 동일: 바둑능력 배너 + 장비(3×2·프리셋) + 6가지 능력치 (육각형 없음) */}
+                    <HomeNativeMergedEquipmentAbilityPanel
+                        equippedItems={equippedItems}
+                        presets={presets}
+                        selectedPreset={selectedPreset}
+                        onPresetChange={handlePresetChange}
+                        onOpenEquipmentEffects={handlers.openEquipmentEffectsModal}
+                        onOpenStatAllocation={handlers.openStatAllocationModal}
+                        onViewEquippedItem={(item) => handlers.openViewingItem(item, true)}
+                        finalByStat={finalByStat}
+                        baseByStat={baseByStat}
+                        badukAbilityTotal={badukAbilityTotal}
+                        availablePoints={availablePoints}
+                        framed
+                        compactLayout
+                    />
+
+                    {/* 입장 카드: 세로 나열, 이 영역만 스크롤 */}
                     <div
-                        className={`flex min-h-0 w-full min-w-0 flex-1 flex-col gap-[clamp(0.375rem,1.5dvh,0.75rem)] overflow-hidden overscroll-y-contain rounded-lg border border-stone-600/40 p-[clamp(0.25rem,1dvh,0.5rem)] shadow-inner ${CHAMPIONSHIP_PANEL_GLASS} bg-stone-950/45`}
+                        className={`min-h-0 w-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-lg border border-stone-600/40 p-[clamp(0.2rem,0.85dvh,0.45rem)] shadow-inner [-webkit-overflow-scrolling:touch] ${CHAMPIONSHIP_PANEL_GLASS} bg-stone-950/45`}
                     >
-                        <div className="flex min-h-0 min-w-0 flex-1 flex-col basis-0">
-                            <TournamentCard
-                                type="neighborhood"
-                                onClick={(stage) => handleEnterArena('neighborhood', stage)}
-                                onContinue={() => handleContinueTournament('neighborhood')}
-                                inProgress={neighborhoodState || null}
-                                currentUser={currentUserWithStatus}
-                                mergedInfoPanel
-                                mergedInfoPanelCompact
-                                mergedInfoPanelStretch
-                                userDungeonCoreStatAverage={userDungeonCoreStatAverage}
-                            />
-                        </div>
-                        <div className="flex min-h-0 min-w-0 flex-1 flex-col basis-0">
-                            <TournamentCard
-                                type="national"
-                                onClick={(stage) => handleEnterArena('national', stage)}
-                                onContinue={() => handleContinueTournament('national')}
-                                inProgress={nationalState || null}
-                                currentUser={currentUserWithStatus}
-                                mergedInfoPanel
-                                mergedInfoPanelCompact
-                                mergedInfoPanelStretch
-                                userDungeonCoreStatAverage={userDungeonCoreStatAverage}
-                            />
-                        </div>
-                        <div className="flex min-h-0 min-w-0 flex-1 flex-col basis-0">
-                            <TournamentCard
-                                type="world"
-                                onClick={(stage) => handleEnterArena('world', stage)}
-                                onContinue={() => handleContinueTournament('world')}
-                                inProgress={worldState || null}
-                                currentUser={currentUserWithStatus}
-                                mergedInfoPanel
-                                mergedInfoPanelCompact
-                                mergedInfoPanelStretch
-                                userDungeonCoreStatAverage={userDungeonCoreStatAverage}
-                            />
+                        <div className="flex w-full min-w-0 flex-col items-stretch gap-[clamp(0.3rem,1.2dvh,0.55rem)] pb-1">
+                            <div className="flex w-full shrink-0 flex-col items-stretch">
+                                <TournamentCard
+                                    type="neighborhood"
+                                    onClick={(stage) => handleEnterArena('neighborhood', stage)}
+                                    onContinue={() => handleContinueTournament('neighborhood')}
+                                    inProgress={neighborhoodState || null}
+                                    currentUser={currentUserWithStatus}
+                                    mergedInfoPanel
+                                    mergedInfoPanelCompact
+                                    mergedInfoPanelStretch
+                                    userDungeonCoreStatAverage={userDungeonCoreStatAverage}
+                                />
+                            </div>
+                            <div className="flex w-full shrink-0 flex-col items-stretch">
+                                <TournamentCard
+                                    type="national"
+                                    onClick={(stage) => handleEnterArena('national', stage)}
+                                    onContinue={() => handleContinueTournament('national')}
+                                    inProgress={nationalState || null}
+                                    currentUser={currentUserWithStatus}
+                                    mergedInfoPanel
+                                    mergedInfoPanelCompact
+                                    mergedInfoPanelStretch
+                                    userDungeonCoreStatAverage={userDungeonCoreStatAverage}
+                                />
+                            </div>
+                            <div className="flex w-full shrink-0 flex-col items-stretch">
+                                <TournamentCard
+                                    type="world"
+                                    onClick={(stage) => handleEnterArena('world', stage)}
+                                    onContinue={() => handleContinueTournament('world')}
+                                    inProgress={worldState || null}
+                                    currentUser={currentUserWithStatus}
+                                    mergedInfoPanel
+                                    mergedInfoPanelCompact
+                                    mergedInfoPanelStretch
+                                    userDungeonCoreStatAverage={userDungeonCoreStatAverage}
+                                />
+                            </div>
+                            <div className="flex w-full shrink-0 flex-col items-stretch">
+                                <PvpChampionshipComingSoonCard compactMerged mergedInfoPanelStretch />
+                            </div>
                         </div>
                     </div>
                 </div>
-                {isChampionshipPresetModalOpen && (
-                    <DraggableWindow
-                        title="프리셋 / 바둑능력"
-                        onClose={() => setIsChampionshipPresetModalOpen(false)}
-                        windowId="championship-preset-tournament-mobile"
-                        isTopmost={true}
-                        initialWidth={championshipPresetModalWidth}
-                        initialHeight={isNativeMobile ? 720 : 680}
-                        variant="store"
-                        mobileViewportFit
-                        mobileViewportMaxHeightCss="92dvh"
-                        mobileViewportMaxHeightVh={92}
-                        mobileLockViewportHeight={isNativeMobile}
-                        bodyNoScroll
-                        bodyPaddingClassName="!p-1 min-h-0"
-                    >
-                        <div className="flex h-full min-h-0 flex-col gap-1 overflow-hidden">
-                            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-amber-500/35 bg-gradient-to-b from-zinc-800 to-zinc-950 p-1 sm:flex-[1.12] sm:p-1.5">
-                                <div className="mb-0.5 shrink-0 text-center text-[9px] font-bold tracking-wide text-amber-200 sm:text-[10px]">바둑능력</div>
-                                <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_18px_50px_-22px_rgba(0,0,0,0.72)] ring-1 ring-amber-100/10 sm:p-1.5">
-                                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
-                                    <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
-                                    <div className="relative mb-0.5 flex min-w-0 shrink-0 flex-nowrap items-center gap-x-1 overflow-hidden rounded-lg border border-amber-600/45 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 px-1 py-0.5 shadow-[0_10px_32px_-14px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.07)] sm:gap-x-1.5 sm:px-1.5 sm:py-1">
-                                        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent" aria-hidden />
-                                        <div className="relative flex min-w-0 flex-nowrap items-center gap-x-0.5 sm:gap-x-1">
-                                            <span className="shrink-0 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-[clamp(8px,2.5vw,11px)] font-bold tracking-tight text-transparent drop-shadow-[0_0_24px_rgba(251,191,36,0.25)]">
-                                                바둑능력
-                                            </span>
-                                            <span
-                                                className="shrink-0 bg-gradient-to-br from-yellow-50 via-amber-200 to-amber-700 bg-clip-text font-mono text-[clamp(14px,4.5vw,18px)] font-black tabular-nums leading-none tracking-tight text-transparent drop-shadow-[0_1px_0_rgba(0,0,0,0.35)]"
-                                                title="6개 핵심 능력치 합계"
-                                            >
-                                                {badukAbilityTotal}
-                                            </span>
-                                        </div>
-                                        <span className="h-3.5 w-px shrink-0 bg-zinc-600/90 sm:h-4" aria-hidden />
-                                        <span
-                                            className="min-w-0 flex-1 truncate text-center text-[clamp(8px,2.4vw,10px)] font-medium text-amber-100/85"
-                                            title={`보너스: ${availablePoints}P`}
-                                        >
-                                            보너스 <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
-                                            <span className="text-amber-100/55">P</span>
-                                        </span>
-                                        <Button
-                                            onClick={handlers.openStatAllocationModal}
-                                            colorScheme="none"
-                                            className="!shrink-0 !whitespace-nowrap !rounded-md !border !border-indigo-400/45 !bg-gradient-to-r !from-indigo-500/90 !via-violet-500/85 !to-fuchsia-500/80 !px-1 !py-0.5 !text-[clamp(8px,2.3vw,9px)] !font-semibold !leading-none !text-white !shadow-[0_6px_20px_-8px_rgba(99,102,241,0.55)] hover:!brightness-110 sm:!px-1.5"
-                                        >
-                                            분배
-                                        </Button>
-                                    </div>
-                                    <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-                                        <CoreStatsHexagonChart
-                                            values={finalByStat}
-                                            baseByStat={baseByStat}
-                                            className="h-full min-h-0 min-w-0"
-                                            desktopLike
-                                            mobileReadable
-                                            compactModal
-                                            championshipPresetFit={isNativeMobile}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden rounded-xl border border-amber-500/35 bg-gradient-to-b from-zinc-800 to-zinc-950 p-1 sm:p-1.5">
-                                <div className="mb-0.5 shrink-0 text-center text-[10px] font-bold tracking-wide text-amber-200">장착 장비 / 프리셋</div>
-                                <div className="relative flex flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_40px_-20px_rgba(0,0,0,0.7)] ring-1 ring-amber-100/10">
-                                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
-                                    <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
-                                    <div className="mx-auto flex w-full min-w-0 max-w-[min(220px,88vw)] flex-col">
-                                        <div className="grid w-full min-w-0 grid-cols-3 grid-rows-2 gap-0.5 [&>*]:min-w-0">
-                                            {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
-                                                const item = getItemForSlot(slot);
-                                                return (
-                                                    <div key={slot} className="aspect-square w-full min-w-0">
-                                                        <EquipmentSlotDisplay
-                                                            slot={slot}
-                                                            item={item}
-                                                            onClick={() => item && handlers.openViewingItem(item, true)}
-                                                        />
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                        <div className="mt-1 flex w-full min-w-0 shrink-0 items-stretch gap-1 border-t border-color/40 pt-1">
-                                            <select
-                                                value={selectedPreset}
-                                                onChange={handlePresetChange}
-                                                className="min-h-[24px] min-w-0 flex-1 rounded border border-color bg-secondary px-1 py-0.5 text-[11px] focus:border-accent focus:ring-accent"
-                                            >
-                                                {presets && presets.map((preset, index) => (
-                                                    <option key={index} value={index}>{preset.name}</option>
-                                                ))}
-                                            </select>
-                                            <Button
-                                                onClick={handlers.openEquipmentEffectsModal}
-                                                colorScheme="none"
-                                                className="!shrink-0 !whitespace-nowrap !px-1.5 !py-0.5 !text-[9px] justify-center rounded-md border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white"
-                                            >
-                                                효과
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </DraggableWindow>
-                )}
-                {isAcquiredScoreModalOpen && (
-                    <DraggableWindow
-                        title="일일 획득 가능 점수"
-                        onClose={() => setIsAcquiredScoreModalOpen(false)}
-                        windowId="championship-daily-points-mobile"
-                        isTopmost={true}
-                        initialWidth={440}
-                        initialHeight={680}
-                        variant="store"
-                        mobileViewportFit
-                        mobileViewportMaxHeightCss="92dvh"
-                        mobileViewportMaxHeightVh={92}
-                        mobileLockViewportHeight
-                        bodyNoScroll
-                        bodyPaddingClassName="!p-0 min-h-0"
-                    >
-                        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-                            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain px-2 py-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:w-0">
-                                <div className="flex min-h-full flex-1 flex-col items-center justify-center">
-                                    <div className="w-full max-w-[min(22rem,100%)]">
-                                        <PointsInfoPanel variant="nativeEmbedded" lobbyGlass hideHeading arenaTabs />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </DraggableWindow>
-                )}
             </>
             ) : (
             <div className="flex h-full min-h-0 min-w-0 flex-1 flex-row gap-1.5 overflow-hidden">
@@ -1279,28 +1038,6 @@ const TournamentLobby: React.FC = () => {
                                             <div className="min-w-0 flex-1">
                                                 <p className="truncate text-base font-extrabold tracking-tight text-amber-50">{currentUserWithStatus.nickname}</p>
                                                 <p className="mt-0.5 text-sm font-semibold text-amber-200/90">Lv.{combinedLevel}</p>
-                                            </div>
-                                        </div>
-                                        <div className="mt-2 grid min-h-0 flex-1 grid-cols-2 gap-2">
-                                            <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-violet-300/45 bg-gradient-to-br from-violet-900/55 via-zinc-900/75 to-indigo-950/65 shadow-[0_10px_24px_-12px_rgba(99,102,241,0.55)]">
-                                                <div className="border-b border-violet-200/20 bg-gradient-to-r from-violet-400/35 to-indigo-500/35 px-2.5 py-1.5 text-center text-[13px] font-black tracking-wide text-violet-50">
-                                                    챔피언십 점수
-                                                </div>
-                                                <div className="flex min-h-0 flex-1 items-center justify-center px-2.5 py-2">
-                                                <span className="font-mono text-[1.9rem] font-black leading-none text-violet-100 tabular-nums drop-shadow-[0_0_20px_rgba(167,139,250,0.45)]">
-                                                    {championshipScore.toLocaleString()}
-                                                </span>
-                                                </div>
-                                            </div>
-                                            <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-amber-300/45 bg-gradient-to-br from-amber-900/55 via-zinc-900/75 to-orange-950/65 shadow-[0_10px_24px_-12px_rgba(245,158,11,0.55)]">
-                                                <div className="border-b border-amber-200/20 bg-gradient-to-r from-amber-400/35 to-orange-500/35 px-2.5 py-1.5 text-center text-[13px] font-black tracking-wide text-amber-50">
-                                                    현재 순위
-                                                </div>
-                                                <div className="flex min-h-0 flex-1 items-center justify-center px-2.5 py-2">
-                                                <span className="text-[1.9rem] font-black leading-none text-amber-100 tabular-nums drop-shadow-[0_0_20px_rgba(251,191,36,0.45)]">
-                                                    {championshipRank != null ? `${championshipRank}위` : '-'}
-                                                </span>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -1388,40 +1125,52 @@ const TournamentLobby: React.FC = () => {
                     </aside>
                     <main className="min-h-0 flex-1 flex flex-col items-center overflow-hidden rounded-lg border border-zinc-600/80 bg-panel p-1 shadow-inner">
                         <div className="mx-auto flex h-full min-h-0 w-full max-w-[min(100%,1120px)] flex-col justify-center">
-                            <div className="grid h-full min-h-0 grid-cols-1 grid-rows-3 content-center gap-3 sm:gap-4 lg:gap-5">
-                                <TournamentCard
-                                    type="neighborhood"
-                                    onClick={(stage) => handleEnterArena('neighborhood', stage)}
-                                    onContinue={() => handleContinueTournament('neighborhood')}
-                                    inProgress={neighborhoodState || null}
-                                    currentUser={currentUserWithStatus}
-                                    mergedInfoPanel
-                                    mergedInfoPanelCompact={useCompactMergedChampionshipCards}
-                                    mergedInfoPanelStretch={useCompactMergedChampionshipCards}
-                                    userDungeonCoreStatAverage={userDungeonCoreStatAverage}
-                                />
-                                <TournamentCard
-                                    type="national"
-                                    onClick={(stage) => handleEnterArena('national', stage)}
-                                    onContinue={() => handleContinueTournament('national')}
-                                    inProgress={nationalState || null}
-                                    currentUser={currentUserWithStatus}
-                                    mergedInfoPanel
-                                    mergedInfoPanelCompact={useCompactMergedChampionshipCards}
-                                    mergedInfoPanelStretch={useCompactMergedChampionshipCards}
-                                    userDungeonCoreStatAverage={userDungeonCoreStatAverage}
-                                />
-                                <TournamentCard
-                                    type="world"
-                                    onClick={(stage) => handleEnterArena('world', stage)}
-                                    onContinue={() => handleContinueTournament('world')}
-                                    inProgress={worldState || null}
-                                    currentUser={currentUserWithStatus}
-                                    mergedInfoPanel
-                                    mergedInfoPanelCompact={useCompactMergedChampionshipCards}
-                                    mergedInfoPanelStretch={useCompactMergedChampionshipCards}
-                                    userDungeonCoreStatAverage={userDungeonCoreStatAverage}
-                                />
+                            <div className="grid h-full min-h-0 grid-cols-2 grid-rows-2 content-stretch gap-2 sm:gap-3 lg:gap-4">
+                                <div className="flex min-h-0 min-w-0 flex-col items-center justify-center">
+                                    <TournamentCard
+                                        type="neighborhood"
+                                        onClick={(stage) => handleEnterArena('neighborhood', stage)}
+                                        onContinue={() => handleContinueTournament('neighborhood')}
+                                        inProgress={neighborhoodState || null}
+                                        currentUser={currentUserWithStatus}
+                                        mergedInfoPanel
+                                        mergedInfoPanelCompact={useCompactMergedChampionshipCards}
+                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
+                                        userDungeonCoreStatAverage={userDungeonCoreStatAverage}
+                                    />
+                                </div>
+                                <div className="flex min-h-0 min-w-0 flex-col items-center justify-center">
+                                    <TournamentCard
+                                        type="national"
+                                        onClick={(stage) => handleEnterArena('national', stage)}
+                                        onContinue={() => handleContinueTournament('national')}
+                                        inProgress={nationalState || null}
+                                        currentUser={currentUserWithStatus}
+                                        mergedInfoPanel
+                                        mergedInfoPanelCompact={useCompactMergedChampionshipCards}
+                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
+                                        userDungeonCoreStatAverage={userDungeonCoreStatAverage}
+                                    />
+                                </div>
+                                <div className="flex min-h-0 min-w-0 flex-col items-center justify-center">
+                                    <TournamentCard
+                                        type="world"
+                                        onClick={(stage) => handleEnterArena('world', stage)}
+                                        onContinue={() => handleContinueTournament('world')}
+                                        inProgress={worldState || null}
+                                        currentUser={currentUserWithStatus}
+                                        mergedInfoPanel
+                                        mergedInfoPanelCompact={useCompactMergedChampionshipCards}
+                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
+                                        userDungeonCoreStatAverage={userDungeonCoreStatAverage}
+                                    />
+                                </div>
+                                <div className="flex min-h-0 min-w-0 flex-col items-center justify-center">
+                                    <PvpChampionshipComingSoonCard
+                                        compactMerged={useCompactMergedChampionshipCards}
+                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
+                                    />
+                                </div>
                             </div>
                         </div>
                     </main>

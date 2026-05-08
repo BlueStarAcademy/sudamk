@@ -2397,7 +2397,9 @@ export const useApp = () => {
             action.type !== 'COMPLETE_TOURNAMENT_SIMULATION' &&
             action.type !== 'REQUEST_SERVER_AI_MOVE' &&
             action.type !== 'GET_GUILD_WAR_DATA' &&
-            action.type !== 'GET_MY_GUILD_WAR_ATTEMPT_LOG'
+            action.type !== 'GET_MY_GUILD_WAR_ATTEMPT_LOG' &&
+            action.type !== 'COMPLETE_DUNGEON_STAGE' &&
+            action.type !== 'CLAIM_TOURNAMENT_REWARD'
         ) {
             const debouncePayload = 'payload' in action ? (action as { payload?: unknown }).payload : undefined;
             const actionKey = `${action.type}_${JSON.stringify(debouncePayload ?? {})}`;

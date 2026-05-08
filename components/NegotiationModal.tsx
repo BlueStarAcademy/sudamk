@@ -1,5 +1,10 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Negotiation, UserWithStatus, GameSettings, GameMode, ServerAction, DiceGoVariant, Player, AlkkagiPlacementType, AlkkagiLayoutType, User } from '../types.js';
+import {
+    basePvpActionPointCostForMode,
+    effectiveNegotiationApCostForUser,
+    formatActionPointCostWithPetDiscount,
+} from '../shared/utils/pairPetArenaApDiscount.js';
 import { 
     BOARD_SIZES, TIME_LIMITS, BYOYOMI_COUNTS, BYOYOMI_TIMES, DEFAULT_KOMI, CAPTURE_TARGETS, SPEED_BOARD_SIZES,
     SPEED_TIME_LIMITS, FISCHER_INCREMENT_SECONDS, BASE_STONE_COUNTS, HIDDEN_STONE_COUNTS, SCAN_COUNTS,
@@ -7,7 +12,7 @@ import {
     ALKKAGI_GAUGE_SPEEDS, CURLING_GAUGE_SPEEDS, CURLING_STONE_COUNTS, HIDDEN_BOARD_SIZES, THIEF_BOARD_SIZES,
     MISSILE_BOARD_SIZES, MISSILE_COUNTS, SPECIAL_GAME_MODES, DEFAULT_GAME_SETTINGS, aiUserId, DICE_GO_ITEM_COUNTS, CURLING_ITEM_COUNTS, ALKKAGI_ITEM_COUNTS, ALKKAGI_ROUNDS,
     CURLING_ROUNDS, AVATAR_POOL, BORDER_POOL,
-    PLAYFUL_GAME_MODES,     STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST,
+    PLAYFUL_GAME_MODES,
 } from '../constants.js';
 import { audioService } from '../services/audioService.js';
 import Button from './Button.js';
@@ -205,15 +210,15 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
   const opponentAvatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === opponent.avatarId)?.url, [opponent.avatarId]);
   const opponentBorderUrl = useMemo(() => BORDER_POOL.find(b => b.id === opponent.borderId)?.url, [opponent.borderId]);
 
-  const actionPointCost = useMemo(() => {
-    if (SPECIAL_GAME_MODES.some(m => m.mode === negotiation.mode)) {
-        return STRATEGIC_ACTION_POINT_COST;
-    }
-    if (PLAYFUL_GAME_MODES.some(m => m.mode === negotiation.mode)) {
-        return PLAYFUL_ACTION_POINT_COST;
-    }
-    return STRATEGIC_ACTION_POINT_COST; // Default
-  }, [negotiation.mode]);
+  const actionPointBase = useMemo(() => basePvpActionPointCostForMode(negotiation.mode), [negotiation.mode]);
+  const actionPointEffective = useMemo(
+      () => effectiveNegotiationApCostForUser(currentUser as User, negotiation.mode),
+      [currentUser, negotiation.mode],
+  );
+  const actionPointCostDisplay = useMemo(
+      () => formatActionPointCostWithPetDiscount(actionPointBase, actionPointEffective),
+      [actionPointBase, actionPointEffective],
+  );
 
   const settingsHaveChanged = useMemo(() => JSON.stringify(settings) !== JSON.stringify(negotiation.settings), [settings, negotiation.settings]);
   const handleSettingChange = useCallback(<K extends keyof GameSettings>(key: K, value: GameSettings[K]) => setSettings(prev => ({ ...prev, [key]: value })), []);
@@ -243,7 +248,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
   const tryAccept = () => {
     if (!currentUser.isAdmin) {
       const ap = projectActionPointsCurrent(currentUser as User, Date.now());
-      if (ap < actionPointCost) {
+      if (ap < actionPointEffective) {
         handlers.openActionPointModal();
         return;
       }
@@ -261,7 +266,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
   const tryStartAiGame = () => {
     if (!currentUser.isAdmin) {
       const ap = projectActionPointsCurrent(currentUser as User, Date.now());
-      if (ap < actionPointCost) {
+      if (ap < actionPointEffective) {
         handlers.openActionPointModal();
         return;
       }
@@ -291,7 +296,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                     취소
                 </Button>
                 <Button onClick={tryStartAiGame} colorScheme="none" className={`${PRE_GAME_MODAL_PRIMARY_BTN_CLASS} shrink-0 !font-semibold !tracking-wide`}>
-                    시작하기 (⚡{actionPointCost})
+                    시작하기 (⚡{actionPointCostDisplay})
                 </Button>
             </div>
         );
@@ -310,7 +315,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
             colorScheme="none"
             className={`${PRE_GAME_MODAL_PRIMARY_BTN_CLASS} shrink-0 !font-semibold !tracking-wide ${isMixModeInvalid ? '!cursor-not-allowed !opacity-45' : ''}`}
           >
-            대국 신청 (⚡{actionPointCost})
+            대국 신청 (⚡{actionPointCostDisplay})
           </Button>
         </div>
       );
@@ -344,7 +349,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                   : `${PRE_GAME_MODAL_SUCCESS_BTN_CLASS} ${flexThird} !font-semibold !tracking-wide`
               }
             >
-                수락 (⚡{actionPointCost})
+                수락 (⚡{actionPointCostDisplay})
             </Button>
         </div>
       );
@@ -421,7 +426,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
         {showApInfoFooter && (
           <div className="mb-4 rounded-lg border border-slate-600/50 bg-slate-800/50 p-3 text-center text-base text-slate-200">
             <p>
-              대국 확정 시 양측에서 행동력 <span className="text-amber-300 font-semibold">⚡{actionPointCost}</span>가 소모됩니다.
+              대국 확정 시 양측에서 행동력 <span className="text-amber-300 font-semibold">⚡{actionPointCostDisplay}</span>가 소모됩니다.
               수락·AI 시작 시 부족하면 행동력 관리 창이 열립니다.
             </p>
           </div>

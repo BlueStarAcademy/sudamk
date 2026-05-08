@@ -263,6 +263,41 @@ export type Match = {
     score?: { player1: number; player2: number };
     timeElapsed?: number;
     sgfFileIndex?: number;
+    championshipRealGame?: ChampionshipRealGameState | null;
+};
+
+export type ChampionshipRealGameEvent = {
+    ply: number;
+    playerId: string;
+    player: Player;
+    type: 'mistake' | 'bestMove';
+    chancePercent: number;
+    originalMove?: Point | null;
+    appliedMove: Point;
+};
+
+export type ChampionshipRealGameState = {
+    boardSize: 19 | 13;
+    maxPly: number;
+    blackPlayerId: string;
+    whitePlayerId: string;
+    boardState: BoardState;
+    moves: Move[];
+    lastMove: Point | null;
+    currentPly: number;
+    status: 'ready' | 'playing' | 'scoring' | 'finished';
+    finalScore: { black: number; white: number; scoreLead: number } | null;
+    winnerId: string | null;
+    events: ChampionshipRealGameEvent[];
+    phaseStatsByPlayerId: Record<string, Record<'opening' | 'midgame' | 'endgame', { abilityScore: number; kataLevel: number }>>;
+    timeMetrics?: {
+        generatedAt: number;
+        generationMs: number;
+        playbackStartedAt?: number;
+        playbackCompletedAt?: number;
+        scoringStartedAt?: number;
+        scoringCompletedAt?: number;
+    };
 };
 
 export type Round = {
@@ -1638,6 +1673,8 @@ export type GuildMission = {
   progressKey?: string;
   personalReward?: { guildCoins?: number };
   guildReward?: { guildXp?: number };
+  /** 완료 시 계산된 길드 XP(미수령). 수령 시 길드에 반영 후 제거. 레거시 미션에는 없음(완료 시 이미 길드 XP 반영됨). */
+  guildXpPending?: number;
   claimedBy?: string[];
   resetAt?: number;
   createdAt: number;

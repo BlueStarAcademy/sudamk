@@ -14,7 +14,6 @@ import {
     MONTHLY_MILESTONE_REWARDS,
     MONTHLY_MILESTONE_THRESHOLDS,
     BASE_TOURNAMENT_REWARDS,
-    TOURNAMENT_SCORE_REWARDS,
     TOURNAMENT_DEFINITIONS,
     getDungeonRankRewardWorld,
     ACHIEVEMENT_TRACK_MAP,
@@ -816,26 +815,6 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 else itemRewardKey = 9;
             }
             
-            const scoreRewardInfo = TOURNAMENT_SCORE_REWARDS[tournamentType];
-            let scoreRewardKey: number;
-            if (tournamentType === 'neighborhood') {
-                scoreRewardKey = userRank;
-            } else if (tournamentType === 'national') {
-                scoreRewardKey = userRank <= 4 ? userRank : 5;
-            } else { // world
-                if (userRank <= 4) scoreRewardKey = userRank;
-                else if (userRank <= 8) scoreRewardKey = 5;
-                else scoreRewardKey = 9;
-            }
-            const rawScoreReward = scoreRewardInfo[scoreRewardKey];
-            if (rawScoreReward === undefined) {
-                console.error(`[CLAIM_TOURNAMENT_REWARD] Invalid scoreRewardKey: ${scoreRewardKey} for tournamentType: ${tournamentType}, userRank: ${userRank}`);
-                return { error: `순위에 대한 점수 보상이 정의되지 않았습니다. (순위: ${userRank})` };
-            }
-            const scoreReward = addRewardBonus(rawScoreReward, rewardConfig.tournamentScoreBonus);
-            
-            console.log(`[CLAIM_TOURNAMENT_REWARD] tournamentType: ${tournamentType}, userRank: ${userRank}, scoreRewardKey: ${scoreRewardKey}, scoreReward: ${scoreReward}, currentTournamentScore: ${freshUser.tournamentScore || 0}`);
-            
             // 던전 진행 상태 초기화 및 다음 단계 언락 (순위에 따라)
             if (!freshUser.dungeonProgress) {
                 freshUser.dungeonProgress = {
@@ -944,22 +923,6 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 }
                 
                 (freshUser as any)[statusKey] = true;
-                // 토너먼트 완료 시점에 이미 점수가 추가되었을 수 있으므로, 보상 수령 시에는 점수를 추가하지 않음
-                // (중복 추가 방지)
-                const currentCumulativeScore = freshUser.cumulativeTournamentScore || 0;
-                const currentScore = freshUser.tournamentScore || 0;
-                
-                // 점수가 아직 추가되지 않았으면 추가 (토너먼트 완료 시점에 점수가 추가되지 않은 경우 대비)
-                if (currentCumulativeScore < scoreReward || currentScore < scoreReward) {
-                    const oldCumulativeScore = freshUser.cumulativeTournamentScore || 0;
-                    freshUser.cumulativeTournamentScore = oldCumulativeScore + scoreReward;
-                    // tournamentScore는 주간 점수로 유지 (주간 리셋용)
-                    const oldScore = freshUser.tournamentScore || 0;
-                    freshUser.tournamentScore = oldScore + scoreReward;
-                    console.log(`[CLAIM_TOURNAMENT_REWARD] Added score (was missing): cumulativeTournamentScore: ${oldCumulativeScore} -> ${freshUser.cumulativeTournamentScore}, tournamentScore: ${oldScore} -> ${freshUser.tournamentScore}`);
-                } else {
-                    console.log(`[CLAIM_TOURNAMENT_REWARD] Score already added at tournament completion. Skipping duplicate addition.`);
-                }
                 freshUser.gold += accumulatedGold;
                 if (accumulatedGold > 0) {
                     console.log(`[CLAIM_TOURNAMENT_REWARD] Added accumulated gold: ${accumulatedGold}`);
@@ -972,6 +935,8 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 }
                 // 보상 수령 후 경기장 JSON 삭제 (대용량 데이터 누적 방지)
                 (freshUser as any)[tourneyKey] = null;
+
+                updateQuestProgress(freshUser, 'championship_reward_claim', undefined, 1);
                 
                 // 중복 보상 방지: statusKey를 설정한 후 즉시 DB에 동기적으로 저장
                 await db.updateUser(freshUser);
@@ -986,16 +951,11 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 // WebSocket으로 사용자 업데이트 브로드캐스트 (보상·다음 단계 언락 반영)
                 const fullUserForBroadcast = JSON.parse(JSON.stringify(freshUser));
                 const { broadcastUserUpdate } = await import('../socket.js');
-                broadcastUserUpdate(fullUserForBroadcast, ['inventory', 'equipment', 'quests', 'gold', 'diamonds', 'actionPoints', 'mail', 'tournamentScore', 'cumulativeTournamentScore', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament', 'dungeonProgress']);
-                const { invalidateRankingCache } = await import('../rankingCache.js');
-                invalidateRankingCache();
+                broadcastUserUpdate(fullUserForBroadcast, ['inventory', 'equipment', 'quests', 'gold', 'diamonds', 'actionPoints', 'mail', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament', 'dungeonProgress']);
                 const allObtainedItems: any[] = [...accumulatedMaterials, ...accumulatedWorldEquipment];
                 if (accumulatedGold > 0) {
                     allObtainedItems.unshift({ name: `${accumulatedGold} 골드 (경기 보상)`, image: '/images/icon/Gold.png' });
                 }
-                
-                // oldCumulativeScore를 먼저 정의 (나중에 사용하기 위해)
-                const oldCumulativeScore = freshUser.cumulativeTournamentScore || 0;
                 
                 // rewardSummary 형식으로 변환하여 모달 표시
                 const reward: QuestReward = {
@@ -1008,7 +968,6 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                     clientResponse: { 
                         obtainedItemsBulk: allObtainedItems, 
                         updatedUser, 
-                        tournamentScoreChange: { oldScore: oldCumulativeScore, newScore: freshUser.cumulativeTournamentScore, scoreReward: scoreReward },
                         rewardSummary: {
                             reward,
                             items: allObtainedItems,
@@ -1054,24 +1013,6 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             
             // If we'vepassed the check, apply all changes
                 (freshUser as any)[statusKey] = true;
-                // 토너먼트 완료 시점에 이미 점수가 추가되었을 수 있으므로, 보상 수령 시에는 점수를 추가하지 않음
-                // (중복 추가 방지)
-                const currentCumulativeScore = freshUser.cumulativeTournamentScore || 0;
-                const currentScore = freshUser.tournamentScore || 0;
-                
-                // oldCumulativeScore를 먼저 정의 (나중에 사용하기 위해)
-                const oldCumulativeScore = freshUser.cumulativeTournamentScore || 0;
-                
-                // 점수가 아직 추가되지 않았으면 추가 (토너먼트 완료 시점에 점수가 추가되지 않은 경우 대비)
-                if (currentCumulativeScore < scoreReward || currentScore < scoreReward) {
-                    freshUser.cumulativeTournamentScore = oldCumulativeScore + scoreReward;
-                    // tournamentScore는 주간 점수로 유지 (주간 리셋용)
-                    const oldScore = freshUser.tournamentScore || 0;
-                    freshUser.tournamentScore = oldScore + scoreReward;
-                    console.log(`[CLAIM_TOURNAMENT_REWARD] Added score (was missing): cumulativeTournamentScore: ${oldCumulativeScore} -> ${freshUser.cumulativeTournamentScore}, tournamentScore: ${oldScore} -> ${freshUser.tournamentScore}`);
-                } else {
-                    console.log(`[CLAIM_TOURNAMENT_REWARD] Score already added at tournament completion. Skipping duplicate addition.`);
-                }
             
             // 동네바둑리그: 누적 골드 추가
             let accumulatedGold = 0;
@@ -1087,6 +1028,8 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             
             // 보상 수령 후 경기장 JSON 삭제 (대용량 데이터 누적 방지)
             (freshUser as any)[tourneyKey] = null;
+
+            updateQuestProgress(freshUser, 'championship_reward_claim', undefined, 1);
             
             // 중복 보상 방지: statusKey를 설정한 후 즉시 DB에 동기적으로 저장
             await db.updateUser(freshUser);
@@ -1100,7 +1043,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (다음 단계 언락 등 반영)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(freshUser, ['inventory', 'gold', 'diamonds', 'tournamentScore', 'cumulativeTournamentScore', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament', 'dungeonProgress']);
+            broadcastUserUpdate(freshUser, ['inventory', 'gold', 'diamonds', 'quests', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament', 'dungeonProgress']);
 
             const allObtainedItems: InventoryItem[] = itemsToCreate.map(item => ({
                 ...item,
@@ -1181,8 +1124,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             return { 
                 clientResponse: { 
                     obtainedItemsBulk: allObtainedItems, 
-                    updatedUser, 
-                    tournamentScoreChange: { oldScore: oldCumulativeScore, newScore: freshUser.cumulativeTournamentScore, scoreReward: scoreReward },
+                    updatedUser,
                     rewardSummary: {
                         reward,
                         items: allObtainedItems,
