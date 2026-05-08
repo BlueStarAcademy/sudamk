@@ -404,12 +404,6 @@ export function applyPveItemActionClientSync(
  * (베이스 임시 좌석 잔재가 어떤 경로로든 본경기에 새어나오지 않도록 추가 안전장치)
  */
 function enforcePlayingSeatLockOnPveItemSync(game: LiveGameSession): void {
-    const includesBase =
-        game.mode === GameMode.Base ||
-        (game.mode === GameMode.Mix &&
-            Array.isArray((game.settings as any)?.mixedModes) &&
-            (game.settings as any).mixedModes.includes(GameMode.Base));
-    if (!includesBase) return;
     const lb = (game as { playingLockedBlackPlayerId?: unknown }).playingLockedBlackPlayerId;
     const lw = (game as { playingLockedWhitePlayerId?: unknown }).playingLockedWhitePlayerId;
     if (typeof lb !== 'string' || lb.length === 0 || typeof lw !== 'string' || lw.length === 0) return;

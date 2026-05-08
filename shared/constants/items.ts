@@ -440,6 +440,28 @@ export function getEnhancementCostRowForDisassembly(
     return rows[idx];
 }
 
+/**
+ * 강화가 매 단계 100% 성공했다고 가정할 때, +0 → 현재 `stars`까지 소모된 강화석 총량.
+ * (`ENHANCEMENT_COSTS` 행 0 ~ stars-1 합산, `ENHANCE_ITEM`과 동일 인덱스.)
+ */
+export function getCumulativeEnhancementMaterialsSpentToReachStars(
+    grade: ItemGrade,
+    stars: number | undefined | null
+): Record<string, number> {
+    const rows = ENHANCEMENT_COSTS[grade];
+    if (!rows?.length) return {};
+    const s = Math.max(0, Math.floor(stars ?? 0));
+    const totals: Record<string, number> = {};
+    for (let i = 0; i < s && i < rows.length; i++) {
+        const row = rows[i];
+        if (!row) continue;
+        for (const cost of row) {
+            totals[cost.name] = (totals[cost.name] || 0) + cost.amount;
+        }
+    }
+    return totals;
+}
+
 export const ENHANCEMENT_GOLD_COSTS_BASE: Record<ItemGrade, number> = {
     normal: 100,
     uncommon: 200,

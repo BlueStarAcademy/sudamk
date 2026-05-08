@@ -18,7 +18,10 @@ import { applyPassiveActionPointRegenToUser } from '../effectService.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
 import { ONBOARDING_PHASE_COMPLETE } from '../../shared/constants/onboardingTutorial.js';
 import { updateQuestProgress } from '../questService.js';
-import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
+import {
+    getEffectiveSinglePlayerStages,
+    resolveSinglePlayerStageKataServerLevel,
+} from '../singlePlayerStageConfigService.js';
 import {
     resolveSinglePlayerHasAutoScoringTurns,
     resolveSinglePlayerMixedModes,
@@ -74,29 +77,6 @@ const getSinglePlayerKataProfileStep = (level: SinglePlayerLevel): number => {
             return 1;
     }
 };
-
-/** 바둑학원 반별 KataServer `level` 파라미터 (전략바둑 대기실 1~10단계 표와 별도). */
-const getSinglePlayerKataServerLevel = (level: SinglePlayerLevel): number => {
-    switch (level) {
-        case SinglePlayerLevel.입문:
-            return -31;
-        case SinglePlayerLevel.초급:
-            return -30;
-        case SinglePlayerLevel.중급:
-            return -29;
-        case SinglePlayerLevel.고급:
-            return -28;
-        case SinglePlayerLevel.유단자:
-            return -27;
-        default:
-            return -31;
-    }
-};
-
-const resolveStageKataServerLevel = (stage: SinglePlayerStageInfo): number =>
-    typeof stage.kataServerLevel === 'number' && Number.isFinite(stage.kataServerLevel)
-        ? Math.max(-31, Math.min(9, Math.floor(stage.kataServerLevel)))
-        : getSinglePlayerKataServerLevel(stage.level);
 
 const generateSinglePlayerBoard = (stage: SinglePlayerStageInfo): { board: BoardState, blackPattern: Point[], whitePattern: Point[] } => {
     if (stage.fixedOpening?.length) {
@@ -201,7 +181,7 @@ const applyLatestPendingSinglePlayerStage = async (
     const survivalTurnsResolved = isSurvivalMode ? resolveSinglePlayerSurvivalTurnCount(stage) : undefined;
     const hasAutoScoring = resolveSinglePlayerHasAutoScoringTurns(stage);
     const kataProfileStep = getSinglePlayerKataProfileStep(stage.level);
-    const kataServerLevel = resolveStageKataServerLevel(stage);
+    const kataServerLevel = resolveSinglePlayerStageKataServerLevel(stage);
     const preserveExistingPlacement =
         options?.preserveExistingPlacement === true &&
         Array.isArray(game.boardState) &&
@@ -401,9 +381,9 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             const isCaptureGoalMode = gameMode === GameMode.Capture || (gameMode === GameMode.Mix && mixModes.includes(GameMode.Capture));
             const isSpeedMode = resolveSinglePlayerSpeedTimeMode(stage);
 
-            // 싱글플레이용 AI: 반별 프로필 1~5 + KataServer levelbot (`kataServerLevel`)
+            // 싱글플레이용 AI: 표시 프로필은 반별 1~5, 실제 Kata는 관리자 스테이지 값(`kataServerLevel`) 우선
             const kataProfileStep = getSinglePlayerKataProfileStep(stage.level);
-            const kataServerLevel = resolveStageKataServerLevel(stage);
+            const kataServerLevel = resolveSinglePlayerStageKataServerLevel(stage);
             const levelName = stage.level === SinglePlayerLevel.입문 ? '입문' :
                              stage.level === SinglePlayerLevel.초급 ? '초급' :
                              stage.level === SinglePlayerLevel.중급 ? '중급' :

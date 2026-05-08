@@ -42,15 +42,6 @@ const KataServerLevelReferenceCard: React.FC<KataServerLevelReferenceCardProps> 
         [config],
     );
 
-    const singlePlayerRows = useMemo(
-        () =>
-            ['입문', '초급', '중급', '고급', '유단자'].map((name, i) => {
-                const step = i + 1;
-                return { name, step, kata: config.strategicLobbyKataByStep[String(step)] ?? -31 };
-            }),
-        [config],
-    );
-
     const adventureRows = useMemo(
         () =>
             Array.from({ length: 50 }, (_, i) => {
@@ -110,28 +101,11 @@ const KataServerLevelReferenceCard: React.FC<KataServerLevelReferenceCardProps> 
                 </section>
 
                 <section>
-                    <h3 className="text-sm font-semibold text-amber-200/90">싱글플레이 (반별 고정)</h3>
-                    <p className="mt-0.5 text-xs text-gray-500">스테이지 반(입문~유단자) → 프로필 1~5 → 위 표의 Kata 값</p>
-                    <div className={tableWrap}>
-                        <table className={tableCls}>
-                            <thead>
-                                <tr>
-                                    <th className={thCls}>반</th>
-                                    <th className={thCls}>프로필 단계</th>
-                                    <th className={thCls}>kataServerLevel</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {singlePlayerRows.map((r) => (
-                                    <tr key={r.name}>
-                                        <td className={tdCls}>{r.name}</td>
-                                        <td className={tdCls}>{r.step}</td>
-                                        <td className={`${tdCls} font-mono`}>{r.kata}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <h3 className="text-sm font-semibold text-amber-200/90">싱글플레이</h3>
+                    <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
+                        실제 대국의 KataServer 레벨은 싱글플레이 스테이지 편집에 저장된 스테이지별{' '}
+                        <span className="font-mono">kataServerLevel</span>을 우선 사용합니다. 반(입문~유단자)은 봇 표시 프로필에만 사용됩니다.
+                    </p>
                 </section>
 
                 <section>

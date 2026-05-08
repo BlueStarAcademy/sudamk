@@ -28,6 +28,7 @@ import { getAdventureUnderstandingTierFromXp } from '../../constants/adventureCo
 import { getAdventureCodexCompletionBreakdown } from '../../utils/adventureCodexCompletion.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig, type RewardConfig } from '../../shared/constants/rewardConfig.js';
 import { isRewardVipActive } from '../../shared/utils/rewardVip.js';
+import { isMailRewardsClaimExpired } from '../../shared/utils/mailRewardsExpiry.js';
 import {
     CASH_SHOP_DIAMOND_PACKAGE_IDS,
     CASH_SHOP_EQUIPMENT_PACKAGE_IDS,
@@ -156,6 +157,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
         
             if (!mail) return { error: 'Mail not found.' };
             if (mail.attachmentsClaimed) return { error: 'Attachments already claimed.' };
+            if (isMailRewardsClaimExpired(mail)) return { error: '수령 기간이 만료된 우편입니다.' };
             if (!mail.attachments) return { error: 'No attachments to claim.' };
             const a = mail.attachments;
             const hasStackable =
@@ -251,7 +253,9 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             };
         }
         case 'CLAIM_ALL_MAIL_ATTACHMENTS': {
-            const mailsToClaim = user.mail.filter(m => m.attachments && !m.attachmentsClaimed);
+            const mailsToClaim = user.mail.filter(
+                (m) => m.attachments && !m.attachmentsClaimed && !isMailRewardsClaimExpired(m)
+            );
             if (mailsToClaim.length === 0) return { error: '수령할 아이템이 없습니다.' };
 
             let totalGold = 0;
@@ -649,7 +653,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             if (mailIndex === -1) return { error: 'Mail not found.' };
 
             const mail = user.mail[mailIndex];
-            if (mail.attachments && !mail.attachmentsClaimed) {
+            if (mail.attachments && !mail.attachmentsClaimed && !isMailRewardsClaimExpired(mail)) {
                 return { error: '수령하지 않은 아이템이 있는 메일은 삭제할 수 없습니다.' };
             }
 

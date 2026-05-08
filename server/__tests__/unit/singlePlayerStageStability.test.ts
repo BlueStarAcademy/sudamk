@@ -3,7 +3,11 @@ import type { User } from '../../../shared/types/index.js';
 import { DEFAULT_SINGLE_PLAYER_STAGES } from '../../../shared/constants/singlePlayerConstants.js';
 import { GameMode } from '../../../shared/types/enums.js';
 import { reconcileSinglePlayerProgress } from '../../../shared/utils/singlePlayerProgress.js';
-import { isFullSinglePlayerStagesPermutation, normalizeSinglePlayerStagesOverride } from '../../singlePlayerStageConfigService.js';
+import {
+    isFullSinglePlayerStagesPermutation,
+    normalizeSinglePlayerStagesOverride,
+    resolveSinglePlayerStageKataServerLevel,
+} from '../../singlePlayerStageConfigService.js';
 import { remapUserSinglePlayerProgressFields } from '../../singlePlayerStageIdMigration.js';
 import {
     inferLegacySinglePlayerGameMode,
@@ -291,12 +295,15 @@ describe('single-player stage stability', () => {
         expect(stage.autoScoringTurns).toBe(55);
     });
 
-    it('keeps class-based KataServer defaults instead of weakening every normalized stage', () => {
+    it('uses class-based KataServer defaults only when a stage has no admin value', () => {
         const base = DEFAULT_SINGLE_PLAYER_STAGES.find((s) => s.level === '중급') ?? DEFAULT_SINGLE_PLAYER_STAGES[0];
         const normalized = normalizeSinglePlayerStagesOverride([{ ...base, kataServerLevel: undefined }]);
         const stage = normalized.find((s) => s.id === base.id)!;
 
         expect(stage.kataServerLevel).toBe(base.level === '중급' ? -29 : -31);
+        expect(resolveSinglePlayerStageKataServerLevel({ level: base.level, kataServerLevel: undefined })).toBe(
+            base.level === '중급' ? -29 : -31
+        );
     });
 
     it('preserves admin-configured KataServer level through normalization', () => {
@@ -305,6 +312,7 @@ describe('single-player stage stability', () => {
         const stage = normalized.find((s) => s.id === base.id)!;
 
         expect(stage.kataServerLevel).toBe(9);
+        expect(resolveSinglePlayerStageKataServerLevel(stage)).toBe(9);
     });
 
     it('auto preset + baseStones infers Base (not Capture from ever-present targetScore)', () => {

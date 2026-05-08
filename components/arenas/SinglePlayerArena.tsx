@@ -284,7 +284,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
     }, [displayLastMoveKey]);
 
     const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
-    const whitePlayer = player1.id === whitePlayerId ? player2 : player1;
+    const whitePlayer = player1.id === whitePlayerId ? player1 : player2;
 
     // 남은 턴이 0이면 계가 진행되므로, 그 순간부터 클릭 불가 (빠르게 눌러서 추가 착수되는 버그 방지)
     const isBoardDisabledDueToTurnLimit = useMemo(() => {

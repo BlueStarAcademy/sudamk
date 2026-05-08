@@ -3,7 +3,7 @@ import {
     DEFAULT_SINGLE_PLAYER_STAGES,
     SINGLE_PLAYER_STAGES_BASE,
 } from '../shared/constants/singlePlayerConstants.js';
-import { GameMode, SinglePlayerAiBaseKomiBid, SinglePlayerStageInfo, SinglePlayerStrategicRulePreset } from '../types/index.js';
+import { GameMode, LiveGameSession, SinglePlayerAiBaseKomiBid, SinglePlayerStageInfo, SinglePlayerStrategicRulePreset } from '../types/index.js';
 import { ensureMixModesMinTwoAfterBaseCaptureSanitize } from '../shared/utils/singlePlayerMixBaseCaptureExclusive.js';
 
 const SINGLE_PLAYER_STAGE_OVERRIDE_KV_KEY = 'singlePlayerStagesOverride';
@@ -316,6 +316,41 @@ const defaultSinglePlayerKataServerLevel = (level: SinglePlayerStageInfo['level'
     }
 };
 
+export const resolveSinglePlayerStageKataServerLevel = (stage: Pick<SinglePlayerStageInfo, 'level' | 'kataServerLevel'>): number =>
+    clampInt(stage.kataServerLevel, -31, 9, defaultSinglePlayerKataServerLevel(stage.level));
+
+export const resolveSinglePlayerKataServerLevelForGame = async (
+    game: Pick<LiveGameSession, 'settings' | 'stageId' | 'singlePlayerStageDisplay'>
+): Promise<number | undefined> => {
+    const fromSettings = (game.settings as { kataServerLevel?: unknown } | undefined)?.kataServerLevel;
+    if (typeof fromSettings === 'number' && Number.isFinite(fromSettings)) {
+        return Math.max(-31, Math.min(9, Math.floor(fromSettings)));
+    }
+
+    const stageId = game.stageId;
+    const display = game.singlePlayerStageDisplay;
+    if (stageId && display?.id === stageId) {
+        return resolveSinglePlayerStageKataServerLevel(display);
+    }
+
+    if (!stageId) return undefined;
+    const stage = (await getEffectiveSinglePlayerStages()).find((s) => s.id === stageId);
+    return stage ? resolveSinglePlayerStageKataServerLevel(stage) : undefined;
+};
+
+export const ensureSinglePlayerKataServerLevelOnGame = async (
+    game: LiveGameSession
+): Promise<number | undefined> => {
+    if (!game.isSinglePlayer && String((game as { gameCategory?: unknown }).gameCategory ?? '') !== 'singleplayer') {
+        return undefined;
+    }
+    const level = await resolveSinglePlayerKataServerLevelForGame(game);
+    if (level === undefined) return undefined;
+    if (!game.settings || typeof game.settings !== 'object') return level;
+    (game.settings as { kataServerLevel?: number }).kataServerLevel = level;
+    return level;
+};
+
 const clampPlacementsToCapacity = (
     placements: SinglePlayerStageInfo['placements'],
     capacity: number
@@ -461,12 +496,10 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
         fixedOpening: fixedOpening?.length ? fixedOpening : undefined,
         mergeRandomPlacementsWithFixed: Boolean(row.mergeRandomPlacementsWithFixed),
         allowPlacementRefresh: row.allowPlacementRefresh === false ? false : fallback.allowPlacementRefresh !== false,
-        kataServerLevel: clampInt(
-            (row as any).kataServerLevel,
-            -31,
-            9,
-            (fallback as any).kataServerLevel ?? defaultSinglePlayerKataServerLevel(fallback.level)
-        ),
+        kataServerLevel: resolveSinglePlayerStageKataServerLevel({
+            level: fallback.level,
+            kataServerLevel: (row as any).kataServerLevel ?? (fallback as any).kataServerLevel,
+        }),
         forcedAiResponses: forcedAiResponses.length > 0 ? forcedAiResponses : undefined,
         strictForcedAiResponses: row.strictForcedAiResponses === true ? true : undefined,
     };

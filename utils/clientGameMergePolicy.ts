@@ -28,12 +28,6 @@ const BASE_SEAT_LOCK_PROTECTED_STATUSES = new Set([
 ]);
 
 function coerceBaseSessionPlayingSeatLock(session: LiveGameSession): LiveGameSession {
-    const includesBase =
-        session.mode === GameMode.Base ||
-        (session.mode === GameMode.Mix &&
-            Array.isArray((session.settings as any)?.mixedModes) &&
-            (session.settings as any).mixedModes.includes(GameMode.Base));
-    if (!includesBase) return session;
     const lb = (session as { playingLockedBlackPlayerId?: unknown }).playingLockedBlackPlayerId;
     const lw = (session as { playingLockedWhitePlayerId?: unknown }).playingLockedWhitePlayerId;
     if (typeof lb !== 'string' || lb.length === 0 || typeof lw !== 'string' || lw.length === 0) return session;

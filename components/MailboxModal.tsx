@@ -7,6 +7,7 @@ import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import MailRewardItemTile from './MailRewardItemTile.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
 import { CASH_SHOP_PACKAGE_KO_LABEL, type CashShopPackageId } from '../shared/constants/cashShopPackages.js';
+import { isMailRewardsClaimExpired } from '../shared/utils/mailRewardsExpiry.js';
 
 interface MailboxModalProps {
     currentUser: UserWithStatus;
@@ -51,6 +52,10 @@ function renderAttachmentsBlock(m: Mail, compact?: boolean) {
                 </h4>
                 {m.attachmentsClaimed ? (
                     <p className="py-5 text-center text-sm text-zinc-500 sm:py-6">수령이 완료되었습니다.</p>
+                ) : isMailRewardsClaimExpired(m) ? (
+                    <p className="rounded-xl border border-amber-900/40 bg-amber-950/25 px-3 py-4 text-center text-sm leading-relaxed text-amber-200/90 sm:px-4 sm:py-5">
+                        수령 기간이 만료되어 보상을 받을 수 없습니다. 필요하면 이 우편을 삭제할 수 있습니다.
+                    </p>
                 ) : (
                     <div className={`custom-mail-scroll overflow-x-hidden pr-1 ${innerScroll}`} role="region" aria-label="첨부 보상 목록">
                         <div className="mb-3 flex flex-wrap gap-2 text-sm sm:mb-4 sm:gap-3">
@@ -164,7 +169,11 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
     }, [detailMail]);
 
     const handleClaim = useCallback(() => {
-        if (detailMail?.attachments && !detailMail.attachmentsClaimed) {
+        if (
+            detailMail?.attachments &&
+            !detailMail.attachmentsClaimed &&
+            !isMailRewardsClaimExpired(detailMail)
+        ) {
             onAction({ type: 'CLAIM_MAIL_ATTACHMENTS', payload: { mailId: detailMail.id } });
         }
     }, [detailMail, onAction]);
@@ -175,7 +184,9 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
         setDetailMail(null);
     }, [detailMail, onAction]);
 
-    const hasUnclaimedMail = mail.some((m) => m.attachments && !m.attachmentsClaimed);
+    const hasUnclaimedMail = mail.some(
+        (m) => m.attachments && !m.attachmentsClaimed && !isMailRewardsClaimExpired(m)
+    );
     const hasClaimedMail = mail.some((m) => m.attachmentsClaimed);
 
     const handleClaimAll = () => {
@@ -189,7 +200,11 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
         }
     };
 
-    const claimDisabled = !detailMail?.attachments || Boolean(detailMail.attachmentsClaimed);
+    const detailMailRewardExpired = Boolean(detailMail && isMailRewardsClaimExpired(detailMail));
+    const claimDisabled =
+        !detailMail?.attachments ||
+        Boolean(detailMail.attachmentsClaimed) ||
+        detailMailRewardExpired;
 
     const premiumDeleteClass =
         'group relative flex min-h-[48px] min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-2xl border border-rose-400/40 ' +
@@ -227,7 +242,13 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
                     className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(255,255,255,0.22),transparent_55%)]"
                     aria-hidden
                 />
-                <span className="relative drop-shadow-sm">{detailMail.attachmentsClaimed ? '수령 완료' : '보상 받기'}</span>
+                <span className="relative drop-shadow-sm">
+                    {detailMail.attachmentsClaimed
+                        ? '수령 완료'
+                        : detailMailRewardExpired
+                          ? '만료됨'
+                          : '보상 받기'}
+                </span>
             </button>
         </div>
     ) : null;
@@ -287,7 +308,15 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
                                     </div>
                                     <p className="line-clamp-2 text-[15px] font-semibold leading-snug text-zinc-100 sm:text-sm">{m.title}</p>
                                     {m.attachments && !m.attachmentsClaimed ? (
-                                        <p className="mt-1 text-[11px] font-medium text-emerald-400/90">보상 미수령</p>
+                                        <p
+                                            className={`mt-1 text-[11px] font-medium ${
+                                                isMailRewardsClaimExpired(m)
+                                                    ? 'text-amber-500/90'
+                                                    : 'text-emerald-400/90'
+                                            }`}
+                                        >
+                                            {isMailRewardsClaimExpired(m) ? '보상 만료' : '보상 미수령'}
+                                        </p>
                                     ) : m.attachments ? (
                                         <p className="mt-1 text-[11px] text-zinc-600">수령 완료</p>
                                     ) : null}

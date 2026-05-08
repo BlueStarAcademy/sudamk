@@ -53,10 +53,11 @@ const sessionIncludesBaseMode = (game: types.LiveGameSession): boolean =>
  * (베이스 임시 좌석으로의 역주입·재계산 결과 색이 영구적으로 뒤바뀌어 보이는 버그 방지)
  */
 export const enforceBaseSeatLockIfDriftedDuringPlay = (game: types.LiveGameSession): boolean => {
-    if (!sessionIncludesBaseMode(game)) return false;
     const lb = game.playingLockedBlackPlayerId;
     const lw = game.playingLockedWhitePlayerId;
     if (typeof lb !== 'string' || lb.length === 0 || typeof lw !== 'string' || lw.length === 0) return false;
+    // The lock is only written when Base setup reaches the real game, so the
+    // lock itself is enough evidence even if slim/stale packets lost mode metadata.
     const status = String(game.gameStatus ?? '');
     /** 본경기·아이템 연출 등 좌석이 절대 바뀌어선 안 되는 단계만 강제한다(베이스 사전 단계는 예외) */
     const protectedStatuses = new Set([

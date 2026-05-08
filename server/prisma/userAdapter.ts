@@ -9,6 +9,7 @@ import {
   normalizeLegacyDivineMythicInventoryItem,
   normalizeInventoryEquipmentItem,
   normalizeEquipmentOptionNumbers,
+  normalizeItemGradeKey,
 } from "../../shared/utils/inventoryLegacyNormalize.js";
 import { normalizeInventoryAfterLoad } from "../../utils/inventoryUtils.js";
 import { normalizeQuestLogProgressCaps } from "../../utils/questProgressCap.js";
@@ -33,12 +34,6 @@ import { mergeLegacyStrategyPlayfulIntoUserLevelXp } from "../../shared/utils/us
 import { migrateUserStatsToUnifiedRanked } from "../../shared/utils/unifiedRankedStatsMigration.js";
 
 export { normalizeLegacyDivineMythicInventoryItem } from "../../shared/utils/inventoryLegacyNormalize.js";
-
-const ITEM_GRADE_VALUES = new Set<string>(Object.values(ItemGrade));
-
-function coerceStoredItemGrade(raw: unknown): ItemGrade {
-  return typeof raw === "string" && ITEM_GRADE_VALUES.has(raw) ? (raw as ItemGrade) : ItemGrade.Normal;
-}
 
 const DEFAULT_INVENTORY_SLOTS: User["inventorySlots"] = {
   equipment: 30,
@@ -684,7 +679,7 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
                   ? inv.createdAt
                   : Date.now(),
               image: def.image,
-              grade: coerceStoredItemGrade(inv.rarity),
+              grade: normalizeItemGradeKey(inv.rarity),
               stars: inv.stars,
               options: meta?.options || [],
               enhancementFails: meta?.enhancementFails || 0,
@@ -698,7 +693,7 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
         }
 
         // UserInventory를 InventoryItem으로 변환
-        let grade = (inv.rarity as any) || itemInfo?.grade || 'normal';
+        let grade = normalizeItemGradeKey(inv.rarity, itemInfo?.grade);
         let name = itemInfo?.name || inv.templateId;
         if (meta.isDivineMythic === true && grade === ItemGrade.Mythic) {
           grade = ItemGrade.Transcendent;

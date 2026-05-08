@@ -132,13 +132,13 @@ export const RANKED_MATCH_MAX_RATING_DIFF = 400;
 export const BLACKSMITH_MAX_LEVEL = 20;
 
 export const BLACKSMITH_COMBINATION_XP_GAIN: Record<ItemGrade, [number, number]> = {
-    [ItemGrade.Normal]: [10, 30],
-    [ItemGrade.Uncommon]: [20, 50],
-    [ItemGrade.Rare]: [30, 80],
-    [ItemGrade.Epic]: [50, 150],
-    [ItemGrade.Legendary]: [100, 300],
-    [ItemGrade.Mythic]: [200, 500],
-    [ItemGrade.Transcendent]: [250, 600],
+    [ItemGrade.Normal]: [15, 45],
+    [ItemGrade.Uncommon]: [30, 75],
+    [ItemGrade.Rare]: [45, 120],
+    [ItemGrade.Epic]: [75, 225],
+    [ItemGrade.Legendary]: [150, 450],
+    [ItemGrade.Mythic]: [300, 750],
+    [ItemGrade.Transcendent]: [375, 900],
 };
 
 export const BLACKSMITH_ENHANCEMENT_XP_GAIN: Record<ItemGrade, [number, number]> = {

@@ -22,6 +22,7 @@ import { profileStepFromKataServerLevel } from '../shared/utils/strategicAiDiffi
 import { towerKataLevelFromSnapshot } from '../shared/utils/kataServerRuntimeResolvers.js';
 import { getKataServerRuntimeSnapshot } from './kataServerRuntimeStore.js';
 import { getCurrentPairTurnSeat, isPairAiSeat } from '../shared/utils/pairGameTurn.js';
+import { ensureSinglePlayerKataServerLevelOnGame } from './singlePlayerStageConfigService.js';
 
 
 export const aiUserId = 'ai-player-01';
@@ -1316,6 +1317,9 @@ export const makeAiMove = async (game: LiveGameSession) => {
                 } else if (game.isSinglePlayer || isTower) {
                     // 싱글/탑: 길드전과 동일하게 kataServerLevel이 있으면 그걸로 단계를 잡는다(없으면 탑은 층 표로 복구).
                     difficulty = game.settings.aiDifficulty || 1;
+                    if (game.isSinglePlayer) {
+                        await ensureSinglePlayerKataServerLevelOnGame(game);
+                    }
                     let ks: number | undefined =
                         typeof (game.settings as any)?.kataServerLevel === 'number' &&
                         Number.isFinite((game.settings as any).kataServerLevel)

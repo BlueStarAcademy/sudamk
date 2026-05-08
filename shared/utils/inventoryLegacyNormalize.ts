@@ -3,6 +3,23 @@ import { ItemGrade } from '../types/enums.js';
 import { EQUIPMENT_POOL, LEGACY_TRANSCENDENT_EQUIPMENT_NAME_TO_NEW } from '../constants/items.js';
 import { repairEquipmentStatBounds } from './equipmentStatBoundsRepair.js';
 
+const ITEM_GRADE_STRING_SET = new Set<string>(Object.values(ItemGrade));
+
+/**
+ * DB·레거시 JSON의 등급 문자열(대소문자·앞뒤 공백)을 `ItemGrade` 키로 맞춤.
+ * 알 수 없으면 `fallback`(예: 장비 풀 템플릿 등급), 그다음 Normal.
+ */
+export function normalizeItemGradeKey(raw: unknown, fallback?: ItemGrade): ItemGrade {
+    if (typeof raw === 'string') {
+        const t = raw.trim().toLowerCase();
+        if (ITEM_GRADE_STRING_SET.has(t)) return t as ItemGrade;
+    }
+    if (fallback != null && ITEM_GRADE_STRING_SET.has(fallback as string)) {
+        return fallback as ItemGrade;
+    }
+    return ItemGrade.Normal;
+}
+
 const n = (x: unknown): number => {
     if (typeof x === 'number' && Number.isFinite(x)) return x;
     const v = Number(x);

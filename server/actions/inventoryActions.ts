@@ -15,6 +15,7 @@ import {
     ENHANCEMENT_SUCCESS_RATES,
     ENHANCEMENT_COSTS,
     getEnhancementCostRowForDisassembly,
+    getCumulativeEnhancementMaterialsSpentToReachStars,
     MATERIAL_ITEMS,
     ITEM_SELL_PRICES,
     MATERIAL_SELL_PRICES,
@@ -56,7 +57,7 @@ import {
     applySuccessfulEnhancementTick,
     getEnhancementStepBonusMultiplier,
 } from '../../shared/utils/equipmentEnhancementTick.js';
-import { normalizeEquipmentOptionNumbers } from '../../shared/utils/inventoryLegacyNormalize.js';
+import { normalizeEquipmentOptionNumbers, normalizeItemGradeKey } from '../../shared/utils/inventoryLegacyNormalize.js';
 import {
     resolveCombatSubValueRefinementRange,
     resolveSpecialSubValueRefinementRange,
@@ -1321,6 +1322,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             if (!item || item.type !== 'equipment' || !item.options) return { error: '강화할 수 없는 아이템입니다.' };
             const normalizedEnhanceItem = normalizeEquipmentOptionNumbers(item);
             Object.assign(item, { options: normalizedEnhanceItem.options, stars: normalizedEnhanceItem.stars });
+            const gradeTemplate = EQUIPMENT_POOL.find((p) => p.name === item.name);
+            item.grade = normalizeItemGradeKey(item.grade, gradeTemplate?.grade);
             if (item.stars >= 10) return { error: '최대 강화 레벨입니다.' };
 
             const targetStars = item.stars + 1;
@@ -1813,16 +1816,25 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 if (item.type !== 'equipment') return { error: '장비 아이템만 분해할 수 있습니다.' };
                 if (item.isEquipped) return { error: '장착 중인 아이템은 분해할 수 없습니다.' };
 
-                // 다음 강화 비용 행의 일부를 환급 (+10은 마지막 행 사용 — 미리보기와 동일)
+                // 다음 강화에 필요한 강화석의 10~20% 랜덤 (+10은 마지막 행 — 미리보기와 동일)
                 const costsForNextLevel = getEnhancementCostRowForDisassembly(item.grade, item.stars);
 
                 if (costsForNextLevel) {
                     for (const cost of costsForNextLevel) {
-                        const yieldRatio = getRandomInt(20, 50) / 100;
+                        const yieldRatio = getRandomInt(10, 20) / 100;
                         const yieldAmount = Math.max(1, Math.floor(cost.amount * yieldRatio));
                         if (yieldAmount > 0) {
                             gainedMaterials[cost.name] = (gainedMaterials[cost.name] || 0) + yieldAmount;
                         }
+                    }
+                }
+
+                // 현재 강화까지 100% 성공 가정 시 누적 소모 강화석의 10% 추가 환급
+                const spentTotals = getCumulativeEnhancementMaterialsSpentToReachStars(item.grade, item.stars);
+                for (const [matName, totalSpent] of Object.entries(spentTotals)) {
+                    const refund = Math.floor(totalSpent * 0.1);
+                    if (refund > 0) {
+                        gainedMaterials[matName] = (gainedMaterials[matName] || 0) + refund;
                     }
                 }
 

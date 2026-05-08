@@ -5,7 +5,11 @@ import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
 import DraggableWindow from '../DraggableWindow.js';
 import ConfirmModal from '../ConfirmModal.js';
-import { getEnhancementCostRowForDisassembly, MATERIAL_ITEMS } from '../../constants';
+import {
+    getEnhancementCostRowForDisassembly,
+    getCumulativeEnhancementMaterialsSpentToReachStars,
+    MATERIAL_ITEMS,
+} from '../../constants';
 import { BLACKSMITH_DISASSEMBLY_JACKPOT_RATES } from '../../constants/rules.js';
 
 const gradeStyles: Record<ItemGrade, { color: string; background: string }> = {
@@ -182,8 +186,8 @@ const DisassemblyPreviewPanel: React.FC<{
             const costsForNextLevel = getEnhancementCostRowForDisassembly(item.grade, item.stars);
             if (costsForNextLevel) {
                 for (const cost of costsForNextLevel) {
-                    const minYield = Math.max(1, Math.floor(cost.amount * 0.20));
-                    const maxYield = Math.max(minYield, Math.floor(cost.amount * 0.50));
+                    const minYield = Math.max(1, Math.floor(cost.amount * 0.1));
+                    const maxYield = Math.max(minYield, Math.floor(cost.amount * 0.2));
 
                     if (!ranges[cost.name]) {
                         ranges[cost.name] = { min: 0, max: 0 };
@@ -192,6 +196,17 @@ const DisassemblyPreviewPanel: React.FC<{
                     ranges[cost.name].min += minYield;
                     ranges[cost.name].max += maxYield;
                 }
+            }
+
+            const spentTotals = getCumulativeEnhancementMaterialsSpentToReachStars(item.grade, item.stars);
+            for (const [name, totalSpent] of Object.entries(spentTotals)) {
+                const invested = Math.floor(totalSpent * 0.1);
+                if (invested <= 0) continue;
+                if (!ranges[name]) {
+                    ranges[name] = { min: 0, max: 0 };
+                }
+                ranges[name].min += invested;
+                ranges[name].max += invested;
             }
         }
 

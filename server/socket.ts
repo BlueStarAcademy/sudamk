@@ -6,7 +6,6 @@ import { releaseIpBindingForUser } from './ipLoginPolicy.js';
 import { scheduleWebSocketMetricsSample } from './serverLoadMetrics.js';
 import { WEBSOCKET_ADMIN_FORCE_LOGOUT_CLOSE_CODE } from '../shared/constants/auth.js';
 import { getArenaTurnCount } from './utils/arenaTurnPolicy.js';
-import { GameMode } from '../types/index.js';
 
 /**
  * 베이스 세션의 본경기 단계 좌석 잠금 보호:
@@ -31,16 +30,11 @@ const BASE_SEAT_LOCK_PROTECTED_STATUSES = new Set([
 const enforceBaseSeatLockBeforeBroadcast = (game: unknown): void => {
     if (!game || typeof game !== 'object') return;
     const g = game as Record<string, any>;
-    const mode = g.mode;
-    const includesBase =
-        mode === GameMode.Base ||
-        (mode === GameMode.Mix &&
-            Array.isArray(g.settings?.mixedModes) &&
-            g.settings.mixedModes.includes(GameMode.Base));
-    if (!includesBase) return;
     const lb = g.playingLockedBlackPlayerId;
     const lw = g.playingLockedWhitePlayerId;
     if (typeof lb !== 'string' || lb.length === 0 || typeof lw !== 'string' || lw.length === 0) return;
+    // A valid lock is written only after Base setup finalizes; trust it even
+    // if an optimized packet omitted or stale-copied mode metadata.
     const status = String(g.gameStatus ?? '');
     if (!BASE_SEAT_LOCK_PROTECTED_STATUSES.has(status)) return;
     if (g.blackPlayerId === lb && g.whitePlayerId === lw) return;

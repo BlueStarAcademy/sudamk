@@ -10,6 +10,28 @@ const USER_CACHE_TTL_MS = isRailway ? 1800 * 1000 : 600 * 1000;
 /** 싱글/탑 PVE는 오랫동안 터치가 없어도 캐시에 유지 (모달 대기·모바일 백그라운드·WS 끊김). 초과 시에만 정리 */
 const PVE_CACHE_ABSOLUTE_MAX_AGE_MS = 72 * 60 * 60 * 1000;
 
+/**
+ * 인간 대국 사전 단계(페어 순서 확인·색/니기리 확인 등): getAllCachedGames가 TTL 밖 게임을 제외해
+ * 메인 루프가 캐시를 못 만지는 동안에도 HTTP(CONFIRM_COLOR_START)가 살아야 하므로 PVE와 같이 캐시에서 보호한다.
+ */
+function isPvpPreStartModalGame(game: LiveGameSession | undefined): boolean {
+    if (!game) return false;
+    const st = game.gameStatus;
+    if (st === 'ended' || st === 'no_contest') return false;
+    if (game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer' || game.gameCategory === 'adventure') {
+        return false;
+    }
+    if (st === 'pair_order_reveal' && isPairClassicGame(game.settings, game.mode)) return true;
+    if (st === 'color_start_confirmation' || st === 'nigiri_reveal') return true;
+    return false;
+}
+
+function isProtectedPvpPreStartFromEviction(cached: { game: LiveGameSession; lastUpdated: number }, now: number): boolean {
+    if (!isPvpPreStartModalGame(cached.game)) return false;
+    if (now - cached.lastUpdated > PVE_CACHE_ABSOLUTE_MAX_AGE_MS) return false;
+    return true;
+}
+
 function isActivePveCachedGame(gameId: string, game: LiveGameSession | null | undefined): boolean {
     if (!game) return false;
     const isPveId = gameId.startsWith('sp-game-') || gameId.startsWith('tower-game-');
@@ -89,6 +111,11 @@ export async function getCachedGame(gameId: string): Promise<LiveGameSession | n
         cache.set(gameId, { game: cached.game, lastUpdated: now });
         return cached.game;
     }
+    // DB 일시 실패·조회 null이어도 사전 확인 모달 단계의 PVP 세션은 캐시를 지우지 않음 (페어 순서 확인 후 늦게 눌러도 400 방지)
+    if (cached && isPvpPreStartModalGame(cached.game)) {
+        cache.set(gameId, { game: cached.game, lastUpdated: now });
+        return cached.game;
+    }
     if (cached) {
         cache.delete(gameId);
     }
@@ -136,11 +163,13 @@ export function getAllCachedGames(): LiveGameSession[] {
     const now = Date.now();
     const games: LiveGameSession[] = [];
     
-    // 캐시에서 만료되지 않은 활성 게임만 반환
+    // 캐시에서 만료되지 않은 활성 게임 + TTL 밖이어도 PVP 사전 확인 모달 단계는 메인 루프에 포함 (저장·타임아웃 처리)
     for (const [gameId, cached] of cache.entries()) {
-        if (cached && (now - cached.lastUpdated) < CACHE_TTL_MS) {
+        if (!cached?.game) continue;
+        const ttlFresh = now - cached.lastUpdated < CACHE_TTL_MS;
+        const stalePreStart = !ttlFresh && isPvpPreStartModalGame(cached.game);
+        if (ttlFresh || stalePreStart) {
             const game = cached.game;
-            // 활성 게임만 반환 (ended, no_contest 제외)
             if (game && game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest') {
                 games.push(game);
             }
@@ -215,7 +244,7 @@ export function cleanupExpiredCache(): void {
         for (const [gameId, cached] of gameCache.entries()) {
             if (now - cached.lastUpdated > CACHE_TTL_MS * 2) {
                 // 싱글/탑 등 PVE는 WS·userStatuses와 무관하게 보호 (제거 시 DB 없으면 CONFIRM 등 400)
-                if (isProtectedPveFromEviction(gameId, cached, now)) {
+                if (isProtectedPveFromEviction(gameId, cached, now) || isProtectedPvpPreStartFromEviction(cached, now)) {
                     gameCache.set(gameId, { game: cached.game, lastUpdated: now });
                     continue;
                 }
@@ -228,7 +257,7 @@ export function cleanupExpiredCache(): void {
             let over = gameCache.size - maxGameCacheSize;
             for (const [gameId, cached] of sorted) {
                 if (over <= 0) break;
-                if (isProtectedPveFromEviction(gameId, cached, now)) {
+                if (isProtectedPveFromEviction(gameId, cached, now) || isProtectedPvpPreStartFromEviction(cached, now)) {
                     continue;
                 }
                 gameCache.delete(gameId);
@@ -240,7 +269,7 @@ export function cleanupExpiredCache(): void {
                 let over2 = gameCache.size - maxGameCacheSize;
                 for (const [gameId, cached] of stillSorted) {
                     if (over2 <= 0) break;
-                    if (isProtectedPveFromEviction(gameId, cached, now)) continue;
+                    if (isProtectedPveFromEviction(gameId, cached, now) || isProtectedPvpPreStartFromEviction(cached, now)) continue;
                     gameCache.delete(gameId);
                     gamesCleaned++;
                     over2--;
@@ -313,7 +342,7 @@ export function aggressiveCacheCleanup(): void {
         let needRemove = gameCache.size - targetSize;
         for (const [gameId, cached] of sorted) {
             if (needRemove <= 0) break;
-            if (isProtectedPveFromEviction(gameId, cached, now)) continue;
+            if (isProtectedPveFromEviction(gameId, cached, now) || isProtectedPvpPreStartFromEviction(cached, now)) continue;
             gameCache.delete(gameId);
             gamesCleaned++;
             needRemove--;

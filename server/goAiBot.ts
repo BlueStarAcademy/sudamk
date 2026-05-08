@@ -59,7 +59,7 @@ import {
 } from './kataCaptureSetupEncoding.js';
 import { bumpGuildWarMaxSingleCapturePointsForPlayer } from '../shared/utils/guildWarMaxSingleCapturePoints.js';
 import { reconcileStrategicAiBoardSizeWithGroundTruth } from './utils/effectiveBoardSize.js';
-import { getEffectiveSinglePlayerStages } from './singlePlayerStageConfigService.js';
+import { ensureSinglePlayerKataServerLevelOnGame, getEffectiveSinglePlayerStages } from './singlePlayerStageConfigService.js';
 import { resolveSinglePlayerAutoScoringTurnCap } from '../shared/utils/singlePlayerStrategicRulePreset.js';
 import {
     getArenaTurnCount,
@@ -2149,6 +2149,9 @@ export async function makeGoAiBotMove(
         console.error(
             `[makeGoAiBotMove] KataServer를 사용할 수 없습니다(KATA_SERVER_URL 미설정). 서버 합법수 폴백으로 진행합니다. game=${game.id}`
         );
+    }
+    if (game.isSinglePlayer) {
+        await ensureSinglePlayerKataServerLevelOnGame(game);
     }
     const configuredKataLevelRaw = Number((game.settings as any)?.kataServerLevel);
     let configuredKataLevel = Number.isFinite(configuredKataLevelRaw) ? configuredKataLevelRaw : undefined;

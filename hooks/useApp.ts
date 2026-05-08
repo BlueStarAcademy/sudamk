@@ -512,11 +512,22 @@ function alignBaseModeCurrentPlayerWithExistingWhenSlimDrift(
 
 function liveSessionIncludesBaseMode(g: LiveGameSession | undefined): boolean {
     if (!g) return false;
+    if (
+        typeof g.playingLockedBlackPlayerId === 'string' &&
+        g.playingLockedBlackPlayerId.length > 0 &&
+        typeof g.playingLockedWhitePlayerId === 'string' &&
+        g.playingLockedWhitePlayerId.length > 0
+    ) {
+        return true;
+    }
+    if (getBaseFinalColorAssignment(g)) return true;
     if (g.mode === GameMode.Base) return true;
     if (g.mode === GameMode.Mix) {
         const mm = (g.settings as { mixedModes?: GameMode[] } | undefined)?.mixedModes;
         return Array.isArray(mm) && mm.includes(GameMode.Base);
     }
+    if (Array.isArray(g.baseStones) && g.baseStones.length > 0) return true;
+    if (typeof g.settings?.baseStones === 'number' && g.settings.baseStones > 0) return true;
     return false;
 }
 

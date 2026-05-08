@@ -267,6 +267,30 @@ describe('base mode', () => {
         expect(game.whitePlayerId).toBe(aiUserId);
     });
 
+    it('trusts playing-locked seats even if mode metadata is stale', () => {
+        const game = makeBaseGame({
+            id: 'base-seat-lock-stale-mode-test',
+            mode: GameMode.Hidden,
+            isSinglePlayer: true,
+            isAiGame: true,
+            gameCategory: GameCategory.SinglePlayer,
+            player2: makeUser(aiUserId),
+            blackPlayerId: aiUserId,
+            whitePlayerId: 'human-1',
+            gameStatus: 'playing' as GameStatus,
+            currentPlayer: Player.Black,
+            settings: { boardSize: 5, baseStones: 1, komi: 0.5 } as any,
+        });
+        (game as any).playingLockedBlackPlayerId = 'human-1';
+        (game as any).playingLockedWhitePlayerId = aiUserId;
+
+        const reverted = enforceBaseSeatLockIfDriftedDuringPlay(game);
+
+        expect(reverted).toBe(true);
+        expect(game.blackPlayerId).toBe('human-1');
+        expect(game.whitePlayerId).toBe(aiUserId);
+    });
+
     it('does not touch black/white ids during pre-play base statuses', () => {
         const game = makeBaseGame({
             id: 'base-seat-lock-pre-play-test',
