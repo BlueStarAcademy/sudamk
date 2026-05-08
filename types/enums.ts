@@ -165,7 +165,7 @@ export enum CoreStat {
 export enum SpecialStat {
     ActionPointMax = '행동력 최대치',
     StrategyXpBonus = 'EXP 추가 획득',
-    PlayfulXpBonus = '놀이 경험치 추가',
+    PlayfulXpBonus = '펫 경험치 추가',
     ChampionshipVenueAllStats = '챔피언십 능력치',
     GuildBossBattleAllStats = '길드보스전 능력치',
 }

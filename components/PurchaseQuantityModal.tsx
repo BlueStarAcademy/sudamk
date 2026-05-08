@@ -112,7 +112,7 @@ const PurchaseModalItemShowcase: React.FC<{ preview: InventoryItem; shopBadge?: 
                                     />
                                 ) : null}
                                 {preview.type === 'equipment' && (preview.stars ?? 0) > 0 ? (
-                                    <div className="absolute bottom-0.5 right-0.5 z-[3] rounded bg-black/55 px-1 py-0.5 text-[9px] font-bold text-amber-200 ring-1 ring-white/10">
+                                    <div className="absolute bottom-0.5 right-0.5 z-[3] rounded bg-black/55 px-1 py-0.5 text-[10px] font-bold text-amber-200 ring-1 ring-white/10">
                                         ★{preview.stars}
                                     </div>
                                 ) : null}
@@ -123,23 +123,23 @@ const PurchaseModalItemShowcase: React.FC<{ preview: InventoryItem; shopBadge?: 
                         <div className="min-w-0 flex-1 text-left">
                             <div className="flex flex-wrap items-center gap-1.5">
                                 <h2
-                                    className={`min-w-0 max-w-full text-sm font-black leading-tight tracking-tight sm:text-base ${styles.color}`}
+                                    className={`min-w-0 max-w-full text-base font-black leading-tight tracking-tight sm:text-lg ${styles.color}`}
                                     style={{ letterSpacing: '-0.02em' }}
                                 >
                                     {preview.name}
                                 </h2>
                                 {shopBadge && !isActionPointConsumable(preview.name) ? (
-                                    <span className="shrink-0 rounded border border-cyan-400/35 bg-cyan-950/40 px-1.5 py-px text-[9px] font-bold text-cyan-100">
+                                    <span className="shrink-0 rounded border border-cyan-400/35 bg-cyan-950/40 px-1.5 py-px text-[10px] font-bold text-cyan-100 sm:text-[11px]">
                                         {shopBadge}
                                     </span>
                                 ) : null}
                             </div>
                             <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                                <span className="rounded-full border border-white/[0.1] bg-white/[0.04] px-2 py-px text-[9px] font-semibold uppercase tracking-wider text-slate-400">
+                                <span className="rounded-full border border-white/[0.1] bg-white/[0.04] px-2 py-px text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-[11px]">
                                     구분 · {typeLabelKo(preview)}
                                 </span>
                                 <span
-                                    className={`rounded-full border px-2 py-px text-[9px] font-bold tracking-wide ring-1 ring-inset ${
+                                    className={`rounded-full border px-2 py-px text-[10px] font-bold tracking-wide ring-1 ring-inset sm:text-[11px] ${
                                         isTranscendent
                                             ? 'border-cyan-400/35 bg-cyan-500/10 text-cyan-100 ring-cyan-400/15'
                                             : 'border-white/10 bg-black/30 text-slate-200 ring-white/[0.06]'
@@ -148,31 +148,31 @@ const PurchaseModalItemShowcase: React.FC<{ preview: InventoryItem; shopBadge?: 
                                     등급 · <span className={styles.color}>{styles.name}</span>
                                 </span>
                             </div>
-                            <div className="mt-1.5 rounded-lg border border-white/[0.06] bg-black/30 p-2 ring-1 ring-inset ring-white/[0.03]">
-                                <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-500">설명</p>
-                                <p className="mt-1 text-[11px] leading-snug text-slate-200/95">{desc}</p>
+                            <div className="mt-1.5 rounded-lg border border-white/[0.06] bg-black/30 p-2.5 ring-1 ring-inset ring-white/[0.03]">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 sm:text-[11px]">설명</p>
+                                <p className="mt-1 text-xs leading-snug text-slate-200/95 sm:text-[13px] sm:leading-snug">{desc}</p>
                             </div>
                         </div>
                     </div>
 
-                    {/* Usage + Acquire panels — 가로 2열로 높이 절약 */}
-                    <div className="mt-2 grid grid-cols-1 gap-2 min-[440px]:grid-cols-2">
-                        <div className="group relative overflow-hidden rounded-lg border border-sky-500/20 bg-gradient-to-b from-sky-950/35 via-[#0a1018]/90 to-[#06080c] p-2 shadow-[inset_0_1px_0_rgba(56,189,248,0.08)] ring-1 ring-inset ring-sky-400/10">
+                    {/* 사용처 · 획득처 — 항상 세로 스택 */}
+                    <div className="mt-2 flex flex-col gap-2.5">
+                        <div className="group relative overflow-hidden rounded-lg border border-sky-500/20 bg-gradient-to-b from-sky-950/35 via-[#0a1018]/90 to-[#06080c] p-2.5 shadow-[inset_0_1px_0_rgba(56,189,248,0.08)] ring-1 ring-inset ring-sky-400/10">
                             <div
                                 className="pointer-events-none absolute -right-6 -top-8 h-20 w-20 rounded-full bg-sky-400/10 blur-2xl transition-opacity group-hover:opacity-90"
                                 aria-hidden
                             />
-                            <div className="relative flex items-center gap-1.5 border-b border-sky-500/15 pb-1">
-                                <span className="flex h-5 w-5 items-center justify-center rounded-md bg-sky-500/20 text-[10px] font-black text-sky-200 ring-1 ring-sky-400/25">
+                            <div className="relative flex items-center gap-2 border-b border-sky-500/15 pb-1.5">
+                                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-sky-500/20 text-[11px] font-black text-sky-200 ring-1 ring-sky-400/25 sm:text-xs">
                                     ◈
                                 </span>
-                                <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-sky-200/90">사용처</span>
+                                <span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-sky-200/90 sm:text-xs">사용처</span>
                             </div>
-                            <ul className="relative mt-1.5 space-y-1 pl-0.5">
+                            <ul className="relative mt-2 space-y-1.5 pl-0.5">
                                 {usageLines.map((line, i) => (
                                     <li
                                         key={i}
-                                        className="border-l-2 border-sky-400/35 pl-2 text-[10px] leading-tight text-slate-200/95"
+                                        className="border-l-2 border-sky-400/35 pl-2 text-xs leading-snug text-slate-200/95 sm:text-[13px] sm:leading-snug"
                                     >
                                         {line}
                                     </li>
@@ -180,29 +180,29 @@ const PurchaseModalItemShowcase: React.FC<{ preview: InventoryItem; shopBadge?: 
                             </ul>
                         </div>
 
-                        <div className="group relative overflow-hidden rounded-lg border border-amber-500/20 bg-gradient-to-b from-amber-950/30 via-[#120e0a]/92 to-[#080604] p-2 shadow-[inset_0_1px_0_rgba(251,191,36,0.07)] ring-1 ring-inset ring-amber-400/10">
+                        <div className="group relative overflow-hidden rounded-lg border border-amber-500/20 bg-gradient-to-b from-amber-950/30 via-[#120e0a]/92 to-[#080604] p-2.5 shadow-[inset_0_1px_0_rgba(251,191,36,0.07)] ring-1 ring-inset ring-amber-400/10">
                             <div
                                 className="pointer-events-none absolute -left-4 -top-10 h-24 w-24 rounded-full bg-amber-400/10 blur-2xl transition-opacity group-hover:opacity-90"
                                 aria-hidden
                             />
-                            <div className="relative flex items-center gap-1.5 border-b border-amber-500/15 pb-1">
-                                <span className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-500/20 text-[10px] font-black text-amber-100 ring-1 ring-amber-400/25">
+                            <div className="relative flex items-center gap-2 border-b border-amber-500/15 pb-1.5">
+                                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-500/20 text-[11px] font-black text-amber-100 ring-1 ring-amber-400/25 sm:text-xs">
                                     ✦
                                 </span>
-                                <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-100/90">획득처</span>
+                                <span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-amber-100/90 sm:text-xs">획득처</span>
                             </div>
-                            <ul className="relative mt-1.5 space-y-1 pl-0.5">
+                            <ul className="relative mt-2 space-y-1.5 pl-0.5">
                                 {acquireLines.length > 0 ? (
                                     acquireLines.map((line, i) => (
                                         <li
                                             key={i}
-                                            className="border-l-2 border-amber-400/35 pl-2 text-[10px] leading-tight text-slate-200/95"
+                                            className="border-l-2 border-amber-400/35 pl-2 text-xs leading-snug text-slate-200/95 sm:text-[13px] sm:leading-snug"
                                         >
                                             {line}
                                         </li>
                                     ))
                                 ) : (
-                                    <li className="border-l-2 border-amber-400/20 pl-2 text-[10px] text-slate-500">안내 문구가 없습니다.</li>
+                                    <li className="border-l-2 border-amber-400/20 pl-2 text-xs text-slate-500 sm:text-[13px]">안내 문구가 없습니다.</li>
                                 )}
                             </ul>
                         </div>
@@ -256,9 +256,19 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
         const currency = isGold ? (currentUser.gold ?? 0) : (currentUser.diamonds ?? 0);
         const maxByCurrency = !isTieredPriceItem && pricePerItem > 0 ? Math.floor(currency / pricePerItem) : (isTieredPriceItem ? maxAffordByTieredPrices : Infinity);
         const byLimit = isTieredPriceItem ? remainingDaily : (item.limit ?? Infinity);
-        const cap = Math.min(byLimit, maxByCurrency, MAX_GAME_INTEGER_INPUT);
+        const cap = Math.min(byLimit, maxByCurrency, MAX_GAME_INTEGER_INPUT, maxByInventory);
         return Math.max(0, cap);
-    }, [item.limit, currentUser.gold, currentUser.diamonds, isGold, pricePerItem, isTieredPriceItem, remainingDaily, maxAffordByTieredPrices]);
+    }, [
+        item.limit,
+        currentUser.gold,
+        currentUser.diamonds,
+        isGold,
+        pricePerItem,
+        isTieredPriceItem,
+        remainingDaily,
+        maxAffordByTieredPrices,
+        maxByInventory,
+    ]);
 
     const totalPrice = useMemo(() => {
         const q = quantity;
@@ -324,87 +334,99 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
                     <div className="overflow-visible" role="region" aria-label="구매 상품 상세">
                         <PurchaseModalItemShowcase preview={previewItem} shopBadge={item.badge} />
                     </div>
-                    {quantity >= 2 ? (
-                        <p className="mt-1 text-center text-[10px] font-medium text-amber-200/80">선택 수량 ×{quantity.toLocaleString()}</p>
-                    ) : null}
-                    {remainingDaily !== Infinity && remainingDaily > 0 ? (
-                        <p className="mt-0.5 text-center text-[10px] text-slate-500">일일 남은 구매 가능: {remainingDaily}개</p>
-                    ) : null}
                 </div>
 
-                <div className="mb-2 rounded-lg border border-white/[0.07] bg-gradient-to-b from-slate-800/85 to-slate-950/90 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-black/25">
-                    <div className="mb-1.5 flex items-center justify-between gap-2">
-                        <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-500">구매 수량</span>
-                        <span className="font-mono text-[9px] tabular-nums text-slate-500">
-                            1–{Math.max(1, maxQuantity).toLocaleString()}
-                        </span>
-                    </div>
-                    <div className="flex items-center justify-center gap-1.5">
-                        <button
-                            type="button"
-                            onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                            disabled={quantity <= 1}
-                            aria-label="한 개 줄이기"
-                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-500/35 bg-slate-700/80 text-sm font-semibold text-slate-200 shadow-sm transition-colors hover:border-slate-400/45 hover:bg-slate-600/90 disabled:cursor-not-allowed disabled:opacity-35 active:scale-[0.97]"
-                        >
-                            −
-                        </button>
-                        <input
-                            type="number"
-                            min={1}
-                            max={Math.max(1, maxQuantity)}
-                            value={quantity}
-                            onChange={(e) =>
-                                setQuantity(clampGameInt(Number(e.target.value) || 1, { min: 1, max: Math.max(1, maxQuantity) }))
-                            }
-                            className="h-7 min-w-[3.75rem] max-w-[6rem] rounded-md border border-slate-500/40 bg-slate-900/70 px-1 text-center text-sm font-semibold tabular-nums text-slate-100 shadow-inner outline-none ring-amber-500/0 transition-[box-shadow,border-color] focus:border-amber-400/40 focus:ring-2 focus:ring-amber-400/20"
-                        />
-                        <button
-                            type="button"
-                            onClick={() => setQuantity(q => Math.min(maxQuantity, q + 1))}
-                            disabled={quantity >= maxQuantity}
-                            aria-label="한 개 늘리기"
-                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-500/35 bg-slate-700/80 text-sm font-semibold text-slate-200 shadow-sm transition-colors hover:border-slate-400/45 hover:bg-slate-600/90 disabled:cursor-not-allowed disabled:opacity-35 active:scale-[0.97]"
-                        >
-                            +
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setQuantity(maxQuantity)}
-                            disabled={maxQuantity <= 0}
-                            className="ml-0.5 h-7 shrink-0 rounded-md border border-amber-500/35 bg-gradient-to-b from-amber-500/25 to-amber-950/40 px-2 text-[10px] font-bold tracking-tight text-amber-100/95 shadow-sm transition-colors hover:border-amber-400/50 hover:from-amber-400/35 disabled:cursor-not-allowed disabled:opacity-35 active:scale-[0.97]"
-                        >
-                            Max
-                        </button>
-                    </div>
-                    <div className="mt-1.5 px-0.5">
-                        <input
-                            type="range"
-                            min="1"
-                            max={Math.max(1, maxQuantity)}
-                            value={quantity}
-                            onChange={e => setQuantity(Number(e.target.value))}
-                            className="h-1 w-full cursor-pointer rounded-full accent-amber-500"
-                        />
-                    </div>
-                </div>
-
-                <div className="mb-2 overflow-hidden rounded-lg border border-amber-500/15 bg-gradient-to-r from-amber-950/25 via-slate-900/80 to-slate-950/90 p-2 ring-1 ring-inset ring-white/[0.04]">
-                    <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                            <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-amber-200/55">합계</p>
-                            <p className="mt-px truncate text-[10px] text-slate-500">결제 예정 금액</p>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-1 rounded border border-white/[0.06] bg-black/25 px-1.5 py-0.5">
-                            <img
-                                src={isGold ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
-                                alt=""
-                                className="h-3.5 w-3.5 object-contain opacity-95"
-                                aria-hidden
-                            />
-                            <span className="text-right text-sm font-bold tabular-nums text-amber-100/95">
-                                {isGold ? formatGoldAmountKoG(totalPrice) : formatWalletDiamonds(totalPrice)}
+                <div className="mb-2 flex min-h-[7.5rem] flex-row items-stretch gap-2">
+                    <div className="min-w-0 flex-1 rounded-lg border border-white/[0.07] bg-gradient-to-b from-slate-800/85 to-slate-950/90 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-black/25">
+                        <div className="mb-1.5 flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500 sm:text-xs">
+                                구매 수량
                             </span>
+                            <span className="font-mono text-[11px] tabular-nums text-slate-500 sm:text-xs">
+                                {maxQuantity <= 0 ? '0' : `1–${maxQuantity.toLocaleString()}`}
+                            </span>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-center gap-1.5">
+                            <button
+                                type="button"
+                                onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                                disabled={quantity <= 1}
+                                aria-label="한 개 줄이기"
+                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-500/35 bg-slate-700/80 text-sm font-semibold text-slate-200 shadow-sm transition-colors hover:border-slate-400/45 hover:bg-slate-600/90 disabled:cursor-not-allowed disabled:opacity-35 active:scale-[0.97]"
+                            >
+                                −
+                            </button>
+                            <input
+                                type="number"
+                                min={1}
+                                max={Math.max(1, maxQuantity)}
+                                value={quantity}
+                                onChange={(e) =>
+                                    setQuantity(clampGameInt(Number(e.target.value) || 1, { min: 1, max: Math.max(1, maxQuantity) }))
+                                }
+                                className="h-7 min-w-[3.75rem] max-w-[6rem] rounded-md border border-slate-500/40 bg-slate-900/70 px-1 text-center text-sm font-semibold tabular-nums text-slate-100 shadow-inner outline-none ring-amber-500/0 transition-[box-shadow,border-color] focus:border-amber-400/40 focus:ring-2 focus:ring-amber-400/20"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setQuantity(q => Math.min(maxQuantity, q + 1))}
+                                disabled={quantity >= maxQuantity}
+                                aria-label="한 개 늘리기"
+                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-500/35 bg-slate-700/80 text-sm font-semibold text-slate-200 shadow-sm transition-colors hover:border-slate-400/45 hover:bg-slate-600/90 disabled:cursor-not-allowed disabled:opacity-35 active:scale-[0.97]"
+                            >
+                                +
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setQuantity(maxQuantity)}
+                                disabled={maxQuantity <= 0}
+                                className="ml-0.5 h-7 shrink-0 rounded-md border border-amber-500/35 bg-gradient-to-b from-amber-500/25 to-amber-950/40 px-2 text-[11px] font-bold tracking-tight text-amber-100/95 shadow-sm transition-colors hover:border-amber-400/50 hover:from-amber-400/35 disabled:cursor-not-allowed disabled:opacity-35 active:scale-[0.97] sm:text-xs"
+                            >
+                                Max
+                            </button>
+                        </div>
+                        <div className="mt-1.5 px-0.5">
+                            <input
+                                type="range"
+                                min="1"
+                                max={Math.max(1, maxQuantity)}
+                                value={quantity}
+                                onChange={e => setQuantity(Number(e.target.value))}
+                                className="h-1 w-full cursor-pointer rounded-full accent-amber-500"
+                            />
+                        </div>
+                        <div
+                            className="mt-1.5 flex min-h-[2.25rem] items-center justify-center text-center text-xs leading-snug text-slate-500 sm:min-h-[2.5rem] sm:text-[13px] sm:leading-snug"
+                            aria-live="polite"
+                        >
+                            {remainingDaily !== Infinity && remainingDaily > 0 ? (
+                                <p className="leading-snug">일일 남은 구매 가능: {remainingDaily}개</p>
+                            ) : (
+                                <span className="invisible select-none leading-snug" aria-hidden>
+                                    일일 남은 구매 가능: 0개
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex min-w-0 w-[11.5rem] shrink-0 flex-col justify-center overflow-hidden rounded-lg border border-amber-500/15 bg-gradient-to-r from-amber-950/25 via-slate-900/80 to-slate-950/90 p-2 ring-1 ring-inset ring-white/[0.04] sm:w-[13rem]">
+                        <div className="flex flex-col gap-1.5">
+                            <div className="min-w-0">
+                                <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-amber-200/55 sm:text-xs">합계</p>
+                                <p className="mt-0.5 truncate text-xs leading-snug text-slate-500 sm:text-[13px] sm:leading-snug">
+                                    결제 예정 금액
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-1.5 rounded border border-white/[0.06] bg-black/25 px-1.5 py-1">
+                                <img
+                                    src={isGold ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                    alt=""
+                                    className="h-4 w-4 shrink-0 object-contain opacity-95"
+                                    aria-hidden
+                                />
+                                <span className="min-w-0 flex-1 truncate text-right text-sm font-bold tabular-nums leading-snug text-amber-100/95 sm:text-base sm:leading-snug">
+                                    {isGold ? formatGoldAmountKoG(totalPrice) : formatWalletDiamonds(totalPrice)}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -427,7 +449,7 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
                     </button>
                 </div>
                 {noticeMessage && (
-                    <p className="mt-1.5 text-center text-[10px] font-medium leading-snug text-rose-300/95">
+                    <p className="mt-1.5 text-center text-xs font-medium leading-snug text-rose-300/95 sm:text-[13px] sm:leading-snug">
                         {noticeMessage}
                     </p>
                 )}

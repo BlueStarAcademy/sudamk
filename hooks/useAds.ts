@@ -78,20 +78,23 @@ export function useAds(isProduction: boolean, isAdFree: boolean) {
     return true;
   }, [isAdFree]);
 
-  const closeInterstitial = useCallback(() => {
+  const closeInterstitial = useCallback((options?: { grantShopAdReward?: boolean }) => {
     if (skipTimerRef.current) {
       clearInterval(skipTimerRef.current);
       skipTimerRef.current = null;
     }
     const rewardCb = shopAdRewardOnCloseRef.current;
     shopAdRewardOnCloseRef.current = null;
+    const grantReward = options?.grantShopAdReward !== false;
     setInterstitial({
       isVisible: false,
       canSkip: false,
       skipCountdown: 0,
       trigger: null,
     });
-    rewardCb?.();
+    if (grantReward && rewardCb) {
+      rewardCb();
+    }
   }, []);
 
   const showShopAdRewardInterstitial = useCallback(

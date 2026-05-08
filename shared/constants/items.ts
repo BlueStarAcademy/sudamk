@@ -640,8 +640,8 @@ export const SPECIAL_STATS_DATA: Record<SpecialStat, { name: string; description
         range: [10, 15],
     },
     [SpecialStat.PlayfulXpBonus]: {
-        name: '놀이 경험치 추가',
-        description: '놀이 바둑 승리 시 획득하는 경험치를 증가시킵니다. (+4·+7·+10 강화마다 +3%)',
+        name: '펫 경험치 추가',
+        description: '펫(대표 펫)이 획득하는 경험치를 증가시킵니다. (+4·+7·+10 강화마다 +3%)',
         isPercentage: true,
         range: [10, 15],
     },

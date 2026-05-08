@@ -263,6 +263,19 @@ export const calculateUserEffects = (user: User | null | undefined, guild?: Guil
     return calculatedEffects;
 };
 
+/** 장비 특수「펫 경험치 추가」(enum 키 `PlayfulXpBonus`) — 지급 직전 펫 XP에 퍼센트 가산 */
+export function applyPairPetSpecialStatEquipmentXpMultiplier(
+    user: User,
+    rawGain: number,
+    guild?: Guild | null,
+): number {
+    const base = Math.max(0, Math.floor(rawGain));
+    if (base <= 0) return 0;
+    const pct = calculateUserEffects(user, guild).specialStatBonuses[SpecialStat.PlayfulXpBonus]?.percent ?? 0;
+    if (!Number.isFinite(pct) || pct <= 0) return base;
+    return Math.max(0, Math.round(base * (1 + pct / 100)));
+}
+
 /**
  * 장비 변경 후 행동력 max/current와 회복 타이머(lastActionPointUpdate)를 일치시킨다.
  * 만땅( current >= max )이면 lastActionPointUpdate = 0,

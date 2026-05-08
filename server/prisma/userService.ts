@@ -432,13 +432,16 @@ export async function updateUser(user: User): Promise<User> {
   }
 
   const data = buildPersistentFields(userForPersistence);
-  
-  // equipment와 inventory 동기화를 비동기로 처리하여 응답 속도 개선
-  // 인벤토리/장비 변경은 중요하지만 즉시 동기화할 필요는 없음
-  syncEquipmentAndInventory(userForPersistence).catch((error) => {
-    console.error(`[updateUser] Failed to sync equipment/inventory for user ${user.id}:`, error);
-  });
-  
+
+  // UserInventory/UserEquipment를 먼저 맞춘 뒤 status를 저장해야 한다.
+  // 비동기 동기화만 하면 직후 getUser가 관계형 인벤만 읽을 때(legacy 경로) 우편 수령·상점 등 신규 행이
+  // 아직 없어 가방이 비어 보이는 레이스가 난다.
+  try {
+    await syncEquipmentAndInventory(userForPersistence);
+  } catch (error: any) {
+    console.error(`[updateUser] Failed to sync equipment/inventory for user ${user.id}:`, error?.message ?? error);
+  }
+
   const updated = await prisma.user.update({
     where: { id: user.id },
     data

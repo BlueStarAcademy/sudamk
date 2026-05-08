@@ -234,6 +234,7 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
         items: [],
     };
     let grantedBonusStatPoints = false;
+    let pairPetInventoryTouched = false;
     
     const stageIndex = stages.findIndex(s => s.id === stage.id);
     const currentProgress = user.singlePlayerProgress ?? 0;
@@ -313,6 +314,23 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
                     } as any);
                 }
             }
+
+            /** 전략 AI 대국과 동일: 클리어 전략 EXP의 50%를 장착 펫에 반영 */
+            const strategyXpAwarded = Number(rewards.exp) || 0;
+            if (strategyXpAwarded > 0) {
+                const petRaw = effectService.applyPairPetSpecialStatEquipmentXpMultiplier(user, Math.round(strategyXpAwarded * 0.5));
+                if (petRaw > 0) {
+                    const pairPetGrowth = applyPairPetRewardXp(user, petRaw);
+                    if (pairPetGrowth) {
+                        pairPetInventoryTouched = true;
+                        summary.pairPetXp = pairPetGrowth.xp;
+                        summary.pairPetLevel = pairPetGrowth.level;
+                        if (pairPetGrowth.levelUpCoreBonusesDelta) {
+                            summary.pairPetLevelUpCoreBonuses = pairPetGrowth.levelUpCoreBonusesDelta;
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -343,8 +361,8 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
     if (grantedBonusStatPoints) {
         fieldsToUpdate.push('bonusStatPoints');
     }
-    // inventory가 실제로 변경된 경우에만 포함 (아이템 보상이 있을 때만)
-    if (summary.items && summary.items.length > 0) {
+    // inventory가 실제로 변경된 경우에만 포함 (아이템·펫 경험치 반영)
+    if ((summary.items && summary.items.length > 0) || pairPetInventoryTouched) {
         fieldsToUpdate.push('inventory');
     }
     if (user.onboardingTutorialPhase != null) {
@@ -518,7 +536,22 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
                     }
                 }
             }
-            
+
+            /** 전략 AI·싱글 클리어와 동일: 층 클리어 전략 EXP의 50%를 장착 펫에 반영 */
+            if (addedXp > 0) {
+                const petRaw = effectService.applyPairPetSpecialStatEquipmentXpMultiplier(user, Math.round(addedXp * 0.5));
+                if (petRaw > 0) {
+                    const pairPetGrowth = applyPairPetRewardXp(user, petRaw);
+                    if (pairPetGrowth) {
+                        summary.pairPetXp = pairPetGrowth.xp;
+                        summary.pairPetLevel = pairPetGrowth.level;
+                        if (pairPetGrowth.levelUpCoreBonusesDelta) {
+                            summary.pairPetLevelUpCoreBonuses = pairPetGrowth.levelUpCoreBonusesDelta;
+                        }
+                    }
+                }
+            }
+
             console.log(`[Tower Summary] Floor ${floor} - First clear reward: gold=${rewards.gold}, exp=${rewards.exp}, items=${summary.items?.length || 0}`);
         }
     } else {
@@ -550,7 +583,11 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
 
     // towerFloor 또는 monthlyTowerFloor가 업데이트되었거나, 보상이 지급된 경우 DB 저장
     const towerFloorUpdated = isWinner && (floor > userTowerFloor || floor > ((user as any).monthlyTowerFloor ?? 0));
-    const hasRewards = (summary.gold ?? 0) > 0 || summary.xp.change > 0 || (summary.items && summary.items.length > 0);
+    const hasRewards =
+        (summary.gold ?? 0) > 0 ||
+        summary.xp.change > 0 ||
+        (summary.pairPetXp?.change ?? 0) > 0 ||
+        (summary.items && summary.items.length > 0);
     const levelUpOccurred = user.userLevel !== (freshUser.userLevel ?? 0);
     
     // towerFloor 업데이트가 있으면 즉시 저장하고 브로드캐스트 (다음 층 도전 버튼 활성화를 위해)
@@ -1545,9 +1582,7 @@ const processPlayerSummary = async (
 
     const effects = effectService.calculateUserEffects(updatedPlayer);
 
-    const xpBonusPercent =
-        (isStrategic ? effects.specialStatBonuses[SpecialStat.StrategyXpBonus].percent : 0) +
-        (isPlayful ? effects.specialStatBonuses[SpecialStat.PlayfulXpBonus].percent : 0);
+    const xpBonusPercent = isStrategic ? effects.specialStatBonuses[SpecialStat.StrategyXpBonus].percent : 0;
 
     if (xpBonusPercent > 0) {
         xpGain = Math.round(xpGain * (1 + xpBonusPercent / 100));
@@ -2125,7 +2160,7 @@ const processPlayerSummary = async (
 
     let pairPetStrategicBonusSummary: ReturnType<typeof applyPairPetRewardXp> | undefined;
     if (strategicPetXpBonusEligible) {
-        const petRaw = Math.max(0, Math.round(xpGain * 0.5));
+        const petRaw = effectService.applyPairPetSpecialStatEquipmentXpMultiplier(updatedPlayer, Math.round(xpGain * 0.5));
         if (petRaw > 0) {
             pairPetStrategicBonusSummary = applyPairPetRewardXp(updatedPlayer, petRaw);
         }
@@ -2261,6 +2296,8 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
             strategyXpGain = Math.round(strategyXpGain * 2);
             petXpGain = Math.round(petXpGain * 2);
         }
+
+        petXpGain = effectService.applyPairPetSpecialStatEquipmentXpMultiplier(user, petXpGain);
 
         /** 전략/놀이 정산과 동일: 승리·보상 VIP 활성 시 VIP 슬롯(골드/상자/전설) 1회 */
         const vipSlotWinEligible =

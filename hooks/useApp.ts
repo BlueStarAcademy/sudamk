@@ -520,6 +520,43 @@ function liveSessionIncludesBaseMode(g: LiveGameSession | undefined): boolean {
     return false;
 }
 
+/** sessionStorage 수순 끝에서 차례 추론 — `player` 누락 시 Black으로 잘못 고정되면 흑백 차례·좌석 검사가 전부 어긋난다. */
+function inferCurrentPlayerFromLastStoredMove(
+    last: { player?: number } | null | undefined,
+): Player | null {
+    if (!last) return null;
+    const pl = last.player;
+    if (pl !== Player.Black && pl !== Player.White) return null;
+    return pl === Player.Black ? Player.White : Player.Black;
+}
+
+/**
+ * 일반 싱글/타워 PVE(베이스·덤 확정 좌석 제외): 병합/재연결에서 `blackPlayerId`만 AI·`whitePlayerId`만 유저로
+ * 뒤집힌 경우를 생성 규칙(player1=유저·흑, player2=AI·백)에 맞게 복구한다.
+ */
+function coerceClassicPveHumanBlackSeatsIfSwapped(session: LiveGameSession): LiveGameSession {
+    if (!session.player1?.id || !session.player2?.id) return session;
+    if (session.player2.id !== aiUserId || session.player1.id === aiUserId) return session;
+    if (liveSessionIncludesBaseMode(session)) return session;
+    const humanId = session.player1.id;
+    if (session.blackPlayerId === humanId && session.whitePlayerId === aiUserId) return session;
+    if (session.blackPlayerId === aiUserId && session.whitePlayerId === humanId) {
+        const next: LiveGameSession = {
+            ...session,
+            blackPlayerId: humanId,
+            whitePlayerId: aiUserId,
+        };
+        const lb = session.playingLockedBlackPlayerId;
+        const lw = session.playingLockedWhitePlayerId;
+        if (lb === aiUserId && lw === humanId) {
+            next.playingLockedBlackPlayerId = humanId;
+            next.playingLockedWhitePlayerId = aiUserId;
+        }
+        return next;
+    }
+    return session;
+}
+
 /** 싱글 베이스(배치·선호·덤): 수순이 없어도 WS가 빠르게 연속으로 오므로 GAME_UPDATE 쓰로틀에서 제외 */
 function isSinglePlayerBaseFlowUpdateThrottleBypass(g: LiveGameSession | undefined): boolean {
     if (!g?.isSinglePlayer || !liveSessionIncludesBaseMode(g)) return false;
@@ -984,7 +1021,7 @@ function augmentPveFromSessionStorageSnapshot(
     const h2 = (parsed as { hidden_stones_p2?: unknown }).hidden_stones_p2;
     if (!serverAheadOnMoves && typeof h2 === 'number') (out as { hidden_stones_p2?: number }).hidden_stones_p2 = h2;
 
-    return out;
+    return coerceClassicPveHumanBlackSeatsIfSwapped(out);
 }
 
 /** PLACE_STONE 패(코) 불가 — Game 전광판으로 안내하므로 전역 에러 모달은 생략 */
@@ -4484,7 +4521,14 @@ export const useApp = () => {
             } else {
                 markConnectionRestored();
                 const result = await res.json();
-                if (result.error || result.message) {
+                /** `message`만 있고 `success: true`인 200 응답(일부 관리/안내 API)은 성공으로 처리해야 함. 강화 등은 `enhancementOutcome`가 이 분기에서 잘리면 결과 모달이 뜨지 않음 */
+                const isHttpBodyError =
+                    Boolean(result.error) ||
+                    result.success === false ||
+                    (typeof result.message === 'string' &&
+                        result.message.length > 0 &&
+                        result.success !== true);
+                if (isHttpBodyError) {
                     const errorMessage = result.message || result.error || '서버 오류가 발생했습니다.';
                     console.error(`[handleAction] ${action.type} - Server returned error:`, errorMessage);
                     // 상대 행동력 부족은 본인 충전 모달과 구분
@@ -5359,14 +5403,16 @@ export const useApp = () => {
                 const enhancementOutcome = result.clientResponse?.enhancementOutcome || result.enhancementOutcome;
                 if (enhancementOutcome) {
                     const { message, success, itemBefore, itemAfter, xpGained } = enhancementOutcome;
-                    setEnhancementResult({ message, success });
-                    // 서버 응답이 오면 롤링 애니메이션을 종료하고 실제 결과를 표시
-                    setEnhancementOutcome({ message, success, itemBefore, itemAfter, xpGained, isRolling: false });
-                    setIsEnhancementResultModalOpen(true);
-                    const enhancementAnimationTarget = result.clientResponse?.enhancementAnimationTarget || result.enhancementAnimationTarget;
-                    if (enhancementAnimationTarget) {
-                        setEnhancementAnimationTarget(enhancementAnimationTarget);
-                    }
+                    const enhancementAnimationTarget =
+                        result.clientResponse?.enhancementAnimationTarget || result.enhancementAnimationTarget;
+                    flushSync(() => {
+                        setEnhancementResult({ message, success });
+                        setEnhancementOutcome({ message, success, itemBefore, itemAfter, xpGained, isRolling: false });
+                        setIsEnhancementResultModalOpen(true);
+                        if (enhancementAnimationTarget) {
+                            setEnhancementAnimationTarget(enhancementAnimationTarget);
+                        }
+                    });
                     if (success) {
                         audioService.enhancementSuccess();
                     } else {
@@ -6569,13 +6615,9 @@ export const useApp = () => {
                                                 (stLen > incLen || (incLen === 0 && stLen > 0));
                                             const storedMoves = useStoredMoves ? storedMovesRaw : null;
                                             const inferredCurrentPlayer =
-                                                needsCurrentPlayerRestore &&
-                                                storedMoves &&
-                                                storedMoves.length > 0
-                                                    ? ((last: { player?: number }) =>
-                                                          last &&
-                                                          (last.player === Player.Black ? Player.White : Player.Black))(
-                                                          storedMoves[storedMoves.length - 1] as { player?: number }
+                                                needsCurrentPlayerRestore && storedMoves && storedMoves.length > 0
+                                                    ? inferCurrentPlayerFromLastStoredMove(
+                                                          storedMoves[storedMoves.length - 1] as { player?: number },
                                                       )
                                                     : null;
                                             if (storedTotal != null || storedMoves != null || inferredCurrentPlayer != null) {
@@ -6615,6 +6657,7 @@ export const useApp = () => {
                                 }
                             }
                             next[id] = reconcilePlayingSeatLock(next[id]!, prev[id]);
+                            next[id] = coerceClassicPveHumanBlackSeatsIfSwapped(next[id]!);
                         }
                         return next;
                     });
@@ -6665,13 +6708,9 @@ export const useApp = () => {
                                                 (stLen > incLen || (incLen === 0 && stLen > 0));
                                             const storedMoves = useStoredMoves ? storedMovesRaw : null;
                                             const inferredCurrentPlayer =
-                                                needsCurrentPlayerRestore &&
-                                                storedMoves &&
-                                                storedMoves.length > 0
-                                                    ? ((last: { player?: number }) =>
-                                                          last &&
-                                                          (last.player === Player.Black ? Player.White : Player.Black))(
-                                                          storedMoves[storedMoves.length - 1] as { player?: number }
+                                                needsCurrentPlayerRestore && storedMoves && storedMoves.length > 0
+                                                    ? inferCurrentPlayerFromLastStoredMove(
+                                                          storedMoves[storedMoves.length - 1] as { player?: number },
                                                       )
                                                     : null;
                                             if (storedTotal != null || storedMoves != null || inferredCurrentPlayer != null) {
@@ -6711,6 +6750,7 @@ export const useApp = () => {
                                 }
                             }
                             next[id] = reconcilePlayingSeatLock(next[id]!, prev[id]);
+                            next[id] = coerceClassicPveHumanBlackSeatsIfSwapped(next[id]!);
                         }
                         return next;
                     });
@@ -8064,12 +8104,16 @@ export const useApp = () => {
                                                 existingGame,
                                                 {}
                                             );
+                                            updatedGames[gameId] = coerceClassicPveHumanBlackSeatsIfSwapped(updatedGames[gameId]);
                                         }
                                         const updatedSinglePlayerGame = updatedGames[gameId];
                                         const lastSinglePlayerMove = Array.isArray(game.moveHistory)
                                             ? (game.moveHistory as any[])[game.moveHistory.length - 1]
                                             : null;
-                                        const singleAiPlayerEnum = game.whitePlayerId === aiUserId ? Player.White : Player.Black;
+                                        const singleAiPlayerEnum =
+                                            updatedSinglePlayerGame?.whitePlayerId === aiUserId
+                                                ? Player.White
+                                                : Player.Black;
                                         const isNewSinglePlayerAiMove =
                                             !!existingGame &&
                                             !!updatedSinglePlayerGame &&
@@ -8393,12 +8437,17 @@ export const useApp = () => {
                                             delete towerGnugoDelayTimeoutRef.current[gameId];
                                         }
                                         mergedGame = mergeTowerPveMonotonicCaptureFieldsFromClient(mergedGame, existingGame);
+                                        mergedGame = coerceClassicPveHumanBlackSeatsIfSwapped(mergedGame);
                                         updatedGames[gameId] = mergedGame;
 
                                         // 그누고(AI) 수: 1초 지연 후 표시 (유저 수는 클라이언트에서 즉시 반영됨)
-                                        const isNewAiMove = hasNewMoves && game.moveHistory?.length > 0 &&
-                                            game.whitePlayerId === aiUserId &&
-                                            (game.moveHistory[game.moveHistory.length - 1] as any)?.player === Player.White;
+                                        const isNewAiMove =
+                                            hasNewMoves &&
+                                            Array.isArray(mergedGame.moveHistory) &&
+                                            mergedGame.moveHistory.length > 0 &&
+                                            mergedGame.whitePlayerId === aiUserId &&
+                                            (mergedGame.moveHistory[mergedGame.moveHistory.length - 1] as any)?.player ===
+                                                Player.White;
                                         const mergedAdvancesToTerminal =
                                             mergedGame.gameStatus === 'scoring' ||
                                             mergedGame.gameStatus === 'hidden_final_reveal' ||

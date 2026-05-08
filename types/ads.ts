@@ -44,8 +44,8 @@ export interface AdContextValue {
   showInterstitial: (trigger: InterstitialTrigger) => boolean;
   /** 상점 광고 보상: 30초 후 닫기 가능, 닫을 때 onClosed 호출 (광고 제거 유저는 즉시 onClosed) */
   showShopAdRewardInterstitial: (onClosed: () => void) => void;
-  /** 전면 광고 닫기 */
-  closeInterstitial: () => void;
+  /** 전면 광고 닫기. 상점 광고 보상(`shop_ad_reward`)일 때만 `grantShopAdReward: false`면 보상 콜백 미호출(취소). */
+  closeInterstitial: (options?: { grantShopAdReward?: boolean }) => void;
   /** 전면 광고 상태 */
   interstitial: InterstitialState;
   /** 광고 제거 활성 여부 (프리미엄) */

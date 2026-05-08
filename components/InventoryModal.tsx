@@ -969,8 +969,15 @@ const LocalItemDetailDisplay: React.FC<{
 
 const EQUIPMENT_SLOTS: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
 
+function createdAtSortNumber(it: InventoryItem): number {
+    const t = it.createdAt as unknown;
+    if (typeof t === 'number' && Number.isFinite(t)) return t;
+    if (t && typeof (t as Date).getTime === 'function') return (t as Date).getTime();
+    return 0;
+}
+
 function compareInventoryItemsForSort(a: InventoryItem, b: InventoryItem, primary: SortKey): number {
-    const byCreated = () => b.createdAt - a.createdAt;
+    const byCreated = () => createdAtSortNumber(b) - createdAtSortNumber(a);
     const byGradeStars = () => {
         const ga = gradeOrder[a.grade];
         const gb = gradeOrder[b.grade];
@@ -983,6 +990,12 @@ function compareInventoryItemsForSort(a: InventoryItem, b: InventoryItem, primar
         const ib = b.slot ? EQUIPMENT_SLOTS.indexOf(b.slot) : 999;
         if (ia !== ib) return ia - ib;
         return a.name.localeCompare(b.name, 'ko');
+    };
+    /** 등급·종류 정렬일 때는 `createdAt` 역전을 쓰지 않음 — 우편·상점 수령 직후 항목만 항상 맨 위로 붙는 현상 방지 */
+    const byNameThenId = () => {
+        const n = (a.name || '').localeCompare(b.name || '', 'ko');
+        if (n !== 0) return n;
+        return String(a.id ?? '').localeCompare(String(b.id ?? ''), 'ko');
     };
 
     if (primary === 'createdAt') {
@@ -997,19 +1010,19 @@ function compareInventoryItemsForSort(a: InventoryItem, b: InventoryItem, primar
     if (primary === 'grade') {
         const g = byGradeStars();
         if (g !== 0) return g;
-        const t = byCreated();
-        if (t !== 0) return t;
         const ty = byType();
         if (ty !== 0) return ty;
-        return bySlotOrName();
+        const slot = bySlotOrName();
+        if (slot !== 0) return slot;
+        return byNameThenId();
     }
     const ty = byType();
     if (ty !== 0) return ty;
     const g = byGradeStars();
     if (g !== 0) return g;
-    const t = byCreated();
-    if (t !== 0) return t;
-    return bySlotOrName();
+    const slot = bySlotOrName();
+    if (slot !== 0) return slot;
+    return byNameThenId();
 }
 
 /** 가방 뷰어 하단: 버튼 한 줄(좁으면 가로 스크롤) */

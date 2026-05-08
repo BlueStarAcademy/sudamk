@@ -2241,15 +2241,24 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                     const slotGradeLabel = gradeStyles[slotGradeKey]?.name ?? '일반';
                                                     const slotGradeColor = gradeStyles[slotGradeKey]?.color ?? 'text-slate-200';
                                                     return (
-                                                        <button
+                                                        <div
                                                             key={`sell-slot-${idx}`}
-                                                            type="button"
+                                                            role="button"
+                                                            tabIndex={0}
                                                             onClick={() => {
                                                                 setSellSlotFocusItemId(slot.itemId);
                                                                 const inv = allEquipmentItems.find((entry) => entry.id === slot.itemId);
                                                                 if (inv) onViewListedEquipment?.(inv, true);
                                                             }}
-                                                            className={`w-full rounded-lg border border-amber-500/35 bg-amber-950/20 px-3 py-2 text-left transition hover:border-amber-300/65 ${sellSlotFocusItemId === slot.itemId ? 'ring-2 ring-amber-300/60' : ''}`}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                                    e.preventDefault();
+                                                                    setSellSlotFocusItemId(slot.itemId);
+                                                                    const inv = allEquipmentItems.find((entry) => entry.id === slot.itemId);
+                                                                    if (inv) onViewListedEquipment?.(inv, true);
+                                                                }
+                                                            }}
+                                                            className={`w-full cursor-pointer rounded-lg border border-amber-500/35 bg-amber-950/20 px-3 py-2 text-left transition hover:border-amber-300/65 ${sellSlotFocusItemId === slot.itemId ? 'ring-2 ring-amber-300/60' : ''}`}
                                                         >
                                                             <div className="grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)_auto] items-start gap-2">
                                                                 <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded bg-black/25">
@@ -2335,7 +2344,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                        </button>
+                                                        </div>
                                                     );
                                                 })}
                                             </div>
@@ -2390,11 +2399,18 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                         const slotGradeLabel = gradeStyles[slotGradeKey]?.name ?? '일반';
                                                         const slotGradeColor = gradeStyles[slotGradeKey]?.color ?? 'text-slate-200';
                                                         return (
-                                                            <button
+                                                            <div
                                                                 key={`sell-slot-pc-${idx}`}
-                                                                type="button"
+                                                                role="button"
+                                                                tabIndex={0}
                                                                 onClick={() => setSelectedItemId(slot.itemId)}
-                                                                className={`w-full rounded-lg border border-amber-500/35 bg-amber-950/20 px-3 py-2 text-left transition hover:border-amber-300/65 ${selectedItemId === slot.itemId ? 'ring-2 ring-amber-300/60' : ''}`}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                                        e.preventDefault();
+                                                                        setSelectedItemId(slot.itemId);
+                                                                    }
+                                                                }}
+                                                                className={`w-full cursor-pointer rounded-lg border border-amber-500/35 bg-amber-950/20 px-3 py-2 text-left transition hover:border-amber-300/65 ${selectedItemId === slot.itemId ? 'ring-2 ring-amber-300/60' : ''}`}
                                                             >
                                                                 <div className="grid min-w-0 grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-2">
                                                                     <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded bg-black/25">
@@ -2480,7 +2496,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                            </button>
+                                                            </div>
                                                         );
                                                     })}
                                                 </div>

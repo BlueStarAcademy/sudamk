@@ -181,6 +181,12 @@ export const ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS = `${SUDAMR_MOBILE_MODAL_STICKY_
 export const ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS =
     'inline-flex min-w-[6.5rem] shrink-0 items-center justify-center rounded-2xl border border-amber-400/45 bg-gradient-to-b from-emerald-500/98 via-emerald-600/96 to-emerald-950/92 px-8 py-2.5 text-[13px] font-semibold tracking-[0.05em] text-white shadow-[0_8px_26px_-14px_rgba(16,185,129,0.52),inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(0,0,0,0.2)] ring-1 ring-white/10 transition-[transform,box-shadow,colors,border-color] hover:border-amber-300/55 hover:from-emerald-400 hover:via-emerald-500 hover:to-emerald-900 hover:shadow-[0_12px_32px_-12px_rgba(16,185,129,0.42)] active:scale-[0.97] sm:min-w-[7.25rem] sm:px-10 sm:py-3 sm:text-sm';
 
+/**
+ * 아이템 획득·일괄 보상 `DraggableWindow`의 위치 저장 키.
+ * 획득 종류(골드/다이아/장비/재료 등)마다 다른 `windowId`를 쓰면 내용이 바뀔 때마다 다른 창으로 인식되어 위치가 초기화된다.
+ */
+export const ITEM_OBTAINED_MODAL_WINDOW_ID = 'item-obtained-modal';
+
 function childHasStickyFooterClassName(node: React.ReactNode): boolean {
     if (!React.isValidElement(node)) return false;
     const cn = (node.props as { className?: unknown }).className;

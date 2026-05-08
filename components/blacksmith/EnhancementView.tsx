@@ -573,7 +573,7 @@ useEffect(() => {
                         >
                             <h4 className="mb-1 text-xs font-bold leading-tight text-amber-100">성공확률</h4>
                             <p className={rateMainClass}>{successRateDisplay}</p>
-                            {selectedItem.stars < 10 && successRateBreakdownParts.length > 1 ? (
+                            {selectedItem.stars < 10 && successRateBreakdownParts.length > 0 ? (
                                 <p className="mt-1 text-[10px] leading-snug text-slate-400">{successRateBreakdownParts.join(' · ')}</p>
                             ) : null}
                         </div>

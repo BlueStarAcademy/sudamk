@@ -29,12 +29,18 @@ const AdInterstitial: React.FC = () => {
 
   if (!interstitial.isVisible || isAdFree) return null;
 
+  const isShopAdReward = interstitial.trigger === 'shop_ad_reward';
+
   return (
     <div
       data-sudamr-ad-ui
       className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
       onClick={(e) => {
-        // 배경 클릭 시 스킵 가능하면 닫기 (이벤트가 아래 경기장 UI로 새지 않도록 차단)
+        // 상점 광고 보상은 배경 탭으로 보상·취소를 구분할 수 없어 닫기 비활성화
+        if (isShopAdReward) {
+          e.stopPropagation();
+          return;
+        }
         if (interstitial.canSkip && e.target === e.currentTarget) {
           e.preventDefault();
           e.stopPropagation();
@@ -46,9 +52,9 @@ const AdInterstitial: React.FC = () => {
         <div className="text-xs text-gray-500 uppercase tracking-wider">
           {interstitial.trigger === 'shop_ad_reward' ? '상점 광고 보상' : '광고'}
         </div>
-        {interstitial.trigger === 'shop_ad_reward' && (
+        {isShopAdReward && (
           <p className="text-center text-[11px] leading-snug text-stone-400 px-1">
-            {SHOP_AD_REWARD_INTERSTITIAL_SECONDS}초 후 닫기를 누르면 보상이 지급됩니다.
+            {SHOP_AD_REWARD_INTERSTITIAL_SECONDS}초 후 「보상 받기」를 누르면 정해진 보상이 지급됩니다. 「취소」는 보상 없이 닫습니다.
           </p>
         )}
 
@@ -70,23 +76,56 @@ const AdInterstitial: React.FC = () => {
           )}
         </div>
 
-        {/* 스킵/닫기 버튼 */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            closeInterstitial();
-          }}
-          disabled={!interstitial.canSkip}
-          className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all min-w-[120px] min-h-[44px] ${
-            interstitial.canSkip
-              ? 'bg-gray-700 hover:bg-gray-600 text-white cursor-pointer'
-              : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          {interstitial.canSkip ? '닫기' : `${interstitial.skipCountdown}초 후 스킵 가능`}
-        </button>
+        {/* 상점 광고: 취소(항상) + 보상 받기(30초 후) / 기타 전면: 단일 닫기 */}
+        {isShopAdReward ? (
+          <div className="flex w-full max-w-sm flex-col gap-2 sm:flex-row sm:justify-center">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closeInterstitial({ grantShopAdReward: false });
+              }}
+              className="order-2 min-h-[44px] flex-1 rounded-lg border border-stone-500/50 bg-stone-800/90 px-4 py-2 text-sm font-semibold text-stone-200 transition-colors hover:border-rose-400/40 hover:bg-stone-700/90 hover:text-white sm:order-1 sm:flex-none sm:min-w-[120px]"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!interstitial.canSkip) return;
+                closeInterstitial({ grantShopAdReward: true });
+              }}
+              disabled={!interstitial.canSkip}
+              className={`order-1 min-h-[44px] flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition-all sm:order-2 sm:flex-none sm:min-w-[140px] ${
+                interstitial.canSkip
+                  ? 'cursor-pointer bg-emerald-700 text-white hover:bg-emerald-600'
+                  : 'cursor-not-allowed bg-gray-800 text-gray-500'
+              }`}
+            >
+              {interstitial.canSkip ? '보상 받기' : `${interstitial.skipCountdown}초 후 보상 받기`}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              closeInterstitial();
+            }}
+            disabled={!interstitial.canSkip}
+            className={`min-h-[44px] min-w-[120px] rounded-lg px-6 py-2 text-sm font-semibold transition-all ${
+              interstitial.canSkip
+                ? 'cursor-pointer bg-gray-700 text-white hover:bg-gray-600'
+                : 'cursor-not-allowed bg-gray-800 text-gray-500'
+            }`}
+          >
+            {interstitial.canSkip ? '닫기' : `${interstitial.skipCountdown}초 후 스킵 가능`}
+          </button>
+        )}
       </div>
     </div>
   );

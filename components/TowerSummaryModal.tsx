@@ -28,6 +28,7 @@ import {
     RESULT_MODAL_REWARDS_ROW_MOBILE_COMPACT_CLASS,
 } from './game/ResultModalRewardSlot.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
+import PairPetLevelUpCoreDelta from './pair/PairPetLevelUpCoreDelta.js';
 import {
     GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX,
     GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS,
@@ -196,6 +197,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
         !!displaySummary &&
         ((displaySummary.gold ?? 0) > 0 ||
             (displaySummary.xp?.change ?? 0) > 0 ||
+            (displaySummary.pairPetXp?.change ?? 0) > 0 ||
             (Array.isArray(displaySummary.items) && displaySummary.items.length > 0));
     
     // 다음 층으로 갈 수 있는지 확인: 이번 게임에서 승리했거나, 이미 이 층을 한 번이라도 클리어한 적이 있으면 다음 층 가능
@@ -363,6 +365,22 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     const previousXpPercent = Math.min(100, (previousXp / (xpRequirement || 1)) * 100);
     const xpPercent = Math.min(100, (clampedXp / (xpRequirement || 1)) * 100);
 
+    const petXpBarPercents = useMemo(() => {
+        const pl = displaySummary?.pairPetLevel;
+        const px = displaySummary?.pairPetXp;
+        if (!pl || !px || (px.change ?? 0) <= 0) return null;
+        const petMax = Math.max(1, pl.progress.max);
+        const petInitial = pl.progress.initial;
+        const petFinal = pl.progress.final;
+        return {
+            previous: Math.min(100, (petInitial / petMax) * 100),
+            final: Math.min(100, (petFinal / petMax) * 100),
+            gain: px.change,
+            petMax,
+            petFinal,
+        };
+    }, [displaySummary]);
+
     /** 싱글/일반 결과 모달과 동일: EXP 바 + 현재/필요 XP + 변동 (summary 유무와 관계없이 표시) */
     const renderTowerStrategyXpPanel = (compact: boolean) => (
         <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 ${compact ? 'p-1' : 'p-1.5'}`}>
@@ -394,6 +412,44 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             </div>
         </div>
     );
+
+    const renderTowerPetXpPanel = (compact: boolean) => {
+        if (!petXpBarPercents || !displaySummary?.pairPetLevel) return null;
+        return (
+            <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} mt-1.5 flex-shrink-0 ${compact ? 'p-1' : 'p-1.5'}`}>
+                <div
+                    className={`text-center font-bold uppercase tracking-[0.12em] text-fuchsia-200/80 ${compact ? 'text-[8px]' : 'text-[10px] sm:text-xs'}`}
+                >
+                    펫 경험치
+                </div>
+                <StrategyXpResultBar
+                    previousXpPercent={petXpBarPercents.previous}
+                    finalXpPercent={petXpBarPercents.final}
+                    xpGain={petXpBarPercents.gain}
+                    className={compact ? 'h-2' : 'h-2.5'}
+                />
+                <div
+                    className={`flex min-w-0 flex-nowrap items-center justify-between gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] ${compact ? '' : 'text-sm'}`}
+                    style={{ fontSize: compact ? `${9 * mobileTextScale}px` : undefined }}
+                >
+                    <span className="min-w-0 shrink font-mono whitespace-nowrap text-zinc-300/95">
+                        {petXpBarPercents.petFinal.toLocaleString()} / {petXpBarPercents.petMax.toLocaleString()} 펫 XP
+                    </span>
+                    <span className="shrink-0 whitespace-nowrap font-semibold text-fuchsia-300">
+                        +{petXpBarPercents.gain.toLocaleString()} 펫 XP
+                    </span>
+                </div>
+                {displaySummary.pairPetLevelUpCoreBonuses ? (
+                    <PairPetLevelUpCoreDelta
+                        delta={displaySummary.pairPetLevelUpCoreBonuses}
+                        title="추가된 능력치"
+                        compact
+                        className="mt-1"
+                    />
+                ) : null}
+            </div>
+        );
+    };
 
     // 계가 결과가 없으면 "계가 중..." 표시, 있으면 승리/실패 판단
     const modalTitle = (!analysisResult && isScoring)
@@ -451,6 +507,15 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                 <ResultModalXpRewardBadge
                                     variant="strategy"
                                     amount={displaySummary.xp.change}
+                                    density={isMobile ? 'compact' : 'comfortable'}
+                                />
+                            </div>
+                        )}
+                        {displaySummary?.pairPetXp && displaySummary.pairPetXp.change > 0 && (
+                            <div className={`flex flex-col items-center justify-center ${!summary ? 'opacity-80' : ''}`}>
+                                <ResultModalXpRewardBadge
+                                    variant="pet"
+                                    amount={displaySummary.pairPetXp.change}
                                     density={isMobile ? 'compact' : 'comfortable'}
                                 />
                             </div>
@@ -625,6 +690,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                         </div>
                                     </div>
                                     {renderTowerStrategyXpPanel(true)}
+                                    {renderTowerPetXpPanel(true)}
                                 </div>
                                 }
                             />
@@ -699,6 +765,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                     </div>
                                 </div>
                                 {renderTowerStrategyXpPanel(false)}
+                                {renderTowerPetXpPanel(false)}
                             </div>
                             {towerRewardsSection}
                         </div>

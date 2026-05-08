@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { LiveGameSession, UserWithStatus, ServerAction, Player, AnalysisResult, GameMode } from '../types.js';
+import { LiveGameSession, UserWithStatus, ServerAction, Player, AnalysisResult, GameMode, GameSummary } from '../types.js';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import Button from './Button.js';
 import Avatar from './Avatar.js';
@@ -22,6 +22,7 @@ import {
     RESULT_MODAL_REWARDS_ROW_MOBILE_SP_SLIM_CLASS,
 } from './game/ResultModalRewardSlot.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
+import PairPetLevelUpCoreDelta from './pair/PairPetLevelUpCoreDelta.js';
 import {
     GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX,
     GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS,
@@ -35,6 +36,17 @@ const SP_SUMMARY_INSET_CLASS =
     'rounded-lg border border-amber-500/15 bg-black/35 ring-1 ring-inset ring-white/[0.05]';
 const SP_SUMMARY_SECTION_LABEL =
     'text-[0.72rem] font-bold uppercase tracking-[0.12em] text-amber-200/85 sm:text-xs min-[1024px]:text-sm';
+
+/** 서버 요약 전 클라이언트 추정 보상(펫 필드는 서버 요약에만 포함) */
+type SinglePlayerFallbackSummary = {
+    gold: number;
+    xp: GameSummary['xp'];
+    /** 서버 `InventoryItem`과 동일 스키마가 아닌 임시 표시용 */
+    items: any[];
+    pairPetXp?: GameSummary['pairPetXp'];
+    pairPetLevel?: GameSummary['pairPetLevel'];
+    pairPetLevelUpCoreBonuses?: GameSummary['pairPetLevelUpCoreBonuses'];
+};
 
 interface SinglePlayerSummaryModalProps {
     session: LiveGameSession;
@@ -160,7 +172,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             : (session.winner === Player.Black)); // Human is always Black
     
     // summary가 없을 때도 보상을 계산해서 표시 (summary가 아직 생성되지 않았을 수 있음)
-    const calculatedSummary = useMemo(() => {
+    const calculatedSummary = useMemo((): GameSummary | SinglePlayerFallbackSummary | null => {
         if (summary) return summary; // summary가 있으면 그대로 사용
         
         // summary가 없고 게임이 종료되었을 때만 보상 계산
@@ -323,11 +335,12 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === currentUser.avatarId)?.url, [currentUser.avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === currentUser.borderId)?.url, [currentUser.borderId]);
     // calculatedSummary를 사용하여 보상 표시 (summary가 없을 때도 계산된 보상 사용)
-    const displaySummary = calculatedSummary || summary;
+    const displaySummary: GameSummary | SinglePlayerFallbackSummary | undefined = calculatedSummary || summary;
     const hasRewardSlots =
         !!displaySummary &&
         ((displaySummary.gold ?? 0) > 0 ||
             (displaySummary.xp?.change ?? 0) > 0 ||
+            (displaySummary.pairPetXp?.change ?? 0) > 0 ||
             (Array.isArray(displaySummary.items) && displaySummary.items.length > 0));
 
     const xpRequirement = getXpRequirementForLevel(Math.max(1, currentUser.userLevel));
@@ -336,6 +349,23 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     const previousXp = Math.max(0, clampedXp - xpChange);
     const previousXpPercent = Math.min(100, (previousXp / (xpRequirement || 1)) * 100);
     const xpPercent = Math.min(100, (clampedXp / (xpRequirement || 1)) * 100);
+
+    const petXpBarPercents = useMemo(() => {
+        const pl = displaySummary?.pairPetLevel;
+        const px = displaySummary?.pairPetXp;
+        if (!pl || !px || (px.change ?? 0) <= 0) return null;
+        const petMax = Math.max(1, pl.progress.max);
+        const petInitial = pl.progress.initial;
+        const petFinal = pl.progress.final;
+        return {
+            previous: Math.min(100, (petInitial / petMax) * 100),
+            final: Math.min(100, (petFinal / petMax) * 100),
+            gain: px.change,
+            petMax,
+            petFinal,
+            petInitial,
+        };
+    }, [displaySummary]);
 
     // 계가 결과가 없으면 "계가 중..." 표시, 있으면 승리/실패 판단
     const modalTitle = (!analysisResult && isScoring)
@@ -410,6 +440,15 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                 <ResultModalXpRewardBadge
                                     variant="strategy"
                                     amount={displaySummary.xp.change}
+                                    density={desktopCompactRewards || isMobile ? 'compact' : 'comfortable'}
+                                />
+                            </div>
+                        )}
+                        {displaySummary.pairPetXp && displaySummary.pairPetXp.change > 0 && (
+                            <div className={`flex flex-col items-center justify-center ${!summary ? 'opacity-80' : ''}`}>
+                                <ResultModalXpRewardBadge
+                                    variant="pet"
+                                    amount={displaySummary.pairPetXp.change}
                                     density={desktopCompactRewards || isMobile ? 'compact' : 'comfortable'}
                                 />
                             </div>
@@ -611,6 +650,40 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                             </div>
                                         </div>
                                     )}
+                                    {petXpBarPercents && displaySummary?.pairPetLevel && (
+                                        <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-1.5`}>
+                                            <div
+                                                className="text-center font-bold uppercase tracking-[0.12em] text-fuchsia-200/80"
+                                                style={{ fontSize: `${9 * mobileTextScale}px` }}
+                                            >
+                                                펫 경험치
+                                            </div>
+                                            <StrategyXpResultBar
+                                                previousXpPercent={petXpBarPercents.previous}
+                                                finalXpPercent={petXpBarPercents.final}
+                                                xpGain={petXpBarPercents.gain}
+                                            />
+                                            <div
+                                                className="flex min-w-0 flex-nowrap items-center justify-between gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
+                                                style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px` }}
+                                            >
+                                                <span className="min-w-0 shrink font-mono whitespace-nowrap text-zinc-300/95">
+                                                    {petXpBarPercents.petFinal.toLocaleString()} / {petXpBarPercents.petMax.toLocaleString()} 펫 XP
+                                                </span>
+                                                <span className="shrink-0 whitespace-nowrap font-semibold text-fuchsia-300">
+                                                    +{petXpBarPercents.gain.toLocaleString()} 펫 XP
+                                                </span>
+                                            </div>
+                                            {displaySummary.pairPetLevelUpCoreBonuses ? (
+                                                <PairPetLevelUpCoreDelta
+                                                    delta={displaySummary.pairPetLevelUpCoreBonuses}
+                                                    title="추가된 능력치"
+                                                    compact
+                                                    className="mt-1"
+                                                />
+                                            ) : null}
+                                        </div>
+                                    )}
                                 </div>
                                 }
                             />
@@ -706,6 +779,37 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                                 </span>
                                             )}
                                         </div>
+                                    </div>
+                                )}
+                                {petXpBarPercents && displaySummary?.pairPetLevel && (
+                                    <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-2`}>
+                                        <div className="text-center text-[10px] font-bold uppercase tracking-[0.12em] text-fuchsia-200/80">
+                                            펫 경험치
+                                        </div>
+                                        <StrategyXpResultBar
+                                            previousXpPercent={petXpBarPercents.previous}
+                                            finalXpPercent={petXpBarPercents.final}
+                                            xpGain={petXpBarPercents.gain}
+                                        />
+                                        <div
+                                            className="flex min-w-0 flex-nowrap items-center justify-between gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
+                                            style={{ fontSize: '13px' }}
+                                        >
+                                            <span className="min-w-0 shrink font-mono whitespace-nowrap text-zinc-300/95">
+                                                {petXpBarPercents.petFinal.toLocaleString()} / {petXpBarPercents.petMax.toLocaleString()} 펫 XP
+                                            </span>
+                                            <span className="shrink-0 whitespace-nowrap font-semibold text-fuchsia-300">
+                                                +{petXpBarPercents.gain.toLocaleString()} 펫 XP
+                                            </span>
+                                        </div>
+                                        {displaySummary.pairPetLevelUpCoreBonuses ? (
+                                            <PairPetLevelUpCoreDelta
+                                                delta={displaySummary.pairPetLevelUpCoreBonuses}
+                                                title="추가된 능력치"
+                                                compact
+                                                className="mt-1"
+                                            />
+                                        ) : null}
                                     </div>
                                 )}
                             </div>

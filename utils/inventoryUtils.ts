@@ -369,6 +369,127 @@ export function consolidateRefinementTicketStacks(inventory: InventoryItem[]): I
     return [...rest.slice(0, insertAt), ...merged, ...rest.slice(insertAt)];
 }
 
+const REFINEMENT_CHARM_ITEM_NAME = '제련의 부적' as const;
+const REFINEMENT_CHARM_MAX_STACK = 100;
+
+/**
+ * `제련의 부적`: 레거시 consumable 행·다중 슬롯 분할 등을 한도 내에서 한 슬롯으로 합침 (가방 표시·사용 수량 일치).
+ */
+export function consolidateRefinementCharmStacks(inventory: InventoryItem[]): InventoryItem[] {
+    if (!Array.isArray(inventory) || inventory.length === 0) return inventory;
+
+    const isCharmRow = (it: InventoryItem) =>
+        (it.type === 'material' || it.type === 'consumable') && it.name === REFINEMENT_CHARM_ITEM_NAME;
+
+    const sourceKey = (it: InventoryItem & { source?: string }) => (it.source === 'tower' ? 'tower' : '');
+    const stackKey = (it: InventoryItem) => `${it.name}|${sourceKey(it as InventoryItem & { source?: string })}`;
+
+    const charmRows = inventory.filter(isCharmRow);
+    if (charmRows.length === 0) return inventory;
+
+    const rowsPerKey = new Map<string, number>();
+    for (const r of charmRows) {
+        const k = stackKey(r);
+        rowsPerKey.set(k, (rowsPerKey.get(k) ?? 0) + 1);
+    }
+
+    let needsWork = false;
+    for (const r of charmRows) {
+        const q = r.quantity ?? 1;
+        if (q > REFINEMENT_CHARM_MAX_STACK || q < 1) {
+            needsWork = true;
+            break;
+        }
+        const k = stackKey(r);
+        if ((rowsPerKey.get(k) ?? 0) > 1) {
+            needsWork = true;
+            break;
+        }
+        const tmpl = getItemTemplateByName(r.name);
+        if (tmpl && r.type !== tmpl.type) {
+            needsWork = true;
+            break;
+        }
+    }
+    if (!needsWork) return inventory;
+
+    let insertAt = -1;
+    const charms: InventoryItem[] = [];
+    const rest: InventoryItem[] = [];
+
+    for (const item of inventory) {
+        if (isCharmRow(item)) {
+            if (insertAt < 0) insertAt = rest.length;
+            charms.push(item);
+        } else {
+            rest.push(item);
+        }
+    }
+
+    if (charms.length === 0) return inventory;
+
+    const createdNum = (it: InventoryItem) => {
+        const t = it.createdAt as unknown;
+        if (typeof t === 'number' && Number.isFinite(t)) return t;
+        return 0;
+    };
+
+    const totals = new Map<string, number>();
+    for (const t of charms) {
+        const k = stackKey(t);
+        totals.set(k, (totals.get(k) ?? 0) + (t.quantity ?? 1));
+    }
+
+    const merged: InventoryItem[] = [];
+    for (const [key, total] of totals) {
+        const pipe = key.indexOf('|');
+        const name = pipe >= 0 ? key.slice(0, pipe) : key;
+        const src = pipe >= 0 ? key.slice(pipe + 1) : '';
+        const sourceObj = src === 'tower' ? { source: 'tower' as const } : {};
+        const sameKeyRows = charms.filter((c) => stackKey(c) === key);
+        const rawMinCreated = sameKeyRows.length > 0 ? Math.min(...sameKeyRows.map((c) => createdNum(c))) : Date.now();
+        const createdAtBase = Number.isFinite(rawMinCreated) ? rawMinCreated : Date.now();
+
+        let left = total;
+        const template = getItemTemplateByName(name);
+        while (left > 0) {
+            const chunk = Math.min(left, REFINEMENT_CHARM_MAX_STACK);
+            if (template) {
+                merged.push({
+                    ...template,
+                    ...sourceObj,
+                    id: `item-${randomUUID()}`,
+                    quantity: chunk,
+                    createdAt: createdAtBase,
+                    isEquipped: false,
+                    stars: 0,
+                    level: 1,
+                } as InventoryItem);
+            } else {
+                const sample = charms.find((x) => x.name === name);
+                merged.push({
+                    name,
+                    description: sample?.description ?? '보상 아이템',
+                    type: 'material',
+                    slot: null,
+                    image: sample?.image ?? '/images/use/refine.webp',
+                    grade: sample?.grade ?? ItemGrade.Legendary,
+                    ...sourceObj,
+                    id: `item-${randomUUID()}`,
+                    quantity: chunk,
+                    createdAt: createdAtBase,
+                    isEquipped: false,
+                    stars: 0,
+                    level: 1,
+                } as InventoryItem);
+            }
+            left -= chunk;
+        }
+    }
+
+    return [...rest.slice(0, insertAt), ...merged, ...rest.slice(insertAt)];
+}
+
 /** 레거시: AI 펫이 quantity>1로 한 슬롯에 쌓인 경우 → 마리당 한 행으로 분리 */
 export function splitStackedPairPetInstances(inventory: InventoryItem[]): InventoryItem[] {
     if (!Array.isArray(inventory) || inventory.length === 0) return inventory;
@@ -435,11 +556,13 @@ function normalizePairSoulStoneTemplateIds(items: InventoryItem[]): InventoryIte
     return changed ? out : items;
 }
 
-/** DB/소켓 로드 후 인벤 정규화: 장비 수치 → 펫 스택 분리 → 변경권 합산 */
+/** DB/소켓 로드 후 인벤 정규화: 장비 수치 → 펫 스택 분리 → 변경권·제련의 부적 합산 */
 export function normalizeInventoryAfterLoad(items: InventoryItem[]): InventoryItem[] {
     return normalizePairPetXpGates(
-        consolidateRefinementTicketStacks(
-            splitStackedPairPetInstances(mapNormalizeInventoryList(normalizePairSoulStoneTemplateIds(items)))
+        consolidateRefinementCharmStacks(
+            consolidateRefinementTicketStacks(
+                splitStackedPairPetInstances(mapNormalizeInventoryList(normalizePairSoulStoneTemplateIds(items)))
+            )
         )
     );
 }

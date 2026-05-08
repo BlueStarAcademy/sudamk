@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import DraggableWindow, {
     ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS,
     ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS,
+    ITEM_OBTAINED_MODAL_WINDOW_ID,
 } from './DraggableWindow.js';
 import { InventoryItem, ItemGrade } from '../types.js';
 import { audioService } from '../services/audioService.js';
@@ -102,12 +103,11 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
             <DraggableWindow
                 title="장비 상세 정보"
                 onClose={onClose}
-                windowId="item-obtained-equipment"
+                windowId={ITEM_OBTAINED_MODAL_WINDOW_ID}
                 initialWidth={MOBILE_EQUIPMENT_DETAIL_MODAL_WIDTH}
                 shrinkHeightToContent
                 isTopmost={isTopmost}
                 zIndex={70}
-                skipSavedPosition
                 variant="store"
                 hideFooter
                 mobileViewportFit
@@ -153,12 +153,11 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
             <DraggableWindow
                 title="아이템 획득"
                 onClose={onClose}
-                windowId="item-obtained-bag"
+                windowId={ITEM_OBTAINED_MODAL_WINDOW_ID}
                 initialWidth={MOBILE_EQUIPMENT_DETAIL_MODAL_WIDTH}
                 shrinkHeightToContent
                 isTopmost={isTopmost}
                 zIndex={70}
-                skipSavedPosition
                 variant="store"
                 hideFooter
                 mobileViewportFit
@@ -197,11 +196,9 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
     const stackQty =
         typeof item.quantity === 'number' && Number.isFinite(item.quantity) && item.quantity > 0 ? Math.floor(item.quantity) : 1;
 
-    let windowId = 'item-obtained';
     let singleCard: React.ReactNode;
 
     if (isCurrency && isGoldIcon) {
-        windowId = 'item-obtained-gold';
         singleCard = (
             <SingleItemObtainCard
                 leftVisual={
@@ -221,7 +218,6 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
             />
         );
     } else if (isCurrency && isZemIcon) {
-        windowId = 'item-obtained-zem';
         singleCard = (
             <SingleItemObtainCard
                 leftVisual={
@@ -305,10 +301,9 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
         <DraggableWindow
             title="아이템 획득"
             onClose={onClose}
-            windowId={windowId}
+            windowId={ITEM_OBTAINED_MODAL_WINDOW_ID}
             initialWidth={440}
             shrinkHeightToContent
-            skipSavedPosition
             isTopmost={isTopmost}
             zIndex={70}
             variant="store"

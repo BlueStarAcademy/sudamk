@@ -6,6 +6,8 @@ import { SPECIAL_STATS_DATA } from '../constants/items.js';
 const LEGACY_SPECIAL_STAT_TYPE: Record<string, SpecialStat> = {
     '전략 경험치 추가획득': SpecialStat.StrategyXpBonus,
     '놀이 경험치 추가획득': SpecialStat.PlayfulXpBonus,
+    /** 구 특수 옵션 표기(저장 데이터) */
+    '놀이 경험치 추가': SpecialStat.PlayfulXpBonus,
     '챔피언십 경기장 모든 능력치': SpecialStat.ChampionshipVenueAllStats,
     '길드 보스전 추가 능력치': SpecialStat.GuildBossBattleAllStats,
 };

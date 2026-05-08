@@ -1188,7 +1188,7 @@ const Profile: React.FC<ProfileProps> = () => {
     const specialStatAbbreviations: Record<SpecialStat, string> = {
         [SpecialStat.ActionPointMax]: '최대 AP',
         [SpecialStat.StrategyXpBonus]: '유저 XP',
-        [SpecialStat.PlayfulXpBonus]: '유저 XP(놀이)',
+        [SpecialStat.PlayfulXpBonus]: '펫 XP',
         [SpecialStat.ChampionshipVenueAllStats]: '챔피언십',
         [SpecialStat.GuildBossBattleAllStats]: '길드보스',
     };

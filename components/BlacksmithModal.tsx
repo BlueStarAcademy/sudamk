@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import EnhancementView from './blacksmith/EnhancementView.js';
 import CombinationView from './blacksmith/CombinationView.js';
@@ -123,8 +123,8 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
         if (activeTab !== 'disassemble') setDisassemblyAutoSelectOpen(false);
     }, [activeTab]);
 
-    // Sync selected item with inventory (for enhancement updates)
-    useEffect(() => {
+    // Sync selected item with inventory (for enhancement updates) — paint 전에 맞춰 성공확률·실패 보너스가 바로 반영되게 함
+    useLayoutEffect(() => {
         if (selectedItem && activeTab === 'enhance') {
             const updatedItem = currentUserWithStatus.inventory.find(invItem => invItem.id === selectedItem.id);
             if (updatedItem && (updatedItem.stars !== selectedItem.stars || updatedItem.enhancementFails !== selectedItem.enhancementFails)) {
@@ -132,6 +132,14 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
             }
         }
     }, [currentUserWithStatus.inventory, selectedItem, activeTab]);
+
+    /** HTTP 직후 인벤 반영 타이밍과 무관하게, 강화 결과 스냅샷으로 즉시 동기화 (실패 시 enhancementFails·VIP 보너스 표기) */
+    useLayoutEffect(() => {
+        if (activeTab !== 'enhance' || !enhancementOutcome || !selectedItem) return;
+        const after = enhancementOutcome.itemAfter;
+        if (!after || after.id !== selectedItem.id) return;
+        setSelectedItem(after);
+    }, [enhancementOutcome, activeTab, selectedItem?.id]);
 
     // Sync selected item with inventory (for refinement updates)
     useEffect(() => {

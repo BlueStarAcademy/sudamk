@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import DraggableWindow, {
     ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS,
     ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS,
+    ITEM_OBTAINED_MODAL_WINDOW_ID,
 } from './DraggableWindow.js';
 import { InventoryItem } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
@@ -62,10 +63,9 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
         <DraggableWindow
             title="보상 수령"
             onClose={onClose}
-            windowId="bulk-item-obtained"
+            windowId={ITEM_OBTAINED_MODAL_WINDOW_ID}
             initialWidth={520}
             shrinkHeightToContent
-            skipSavedPosition
             closeOnOutsideClick={false}
             isTopmost={isTopmost}
             zIndex={70}
