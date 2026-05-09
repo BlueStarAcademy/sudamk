@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
-import { UserWithStatus, TournamentState, TournamentType, User, LeagueTier, EquipmentSlot, InventoryItem, CoreStat, ItemGrade, SpecialStat } from '../types.js';
+import { UserWithStatus, TournamentState, TournamentType, User, LeagueTier, InventoryItem, CoreStat, SpecialStat } from '../types.js';
 import {
     TOURNAMENT_DEFINITIONS,
     CHAMPIONSHIP_VENUE_LOBBY_BG_IMAGE,
@@ -7,8 +7,6 @@ import {
     AVATAR_POOL,
     LEAGUE_DATA,
     BORDER_POOL,
-    GRADE_LEVEL_REQUIREMENTS,
-    emptySlotImages,
     getHighestDungeonStageWhereUserAvgExceedsBot,
 } from '../constants';
 import Avatar from './Avatar.js';
@@ -16,13 +14,11 @@ import { isSameDayKST } from '../utils/timeUtils.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import LeagueTierInfoModal from './LeagueTierInfoModal.js';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
-import Button from './Button.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposition.js';
 import ChampionshipVenueEntryModal from './ChampionshipVenueEntryModal.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { normalizeDungeonProgress, isStageCleared } from '../utils/championshipDungeonProgress.js';
-import CoreStatsHexagonChart from './CoreStatsHexagonChart.js';
 import HomeNativeMergedEquipmentAbilityPanel from './HomeNativeMergedEquipmentAbilityPanel.js';
 
 /** 챔피언십 로비 패널: 경기장 배경 블러(전략/놀이 대기실과 동일 계열) */
@@ -711,77 +707,6 @@ const filterInProgress = (state: TournamentState | null | undefined): Tournament
     return state;
 };
 
-const gradeBackgrounds: Record<string, string> = {
-    normal: '/images/equipments/normalbgi.png',
-    uncommon: '/images/equipments/uncommonbgi.png',
-    rare: '/images/equipments/rarebgi.png',
-    epic: '/images/equipments/epicbgi.png',
-    legendary: '/images/equipments/legendarybgi.png',
-    mythic: '/images/equipments/mythicbgi.png',
-    transcendent: '/images/equipments/transcendentbgi.webp',
-};
-
-const getStarDisplayInfo = (stars: number) => {
-    if (stars >= 10) {
-        return { text: `(★${stars})`, colorClass: "prism-text-effect" };
-    } else if (stars >= 7) {
-        return { text: `(★${stars})`, colorClass: "text-purple-400" };
-    } else if (stars >= 4) {
-        return { text: `(★${stars})`, colorClass: "text-amber-400" };
-    } else if (stars >= 1) {
-        return { text: `(★${stars})`, colorClass: "text-white" };
-    }
-    return { text: "", colorClass: "text-white" };
-};
-
-const EquipmentSlotDisplay: React.FC<{
-    slot: EquipmentSlot;
-    item?: InventoryItem;
-    onClick?: () => void;
-    /** 작은 슬롯(별 10px) */
-    compact?: boolean;
-    /** compact와 일반 사이: 별 12px, 장비 아이콘 패딩 약간 축소 */
-    medium?: boolean;
-    className?: string;
-}> = ({ slot, item, onClick, compact = false, medium = false, className = '' }) => {
-    const clickableClass = item && onClick ? 'cursor-pointer hover:scale-105 transition-transform' : '';
-    const starFontPx = compact ? 11 : medium ? 13 : 15;
-    const itemPadClass = medium ? 'p-0.5' : 'p-1';
-
-    if (item) {
-        const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
-        const titleText = `${item.name} (착용 레벨 합: ${requiredLevel}) - 클릭하여 상세보기`;
-        const starInfo = getStarDisplayInfo(item.stars);
-        const isTranscendent = item.grade === ItemGrade.Transcendent;
-        return (
-            <div
-                className={`relative w-full aspect-square rounded-lg border-2 border-color/50 bg-tertiary/50 ${clickableClass} ${isTranscendent ? 'transcendent-grade-slot' : ''} ${className}`}
-                title={titleText}
-                onClick={onClick}
-            >
-                <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-md" />
-                {item.stars > 0 && (
-                    <div className={`absolute top-1 right-2.5 font-bold z-10 ${starInfo.colorClass}`} style={{ textShadow: '1px 1px 2px black', fontSize: `${starFontPx}px` }}>
-                        ★{item.stars}
-                    </div>
-                )}
-                {item.image && (
-                    <img
-                        src={item.image}
-                        alt={item.name}
-                        className={`absolute object-contain ${itemPadClass}`}
-                        style={{ width: '86%', height: '86%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
-                    />
-                )}
-            </div>
-        );
-    } else {
-         return (
-             <img src={emptySlotImages[slot]} alt={`${slot} empty slot`} className={`w-full aspect-square rounded-lg bg-tertiary/50 border-2 border-color/50 ${className}`} />
-        );
-    }
-};
-
 const TournamentLobby: React.FC = () => {
     const { currentUserWithStatus, handlers, presets } = useAppContext();
     const { isNativeMobile, isNarrowViewport, pcLikeMobileLayout } = useNativeMobileShell();
@@ -861,10 +786,6 @@ const TournamentLobby: React.FC = () => {
         return currentUserWithStatus.inventory.filter(item => item.isEquipped);
     }, [currentUserWithStatus?.inventory]);
 
-    const getItemForSlot = (slot: EquipmentSlot) => {
-        return equippedItems.find(item => item.slot === slot);
-    };
-
     const handlePresetChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         const presetIndex = Number(event.target.value);
         setSelectedPreset(presetIndex);
@@ -910,9 +831,6 @@ const TournamentLobby: React.FC = () => {
     const totalPoints = (Math.max(0, currentUserWithStatus.userLevel - 1) * 2) + (currentUserWithStatus.bonusStatPoints || 0);
     const spentPoints = Object.values(currentUserWithStatus.spentStatPoints || {}).reduce((sum, points) => sum + points, 0);
     const availablePoints = totalPoints - spentPoints;
-    const combinedLevel = currentUserWithStatus.userLevel || 0;
-    const myAvatarUrl = AVATAR_POOL.find(a => a.id === currentUserWithStatus.avatarId)?.url;
-    const myBorderUrl = BORDER_POOL.find(b => b.id === currentUserWithStatus.borderId)?.url;
     return (
         <div
             className={`relative flex w-full flex-col bg-lobby-shell-championship text-primary ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-hidden overscroll-y-contain px-0.5 pb-0.5' : 'h-full p-2 sm:p-4 lg:p-2'}`}
@@ -1011,116 +929,59 @@ const TournamentLobby: React.FC = () => {
                 <div className="min-h-0 flex-1 flex flex-col gap-1.5 overflow-hidden">
                     <div className="flex min-h-0 flex-1 flex-row gap-1.5 overflow-hidden">
                     <aside className="flex h-full min-h-0 w-[min(42%,480px)] min-w-[288px] max-w-[480px] shrink-0 flex-col gap-1.5 overflow-hidden">
-                        <div className="relative flex min-h-0 flex-[0.9] flex-col overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15">
+                        <div className="relative shrink-0 overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15">
                             <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
                             <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
-                            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2.5 text-on-panel">
-                                <div className="mb-2 relative flex shrink-0 items-center gap-2 rounded-xl border border-amber-500/35 bg-black/20 p-1.5">
-                                    <button
-                                        onClick={() => window.location.hash = '#/profile'}
-                                        className="relative z-[1] transition-transform active:scale-90 filter hover:drop-shadow-lg"
-                                    >
-                                        <img src="/images/button/back.png" alt="Back" className="h-10 w-10 sm:h-11 sm:w-11" />
-                                    </button>
-                                    <h1 className="relative z-[1] text-left text-xl font-bold sm:text-2xl lg:text-3xl">챔피언십</h1>
-                                </div>
-                                <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-amber-500/25 bg-gradient-to-br from-black/35 via-zinc-950/50 to-amber-950/20 p-2">
-                                    <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-amber-400/25 bg-black/30 px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                                        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
-                                        <div className="flex min-w-0 items-center gap-3 rounded-lg border border-white/10 bg-black/20 px-2 py-1.5">
-                                            <Avatar
-                                                userId={currentUserWithStatus.id}
-                                                userName={currentUserWithStatus.nickname}
-                                                avatarUrl={myAvatarUrl}
-                                                borderUrl={myBorderUrl}
-                                                size={54}
-                                            />
-                                            <div className="min-w-0 flex-1">
-                                                <p className="truncate text-base font-extrabold tracking-tight text-amber-50">{currentUserWithStatus.nickname}</p>
-                                                <p className="mt-0.5 text-sm font-semibold text-amber-200/90">Lv.{combinedLevel}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div className="relative flex items-center gap-2 p-2 text-on-panel">
+                                <button
+                                    type="button"
+                                    onClick={() => window.location.hash = '#/profile'}
+                                    className="relative z-[1] shrink-0 transition-transform active:scale-90 filter hover:drop-shadow-lg"
+                                    aria-label="프로필로 돌아가기"
+                                >
+                                    <img src="/images/button/back.png" alt="" className="h-10 w-10 sm:h-11 sm:w-11" />
+                                </button>
+                                <h1 className="relative z-[1] min-w-0 truncate text-left text-xl font-bold sm:text-2xl lg:text-3xl">챔피언십</h1>
                             </div>
                         </div>
-                        <div className={`relative flex min-h-0 flex-[0.58] flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_40px_-20px_rgba(0,0,0,0.7)] ring-1 ring-amber-100/10`}>
-                            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
-                            <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
-                            <div className="mx-auto flex w-full min-w-0 max-w-[275px] flex-1 flex-col">
-                                <div className="grid w-full min-w-0 grid-cols-3 grid-rows-2 gap-1 [&>*]:min-w-0">
-                                    {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
-                                        const item = getItemForSlot(slot);
-                                        return (
-                                            <div key={slot} className="aspect-square w-full min-w-0">
-                                                <EquipmentSlotDisplay
-                                                    slot={slot}
-                                                    item={item}
-                                                    onClick={() => item && handlers.openViewingItem(item, true)}
-                                                />
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                <div className="mt-1.5 flex w-full min-w-0 shrink-0 items-stretch gap-1 border-t border-color/40 pt-1.5">
-                                    <select
-                                        value={selectedPreset}
-                                        onChange={handlePresetChange}
-                                        className="min-h-[24px] min-w-0 flex-1 rounded border border-color bg-secondary px-1 py-0.5 text-[10px] focus:border-accent focus:ring-accent sm:text-xs"
-                                    >
-                                        {presets && presets.map((preset, index) => (
-                                            <option key={index} value={index}>{preset.name}</option>
-                                        ))}
-                                    </select>
-                                    <Button
-                                        onClick={handlers.openEquipmentEffectsModal}
-                                        colorScheme="none"
-                                        className="!shrink-0 !whitespace-nowrap !px-2 !py-0.5 !text-[9px] justify-center rounded-md border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white"
-                                    >
-                                        효과
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-                        <div className={`relative flex min-h-0 flex-[0.76] flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_18px_50px_-22px_rgba(0,0,0,0.72)] ring-1 ring-amber-100/10`}>
-                            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
-                            <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
-                            <div className="relative mb-2 flex min-w-0 shrink-0 flex-col overflow-hidden rounded-xl border border-amber-600/45 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 px-2.5 py-2 shadow-[0_10px_32px_-14px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.07)] sm:px-3 sm:py-2.5">
-                                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent" aria-hidden />
-                                <div className="relative flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
-                                            <span className="bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-base font-bold tracking-tight text-transparent drop-shadow-[0_0_24px_rgba(251,191,36,0.25)] sm:text-lg">
-                                                바둑능력
-                                            </span>
-                                            <span
-                                                className="bg-gradient-to-br from-yellow-50 via-amber-200 to-amber-700 bg-clip-text font-mono text-[1.35rem] font-black tabular-nums leading-none tracking-tight text-transparent drop-shadow-[0_1px_0_rgba(0,0,0,0.35)] sm:text-2xl"
-                                                title="6개 핵심 능력치 합계"
-                                            >
-                                                {badukAbilityTotal}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className="flex shrink-0 items-center justify-end gap-1.5 border-t border-zinc-700/90 pt-2 sm:border-t-0 sm:pt-0">
-                                        <span className="min-w-0 truncate text-xs font-medium text-amber-100/85 sm:text-sm" title={`보너스: ${availablePoints}P`}>
-                                            보너스 <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
-                                            <span className="text-amber-100/55">P</span>
-                                        </span>
-                                        <Button
-                                            onClick={handlers.openStatAllocationModal}
-                                            colorScheme="none"
-                                            className="!shrink-0 !whitespace-nowrap !rounded-lg !border !border-indigo-400/45 !bg-gradient-to-r !from-indigo-500/90 !via-violet-500/85 !to-fuchsia-500/80 !px-2.5 !py-1 !text-[10px] !font-semibold !text-white !shadow-[0_6px_20px_-8px_rgba(99,102,241,0.55)] hover:!brightness-110 sm:!text-[11px]"
-                                        >
-                                            분배
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                            <CoreStatsHexagonChart
-                                values={finalByStat}
+                        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden overscroll-y-contain">
+                            <HomeNativeMergedEquipmentAbilityPanel
+                                equippedItems={equippedItems}
+                                presets={presets}
+                                selectedPreset={selectedPreset}
+                                onPresetChange={handlePresetChange}
+                                onOpenEquipmentEffects={handlers.openEquipmentEffectsModal}
+                                onOpenStatAllocation={handlers.openStatAllocationModal}
+                                onViewEquippedItem={(item) => handlers.openViewingItem(item, true)}
+                                finalByStat={finalByStat}
                                 baseByStat={baseByStat}
-                                className="min-h-0 flex-1"
+                                badukAbilityTotal={badukAbilityTotal}
+                                availablePoints={availablePoints}
+                                framed
+                                compactLayout={false}
                             />
+                            <section
+                                className="relative shrink-0 overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_40px_-20px_rgba(0,0,0,0.7)] ring-1 ring-amber-100/10"
+                                aria-label="챔피언십 상점"
+                            >
+                                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
+                                <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
+                                <div className="relative border-b border-amber-500/25 px-2.5 py-2">
+                                    <h2 className="bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-base font-bold tracking-tight text-transparent sm:text-lg">
+                                        챔피언십 상점
+                                    </h2>
+                                </div>
+                                <div className="min-h-[clamp(11rem,26dvh,20rem)] p-2.5">
+                                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-hidden>
+                                        {Array.from({ length: 6 }, (_, i) => (
+                                            <div
+                                                key={i}
+                                                className="min-h-[5rem] rounded-lg border border-dashed border-stone-500/35 bg-black/25"
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            </section>
                         </div>
                     </aside>
                     <main className="min-h-0 flex-1 flex flex-col items-center overflow-hidden rounded-lg border border-zinc-600/80 bg-panel p-1 shadow-inner">

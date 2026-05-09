@@ -42,6 +42,11 @@ function mergePairPetSlice(base: PairPetKataRuntimeSlice, patch: KataServerRunti
             midgame: { ...base.phasePly9.midgame },
             endgame: { ...base.phasePly9.endgame },
         },
+        phasePly11: {
+            opening: { ...base.phasePly11.opening },
+            midgame: { ...base.phasePly11.midgame },
+            endgame: { ...base.phasePly11.endgame },
+        },
         phasePly13: {
             opening: { ...base.phasePly13.opening },
             midgame: { ...base.phasePly13.midgame },
@@ -94,6 +99,7 @@ function mergePairPetSlice(base: PairPetKataRuntimeSlice, patch: KataServerRunti
         abilityKataLadder,
         phaseWeights,
         phasePly9: mergePly(base.phasePly9, patch.phasePly9),
+        phasePly11: mergePly(base.phasePly11, patch.phasePly11),
         phasePly13: mergePly(base.phasePly13, patch.phasePly13),
         phasePly19: mergePly(base.phasePly19, patch.phasePly19),
     };
@@ -152,6 +158,7 @@ export function deepMergeKataOverrides(
             ...pp,
             phaseWeights: pp.phaseWeights ? { ...basePp.phaseWeights, ...pp.phaseWeights } : basePp.phaseWeights,
             phasePly9: pp.phasePly9 ? { ...basePp.phasePly9, ...pp.phasePly9 } : basePp.phasePly9,
+            phasePly11: pp.phasePly11 ? { ...basePp.phasePly11, ...pp.phasePly11 } : basePp.phasePly11,
             phasePly13: pp.phasePly13 ? { ...basePp.phasePly13, ...pp.phasePly13 } : basePp.phasePly13,
             phasePly19: pp.phasePly19 ? { ...basePp.phasePly19, ...pp.phasePly19 } : basePp.phasePly19,
         };

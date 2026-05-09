@@ -17,7 +17,11 @@ import DungeonStageSummaryModal, { type DungeonStageSummaryModalProps } from './
 import { resolvePublicUrl } from '../utils/publicAssetUrl.js';
 import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
 import { formatGoldAmountKoG } from '../shared/utils/walletAmountDisplay.js';
-import { championshipKataLevelForPly } from '../shared/constants/championshipRealMatch.js';
+import {
+    CHAMPIONSHIP_ABILITY_KATA_LADDER,
+    championshipKataLevelForPly,
+    type ChampionshipAbilityKataLadderRow,
+} from '../shared/constants/championshipRealMatch.js';
 import { championshipAreaScoresAtPly } from '../utils/championshipLiveScores.js';
 import { replaceAppHash } from '../utils/appUtils.js';
 
@@ -408,7 +412,8 @@ const ChampionshipAbilityPlayerPanel: React.FC<{
     currentPhase: 'early' | 'mid' | 'end' | 'none';
     tone: 'blue' | 'rose';
     sideLabel: string;
-}> = ({ player, stats, match, currentPhase, tone, sideLabel }) => {
+    abilityKataLadder: readonly ChampionshipAbilityKataLadderRow[];
+}> = ({ player, stats, match, currentPhase, tone, sideLabel, abilityKataLadder }) => {
     const realGame = match?.championshipRealGame;
     const boardSize = realGame?.boardSize ?? 19;
     const activePhaseKey =
@@ -452,7 +457,8 @@ const ChampionshipAbilityPlayerPanel: React.FC<{
                     {CHAMPIONSHIP_PHASE_META.map((phase) => {
                         const ply = boardSize === 13 ? phase.ply13 : phase.ply19;
                         const fromSnapshot = player?.id ? realGame?.phaseStatsByPlayerId?.[player.id]?.[phase.key] : undefined;
-                        const computed = fromSnapshot ?? championshipKataLevelForPly(ply, stats as any);
+                        const computed =
+                            fromSnapshot ?? championshipKataLevelForPly(ply, stats as any, undefined, abilityKataLadder);
                         const isActive = activePhaseKey === phase.key;
                         return (
                             <div
@@ -483,10 +489,27 @@ const ChampionshipAbilitySidePanel: React.FC<{
     p2Stats: Record<string, number>;
     match: Match | null;
     currentPhase: 'early' | 'mid' | 'end' | 'none';
-}> = ({ p1, p2, p1Stats, p2Stats, match, currentPhase }) => (
+    abilityKataLadder: readonly ChampionshipAbilityKataLadderRow[];
+}> = ({ p1, p2, p1Stats, p2Stats, match, currentPhase, abilityKataLadder }) => (
     <div className="flex h-full gap-2">
-        <ChampionshipAbilityPlayerPanel player={p1} stats={p1Stats} match={match} currentPhase={currentPhase} tone="blue" sideLabel="챔피언십 능력치" />
-        <ChampionshipAbilityPlayerPanel player={p2} stats={p2Stats} match={match} currentPhase={currentPhase} tone="rose" sideLabel="챔피언십 능력치" />
+        <ChampionshipAbilityPlayerPanel
+            player={p1}
+            stats={p1Stats}
+            match={match}
+            currentPhase={currentPhase}
+            tone="blue"
+            sideLabel="챔피언십 능력치"
+            abilityKataLadder={abilityKataLadder}
+        />
+        <ChampionshipAbilityPlayerPanel
+            player={p2}
+            stats={p2Stats}
+            match={match}
+            currentPhase={currentPhase}
+            tone="rose"
+            sideLabel="챔피언십 능력치"
+            abilityKataLadder={abilityKataLadder}
+        />
     </div>
 );
 
@@ -548,6 +571,8 @@ const getMaxStatValueForLeague = (league: LeagueTier): number => {
 
 interface TournamentBracketProps {
     tournament: TournamentState;
+    /** 서버·관리자에서 내려준 능력치→KATA 사다리. 없으면 코드 기본값 사용 */
+    championshipAbilityKataLadder?: readonly ChampionshipAbilityKataLadderRow[];
     currentUser: UserWithStatus;
     onBack: () => void;
     allUsersForRanking: User[];
@@ -4187,7 +4212,21 @@ const TournamentRoundViewer: React.FC<{
 };
 
 export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
-    const { tournament, currentUser, onBack, allUsersForRanking, onViewUser, onAction, onStartNextRound, onReset, onSkip, onOpenShop, isMobile } = props;
+    const {
+        tournament,
+        currentUser,
+        onBack,
+        allUsersForRanking,
+        onViewUser,
+        onAction,
+        onStartNextRound,
+        onReset,
+        onSkip,
+        onOpenShop,
+        isMobile,
+        championshipAbilityKataLadder: championshipAbilityKataLadderProp,
+    } = props;
+    const abilityKataLadder = championshipAbilityKataLadderProp ?? CHAMPIONSHIP_ABILITY_KATA_LADDER;
     
     /** 1회차 경기 시작 전에만 true. 경기 시작 후·종료 후에는 컨디션 회복제 버튼 비활성화 */
     const canUseConditionPotion = Boolean(
@@ -6274,6 +6313,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                         currentPhase={currentPhase}
                                         tone="blue"
                                         sideLabel="챔피언십 능력치"
+                                        abilityKataLadder={abilityKataLadder}
                                     />
                                     <div className="relative flex h-full min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-transparent p-0">
                                         <ChampionshipRealGoBoard match={matchForDisplay} currentUser={currentUser} tournamentFinished={championshipFinished} tournamentForResult={displayTournament} />
@@ -6285,6 +6325,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                         currentPhase={currentPhase}
                                         tone="rose"
                                         sideLabel="챔피언십 능력치"
+                                        abilityKataLadder={abilityKataLadder}
                                     />
                                 </div>
                             </div>
@@ -6458,7 +6499,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                             ? realGame?.phaseStatsByPlayerId?.[player.id]?.[phase.key]
                             : undefined;
                         const computed =
-                            fromSnapshot ?? championshipKataLevelForPly(ply, stats as any);
+                            fromSnapshot ?? championshipKataLevelForPly(ply, stats as any, undefined, abilityKataLadder);
                         const isActive = activePhaseKey === phase.key;
                         return (
                             <div
@@ -6715,6 +6756,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                 p2Stats={p2Stats as Record<string, number>}
                                 match={matchForDisplay}
                                 currentPhase={currentPhase}
+                                abilityKataLadder={abilityKataLadder}
                             />
                         </div>
                         <div className="grid h-[210px] shrink-0 grid-cols-[1.05fr_1.8fr_1fr] gap-2 overflow-hidden">

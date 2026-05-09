@@ -6,7 +6,9 @@ import { ARENA_ENTRANCE_KEYS, ARENA_ENTRANCE_LABELS, type ArenaEntranceKey } fro
 import Button from '../Button.js';
 import AdminPageHeader from './AdminPageHeader.js';
 import KataServerRuntimeAdminPanel from './KataServerRuntimeAdminPanel.js';
+import ChampionshipAbilityKataAdminPanel from './ChampionshipAbilityKataAdminPanel.js';
 import type { KataServerRuntimeSnapshot } from '../../shared/types/kataServerRuntime.js';
+import type { ChampionshipAbilityKataLadderRow } from '../../shared/constants/championshipRealMatch.js';
 import { adminCard, adminCardTitle, adminCheckRow, adminInput, adminPageNarrow, adminSectionGap } from './adminChrome.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 
@@ -34,6 +36,7 @@ interface ServerSettingsPanelProps {
     globalOverrideAnnouncement: OverrideAnnouncement | null;
     announcementInterval?: number;
     kataServerRuntimeConfig: KataServerRuntimeSnapshot;
+    championshipAbilityKataLadder: readonly ChampionshipAbilityKataLadderRow[];
     onAction: (action: ServerAction) => void;
     onBack: () => void;
 }
@@ -46,6 +49,7 @@ const ServerSettingsPanel: React.FC<ServerSettingsPanelProps> = (props) => {
         globalOverrideAnnouncement,
         announcementInterval = 10,
         kataServerRuntimeConfig,
+        championshipAbilityKataLadder,
         onAction,
         onBack,
     } = props;
@@ -389,7 +393,10 @@ const ServerSettingsPanel: React.FC<ServerSettingsPanelProps> = (props) => {
                     </div>
                 )}
                 {mainTab === 'kata' && (
-                    <KataServerRuntimeAdminPanel config={kataServerRuntimeConfig} onAction={onAction} kataGoSection={kataGoCard} />
+                    <div className={`${adminSectionGap} max-w-4xl`}>
+                        <KataServerRuntimeAdminPanel config={kataServerRuntimeConfig} onAction={onAction} kataGoSection={kataGoCard} />
+                        <ChampionshipAbilityKataAdminPanel ladder={championshipAbilityKataLadder} onAction={onAction} />
+                    </div>
                 )}
             </div>
         </div>

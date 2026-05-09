@@ -727,6 +727,30 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             broadcast({ type: 'KATA_SERVER_RUNTIME_CONFIG_UPDATE', payload: { kataServerRuntimeConfig } });
             return { clientResponse: { kataServerRuntimeConfig } };
         }
+        case 'ADMIN_SET_CHAMPIONSHIP_ABILITY_KATA_LADDER': {
+            const rows = (payload as { rows?: unknown })?.rows;
+            if (!Array.isArray(rows)) return { error: 'rows 배열이 필요합니다.' };
+            try {
+                const { saveChampionshipAbilityKataLadder } = await import('../championshipAbilityKataStore.js');
+                const championshipAbilityKataLadder = await saveChampionshipAbilityKataLadder(rows);
+                broadcast({
+                    type: 'CHAMPIONSHIP_ABILITY_KATA_LADDER_UPDATE',
+                    payload: { championshipAbilityKataLadder },
+                });
+                return { clientResponse: { championshipAbilityKataLadder } };
+            } catch (e: any) {
+                return { error: e?.message ? String(e.message) : '저장에 실패했습니다.' };
+            }
+        }
+        case 'ADMIN_RESET_CHAMPIONSHIP_ABILITY_KATA_LADDER': {
+            const { resetChampionshipAbilityKataLadder } = await import('../championshipAbilityKataStore.js');
+            const championshipAbilityKataLadder = await resetChampionshipAbilityKataLadder();
+            broadcast({
+                type: 'CHAMPIONSHIP_ABILITY_KATA_LADDER_UPDATE',
+                payload: { championshipAbilityKataLadder },
+            });
+            return { clientResponse: { championshipAbilityKataLadder } };
+        }
         case 'ADMIN_SET_GAME_DESCRIPTION': {
             const { gameId, description } = payload;
             const game = await db.getLiveGame(gameId);

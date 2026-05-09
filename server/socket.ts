@@ -453,6 +453,7 @@ export const createWebSocketServer = (server: Server) => {
                     guilds,
                     singlePlayerStages: await (await import('./singlePlayerStageConfigService.js')).getEffectiveSinglePlayerStages(),
                     kataServerRuntimeConfig: (await import('./kataServerRuntimeStore.js')).getKataServerRuntimeSnapshot(),
+                    championshipAbilityKataLadder: (await import('./championshipAbilityKataStore.js')).getChampionshipAbilityKataLadder(),
                 };
                 
                 // 전송 전 최종 연결 상태 확인

@@ -415,6 +415,13 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             } catch (kataHydrateErr: any) {
                 console.warn('[Server Startup] KataServer runtime hydrate (non-fatal):', kataHydrateErr?.message);
             }
+            try {
+                const { hydrateChampionshipAbilityKataLadderFromKV } = await import('./championshipAbilityKataStore.js');
+                await hydrateChampionshipAbilityKataLadderFromKV();
+                console.log('[Server Startup] Championship ability→KATA ladder loaded from KV');
+            } catch (champKataHydrateErr: any) {
+                console.warn('[Server Startup] Championship KATA ladder hydrate (non-fatal):', champKataHydrateErr?.message);
+            }
             // 길드전 1회 부트스트랩: GUILD_WAR_BOOTSTRAP_MATCH=1 이면 KV에 플래그를 올린 뒤 즉시 매칭 1회(다음 메인루프까지 기다리지 않음). 운영에서 1회만 켠 다음 env 제거 권장.
             if (process.env.GUILD_WAR_BOOTSTRAP_MATCH === '1') {
                 try {

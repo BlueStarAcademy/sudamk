@@ -27,6 +27,7 @@ const Admin: React.FC = () => {
         announcementInterval,
         homeBoardPosts,
         kataServerRuntimeConfig,
+        championshipAbilityKataLadder,
         handlers,
     } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
@@ -53,6 +54,7 @@ const Admin: React.FC = () => {
         announcementInterval,
         homeBoardPosts,
         kataServerRuntimeConfig,
+        championshipAbilityKataLadder,
     };
 
     const renderView = () => {

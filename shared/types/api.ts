@@ -8,6 +8,7 @@ import { GameMode, RPSChoice, Point, Player, UserStatus, TournamentType, Invento
 import type { WinReason } from './enums.js';
 import type { ArenaEntranceKey } from '../../constants/arenaEntrance.js';
 import type { KataServerRuntimeOverrides } from './kataServerRuntime.js';
+import type { ChampionshipAbilityKataLadderRow } from '../constants/championshipRealMatch.js';
 
 export type ArenaChannel = 'strategic' | 'pair' | 'playful';
 
@@ -580,6 +581,8 @@ export type ServerAction =
     | { type: 'ADMIN_TOGGLE_ARENA_ENTRANCE', payload: { arena: ArenaEntranceKey; isOpen: boolean } }
     | { type: 'ADMIN_PATCH_KATA_SERVER_RUNTIME', payload: { patch: KataServerRuntimeOverrides } }
     | { type: 'ADMIN_RESET_KATA_SERVER_RUNTIME', payload?: never }
+    | { type: 'ADMIN_SET_CHAMPIONSHIP_ABILITY_KATA_LADDER'; payload: { rows: ChampionshipAbilityKataLadderRow[] } }
+    | { type: 'ADMIN_RESET_CHAMPIONSHIP_ABILITY_KATA_LADDER'; payload?: never }
     | { type: 'ADMIN_SET_GAME_DESCRIPTION', payload: { gameId: string, description: string } }
     | { type: 'ADMIN_FORCE_DELETE_GAME', payload: { gameId: string } }
     | { type: 'ADMIN_FORCE_WIN', payload: { gameId: string, winnerId: string } }

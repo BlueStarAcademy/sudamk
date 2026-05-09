@@ -20,15 +20,17 @@ const statsFor = (value: number): Record<CoreStat, number> => ({
 describe('championship real match policy', () => {
     it('maps ability score boundaries without level zero', () => {
         const cases: Array<[number, number]> = [
-            [219, -30],
-            [220, -30],
-            [250, -29],
-            [1090, -1],
-            [1120, 1],
-            [1150, 2],
-            [1240, 5],
-            [1270, 6],
-            [1300, 7],
+            [199, -30],
+            [200, -30],
+            [219, -29],
+            [220, -28],
+            [1000, -1],
+            [1019, -1],
+            [1020, 1],
+            [1250, 5],
+            [1320, 6],
+            [1590, 8],
+            [1600, 9],
         ];
 
         for (const [ability, level] of cases) {

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { KataServerRuntimeOverrides, KataServerRuntimeSnapshot } from '../../shared/types/kataServerRuntime.js';
 import type { ServerAction } from '../../types.js';
 import type { PairPetCoreStatsSix, PairPetKataPhase } from '../../shared/constants/pairArena.js';
+import { DEFAULT_PAIR_PET_ABILITY_KATA_LADDER, PAIR_PET_KATA_PHASE_WEIGHTS } from '../../shared/constants/pairArena.js';
 import { GUILD_WAR_BOARD_ORDER, GUILD_WAR_BOARD_DISPLAY_NAMES } from '../../shared/constants/guildConstants.js';
 import Button from '../Button.js';
 import KataServerLevelReferenceCard from './KataServerLevelReferenceCard.js';
@@ -35,6 +36,18 @@ const PHASE_LABELS: Record<PairPetKataPhase, string> = {
     midgame: '중반',
     endgame: '종반',
 };
+
+/** 코드 기본: 구간표 + 페이즈별 6스탯 가중치 (KV 패치·draft 복원용) */
+function defaultPairPetKataWeightsPatch() {
+    return {
+        abilityKataLadder: DEFAULT_PAIR_PET_ABILITY_KATA_LADDER.map((r) => ({ ...r })),
+        phaseWeights: {
+            opening: { ...PAIR_PET_KATA_PHASE_WEIGHTS.opening },
+            midgame: { ...PAIR_PET_KATA_PHASE_WEIGHTS.midgame },
+            endgame: { ...PAIR_PET_KATA_PHASE_WEIGHTS.endgame },
+        },
+    };
+}
 
 const subTabBtn = (active: boolean) =>
     `shrink-0 rounded-xl border px-3 py-2 text-xs font-semibold transition-all sm:text-sm ${
@@ -297,7 +310,38 @@ const KataServerRuntimeAdminPanel: React.FC<KataServerRuntimeAdminPanelProps> = 
 
             <div>
                 <h3 className="mb-2 text-sm font-semibold text-primary">능력치 점수 → KATA 오프셋 구간</h3>
-                <div className="max-h-48 overflow-auto rounded-lg border border-color/40">
+                <div className="mb-2 flex flex-wrap gap-2">
+                    <Button
+                        type="button"
+                        colorScheme="blue"
+                        className="!text-xs"
+                        title="로비·모험·탑·길드 등 다른 KATA 오버라이드는 유지하고, 펫 능력치→KATA 구간표와 페이즈별 6스탯 가중치만 코드 기본값으로 덮어씁니다."
+                        onClick={() =>
+                            savePatch({
+                                pairPet: defaultPairPetKataWeightsPatch(),
+                            })
+                        }
+                    >
+                        기본 구간표·가중치 동기화 (KV 패치)
+                    </Button>
+                    <Button
+                        type="button"
+                        colorScheme="gray"
+                        className="!text-xs"
+                        onClick={() =>
+                            setDraft((d) => ({
+                                ...d,
+                                pairPet: {
+                                    ...d.pairPet,
+                                    ...defaultPairPetKataWeightsPatch(),
+                                },
+                            }))
+                        }
+                    >
+                        편집 화면만 기본표·가중치로
+                    </Button>
+                </div>
+                <div className="max-h-72 overflow-auto rounded-lg border border-color/40">
                     <table className="w-full border-collapse text-left text-xs">
                         <thead>
                             <tr className="border-b border-color/50 bg-secondary/80 text-primary">
@@ -371,7 +415,7 @@ const KataServerRuntimeAdminPanel: React.FC<KataServerRuntimeAdminPanelProps> = 
                             ...d,
                             pairPet: {
                                 ...d.pairPet,
-                                abilityKataLadder: [...d.pairPet.abilityKataLadder, { minAbilityScore: 0, kataLevelOffset: -30 }],
+                                abilityKataLadder: [...d.pairPet.abilityKataLadder, { minAbilityScore: 90, kataLevelOffset: -30 }],
                             },
                         }))
                     }
@@ -423,6 +467,7 @@ const KataServerRuntimeAdminPanel: React.FC<KataServerRuntimeAdminPanelProps> = 
                 {(
                     [
                         { key: 'phasePly9' as const, label: '9줄' },
+                        { key: 'phasePly11' as const, label: '11줄' },
                         { key: 'phasePly13' as const, label: '13줄' },
                         { key: 'phasePly19' as const, label: '19줄' },
                     ] as const
@@ -498,6 +543,7 @@ const KataServerRuntimeAdminPanel: React.FC<KataServerRuntimeAdminPanelProps> = 
                             abilityKataLadder: draft.pairPet.abilityKataLadder.map((r) => ({ ...r })),
                             phaseWeights: draft.pairPet.phaseWeights,
                             phasePly9: draft.pairPet.phasePly9,
+                            phasePly11: draft.pairPet.phasePly11,
                             phasePly13: draft.pairPet.phasePly13,
                             phasePly19: draft.pairPet.phasePly19,
                         },
@@ -534,8 +580,11 @@ const KataServerRuntimeAdminPanel: React.FC<KataServerRuntimeAdminPanelProps> = 
                 </div>
                 <div className="mt-6 flex flex-wrap gap-2 border-t border-color/40 pt-4">
                     <Button type="button" colorScheme="red" className="!text-xs" onClick={() => onAction({ type: 'ADMIN_RESET_KATA_SERVER_RUNTIME' })}>
-                        전체 기본값으로 되돌리기
+                        전체 KATA 런타임 리셋 (KV 비우기)
                     </Button>
+                    <span className="w-full text-[11px] leading-snug text-gray-500">
+                        리셋은 저장된 모든 오버라이드를 지우고 코드 기본 스냅샷으로 돌아갑니다. 페어 펫 구간표·가중치만 바꾸려면「페어 펫 KATA」탭의「기본 구간표·가중치 동기화」를 사용하세요.
+                    </span>
                 </div>
             </div>
 

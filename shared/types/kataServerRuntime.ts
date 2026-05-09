@@ -8,6 +8,7 @@ export type PairPetKataRuntimeSlice = {
     abilityKataLadder: PairPetAbilityKataLadderRow[];
     phaseWeights: Record<PairPetKataPhase, PairPetCoreStatsSix>;
     phasePly9: Record<PairPetKataPhase, PairPetKataPhasePlyRange>;
+    phasePly11: Record<PairPetKataPhase, PairPetKataPhasePlyRange>;
     phasePly13: Record<PairPetKataPhase, PairPetKataPhasePlyRange>;
     phasePly19: Record<PairPetKataPhase, PairPetKataPhasePlyRange>;
 };
@@ -36,6 +37,7 @@ export type KataServerRuntimeOverrides = {
         abilityKataLadder: PairPetAbilityKataLadderRow[];
         phaseWeights: Partial<Record<PairPetKataPhase, Partial<PairPetCoreStatsSix>>>;
         phasePly9: Partial<Record<PairPetKataPhase, Partial<PairPetKataPhasePlyRange>>>;
+        phasePly11: Partial<Record<PairPetKataPhase, Partial<PairPetKataPhasePlyRange>>>;
         phasePly13: Partial<Record<PairPetKataPhase, Partial<PairPetKataPhasePlyRange>>>;
         phasePly19: Partial<Record<PairPetKataPhase, Partial<PairPetKataPhasePlyRange>>>;
     }>;

@@ -4,6 +4,7 @@ import { flushSync } from 'react-dom';
 import { User, LiveGameSession, UserWithStatus, ServerAction, GameMode, Negotiation, ChatMessage, UserStatus, UserStatusInfo, AdminLog, Announcement, OverrideAnnouncement, InventoryItem, AppState, InventoryItemType, AppRoute, QuestReward, DailyQuestData, WeeklyQuestData, MonthlyQuestData, SoundSettings, FeatureSettings, AppSettings, PanelEdgeStyle, CoreStat, SpecialStat, MythicStat, EquipmentSlot, EquipmentPreset, Player, HomeBoardPost, GameRecord, Guild } from '../types.js';
 import type { KataServerRuntimeSnapshot } from '../shared/types/kataServerRuntime.js';
 import { mergeKataServerRuntimeSnapshot } from '../shared/utils/kataServerRuntimeMerge.js';
+import { CHAMPIONSHIP_ABILITY_KATA_LADDER, type ChampionshipAbilityKataLadderRow } from '../shared/constants/championshipRealMatch.js';
 import { HandleActionResult, type PairRoomChatLine } from '../types/api.js';
 import { Point } from '../types/enums.js';
 import { audioService } from '../services/audioService.js';
@@ -1682,6 +1683,9 @@ export const useApp = () => {
     const [announcementInterval, setAnnouncementInterval] = useState(3);
     const [kataServerRuntimeConfig, setKataServerRuntimeConfig] = useState<KataServerRuntimeSnapshot>(() =>
         mergeKataServerRuntimeSnapshot(null),
+    );
+    const [championshipAbilityKataLadder, setChampionshipAbilityKataLadder] = useState<readonly ChampionshipAbilityKataLadderRow[]>(
+        () => CHAMPIONSHIP_ABILITY_KATA_LADDER,
     );
     const [homeBoardPosts, setHomeBoardPosts] = useState<HomeBoardPost[]>([]);
     const [readHomeBoardPostIds, setReadHomeBoardPostIds] = useState<string[]>([]);
@@ -4986,6 +4990,13 @@ export const useApp = () => {
                 ) {
                     setKataServerRuntimeConfig(result.clientResponse.kataServerRuntimeConfig as KataServerRuntimeSnapshot);
                 }
+                if (
+                    (action.type === 'ADMIN_SET_CHAMPIONSHIP_ABILITY_KATA_LADDER' ||
+                        action.type === 'ADMIN_RESET_CHAMPIONSHIP_ABILITY_KATA_LADDER') &&
+                    result.clientResponse?.championshipAbilityKataLadder
+                ) {
+                    setChampionshipAbilityKataLadder(result.clientResponse.championshipAbilityKataLadder);
+                }
 
                 // CONFIRM_TOWER_GAME_START 액션에 대한 상세 로깅
                 if (action.type === 'CONFIRM_TOWER_GAME_START') {
@@ -6301,6 +6312,7 @@ export const useApp = () => {
             guilds?: Record<string, any>;
             singlePlayerStages?: any[];
             kataServerRuntimeConfig?: KataServerRuntimeSnapshot;
+            championshipAbilityKataLadder?: readonly ChampionshipAbilityKataLadderRow[];
         }) => {
                 // 이 시점을 기준으로 이후에 도착하는 WAITING_ROOM_CHAT_UPDATE만 과거 메시지를 걸러 냄
                 waitingRoomChatSessionStartRef.current = Date.now();
@@ -6794,6 +6806,9 @@ export const useApp = () => {
                 if (otherData.kataServerRuntimeConfig !== undefined) {
                     setKataServerRuntimeConfig(otherData.kataServerRuntimeConfig as KataServerRuntimeSnapshot);
                 }
+                if (otherData.championshipAbilityKataLadder !== undefined) {
+                    setChampionshipAbilityKataLadder(otherData.championshipAbilityKataLadder);
+                }
                 if (otherData.homeBoardPosts !== undefined) setHomeBoardPosts(otherData.homeBoardPosts || []);
                 // 길드: INITIAL_STATE와 기존 상태 병합 (GET_GUILD_INFO 등으로 이미 가져온 데이터 우선)
                 if (otherData.guilds !== undefined) {
@@ -7022,6 +7037,7 @@ export const useApp = () => {
                                 homeBoardPosts: message.payload.homeBoardPosts,
                                 guilds: message.payload.guilds || {},
                                 kataServerRuntimeConfig: message.payload.kataServerRuntimeConfig,
+                                championshipAbilityKataLadder: message.payload.championshipAbilityKataLadder,
                             };
                             startBuffer.receivedChunks++;
                             if (message.payload.isLast) {
@@ -7067,6 +7083,7 @@ export const useApp = () => {
                                     homeBoardPosts: message.payload.homeBoardPosts,
                                     guilds: message.payload.guilds || chunkBuffer.otherData?.guilds || {},
                                     kataServerRuntimeConfig: message.payload.kataServerRuntimeConfig,
+                                    championshipAbilityKataLadder: message.payload.championshipAbilityKataLadder,
                                 };
                                 }
                                 processInitialState(chunkBuffer.users, chunkBuffer.otherData);
@@ -7100,6 +7117,7 @@ export const useApp = () => {
                                 guilds,
                                 singlePlayerStages,
                                 kataServerRuntimeConfig,
+                                championshipAbilityKataLadder,
                             } = message.payload;
                             processInitialState(users, {
                                 onlineUsers,
@@ -7119,6 +7137,7 @@ export const useApp = () => {
                                 guilds,
                                 singlePlayerStages,
                                 kataServerRuntimeConfig,
+                                championshipAbilityKataLadder,
                             });
                             completeInitialState();
                             return;
@@ -7126,6 +7145,13 @@ export const useApp = () => {
                         case 'KATA_SERVER_RUNTIME_CONFIG_UPDATE': {
                             const cfg = (message.payload as any)?.kataServerRuntimeConfig;
                             if (cfg != null) setKataServerRuntimeConfig(cfg as KataServerRuntimeSnapshot);
+                            return;
+                        }
+                        case 'CHAMPIONSHIP_ABILITY_KATA_LADDER_UPDATE': {
+                            const ladder = (message.payload as any)?.championshipAbilityKataLadder;
+                            if (Array.isArray(ladder) && ladder.length > 0) {
+                                setChampionshipAbilityKataLadder(ladder);
+                            }
                             return;
                         }
                         case 'SINGLE_PLAYER_STAGES_UPDATE': {
@@ -9244,7 +9270,7 @@ export const useApp = () => {
                                 setGuilds(prev => ({ ...prev, ...message.payload.guilds }));
                             }
                             // 기존 default 처리 (이미 다른 case에서 처리되지 않은 경우)
-                            if (message.type && !['USER_UPDATE', 'USER_STATUS_UPDATE', 'GAME_UPDATE', 'NEGOTIATION_UPDATE', 'CHAT_MESSAGE', 'WAITING_ROOM_CHAT', 'GAME_CHAT', 'TOURNAMENT_UPDATE', 'RANKED_MATCHING_UPDATE', 'RANKED_MATCH_FOUND', 'PAIR_ROOM_UPDATE', 'PAIR_ROOM_CHAT', 'PAIR_PARTNER_INVITE_UPDATE', 'PAIR_PARTNER_INVITE_DECLINED', 'GUILD_UPDATE', 'GUILD_MESSAGE', 'GUILD_MISSION_UPDATE', 'GUILD_WAR_UPDATE', 'ERROR', 'INITIAL_STATE', 'INITIAL_STATE_START', 'INITIAL_STATE_CHUNK', 'CONNECTION_ESTABLISHED', 'MUTUAL_DISCONNECT_ENDED', 'OTHER_DEVICE_LOGIN', 'SCHEDULER_MIDNIGHT_COMPLETE', 'ARENA_ENTRANCE_AVAILABILITY_UPDATE', 'KATA_SERVER_RUNTIME_CONFIG_UPDATE'].includes(message.type)) {
+                            if (message.type && !['USER_UPDATE', 'USER_STATUS_UPDATE', 'GAME_UPDATE', 'NEGOTIATION_UPDATE', 'CHAT_MESSAGE', 'WAITING_ROOM_CHAT', 'GAME_CHAT', 'TOURNAMENT_UPDATE', 'RANKED_MATCHING_UPDATE', 'RANKED_MATCH_FOUND', 'PAIR_ROOM_UPDATE', 'PAIR_ROOM_CHAT', 'PAIR_PARTNER_INVITE_UPDATE', 'PAIR_PARTNER_INVITE_DECLINED', 'GUILD_UPDATE', 'GUILD_MESSAGE', 'GUILD_MISSION_UPDATE', 'GUILD_WAR_UPDATE', 'ERROR', 'INITIAL_STATE', 'INITIAL_STATE_START', 'INITIAL_STATE_CHUNK', 'CONNECTION_ESTABLISHED', 'MUTUAL_DISCONNECT_ENDED', 'OTHER_DEVICE_LOGIN', 'SCHEDULER_MIDNIGHT_COMPLETE', 'ARENA_ENTRANCE_AVAILABILITY_UPDATE', 'KATA_SERVER_RUNTIME_CONFIG_UPDATE', 'CHAMPIONSHIP_ABILITY_KATA_LADDER_UPDATE'].includes(message.type)) {
                                 console.warn('[WebSocket] Unhandled message type:', message.type);
                             }
                             return;
@@ -10069,6 +10095,7 @@ export const useApp = () => {
         adminLogs,
         gameModeAvailability,
         kataServerRuntimeConfig,
+        championshipAbilityKataLadder,
         rankedMatchingQueue,
         rankedMatchFound,
         pairRooms,

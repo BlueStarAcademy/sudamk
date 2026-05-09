@@ -8,6 +8,7 @@ import {
     championshipKataLevelForPly,
     championshipMistakeChancePercent,
 } from '../shared/constants/championshipRealMatch.js';
+import { getChampionshipAbilityKataLadder } from './championshipAbilityKataStore.js';
 import { processMove } from './goLogic.js';
 import { calculateScoreManually } from '../shared/utils/manualScoring.js';
 import { generateKataServerMoveCandidateDetails, isKataServerAvailable } from './kataServerService.js';
@@ -150,7 +151,11 @@ function chooseMistakeMove(board: BoardState, bestMove: Point, player: Player, k
     return null;
 }
 
-function buildPhaseStats(player: PlayerForTournament, rules: ChampionshipRealMatchRules) {
+function buildPhaseStats(
+    player: PlayerForTournament,
+    rules: ChampionshipRealMatchRules,
+    abilityKataLadder: ReturnType<typeof getChampionshipAbilityKataLadder>,
+) {
     const result: Record<ChampionshipKataPhase, { abilityScore: number; kataLevel: number }> = {
         opening: { abilityScore: 0, kataLevel: -30 },
         midgame: { abilityScore: 0, kataLevel: -30 },
@@ -158,7 +163,7 @@ function buildPhaseStats(player: PlayerForTournament, rules: ChampionshipRealMat
     };
     for (const phase of Object.keys(result) as ChampionshipKataPhase[]) {
         const ply = rules.phasePly[phase].from;
-        const levelInfo = championshipKataLevelForPly(ply, player.stats, rules);
+        const levelInfo = championshipKataLevelForPly(ply, player.stats, rules, abilityKataLadder);
         result[phase] = { abilityScore: levelInfo.abilityScore, kataLevel: levelInfo.kataLevel };
     }
     return result;
@@ -215,6 +220,8 @@ export async function generateChampionshipRealMatch(
         throw new Error('챔피언십 실제 대국 선수 정보가 올바르지 않습니다.');
     }
 
+    const abilityKataLadder = getChampionshipAbilityKataLadder();
+
     const userPlayer = players.find(p => p.id === user.id);
     const opponentPlayer = players.find(p => p.id !== user.id && match.players.some(mp => mp?.id === p.id));
     const p1 = players.find(p => p.id === match.players[0]!.id);
@@ -244,7 +251,7 @@ export async function generateChampionshipRealMatch(
     for (let ply = 1; ply <= rules.maxPly; ply++) {
         const color = ply % 2 === 1 ? Player.Black : Player.White;
         const actor = playerByColor[color];
-        const levelInfo = championshipKataLevelForPly(ply, actor.stats, rules);
+        const levelInfo = championshipKataLevelForPly(ply, actor.stats, rules, abilityKataLadder);
         const candidates = legalCandidates(boardState, color, koInfo, moves.length);
         let chosen =
             (await chooseMoveByKataServer({
@@ -358,8 +365,8 @@ export async function generateChampionshipRealMatch(
         winnerId: winner.id,
         events,
         phaseStatsByPlayerId: {
-            [black.id]: buildPhaseStats(black, rules),
-            [white.id]: buildPhaseStats(white, rules),
+            [black.id]: buildPhaseStats(black, rules, abilityKataLadder),
+            [white.id]: buildPhaseStats(white, rules, abilityKataLadder),
         },
         timeMetrics: {
             generatedAt: startedAt,

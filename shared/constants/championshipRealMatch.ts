@@ -61,45 +61,75 @@ export const CHAMPIONSHIP_KATA_PHASE_WEIGHTS: Record<ChampionshipKataPhase, Cham
 
 export type ChampionshipAbilityKataLadderRow = { minAbilityScore: number; kataLevel: number };
 
+/** 능력치 가중 점수가 `minAbilityScore` 이상이면 해당 `kataLevel`을 쓴다. 높은 임계값부터 나열한다. */
 export const CHAMPIONSHIP_ABILITY_KATA_LADDER: readonly ChampionshipAbilityKataLadderRow[] = [
-    { minAbilityScore: 1300, kataLevel: 7 },
-    { minAbilityScore: 1270, kataLevel: 6 },
-    { minAbilityScore: 1240, kataLevel: 5 },
-    { minAbilityScore: 1210, kataLevel: 4 },
-    { minAbilityScore: 1180, kataLevel: 3 },
-    { minAbilityScore: 1150, kataLevel: 2 },
-    { minAbilityScore: 1120, kataLevel: 1 },
-    { minAbilityScore: 1090, kataLevel: -1 },
-    { minAbilityScore: 1060, kataLevel: -2 },
-    { minAbilityScore: 1030, kataLevel: -3 },
-    { minAbilityScore: 1000, kataLevel: -4 },
-    { minAbilityScore: 970, kataLevel: -5 },
-    { minAbilityScore: 940, kataLevel: -6 },
-    { minAbilityScore: 910, kataLevel: -7 },
-    { minAbilityScore: 880, kataLevel: -8 },
-    { minAbilityScore: 850, kataLevel: -9 },
-    { minAbilityScore: 820, kataLevel: -10 },
-    { minAbilityScore: 790, kataLevel: -11 },
-    { minAbilityScore: 760, kataLevel: -12 },
-    { minAbilityScore: 730, kataLevel: -13 },
-    { minAbilityScore: 700, kataLevel: -14 },
-    { minAbilityScore: 670, kataLevel: -15 },
-    { minAbilityScore: 640, kataLevel: -16 },
-    { minAbilityScore: 610, kataLevel: -17 },
-    { minAbilityScore: 580, kataLevel: -18 },
-    { minAbilityScore: 550, kataLevel: -19 },
-    { minAbilityScore: 520, kataLevel: -20 },
-    { minAbilityScore: 490, kataLevel: -21 },
-    { minAbilityScore: 460, kataLevel: -22 },
-    { minAbilityScore: 430, kataLevel: -23 },
-    { minAbilityScore: 400, kataLevel: -24 },
-    { minAbilityScore: 370, kataLevel: -25 },
-    { minAbilityScore: 340, kataLevel: -26 },
-    { minAbilityScore: 310, kataLevel: -27 },
-    { minAbilityScore: 280, kataLevel: -28 },
-    { minAbilityScore: 250, kataLevel: -29 },
-    { minAbilityScore: 220, kataLevel: -30 },
+    { minAbilityScore: 1600, kataLevel: 9 },
+    { minAbilityScore: 1490, kataLevel: 8 },
+    { minAbilityScore: 1400, kataLevel: 7 },
+    { minAbilityScore: 1320, kataLevel: 6 },
+    { minAbilityScore: 1250, kataLevel: 5 },
+    { minAbilityScore: 1180, kataLevel: 4 },
+    { minAbilityScore: 1120, kataLevel: 3 },
+    { minAbilityScore: 1070, kataLevel: 2 },
+    { minAbilityScore: 1020, kataLevel: 1 },
+    { minAbilityScore: 970, kataLevel: -1 },
+    { minAbilityScore: 930, kataLevel: -2 },
+    { minAbilityScore: 890, kataLevel: -3 },
+    { minAbilityScore: 850, kataLevel: -4 },
+    { minAbilityScore: 815, kataLevel: -5 },
+    { minAbilityScore: 780, kataLevel: -6 },
+    { minAbilityScore: 745, kataLevel: -7 },
+    { minAbilityScore: 710, kataLevel: -8 },
+    { minAbilityScore: 675, kataLevel: -9 },
+    { minAbilityScore: 640, kataLevel: -10 },
+    { minAbilityScore: 605, kataLevel: -11 },
+    { minAbilityScore: 570, kataLevel: -12 },
+    { minAbilityScore: 535, kataLevel: -13 },
+    { minAbilityScore: 500, kataLevel: -14 },
+    { minAbilityScore: 470, kataLevel: -15 },
+    { minAbilityScore: 440, kataLevel: -16 },
+    { minAbilityScore: 410, kataLevel: -17 },
+    { minAbilityScore: 380, kataLevel: -18 },
+    { minAbilityScore: 360, kataLevel: -19 },
+    { minAbilityScore: 340, kataLevel: -20 },
+    { minAbilityScore: 320, kataLevel: -21 },
+    { minAbilityScore: 300, kataLevel: -22 },
+    { minAbilityScore: 280, kataLevel: -23 },
+    { minAbilityScore: 265, kataLevel: -24 },
+    { minAbilityScore: 250, kataLevel: -25 },
+    { minAbilityScore: 240, kataLevel: -26 },
+    { minAbilityScore: 230, kataLevel: -27 },
+    { minAbilityScore: 220, kataLevel: -28 },
+    { minAbilityScore: 210, kataLevel: -29 },
+    { minAbilityScore: 200, kataLevel: -30 },
 ] as const;
+
+export function normalizeChampionshipAbilityKataLadder(
+    input: readonly { minAbilityScore: unknown; kataLevel: unknown }[],
+): ChampionshipAbilityKataLadderRow[] {
+    if (!Array.isArray(input) || input.length === 0) {
+        throw new Error('사다리 행이 비어 있습니다.');
+    }
+    const rows: ChampionshipAbilityKataLadderRow[] = [];
+    for (const raw of input) {
+        const minAbilityScore = Math.round(Number(raw?.minAbilityScore));
+        const kataLevel = Math.round(Number(raw?.kataLevel));
+        if (!Number.isFinite(minAbilityScore) || !Number.isFinite(kataLevel)) {
+            continue;
+        }
+        rows.push({ minAbilityScore, kataLevel });
+    }
+    if (rows.length === 0) {
+        throw new Error('유효한 사다리 행이 없습니다.');
+    }
+    rows.sort((a, b) => b.minAbilityScore - a.minAbilityScore);
+    for (let i = 1; i < rows.length; i++) {
+        if (rows[i]!.minAbilityScore === rows[i - 1]!.minAbilityScore) {
+            throw new Error(`중복된 최소 능력치 점수: ${rows[i]!.minAbilityScore}`);
+        }
+    }
+    return rows;
+}
 
 export function championshipKataPhaseFromPly(
     totalPly: number,
@@ -126,9 +156,12 @@ export function championshipKataAbilityScore(
     return Math.round(raw);
 }
 
-export function championshipKataLevelFromAbilityScore(score: number): number {
+export function championshipKataLevelFromAbilityScore(
+    score: number,
+    ladder: readonly ChampionshipAbilityKataLadderRow[] = CHAMPIONSHIP_ABILITY_KATA_LADDER,
+): number {
     const rounded = Math.round(Number(score) || 0);
-    for (const row of CHAMPIONSHIP_ABILITY_KATA_LADDER) {
+    for (const row of ladder) {
         if (rounded >= row.minAbilityScore) return row.kataLevel;
     }
     return -30;
@@ -138,13 +171,14 @@ export function championshipKataLevelForPly(
     totalPly: number,
     stats: Partial<Record<CoreStat, number>>,
     rules: ChampionshipRealMatchRules = DEFAULT_CHAMPIONSHIP_REAL_MATCH_RULES,
+    abilityKataLadder: readonly ChampionshipAbilityKataLadderRow[] = CHAMPIONSHIP_ABILITY_KATA_LADDER,
 ): { phase: ChampionshipKataPhase; abilityScore: number; kataLevel: number } {
     const phase = championshipKataPhaseFromPly(totalPly, rules);
     const abilityScore = championshipKataAbilityScore(phase, stats);
     return {
         phase,
         abilityScore,
-        kataLevel: championshipKataLevelFromAbilityScore(abilityScore),
+        kataLevel: championshipKataLevelFromAbilityScore(abilityScore, abilityKataLadder),
     };
 }
 

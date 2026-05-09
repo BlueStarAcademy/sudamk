@@ -62,7 +62,7 @@ interface TournamentArenaProps {
 }
 
 const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
-    const { currentUserWithStatus, handlers, allUsers } = useAppContext();
+    const { currentUserWithStatus, handlers, allUsers, championshipAbilityKataLadder } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const isHandheldViewport = useIsHandheldDevice(1025);
     /** 네이티브 앱만이 아니라 좁은 뷰포트(모바일 브라우저)에서도 챔피언십 모바일 UI·하단 보상바를 쓴다 */
@@ -189,6 +189,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
                 <TournamentBracketErrorBoundary>
                     <TournamentBracket 
                         tournament={tournamentState}
+                        championshipAbilityKataLadder={championshipAbilityKataLadder}
                         currentUser={currentUserWithStatus}
                         onBack={async () => {
                             if (tournamentState.status === 'round_in_progress') {

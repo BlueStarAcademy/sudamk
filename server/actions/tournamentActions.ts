@@ -2208,6 +2208,9 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 claimedAt: now,
             };
 
+            // 던전 보상 수령은 CLAIM_TOURNAMENT_REWARD가 아닌 이 액션으로 처리되므로, 챔피언십 퀘스트는 여기서 동일하게 반영
+            updateQuestProgress(freshUser, 'championship_reward_claim', undefined, 1);
+
             // 캐시·휘발 상태는 즉시 갱신해 보상 모달과 후속 액션이 최신값을 사용하도록 한다.
             updateUserCache(freshUser);
             if (volatileState.activeTournaments?.[user.id]) {
@@ -2229,6 +2232,10 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                         'inventory',
                         'gold',
                         'diamonds',
+                        'quests',
+                        'neighborhoodRewardClaimed',
+                        'nationalRewardClaimed',
+                        'worldRewardClaimed',
                         'lastNeighborhoodTournament',
                         'lastNationalTournament',
                         'lastWorldTournament',

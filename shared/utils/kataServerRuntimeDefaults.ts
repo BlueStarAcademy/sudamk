@@ -1,5 +1,6 @@
 import {
     PAIR_PET_KATA_PHASE_PLY_9,
+    PAIR_PET_KATA_PHASE_PLY_11,
     PAIR_PET_KATA_PHASE_PLY_13,
     PAIR_PET_KATA_PHASE_PLY_19,
     PAIR_PET_KATA_PHASE_WEIGHTS,
@@ -68,6 +69,11 @@ export function buildDefaultKataServerRuntimeSnapshot(): KataServerRuntimeSnapsh
                 opening: { ...PAIR_PET_KATA_PHASE_PLY_9.opening },
                 midgame: { ...PAIR_PET_KATA_PHASE_PLY_9.midgame },
                 endgame: { ...PAIR_PET_KATA_PHASE_PLY_9.endgame },
+            },
+            phasePly11: {
+                opening: { ...PAIR_PET_KATA_PHASE_PLY_11.opening },
+                midgame: { ...PAIR_PET_KATA_PHASE_PLY_11.midgame },
+                endgame: { ...PAIR_PET_KATA_PHASE_PLY_11.endgame },
             },
             phasePly13: {
                 opening: { ...PAIR_PET_KATA_PHASE_PLY_13.opening },
