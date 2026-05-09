@@ -89,17 +89,21 @@ const pickFromTemplates = (templates: readonly string[], nickname: string): stri
     return template.replace('{nickname}', nickname);
 };
 
+/** 초·중·종을 각각 maxPly의 1/3 구간으로 나눈다 (예: 180수 → 1~60 / 61~120 / 121~180). */
+const phaseThirdStarts = (maxPly: number): { midStart: number; endStart: number } => {
+    const third = Math.max(1, Math.floor(maxPly / 3));
+    return { midStart: third + 1, endStart: 2 * third + 1 };
+};
+
 const phaseMetaForPly = (ply: number, maxPly: number): { phase: CommentaryPhase; label: string } => {
-    const midStart = maxPly <= 90 ? 31 : 51;
-    const endStart = maxPly <= 90 ? 61 : 101;
+    const { midStart, endStart } = phaseThirdStarts(maxPly);
     if (ply >= endStart) return { phase: 'end', label: '종반전' };
     if (ply >= midStart) return { phase: 'mid', label: '중반전' };
     return { phase: 'early', label: '초반전' };
 };
 
 const phaseStartMessageForPly = (ply: number, maxPly: number): { phase: CommentaryPhase; text: string } | null => {
-    const midStart = maxPly <= 90 ? 31 : 51;
-    const endStart = maxPly <= 90 ? 61 : 101;
+    const { midStart, endStart } = phaseThirdStarts(maxPly);
     if (ply === 1) {
         return { phase: 'early', text: '초반전이 시작되었습니다. 포석과 첫 전투 흐름을 살펴봅니다.' };
     }

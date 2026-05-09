@@ -87,6 +87,50 @@ function computeChampionshipDungeonUserRank(tournamentState: TournamentState, us
     return idx === -1 ? null : idx + 1;
 }
 
+type ChampionshipDungeonStandingRow = {
+    rank: number;
+    playerId: string;
+    nickname: string;
+    wins: number;
+    losses: number;
+};
+
+/** 던전 토너먼트 종료 화면용: 전체 참가자 순위(승→패→승률, `computeChampionshipDungeonUserRank`와 동일 정렬). */
+function buildChampionshipDungeonStandings(tournamentState: TournamentState): ChampionshipDungeonStandingRow[] {
+    if (!tournamentState.players?.length) return [];
+    const playerWins: Record<string, number> = {};
+    const playerLosses: Record<string, number> = {};
+    tournamentState.players.forEach((p) => {
+        playerWins[p.id] = 0;
+        playerLosses[p.id] = 0;
+    });
+    tournamentState.rounds.forEach((round) => {
+        round.matches?.forEach((m) => {
+            if (m.isFinished && m.winner) {
+                playerWins[m.winner.id] = (playerWins[m.winner.id] || 0) + 1;
+                const loser = m.players.find((p) => p && p.id !== m.winner?.id);
+                if (loser) playerLosses[loser.id] = (playerLosses[loser.id] || 0) + 1;
+            }
+        });
+    });
+    const rankedPlayers = [...tournamentState.players].sort((a, b) => {
+        if (playerWins[b.id] !== playerWins[a.id]) return playerWins[b.id] - playerWins[a.id];
+        if (playerLosses[a.id] !== playerLosses[b.id]) return playerLosses[a.id] - playerLosses[b.id];
+        const aGames = playerWins[a.id] + playerLosses[a.id];
+        const bGames = playerWins[b.id] + playerLosses[b.id];
+        const aWinRate = aGames > 0 ? playerWins[a.id] / aGames : 0;
+        const bWinRate = bGames > 0 ? playerWins[b.id] / bGames : 0;
+        return bWinRate - aWinRate;
+    });
+    return rankedPlayers.map((p, i) => ({
+        rank: i + 1,
+        playerId: p.id,
+        nickname: p.nickname ?? '선수',
+        wins: playerWins[p.id] ?? 0,
+        losses: playerLosses[p.id] ?? 0,
+    }));
+}
+
 /**
  * 챔피언십 던전: 해당 선수가 참가한 `isUserMatch` 종료 대국만 집계한 전적.
  * `players[].wins`가 이번 경기 직후 아직 갱신되지 않은 경우에도, 라운드·anchor 매치를 맞춰 이번 판을 포함한다.
@@ -172,7 +216,18 @@ const ChampionshipRealGoBoard: React.FC<{
     currentUser: UserWithStatus;
     tournamentFinished?: boolean;
     tournamentForResult?: TournamentState | null;
-}> = ({ match, currentUser, tournamentFinished = false, tournamentForResult = null }) => {
+    /** 던전 경기장: 바둑판 중앙 안내(카타 로딩·경기 전 대기) */
+    dungeonBoardCenterMode?: 'deep_breath' | 'players_entering' | null;
+    /** 모든 경기 종료 후 최종 순위표 */
+    finalStandings?: ChampionshipDungeonStandingRow[] | null;
+}> = ({
+    match,
+    currentUser,
+    tournamentFinished = false,
+    tournamentForResult = null,
+    dungeonBoardCenterMode = null,
+    finalStandings = null,
+}) => {
     const realGame = match?.championshipRealGame;
 
     // 서버는 START_TOURNAMENT_MATCH 시점에 이미 둔 결과(최종 보드)와 함께 currentPly=0으로 내려준다.
@@ -191,10 +246,13 @@ const ChampionshipRealGoBoard: React.FC<{
     }, [realGame?.boardState, realGame?.boardSize, realGame?.currentPly, realGame?.status]);
 
     if (!realGame) {
-        // 모든 경기가 끝난 뒤에는 시상식 안내, 그 외(경기 시작 직후 데이터 로딩)에는 입장 안내를 노출한다.
         const fallbackText = tournamentFinished
             ? '경기가 모두 종료되었습니다. 시상식이 치뤄지고 있습니다.'
-            : '경기장에 선수들이 입장하고 있습니다. 잠시만 기다려 주세요.';
+            : dungeonBoardCenterMode === 'deep_breath'
+              ? '대회에 참가하기 위해 심호흡을 하고있습니다.'
+              : dungeonBoardCenterMode === 'players_entering'
+                ? '선수들이 입장하고 있습니다. 잠시만 기다려주세요.'
+                : '경기장에 선수들이 입장하고 있습니다. 잠시만 기다려 주세요.';
         return (
             <div className="flex h-full w-full items-center justify-center bg-transparent px-4 text-center text-sm text-slate-300/85">
                 <span>{fallbackText}</span>
@@ -375,6 +433,32 @@ const ChampionshipRealGoBoard: React.FC<{
                                 <div className="mt-2.5 text-[11px] font-semibold text-cyan-200/85">
                                     {nextActionMessage}
                                 </div>
+
+                                {tournamentFinished && finalStandings && finalStandings.length > 0 ? (
+                                    <div className="mt-3 w-full max-w-[min(100%,22rem)] border-t border-amber-300/25 pt-2.5 text-left">
+                                        <div className="text-center text-[10px] font-black tracking-[0.28em] text-amber-200/90">
+                                            최종 결과 · 순위
+                                        </div>
+                                        <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto text-[11px]">
+                                            {finalStandings.map((row) => (
+                                                <li
+                                                    key={row.playerId}
+                                                    className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1 ${
+                                                        row.playerId === currentUser.id
+                                                            ? 'border-cyan-400/50 bg-cyan-950/40 text-cyan-50'
+                                                            : 'border-slate-600/40 bg-slate-900/50 text-slate-200'
+                                                    }`}
+                                                >
+                                                    <span className="font-black tabular-nums text-amber-200">{row.rank}위</span>
+                                                    <span className="min-w-0 flex-1 truncate font-bold">{row.nickname}</span>
+                                                    <span className="shrink-0 tabular-nums text-slate-300">
+                                                        {row.wins}승 {row.losses}패
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ) : null}
                             </div>
                         </div>
                     </div>
@@ -386,8 +470,8 @@ const ChampionshipRealGoBoard: React.FC<{
 
 const CHAMPIONSHIP_PHASE_META = [
     { key: 'opening' as const, label: '초반', ply19: 1, ply13: 1 },
-    { key: 'midgame' as const, label: '중반', ply19: 51, ply13: 31 },
-    { key: 'endgame' as const, label: '종반', ply19: 101, ply13: 61 },
+    { key: 'midgame' as const, label: '중반', ply19: 61, ply13: 31 },
+    { key: 'endgame' as const, label: '종반', ply19: 121, ply13: 61 },
 ];
 
 const CHAMPIONSHIP_CORE_STATS: CoreStat[] = [
@@ -2685,7 +2769,9 @@ const CommentaryPanel: React.FC<{
     isSimulating: boolean;
     footerSlot?: React.ReactNode;
     compact?: boolean;
-}> = ({ commentary, isSimulating, footerSlot, compact = false }) => {
+    /** 중계가 비어 있을 때(경기 전·로딩 중) 표시할 안내 문구 */
+    emptyStateHint?: string | null;
+}> = ({ commentary, isSimulating, footerSlot, compact = false, emptyStateHint = null }) => {
     const commentaryContainerRef = useRef<HTMLDivElement>(null);
     useEffect(() => {
         if (commentaryContainerRef.current) {
@@ -2732,7 +2818,7 @@ const CommentaryPanel: React.FC<{
                                 compact ? 'text-[11px]' : ''
                             }`}
                         >
-                            경기 시작 대기 중...
+                            {emptyStateHint ?? '경기 시작 대기 중...'}
                         </p>
                     )}
                 </div>
@@ -4288,30 +4374,17 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     /** 카운트다운 0 시 먼저 다음 회차 탭으로 전환한 뒤 시합 시작 (순서: 대진표 탭 이동 → 대국자 표시 → 시합 시작) */
     const [pendingRoundSwitchTo, setPendingRoundSwitchTo] = useState<number | null>(null);
     const pendingMatchStartRef = useRef<{ type: TournamentType } | null>(null);
-    /** 챔피언십 던전: 이전 경기 종료 후 「다음 경기」 클릭 시 5초 대기(연속 클릭 방지) */
-    const [championshipNextMatchPrepareSeconds, setChampionshipNextMatchPrepareSeconds] = useState<number | null>(null);
-    const championshipPrepareChainRef = useRef<number | null>(null);
-    const championshipPrepareActiveRef = useRef(false);
+    /** 던전: 경기 시작/다음 경기 클릭 후 서버 기보 준비 완료·round_in_progress 수신까지 무기한 비활성 */
+    const [championshipAwaitingKataLoad, setChampionshipAwaitingKataLoad] = useState(false);
+    /** 동일 클릭으로 START_TOURNAMENT_MATCH 중복 전송 방지(리렌더 전 연타) */
+    const championshipMatchStartLockRef = useRef(false);
 
     useEffect(() => {
         return () => {
-            if (championshipPrepareChainRef.current) {
-                clearTimeout(championshipPrepareChainRef.current);
-                championshipPrepareChainRef.current = null;
-            }
-            championshipPrepareActiveRef.current = false;
+            championshipMatchStartLockRef.current = false;
+            setChampionshipAwaitingKataLoad(false);
         };
     }, []);
-
-    useEffect(() => {
-        if (tournament?.status !== 'round_in_progress') return;
-        if (championshipPrepareChainRef.current) {
-            clearTimeout(championshipPrepareChainRef.current);
-            championshipPrepareChainRef.current = null;
-        }
-        championshipPrepareActiveRef.current = false;
-        setChampionshipNextMatchPrepareSeconds(null);
-    }, [tournament?.status]);
 
     useEffect(() => {
         if (!tournament?.type || !currentUser) return;
@@ -5331,7 +5404,16 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         }
         return safeRounds[0]?.matches[0] || null;
     }, [isSimulating, currentSimMatch, tournament.status, tournament.nextRoundStartTime, tournament.type, safeRounds, lastFinishedUserMatch, pendingRoundSwitchTo]);
-    
+
+    useEffect(() => {
+        if (!championshipAwaitingKataLoad) return;
+        const rg = matchForDisplay?.championshipRealGame;
+        if (rg && tournament?.status === 'round_in_progress') {
+            championshipMatchStartLockRef.current = false;
+            setChampionshipAwaitingKataLoad(false);
+        }
+    }, [championshipAwaitingKataLoad, matchForDisplay?.championshipRealGame, tournament?.status]);
+
     // 유저의 다음 경기 찾기 (경기 시작 전 상태 확인용)
     const upcomingUserMatch = useMemo(() => {
         return safeRounds.flatMap(r => r.matches).find(m => m.isUserMatch && !m.isFinished);
@@ -5510,8 +5592,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const realGame = matchForDisplay?.championshipRealGame;
         if (realGame) {
             const ply = realGame.currentPly || displayTournament.timeElapsed || 1;
-            const openingEnd = realGame.boardSize === 13 ? 30 : 50;
-            const midEnd = realGame.boardSize === 13 ? 60 : 100;
+            const maxPly = Math.max(1, realGame.maxPly || 1);
+            const third = Math.max(1, Math.floor(maxPly / 3));
+            const openingEnd = third;
+            const midEnd = 2 * third;
             if (ply <= openingEnd) return 'early';
             if (ply <= midEnd) return 'mid';
             return 'end';
@@ -5655,13 +5739,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             }
 
             const buttonLabel = hasJustFinishedUserMatch ? '다음 경기' : '경기 시작';
-            const isPrepareCooldown =
-                isDungeonChampionship && hasJustFinishedUserMatch && championshipNextMatchPrepareSeconds !== null;
+            const isMatchStartBusy = isDungeonChampionship && championshipAwaitingKataLoad;
 
-            if (isPrepareCooldown) {
+            if (isMatchStartBusy) {
                 return (
                     <Button disabled colorScheme="none" className={championshipFooterMutedButton}>
-                        경기 준비중 · {championshipNextMatchPrepareSeconds}초
+                        경기 준비 중..
                     </Button>
                 );
             }
@@ -5672,32 +5755,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         onClick={() => {
                             setChampionshipSidebarTab('commentary');
                             const type = tournament?.type ?? 'neighborhood';
-                            if (isDungeonChampionship && hasJustFinishedUserMatch) {
-                                if (
-                                    championshipPrepareActiveRef.current ||
-                                    championshipNextMatchPrepareSeconds !== null ||
-                                    championshipPrepareChainRef.current
-                                ) {
+                            if (isDungeonChampionship) {
+                                if (championshipMatchStartLockRef.current || championshipAwaitingKataLoad) {
                                     return;
                                 }
-                                championshipPrepareActiveRef.current = true;
-                                setChampionshipNextMatchPrepareSeconds(5);
-                                let remaining = 5;
-                                const schedule = () => {
-                                    championshipPrepareChainRef.current = window.setTimeout(() => {
-                                        remaining -= 1;
-                                        if (remaining <= 0) {
-                                            championshipPrepareChainRef.current = null;
-                                            championshipPrepareActiveRef.current = false;
-                                            setChampionshipNextMatchPrepareSeconds(null);
-                                            onAction({ type: 'START_TOURNAMENT_MATCH', payload: { type } });
-                                        } else {
-                                            setChampionshipNextMatchPrepareSeconds(remaining);
-                                            schedule();
-                                        }
-                                    }, 1000);
-                                };
-                                schedule();
+                                championshipMatchStartLockRef.current = true;
+                                setChampionshipAwaitingKataLoad(true);
+                                onAction({ type: 'START_TOURNAMENT_MATCH', payload: { type } });
                                 return;
                             }
                             onAction({ type: 'START_TOURNAMENT_MATCH', payload: { type } });
@@ -5719,20 +5783,18 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const footerButtons = renderFooterButton();
     
     // 자동 다음 경기 카운트다운 표시
-    // 경기가 진행 중일 때는 "경기 진행중" 표시
+    // 경기가 진행 중일 때는 "경기 진행 중..." 표시
     const countdownDisplay = tournament?.status === 'round_in_progress' ? (
         <div
             className={`flex items-center justify-center font-bold text-blue-400 ${isMobile ? 'gap-1 text-center text-xs leading-tight' : 'gap-2 text-lg'}`}
         >
-            <span>경기 진행중</span>
+            <span>경기 진행 중...</span>
         </div>
-    ) : championshipNextMatchPrepareSeconds !== null ? (
+    ) : championshipAwaitingKataLoad ? (
         <div
             className={`flex items-center justify-center font-bold text-cyan-300 ${isMobile ? 'gap-1 text-center text-xs leading-tight' : 'gap-2 text-lg'}`}
         >
-            <span>
-                경기 준비중 · {championshipNextMatchPrepareSeconds}초
-            </span>
+            <span>경기 준비 중..</span>
         </div>
     ) : autoNextCountdown !== null ? (
         <div
@@ -5751,6 +5813,47 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         displayTournament.status === 'complete' ||
         displayTournament.status === 'eliminated' ||
         (championshipAllMatchesFinished && displayTournament.status !== 'round_in_progress');
+
+    const isDungeonChampionshipVenue = tournament.currentStageAttempt != null;
+
+    const championshipDungeonBoardCenterMode = useMemo((): 'deep_breath' | 'players_entering' | null => {
+        if (!isDungeonChampionshipVenue || championshipFinished) return null;
+        const noRealGame = !matchForDisplay?.championshipRealGame;
+        if (!noRealGame) return null;
+        if (championshipAwaitingKataLoad) return 'players_entering';
+        if (tournament.status === 'bracket_ready' || tournament.status === 'round_complete') return 'deep_breath';
+        return null;
+    }, [
+        isDungeonChampionshipVenue,
+        championshipFinished,
+        matchForDisplay?.championshipRealGame,
+        tournament.status,
+        championshipAwaitingKataLoad,
+    ]);
+
+    const championshipFinalStandingsRows = useMemo(() => {
+        if (!championshipFinished) return null;
+        return buildChampionshipDungeonStandings(displayTournament);
+    }, [championshipFinished, displayTournament]);
+
+    const championshipCommentaryEmptyHint = useMemo(() => {
+        if (!isDungeonChampionshipVenue) return null;
+        if (championshipAwaitingKataLoad) {
+            return '선수들이 입장하고 있습니다. 잠시만 기다려주세요.';
+        }
+        if (
+            (tournament.status === 'bracket_ready' || tournament.status === 'round_complete') &&
+            !matchForDisplay?.championshipRealGame
+        ) {
+            return '대회에 참가하기 위해 심호흡을 하고있습니다.';
+        }
+        return null;
+    }, [
+        isDungeonChampionshipVenue,
+        championshipAwaitingKataLoad,
+        tournament.status,
+        matchForDisplay?.championshipRealGame,
+    ]);
 
     const championshipDungeonExitVisible =
         tournament.currentStageAttempt != null && !championshipFinished;
@@ -6035,6 +6138,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     commentary={displayTournament.currentMatchCommentary}
                     isSimulating={displayTournament.status === 'round_in_progress'}
                     compact={compact}
+                    emptyStateHint={championshipCommentaryEmptyHint}
                 />
             ) : tournament.type === 'neighborhood' ? (
                 <RoundRobinDisplay
@@ -6118,6 +6222,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 commentary={displayTournament.currentMatchCommentary}
                 isSimulating={displayTournament.status === 'round_in_progress'}
                 compact={isMobile}
+                emptyStateHint={championshipCommentaryEmptyHint}
             />
         </div>
     );
@@ -6148,18 +6253,20 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         if (!rg?.moves?.length) return null;
         const ply = rg.currentPly ?? 0;
         const simming = displayTournament?.status === 'round_in_progress';
+        const showAuthoritativeFinal = rg.status === 'finished';
 
-        if (simming) {
+        if (simming || rg.status === 'scoring' || (rg.status === 'playing' && ply > 0)) {
             if (ply <= 0) return null;
             return championshipAreaScoresAtPly(rg.boardSize, rg.moves, Math.min(ply, rg.moves.length));
         }
 
-        if (rg.finalScore) {
+        if (showAuthoritativeFinal && rg.finalScore) {
             return { black: rg.finalScore.black, white: rg.finalScore.white };
         }
         return null;
     }, [
         displayTournament?.status,
+        matchForDisplay?.championshipRealGame?.status,
         matchForDisplay?.championshipRealGame?.boardSize,
         matchForDisplay?.championshipRealGame?.moves,
         matchForDisplay?.championshipRealGame?.currentPly,
@@ -6263,7 +6370,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const remainingPlyToScoring = realGameForCountdown
         ? Math.max(0, realGameForCountdown.maxPly - realGameForCountdown.currentPly)
         : null;
-    const maxPlyToScoring = realGameForCountdown?.maxPly ?? 150;
+    const maxPlyToScoring = realGameForCountdown?.maxPly ?? 180;
     const championshipScoringCountdownPanel = (
         <div className="flex w-36 shrink-0 flex-col items-center justify-center rounded-lg border-2 border-stone-600/80 bg-gradient-to-br from-gray-800 to-black px-3 py-2 text-center shadow-lg">
             <div className="text-[11px] font-bold tracking-wide text-amber-100">계가까지</div>
@@ -6316,7 +6423,14 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                         abilityKataLadder={abilityKataLadder}
                                     />
                                     <div className="relative flex h-full min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-transparent p-0">
-                                        <ChampionshipRealGoBoard match={matchForDisplay} currentUser={currentUser} tournamentFinished={championshipFinished} tournamentForResult={displayTournament} />
+                                        <ChampionshipRealGoBoard
+                                            match={matchForDisplay}
+                                            currentUser={currentUser}
+                                            tournamentFinished={championshipFinished}
+                                            tournamentForResult={displayTournament}
+                                            dungeonBoardCenterMode={championshipDungeonBoardCenterMode}
+                                            finalStandings={championshipFinalStandingsRows}
+                                        />
                                     </div>
                                     <ChampionshipAbilityPlayerPanel
                                         player={p2}
@@ -6535,16 +6649,27 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const realGame = matchForDisplay?.championshipRealGame;
         if (!realGame) return null;
         const remainingPly = Math.max(0, (realGame.maxPly ?? 0) - (realGame.currentPly ?? 0));
-        const maxPly = realGame.maxPly ?? 150;
+        const maxPly = realGame.maxPly ?? 180;
         const blackId = realGame.blackPlayerId;
         const whiteId = realGame.whitePlayerId;
         const p1IsBlack = !!(p1?.id && p1.id === blackId);
         const p1IsWhite = !!(p1?.id && p1.id === whiteId);
         const p2IsBlack = !!(p2?.id && p2.id === blackId);
         const p2IsWhite = !!(p2?.id && p2.id === whiteId);
-        const finalScore = realGame.finalScore;
-        const p1Score = finalScore ? (p1IsBlack ? finalScore.black : p1IsWhite ? finalScore.white : null) : null;
-        const p2Score = finalScore ? (p2IsBlack ? finalScore.black : p2IsWhite ? finalScore.white : null) : null;
+        const p1Score = championshipPanelScores
+            ? p1IsBlack
+                ? championshipPanelScores.black
+                : p1IsWhite
+                  ? championshipPanelScores.white
+                  : null
+            : null;
+        const p2Score = championshipPanelScores
+            ? p2IsBlack
+                ? championshipPanelScores.black
+                : p2IsWhite
+                  ? championshipPanelScores.white
+                  : null
+            : null;
 
         const renderScoreCell = (
             isWhite: boolean,
@@ -6595,6 +6720,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 currentUser={currentUser}
                 tournamentFinished={championshipFinished}
                 tournamentForResult={displayTournament}
+                dungeonBoardCenterMode={championshipDungeonBoardCenterMode}
+                finalStandings={championshipFinalStandingsRows}
             />
         </div>
     );
@@ -6746,7 +6873,14 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         <div className="flex min-h-0 flex-1 flex-row gap-2 overflow-hidden">
                             <div className="relative flex min-w-0 flex-1 flex-col items-center justify-center overflow-hidden rounded-xl border border-slate-600/70 bg-gradient-to-b from-slate-950/95 to-black/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
                                 <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
-                                    <ChampionshipRealGoBoard match={matchForDisplay} currentUser={currentUser} tournamentFinished={championshipFinished} tournamentForResult={displayTournament} />
+                                    <ChampionshipRealGoBoard
+                                        match={matchForDisplay}
+                                        currentUser={currentUser}
+                                        tournamentFinished={championshipFinished}
+                                        tournamentForResult={displayTournament}
+                                        dungeonBoardCenterMode={championshipDungeonBoardCenterMode}
+                                        finalStandings={championshipFinalStandingsRows}
+                                    />
                                 </div>
                             </div>
                             <ChampionshipAbilitySidePanel
@@ -6778,7 +6912,14 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
                         <div className="relative flex min-h-[min(56dvh,520px)] w-full flex-1 flex-col items-center justify-center overflow-auto rounded-lg border border-gray-600/75 bg-slate-950/92 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-2">
                             <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
-                                <ChampionshipRealGoBoard match={matchForDisplay} currentUser={currentUser} tournamentFinished={championshipFinished} tournamentForResult={displayTournament} />
+                                <ChampionshipRealGoBoard
+                                    match={matchForDisplay}
+                                    currentUser={currentUser}
+                                    tournamentFinished={championshipFinished}
+                                    tournamentForResult={displayTournament}
+                                    dungeonBoardCenterMode={championshipDungeonBoardCenterMode}
+                                    finalStandings={championshipFinalStandingsRows}
+                                />
                             </div>
                         </div>
                     </div>

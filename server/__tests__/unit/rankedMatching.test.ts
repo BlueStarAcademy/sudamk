@@ -6,6 +6,7 @@ import { createDefaultUser } from '../../initialData.js';
 // Mock db and gameModes so tryMatchPlayers can run without real DB
 vi.mock('../../db.js', () => ({
     getUser: vi.fn(),
+    updateUser: vi.fn(),
     saveGame: vi.fn(),
 }));
 vi.mock('../../gameModes.js', () => ({
@@ -21,6 +22,7 @@ vi.mock('../../gameModes.js', () => ({
 }));
 vi.mock('../../socket.js', () => ({
     broadcast: vi.fn(),
+    broadcastUserUpdate: vi.fn(),
     broadcastToGameParticipants: vi.fn(),
     broadcastLiveGameToList: vi.fn(),
 }));
@@ -62,6 +64,7 @@ describe('ranked matching', () => {
             if (id === 'user-3') return Promise.resolve(u3);
             return Promise.resolve(null);
         });
+        vi.mocked(db.updateUser).mockResolvedValue(undefined);
     });
 
     it('tryMatchPlayers removes two users from queue and sets in-game status when common mode and rating within 400', async () => {

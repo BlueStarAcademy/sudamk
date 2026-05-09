@@ -13,11 +13,11 @@ export type ChampionshipRealMatchRules = {
 export const CHAMPIONSHIP_REAL_MATCH_RULES_19: ChampionshipRealMatchRules = {
     boardSize: 19,
     phasePly: {
-        opening: { from: 1, to: 50 },
-        midgame: { from: 51, to: 100 },
-        endgame: { from: 101, to: 150 },
+        opening: { from: 1, to: 60 },
+        midgame: { from: 61, to: 120 },
+        endgame: { from: 121, to: 180 },
     },
-    maxPly: 150,
+    maxPly: 180,
 };
 
 export const CHAMPIONSHIP_REAL_MATCH_RULES_13: ChampionshipRealMatchRules = {

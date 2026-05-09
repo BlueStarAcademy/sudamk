@@ -38,13 +38,13 @@ describe('championship real match policy', () => {
         }
     });
 
-    it('uses 19-line phase boundaries up to 150 moves', () => {
+    it('uses 19-line phase boundaries in three 60-move thirds up to 180 moves', () => {
         expect(championshipKataLevelForPly(1, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_19).phase).toBe('opening');
-        expect(championshipKataLevelForPly(50, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_19).phase).toBe('opening');
-        expect(championshipKataLevelForPly(51, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_19).phase).toBe('midgame');
-        expect(championshipKataLevelForPly(100, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_19).phase).toBe('midgame');
-        expect(championshipKataLevelForPly(101, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_19).phase).toBe('endgame');
-        expect(championshipKataLevelForPly(150, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_19).phase).toBe('endgame');
+        expect(championshipKataLevelForPly(60, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_19).phase).toBe('opening');
+        expect(championshipKataLevelForPly(61, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_19).phase).toBe('midgame');
+        expect(championshipKataLevelForPly(120, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_19).phase).toBe('midgame');
+        expect(championshipKataLevelForPly(121, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_19).phase).toBe('endgame');
+        expect(championshipKataLevelForPly(180, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_19).phase).toBe('endgame');
     });
 
     it('applies condition to mistake and best move chances', () => {
