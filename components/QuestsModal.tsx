@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect, useId } from 'react';
 import { UserWithStatus, Quest, ServerAction, QuestLog, QuestReward } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
-import { DAILY_MILESTONE_THRESHOLDS, WEEKLY_MILESTONE_THRESHOLDS, MONTHLY_MILESTONE_THRESHOLDS, DAILY_MILESTONE_REWARDS, WEEKLY_MILESTONE_REWARDS, MONTHLY_MILESTONE_REWARDS, CONSUMABLE_ITEMS, ACHIEVEMENT_TRACKS } from '../constants';
+import { DAILY_MILESTONE_THRESHOLDS, WEEKLY_MILESTONE_THRESHOLDS, MONTHLY_MILESTONE_THRESHOLDS, DAILY_MILESTONE_REWARDS, WEEKLY_MILESTONE_REWARDS, MONTHLY_MILESTONE_REWARDS, CONSUMABLE_ITEMS, ACHIEVEMENT_TRACKS, isChampionshipDungeonStageFirstMet } from '../constants';
 import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, isInsideSudamrAdUi } from '../constants/ads.js';
 import { clampQuestProgressToTarget } from '../utils/questProgressCap.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
@@ -164,6 +164,9 @@ const AchievementTrackPanel: React.FC<{
         }
         if (stage.requirement.type === 'material_box_opens') {
             return (currentUser.quests?.achievements?.totalMaterialBoxOpens ?? 0) >= stage.requirement.opens;
+        }
+        if (stage.requirement.type === 'championship_dungeon_stage_first') {
+            return isChampionshipDungeonStageFirstMet(currentUser, stage.requirement.tournamentType, stage.requirement.stage);
         }
         return false;
     };
@@ -840,6 +843,8 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
                 met = (currentUser.quests?.achievements?.totalEquipmentBoxOpens ?? 0) >= requirement.opens;
             } else if (requirement.type === 'material_box_opens') {
                 met = (currentUser.quests?.achievements?.totalMaterialBoxOpens ?? 0) >= requirement.opens;
+            } else if (requirement.type === 'championship_dungeon_stage_first') {
+                met = isChampionshipDungeonStageFirstMet(currentUser, requirement.tournamentType, requirement.stage);
             }
 
             if (met) return true;

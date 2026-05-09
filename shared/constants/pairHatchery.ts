@@ -52,7 +52,7 @@ export const PAIR_HATCHERY_SLOT_DEFS: PairHatcherySlotDef[] = [
         unlockWinsRequired: 30,
         unlockGold: 10_000,
         requiresFunctionVip: false,
-        levelRule: { kind: 'default' },
+        levelRule: { kind: 'random', min: 1, max: 3 },
     },
     {
         slotIndex: 2,
@@ -61,7 +61,7 @@ export const PAIR_HATCHERY_SLOT_DEFS: PairHatcherySlotDef[] = [
         unlockWinsRequired: 150,
         unlockGold: 25_000,
         requiresFunctionVip: false,
-        levelRule: { kind: 'random', min: 1, max: 5 },
+        levelRule: { kind: 'random', min: 2, max: 5 },
     },
     {
         slotIndex: 3,

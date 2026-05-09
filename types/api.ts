@@ -377,6 +377,8 @@ export type ServerAction =
     | { type: 'PAIR_SEND_ROOM_CHAT', payload: { roomId: string; text: string; scope: 'room' | 'team' } }
     | { type: 'PAIR_SET_SEAT_ASSIGNMENTS', payload: { roomId: string; teamA: string[]; teamB: string[] } }
     | { type: 'PAIR_START_MATCH', payload?: { mode?: GameMode; settings?: GameSettings } }
+    /** 페어 경기장 펫 랭킹전: 방 생성 UI 없이 한 번에 큐(매칭 중) 진입 */
+    | { type: 'PAIR_QUEUE_PET_RANKED'; payload: { mode: GameMode } }
     | { type: 'PAIR_CANCEL_PAIR_PET_MATCHING', payload?: never }
     | { type: 'PAIR_PROPOSE_DUO_RANKED_MATCH', payload: { mode: GameMode } }
     | { type: 'PAIR_ACK_DUO_RANKED_MATCH', payload: { accept: boolean } }
@@ -505,7 +507,10 @@ export type ServerAction =
     | { type: 'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL', payload?: never }
     | { type: 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ', payload?: never }
     /** 관리자 본인: VIP 헤더·혜택 UI 테스트용 (만료 시각을 강제로 켜거나 끔) */
-    | { type: 'ADMIN_SET_VIP_TEST_FLAGS'; payload: { rewardVip: boolean; functionVip: boolean; vvip: boolean } }
+    | {
+          type: 'ADMIN_SET_VIP_TEST_FLAGS';
+          payload: { rewardVip: boolean; functionVip: boolean; vvip: boolean; removeAds: boolean };
+      }
     | { type: 'ADMIN_SET_DIAMOND_PACKAGE_TEST'; payload: { tier: 1 | 2 | 3; on: boolean } }
     | { type: 'UPDATE_MBTI', payload: { mbti: string, isMbtiPublic: boolean, isFirstTime?: boolean } }
     | { type: 'RESET_STAT_POINTS', payload?: never }

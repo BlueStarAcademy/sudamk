@@ -32,31 +32,41 @@ export const CHAMPIONSHIP_REAL_MATCH_RULES_13: ChampionshipRealMatchRules = {
 
 export const DEFAULT_CHAMPIONSHIP_REAL_MATCH_RULES = CHAMPIONSHIP_REAL_MATCH_RULES_19;
 
+/** 포석·중원·끝내기 구간별 능력치 가중합 (집중력·사고속도·판단력·계산력·전투력·안정감) */
 export const CHAMPIONSHIP_KATA_PHASE_WEIGHTS: Record<ChampionshipKataPhase, ChampionshipCoreStatsSix> = {
     opening: {
-        [CoreStat.Concentration]: 0.2,
-        [CoreStat.ThinkingSpeed]: 0.2,
-        [CoreStat.Judgment]: 0.2,
-        [CoreStat.Calculation]: 0.2,
-        [CoreStat.CombatPower]: 0.3,
-        [CoreStat.Stability]: 0.3,
+        [CoreStat.Concentration]: 0.4,
+        [CoreStat.ThinkingSpeed]: 0.3,
+        [CoreStat.Judgment]: 0.4,
+        [CoreStat.Calculation]: 0.3,
+        [CoreStat.CombatPower]: 0.1,
+        [CoreStat.Stability]: 0.5,
     },
     midgame: {
-        [CoreStat.Concentration]: 0.4,
-        [CoreStat.ThinkingSpeed]: 0.4,
-        [CoreStat.Judgment]: 0.5,
-        [CoreStat.Calculation]: 0.3,
-        [CoreStat.CombatPower]: 0.6,
-        [CoreStat.Stability]: 0.3,
+        [CoreStat.Concentration]: 0.3,
+        [CoreStat.ThinkingSpeed]: 0.3,
+        [CoreStat.Judgment]: 0.4,
+        [CoreStat.Calculation]: 0.1,
+        [CoreStat.CombatPower]: 0.8,
+        [CoreStat.Stability]: 0.1,
     },
     endgame: {
-        [CoreStat.Concentration]: 0.4,
+        [CoreStat.Concentration]: 0.3,
         [CoreStat.ThinkingSpeed]: 0.4,
-        [CoreStat.Judgment]: 0.3,
-        [CoreStat.Calculation]: 0.5,
+        [CoreStat.Judgment]: 0.1,
+        [CoreStat.Calculation]: 0.6,
         [CoreStat.CombatPower]: 0.1,
-        [CoreStat.Stability]: 0.4,
+        [CoreStat.Stability]: 0.5,
     },
+};
+
+/**
+ * 시간 기반 시뮬레이션(초반 1–15초 / 중반 16–35초 / 종반 36–50초)의 페이즈 능력치 — 위 카타 opening/midgame/endgame과 동일 계수.
+ */
+export const CHAMPIONSHIP_SIMULATION_PHASE_STAT_WEIGHTS: Record<'early' | 'mid' | 'end', ChampionshipCoreStatsSix> = {
+    early: CHAMPIONSHIP_KATA_PHASE_WEIGHTS.opening,
+    mid: CHAMPIONSHIP_KATA_PHASE_WEIGHTS.midgame,
+    end: CHAMPIONSHIP_KATA_PHASE_WEIGHTS.endgame,
 };
 
 export type ChampionshipAbilityKataLadderRow = { minAbilityScore: number; kataLevel: number };
@@ -167,6 +177,7 @@ export function championshipKataLevelFromAbilityScore(
     return -30;
 }
 
+/** `totalPly`로 정한 페이즈의 가중 능력치 점수를 `abilityKataLadder`에 매핑해 KATA 레벨을 구합니다(페이즈마다 점수 분포가 달라짐). */
 export function championshipKataLevelForPly(
     totalPly: number,
     stats: Partial<Record<CoreStat, number>>,

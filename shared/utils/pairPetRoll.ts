@@ -2,6 +2,11 @@ import { CoreStat, ItemGrade } from '../types/enums.js';
 import type { PairPetDisposition, PairPetMeta, PairPetSpecialization, PairPetRpsAttribute } from '../types/entities.js';
 import { CORE_STATS_DATA } from '../constants/items.js';
 import { PAIR_PET_MAX_LEVEL, pairPetLevelUpStatBudget } from '../constants/pairPetGrade.js';
+import {
+    PAIR_PET_BIRTH_CORE_MAX,
+    PAIR_PET_BIRTH_CORE_MIN,
+    PAIR_PET_BIRTH_CORE_TOTAL,
+} from './pairPetKataStatsFromMeta.js';
 
 const CORE_ORDER: CoreStat[] = [
     CoreStat.Concentration,
@@ -103,6 +108,44 @@ function rollPairPetDispositionForHatch(rng: () => number): PairPetDisposition {
 }
 
 /** 0~3: pct형 특화 10~20, 4~7: 고정 효과 특화 */
+/** 부화 시: 각 코어 30~70, 여섯 합 300인 정수 분배(남는 120을 코어당 +40까지 무작위 누적). */
+export function rollBirthCoreBasesMin30Sum300(rng: () => number): Record<CoreStat, number> {
+    const extraPool = PAIR_PET_BIRTH_CORE_TOTAL - PAIR_PET_BIRTH_CORE_MIN * CORE_ORDER.length;
+    const extraCapPerCore = PAIR_PET_BIRTH_CORE_MAX - PAIR_PET_BIRTH_CORE_MIN;
+    const extras = new Array(CORE_ORDER.length).fill(0);
+    for (let k = 0; k < extraPool; k += 1) {
+        const candidates: number[] = [];
+        for (let i = 0; i < CORE_ORDER.length; i += 1) {
+            if (extras[i]! < extraCapPerCore) candidates.push(i);
+        }
+        const pick = candidates[Math.floor(rng() * candidates.length)]!;
+        extras[pick]! += 1;
+    }
+    const out = {} as Record<CoreStat, number>;
+    for (let i = 0; i < CORE_ORDER.length; i += 1) {
+        out[CORE_ORDER[i]!] = PAIR_PET_BIRTH_CORE_MIN + extras[i]!;
+    }
+    return out;
+}
+
+export function backfillPairPetBirthCoreBases(itemId: string, createdAt: number): Record<CoreStat, number> {
+    const rng = mulberry32(hashSeed(`pair-pet-birth-core|${itemId}|${createdAt}`));
+    return rollBirthCoreBasesMin30Sum300(rng);
+}
+
+function isValidBirthCoreBases(b: PairPetMeta['birthCoreBases']): b is Record<CoreStat, number> {
+    if (!b) return false;
+    let sum = 0;
+    for (const s of CORE_ORDER) {
+        const v = b[s];
+        if (typeof v !== 'number' || !Number.isFinite(v)) return false;
+        const n = Math.round(v);
+        if (n < PAIR_PET_BIRTH_CORE_MIN || n > PAIR_PET_BIRTH_CORE_MAX) return false;
+        sum += n;
+    }
+    return sum === PAIR_PET_BIRTH_CORE_TOTAL;
+}
+
 function rollPairPetSpecializationForHatch(rng: () => number): PairPetSpecialization {
     const specKind = Math.floor(rng() * 8);
     if (specKind >= 4) {
@@ -127,6 +170,7 @@ export function rollPairPetMetaForHatch(): PairPetMeta {
         xp: 0,
         disposition,
         specialization,
+        birthCoreBases: rollBirthCoreBasesMin30Sum300(rng),
         levelUpCoreBonuses: {},
         rpsAttribute: (1 + Math.floor(rng() * 3)) as PairPetRpsAttribute,
     };
@@ -214,6 +258,9 @@ export function resolvePairPetMetaFromInventoryRow(row: {
         xp: lvl >= PAIR_PET_MAX_LEVEL ? 0 : raw.xp ?? 0,
         levelUpCoreBonuses: { ...existing },
     };
+    if (!isValidBirthCoreBases(merged.birthCoreBases)) {
+        merged.birthCoreBases = backfillPairPetBirthCoreBases(row.id, row.createdAt ?? Date.now());
+    }
     if (lvl > 1 && sumB === 0) {
         merged.levelUpCoreBonuses = backfillPairPetLevelUpCoreBonuses(row.id, row.createdAt ?? Date.now(), lvl, grade);
     }
@@ -245,6 +292,7 @@ export function derivePairPetMetaFallback(itemId: string, createdAt: number): Pa
         xp: 0,
         disposition,
         specialization,
+        birthCoreBases: rollBirthCoreBasesMin30Sum300(rng),
         levelUpCoreBonuses: {},
         rpsAttribute: (1 + Math.floor(rng() * 3)) as PairPetRpsAttribute,
     };

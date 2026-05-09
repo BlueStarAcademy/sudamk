@@ -81,6 +81,7 @@ import {
     getPairPetDisplayName,
     isPairPetMaterial,
     isPairEggItem,
+    findFirstHatchablePairEgg,
     isPairSoulStoneItem,
     pairSoulTierFromMaterialName,
     pairSoulTemplateIdFromTier,
@@ -3912,6 +3913,104 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             broadcastPairRooms(volatileState);
             return { clientResponse: { pairRooms: enrichPairRoomsForClientPayload(volatileState.pairRooms) } };
         }
+        case 'PAIR_QUEUE_PET_RANKED': {
+            if (!volatileState.pairRooms) volatileState.pairRooms = {};
+            const modePayload = (payload as { mode?: GameMode }).mode ?? GameMode.Standard;
+            const existingRoom = Object.values(volatileState.pairRooms).find((room) => userInActivePairLobbyRoom(room, user.id));
+            if (existingRoom) {
+                if (existingRoom.roomKind !== 'ai_duel' || !existingRoom.pairPetRankedQueueShell) {
+                    return { error: '페어 랭킹전을 시작하려면 다른 페어 방에서 나와 주세요.' };
+                }
+                if (existingRoom.ownerId !== user.id) {
+                    return { error: '방장만 랭킹전 매칭을 시작할 수 있습니다.' };
+                }
+                if (existingRoom.pairRankedPetProposal) {
+                    return { error: '이미 매칭 제안 대기 중입니다.' };
+                }
+                if (existingRoom.phase === 'match_pending') {
+                    return { error: '이미 매칭 진행 중입니다.' };
+                }
+                if (existingRoom.phase === 'in_game') {
+                    return { error: '진행 중인 대국이 있습니다.' };
+                }
+                if (existingRoom.phase === 'matching') {
+                    broadcastPairRooms(volatileState);
+                    return {
+                        clientResponse: {
+                            matching: true,
+                            pairRooms: enrichPairRoomsForClientPayload(volatileState.pairRooms),
+                        },
+                    };
+                }
+            }
+            if (!hasUsableEquippedPairPet(user)) {
+                return { error: '펫 페어 매칭을 시작하려면 페어 펫을 장착해야 합니다.' };
+            }
+
+            let target = existingRoom;
+            if (!target) {
+                const roomId = `pair-room-${randomUUID()}`;
+                const code = `rq-${randomUUID().replace(/-/g, '').slice(0, 20)}`;
+                const ownerPairPetName = equippedPairPetDisplayNameForUser(user);
+                const rankedSettings = getRankedGameSettings(modePayload);
+                const room: types.PairRoomState = {
+                    id: roomId,
+                    code,
+                    mode: 'ai',
+                    pairMode: 'ai',
+                    roomKind: 'ai_duel',
+                    visibility: 'public',
+                    passwordProtected: false,
+                    phase: 'waiting',
+                    lobbyChannel: 'pair',
+                    pairPetRankedQueueShell: true,
+                    title: clampPairRoomTitle('랭킹전 대기'),
+                    ownerId: user.id,
+                    ownerName: user.nickname,
+                    partnerId: `pet-ai-${user.id}`,
+                    partnerName: ownerPairPetName,
+                    selectedGameMode: PAIR_MODE_DEFAULT_GAME_MODE,
+                    settings: { ...DEFAULT_GAME_SETTINGS },
+                    teamA: { id: 'teamA', name: '우리 팀', members: [] },
+                    teamB: { id: 'teamB', name: '상대 팀', members: [] },
+                    futurePetAi: pairPetAiPlaceholder(),
+                    ownerReady: false,
+                    partnerReady: true,
+                    createdAt: Date.now(),
+                    pairChatMessages: [],
+                };
+                const snap = pairLobbyPetSnapshotFromUser(user);
+                if (snap) room.ownerLobbyPet = snap;
+                mergePairRoomLobbyGameSettings(room, {
+                    selectedGameMode: modePayload,
+                    settings: { ...DEFAULT_GAME_SETTINGS, ...rankedSettings },
+                });
+                volatileState.pairRooms[roomId] = refreshPairRoomTeams(room);
+                target = volatileState.pairRooms[roomId]!;
+            }
+
+            const requestedMode = resolvePairWaitingRoomSelectedGameMode(target, modePayload);
+            target.selectedGameMode = requestedMode;
+            target.settings = {
+                ...DEFAULT_GAME_SETTINGS,
+                ...getRankedGameSettings(requestedMode),
+            };
+            target.pairPetMatchingQueuedAt = Date.now();
+            target.phase = 'matching';
+            target.ownerReady = true;
+            target.partnerReady = true;
+            target.matchStartedAt = undefined;
+            refreshPairRoomTeams(target);
+            await tryMatchPairPetRankedRooms(volatileState);
+            await tryMatchDuoPairRankedRooms(volatileState);
+            broadcastPairRooms(volatileState);
+            return {
+                clientResponse: {
+                    matching: true,
+                    pairRooms: enrichPairRoomsForClientPayload(volatileState.pairRooms),
+                },
+            };
+        }
         case 'PAIR_START_MATCH': {
             if (!volatileState.pairRooms) volatileState.pairRooms = {};
             const target = Object.values(volatileState.pairRooms).find((room) => userInActivePairLobbyRoom(room, user.id));
@@ -4719,7 +4818,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     return { error: '부화할 알이 아닙니다.' };
                 }
             } else {
-                eggIdx = user.inventory.findIndex((it) => isPairEggItem(it) && (it.quantity ?? 1) >= 1);
+                const firstEgg = findFirstHatchablePairEgg(user.inventory);
+                eggIdx = firstEgg ? user.inventory.findIndex((it) => it.id === firstEgg.id) : -1;
                 if (eggIdx < 0) return { error: '부화할 알이 없습니다.' };
             }
             const egg = user.inventory[eggIdx]!;
@@ -5213,7 +5313,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             user.pairPetTrainingSlots[slotIndex] = null;
             user.inventory = JSON.parse(JSON.stringify(user.inventory));
 
-            const updatedUser = getSelectiveUserUpdate(user, 'PAIR_PET_CLAIM_TRAINING', { includeAll: true });
+            /** `fieldMap`의 inventory·gold·pairPetTrainingSlots만 반환 — `includeAll`은 전체 User 깊은 복제·대용량 HTTP 응답·클라이언트 mergeUserState 비용을 불필요하게 키움 */
+            const updatedUser = getSelectiveUserUpdate(user, 'PAIR_PET_CLAIM_TRAINING');
             await db.updateUser(user);
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(user, ['inventory', 'gold', 'pairPetTrainingSlots']);

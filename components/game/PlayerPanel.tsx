@@ -265,6 +265,8 @@ interface SinglePlayerPanelProps {
     speedBonusTickProgress?: number | null;
     /** 스피드 시간보너스: 다음 -1점까지 남은 초 */
     speedBonusSecToNextDrop?: number | null;
+    /** 스피드: 10초 단위 막대·카운트(패널 하단). PVP는 양쪽, PVE는 내 패널만 */
+    showSpeedTenSecBar?: boolean;
     /** 싱글/탑 모바일 2행 헤더: `profile` = 가로 프로필만, `stats` = 시간·점수만(수순 박스는 PlayerPanel 중앙) */
     pveMobileLayoutTier?: 'full' | 'profile' | 'stats';
 }
@@ -301,6 +303,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         speedBonusScoreLabel = 'self',
         speedBonusTickProgress = null,
         speedBonusSecToNextDrop = null,
+        showSpeedTenSecBar = false,
         pveMobileLayoutTier = 'full',
     } = props;
     const { gameStatus, winner, blackPlayerId, whitePlayerId } = session;
@@ -320,9 +323,9 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const effectiveByoyomiPeriodsLeft = Math.max(0, isFoulMode ? (foulLimit - (session.timeoutFouls?.[user.id] || 0)) : safeByoyomiPeriodsLeft);
     const showByoyomiStatus = isFoulMode ? true : (effectiveTotalByoyomi > 0);
     const showSpeedTimeBonusScore = speedTimeBonusScore != null;
-    const showSpeedBonusTickBar =
-        !isAiPlayer && speedBonusTickProgress != null && speedBonusSecToNextDrop != null;
-    const speedBonusTickPct = showSpeedBonusTickBar
+    const speedTenSecBarActive =
+        showSpeedTenSecBar && !isAiPlayer && speedBonusTickProgress != null && speedBonusSecToNextDrop != null;
+    const speedBonusTickPct = speedTenSecBarActive
         ? Math.max(0, Math.min(100, (1 - speedBonusTickProgress!) * 100))
         : 0;
 
@@ -585,29 +588,43 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                     )}
                 </div>
             )}
-            {showSpeedBonusTickBar && (
-                <div className={`mt-0 flex items-center gap-1 ${isLeft ? '' : 'justify-end'}`}>
-                    <div
-                        className={`h-1.5 w-24 overflow-hidden rounded-full ${
-                            panelType === 'white' ? 'bg-emerald-900/25' : 'bg-emerald-300/20'
-                        }`}
-                    >
-                        <div
-                            className="h-full rounded-full bg-emerald-400 transition-[width] duration-300"
-                            style={{ width: `${speedBonusTickPct}%` }}
-                        />
-                    </div>
+        </>
+    );
+
+    const speedPressureFooter =
+        speedTenSecBarActive && speedBonusSecToNextDrop != null && speedBonusTickProgress != null ? (
+            <div
+                className={`mt-auto w-full min-w-0 shrink-0 border-t pt-1.5 ${
+                    panelType === 'white' ? 'border-slate-400/40' : 'border-white/10'
+                } ${isLeft ? 'text-left' : 'text-right'}`}
+            >
+                <div
+                    className={`flex w-full min-w-0 items-center gap-1.5 ${
+                        isLeft ? 'flex-row' : 'flex-row-reverse'
+                    }`}
+                >
                     <span
-                        className={`tabular-nums ${
-                            fluidTextLayout && isMobile ? 'text-[10px]' : isMobile ? 'text-[10px]' : 'text-[11px]'
-                        } ${panelType === 'white' ? 'text-emerald-800/90' : 'text-emerald-300/90'}`}
+                        className={`shrink-0 font-semibold tabular-nums ${
+                            fluidTextLayout && isMobile ? 'text-[11px]' : isMobile ? 'text-xs' : 'text-sm'
+                        } ${panelType === 'white' ? 'text-amber-800' : 'text-amber-200'}`}
                     >
                         {speedBonusSecToNextDrop}초
                     </span>
+                    <div
+                        className={`min-w-0 flex-1 overflow-hidden rounded-full ${
+                            panelType === 'white' ? 'bg-slate-400/35' : 'bg-white/15'
+                        } ${fluidTextLayout && isMobile ? 'h-2' : 'h-2.5'}`}
+                    >
+                        <div
+                            className={`h-full rounded-full transition-[width] duration-300 ${
+                                panelType === 'white' ? 'bg-amber-500' : 'bg-amber-400'
+                            }`}
+                            style={{ width: `${speedBonusTickPct}%` }}
+                        />
+                    </div>
                 </div>
-            )}
-        </>
-    );
+            </div>
+        ) : null;
 
     if (pveMobileLayoutTier === 'profile') {
         return (
@@ -689,6 +706,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                         </p>
                     </div>
                 </div>
+                {speedPressureFooter}
             </div>
         );
     }
@@ -702,8 +720,11 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                 {showActiveBorderPulse && (
                     <div className={`pointer-events-none absolute inset-0 rounded-lg border-2 animate-pulse ${activeBorderPulseClass}`} />
                 )}
-                <div className={`flex min-w-0 flex-1 basis-0 flex-col ${compactMainColClass} ${textAlignClass}`}>
-                    <div className={`shrink-0 min-w-0 w-full ${fluidTextLayout ? 'mt-0' : isMobile ? 'mt-0.5' : 'mt-1'}`}>{timeAndMetaBlock}</div>
+                <div className={`flex min-h-0 min-w-0 flex-1 basis-0 flex-col ${compactMainColClass} ${textAlignClass}`}>
+                    <div className={`shrink-0 min-w-0 w-full ${fluidTextLayout ? 'mt-0' : isMobile ? 'mt-0.5' : 'mt-1'}`}>
+                        {timeAndMetaBlock}
+                    </div>
+                    {speedPressureFooter}
                 </div>
                 {React.cloneElement(capturedStonesEl, { fillStretchHeight: false })}
             </div>
@@ -718,7 +739,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
             {showActiveBorderPulse && (
                 <div className={`pointer-events-none absolute inset-0 rounded-lg border-2 animate-pulse ${activeBorderPulseClass}`} />
             )}
-            <div className={`flex min-w-0 flex-1 basis-0 flex-col ${compactMainColClass} ${textAlignClass}`}>
+            <div className={`flex min-h-0 min-w-0 flex-1 basis-0 flex-col ${compactMainColClass} ${textAlignClass}`}>
                 <div
                     className={`flex min-w-0 shrink-0 ${fluidTextLayout ? 'items-start' : 'items-center'} ${gap} ${isLeft ? '' : 'flex-row-reverse'}`}
                 >
@@ -795,6 +816,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                 <div className={`shrink-0 min-w-0 w-full ${fluidTextLayout ? 'mt-0' : isMobile ? 'mt-0.5' : 'mt-1'}`}>
                     {timeAndMetaBlock}
                 </div>
+                {speedPressureFooter}
             </div>
             {capturedStonesEl}
         </div>
@@ -861,6 +883,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const enforceTime = showTimeControl(session);
     const isBaseRules =
         mode === GameMode.Base || (mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Base)));
+    /** 따내기 단독 또는 믹스에 따내기 포함 — 전략/페어 등에서 목표 점수 UI 동일 적용 */
+    const isCaptureRuleActive =
+        mode === GameMode.Capture ||
+        (mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Capture)));
     const basePrePlayFreezeStatuses: GameStatus[] = [
         'base_placement',
         'base_stone_color_choice',
@@ -1058,7 +1084,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const rightPlayerRole = mode === GameMode.Thief ? (rightPlayerUser.id === session.thiefPlayerId ? '도둑' : '경찰') : undefined;
     
     const getCaptureTargetForPlayer = (playerEnum: Player) => {
-        if (session.isSinglePlayer || mode === GameMode.Capture) {
+        if (session.isSinglePlayer || isCaptureRuleActive) {
             const isSurvivalMode = (session.settings as any)?.isSurvivalMode === true;
             // 살리기 바둑 모드: 흑(유저)은 목표점수 없음, 백(봇)만 목표점수 표시
             if (isSurvivalMode && playerEnum === Player.Black) {
@@ -1085,14 +1111,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         !isScoreMode && mode !== GameMode.Curling && session.gameCategory === 'adventure' && !isRightAi && adventureRegionalFlatBonus > 0
             ? adventureRegionalFlatBonus
             : undefined;
-    const leftPanelStoneCaptureDisplay =
-        leftCaptureHeadStartFlatBonus != null
-            ? Math.max(0, (captures[leftPlayerEnum] ?? 0) - leftCaptureHeadStartFlatBonus)
-            : leftPlayerScore;
-    const rightPanelStoneCaptureDisplay =
-        rightCaptureHeadStartFlatBonus != null
-            ? Math.max(0, (captures[rightPlayerEnum] ?? 0) - rightCaptureHeadStartFlatBonus)
-            : rightPlayerScore;
     const adventureMonsterPanel =
         session.gameCategory === 'adventure' && session.adventureMonsterCodexId
             ? (() => {
@@ -1180,11 +1198,18 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
           : useSpeedLikeCountdownUi
             ? false
             : !enforceTime;
-    /** PvE/AI 대국 + 스피드 — 봇 턴·히든 연출은 유저 사용에서 제외 */
-    const isAiSpeedLiveBonusUi =
-        (Boolean(session.isAiGame) || Boolean(session.isSinglePlayer)) && isSpeedLiveBonusUi;
     /** PVP 휴먼 대국 + 스피드 */
     const isPvpHumanSpeedLiveBonusUi = !session.isAiGame && !session.isSinglePlayer && isSpeedLiveBonusUi;
+    /** 싱글·탑·길드(AI)·모험 등 PVP가 아닌 스피드 압박 대상 세션(시계·10초 막대 공통) */
+    const sessionGameCategory = String(session.gameCategory ?? '');
+    const isPveLikeSpeedSession =
+        Boolean(session.isAiGame) ||
+        Boolean(session.isSinglePlayer) ||
+        sessionGameCategory === 'tower' ||
+        (sessionGameCategory === 'guildwar' && Boolean(session.isAiGame)) ||
+        sessionGameCategory === 'adventure';
+    /** PVP가 아닌 스피드: 내 패널에만 10초 막대·누적(양쪽 AI 막대는 숨김) */
+    const isPveSideSpeedLiveBonusUi = isSpeedLiveBonusUi && !isPvpHumanSpeedLiveBonusUi && isPveLikeSpeedSession;
     const [speedBonusNowMs, setSpeedBonusNowMs] = useState(() => Date.now());
     useEffect(() => {
         if (!isSpeedLiveBonusUi) return;
@@ -1202,7 +1227,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const humanLiveSpeedTurnClockActive = (playerEnum: Player) =>
         session.currentPlayer === playerEnum &&
         typeof session.turnDeadline === 'number' &&
-        !((Boolean(session.isAiGame) || Boolean(session.isSinglePlayer)) &&
+        !(isPveLikeSpeedSession &&
             isHumanSeatForAiSpeedBonus(playerEnum) &&
             isAiHiddenItemThinkPresentationForSpeed);
     const getLiveMainTimeForBonus = (playerEnum: Player, storedMainTimeLeft: number): number => {
@@ -1245,7 +1270,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         if (raw == null) return prev ?? null;
         const isThatPlayersTurn =
             session.currentPlayer === playerEnum &&
-            !((Boolean(session.isAiGame) || Boolean(session.isSinglePlayer)) &&
+            !(isPveLikeSpeedSession &&
             isHumanSeatForAiSpeedBonus(playerEnum) &&
             isAiHiddenItemThinkPresentationForSpeed);
         // 봇 턴에서는 플레이어 시간 보너스가 크게 튀는 사례가 있어, 해당 플레이어 턴이 아닐 때는 이전 값을 유지한다.
@@ -1320,7 +1345,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         const prev = speedBonusTickStableRef.current.byPlayerId[playerId] ?? { progress: null, secToNextDrop: null };
         const isThatPlayersTurn =
             session.currentPlayer === playerEnum &&
-            !((Boolean(session.isAiGame) || Boolean(session.isSinglePlayer)) &&
+            !(isPveLikeSpeedSession &&
             isHumanSeatForAiSpeedBonus(playerEnum) &&
             isAiHiddenItemThinkPresentationForSpeed);
         const next = isThatPlayersTurn ? raw : prev;
@@ -1389,6 +1414,81 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const rightSpeedTimeBonusForPanel = hideSpeedTimePressureInlineBonus ? null : rightLiveSpeedTimeBonusScore;
     const leftSpeedBonusScoreLabel: 'self' | 'ai' | 'rival' = isLeftAi ? 'ai' : isPvpHumanSpeedLiveBonusUi ? 'rival' : 'self';
     const rightSpeedBonusScoreLabel: 'self' | 'ai' | 'rival' = isRightAi ? 'ai' : isPvpHumanSpeedLiveBonusUi ? 'rival' : 'self';
+
+    const leftShowSpeedTenSecBar =
+        isSpeedLiveBonusUi &&
+        !isLeftAi &&
+        leftSpeedBonusTick.progress != null &&
+        leftSpeedBonusTick.secToNextDrop != null &&
+        (isPvpHumanSpeedLiveBonusUi || leftPlayerUser.id === currentUser?.id);
+    const rightShowSpeedTenSecBar =
+        isSpeedLiveBonusUi &&
+        !isRightAi &&
+        rightSpeedBonusTick.progress != null &&
+        rightSpeedBonusTick.secToNextDrop != null &&
+        (isPvpHumanSpeedLiveBonusUi || rightPlayerUser.id === currentUser?.id);
+
+    const buildCumulativeUsedSecForPlayer = (
+        playerEnum: Player,
+        playerId: string,
+        liveMainTime: number,
+    ): number | null => {
+        if (!isSpeedLiveBonusUi || playerId === aiUserId) return null;
+        const speedConsumed = ((session.settings as any)?.__speedBonusConsumedSec ?? {}) as {
+            black?: number;
+            white?: number;
+        };
+        const committedUsedSec =
+            playerEnum === Player.Black
+                ? Math.max(0, Number(speedConsumed.black ?? 0))
+                : Math.max(0, Number(speedConsumed.white ?? 0));
+        const storedAtTurnStart =
+            playerEnum === Player.Black
+                ? Math.max(0, Number(session.blackTimeLeft ?? 0))
+                : Math.max(0, Number(session.whiteTimeLeft ?? 0));
+        const current = Math.max(0, Number(liveMainTime) || 0);
+        const liveTurnUsedSec = humanLiveSpeedTurnClockActive(playerEnum)
+            ? Math.max(0, storedAtTurnStart - current)
+            : 0;
+        return committedUsedSec + liveTurnUsedSec;
+    };
+    const humanCumulativeUsedSecForAiSpeed =
+        humanSide && isPveSideSpeedLiveBonusUi
+            ? buildCumulativeUsedSecForPlayer(
+                  humanSide.playerEnum,
+                  humanSide.userId,
+                  humanSide.liveMainTime,
+              )
+            : null;
+    /** 서버 `syncSpeedTimePressureCaptures` 틱 사이에도 10초마다 상대 집(+1)이 바로 보이도록 */
+    const liveSpeedTimePressureCaptureBonusDelta = (playerEnum: Player): number => {
+        if (!isSpeedLiveBonusUi || !session.isAiGame || isScoreMode) return 0;
+        const aiEnum =
+            session.blackPlayerId === aiUserId
+                ? Player.Black
+                : session.whitePlayerId === aiUserId
+                  ? Player.White
+                  : Player.None;
+        if (aiEnum === Player.None || playerEnum !== aiEnum) return 0;
+        const liveHumanUsed = humanCumulativeUsedSecForAiSpeed;
+        if (liveHumanUsed == null) return 0;
+        const grant = ((session.settings as any).__speedTimePressureGranted ?? {}) as { black?: number; white?: number };
+        const g =
+            playerEnum === Player.Black
+                ? Math.max(0, Number(grant.black ?? 0))
+                : Math.max(0, Number(grant.white ?? 0));
+        return Math.max(0, Math.floor(Math.max(0, liveHumanUsed) / 10) - g);
+    };
+    const leftPanelStoneCaptureDisplay =
+        leftCaptureHeadStartFlatBonus != null
+            ? Math.max(0, (captures[leftPlayerEnum] ?? 0) - leftCaptureHeadStartFlatBonus) +
+                  liveSpeedTimePressureCaptureBonusDelta(leftPlayerEnum)
+            : leftPlayerScore + liveSpeedTimePressureCaptureBonusDelta(leftPlayerEnum);
+    const rightPanelStoneCaptureDisplay =
+        rightCaptureHeadStartFlatBonus != null
+            ? Math.max(0, (captures[rightPlayerEnum] ?? 0) - rightCaptureHeadStartFlatBonus) +
+                  liveSpeedTimePressureCaptureBonusDelta(rightPlayerEnum)
+            : rightPlayerScore + liveSpeedTimePressureCaptureBonusDelta(rightPlayerEnum);
 
     const turnDuration = getTurnDuration(mode, session.gameStatus, settings);
     const blackRemainingMonotonicRef = useRef<{ gameId: string; value: number | null }>({ gameId: '', value: null });
@@ -1747,6 +1847,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             speedBonusScoreLabel={leftSpeedBonusScoreLabel}
                             speedBonusTickProgress={leftSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={leftSpeedBonusTick.secToNextDrop}
+                            showSpeedTenSecBar={leftShowSpeedTenSecBar}
                             {...leftAdventureCdProps}
                         />
                     </div>
@@ -1783,6 +1884,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             speedBonusScoreLabel={rightSpeedBonusScoreLabel}
                             speedBonusTickProgress={rightSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={rightSpeedBonusTick.secToNextDrop}
+                            showSpeedTenSecBar={rightShowSpeedTenSecBar}
                             {...rightAdventureCdProps}
                         />
                     </div>
@@ -1819,6 +1921,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             speedBonusScoreLabel={leftSpeedBonusScoreLabel}
                             speedBonusTickProgress={leftSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={leftSpeedBonusTick.secToNextDrop}
+                            showSpeedTenSecBar={leftShowSpeedTenSecBar}
                             {...leftAdventureCdProps}
                         />
                     </div>
@@ -1856,6 +1959,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             speedBonusScoreLabel={rightSpeedBonusScoreLabel}
                             speedBonusTickProgress={rightSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={rightSpeedBonusTick.secToNextDrop}
+                            showSpeedTenSecBar={rightShowSpeedTenSecBar}
                             {...rightAdventureCdProps}
                         />
                     </div>
@@ -1896,6 +2000,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     speedBonusScoreLabel={leftSpeedBonusScoreLabel}
                     speedBonusTickProgress={leftSpeedBonusTick.progress}
                     speedBonusSecToNextDrop={leftSpeedBonusTick.secToNextDrop}
+                    showSpeedTenSecBar={leftShowSpeedTenSecBar}
                     {...leftAdventureCdProps}
                 />
             </div>
@@ -2021,6 +2126,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 speedBonusScoreLabel={rightSpeedBonusScoreLabel}
                 speedBonusTickProgress={rightSpeedBonusTick.progress}
                 speedBonusSecToNextDrop={rightSpeedBonusTick.secToNextDrop}
+                showSpeedTenSecBar={rightShowSpeedTenSecBar}
                 {...rightAdventureCdProps}
             />
             </div>

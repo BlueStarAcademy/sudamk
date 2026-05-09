@@ -346,9 +346,12 @@ export function isPairEggItem(item: Pick<InventoryItem, 'templateId' | 'name'>):
     );
 }
 
-/** 부화 시작 시 서버와 동일 순서로 소모될 첫 알 행(수량 ≥ 1) */
+/** 부화 시작 시 서버와 동일 순서로 소모될 첫 알 행(수량 ≥ 1). `(특)신비로운 알`을 일반 신비로운알보다 우선 */
 export function findFirstHatchablePairEgg(inv: InventoryItem[] | null | undefined): InventoryItem | undefined {
     if (!Array.isArray(inv)) return undefined;
+    for (const it of inv) {
+        if (isPairWelcomeEggItem(it) && (it.quantity ?? 1) >= 1) return it;
+    }
     for (const it of inv) {
         if (isPairEggItem(it) && (it.quantity ?? 1) >= 1) return it;
     }

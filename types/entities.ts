@@ -34,6 +34,8 @@ export type PairPetMeta = {
     xp: number;
     disposition: PairPetDisposition;
     specialization: PairPetSpecialization;
+    /** 부화 시 6코어 각 30~70·합 300 무작위 분배(등급 배율 전 정수). 없으면 구 방식(코어당 50)과 동일 취급 */
+    birthCoreBases?: Partial<Record<CoreStat, number>>;
     /** 레벨업 시 등급별 풀을 6코어에 랜덤 분배한 누적 보너스 */
     levelUpCoreBonuses?: Partial<Record<CoreStat, number>>;
     /** 부화 시 부여. 구 데이터는 resolve 시 결정론 백필 */

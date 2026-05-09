@@ -93,7 +93,11 @@ export function useAds(isProduction: boolean, isAdFree: boolean) {
       trigger: null,
     });
     if (grantReward && rewardCb) {
-      rewardCb();
+      try {
+        rewardCb();
+      } catch (e) {
+        console.error('[useAds] shop ad reward onClosed callback failed:', e);
+      }
     }
   }, []);
 

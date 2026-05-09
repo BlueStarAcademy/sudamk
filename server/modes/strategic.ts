@@ -37,7 +37,10 @@ import { PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS } from '../constants/pveStr
 import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
 import { resolveSinglePlayerAutoScoringTurnCap } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 import { tryEndGameWhenCaptureTargetReached } from '../utils/captureTargets.js';
-import { syncSpeedTimePressureCaptures } from '../utils/speedTimePressureLiveCaptures.js';
+import {
+    syncSpeedTimePressureCaptures,
+    shouldRunGoClockAccountingForSession,
+} from '../utils/speedTimePressureLiveCaptures.js';
 
 /** `Game.tsx` findLatestMoveIndexAt와 동일 — 상대 히든 판별 시 같은 좌표의 과거 수와 혼동하지 않도록 */
 function findLatestMoveIndexAt(
@@ -1162,7 +1165,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
 
             const playerWhoMoved = myPlayerEnum;
-            if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
+            if (shouldRunGoClockAccountingForSession(game)) {
                 const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                 const byoyomiKey = playerWhoMoved === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
                 const fischerIncrement = resolveEffectiveFischerIncrement(game);
@@ -1208,7 +1211,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
 
 
-            if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
+            if (shouldRunGoClockAccountingForSession(game)) {
                 const nextPlayer = game.currentPlayer;
                 const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                 const nextByoyomiKey = nextPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
@@ -1267,6 +1270,10 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 return {};
             }
 
+            if (await tryEndGameWhenCaptureTargetReached(game, myPlayerEnum)) {
+                return {};
+            }
+
             // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
             if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                 const { aiUserId } = await import('../aiPlayer.js');
@@ -1282,10 +1289,6 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     game.aiTurnStartTime = undefined;
                     console.log(`[handleStrategicAction] User turn after PLACE_STONE, game ${game.id}, clearing aiTurnStartTime`);
                 }
-            }
-
-            if (await tryEndGameWhenCaptureTargetReached(game, myPlayerEnum)) {
-                return {};
             }
             
             return {};
@@ -1355,7 +1358,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     return {};
                 }
                 const playerWhoMoved = myPlayerEnum;
-                if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
+                if (shouldRunGoClockAccountingForSession(game)) {
                     const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                     
                     if (game.turnDeadline) {
@@ -1366,7 +1369,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     }
                 }
                 game.currentPlayer = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
-                if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
+                if (shouldRunGoClockAccountingForSession(game)) {
                     const nextPlayer = game.currentPlayer;
                     const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                     const nextByoyomiKey = nextPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';

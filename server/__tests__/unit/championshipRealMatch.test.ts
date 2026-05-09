@@ -4,6 +4,7 @@ import {
     CHAMPIONSHIP_REAL_MATCH_RULES_19,
     championshipBestMoveChancePercent,
     championshipEventBranchBestMovePercent,
+    championshipKataAbilityScore,
     championshipKataLevelFromAbilityScore,
     championshipKataLevelForPly,
     championshipMistakeChancePercent,
@@ -19,6 +20,13 @@ const statsFor = (value: number): Record<CoreStat, number> => ({
 });
 
 describe('championship real match policy', () => {
+    it('sums six core stats with opening/midgame/endgame weights (가중치 합 2.0 → 능력치 전부 100이면 200)', () => {
+        const s = statsFor(100);
+        expect(championshipKataAbilityScore('opening', s)).toBe(200);
+        expect(championshipKataAbilityScore('midgame', s)).toBe(200);
+        expect(championshipKataAbilityScore('endgame', s)).toBe(200);
+    });
+
     it('maps ability score boundaries without level zero', () => {
         const cases: Array<[number, number]> = [
             [199, -30],

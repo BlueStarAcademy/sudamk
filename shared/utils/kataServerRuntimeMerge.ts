@@ -1,4 +1,11 @@
-import type { PairPetKataPhase } from '../constants/pairArena.js';
+import {
+    DEFAULT_PAIR_PET_ABILITY_KATA_LADDER,
+    PAIR_PET_KATA_PHASE_PLY_9,
+    PAIR_PET_KATA_PHASE_PLY_11,
+    PAIR_PET_KATA_PHASE_PLY_13,
+    PAIR_PET_KATA_PHASE_PLY_19,
+    PAIR_PET_KATA_PHASE_WEIGHTS,
+} from '../constants/pairArena.js';
 import type { KataServerRuntimeOverrides, KataServerRuntimeSnapshot, PairPetKataRuntimeSlice } from '../types/kataServerRuntime.js';
 import { buildDefaultKataServerRuntimeSnapshot } from './kataServerRuntimeDefaults.js';
 
@@ -29,79 +36,48 @@ function mergeNumberRecord(
     return out;
 }
 
-function mergePairPetSlice(base: PairPetKataRuntimeSlice, patch: KataServerRuntimeOverrides['pairPet']): PairPetKataRuntimeSlice {
-    if (!patch) return {
-        abilityKataLadder: base.abilityKataLadder.map((r) => ({ ...r })),
-        phaseWeights: {
-            opening: { ...base.phaseWeights.opening },
-            midgame: { ...base.phaseWeights.midgame },
-            endgame: { ...base.phaseWeights.endgame },
-        },
-        phasePly9: {
-            opening: { ...base.phasePly9.opening },
-            midgame: { ...base.phasePly9.midgame },
-            endgame: { ...base.phasePly9.endgame },
-        },
-        phasePly11: {
-            opening: { ...base.phasePly11.opening },
-            midgame: { ...base.phasePly11.midgame },
-            endgame: { ...base.phasePly11.endgame },
-        },
-        phasePly13: {
-            opening: { ...base.phasePly13.opening },
-            midgame: { ...base.phasePly13.midgame },
-            endgame: { ...base.phasePly13.endgame },
-        },
-        phasePly19: {
-            opening: { ...base.phasePly19.opening },
-            midgame: { ...base.phasePly19.midgame },
-            endgame: { ...base.phasePly19.endgame },
-        },
+function clonePairPetPhasePlyTable(table: PairPetKataRuntimeSlice['phasePly9']): PairPetKataRuntimeSlice['phasePly9'] {
+    return {
+        opening: { ...table.opening },
+        midgame: { ...table.midgame },
+        endgame: { ...table.endgame },
     };
-    const phases: PairPetKataPhase[] = ['opening', 'midgame', 'endgame'];
+}
+
+function cloneCodePairPetPhaseWeights(): PairPetKataRuntimeSlice['phaseWeights'] {
+    return {
+        opening: { ...PAIR_PET_KATA_PHASE_WEIGHTS.opening },
+        midgame: { ...PAIR_PET_KATA_PHASE_WEIGHTS.midgame },
+        endgame: { ...PAIR_PET_KATA_PHASE_WEIGHTS.endgame },
+    };
+}
+
+function cloneCodePairPetPlyTables(): Pick<
+    PairPetKataRuntimeSlice,
+    'phasePly9' | 'phasePly11' | 'phasePly13' | 'phasePly19'
+> {
+    return {
+        phasePly9: clonePairPetPhasePlyTable(PAIR_PET_KATA_PHASE_PLY_9),
+        phasePly11: clonePairPetPhasePlyTable(PAIR_PET_KATA_PHASE_PLY_11),
+        phasePly13: clonePairPetPhasePlyTable(PAIR_PET_KATA_PHASE_PLY_13),
+        phasePly19: clonePairPetPhasePlyTable(PAIR_PET_KATA_PHASE_PLY_19),
+    };
+}
+
+/** 펫 KATA: 가중치·착수 구간은 코드 상수만. KV는 `abilityKataLadder`만 병합. */
+function mergePairPetSlice(base: PairPetKataRuntimeSlice, patch: KataServerRuntimeOverrides['pairPet']): PairPetKataRuntimeSlice {
     const abilityKataLadder =
-        Array.isArray(patch.abilityKataLadder) && patch.abilityKataLadder.length > 0
+        patch && Array.isArray(patch.abilityKataLadder) && patch.abilityKataLadder.length > 0
             ? patch.abilityKataLadder.map((r) => ({
                   minAbilityScore: Math.max(0, Math.round(Number(r.minAbilityScore))),
                   kataLevelOffset: clampKataLevel(Number(r.kataLevelOffset)),
               }))
             : base.abilityKataLadder.map((r) => ({ ...r }));
 
-    const phaseWeights = { ...base.phaseWeights };
-    if (patch.phaseWeights) {
-        for (const p of phases) {
-            const pw = patch.phaseWeights[p];
-            if (!pw) continue;
-            phaseWeights[p] = { ...phaseWeights[p], ...pw };
-        }
-    }
-
-    const mergePly = (
-        b: PairPetKataRuntimeSlice['phasePly9'],
-        o?: Partial<Record<PairPetKataPhase, { from?: number; to?: number | null }>>,
-    ) => {
-        const out = { ...b };
-        if (!o) return out;
-        for (const p of phases) {
-            const row = o[p];
-            if (!row) continue;
-            const to =
-                row.to === undefined ? b[p].to : row.to === null ? null : Math.round(Number(row.to));
-            out[p] = {
-                from: Math.max(1, Math.round(Number(row.from ?? b[p].from))),
-                to,
-            };
-        }
-        return out;
-    };
-
     return {
-        abilityKataLadder,
-        phaseWeights,
-        phasePly9: mergePly(base.phasePly9, patch.phasePly9),
-        phasePly11: mergePly(base.phasePly11, patch.phasePly11),
-        phasePly13: mergePly(base.phasePly13, patch.phasePly13),
-        phasePly19: mergePly(base.phasePly19, patch.phasePly19),
+        abilityKataLadder: abilityKataLadder.length > 0 ? abilityKataLadder : [...DEFAULT_PAIR_PET_ABILITY_KATA_LADDER].map((r) => ({ ...r })),
+        phaseWeights: cloneCodePairPetPhaseWeights(),
+        ...cloneCodePairPetPlyTables(),
     };
 }
 
@@ -151,17 +127,15 @@ export function deepMergeKataOverrides(
         out.guildWarKataByBoardId = { ...a.guildWarKataByBoardId, ...patch.guildWarKataByBoardId };
     }
     if (patch.pairPet) {
-        const pp = patch.pairPet;
         const basePp = a.pairPet || {};
-        out.pairPet = {
-            ...basePp,
-            ...pp,
-            phaseWeights: pp.phaseWeights ? { ...basePp.phaseWeights, ...pp.phaseWeights } : basePp.phaseWeights,
-            phasePly9: pp.phasePly9 ? { ...basePp.phasePly9, ...pp.phasePly9 } : basePp.phasePly9,
-            phasePly11: pp.phasePly11 ? { ...basePp.phasePly11, ...pp.phasePly11 } : basePp.phasePly11,
-            phasePly13: pp.phasePly13 ? { ...basePp.phasePly13, ...pp.phasePly13 } : basePp.phasePly13,
-            phasePly19: pp.phasePly19 ? { ...basePp.phasePly19, ...pp.phasePly19 } : basePp.phasePly19,
-        };
+        const pp = patch.pairPet;
+        out.pairPet = { ...basePp };
+        if (Array.isArray(pp.abilityKataLadder) && pp.abilityKataLadder.length > 0) {
+            out.pairPet.abilityKataLadder = pp.abilityKataLadder.map((r) => ({
+                minAbilityScore: Math.max(0, Math.round(Number(r.minAbilityScore))),
+                kataLevelOffset: clampKataLevel(Number(r.kataLevelOffset)),
+            }));
+        }
     }
     return out;
 }

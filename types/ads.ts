@@ -21,7 +21,7 @@ export type InterstitialTrigger =
   | 'reward_claim'
   | 'lobby_transition'
   | 'tower_clear'
-  /** 상점 광고보기 보상 — 빈도 제한 없이 30초 후 닫기 시 콜백 */
+  /** 상점 광고보기 보상 — 빈도 제한 없이 30초 후 「보상 받기」 시 콜백 */
   | 'shop_ad_reward';
 
 /** 전면 광고 상태 */
@@ -42,7 +42,7 @@ export interface AdContextValue {
   clientId: string | null;
   /** 전면 광고 표시 요청 (빈도·세션 제한 적용) */
   showInterstitial: (trigger: InterstitialTrigger) => boolean;
-  /** 상점 광고 보상: 30초 후 닫기 가능, 닫을 때 onClosed 호출 (광고 제거 유저는 즉시 onClosed) */
+  /** 상점 광고 보상: 30초 후 「보상 받기」로 닫을 때 onClosed(광고 제거 유저는 즉시 onClosed) */
   showShopAdRewardInterstitial: (onClosed: () => void) => void;
   /** 전면 광고 닫기. 상점 광고 보상(`shop_ad_reward`)일 때만 `grantShopAdReward: false`면 보상 콜백 미호출(취소). */
   closeInterstitial: (options?: { grantShopAdReward?: boolean }) => void;

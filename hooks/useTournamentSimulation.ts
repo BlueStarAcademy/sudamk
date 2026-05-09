@@ -49,10 +49,42 @@ type PersistedTournamentSimulation = {
     savedAt: number;
 };
 
+/** 서버가 simulationSeed를 비워 두는 경우(실대국 등)에도 매치 단위로 안정적인 RNG/복구 키를 쓴다. */
+const getEffectiveSimulationSeed = (tournament: TournamentState): string => {
+    if (tournament.simulationSeed) return tournament.simulationSeed;
+    const sim = tournament.currentSimulatingMatch;
+    if (!sim) return '';
+    const match = tournament.rounds[sim.roundIndex]?.matches[sim.matchIndex];
+    return `fallback:${tournament.type}:${sim.roundIndex}:${sim.matchIndex}:${match?.id ?? 'm'}`;
+};
+
 const getMatchKey = (tournament: TournamentState | null | undefined): string | null => {
     if (!tournament?.currentSimulatingMatch) return null;
-    return `${tournament.currentSimulatingMatch.roundIndex}-${tournament.currentSimulatingMatch.matchIndex}-${tournament.simulationSeed || ''}`;
+    return `${tournament.currentSimulatingMatch.roundIndex}-${tournament.currentSimulatingMatch.matchIndex}-${getEffectiveSimulationSeed(tournament)}`;
 };
+
+/**
+ * 실대국/시뮬 진행 중 서버 패치가 올 때 timeElapsed 등은 prev를 유지하면서,
+ * 선수 컨디션·기타 서버 필드는 resolved를 반영한다. (prev.players만 유지하면 회복제·스냅샷이 되돌아감)
+ */
+function mergeResolvedPlayersKeepPrevSimStats(
+    prevPlayers: TournamentState['players'] | undefined,
+    resolvedPlayers: TournamentState['players'] | undefined,
+): TournamentState['players'] {
+    if (!Array.isArray(prevPlayers) || !Array.isArray(resolvedPlayers)) {
+        return resolvedPlayers || prevPlayers || [];
+    }
+    const prevById = new Map(prevPlayers.map((p) => [p.id, p]));
+    return resolvedPlayers.map((rp) => {
+        const prevP = prevById.get(rp.id);
+        if (!prevP) return rp;
+        return {
+            ...rp,
+            stats: prevP.stats,
+            originalStats: prevP.originalStats,
+        };
+    });
+}
 
 const getStorageKey = (userId: string, type: TournamentState['type']) => `tournamentSimulation_${userId}_${type}`;
 
@@ -108,10 +140,10 @@ const phaseStartMessageForPly = (ply: number, maxPly: number): { phase: Commenta
         return { phase: 'early', text: '초반전이 시작되었습니다. 포석과 첫 전투 흐름을 살펴봅니다.' };
     }
     if (ply === midStart) {
-        return { phase: 'mid', text: '중반전이 시작되었습니다. 전투력과 판단력이 승부의 중심이 됩니다.' };
+        return { phase: 'mid', text: '중반전이 시작되었습니다. 전투력 비중이 커지며 여섯 능력치가 함께 묶입니다.' };
     }
     if (ply === endStart) {
-        return { phase: 'end', text: '종반전이 시작되었습니다. 계산력과 안정감으로 마지막 차이를 벌립니다.' };
+        return { phase: 'end', text: '종반전이 시작되었습니다. 계산력과 집중·사고속도가 승부를 가릅니다.' };
     }
     return null;
 };
@@ -273,7 +305,7 @@ export const useTournamentSimulation = (
                         currentMatchScores: prev.currentMatchScores,
                         currentMatchCommentary: prev.currentMatchCommentary,
                         lastScoreIncrement: prev.lastScoreIncrement,
-                        players: prev.players,
+                        players: mergeResolvedPlayersKeepPrevSimStats(prev.players, resolvedTournament.players),
                     };
                 }
             }
@@ -547,7 +579,7 @@ export const useTournamentSimulation = (
         isSimulatingRef.current = true;
         player1Ref.current = JSON.parse(JSON.stringify(p1));
         player2Ref.current = JSON.parse(JSON.stringify(p2));
-        rngRef.current = new SeededRandom(localTournament.simulationSeed!);
+        rngRef.current = new SeededRandom(getEffectiveSimulationSeed(localTournament));
 
         if (canResumePersisted) {
             rngRef.current.setState(persisted!.rngState!);

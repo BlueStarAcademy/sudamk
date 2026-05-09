@@ -2,7 +2,7 @@ import * as types from '../../types/index.js';
 import { MISSILE_FLIGHT_DURATION_MS } from '../../shared/constants/gameSettings.js';
 import * as db from '../db.js';
 import { processMove } from '../goLogic.js';
-import { resumeGameTimer, pauseGameTimer } from './shared.js';
+import { enforceBaseSeatLockIfDriftedDuringPlay, resumeGameTimer, pauseGameTimer } from './shared.js';
 import { applyMissileCaptureProcessResult } from '../../shared/utils/missileLandingCapture.js';
 import { recordPatternStoneConsumed, stripPatternStonesAtConsumedIntersections } from '../../shared/utils/patternStoneConsume.js';
 
@@ -708,13 +708,23 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
         return null;
     }
 
+    enforceBaseSeatLockIfDriftedDuringPlay(game);
+
     const { type, payload } = action as any;
     const now = Date.now();
     let myPlayerEnum =
         user.id === game.blackPlayerId ? types.Player.Black : user.id === game.whitePlayerId ? types.Player.White : types.Player.None;
-    // 탑/PVE와 동일: 세션에서 blackPlayerId와 player1 불일치 시 None → 미사일 액션 전부 400
+    // 좌석 ID가 잠깐 비어 있거나 클라/서버 불일치 시: 본대국 잠금 → player1=흑 가정 순으로 복구
     if (myPlayerEnum === types.Player.None && game.player1?.id === user.id) {
-        myPlayerEnum = types.Player.Black;
+        const lb = (game as { playingLockedBlackPlayerId?: string }).playingLockedBlackPlayerId;
+        const lw = (game as { playingLockedWhitePlayerId?: string }).playingLockedWhitePlayerId;
+        if (typeof lw === 'string' && lw.length > 0 && user.id === lw) {
+            myPlayerEnum = types.Player.White;
+        } else if (typeof lb === 'string' && lb.length > 0 && user.id === lb) {
+            myPlayerEnum = types.Player.Black;
+        } else {
+            myPlayerEnum = types.Player.Black;
+        }
     }
     const isMyTurn = myPlayerEnum === game.currentPlayer;
 
@@ -725,16 +735,14 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
                 const { getCachedGame } = await import('../gameCache.js');
                 const cachedGame = await getCachedGame(game.id);
                 if (cachedGame) {
-                    // 캐시된 게임의 상태와 미사일 개수를 사용 (더 최신일 수 있음)
-                    game.gameStatus = cachedGame.gameStatus;
-                    game.animation = cachedGame.animation;
+                    // 낡은 캐시의 gameStatus를 playing 위에 덮어쓰면 미사일/AI 복구가 막히므로, 남은 발 수만 보수적으로 동기화한다.
                     const syncedP1 = pickConservativeRemainingCount(game.missiles_p1, cachedGame.missiles_p1);
                     const syncedP2 = pickConservativeRemainingCount(game.missiles_p2, cachedGame.missiles_p2);
                     if (syncedP1 !== undefined) game.missiles_p1 = syncedP1;
                     if (syncedP2 !== undefined) game.missiles_p2 = syncedP2;
-                    game.pausedTurnTimeLeft = cachedGame.pausedTurnTimeLeft;
-                    game.itemUseDeadline = cachedGame.itemUseDeadline;
-                    console.log(`[SinglePlayer Missile] START_MISSILE_SELECTION: Using cached game state, gameStatus=${game.gameStatus}, missiles_p1=${game.missiles_p1}, missiles_p2=${game.missiles_p2}, gameId=${game.id}`);
+                    console.log(
+                        `[SinglePlayer Missile] START_MISSILE_SELECTION: Synced missile counts from cache (status not overwritten), gameStatus=${game.gameStatus}, missiles_p1=${game.missiles_p1}, missiles_p2=${game.missiles_p2}, gameId=${game.id}`,
+                    );
                 }
             }
             

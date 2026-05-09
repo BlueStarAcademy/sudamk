@@ -44,7 +44,10 @@ import {
 } from '../../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { bumpGuildWarMaxSingleCapturePointsForPlayer } from '../../shared/utils/guildWarMaxSingleCapturePoints.js';
 import { tryEndGameWhenCaptureTargetReached } from '../utils/captureTargets.js';
-import { syncSpeedTimePressureCaptures } from '../utils/speedTimePressureLiveCaptures.js';
+import {
+    syncSpeedTimePressureCaptures,
+    shouldRunGoClockAccountingForSession,
+} from '../utils/speedTimePressureLiveCaptures.js';
 import { getRegionalCaptureOpponentTargetBonus } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 import {
@@ -636,6 +639,13 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
         const missileStateChanged = updateMissileState(game, now);
         if (missileStateChanged) {
             (game as any)._missileStateChanged = true;
+        }
+    }
+
+    // updateMissileState 등으로 같은 틱에 따내기 점수가 반영된 뒤 즉시 종료(앞선 tryEndGame은 미사일 착지 전에 실행됨)
+    if (game.gameStatus === 'playing') {
+        if (await tryEndGameWhenCaptureTargetReached(game, game.currentPlayer)) {
+            return;
         }
     }
 };
@@ -1510,7 +1520,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             // 수를 둔 플레이어가 초읽기 모드에서 수를 두었는지 기록 (다음 턴에서 30초로 리셋하기 위해)
             let movedPlayerWasInByoyomi = false;
             
-            if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
+            if (shouldRunGoClockAccountingForSession(game)) {
                 const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                 const byoyomiKey = playerWhoMoved === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
                 const fischerIncrement = resolveEffectiveFischerIncrement(game);
@@ -1542,6 +1552,11 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 }
             }
 
+            // 따내기 목표 달성 시 턴을 넘기기 전에 종료(상대가 한 수 더 두는 레이스 방지)
+            if (await tryEndGameWhenCaptureTargetReached(game, myPlayerEnum)) {
+                return {};
+            }
+
             if (pairCurrentSeat) {
                 advancePairTurnAfterAction(game, now);
             } else {
@@ -1554,7 +1569,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             game.pausedTurnTimeLeft = undefined;
 
 
-            if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
+            if (shouldRunGoClockAccountingForSession(game)) {
                 const nextPlayer = game.currentPlayer;
                 const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                 const nextByoyomiKey = nextPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
@@ -1610,11 +1625,6 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                         console.log(`[handleStandardAction] Last turn reached: totalTurns=${newTotalTurns}, autoScoringTurns=${autoScoringTurns}, next turn will trigger auto-scoring after AI move`);
                     }
                 }
-            }
-            
-            // After move logic: 따내기 목표 달성(모험·탑·싱글·캡처 모드 공통)
-            if (await tryEndGameWhenCaptureTargetReached(game, myPlayerEnum)) {
-                return {};
             }
             
             // 싱글플레이 따내기 바둑: 흑(유저) 턴 수 제한(blackTurnLimit) 도달 시,
@@ -1785,7 +1795,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 }
             } else {
                 const playerWhoMoved = myPlayerEnum;
-                if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
+                if (shouldRunGoClockAccountingForSession(game)) {
                     const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                     
                     if (game.turnDeadline) {
@@ -1800,7 +1810,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 } else {
                     game.currentPlayer = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
                 }
-                if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
+                if (shouldRunGoClockAccountingForSession(game)) {
                     const nextPlayer = game.currentPlayer;
                     const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                     const nextByoyomiKey = nextPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';

@@ -840,7 +840,9 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             const pairClassicForServerAi = isPairClassicGame(game.settings, game.mode as GameMode);
             const pairSeatForServerAi = pairClassicForServerAi ? getCurrentPairTurnSeat(game.settings) : null;
             const isPairServerAiSeat = Boolean(pairSeatForServerAi && isPairAiSeat(pairSeatForServerAi));
-            if (!game.isAiGame && !isPairServerAiSeat) {
+            const pveLikeForServerAiGate =
+                game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'adventure';
+            if (!game.isAiGame && !isPairServerAiSeat && !pveLikeForServerAiGate) {
                 return { error: 'Not an AI game.' };
             }
             // 도전의 탑·싱글플레이·모험: 클라 판이 서버보다 앞설 수 있음 → Kata 호출 전 클라 스냅샷으로 맞춤
@@ -936,6 +938,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 'hidden_reveal_animating',
                 'scanning',
                 'scanning_animating',
+                'missile_selecting',
                 'missile_animating',
                 'hidden_final_reveal',
                 'scoring',
@@ -1346,7 +1349,13 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     // START_MISSILE_SELECTION 전 상태 저장 (변경 확인용)
                     const statusBefore = game.gameStatus;
                     const result = await handleStrategicGameAction(volatileState, game, action, userData);
-                    
+
+                    // MISSILE_ANIMATION_COMPLETE: 착지 따내기 점수가 이번 요청에서 반영된 뒤 즉시 목표 달성 종료(메인 루프 틱을 기다리지 않음)
+                    if (type === 'MISSILE_ANIMATION_COMPLETE' && game.gameStatus === 'playing') {
+                        const { tryEndGameWhenCaptureTargetReached } = await import('./utils/captureTargets.js');
+                        await tryEndGameWhenCaptureTargetReached(game, game.currentPlayer);
+                    }
+
                     // MISSILE_ANIMATION_COMPLETE는 항상 게임 상태가 변경되므로 반드시 브로드캐스트
                     if (type === 'MISSILE_ANIMATION_COMPLETE') {
                         console.log(`[GameActions] MISSILE_ANIMATION_COMPLETE: gameStatus=${game.gameStatus}, always broadcasting update for game ${game.id}`);

@@ -19,10 +19,11 @@ import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
 import { formatGoldAmountKoG } from '../shared/utils/walletAmountDisplay.js';
 import {
     CHAMPIONSHIP_ABILITY_KATA_LADDER,
+    CHAMPIONSHIP_SIMULATION_PHASE_STAT_WEIGHTS,
     championshipKataLevelForPly,
     type ChampionshipAbilityKataLadderRow,
 } from '../shared/constants/championshipRealMatch.js';
-import { championshipAreaScoresAtPly } from '../utils/championshipLiveScores.js';
+import { championshipCapturesAtPly } from '../utils/championshipLiveScores.js';
 import { replaceAppHash } from '../utils/appUtils.js';
 
 /** 서버 inferDungeonStageAttempt와 동일 — currentStageAttempt 누락 시에도 보상 버튼·COMPLETE_DUNGEON_STAGE 단계 일치 */
@@ -310,10 +311,25 @@ const ChampionshipRealGoBoard: React.FC<{
         ? '"보상받기" 버튼을 눌러 보상을 수령하세요.'
         : '"다음 경기" 버튼을 눌러 진행해 주세요.';
 
+    const finalStandingsCount = finalStandings?.length ?? 0;
+    const finalStandingsListClass =
+        finalStandingsCount > 6
+            ? 'grid grid-cols-2 gap-x-1.5 gap-y-0.5 sm:gap-x-2'
+            : 'flex flex-col gap-0.5';
+    const finalStandingsTextClass = finalStandingsCount > 12 ? 'text-[9px] sm:text-[10px]' : 'text-[10px] sm:text-[11px]';
+
     return (
-        <div className="championship-real-board relative flex h-full w-full items-center justify-center overflow-hidden">
+        <div
+            className={`championship-real-board relative flex h-full w-full items-center justify-center ${
+                showFinishedResult ? 'overflow-visible' : 'overflow-hidden'
+            }`}
+        >
             {/* 오버레이를 바둑판 정사각형 영역 안에 두어 계가 연출이 바둑판 위로 정확히 덮이도록 한다. */}
-            <div className="relative aspect-square h-full max-h-full max-w-full">
+            <div
+                className={`relative aspect-square h-full max-h-full max-w-full ${
+                    showFinishedResult ? 'overflow-visible' : 'overflow-hidden'
+                }`}
+            >
                 <GoBoard
                     boardState={displayBoardState ?? realGame.boardState}
                     boardSize={realGame.boardSize}
@@ -347,123 +363,118 @@ const ChampionshipRealGoBoard: React.FC<{
                         </div>
                     </div>
                 )}
-                {showFinishedResult && (
-                    <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
-                        {/* 결과 확인용 어두운 배경 — 바둑판 위에 살짝 어둡게 깔아 결과 카드가 잘 보이도록 한다. */}
-                        <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-[1.5px]" aria-hidden />
-                        <div className="absolute inset-0 flex items-center justify-center px-3">
-                            <div className="championship-finished-result-card rounded-2xl border-2 border-amber-300/70 bg-gradient-to-b from-slate-900/95 via-slate-950/95 to-black/95 px-5 py-3.5 text-center shadow-[0_18px_42px_-12px_rgba(0,0,0,0.85)] ring-1 ring-amber-300/15">
-                                {/* 헤더: 회차/라운드 명 + FINAL RESULT 라벨 */}
-                                <div className="flex items-center justify-center gap-2">
-                                    {roundLabel && (
-                                        <span className="rounded-full border border-amber-300/65 bg-amber-500/15 px-2 py-0.5 text-[10px] font-black tracking-wider text-amber-100">
-                                            {roundLabel}
-                                        </span>
-                                    )}
-                                    <span className="text-[10px] font-black tracking-[0.32em] text-amber-200/80">
-                                        FINAL RESULT
+            </div>
+            {/* 경기 종료 카드는 바둑판 정사각형 밖(경기장 전체)에 두어 최종 순위가 잘리지 않게 한다. */}
+            {showFinishedResult && (
+                <div className="pointer-events-none absolute inset-0 z-[35] flex items-center justify-center overflow-visible p-1.5 sm:p-2">
+                    <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-[1.5px]" aria-hidden />
+                    <div className="relative z-[1] flex w-full max-w-full items-center justify-center px-1 sm:px-2">
+                        <div className="championship-finished-result-card pointer-events-auto max-w-[min(100%,min(92vw,30rem))] rounded-2xl border-2 border-amber-300/70 bg-gradient-to-b from-slate-900/95 via-slate-950/95 to-black/95 px-3 py-2.5 text-center shadow-[0_18px_42px_-12px_rgba(0,0,0,0.85)] ring-1 ring-amber-300/15 sm:px-5 sm:py-3.5">
+                            <div className="flex items-center justify-center gap-2">
+                                {roundLabel && (
+                                    <span className="rounded-full border border-amber-300/65 bg-amber-500/15 px-2 py-0.5 text-[10px] font-black tracking-wider text-amber-100">
+                                        {roundLabel}
                                     </span>
-                                </div>
-
-                                {/* 양 선수 프로필 + 가운데 승/패 결과 */}
-                                <div className="mt-2.5 flex items-center justify-center gap-3">
-                                    {/* 유저 프로필 */}
-                                    <div className="flex w-[5.6rem] flex-col items-center">
-                                        <div className="relative h-12 w-12">
-                                            {userAvatarUrl ? (
-                                                <img
-                                                    src={userAvatarUrl}
-                                                    alt={userInMatch?.nickname ?? '유저'}
-                                                    className={`h-full w-full rounded-full border-2 object-cover ${userWonThisMatch ? 'border-emerald-300/85' : 'border-rose-300/85'}`}
-                                                />
-                                            ) : (
-                                                <div className={`flex h-full w-full items-center justify-center rounded-full border-2 bg-slate-700 text-sm font-bold text-slate-100 ${userWonThisMatch ? 'border-emerald-300/85' : 'border-rose-300/85'}`}>
-                                                    {userInMatch?.nickname?.[0] ?? '나'}
-                                                </div>
-                                            )}
-                                            {userBorderUrl && (
-                                                <img src={userBorderUrl} alt="" className="pointer-events-none absolute inset-0 h-full w-full" />
-                                            )}
-                                        </div>
-                                        <div className="mt-1 max-w-full truncate text-[11px] font-bold text-slate-100">
-                                            {userInMatch?.nickname ?? '나'}
-                                        </div>
-                                        <div className="text-[10px] font-semibold text-emerald-200/85">
-                                            대회 {userRecord.wins}승 <span className="text-rose-200/85">{userRecord.losses}패</span>
-                                        </div>
-                                    </div>
-
-                                    {/* 가운데: 승/패 + 점수차 */}
-                                    <div className="flex flex-col items-center justify-center">
-                                        <div className={`text-lg font-black leading-tight ${userWonThisMatch ? 'text-emerald-200' : 'text-rose-200'}`}>
-                                            {userWonThisMatch ? '승리' : '패배'}
-                                        </div>
-                                        <div className="mt-0.5 text-[10px] font-bold text-slate-300">
-                                            {finishedScoreLeadAbs > 0 ? `${finishedScoreLeadAbs.toFixed(1)}집 차` : '백병전'}
-                                        </div>
-                                    </div>
-
-                                    {/* 상대 프로필 */}
-                                    <div className="flex w-[5.6rem] flex-col items-center">
-                                        <div className="relative h-12 w-12">
-                                            {opponentAvatarUrl ? (
-                                                <img
-                                                    src={opponentAvatarUrl}
-                                                    alt={opponentInMatch?.nickname ?? '상대'}
-                                                    className={`h-full w-full rounded-full border-2 object-cover ${userWonThisMatch ? 'border-rose-300/85' : 'border-emerald-300/85'}`}
-                                                />
-                                            ) : (
-                                                <div className={`flex h-full w-full items-center justify-center rounded-full border-2 bg-slate-700 text-sm font-bold text-slate-100 ${userWonThisMatch ? 'border-rose-300/85' : 'border-emerald-300/85'}`}>
-                                                    {opponentInMatch?.nickname?.[0] ?? '상'}
-                                                </div>
-                                            )}
-                                            {opponentBorderUrl && (
-                                                <img src={opponentBorderUrl} alt="" className="pointer-events-none absolute inset-0 h-full w-full" />
-                                            )}
-                                        </div>
-                                        <div className="mt-1 max-w-full truncate text-[11px] font-bold text-slate-100">
-                                            {opponentInMatch?.nickname ?? '상대'}
-                                        </div>
-                                        <div className="text-[10px] font-semibold text-emerald-200/85">
-                                            대회 {opponentRecord.wins}승 <span className="text-rose-200/85">{opponentRecord.losses}패</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="mt-2.5 text-[11px] font-semibold text-cyan-200/85">
-                                    {nextActionMessage}
-                                </div>
-
-                                {tournamentFinished && finalStandings && finalStandings.length > 0 ? (
-                                    <div className="mt-3 w-full max-w-[min(100%,22rem)] border-t border-amber-300/25 pt-2.5 text-left">
-                                        <div className="text-center text-[10px] font-black tracking-[0.28em] text-amber-200/90">
-                                            최종 결과 · 순위
-                                        </div>
-                                        <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto text-[11px]">
-                                            {finalStandings.map((row) => (
-                                                <li
-                                                    key={row.playerId}
-                                                    className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1 ${
-                                                        row.playerId === currentUser.id
-                                                            ? 'border-cyan-400/50 bg-cyan-950/40 text-cyan-50'
-                                                            : 'border-slate-600/40 bg-slate-900/50 text-slate-200'
-                                                    }`}
-                                                >
-                                                    <span className="font-black tabular-nums text-amber-200">{row.rank}위</span>
-                                                    <span className="min-w-0 flex-1 truncate font-bold">{row.nickname}</span>
-                                                    <span className="shrink-0 tabular-nums text-slate-300">
-                                                        {row.wins}승 {row.losses}패
-                                                    </span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                ) : null}
+                                )}
+                                <span className="text-[10px] font-black tracking-[0.32em] text-amber-200/80">FINAL RESULT</span>
                             </div>
+
+                            <div className="mt-2 flex items-center justify-center gap-2 sm:mt-2.5 sm:gap-3">
+                                <div className="flex w-[5rem] flex-col items-center sm:w-[5.6rem]">
+                                    <div className="relative h-11 w-11 sm:h-12 sm:w-12">
+                                        {userAvatarUrl ? (
+                                            <img
+                                                src={userAvatarUrl}
+                                                alt={userInMatch?.nickname ?? '유저'}
+                                                className={`h-full w-full rounded-full border-2 object-cover ${userWonThisMatch ? 'border-emerald-300/85' : 'border-rose-300/85'}`}
+                                            />
+                                        ) : (
+                                            <div
+                                                className={`flex h-full w-full items-center justify-center rounded-full border-2 bg-slate-700 text-sm font-bold text-slate-100 ${userWonThisMatch ? 'border-emerald-300/85' : 'border-rose-300/85'}`}
+                                            >
+                                                {userInMatch?.nickname?.[0] ?? '나'}
+                                            </div>
+                                        )}
+                                        {userBorderUrl && (
+                                            <img src={userBorderUrl} alt="" className="pointer-events-none absolute inset-0 h-full w-full" />
+                                        )}
+                                    </div>
+                                    <div className="mt-0.5 max-w-full truncate text-[10px] font-bold text-slate-100 sm:mt-1 sm:text-[11px]">
+                                        {userInMatch?.nickname ?? '나'}
+                                    </div>
+                                    <div className="text-[9px] font-semibold text-emerald-200/85 sm:text-[10px]">
+                                        대회 {userRecord.wins}승 <span className="text-rose-200/85">{userRecord.losses}패</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col items-center justify-center">
+                                    <div className={`text-base font-black leading-tight sm:text-lg ${userWonThisMatch ? 'text-emerald-200' : 'text-rose-200'}`}>
+                                        {userWonThisMatch ? '승리' : '패배'}
+                                    </div>
+                                    <div className="mt-0.5 text-[9px] font-bold text-slate-300 sm:text-[10px]">
+                                        {finishedScoreLeadAbs > 0 ? `${finishedScoreLeadAbs.toFixed(1)}집 차` : '백병전'}
+                                    </div>
+                                </div>
+
+                                <div className="flex w-[5rem] flex-col items-center sm:w-[5.6rem]">
+                                    <div className="relative h-11 w-11 sm:h-12 sm:w-12">
+                                        {opponentAvatarUrl ? (
+                                            <img
+                                                src={opponentAvatarUrl}
+                                                alt={opponentInMatch?.nickname ?? '상대'}
+                                                className={`h-full w-full rounded-full border-2 object-cover ${userWonThisMatch ? 'border-rose-300/85' : 'border-emerald-300/85'}`}
+                                            />
+                                        ) : (
+                                            <div
+                                                className={`flex h-full w-full items-center justify-center rounded-full border-2 bg-slate-700 text-sm font-bold text-slate-100 ${userWonThisMatch ? 'border-rose-300/85' : 'border-emerald-300/85'}`}
+                                            >
+                                                {opponentInMatch?.nickname?.[0] ?? '상'}
+                                            </div>
+                                        )}
+                                        {opponentBorderUrl && (
+                                            <img src={opponentBorderUrl} alt="" className="pointer-events-none absolute inset-0 h-full w-full" />
+                                        )}
+                                    </div>
+                                    <div className="mt-0.5 max-w-full truncate text-[10px] font-bold text-slate-100 sm:mt-1 sm:text-[11px]">
+                                        {opponentInMatch?.nickname ?? '상대'}
+                                    </div>
+                                    <div className="text-[9px] font-semibold text-emerald-200/85 sm:text-[10px]">
+                                        대회 {opponentRecord.wins}승 <span className="text-rose-200/85">{opponentRecord.losses}패</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mt-2 text-[10px] font-semibold text-cyan-200/85 sm:mt-2.5 sm:text-[11px]">{nextActionMessage}</div>
+
+                            {tournamentFinished && finalStandings && finalStandings.length > 0 ? (
+                                <div className="mt-2 w-full max-w-[min(100%,32rem)] border-t border-amber-300/25 pt-2 text-left sm:mt-3 sm:pt-2.5">
+                                    <div className="text-center text-[9px] font-black tracking-[0.22em] text-amber-200/90 sm:text-[10px] sm:tracking-[0.28em]">
+                                        최종 결과 · 순위
+                                    </div>
+                                    <ul className={`mt-1.5 w-full ${finalStandingsListClass} ${finalStandingsTextClass} leading-snug`}>
+                                        {finalStandings.map((row) => (
+                                            <li
+                                                key={row.playerId}
+                                                className={`flex items-center justify-between gap-1 rounded-md border px-1.5 py-0.5 sm:gap-2 sm:px-2 sm:py-1 ${
+                                                    row.playerId === currentUser.id
+                                                        ? 'border-cyan-400/50 bg-cyan-950/40 text-cyan-50'
+                                                        : 'border-slate-600/40 bg-slate-900/50 text-slate-200'
+                                                }`}
+                                            >
+                                                <span className="shrink-0 font-black tabular-nums text-amber-200">{row.rank}위</span>
+                                                <span className="min-w-0 flex-1 truncate font-bold">{row.nickname}</span>
+                                                <span className="shrink-0 tabular-nums text-slate-300">
+                                                    {row.wins}승 {row.losses}패
+                                                </span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ) : null}
                         </div>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -510,10 +521,45 @@ const ChampionshipAbilityPlayerPanel: React.FC<{
         tone === 'blue'
             ? 'border-blue-300/35 from-[#172c48] via-[#0e1b2d] to-[#050911]'
             : 'border-rose-300/35 from-[#481724] via-[#250d15] to-[#090406]';
-    const activePhaseTone =
-        tone === 'blue'
-            ? 'border-cyan-200/60 bg-gradient-to-r from-cyan-500/24 to-blue-500/18'
-            : 'border-amber-200/60 bg-gradient-to-r from-amber-500/24 to-rose-500/18';
+    const phaseRowActiveClass = (phaseKey: (typeof CHAMPIONSHIP_PHASE_META)[number]['key']): string => {
+        if (activePhaseKey !== phaseKey) return 'border-slate-600/45 bg-black/24';
+        if (phaseKey === 'opening') {
+            return tone === 'blue'
+                ? 'border-cyan-300/55 bg-gradient-to-r from-cyan-600/28 to-sky-900/35 ring-1 ring-cyan-400/25'
+                : 'border-cyan-300/45 bg-gradient-to-r from-cyan-700/22 to-rose-950/40 ring-1 ring-cyan-300/20';
+        }
+        if (phaseKey === 'midgame') {
+            return tone === 'blue'
+                ? 'border-fuchsia-300/50 bg-gradient-to-r from-fuchsia-600/26 to-indigo-950/38 ring-1 ring-fuchsia-400/22'
+                : 'border-fuchsia-300/45 bg-gradient-to-r from-fuchsia-700/24 to-rose-950/42 ring-1 ring-fuchsia-300/20';
+        }
+        return tone === 'blue'
+            ? 'border-amber-300/50 bg-gradient-to-r from-amber-600/26 to-orange-950/38 ring-1 ring-amber-400/25'
+            : 'border-amber-300/45 bg-gradient-to-r from-amber-700/24 to-rose-950/45 ring-1 ring-amber-300/22';
+    };
+
+    const phaseRowLabelClass = (phaseKey: (typeof CHAMPIONSHIP_PHASE_META)[number]['key']): string => {
+        if (activePhaseKey !== phaseKey) return 'font-bold text-slate-500';
+        if (phaseKey === 'opening') return 'font-bold text-cyan-100';
+        if (phaseKey === 'midgame') return 'font-bold text-fuchsia-100';
+        return 'font-bold text-amber-100';
+    };
+
+    const phaseRowValueClass = (phaseKey: (typeof CHAMPIONSHIP_PHASE_META)[number]['key']): string => {
+        if (activePhaseKey !== phaseKey) return 'text-base font-black tabular-nums text-slate-500';
+        if (phaseKey === 'opening') return 'text-base font-black tabular-nums text-cyan-50';
+        if (phaseKey === 'midgame') return 'text-base font-black tabular-nums text-fuchsia-50';
+        return 'text-base font-black tabular-nums text-amber-50';
+    };
+
+    const phaseBadgeClass =
+        currentPhase === 'early'
+            ? 'border-cyan-400/45 bg-cyan-950/55 text-cyan-100'
+            : currentPhase === 'mid'
+              ? 'border-fuchsia-400/45 bg-fuchsia-950/50 text-fuchsia-100'
+              : currentPhase === 'end'
+                ? 'border-amber-400/50 bg-amber-950/50 text-amber-100'
+                : 'border-white/15 bg-black/28 text-slate-300';
 
     return (
         <aside className="flex h-fit max-h-full w-[165px] shrink-0 flex-col gap-2 self-start overflow-hidden rounded-xl border border-slate-700/35 bg-gradient-to-b from-[#111827] via-[#070b12] to-[#020305] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_42px_-22px_rgba(0,0,0,0.9)] xl:w-[185px]">
@@ -522,18 +568,30 @@ const ChampionshipAbilityPlayerPanel: React.FC<{
                     <div className="text-[13px] font-black tracking-wide text-amber-100">{sideLabel}</div>
                     <div className="mt-0.5 max-w-[7rem] truncate text-[11px] font-semibold text-slate-300">{player?.nickname ?? '선수'} 능력치</div>
                 </div>
-                <div className="rounded-lg border border-white/15 bg-black/28 px-2 py-1 text-[12px] font-black text-cyan-100 shadow-inner">
+                <div className={`rounded-lg border px-2 py-1 text-[12px] font-black shadow-inner ${phaseBadgeClass}`}>
                     {currentPhase === 'early' ? '초반' : currentPhase === 'mid' ? '중반' : currentPhase === 'end' ? '종반' : '대기'}
                 </div>
             </div>
 
-            <div className={`grid shrink-0 grid-cols-2 gap-x-2 gap-y-1.5 rounded-lg border bg-gradient-to-b p-2.5 text-[11px] leading-tight text-slate-300 shadow-lg ${statCardTone}`}>
-                {CHAMPIONSHIP_CORE_STATS.map((stat) => (
-                    <React.Fragment key={stat}>
-                        <span className="truncate font-semibold text-slate-400">{stat}</span>
-                        <span className="text-right text-[12px] font-black tabular-nums text-slate-50">{Math.round(stats?.[stat] ?? 0)}</span>
-                    </React.Fragment>
-                ))}
+            <div className={`grid shrink-0 grid-cols-2 gap-x-2 gap-y-1.5 rounded-lg border bg-gradient-to-b p-2.5 text-[11px] leading-tight shadow-lg ${statCardTone}`}>
+                {CHAMPIONSHIP_CORE_STATS.map((stat) => {
+                    const hi = currentPhase !== 'none' && KEY_STATS_BY_PHASE[currentPhase].includes(stat);
+                    const ps = currentPhase !== 'none' ? CHAMPIONSHIP_PHASE_STAT_STYLE[currentPhase] : null;
+                    return (
+                        <React.Fragment key={stat}>
+                            <span
+                                className={`truncate font-semibold ${hi && ps ? `${ps.labelActive} font-bold` : 'text-slate-400'}`}
+                            >
+                                {stat}
+                            </span>
+                            <span
+                                className={`text-right text-[12px] font-black tabular-nums ${hi && ps ? `${ps.valueActive}` : 'text-slate-50'}`}
+                            >
+                                {Math.round(stats?.[stat] ?? 0)}
+                            </span>
+                        </React.Fragment>
+                    );
+                })}
             </div>
 
             <div className={`shrink-0 rounded-lg border bg-gradient-to-b p-2.5 shadow-lg ${statCardTone}`}>
@@ -543,19 +601,14 @@ const ChampionshipAbilityPlayerPanel: React.FC<{
                         const fromSnapshot = player?.id ? realGame?.phaseStatsByPlayerId?.[player.id]?.[phase.key] : undefined;
                         const computed =
                             fromSnapshot ?? championshipKataLevelForPly(ply, stats as any, undefined, abilityKataLadder);
-                        const isActive = activePhaseKey === phase.key;
                         return (
                             <div
                                 key={phase.key}
-                                className={`rounded-lg border px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
-                                    isActive
-                                        ? activePhaseTone
-                                        : 'border-slate-600/45 bg-black/24'
-                                }`}
+                                className={`rounded-lg border px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${phaseRowActiveClass(phase.key)}`}
                             >
                                 <div className="flex items-center justify-between gap-2 text-[12px]">
-                                    <span className="font-bold text-amber-100">{phase.label}</span>
-                                    <span className="text-base font-black tabular-nums text-slate-50">{computed.abilityScore}</span>
+                                    <span className={phaseRowLabelClass(phase.key)}>{phase.label}</span>
+                                    <span className={phaseRowValueClass(phase.key)}>{computed.abilityScore}</span>
                                 </div>
                             </div>
                         );
@@ -608,31 +661,108 @@ const championshipFooterMutedButton =
 const championshipFooterExitButton =
     `${championshipFooterButtonBase} border-rose-400/45 bg-gradient-to-b from-rose-600/88 via-rose-800/90 to-rose-950/95 text-rose-50 hover:brightness-110`;
 
+/** 페이즈 점수에 모두 반영되므로 하이라이트는 여섯 능력치 전부 */
+const CHAMPIONSHIP_ALL_CORE_STATS: CoreStat[] = [
+    CoreStat.Concentration,
+    CoreStat.ThinkingSpeed,
+    CoreStat.Judgment,
+    CoreStat.Calculation,
+    CoreStat.CombatPower,
+    CoreStat.Stability,
+];
+
 const KEY_STATS_BY_PHASE: Record<'early' | 'mid' | 'end', CoreStat[]> = {
-    early: [CoreStat.CombatPower, CoreStat.ThinkingSpeed, CoreStat.Concentration],
-    mid: [CoreStat.CombatPower, CoreStat.Judgment, CoreStat.Concentration, CoreStat.Stability],
-    end: [CoreStat.Calculation, CoreStat.Stability, CoreStat.Concentration],
+    early: CHAMPIONSHIP_ALL_CORE_STATS,
+    mid: CHAMPIONSHIP_ALL_CORE_STATS,
+    end: CHAMPIONSHIP_ALL_CORE_STATS,
 };
 
-// 서버의 STAT_WEIGHTS와 동일한 가중치 정의
-const STAT_WEIGHTS: Record<'early' | 'mid' | 'end', Partial<Record<CoreStat, number>>> = {
+/** 경기 페이즈(초·중·종)에 맞춰 해당 구간 가중 능력치 라벨·수치 색상 */
+const CHAMPIONSHIP_PHASE_STAT_STYLE: Record<
+    'early' | 'mid' | 'end',
+    { labelActive: string; valueActive: string; labelMuted: string; valueMuted: string }
+> = {
     early: {
-        [CoreStat.CombatPower]: 0.4,
-        [CoreStat.ThinkingSpeed]: 0.3,
-        [CoreStat.Concentration]: 0.3,
+        labelActive: 'text-cyan-200',
+        valueActive: 'text-cyan-50',
+        labelMuted: 'text-slate-500',
+        valueMuted: 'text-slate-500',
     },
     mid: {
-        [CoreStat.CombatPower]: 0.3,
-        [CoreStat.Judgment]: 0.3,
-        [CoreStat.Concentration]: 0.2,
-        [CoreStat.Stability]: 0.2,
+        labelActive: 'text-fuchsia-200',
+        valueActive: 'text-fuchsia-50',
+        labelMuted: 'text-slate-500',
+        valueMuted: 'text-slate-500',
     },
     end: {
-        [CoreStat.Calculation]: 0.5,
-        [CoreStat.Stability]: 0.3,
-        [CoreStat.Concentration]: 0.2,
+        labelActive: 'text-amber-200',
+        valueActive: 'text-amber-100',
+        labelMuted: 'text-slate-500',
+        valueMuted: 'text-slate-500',
     },
 };
+
+function championshipStatHighlightClass(
+    phase: 'early' | 'mid' | 'end' | 'none',
+    stat: CoreStat,
+    part: 'label' | 'value',
+): string {
+    if (phase === 'none') {
+        return part === 'label' ? 'text-gray-400' : 'text-white';
+    }
+    const active = KEY_STATS_BY_PHASE[phase].includes(stat);
+    const s = CHAMPIONSHIP_PHASE_STAT_STYLE[phase];
+    if (active) {
+        return part === 'label' ? `${s.labelActive} font-bold` : `${s.valueActive} font-bold`;
+    }
+    return part === 'label' ? s.labelMuted : s.valueMuted;
+}
+
+/** 초·중·종 합산 능력 3칸: 경기 중엔 현재 페이즈 칸만 강조, 그 외에는 세 칸 동일 강조 */
+function championshipPhaseAggregateCellClass(
+    cellPhase: 'early' | 'mid' | 'end',
+    currentPhase: 'early' | 'mid' | 'end' | 'none',
+    isMobile: boolean,
+    layout: 'gridCell' | 'inlineRow' = 'gridCell',
+): { wrap: string; title: string; value: string } {
+    const pad = isMobile ? 'px-0.5 py-0.5' : 'px-1 py-0.5';
+    const align = layout === 'inlineRow' ? 'flex w-full items-center justify-between gap-2 text-left' : 'text-center';
+    const styles: Record<'early' | 'mid' | 'end', { wrap: string; title: string; value: string }> = {
+        early: {
+            wrap: `rounded ${pad} ${align} border border-cyan-600/45 bg-cyan-950/35`,
+            title: 'text-cyan-100/90 font-semibold',
+            value: 'text-cyan-200 font-bold',
+        },
+        mid: {
+            wrap: `rounded ${pad} ${align} border border-fuchsia-600/45 bg-fuchsia-950/30`,
+            title: 'text-fuchsia-100/90 font-semibold',
+            value: 'text-fuchsia-200 font-bold',
+        },
+        end: {
+            wrap: `rounded ${pad} ${align} border border-amber-600/50 bg-amber-950/30`,
+            title: 'text-amber-100/90 font-semibold',
+            value: 'text-amber-200 font-bold',
+        },
+    };
+    const base = styles[cellPhase];
+    if (currentPhase === 'none') {
+        return { wrap: base.wrap, title: base.title, value: base.value };
+    }
+    if (currentPhase !== cellPhase) {
+        return {
+            wrap: `${base.wrap} opacity-[0.52] saturate-[0.65]`,
+            title: `${base.title} opacity-90`,
+            value: `${base.value} opacity-90`,
+        };
+    }
+    return {
+        wrap: `${base.wrap} ring-1 ring-white/15 shadow-[0_0_14px_-4px_rgba(255,255,255,0.18)]`,
+        title: base.title,
+        value: base.value,
+    };
+}
+
+const STAT_WEIGHTS = CHAMPIONSHIP_SIMULATION_PHASE_STAT_WEIGHTS;
 
 const getMaxStatValueForLeague = (league: LeagueTier): number => {
     switch (league) {
@@ -682,7 +812,7 @@ const PlayerProfilePanel: React.FC<{
     timeElapsed?: number;
     tournamentStatus?: string;
     isMobile?: boolean;
-    /** 1회차 경기 시작 전에만 true. 시작 후·종료 후에는 false (컨디션 회복제 버튼 비활성화) */
+    /** false면 경기 진행 중 등 회복제 사용 불가 */
     canUseConditionPotion?: boolean;
     /** 티어 표시 여부. 챔피언십 경기장에서는 false (티어는 전략바둑/놀이바둑에만 존재) */
     showLeague?: boolean;
@@ -975,11 +1105,6 @@ const PlayerProfilePanel: React.FC<{
         initialStats
     ]);
 
-    const isStatHighlighted = (stat: CoreStat) => {
-        if (highlightPhase === 'none') return false;
-        return KEY_STATS_BY_PHASE[highlightPhase].includes(stat);
-    };
-    
     // 경기 시작 전에는 홈 화면과 동일한 능력치 계산 (calculateTotalStats 사용)
     // 경기 중에는 player.stats를 사용 (컨디션으로 인한 변화 반영)
     const displayStats = useMemo(() => {
@@ -1237,7 +1362,7 @@ const PlayerProfilePanel: React.FC<{
                                         title={
                                             playerCondition >= 100
                                                 ? '컨디션이 이미 최대입니다'
-                                                : '컨디션 회복제 사용 (1회차 경기 시작 전에만 가능)'
+                                                : '컨디션 회복제 사용 (경기 진행 중에는 불가)'
                                         }
                                     >
                                         +
@@ -1282,14 +1407,20 @@ const PlayerProfilePanel: React.FC<{
                                                 className={`flex items-baseline justify-between gap-2 rounded-md border border-gray-600/50 bg-slate-900/45 px-2 py-1 font-mono text-[10px] tabular-nums`}
                                             >
                                                 <span
-                                                    className={`min-w-0 truncate font-sans font-medium ${
-                                                        isStatHighlighted(stat) ? 'font-bold text-yellow-400' : 'text-gray-400'
-                                                    }`}
+                                                    className={`min-w-0 truncate font-sans font-medium ${championshipStatHighlightClass(
+                                                        highlightPhase,
+                                                        stat,
+                                                        'label',
+                                                    )}`}
                                                 >
                                                     {stat}
                                                 </span>
                                                 <div className="flex shrink-0 items-baseline gap-1">
-                                                    <span className={isStatHighlighted(stat) ? 'font-bold text-yellow-300' : 'text-white'}>{currentValue}</span>
+                                                    <span
+                                                        className={`font-mono ${championshipStatHighlightClass(highlightPhase, stat, 'value')}`}
+                                                    >
+                                                        {currentValue}
+                                                    </span>
                                                     {tournamentStatus === 'round_in_progress' && change !== 0 ? (
                                                         <span className={change > 0 ? 'text-green-400' : 'text-red-400'}>
                                                             [{change > 0 ? '+' : ''}
@@ -1336,18 +1467,17 @@ const PlayerProfilePanel: React.FC<{
                                         );
                                     }
                                 })}
-                                <div className="mt-0.5 flex items-center justify-between rounded-md border border-blue-700/45 bg-blue-900/25 px-2 py-1 text-[10px]">
-                                    <span className="font-semibold text-gray-300">초반능력</span>
-                                    <span className="font-bold text-blue-300 tabular-nums">{phaseStats?.early ?? 0}</span>
-                                </div>
-                                <div className="flex items-center justify-between rounded-md border border-purple-700/45 bg-purple-900/25 px-2 py-1 text-[10px]">
-                                    <span className="font-semibold text-gray-300">중반능력</span>
-                                    <span className="font-bold text-purple-300 tabular-nums">{phaseStats?.mid ?? 0}</span>
-                                </div>
-                                <div className="flex items-center justify-between rounded-md border border-orange-700/45 bg-orange-900/25 px-2 py-1 text-[10px]">
-                                    <span className="font-semibold text-gray-300">종반능력</span>
-                                    <span className="font-bold text-orange-300 tabular-nums">{phaseStats?.end ?? 0}</span>
-                                </div>
+                                {(['early', 'mid', 'end'] as const).map((pk) => {
+                                    const agg = championshipPhaseAggregateCellClass(pk, highlightPhase, true, 'inlineRow');
+                                    const label = pk === 'early' ? '초반능력' : pk === 'mid' ? '중반능력' : '종반능력';
+                                    const val = pk === 'early' ? phaseStats?.early : pk === 'mid' ? phaseStats?.mid : phaseStats?.end;
+                                    return (
+                                        <div key={pk} className={`text-[10px] ${agg.wrap}`}>
+                                            <span className={agg.title}>{label}</span>
+                                            <span className={`tabular-nums ${agg.value}`}>{val ?? 0}</span>
+                                        </div>
+                                    );
+                                })}
                                 {!championshipMobileStackedNoRadar && mobileRadarCompare ? (
                                     <div className="mt-1 flex w-full shrink-0 flex-col items-center">
                                         <div
@@ -1436,7 +1566,7 @@ const PlayerProfilePanel: React.FC<{
                         className={`ml-2 ${isMobile ? 'text-sm w-6 h-6' : 'text-base w-6 h-6'} ${
                             playerCondition >= 100 ? 'bg-gray-600 cursor-not-allowed opacity-50' : 'bg-green-600 hover:bg-green-700'
                         } text-white rounded-full transition-colors flex-shrink-0 flex items-center justify-center font-bold`}
-                        title={playerCondition >= 100 ? "컨디션이 이미 최대입니다" : "컨디션 회복제 사용 (1회차 경기 시작 전에만 가능)"}
+                        title={playerCondition >= 100 ? "컨디션이 이미 최대입니다" : "컨디션 회복제 사용 (경기 진행 중에는 불가)"}
                     >
                         +
                     </button>
@@ -1459,7 +1589,7 @@ const PlayerProfilePanel: React.FC<{
 
                         const labelEl = (
                             <span
-                                className={`text-gray-400 truncate min-w-0 font-sans ${isStatHighlighted(stat) ? 'text-yellow-400 font-bold' : ''}`}
+                                className={`truncate min-w-0 font-sans ${championshipStatHighlightClass(highlightPhase, stat, 'label')}`}
                             >
                                 {stat}
                             </span>
@@ -1467,7 +1597,7 @@ const PlayerProfilePanel: React.FC<{
 
                         const currentEl = (
                             <span
-                                className={`text-right text-white whitespace-nowrap ${isStatHighlighted(stat) ? 'text-yellow-400 font-bold' : ''} ${
+                                className={`text-right whitespace-nowrap ${championshipStatHighlightClass(highlightPhase, stat, 'value')} ${
                                     isMobile ? 'min-w-[1.25rem]' : 'min-w-[40px] text-xs'
                                 }`}
                             >
@@ -1568,18 +1698,17 @@ const PlayerProfilePanel: React.FC<{
             {phaseStats && typeof phaseStats === 'object' && (
                 <div className="w-full border-t border-gray-600 mt-0 pt-0.5 flex-shrink-0">
                     <div className={`grid grid-cols-3 gap-1 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
-                        <div className={`bg-blue-900/30 rounded ${isMobile ? 'px-0.5 py-0.5' : 'px-1 py-0.5'} text-center border border-blue-700/50`}>
-                            <div className={`text-gray-300 font-semibold ${isMobile ? 'mb-0' : 'mb-0'}`}>초반능력</div>
-                            <div className={`text-blue-300 font-bold ${isMobile ? 'text-xs' : 'text-sm'}`}>{phaseStats?.early ?? 0}</div>
-                        </div>
-                        <div className={`bg-purple-900/30 rounded ${isMobile ? 'px-0.5 py-0.5' : 'px-1 py-0.5'} text-center border border-purple-700/50`}>
-                            <div className={`text-gray-300 font-semibold ${isMobile ? 'mb-0' : 'mb-0'}`}>중반능력</div>
-                            <div className={`text-purple-300 font-bold ${isMobile ? 'text-xs' : 'text-sm'}`}>{phaseStats?.mid ?? 0}</div>
-                        </div>
-                        <div className={`bg-orange-900/30 rounded ${isMobile ? 'px-0.5 py-0.5' : 'px-1 py-0.5'} text-center border border-orange-700/50`}>
-                            <div className={`text-gray-300 font-semibold ${isMobile ? 'mb-0' : 'mb-0'}`}>종반능력</div>
-                            <div className={`text-orange-300 font-bold ${isMobile ? 'text-xs' : 'text-sm'}`}>{phaseStats?.end ?? 0}</div>
-                        </div>
+                        {(['early', 'mid', 'end'] as const).map((pk) => {
+                            const agg = championshipPhaseAggregateCellClass(pk, highlightPhase, isMobile);
+                            const label = pk === 'early' ? '초반능력' : pk === 'mid' ? '중반능력' : '종반능력';
+                            const val = pk === 'early' ? phaseStats?.early : pk === 'mid' ? phaseStats?.mid : phaseStats?.end;
+                            return (
+                                <div key={pk} className={agg.wrap}>
+                                    <div className={`${agg.title} ${isMobile ? 'mb-0' : 'mb-0'}`}>{label}</div>
+                                    <div className={`${agg.value} ${isMobile ? 'text-xs' : 'text-sm'}`}>{val ?? 0}</div>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             )}
@@ -1675,8 +1804,6 @@ const MobileChampionshipPlayersCompare: React.FC<{
         if (c !== undefined && c !== null) return c;
         return 1000;
     };
-
-    const statHighlighted = (stat: CoreStat) => highlightPhase !== 'none' && KEY_STATS_BY_PHASE[highlightPhase].includes(stat);
 
     /** 컨디션 수치 색상: 50 미만 빨강, 80 이상 초록, 그 사이 주황 계열 */
     const conditionValueClass = (cond: number) => {
@@ -1872,7 +1999,7 @@ const MobileChampionshipPlayersCompare: React.FC<{
                                                             title={
                                                                 p1 && resolveCondition(p1, true) >= 100
                                                                     ? '컨디션이 이미 최대입니다'
-                                                                    : '컨디션 회복제 사용 (경기 시작 전)'
+                                                                    : '컨디션 회복제 사용 (경기 진행 중에는 불가)'
                                                             }
                                                         >
                                                             +
@@ -1942,7 +2069,7 @@ const MobileChampionshipPlayersCompare: React.FC<{
                                                             title={
                                                                 p2 && resolveCondition(p2, true) >= 100
                                                                     ? '컨디션이 이미 최대입니다'
-                                                                    : '컨디션 회복제 사용 (경기 시작 전)'
+                                                                    : '컨디션 회복제 사용 (경기 진행 중에는 불가)'
                                                             }
                                                         >
                                                             +
@@ -2001,16 +2128,33 @@ const MobileChampionshipPlayersCompare: React.FC<{
                                             const cur2 = p2Stats[stat] ?? 0;
                                             const ch1 = tournamentStatus === 'round_in_progress' ? cur1 - init1 : 0;
                                             const ch2 = tournamentStatus === 'round_in_progress' ? cur2 - init2 : 0;
-                                            const hi = statHighlighted(stat);
-                                            const labelCls = hi ? 'font-bold text-yellow-300' : 'text-stone-300';
+                                            const hi =
+                                                highlightPhase !== 'none' && KEY_STATS_BY_PHASE[highlightPhase].includes(stat);
+                                            const labelCls = `text-[0.92em] font-semibold leading-snug ${championshipStatHighlightClass(
+                                                highlightPhase,
+                                                stat,
+                                                'label',
+                                            )}`;
+                                            const hiRing =
+                                                hi && highlightPhase === 'early'
+                                                    ? 'ring-cyan-400/35 bg-cyan-500/10'
+                                                    : hi && highlightPhase === 'mid'
+                                                      ? 'ring-fuchsia-400/32 bg-fuchsia-500/10'
+                                                      : hi && highlightPhase === 'end'
+                                                        ? 'ring-amber-400/35 bg-amber-500/10'
+                                                        : 'ring-white/[0.06]';
                                             return (
                                                 <React.Fragment key={stat}>
                                                     <div
-                                                        className={`flex min-h-[1.55em] items-center justify-center rounded-md bg-black/25 px-0.5 py-[0.2em] text-center text-[0.92em] font-semibold leading-snug ring-1 ring-inset ring-white/[0.06] ${labelCls}`}
+                                                        className={`flex min-h-[1.55em] items-center justify-center rounded-md bg-black/25 px-0.5 py-[0.2em] text-center ring-1 ring-inset ring-white/[0.06] ${labelCls}`}
                                                     >
                                                         {stat}
                                                     </div>
-                                                    <div className="flex min-h-[1.55em] flex-wrap items-center justify-center gap-x-0.5 rounded-md bg-black/25 px-0.5 py-[0.2em] text-center font-mono text-[1.06em] tabular-nums leading-none text-cyan-100 ring-1 ring-inset ring-white/[0.06]">
+                                                    <div
+                                                        className={`flex min-h-[1.55em] flex-wrap items-center justify-center gap-x-0.5 rounded-md bg-black/25 px-0.5 py-[0.2em] text-center font-mono text-[1.06em] tabular-nums leading-none ring-1 ring-inset ${hiRing} ${
+                                                            hi ? 'text-sky-100' : 'text-cyan-100'
+                                                        }`}
+                                                    >
                                                         <span>{cur1}</span>
                                                         {ch1 !== 0 ? (
                                                             <span className={ch1 > 0 ? 'text-green-400' : 'text-red-400'}>
@@ -2019,7 +2163,11 @@ const MobileChampionshipPlayersCompare: React.FC<{
                                                             </span>
                                                         ) : null}
                                                     </div>
-                                                    <div className="flex min-h-[1.55em] flex-wrap items-center justify-center gap-x-0.5 rounded-md bg-black/25 px-0.5 py-[0.2em] text-center font-mono text-[1.06em] tabular-nums leading-none text-amber-100 ring-1 ring-inset ring-white/[0.06]">
+                                                    <div
+                                                        className={`flex min-h-[1.55em] flex-wrap items-center justify-center gap-x-0.5 rounded-md bg-black/25 px-0.5 py-[0.2em] text-center font-mono text-[1.06em] tabular-nums leading-none ring-1 ring-inset ${hiRing} ${
+                                                            hi ? 'text-amber-50' : 'text-amber-100'
+                                                        }`}
+                                                    >
                                                         <span>{cur2}</span>
                                                         {ch2 !== 0 ? (
                                                             <span className={ch2 > 0 ? 'text-green-400' : 'text-red-400'}>
@@ -2032,28 +2180,50 @@ const MobileChampionshipPlayersCompare: React.FC<{
                                             );
                                         })}
 
-                                        {(['early', 'mid', 'end'] as const).map((phase, idx) => {
+                                        {(['early', 'mid', 'end'] as const).map((phase) => {
                                             const label = phase === 'early' ? '초반능력' : phase === 'mid' ? '중반능력' : '종반능력';
                                             const v1 = ph1[phase];
                                             const v2 = ph2[phase];
-                                            const borderAccent =
-                                                idx === 0
-                                                    ? 'border-blue-700/40'
-                                                    : idx === 1
-                                                      ? 'border-purple-700/40'
-                                                      : 'border-orange-700/40';
+                                            const isRowActive = highlightPhase === phase;
+                                            const labelTone =
+                                                phase === 'early'
+                                                    ? 'text-cyan-200'
+                                                    : phase === 'mid'
+                                                      ? 'text-fuchsia-200'
+                                                      : 'text-amber-200';
+                                            const labelCls = `text-[0.92em] font-semibold ${
+                                                isRowActive ? `${labelTone} font-bold` : 'text-stone-500'
+                                            }`;
+                                            const p1Inactive = 'border-slate-600/35 bg-black/20 text-cyan-200/65';
+                                            const p2Inactive = 'border-slate-600/35 bg-black/20 text-amber-200/65';
+                                            const p1Cell = isRowActive
+                                                ? phase === 'early'
+                                                    ? 'border-cyan-500/50 bg-cyan-950/35 text-cyan-50 ring-1 ring-cyan-400/25'
+                                                    : phase === 'mid'
+                                                      ? 'border-fuchsia-500/50 bg-fuchsia-950/32 text-fuchsia-50 ring-1 ring-fuchsia-400/22'
+                                                      : 'border-amber-500/50 bg-amber-950/32 text-amber-50 ring-1 ring-amber-400/28'
+                                                : p1Inactive;
+                                            const p2Cell = isRowActive
+                                                ? phase === 'early'
+                                                    ? 'border-cyan-500/45 bg-cyan-950/28 text-amber-100 ring-1 ring-cyan-400/22'
+                                                    : phase === 'mid'
+                                                      ? 'border-fuchsia-500/45 bg-fuchsia-950/28 text-amber-100 ring-1 ring-fuchsia-400/20'
+                                                      : 'border-amber-500/45 bg-amber-950/28 text-amber-100 ring-1 ring-amber-400/25'
+                                                : p2Inactive;
                                             return (
                                                 <React.Fragment key={phase}>
-                                                    <div className="flex min-h-[1.55em] items-center justify-center rounded-md bg-black/25 px-0.5 py-[0.2em] text-center text-[0.92em] font-semibold text-stone-400 ring-1 ring-inset ring-white/[0.06]">
+                                                    <div
+                                                        className={`flex min-h-[1.55em] items-center justify-center rounded-md bg-black/25 px-0.5 py-[0.2em] text-center ring-1 ring-inset ring-white/[0.06] ${labelCls}`}
+                                                    >
                                                         {label}
                                                     </div>
                                                     <div
-                                                        className={`flex min-h-[1.55em] items-center justify-center rounded-md border ${borderAccent} bg-black/20 px-0.5 py-[0.2em] text-center font-mono text-[0.98em] tabular-nums text-cyan-200`}
+                                                        className={`flex min-h-[1.55em] items-center justify-center rounded-md border px-0.5 py-[0.2em] text-center font-mono text-[0.98em] tabular-nums ${p1Cell}`}
                                                     >
                                                         {v1}
                                                     </div>
                                                     <div
-                                                        className={`flex min-h-[1.55em] items-center justify-center rounded-md border ${borderAccent} bg-black/20 px-0.5 py-[0.2em] text-center font-mono text-[0.98em] tabular-nums text-amber-200`}
+                                                        className={`flex min-h-[1.55em] items-center justify-center rounded-md border px-0.5 py-[0.2em] text-center font-mono text-[0.98em] tabular-nums ${p2Cell}`}
                                                     >
                                                         {v2}
                                                     </div>
@@ -2838,6 +3008,8 @@ const CommentaryPanel: React.FC<{
 
 const FinalRewardPanel: React.FC<{
     tournamentState: TournamentState;
+    /** 계가·중계·다음 경기 대기 중에도 변하지 않게: 매 경기 누적 보상 필드는 서버 스냅샷에서만 읽는다 */
+    rewardsSourceTournament?: TournamentState | null;
     currentUser: UserWithStatus;
     onAction: (action: ServerAction) => void;
     onCompleteDungeon?: () => void;
@@ -2850,6 +3022,7 @@ const FinalRewardPanel: React.FC<{
     suppressBottomActions?: boolean;
 }> = ({
     tournamentState,
+    rewardsSourceTournament,
     currentUser,
     onAction,
     onCompleteDungeon,
@@ -2861,6 +3034,8 @@ const FinalRewardPanel: React.FC<{
 }) => {
     const isMobileTabLayout = layoutVariant === 'mobileTab';
     const { type, rounds } = tournamentState;
+    /** 획득 보상 타일만 서버 기준으로 고정 (시뮬레이션 로컬 상태와 분리) */
+    const rs = rewardsSourceTournament ?? tournamentState;
     
     // 모든 경기가 완료되었는지 확인
     const allMatchesFinished = rounds.every(r => r.matches.every(m => m.isFinished));
@@ -2870,16 +3045,18 @@ const FinalRewardPanel: React.FC<{
     const isUserEliminated = tournamentState.status === 'eliminated';
     const isInProgress = tournamentState.status === 'round_in_progress' || tournamentState.status === 'bracket_ready';
     const isRoundComplete = tournamentState.status === 'round_complete';
-    // 동네바둑리그: 누적 골드 표시 (경기 진행 중에도 표시)
-    const accumulatedGold = tournamentState.type === 'neighborhood' ? (tournamentState.accumulatedGold || 0) : 0;
-    
-    // 전국바둑대회: 누적 재료 표시 (경기 진행 중에도 표시)
-    const accumulatedMaterials = tournamentState.type === 'national' ? (tournamentState.accumulatedMaterials || {}) : {};
-    
-    // 월드챔피언십: 누적 장비상자(레거시) 또는 경기당 장비 드롭 개수 (서버는 accumulatedEquipmentDrops만 채움)
-    const accumulatedEquipmentBoxes = tournamentState.type === 'world' ? (tournamentState.accumulatedEquipmentBoxes || {}) : {};
-    const accumulatedEquipmentDropsCount = tournamentState.type === 'world' ? (tournamentState.accumulatedEquipmentDrops?.length ?? 0) : 0;
-    const accumulatedEquipmentItems = tournamentState.type === 'world' ? (tournamentState.accumulatedEquipmentItems || []) : [];
+    // 동네바둑리그: 회차별·누적 골드(서버 rs, 수령 모달과 동일 출처)
+    const accumulatedGold = rs.type === 'neighborhood' ? (rs.accumulatedGold || 0) : 0;
+    const matchGoldRewards = rs.type === 'neighborhood' ? rs.matchGoldRewards : undefined;
+
+    // 전국바둑대회: 라운드별 재료·누적(서버 rs)
+    const accumulatedMaterials = rs.type === 'national' ? (rs.accumulatedMaterials || {}) : {};
+    const matchMaterialRewards = rs.type === 'national' ? rs.matchMaterialRewards : undefined;
+
+    // 월드챔피언십: 장비·드롭·상자(서버 rs)
+    const accumulatedEquipmentBoxes = rs.type === 'world' ? (rs.accumulatedEquipmentBoxes || {}) : {};
+    const accumulatedEquipmentDropsList = rs.type === 'world' ? (rs.accumulatedEquipmentDrops || []) : [];
+    const accumulatedEquipmentItems = rs.type === 'world' ? (rs.accumulatedEquipmentItems || []) : [];
     const claimedRewardSummary = tournamentState.claimedRewardSummary || null;
     
     // 챔피언십 던전: currentStageAttempt가 JSON/구버전에서 빠져도 제목·dungeonProgress로 단계 복원 (동네/전국에서 보상 버튼 0단계로 숨겨지던 문제 방지)
@@ -2930,7 +3107,8 @@ const FinalRewardPanel: React.FC<{
         }
     }, [isClaimed]);
 
-    const showFinalRankRewards = isTournamentFullyComplete || isUserEliminated;
+    /** 순위 보상 타일: 최종 라운드를 포함한 모든 경기가 끝난 뒤에만 매 경기 보상 옆에 추가 (탈락 직후·잔여 경기 중에는 비표시) */
+    const showFinalRankRewards = isTournamentFullyComplete;
     const finalUserRank = useMemo(() => {
         if (!showFinalRankRewards) return null;
         return computeChampionshipDungeonUserRank(tournamentState, currentUser.id);
@@ -2940,10 +3118,19 @@ const FinalRewardPanel: React.FC<{
         if (finalUserRank == null || effectiveStageAttempt < 1) return null;
         const maxRank = type === 'neighborhood' ? 6 : type === 'national' ? 8 : 16;
         if (finalUserRank < 1 || finalUserRank > maxRank) return null;
+        const claimedRank = claimedRewardSummary?.rankReward;
+        if (claimedRank?.items?.length) {
+            return { rank: finalUserRank, reward: { items: claimedRank.items } };
+        }
+        if (type === 'world') {
+            const rg = getDungeonRankRewardRangeForDisplay(type, effectiveStageAttempt, finalUserRank);
+            if (!rg?.items?.length) return null;
+            return { rank: finalUserRank, reward: { items: rg.items.map(it => ({ itemId: it.itemId, min: it.min, max: it.max })) } };
+        }
         const qr = getDungeonRankRewardForDisplay(type, effectiveStageAttempt, finalUserRank);
         if (!qr?.items?.length) return null;
         return { rank: finalUserRank, reward: qr };
-    }, [finalUserRank, effectiveStageAttempt, type]);
+    }, [finalUserRank, effectiveStageAttempt, type, claimedRewardSummary]);
 
     const showSideActionsColumn = !isMobileTabLayout && !suppressBottomActions;
 
@@ -3049,25 +3236,65 @@ const FinalRewardPanel: React.FC<{
                 각 토너먼트 타입의 경기 보상이 채워진 뒤 끝에 순위 보상 아이콘이 이어 붙는다. */}
             {(() => {
                 const showRankReward = !!(showFinalRankRewards && rankRewardForDisplay);
-                const hasNeighborhoodGold = accumulatedGold > 0;
-                const hasNationalRoundMaterials = tournamentState.type === 'national'
-                    && Array.isArray(tournamentState.matchMaterialRewards)
-                    && tournamentState.matchMaterialRewards.length > 0;
-                const hasNationalAccumulated = !hasNationalRoundMaterials && Object.keys(accumulatedMaterials).length > 0;
-                const hasLegacyEquipBoxes = Object.keys(accumulatedEquipmentBoxes).length > 0;
-                const hasWorldEquipItems = tournamentState.type === 'world' && accumulatedEquipmentItems.length > 0;
-                const hasLegacyEquipDrops = tournamentState.type === 'world'
-                    && accumulatedEquipmentItems.length === 0
-                    && Array.isArray(tournamentState.accumulatedEquipmentDrops)
-                    && tournamentState.accumulatedEquipmentDrops.length > 0;
+
+                // 보상 수령 모달(`DungeonStageSummaryModal`)과 동일: 동네=회차별 골드 전부, 전국=라운드 합산 재료, 월드=획득 장비·드롭 전부 + 변경권
+                const neighborhoodGoldDisplay: number[] = (() => {
+                    if (type !== 'neighborhood') return [];
+                    const perMatch = matchGoldRewards && matchGoldRewards.length > 0 ? matchGoldRewards : null;
+                    if (perMatch?.length) return [...perMatch];
+                    if (accumulatedGold > 0) return [accumulatedGold];
+                    return [];
+                })();
+                const hasNeighborhoodGold = neighborhoodGoldDisplay.length > 0;
+
+                const mergedNationalMaterials: Record<string, number> | null =
+                    type === 'national' && Array.isArray(matchMaterialRewards) && matchMaterialRewards.length > 0
+                        ? matchMaterialRewards.reduce((acc: Record<string, number>, roundMat: Record<string, number>) => {
+                              for (const [materialName, quantity] of Object.entries(roundMat)) {
+                                  if (quantity <= 0) continue;
+                                  acc[materialName] = (acc[materialName] ?? 0) + quantity;
+                              }
+                              return acc;
+                          }, {})
+                        : null;
+                const hasNationalMergedMaterials =
+                    !!mergedNationalMaterials && Object.keys(mergedNationalMaterials).length > 0;
+                const hasNationalAccumulated =
+                    type === 'national' && !hasNationalMergedMaterials && Object.keys(accumulatedMaterials).length > 0;
+
+                const legacyBoxEntries = Object.entries(accumulatedEquipmentBoxes);
+                const hasLegacyEquipBoxes = type === 'world' && legacyBoxEntries.length > 0;
+
+                const hasWorldEquipItemsList = type === 'world' && accumulatedEquipmentItems.length > 0;
+                const hasWorldEquipDropsList =
+                    type === 'world' && !hasWorldEquipItemsList && accumulatedEquipmentDropsList.length > 0;
+
+                const worldChangeTicketChips: { name: string; quantity: number; image: string }[] = (() => {
+                    if (type !== 'world' || !isDungeonMode) return [];
+                    const br = claimedRewardSummary?.baseRewards as
+                        | { changeTicketGrants?: { name: string; quantity: number }[]; changeTickets?: number }
+                        | undefined;
+                    if (br?.changeTicketGrants?.length) {
+                        return br.changeTicketGrants.map(g => {
+                            const mat = (MATERIAL_ITEMS as Record<string, { image?: string }>)[g.name];
+                            return { name: g.name, quantity: g.quantity, image: mat?.image || '/images/use/change2.png' };
+                        });
+                    }
+                    const n =
+                        br?.changeTickets ?? DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[effectiveStageAttempt]?.changeTickets ?? 0;
+                    if (n > 0) return [{ name: '변경권', quantity: n, image: '/images/use/change2.png' }];
+                    return [];
+                })();
+                const hasWorldChangeTickets = worldChangeTicketChips.length > 0;
 
                 const hasAnyMatchReward =
                     hasNeighborhoodGold ||
-                    hasNationalRoundMaterials ||
+                    hasNationalMergedMaterials ||
                     hasNationalAccumulated ||
                     hasLegacyEquipBoxes ||
-                    hasWorldEquipItems ||
-                    hasLegacyEquipDrops;
+                    hasWorldEquipItemsList ||
+                    hasWorldEquipDropsList ||
+                    hasWorldChangeTickets;
 
                 if (!hasAnyMatchReward && !showRankReward) {
                     return (
@@ -3098,37 +3325,43 @@ const FinalRewardPanel: React.FC<{
 
                 return (
                     <div className={`mb-1 flex w-full flex-wrap items-center justify-center gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
-                        {/* 1) 동네바둑리그: 누적 골드(경기별 더미) */}
-                        {hasNeighborhoodGold && (
-                            (tournamentState.matchGoldRewards && tournamentState.matchGoldRewards.length > 0
-                                ? tournamentState.matchGoldRewards
-                                : [accumulatedGold]
-                            ).map((goldAmount: number, idx: number) => (
-                                <div key={`gold-${idx}`} className="relative w-11 h-11 rounded-lg border-2 border-yellow-600/70 bg-yellow-900/40 flex items-center justify-center overflow-hidden" title={`경기 ${idx + 1} 보상`}>
+                        {/* 1) 동네바둑리그: 회차별 골드(수령 모달과 동일) */}
+                        {hasNeighborhoodGold &&
+                            neighborhoodGoldDisplay.map((goldAmount: number, idx: number) => (
+                                <div
+                                    key={`gold-${idx}`}
+                                    className="relative w-11 h-11 rounded-lg border-2 border-yellow-600/70 bg-yellow-900/40 flex items-center justify-center overflow-hidden"
+                                    title={
+                                        matchGoldRewards && matchGoldRewards.length > 0
+                                            ? `경기 ${idx + 1} 보상`
+                                            : '획득 골드'
+                                    }
+                                >
                                     <img src="/images/icon/Gold.png" alt="골드" className="w-7 h-7 object-contain" loading="lazy" decoding="async" />
                                     <span className="absolute -bottom-0.5 -right-0.5 text-[11px] font-bold text-yellow-100 bg-black/80 px-1 rounded-tl leading-tight shadow-sm">
                                         {formatGoldAmountKoG(goldAmount)}
                                     </span>
                                 </div>
-                            ))
-                        )}
+                            ))}
 
-                        {/* 2) 전국바둑대회: 8강/4강/결승(또는 3·4위전) 누적 재료 더미 */}
-                        {hasNationalRoundMaterials && tournamentState.matchMaterialRewards!.flatMap((roundMaterials: Record<string, number>, idx: number) => {
-                            const roundLabel = ['8강', '4강', '결승 / 3·4위전'][idx] ?? `경기 ${idx + 1}`;
-                            return Object.entries(roundMaterials).map(([materialName, quantity]) => {
+                        {/* 2) 전국바둑대회: 라운드별 재료 합산(수령 모달과 동일) */}
+                        {hasNationalMergedMaterials &&
+                            Object.entries(mergedNationalMaterials!).map(([materialName, quantity]) => {
                                 const materialTemplate = MATERIAL_ITEMS[materialName];
                                 const imageUrl = materialTemplate?.image || '';
                                 return (
-                                    <div key={`mat-${idx}-${materialName}`} className="relative w-11 h-11 rounded-lg border-2 border-blue-600/70 bg-blue-900/40 flex items-center justify-center overflow-hidden" title={`${roundLabel} 보상`}>
+                                    <div
+                                        key={`mat-merged-${materialName}`}
+                                        className="relative w-11 h-11 rounded-lg border-2 border-blue-600/70 bg-blue-900/40 flex items-center justify-center overflow-hidden"
+                                        title="라운드 합산 재료"
+                                    >
                                         <img src={imageUrl} alt={materialName} className="w-7 h-7 object-contain" loading="lazy" decoding="async" />
                                         <span className="absolute -bottom-0.5 -right-0.5 text-[11px] font-bold text-blue-100 bg-black/80 px-1 rounded-tl leading-tight shadow-sm">
                                             {quantity}
                                         </span>
                                     </div>
                                 );
-                            });
-                        })}
+                            })}
 
                         {/* 2-1) 전국바둑대회 폴백: 누적 재료(경기 단위 분할 정보가 없을 때) */}
                         {hasNationalAccumulated && Object.entries(accumulatedMaterials).map(([materialName, quantity]) => {
@@ -3158,36 +3391,66 @@ const FinalRewardPanel: React.FC<{
                             );
                         })}
 
-                        {/* 4) 월드챔피언십: 경기당 실제 획득 장비 */}
-                        {hasWorldEquipItems && accumulatedEquipmentItems.map((item, idx) => {
-                            const grade = (item.grade ?? 'normal') as string;
-                            const borderClass = EQUIP_GRADE_BORDER[grade] || EQUIP_GRADE_BORDER.normal;
-                            return (
-                                <div
-                                    key={`equip-${item.id ?? item.name}-${idx}`}
-                                    className={`w-11 h-11 rounded-lg overflow-hidden flex items-center justify-center ${borderClass}`}
-                                    title={`경기 ${idx + 1} · ${item.name}`}
-                                >
-                                    <img src={item.image?.startsWith('/') ? item.image : `/${item.image}`} alt="" className="w-[70%] h-[70%] object-contain pointer-events-none" loading="lazy" decoding="async" />
-                                </div>
-                            );
-                        })}
+                        {/* 4) 월드챔피언십: 경기마다 획득한 장비 전부(수령 모달과 동일) */}
+                        {hasWorldEquipItemsList &&
+                            accumulatedEquipmentItems.map((item, wi) => {
+                                const grade = (item.grade ?? 'normal') as string;
+                                const borderClass = EQUIP_GRADE_BORDER[grade] || EQUIP_GRADE_BORDER.normal;
+                                return (
+                                    <div
+                                        key={`equip-${String(item.id ?? '')}-${item.name}-${wi}`}
+                                        className={`w-11 h-11 rounded-lg overflow-hidden flex items-center justify-center ${borderClass}`}
+                                        title={item.name}
+                                    >
+                                        <img
+                                            src={item.image?.startsWith('/') ? item.image : `/${item.image}`}
+                                            alt=""
+                                            className="w-[70%] h-[70%] object-contain pointer-events-none"
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                    </div>
+                                );
+                            })}
 
-                        {/* 5) 월드챔피언십(레거시): 등급만 남아있는 장비 드롭 */}
-                        {hasLegacyEquipDrops && (tournamentState.accumulatedEquipmentDrops as string[]).map((gradeKey: string, idx: number) => {
-                            const img = EQUIP_GRADE_IMAGE[gradeKey] || '/images/equipments/normalbgi.png';
-                            const label = EQUIPMENT_GRADE_LABEL_KO[gradeKey] ?? gradeKey;
-                            const borderClass = EQUIP_GRADE_BORDER[gradeKey] || EQUIP_GRADE_BORDER.normal;
-                            return (
-                                <div key={`drop-${idx}`} className={`w-11 h-11 rounded-lg overflow-hidden flex items-center justify-center ${borderClass}`} title={`경기 ${idx + 1} · ${label} 장비`}>
-                                    <img src={img} alt="" className="w-[70%] h-[70%] object-contain" loading="lazy" decoding="async" />
-                                </div>
-                            );
-                        })}
+                        {/* 5) 월드챔피언십(레거시): 등급 드롭 전부 — 실제 장비 항목이 없을 때만 */}
+                        {hasWorldEquipDropsList &&
+                            accumulatedEquipmentDropsList.map((gradeKey: string, di: number) => {
+                                const img = EQUIP_GRADE_IMAGE[gradeKey] || '/images/equipments/normalbgi.png';
+                                const label = EQUIPMENT_GRADE_LABEL_KO[gradeKey] ?? gradeKey;
+                                const borderClass = EQUIP_GRADE_BORDER[gradeKey] || EQUIP_GRADE_BORDER.normal;
+                                return (
+                                    <div
+                                        key={`drop-${gradeKey}-${di}`}
+                                        className={`w-11 h-11 rounded-lg overflow-hidden flex items-center justify-center ${borderClass}`}
+                                        title={`${label} 장비`}
+                                    >
+                                        <img src={img} alt="" className="w-[70%] h-[70%] object-contain pointer-events-none" loading="lazy" decoding="async" />
+                                    </div>
+                                );
+                            })}
+
+                        {/* 5-1) 월드챔피언십: 단계 변경권(수령 후에는 종류·수량 확정값) */}
+                        {hasWorldChangeTickets &&
+                            worldChangeTicketChips.map((ch, ci) => {
+                                const imgSrc = ch.image.startsWith('/') ? ch.image : `/${ch.image}`;
+                                return (
+                                    <div
+                                        key={`wch-${ci}-${ch.name}`}
+                                        className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg border-2 border-cyan-600/65 bg-cyan-950/35"
+                                        title={ch.name}
+                                    >
+                                        <img src={imgSrc} alt="" className="h-7 w-7 object-contain" loading="lazy" decoding="async" />
+                                        <span className="absolute -bottom-0.5 -right-0.5 rounded-tl bg-black/80 px-1 text-[10px] font-bold leading-tight text-cyan-100 shadow-sm">
+                                            {ch.quantity.toLocaleString('ko-KR')}
+                                        </span>
+                                    </div>
+                                );
+                            })}
 
                         {/* 6) 순위 보상 — 매 경기 보상과 같은 줄에 이어 붙는다. 호화 amber 테두리로 시각적으로 구분 */}
                         {showRankReward && rankRewardForDisplay!.reward.items!.map((it, idx) => {
-                            const row = it as { itemId: string; quantity?: number };
+                            const row = it as { itemId: string; quantity?: number; min?: number; max?: number };
                             const itemName = row.itemId;
                             let src = '';
                             if (itemName.includes('골드')) src = '/images/icon/Gold.png';
@@ -3200,14 +3463,29 @@ const FinalRewardPanel: React.FC<{
                                     src = box?.image || '/images/Box/ResourceBox1.png';
                                 }
                             }
-                            const qty = row.quantity ?? 1;
-                            const qtyLabel = itemName.includes('골드') ? formatGoldAmountKoG(qty) : qty.toLocaleString('ko-KR');
+                            const hasRange = row.min != null && row.max != null;
+                            const qtyLabel = hasRange
+                                ? row.min === row.max
+                                    ? itemName.includes('골드')
+                                        ? formatGoldAmountKoG(row.min!)
+                                        : row.min!.toLocaleString('ko-KR')
+                                    : `${row.min}~${row.max}`
+                                : row.quantity != null
+                                  ? itemName.includes('골드')
+                                      ? formatGoldAmountKoG(row.quantity)
+                                      : row.quantity.toLocaleString('ko-KR')
+                                  : '1';
+                            const qtyForTitle = hasRange
+                                ? row.min === row.max
+                                    ? String(row.min)
+                                    : `${row.min}~${row.max}`
+                                : String(row.quantity ?? 1);
                             const resolvedSrc = src.startsWith('/') ? src : src ? `/${src}` : '';
                             return (
                                 <div
                                     key={`rank-reward-${idx}-${itemName}`}
                                     className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg border-2 border-amber-500/65 bg-amber-950/40"
-                                    title={`${rankRewardForDisplay!.rank}위 순위 보상 · ${itemName} ×${qty}`}
+                                    title={`${rankRewardForDisplay!.rank}위 순위 보상 · ${itemName} ×${qtyForTitle}`}
                                 >
                                     {resolvedSrc ? (
                                         <img src={resolvedSrc} alt="" className="h-7 w-7 object-contain" loading="lazy" decoding="async" />
@@ -4314,19 +4592,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     } = props;
     const abilityKataLadder = championshipAbilityKataLadderProp ?? CHAMPIONSHIP_ABILITY_KATA_LADDER;
     
-    /** 1회차 경기 시작 전에만 true. 경기 시작 후·종료 후에는 컨디션 회복제 버튼 비활성화 */
-    const canUseConditionPotion = Boolean(
-        tournament?.status === 'bracket_ready' &&
-        tournament?.rounds &&
-        !tournament.rounds.some((r: { matches?: Array<{ isUserMatch?: boolean; isFinished?: boolean }> }) =>
-            r.matches?.some((m: { isUserMatch?: boolean; isFinished?: boolean }) => m.isUserMatch && m.isFinished)
-        )
-    );
-    
     // React 훅 규칙: 모든 훅은 조건문 밖에서 호출되어야 함
     const [lastUserMatchSgfIndex, setLastUserMatchSgfIndex] = useState<number | null>(null);
     const [initialMatchPlayers, setInitialMatchPlayers] = useState<{ p1: PlayerForTournament | null, p2: PlayerForTournament | null }>({ p1: null, p2: null });
     const [showConditionPotionModal, setShowConditionPotionModal] = useState(false);
+    /** 던전 챔피언십: 컨디션 낮을 때 경기 시작 전 안내(회복제로 조절 가능) */
+    const [showChampionshipLowConditionStartModal, setShowChampionshipLowConditionStartModal] = useState(false);
     const [showChampionshipExitConfirmModal, setShowChampionshipExitConfirmModal] = useState(false);
     /** 모바일 챔피언십 경기장: 대국자정보 / 실시간중계 / 바둑판 / 대진표 / 보상정보 */
     const [mobileChampionshipTab, setMobileChampionshipTab] = useState<'players' | 'board' | 'live' | 'bracket' | 'rewards'>('players');
@@ -4379,6 +4650,35 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     /** 동일 클릭으로 START_TOURNAMENT_MATCH 중복 전송 방지(리렌더 전 연타) */
     const championshipMatchStartLockRef = useRef(false);
 
+    const isChampionshipDungeonVenueForPotion = tournament?.currentStageAttempt != null;
+    const canUseConditionPotion = useMemo(
+        () =>
+            Boolean(
+                tournament?.rounds &&
+                tournament?.status !== 'round_in_progress' &&
+                tournament?.status !== 'complete' &&
+                tournament?.status !== 'eliminated' &&
+                !(isChampionshipDungeonVenueForPotion && championshipAwaitingKataLoad) &&
+                (isChampionshipDungeonVenueForPotion
+                    ? true
+                    : tournament?.status === 'bracket_ready' &&
+                          !tournament.rounds.some((r: { matches?: Array<{ isUserMatch?: boolean; isFinished?: boolean }> }) =>
+                              r.matches?.some((m: { isUserMatch?: boolean; isFinished?: boolean }) => m.isUserMatch && m.isFinished)
+                          ))
+            ),
+        [tournament?.rounds, tournament?.status, tournament?.currentStageAttempt, championshipAwaitingKataLoad]
+    );
+
+    const finalizeChampionshipDungeonMatchStart = useCallback(() => {
+        const type = tournament?.type ?? 'neighborhood';
+        if (championshipMatchStartLockRef.current || championshipAwaitingKataLoad) {
+            return;
+        }
+        championshipMatchStartLockRef.current = true;
+        setChampionshipAwaitingKataLoad(true);
+        onAction({ type: 'START_TOURNAMENT_MATCH', payload: { type } });
+    }, [tournament?.type, championshipAwaitingKataLoad, onAction]);
+
     useEffect(() => {
         return () => {
             championshipMatchStartLockRef.current = false;
@@ -4391,6 +4691,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const rewardClaimedKey = `${tournament.type}RewardClaimed` as keyof User;
         if (currentUser[rewardClaimedKey]) setMobileRewardClaimBusy(false);
     }, [tournament, currentUser]);
+
+    useEffect(() => {
+        if (tournament?.status === 'round_in_progress') {
+            setShowChampionshipLowConditionStartModal(false);
+        }
+    }, [tournament?.status]);
     
     // 안전성 검사: tournament가 없으면 로딩 메시지 표시
     if (!tournament) {
@@ -5419,13 +5725,14 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         return safeRounds.flatMap(r => r.matches).find(m => m.isUserMatch && !m.isFinished);
     }, [safeRounds]);
 
-    // 현재 유저의 컨디션 찾기
+    // 현재 유저의 컨디션 찾기 (표시용 displayTournament와 동일 소스 — 시뮬 병합 시 prev.players만 남는 순간에도 스냅샷과 맞춤)
     const userPlayer = useMemo(() => {
-        if (!tournament || !Array.isArray(tournament.players) || !currentUser?.id) {
+        const t = displayTournament;
+        if (!t || !Array.isArray(t.players) || !currentUser?.id) {
             return undefined;
         }
-        return tournament.players.find(p => p.id === currentUser.id);
-    }, [tournament?.players, currentUser?.id]);
+        return t.players.find(p => p.id === currentUser.id);
+    }, [displayTournament, currentUser?.id]);
 
     /** 토너먼트 플레이어 객체에 컨디션이 1000으로만 있을 때 던전 스냅샷으로 모달 표시 */
     const conditionForPotionModal = useMemo(() => {
@@ -5755,13 +6062,16 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         onClick={() => {
                             setChampionshipSidebarTab('commentary');
                             const type = tournament?.type ?? 'neighborhood';
+                            if (
+                                isDungeonChampionship &&
+                                conditionForPotionModal >= 1 &&
+                                conditionForPotionModal <= 40
+                            ) {
+                                setShowChampionshipLowConditionStartModal(true);
+                                return;
+                            }
                             if (isDungeonChampionship) {
-                                if (championshipMatchStartLockRef.current || championshipAwaitingKataLoad) {
-                                    return;
-                                }
-                                championshipMatchStartLockRef.current = true;
-                                setChampionshipAwaitingKataLoad(true);
-                                onAction({ type: 'START_TOURNAMENT_MATCH', payload: { type } });
+                                finalizeChampionshipDungeonMatchStart();
                                 return;
                             }
                             onAction({ type: 'START_TOURNAMENT_MATCH', payload: { type } });
@@ -5926,16 +6236,20 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     const renderChampionshipMatchControlPanel = () => (
         <section
-            className={`flex min-h-0 flex-col justify-center rounded-2xl border border-cyan-300/22 bg-gradient-to-br from-[#27364a] via-[#121a27] to-[#070a10] shadow-[inset_0_1px_0_rgba(255,255,255,0.075),0_16px_36px_-24px_rgba(0,0,0,0.95)] ring-1 ring-inset ring-cyan-300/10 ${
-                isMobile ? 'p-2' : 'p-2.5'
+            className={`flex min-h-0 flex-col justify-center rounded-2xl border border-cyan-300/22 shadow-[inset_0_1px_0_rgba(255,255,255,0.075),0_16px_36px_-24px_rgba(0,0,0,0.95)] ring-1 ring-inset ring-cyan-300/10 ${
+                isMobile
+                    ? 'bg-gradient-to-br from-[#27364a]/65 via-[#121a27]/50 to-[#070a10]/60 p-2 backdrop-blur-md'
+                    : 'bg-gradient-to-br from-[#27364a] via-[#121a27] to-[#070a10] p-2.5'
             }`}
         >
             <div className={`text-center font-black tracking-[0.22em] text-cyan-100/85 ${isMobile ? 'mb-1 text-[9px]' : 'mb-1.5 text-[10px]'}`}>
                 AUTO MATCH CONTROL
             </div>
             <div
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-500/30 bg-gradient-to-b from-black/34 to-slate-950/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.055)] ${
-                    isMobile ? 'min-h-0 px-2 py-2' : 'min-h-[3.7rem] px-2.5 py-2.5'
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-500/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.055)] ${
+                    isMobile
+                        ? 'min-h-0 bg-gradient-to-b from-black/28 to-slate-950/48 px-2 py-2 backdrop-blur-sm'
+                        : 'min-h-[3.7rem] bg-gradient-to-b from-black/34 to-slate-950/72 px-2.5 py-2.5'
                 }`}
             >
                 {championshipFinished ? (
@@ -5995,7 +6309,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
               };
 
               return (
-                  <div className="flex w-full shrink-0 flex-col gap-1.5 border-t border-cyan-500/35 bg-panel-secondary/95 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
+                  <div className="flex w-full shrink-0 flex-col gap-1.5 border-t border-cyan-500/35 bg-slate-950/55 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] backdrop-blur-md">
                       {(isTournamentFullyComplete || isUserEliminated) && treatAsClaimed && (
                           <div className="flex w-full flex-row flex-wrap items-stretch gap-2">
                               <div className="min-w-0 flex-1 basis-[calc(50%-0.25rem)]">
@@ -6236,6 +6550,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         >
             <FinalRewardPanel
                 tournamentState={displayTournament}
+                rewardsSourceTournament={tournament ?? null}
                 currentUser={currentUser}
                 onAction={onAction}
                 onCompleteDungeon={handleCompleteDungeon}
@@ -6248,7 +6563,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         </div>
     );
 
-    const championshipPanelScores = useMemo((): { black: number; white: number } | null => {
+    const championshipPanelScores = useMemo((): { black: number; white: number; kind: 'captures' | 'final' } | null => {
         const rg = matchForDisplay?.championshipRealGame;
         if (!rg?.moves?.length) return null;
         const ply = rg.currentPly ?? 0;
@@ -6257,11 +6572,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
         if (simming || rg.status === 'scoring' || (rg.status === 'playing' && ply > 0)) {
             if (ply <= 0) return null;
-            return championshipAreaScoresAtPly(rg.boardSize, rg.moves, Math.min(ply, rg.moves.length));
+            const cap = championshipCapturesAtPly(rg.boardSize, rg.moves, Math.min(ply, rg.moves.length));
+            if (!cap) return null;
+            return { black: cap.black, white: cap.white, kind: 'captures' };
         }
 
         if (showAuthoritativeFinal && rg.finalScore) {
-            return { black: rg.finalScore.black, white: rg.finalScore.white };
+            return { black: rg.finalScore.black, white: rg.finalScore.white, kind: 'final' };
         }
         return null;
     }, [
@@ -6318,6 +6635,17 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                   ? championshipPanelScores.white
                   : null
             : null;
+        const scoreKind = championshipPanelScores?.kind;
+        const scoreMetricLabel = scoreKind === 'captures' ? '따낸 돌' : scoreKind === 'final' ? '집' : '점수';
+        const scoreDisplayText =
+            scoreValue == null ? '-' : scoreKind === 'captures' ? String(Math.round(scoreValue)) : scoreValue.toFixed(1);
+        /** 인게임 던전: `players[].wins`는 이번 단계 누적이 아닐 수 있어, 라운드 종료 대국 기준으로 표시 */
+        const dungeonRunRecord =
+            tournament.currentStageAttempt != null && player?.id
+                ? dungeonUserMatchRecordForPlayer(displayTournament, player.id, matchForDisplay)
+                : null;
+        const recordWins = dungeonRunRecord ? dungeonRunRecord.wins : (player?.wins ?? 0);
+        const recordLosses = dungeonRunRecord ? dungeonRunRecord.losses : (player?.losses ?? 0);
         const scoreBox = (
             <div
                 className={`flex w-[4.8rem] shrink-0 flex-col items-center justify-center rounded-lg border-2 px-2 py-1.5 text-center shadow-lg ${
@@ -6326,10 +6654,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         : 'border-gray-600 bg-gradient-to-br from-gray-800 to-black text-white'
                 }`}
             >
-                <span className={`text-[10px] font-bold leading-none ${isWhite ? 'text-slate-700' : 'text-gray-300'}`}>점수</span>
-                <span className="mt-1 text-xl font-black leading-none tabular-nums">
-                    {scoreValue != null ? scoreValue.toFixed(1) : '-'}
+                <span className={`text-[10px] font-bold leading-none ${isWhite ? 'text-slate-700' : 'text-gray-300'}`}>
+                    {scoreMetricLabel}
                 </span>
+                <span className="mt-1 text-xl font-black leading-none tabular-nums">{scoreDisplayText}</span>
             </div>
         );
 
@@ -6370,7 +6698,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         ) : null}
                     </div>
                     <div className={`mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] ${isRightSide ? 'justify-end' : ''} ${mutedText}`}>
-                        <span>전적 <b className={`tabular-nums ${strongText}`}>{player?.wins ?? 0}승 {player?.losses ?? 0}패</b></span>
+                        <span title={dungeonRunRecord ? '이번 챔피언십 단계에서의 전적' : undefined}>
+                            전적 <b className={`tabular-nums ${strongText}`}>{recordWins}승 {recordLosses}패</b>
+                        </span>
                     </div>
                 </div>
                 {scoreBox}
@@ -6405,6 +6735,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         </div>
     ) : null;
 
+    /** 실대국 종료 결과 카드(최종 순위)가 바둑판 영역 밖으로 펼쳐질 때 상위 overflow-hidden에 잘리지 않도록 동기화 */
+    const championshipFinishedResultOverlay =
+        !!matchForDisplay?.isFinished &&
+        matchForDisplay?.championshipRealGame?.status === 'finished' &&
+        !!matchForDisplay.championshipRealGame?.winnerId;
+    const championshipBoardHostClipClass = championshipFinishedResultOverlay ? 'overflow-visible' : 'overflow-hidden';
+
     const championshipFooterControls = (
         <div className="flex-shrink-0 w-full flex flex-col gap-1">
             <div className="rounded-2xl border border-amber-300/18 bg-gradient-to-b from-[#283247] via-[#151c2a] to-[#07090f] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_52px_-18px_rgba(0,0,0,0.96)] ring-1 ring-inset ring-white/[0.04]">
@@ -6417,13 +6754,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     );
 
     const championshipMainGameRoom = (
-        <main className="flex-1 flex min-w-0 min-h-0 overflow-hidden items-stretch justify-center">
+        <main className={`flex-1 flex min-w-0 min-h-0 items-stretch justify-center ${championshipBoardHostClipClass}`}>
             <div className="w-full h-full max-h-full max-w-full flex min-h-0 flex-col items-stretch gap-0.5 lg:gap-1.5">
                 {championshipPlayerRail}
-                <div className="relative min-h-0 w-full min-w-0 flex-1 overflow-hidden">
+                <div className={`relative min-h-0 w-full min-w-0 flex-1 ${championshipBoardHostClipClass}`}>
                     <div className="absolute inset-0 flex min-h-0 flex-col">
-                        <div className="relative flex h-full w-full min-h-0 min-w-0 flex-col overflow-hidden">
-                            <div className="flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden transition-opacity duration-500">
+                        <div className={`relative flex h-full w-full min-h-0 min-w-0 flex-col ${championshipBoardHostClipClass}`}>
+                            <div className={`flex min-h-0 w-full flex-1 items-center justify-center transition-opacity duration-500 ${championshipBoardHostClipClass}`}>
                                 <div className="flex h-full w-full min-w-0 items-stretch justify-center gap-1.5 px-1 py-1">
                                     <ChampionshipAbilityPlayerPanel
                                         player={p1}
@@ -6434,7 +6771,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                         sideLabel="챔피언십 능력치"
                                         abilityKataLadder={abilityKataLadder}
                                     />
-                                    <div className="relative flex h-full min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-transparent p-0">
+                                    <div className={`relative flex h-full min-h-0 min-w-0 flex-1 items-center justify-center bg-transparent p-0 ${championshipBoardHostClipClass}`}>
                                         <ChampionshipRealGoBoard
                                             match={matchForDisplay}
                                             currentUser={currentUser}
@@ -6494,6 +6831,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                   : isWhitePlayer
                     ? 'text-slate-900'
                     : 'text-slate-100';
+        const dungeonRunRecordMobile =
+            tournament.currentStageAttempt != null && player?.id
+                ? dungeonUserMatchRecordForPlayer(displayTournament, player.id, matchForDisplay)
+                : null;
+        const recordWinsMobile = dungeonRunRecordMobile ? dungeonRunRecordMobile.wins : (player?.wins ?? 0);
+        const recordLossesMobile = dungeonRunRecordMobile ? dungeonRunRecordMobile.losses : (player?.losses ?? 0);
         const toneClass = isWhitePlayer
             ? 'border-slate-400/85 bg-gradient-to-br from-slate-100 to-slate-300/95 text-slate-950'
             : isBlackPlayer
@@ -6552,10 +6895,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                             isRightSide ? 'text-right' : ''
                         } ${mutedText}`}
                     >
-                        전적{' '}
-                        <b className={`tabular-nums ${strongText}`}>
-                            {player?.wins ?? 0}승 {player?.losses ?? 0}패
-                        </b>
+                        <span title={dungeonRunRecordMobile ? '이번 챔피언십 단계에서의 전적' : undefined}>
+                            전적{' '}
+                            <b className={`tabular-nums ${strongText}`}>
+                                {recordWinsMobile}승 {recordLossesMobile}패
+                            </b>
+                        </span>
                     </div>
                     <div
                         className={`mt-0.5 flex items-center gap-1 text-[10px] leading-tight ${
@@ -6584,7 +6929,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     const mobileChampionshipPlayerInfoRow =
         matchForDisplay && (p1 || p2) ? (
-            <section className="flex shrink-0 flex-row items-stretch gap-1 rounded-md border border-stone-500/70 bg-stone-900/82 p-1 shadow-md">
+            <section className="flex shrink-0 flex-row items-stretch gap-1 rounded-md border border-stone-500/70 bg-stone-900/48 p-1 shadow-md backdrop-blur-md">
                 {renderMobileChampionshipPureInfoCard(p1, 'left')}
                 {renderMobileChampionshipPureInfoCard(p2, 'right')}
             </section>
@@ -6659,7 +7004,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     const mobileChampionshipAbilityRow =
         matchForDisplay && (p1 || p2) ? (
-            <section className="flex shrink-0 flex-row items-stretch gap-1 rounded-md border border-slate-700/45 bg-gradient-to-b from-[#111827]/90 to-[#070b12]/95 p-1 shadow-md">
+            <section className="flex shrink-0 flex-row items-stretch gap-1 rounded-md border border-slate-700/45 bg-gradient-to-b from-[#111827]/55 to-[#070b12]/62 p-1 shadow-md backdrop-blur-md">
                 {renderMobileChampionshipAbilityPanel(p1, p1Stats as Record<string, number>, 'blue')}
                 {renderMobileChampionshipAbilityPanel(p2, p2Stats as Record<string, number>, 'rose')}
             </section>
@@ -6692,6 +7037,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                   : null
             : null;
 
+        const mobileScoreKind = championshipPanelScores?.kind;
+        const mobileScoreSubLabel = mobileScoreKind === 'captures' ? '따낸 돌' : mobileScoreKind === 'final' ? '집' : '점수';
+
         const renderScoreCell = (
             isWhite: boolean,
             score: number | null,
@@ -6702,18 +7050,18 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 ? 'border-slate-500/85 bg-gradient-to-br from-slate-100 to-slate-300 text-slate-950'
                 : 'border-gray-600 bg-gradient-to-br from-gray-800 to-black text-white';
             const labelColor = isWhite ? 'text-slate-700' : 'text-gray-300';
+            const scoreText =
+                score == null ? '-' : mobileScoreKind === 'captures' ? String(Math.round(score)) : score.toFixed(1);
             return (
                 <div
                     className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md border-2 px-2 py-1 ${cellTone} ${
                         side === 'right' ? 'flex-row-reverse' : ''
                     }`}
                 >
-                    <span className={`text-[9px] font-bold tracking-wider ${labelColor}`}>
-                        {colorLabel ? `${colorLabel} 점수` : '점수'}
+                    <span className={`max-w-[4.5rem] text-center text-[8px] font-bold leading-tight tracking-wide ${labelColor}`}>
+                        {colorLabel ? `${colorLabel} ${mobileScoreSubLabel}` : mobileScoreSubLabel}
                     </span>
-                    <span className="text-base font-black leading-none tabular-nums">
-                        {score != null ? score.toFixed(1) : '-'}
-                    </span>
+                    <span className="text-base font-black leading-none tabular-nums">{scoreText}</span>
                 </div>
             );
         };
@@ -6735,7 +7083,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     /** 모바일 전용: 큰 바둑판 영역 */
     const mobileChampionshipBoardSection = (
-        <div className="relative flex min-h-0 w-full min-w-0 flex-1 items-center justify-center overflow-hidden rounded-md border border-slate-600/55 bg-gradient-to-b from-slate-950/90 to-black/95 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+        <div
+            className={`relative flex min-h-0 w-full min-w-0 flex-1 items-center justify-center rounded-md border border-slate-600/55 bg-gradient-to-b from-slate-950/48 to-black/55 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md ${championshipBoardHostClipClass}`}
+        >
             <ChampionshipRealGoBoard
                 match={matchForDisplay}
                 currentUser={currentUser}
@@ -6749,8 +7099,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     /** 모바일 전용: 전체 인게임 경기장 — 정보행 + 능력치행 + 점수/계가행 + 큰 바둑판 + 푸터 */
     const mobileChampionshipMainGameRoom = (
-        <main className="flex-1 flex min-w-0 min-h-0 overflow-hidden items-stretch justify-center">
-            <div className="flex h-full w-full max-h-full max-w-full min-h-0 flex-col items-stretch gap-1 px-1 py-1">
+        <main className={`flex flex-1 min-h-0 min-w-0 items-stretch justify-center bg-transparent ${championshipBoardHostClipClass}`}>
+            <div
+                className={`flex h-full w-full max-h-full max-w-full min-h-0 flex-col items-stretch gap-1 bg-transparent px-1 py-1 ${championshipBoardHostClipClass}`}
+            >
                 {mobileChampionshipPlayerInfoRow}
                 {mobileChampionshipAbilityRow}
                 {mobileChampionshipScoreCountdownRow}
@@ -6890,10 +7242,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 
                 {/* 데스크톱: 인게임 경기장형 중앙 바둑판 + 하단 패널 / 모바일: 탭으로 분리 */}
                 {!isMobile && (
-                    <div className="flex max-h-full min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-                        <div className="flex min-h-0 flex-1 flex-row gap-2 overflow-hidden">
-                            <div className="relative flex min-w-0 flex-1 flex-col items-center justify-center overflow-hidden rounded-xl border border-slate-600/70 bg-gradient-to-b from-slate-950/95 to-black/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                                <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
+                    <div className={`flex max-h-full min-h-0 flex-1 flex-col gap-2 ${championshipBoardHostClipClass}`}>
+                        <div className={`flex min-h-0 flex-1 flex-row gap-2 ${championshipBoardHostClipClass}`}>
+                            <div className={`relative flex min-w-0 flex-1 flex-col items-center justify-center rounded-xl border border-slate-600/70 bg-gradient-to-b from-slate-950/95 to-black/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${championshipBoardHostClipClass}`}>
+                                <div className={`relative flex min-h-0 w-full flex-1 items-center justify-center ${championshipBoardHostClipClass}`}>
                                     <ChampionshipRealGoBoard
                                         match={matchForDisplay}
                                         currentUser={currentUser}
@@ -6930,9 +7282,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 )}
 
                 {isMobile && mobileChampionshipTab === 'board' && (
-                    <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
-                        <div className="relative flex min-h-[min(56dvh,520px)] w-full flex-1 flex-col items-center justify-center overflow-auto rounded-lg border border-gray-600/75 bg-slate-950/92 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-2">
-                            <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
+                    <div className={`flex min-h-0 w-full flex-1 flex-col ${championshipBoardHostClipClass}`}>
+                        <div
+                            className={`relative flex min-h-[min(56dvh,520px)] w-full flex-1 flex-col items-center justify-center rounded-lg border border-gray-600/75 bg-slate-950/92 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-2 ${
+                                championshipFinishedResultOverlay ? 'overflow-visible' : 'overflow-auto'
+                            }`}
+                        >
+                            <div className={`relative flex min-h-0 w-full flex-1 items-center justify-center ${championshipBoardHostClipClass}`}>
                                 <ChampionshipRealGoBoard
                                     match={matchForDisplay}
                                     currentUser={currentUser}
@@ -6980,7 +7336,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 style={{ backgroundImage: `url(${resolvePublicUrl(CHAMPIONSHIP_ARENA_BACKGROUND_BY_TYPE[tournament.type])})` }}
                 aria-hidden
             />
-            <div className="relative z-10 flex-1 flex flex-row gap-2 min-h-0 overflow-hidden">
+            <div className={`relative z-10 flex min-h-0 flex-1 flex-row gap-2 ${championshipBoardHostClipClass}`}>
                 {isMobile ? mobileChampionshipMainGameRoom : championshipMainGameRoom}
 
                 {!isMobile && (
@@ -7065,6 +7421,65 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     isTopmost={true}
                 />
             )}
+            {showChampionshipLowConditionStartModal &&
+                typeof document !== 'undefined' &&
+                createPortal(
+                    <div
+                        className="fixed inset-0 z-[402] flex items-center justify-center bg-black/70 p-4"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="championship-low-condition-start-title"
+                        onClick={() => setShowChampionshipLowConditionStartModal(false)}
+                    >
+                        <div
+                            className="max-w-md w-full rounded-2xl border border-amber-400/40 bg-gradient-to-b from-slate-900 via-slate-950 to-black p-5 shadow-2xl ring-1 ring-amber-300/15"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <h2 id="championship-low-condition-start-title" className="text-lg font-black text-amber-100">
+                                컨디션 안내
+                            </h2>
+                            <p className="mt-3 text-sm leading-relaxed text-slate-200">
+                                컨디션이 안좋습니다. 컨디션은 좋은수 또는 실수 확률에 영향을 줍니다. 그래도 그냥 경기를 시작하시겠습니까?
+                            </p>
+                            <div className="mt-5 flex flex-wrap justify-end gap-2">
+                                <Button
+                                    type="button"
+                                    colorScheme="none"
+                                    className={championshipFooterMutedButton}
+                                    onClick={() => setShowChampionshipLowConditionStartModal(false)}
+                                >
+                                    취소
+                                </Button>
+                                {canUseConditionPotion ? (
+                                    <Button
+                                        type="button"
+                                        colorScheme="none"
+                                        className="border border-emerald-400/50 bg-emerald-800/90 text-emerald-50 hover:brightness-110 !py-2 !px-4"
+                                        onClick={() => {
+                                            setShowChampionshipLowConditionStartModal(false);
+                                            setShowConditionPotionModal(true);
+                                        }}
+                                    >
+                                        컨디션 조절
+                                    </Button>
+                                ) : null}
+                                <Button
+                                    type="button"
+                                    colorScheme="none"
+                                    className={championshipFooterPrimaryButton}
+                                    onClick={() => {
+                                        setShowChampionshipLowConditionStartModal(false);
+                                        setChampionshipSidebarTab('commentary');
+                                        finalizeChampionshipDungeonMatchStart();
+                                    }}
+                                >
+                                    그래도 시작
+                                </Button>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
             {dungeonStageSummaryData && (() => {
                 const modalProps: DungeonStageSummaryModalProps = {
                     dungeonType: dungeonStageSummaryData.dungeonType,

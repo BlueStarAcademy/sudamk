@@ -62,9 +62,15 @@ const SimulationArenaHelpModal: React.FC<SimulationArenaHelpModalProps> = ({ onC
                         <div className="flex-1">
                             <h3 className="font-bold text-lg text-yellow-300 mb-2">능력치 계산</h3>
                             <ul className="list-disc list-inside space-y-2 text-sm">
-                                <li><strong>초반 능력:</strong> 전투력, 사고속도, 집중력</li>
-                                <li><strong>중반 능력:</strong> 전투력, 판단력, 집중력, 안정감</li>
-                                <li><strong>종반 능력:</strong> 계산력, 안정감, 집중력</li>
+                                <li>
+                                    <strong>초반:</strong> 집중력×0.4 + 사고속도×0.3 + 판단력×0.4 + 계산력×0.3 + 전투력×0.1 + 안정감×0.5
+                                </li>
+                                <li>
+                                    <strong>중반:</strong> 집중력×0.3 + 사고속도×0.3 + 판단력×0.4 + 계산력×0.1 + 전투력×0.8 + 안정감×0.1
+                                </li>
+                                <li>
+                                    <strong>종반:</strong> 집중력×0.3 + 사고속도×0.4 + 판단력×0.1 + 계산력×0.6 + 전투력×0.1 + 안정감×0.5
+                                </li>
                             </ul>
                         </div>
                     </div>

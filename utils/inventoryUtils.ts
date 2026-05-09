@@ -26,6 +26,7 @@ import {
     pairSoulTemplateIdFromTier,
     pairSoulTierFromMaterialName,
     PAIR_EGG_MATERIAL_NAME,
+    PAIR_WELCOME_EGG_MATERIAL_NAME,
 } from '../shared/constants/petLobby.js';
 import {
     effectivePairPetGradeFromRow,
@@ -65,7 +66,13 @@ export const addItemsToInventory = (
         // 옵션 변경권: 한 슬롯 최대 100개
         if (isRefinementTicketMaterial(name)) return REFINEMENT_TICKET_MAX_STACK;
         // 페어: 알·영혼석(동일 이름 누적). 펫 본체는 위에서 1로 처리됨
-        if (name === PAIR_EGG_MATERIAL_NAME || name === '페어 미스터리 알' || isPairSoulStoneMaterialName(name)) return 99;
+        if (
+            name === PAIR_EGG_MATERIAL_NAME ||
+            name === PAIR_WELCOME_EGG_MATERIAL_NAME ||
+            name === '페어 미스터리 알' ||
+            isPairSoulStoneMaterialName(name)
+        )
+            return 99;
         // 그 외 소모품/재료: 한 묶음 최대 100개
         return 100;
     };

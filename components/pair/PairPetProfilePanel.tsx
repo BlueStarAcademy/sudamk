@@ -91,7 +91,8 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
             currentUser,
             petMeta.disposition,
             petGrade,
-            petMeta.levelUpCoreBonuses
+            petMeta.levelUpCoreBonuses,
+            petMeta.birthCoreBases,
         );
     }, [currentUser, petMeta, petGrade, equippedItem]);
 

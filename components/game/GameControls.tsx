@@ -41,7 +41,11 @@ import {
 } from './arenaGameRoomStyles.js';
 import BaseGameFooterPanel, { BasePlacementControlStrip, isBaseGameFooterPhase } from './BaseGameFooterPanel.js';
 import IngameMobileFooterAd from './IngameMobileFooterAd.js';
-import { isPairCooperativeTwoHumansVsAi, pairSeatMatchesViewerUser } from '../../shared/utils/pairGameTurn.js';
+import {
+    isPairClassicGame,
+    isPairCooperativeTwoHumansVsAi,
+    pairSeatMatchesViewerUser,
+} from '../../shared/utils/pairGameTurn.js';
 import {
     basePvpActionPointCostForMode,
     effectiveNegotiationApCostForUser,
@@ -1469,16 +1473,24 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         onAction({ type: actionType, payload: { gameId } }); 
     };
 
-    const pairSeatForViewer = session.settings.pairGame?.turnOrder?.find((seat) =>
-        pairSeatMatchesViewerUser(seat, currentUser.id)
-    );
-    const myPlayerEnum = pairSeatForViewer
-        ? pairSeatForViewer.player
-        : currentUser.id === blackPlayerId
-          ? Player.Black
-          : currentUser.id === whitePlayerId
-            ? Player.White
-            : Player.None;
+    const pairTurnOrder = session.settings.pairGame?.turnOrder;
+    const pairSeatForViewer =
+        isPairClassicGame(session.settings, mode) && Array.isArray(pairTurnOrder) && pairTurnOrder.length > 0
+            ? pairTurnOrder.find((seat) => pairSeatMatchesViewerUser(seat, currentUser.id))
+            : undefined;
+    const myPlayerEnum =
+        currentUser.id === blackPlayerId
+            ? Player.Black
+            : currentUser.id === whitePlayerId
+              ? Player.White
+              : pairSeatForViewer
+                ? pairSeatForViewer.player
+                : (mode === GameMode.Base || (mode === GameMode.Mix && session.settings.mixedModes?.includes(GameMode.Base))) &&
+                    gameStatus === 'base_placement'
+                  ? currentUser.id === player1.id
+                      ? Player.Black
+                      : Player.White
+                  : Player.None;
     const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
 
     const renderStrategicPetHintSlot = (): React.ReactNode | null => {
@@ -1924,7 +1936,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     redirectHash = '#/pair';
                 }
                 const rid = session.settings.pairGame?.roomId;
-                if (rid && (pairCh === 'strategic' || pairCh === 'playful')) {
+                if (rid) {
                     try {
                         sessionStorage.setItem(POST_GAME_PAIR_ROOM_RESTORE_SESSION_KEY, rid);
                         sessionStorage.setItem(PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY, '1');

@@ -1,4 +1,5 @@
 import { TournamentState, PlayerForTournament, CoreStat, CommentaryLine, Match } from '../types/index.js';
+import { CHAMPIONSHIP_SIMULATION_PHASE_STAT_WEIGHTS } from '../shared/constants/championshipRealMatch.js';
 
 const EARLY_GAME_DURATION = 15;
 const MID_GAME_DURATION = 20;
@@ -11,11 +12,12 @@ const BASIC_COMMENTARY_INTERVAL_SECONDS = 3;
 export class SeededRandom {
     private seed: number;
 
-    constructor(seed: string) {
-        // 문자열 시드를 숫자로 변환
+    constructor(seed: string | null | undefined) {
+        // 문자열 시드를 숫자로 변환 (서버/스냅샷에서 시드가 비어 있는 경우에도 안전하게 동작)
+        const s = seed == null ? '' : String(seed);
         let hash = 0;
-        for (let i = 0; i < seed.length; i++) {
-            const char = seed.charCodeAt(i);
+        for (let i = 0; i < s.length; i++) {
+            const char = s.charCodeAt(i);
             hash = ((hash << 5) - hash) + char;
             hash = hash & hash; // Convert to 32bit integer
         }
@@ -42,24 +44,7 @@ export class SeededRandom {
     }
 }
 
-const STAT_WEIGHTS: Record<'early' | 'mid' | 'end', Partial<Record<CoreStat, number>>> = {
-    early: {
-        [CoreStat.CombatPower]: 0.4,
-        [CoreStat.ThinkingSpeed]: 0.3,
-        [CoreStat.Concentration]: 0.3,
-    },
-    mid: {
-        [CoreStat.CombatPower]: 0.3,
-        [CoreStat.Judgment]: 0.3,
-        [CoreStat.Concentration]: 0.2,
-        [CoreStat.Stability]: 0.2,
-    },
-    end: {
-        [CoreStat.Calculation]: 0.5,
-        [CoreStat.Stability]: 0.3,
-        [CoreStat.Concentration]: 0.2,
-    },
-};
+const STAT_WEIGHTS = CHAMPIONSHIP_SIMULATION_PHASE_STAT_WEIGHTS;
 
 const COMMENTARY_POOLS = {
     start: "{p1}님과 {p2}님의 대국이 시작되었습니다.",

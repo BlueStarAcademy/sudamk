@@ -3,12 +3,11 @@ import { CORE_STATS_DATA } from '../../constants/index.js';
 import { calculateTotalStats } from '../../services/statService.js';
 import type { PairPetMeta, User } from '../../types.js';
 import { CoreStat, ItemGrade } from '../../types/enums.js';
-import { pairPetStatMultiplierFromGrade } from '../../shared/constants/pairPetGrade.js';
+import { pairPetRawBaseCoreNoLevel } from '../../shared/utils/pairPetKataStatsFromMeta.js';
 
-const PET_BASE_STAT = 50;
 const CORE_LIST = Object.values(CoreStat) as CoreStat[];
 
-/** 유저 스탯 상한은 유지하되, 펫 등급 기준 기본치보다 낮게 깎이지 않게 함(Lv1 전 코어 50 등). */
+/** 유저 스탯 상한은 유지하되, 펫 등급 기준 기본치보다 낮게 깎이지 않게 함(태생 분배 또는 레거시 코어당 50 기준). */
 function pairPetShownCoreValue(rawBase: number, rawBaseNoLvl: number, userCap: number): number {
     const cap = Number.isFinite(userCap) ? userCap : rawBase;
     return Math.min(rawBase, Math.max(cap, rawBaseNoLvl));
@@ -17,16 +16,16 @@ function pairPetShownCoreValue(rawBase: number, rawBaseNoLvl: number, userCap: n
 function dispositionFlatBonus(
     disposition: PairPetMeta['disposition'],
     stat: CoreStat,
-    baseForDisposition: number
+    rawBaseForStat: (s: CoreStat) => number,
 ): number {
     if (disposition.kind === 'all') {
-        return Math.round((baseForDisposition * disposition.pct) / 100);
+        return Math.round((rawBaseForStat(stat) * disposition.pct) / 100);
     }
     if (disposition.kind === 'single' && disposition.stat === stat) {
-        return Math.round((baseForDisposition * disposition.pct) / 100);
+        return Math.round((rawBaseForStat(disposition.stat) * disposition.pct) / 100);
     }
     if (disposition.kind === 'convert') {
-        const slice = Math.round((baseForDisposition * disposition.pct) / 100);
+        const slice = Math.round((rawBaseForStat(disposition.fromStat) * disposition.pct) / 100);
         if (stat === disposition.fromStat) return -slice;
         if (stat === disposition.toStat) return 2 * slice;
         return 0;
@@ -39,18 +38,19 @@ export function computePairPetBadukTotalPower(
     currentUser: User,
     disposition: PairPetMeta['disposition'],
     petGrade: ItemGrade = ItemGrade.Normal,
-    levelUpCoreBonuses?: Partial<Record<CoreStat, number>>
+    levelUpCoreBonuses?: Partial<Record<CoreStat, number>>,
+    birthCoreBases?: PairPetMeta['birthCoreBases'],
 ): number {
     const userTotals = calculateTotalStats(currentUser);
-    const gradeMult = pairPetStatMultiplierFromGrade(petGrade);
+    const rawBaseForStat = (s: CoreStat) => pairPetRawBaseCoreNoLevel(birthCoreBases, petGrade, s);
     let sum = 0;
     for (const stat of CORE_LIST) {
         const lvlAdd = levelUpCoreBonuses?.[stat] ?? 0;
-        const rawBaseNoLvl = Math.round(PET_BASE_STAT * gradeMult);
+        const rawBaseNoLvl = rawBaseForStat(stat);
         const rawBase = rawBaseNoLvl + lvlAdd;
         const cap = userTotals[stat] ?? rawBase;
         const shown = pairPetShownCoreValue(rawBase, rawBaseNoLvl, cap);
-        sum += shown + dispositionFlatBonus(disposition, stat, rawBaseNoLvl);
+        sum += shown + dispositionFlatBonus(disposition, stat, rawBaseForStat);
     }
     return sum;
 }
@@ -60,6 +60,8 @@ export interface PairPetCoreStatsGridProps {
     disposition: PairPetMeta['disposition'];
     /** 펫 인벤 행 등급 — 등급당 누적 ×1.1 기본 능력치 */
     petGrade?: ItemGrade;
+    /** 부화 시 태생 6코어(각 30~70·합 300, 등급 배율 전). 없으면 코어당 50과 동일 */
+    birthCoreBases?: PairPetMeta['birthCoreBases'];
     /** 레벨업 시 누적된 6코어 보너스 */
     levelUpCoreBonuses?: Partial<Record<CoreStat, number>>;
     /** 모달(어두운 배경) vs 로비 정보(밝은 카드) 등 톤 */
@@ -77,13 +79,17 @@ const PairPetCoreStatsGrid: React.FC<PairPetCoreStatsGridProps> = ({
     currentUser,
     disposition,
     petGrade = ItemGrade.Normal,
+    birthCoreBases,
     levelUpCoreBonuses,
     variant = 'modal',
     density = 'default',
     className = '',
 }) => {
     const userTotals = useMemo(() => calculateTotalStats(currentUser), [currentUser]);
-    const gradeMult = useMemo(() => pairPetStatMultiplierFromGrade(petGrade), [petGrade]);
+    const rawBaseForStat = useMemo(
+        () => (s: CoreStat) => pairPetRawBaseCoreNoLevel(birthCoreBases, petGrade, s),
+        [birthCoreBases, petGrade],
+    );
 
     const micro = density === 'micro';
     const fit = density === 'fit';
@@ -114,12 +120,12 @@ const PairPetCoreStatsGrid: React.FC<PairPetCoreStatsGridProps> = ({
         <div className={`${gridClass} ${className}`.trim()}>
             {CORE_LIST.map((stat) => {
                 const lvlAdd = levelUpCoreBonuses?.[stat] ?? 0;
-                const rawBaseNoLvl = Math.round(PET_BASE_STAT * gradeMult);
+                const rawBaseNoLvl = rawBaseForStat(stat);
                 const rawBase = rawBaseNoLvl + lvlAdd;
                 const cap = userTotals[stat] ?? rawBase;
                 const shown = pairPetShownCoreValue(rawBase, rawBaseNoLvl, cap);
                 const corrected = shown < rawBase;
-                const bonus = dispositionFlatBonus(disposition, stat, rawBaseNoLvl);
+                const bonus = dispositionFlatBonus(disposition, stat, rawBaseForStat);
                 const statLabel = CORE_STATS_DATA[stat]?.name ?? stat;
                 const bonusTitle = bonus !== 0 ? ` (${bonus > 0 ? '+' : ''}${bonus})` : '';
                 return (

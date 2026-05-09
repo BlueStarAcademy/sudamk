@@ -503,6 +503,19 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         [inventory]
     );
 
+    const welcomeEggCount = useMemo(
+        () => inventory.filter(isPairWelcomeEggItem).reduce((s, it) => s + (it.quantity ?? 1), 0),
+        [inventory]
+    );
+
+    const standardMysteryEggCount = useMemo(
+        () =>
+            inventory
+                .filter((it) => isPairEggItem(it) && !isPairWelcomeEggItem(it))
+                .reduce((s, it) => s + (it.quantity ?? 1), 0),
+        [inventory]
+    );
+
     const pairHatcheryHasClaimReady = useMemo(() => {
         void hatcheryTick;
         void pairLobbyPendingTick;
@@ -1122,8 +1135,31 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
         return (
             <div className="flex w-full min-w-0 flex-col gap-[clamp(0.25rem,0.9vmin,0.5rem)]">
-                <div className="flex shrink-0 justify-end">
-                    <div className="flex items-center gap-[clamp(0.25rem,0.9vmin,0.45rem)] rounded-xl border border-fuchsia-400/30 bg-gradient-to-r from-fuchsia-950/50 to-violet-950/40 px-[clamp(0.45rem,1.4vmin,0.75rem)] py-[clamp(0.2rem,0.75vmin,0.45rem)] shadow-[0_0_20px_rgba(192,38,211,0.15),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-fuchsia-500/10">
+                <div className="flex shrink-0 justify-end gap-[clamp(0.25rem,0.85vmin,0.45rem)]">
+                    <div
+                        className="flex items-center gap-[clamp(0.2rem,0.75vmin,0.4rem)] rounded-xl border border-amber-400/35 bg-gradient-to-r from-amber-950/55 to-orange-950/35 px-[clamp(0.4rem,1.25vmin,0.65rem)] py-[clamp(0.2rem,0.75vmin,0.45rem)] shadow-[0_0_18px_rgba(245,158,11,0.14),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-amber-500/12"
+                        title={PAIR_WELCOME_EGG_MATERIAL_NAME}
+                    >
+                        <div className="relative shrink-0">
+                            <div className="absolute inset-0 rounded-lg bg-amber-500/22 blur-md" aria-hidden />
+                            <img
+                                src={eggThumbSrc}
+                                alt=""
+                                className="relative h-[clamp(1.35rem,6vmin,2rem)] w-[clamp(1.35rem,6vmin,2rem)] shrink-0 rounded-lg object-contain ring-1 ring-white/20"
+                                loading="lazy"
+                            />
+                        </div>
+                        <span className="text-[clamp(0.58rem,1.65vmin,0.72rem)] font-black leading-none tracking-tight text-amber-100/95">
+                            (특)
+                        </span>
+                        <span className="text-[clamp(0.72rem,2vmin,0.875rem)] font-black tabular-nums tracking-tight text-amber-50 drop-shadow-sm">
+                            {welcomeEggCount}
+                        </span>
+                    </div>
+                    <div
+                        className="flex items-center gap-[clamp(0.25rem,0.9vmin,0.45rem)] rounded-xl border border-fuchsia-400/30 bg-gradient-to-r from-fuchsia-950/50 to-violet-950/40 px-[clamp(0.45rem,1.4vmin,0.75rem)] py-[clamp(0.2rem,0.75vmin,0.45rem)] shadow-[0_0_20px_rgba(192,38,211,0.15),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-fuchsia-500/10"
+                        title={PAIR_EGG_MATERIAL_NAME}
+                    >
                         <div className="relative shrink-0">
                             <div className="absolute inset-0 rounded-lg bg-fuchsia-500/25 blur-md" aria-hidden />
                             <img
@@ -1134,7 +1170,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             />
                         </div>
                         <span className="text-[clamp(0.72rem,2vmin,0.875rem)] font-black tabular-nums tracking-tight text-fuchsia-50 drop-shadow-sm">
-                            {eggCount}
+                            {standardMysteryEggCount}
                         </span>
                     </div>
                 </div>

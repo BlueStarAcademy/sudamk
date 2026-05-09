@@ -800,6 +800,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         <AiChallengeModal 
           lobbyType={isStrategic ? 'strategic' : 'playful'} 
           preferredGameSettingsBucket={mode === 'playful' ? 'playful_ai_challenge' : 'strategic_ai_challenge'}
+          title={isStrategic ? '전략바둑 AI와 대결하기' : '놀이바둑 AI와 대결하기'}
           onClose={() => setIsAiChallengeModalOpen(false)} 
           onAction={handlers.handleAction}
         />

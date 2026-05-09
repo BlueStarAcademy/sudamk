@@ -700,7 +700,7 @@ const Profile: React.FC<ProfileProps> = () => {
     const adminModalPreviewMenuRef = useRef<HTMLDivElement>(null);
 
     const sendAdminVipTestFlags = useCallback(
-        async (flags: { rewardVip: boolean; functionVip: boolean; vvip: boolean }) => {
+        async (flags: { rewardVip: boolean; functionVip: boolean; vvip: boolean; removeAds: boolean }) => {
             if (!handlers?.handleAction || !isClientAdmin(currentUserWithStatus)) return;
             setVipTestBusy(true);
             try {
@@ -2440,6 +2440,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                         { flag: 'rewardVip' as const, label: '보상 VIP' },
                                         { flag: 'functionVip' as const, label: '기능 VIP' },
                                         { flag: 'vvip' as const, label: 'VVIP' },
+                                        { flag: 'removeAds' as const, label: '광고 제거' },
                                     ] as const
                                 ).map((row) => {
                                     const base = currentUserWithStatus;
@@ -2447,6 +2448,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                         rewardVip: isVipExpiresActive(base.rewardVipExpiresAt),
                                         functionVip: isVipExpiresActive(base.functionVipExpiresAt),
                                         vvip: isVipExpiresActive(base.vvipExpiresAt),
+                                        removeAds: Boolean(base.removeAdsPurchased),
                                     };
                                     const on = curFlags[row.flag];
                                     return (

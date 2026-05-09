@@ -1357,7 +1357,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             if (!isRecognizedAdminUser(user)) {
                 return { error: '권한이 없습니다.' };
             }
-            const p = payload as { rewardVip?: unknown; functionVip?: unknown; vvip?: unknown };
+            const p = payload as { rewardVip?: unknown; functionVip?: unknown; vvip?: unknown; removeAds?: unknown };
             const toBool = (v: unknown) => v === true;
             const rewardVip = toBool(p.rewardVip);
             const functionVip = toBool(p.functionVip);
@@ -1366,6 +1366,9 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             user.rewardVipExpiresAt = rewardVip ? far : 0;
             user.functionVipExpiresAt = functionVip ? far : 0;
             user.vvipExpiresAt = vvip ? far : 0;
+            if (p.removeAds !== undefined) {
+                user.removeAdsPurchased = toBool(p.removeAds);
+            }
             const updatedUser = getSelectiveUserUpdate(user, 'ADMIN_SET_VIP_TEST_FLAGS');
             try {
                 await db.updateUser(user);
@@ -1374,7 +1377,12 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 return { error: 'VIP 테스트 설정 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.' };
             }
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt']);
+            broadcastUserUpdate(user, [
+                'rewardVipExpiresAt',
+                'functionVipExpiresAt',
+                'vvipExpiresAt',
+                'removeAdsPurchased',
+            ]);
             return { clientResponse: { updatedUser } };
         }
         case 'ADMIN_SET_DIAMOND_PACKAGE_TEST': {

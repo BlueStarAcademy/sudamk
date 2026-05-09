@@ -26,6 +26,11 @@ import GuildWar from './guild/GuildWar.js';
 import AdventureLobby from './adventure/AdventureLobby.js';
 import AdventureStageMap from './adventure/AdventureStageMap.js';
 import { replaceAppHash } from '../utils/appUtils.js';
+import {
+    pairArenaLobbyHash,
+    readPairArenaRestoreFromGameStateStorage,
+    stashPairArenaRoomRestoreForLobbyNavigation,
+} from '../shared/utils/pairArenaSessionRestore.js';
 import { userMeetsGuildFeatureLevelRequirement } from '../shared/constants/guildConstants.js';
 
 // 게임 라우트 로더 컴포넌트 (게임이 로드될 때까지 대기, 새로고침 시 재입장 대기)
@@ -44,6 +49,15 @@ const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
                 const allGamesCheck = { ...(liveGames || {}), ...(singlePlayerGames || {}), ...(towerGames || {}) };
                 const game = allGamesCheck[gameId];
                 if (game && currentUser && (game.player1?.id === currentUser.id || game.player2?.id === currentUser.id)) {
+                    return;
+                }
+                const pairArenaRestore = readPairArenaRestoreFromGameStateStorage(gameId);
+                if (pairArenaRestore) {
+                    stashPairArenaRoomRestoreForLobbyNavigation(
+                        pairArenaRestore.roomId,
+                        pairArenaRestore.lobbyChannel,
+                    );
+                    replaceAppHash(pairArenaLobbyHash(pairArenaRestore.lobbyChannel));
                     return;
                 }
                 setHasTimedOut(true);

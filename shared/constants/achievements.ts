@@ -12,7 +12,8 @@ export type AchievementStageDefinition = {
         | { type: 'adventure_codex_score'; score: number }
         | { type: 'blacksmith_level'; level: number }
         | { type: 'equipment_box_opens'; opens: number }
-        | { type: 'material_box_opens'; opens: number };
+        | { type: 'material_box_opens'; opens: number }
+        | { type: 'championship_dungeon_stage_first'; tournamentType: 'neighborhood' | 'national' | 'world'; stage: number };
     rewardDiamonds: number;
 };
 
@@ -36,6 +37,47 @@ export const MONSTER_CODEX_HUNTER_TRACK_ID = 'adventure_monster_codex_hunter';
 export const BLACKSMITH_LEVEL_TRACK_ID = 'blacksmith_level_milestones';
 export const EQUIPMENT_BOX_OPENS_TRACK_ID = 'equipment_box_opens_milestones';
 export const MATERIAL_BOX_OPENS_TRACK_ID = 'material_box_opens_milestones';
+export const NEIGHBORHOOD_LEAGUE_FIRST_PLACE_TRACK_ID = 'neighborhood_league_stage_first_place';
+export const NATIONAL_TOURNAMENT_FIRST_PLACE_TRACK_ID = 'national_tournament_stage_first_place';
+export const WORLD_CHAMPIONSHIP_FIRST_PLACE_TRACK_ID = 'world_championship_stage_first_place';
+
+const DUNGEON_STAGE_FIRST_PLACE_DIAMONDS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const;
+
+function buildChampionshipDungeonStageFirstStages(
+    stageIdPrefix: string,
+    tournamentType: 'neighborhood' | 'national' | 'world',
+    leagueLabel: string,
+): AchievementStageDefinition[] {
+    return DUNGEON_STAGE_FIRST_PLACE_DIAMONDS.map((rewardDiamonds, i) => {
+        const stage = i + 1;
+        return {
+            id: `${stageIdPrefix}-${stage}`,
+            title: `${leagueLabel} ${stage}단계 1위`,
+            description: `${leagueLabel} ${stage}단계에서 우승(1위)하세요.`,
+            requirement: { type: 'championship_dungeon_stage_first', tournamentType, stage },
+            rewardDiamonds,
+        };
+    });
+}
+
+/** 챔피언십 던전(동네/전국/월드) 특정 단계 기록에서 1위(우승) 달성 여부 */
+export function isChampionshipDungeonStageFirstMet(
+    user: {
+        dungeonProgress?: Partial<
+            Record<
+                'neighborhood' | 'national' | 'world',
+                { stageResults?: Record<number | string, { rank?: number }> }
+            >
+        >;
+    },
+    tournamentType: 'neighborhood' | 'national' | 'world',
+    stage: number,
+): boolean {
+    const results = user.dungeonProgress?.[tournamentType]?.stageResults;
+    if (!results) return false;
+    const entry = results[stage] ?? (results as Record<string, { rank?: number } | undefined>)[String(stage)];
+    return entry?.rank === 1;
+}
 
 export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
     {
@@ -105,6 +147,21 @@ export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
             { id: 'champ-score-2000', title: '챔피언십 점수 누적 2000점', description: '챔피언십 누적 점수 2000점을 달성하세요.', requirement: { type: 'championship_cumulative_score', score: 2000 }, rewardDiamonds: 100 },
             { id: 'champ-score-3000', title: '챔피언십 점수 누적 3000점', description: '챔피언십 누적 점수 3000점을 달성하세요.', requirement: { type: 'championship_cumulative_score', score: 3000 }, rewardDiamonds: 150 },
         ],
+    },
+    {
+        id: NEIGHBORHOOD_LEAGUE_FIRST_PLACE_TRACK_ID,
+        title: '동네바둑왕',
+        stages: buildChampionshipDungeonStageFirstStages('neighborhood-league-first', 'neighborhood', '동네바둑리그'),
+    },
+    {
+        id: NATIONAL_TOURNAMENT_FIRST_PLACE_TRACK_ID,
+        title: '전국구 선수',
+        stages: buildChampionshipDungeonStageFirstStages('national-tournament-first', 'national', '전국바둑대회'),
+    },
+    {
+        id: WORLD_CHAMPIONSHIP_FIRST_PLACE_TRACK_ID,
+        title: '월드챔피언',
+        stages: buildChampionshipDungeonStageFirstStages('world-championship-first', 'world', '월드챔피언십'),
     },
     {
         id: ALL_EQUIPMENT_GRADE_TRACK_ID,

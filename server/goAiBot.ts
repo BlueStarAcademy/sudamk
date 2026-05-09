@@ -11,11 +11,12 @@ import { LiveGameSession, Player, Point } from '../types/index.js';
 import { getGoLogic, processMove } from './goLogic.js';
 import * as types from '../types/index.js';
 import * as summaryService from './summaryService.js';
-import { getCaptureTarget, NO_CAPTURE_TARGET } from './utils/captureTargets.ts';
+import { getCaptureTarget, NO_CAPTURE_TARGET, tryEndGameWhenCaptureTargetReached } from './utils/captureTargets.js';
 import * as db from './db.js';
 import { volatileState } from './state.js';
 import { broadcastToGameParticipants } from './socket.js';
 import { hasTimeControl, shouldEnforceTimeControl } from './modes/shared.js';
+import { shouldRunGoClockAccountingForSession } from './utils/speedTimePressureLiveCaptures.js';
 import { isFischerStyleTimeControl } from '../shared/utils/gameTimeControl.js';
 import { generateKataServerMoveCandidateDetails, isKataServerAvailable } from './kataServerService.js';
 import {
@@ -3031,11 +3032,9 @@ export async function makeGoAiBotMove(
             }
         }
     } else {
-        // 일반 따내기 바둑 모드에서 승리 조건 확인
-        if (game.isSinglePlayer || game.mode === types.GameMode.Capture) {
-            const target = getCaptureTarget(game, aiPlayerEnum);
-            if (target !== undefined && target !== NO_CAPTURE_TARGET && game.captures[aiPlayerEnum] >= target) {
-                await summaryService.endGame(game, aiPlayerEnum, 'capture_limit');
+        // 일반 따내기(믹스 포함): 목표 달성 시 즉시 종료(스피드 보너스 등은 tryEndGameWhenCaptureTargetReached와 동일)
+        if (game.isSinglePlayer || modeIncludesCaptureRule(game)) {
+            if (await tryEndGameWhenCaptureTargetReached(game, aiPlayerEnum)) {
                 return;
             }
         }
@@ -3225,7 +3224,7 @@ export async function makeGoAiBotMove(
             }
         }
         
-        if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
+        if (shouldRunGoClockAccountingForSession(game)) {
             const timeKey = game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
             const byoyomiKey = game.currentPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
             const isFischer = isFischerStyleTimeControl(game as any);

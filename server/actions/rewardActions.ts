@@ -17,6 +17,7 @@ import {
     TOURNAMENT_DEFINITIONS,
     getDungeonRankRewardWorld,
     ACHIEVEMENT_TRACK_MAP,
+    isChampionshipDungeonStageFirstMet,
 } from '../../constants/index.js';
 import { calculateRanks } from '../tournamentService.js';
 import { addItemsToInventory, createItemInstancesFromReward } from '../../utils/inventoryUtils.js';
@@ -527,6 +528,8 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 requirementMet = (user.quests?.achievements?.totalEquipmentBoxOpens ?? 0) >= stage.requirement.opens;
             } else if (stage.requirement.type === 'material_box_opens') {
                 requirementMet = (user.quests?.achievements?.totalMaterialBoxOpens ?? 0) >= stage.requirement.opens;
+            } else if (stage.requirement.type === 'championship_dungeon_stage_first') {
+                requirementMet = isChampionshipDungeonStageFirstMet(user, stage.requirement.tournamentType, stage.requirement.stage);
             }
             if (!requirementMet) {
                 return { error: '아직 업적 조건을 달성하지 않았습니다.' };

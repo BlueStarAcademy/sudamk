@@ -1,9 +1,20 @@
 import type { LiveGameSession } from '../../types/index.js';
 import { GameMode, Player } from '../../types/enums.js';
 import { aiUserId } from '../aiPlayer.js';
+import { hasTimeControl, shouldEnforceTimeControl } from '../modes/shared.js';
 
 /** `finalizeAnalysisResult` 스피드 분기와 동일 */
 export const SPEED_TIME_PRESSURE_SECONDS_PER_POINT = 10;
+
+/**
+ * 착수·패스 직후 시계(남은 시간·turnDeadline)·`__speedBonusConsumedSec` 반영 여부.
+ * PVP는 패배까지 강제, AI/싱글/페어 AI 등 스피드는 패배 없이도 피셔 막대·10초당 상대 점수용 시계를 유지한다.
+ */
+export function shouldRunGoClockAccountingForSession(game: LiveGameSession): boolean {
+    if (!hasTimeControl(game.settings)) return false;
+    if (shouldEnforceTimeControl(game)) return true;
+    return isSessionSpeedTimePressureMode(game);
+}
 
 export function isSessionSpeedTimePressureMode(session: LiveGameSession): boolean {
     return (

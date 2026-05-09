@@ -1,3 +1,6 @@
+import { CoreStat } from '../types/enums.js';
+import { CHAMPIONSHIP_KATA_PHASE_WEIGHTS } from './championshipRealMatch.js';
+
 /** PairWaitingLobby: 모바일에서 N번방 탭으로 포커스(초대 수락·경기 종료 후 복귀 등) */
 export const PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY = 'sudamr_pair_lobby_focus_room_tab';
 
@@ -25,6 +28,13 @@ export function clampPairRoomTitle(raw: string | undefined | null): string {
 
 /** 흑·백 합산 착수 수 기준 페이즈 (페어 펫 KATA 등) */
 export type PairPetKataPhase = 'opening' | 'midgame' | 'endgame';
+
+/** 7줄: 초반 1~5, 중반 6~10, 종반 11~(펫 힌트 구간) */
+export const PAIR_PET_KATA_PHASE_PLY_7: Record<PairPetKataPhase, { from: number; to: number | null }> = {
+    opening: { from: 1, to: 5 },
+    midgame: { from: 6, to: 10 },
+    endgame: { from: 11, to: null },
+};
 
 /** 9줄: 초반 1~15, 중반 16~30, 종반 31~ */
 export const PAIR_PET_KATA_PHASE_PLY_9: Record<PairPetKataPhase, { from: number; to: number | null }> = {
@@ -64,45 +74,35 @@ export type PairPetCoreStatsSix = {
     stability: number;
 };
 
+function pairPetKataWeightsFromChampionship(phase: PairPetKataPhase): PairPetCoreStatsSix {
+    const w = CHAMPIONSHIP_KATA_PHASE_WEIGHTS[phase];
+    return {
+        concentration: w[CoreStat.Concentration],
+        thinkingSpeed: w[CoreStat.ThinkingSpeed],
+        judgment: w[CoreStat.Judgment],
+        calculation: w[CoreStat.Calculation],
+        combatPower: w[CoreStat.CombatPower],
+        stability: w[CoreStat.Stability],
+    };
+}
+
 /**
- * 페이즈별 가중치 (집중·사고·판단·계산·전투·안정) — 스탯 값에 곱해 가중 합산 후 반올림.
- * 초반: 집30% 사고30% 판40% 계20% 전투30% 안정50%
- * 중반: 집30% 사고30% 판30% 계30% 전투50% 안정30%
- * 종반: 집40% 사고40% 판30% 계50% 전투20% 안정20%
+ * 페이즈별 가중치 (집중·사고·판단·계산·전투·안정) — 챔피언십 KATA(`CHAMPIONSHIP_KATA_PHASE_WEIGHTS`)와 동일.
+ * 런타임 KV로 덮어쓰지 않습니다.
  */
 export const PAIR_PET_KATA_PHASE_WEIGHTS: Record<PairPetKataPhase, PairPetCoreStatsSix> = {
-    opening: {
-        concentration: 0.3,
-        thinkingSpeed: 0.3,
-        judgment: 0.4,
-        calculation: 0.2,
-        combatPower: 0.3,
-        stability: 0.5,
-    },
-    midgame: {
-        concentration: 0.3,
-        thinkingSpeed: 0.3,
-        judgment: 0.3,
-        calculation: 0.3,
-        combatPower: 0.5,
-        stability: 0.3,
-    },
-    endgame: {
-        concentration: 0.4,
-        thinkingSpeed: 0.4,
-        judgment: 0.3,
-        calculation: 0.5,
-        combatPower: 0.2,
-        stability: 0.2,
-    },
+    opening: pairPetKataWeightsFromChampionship('opening'),
+    midgame: pairPetKataWeightsFromChampionship('midgame'),
+    endgame: pairPetKataWeightsFromChampionship('endgame'),
 };
 
 /**
  * 흑·백 합산 착수 수(1부터)로 페이즈 판별.
- * 9·11·13·19만 정의. 그 외 판 크기는 19줄 규칙을 따름.
+ * 7·9·11·13·19만 정의. 그 외 판 크기는 19줄 규칙을 따름.
  */
 export function pairPetKataPhaseFromTotalPly(boardSize: number, totalPly: number): PairPetKataPhase {
     return pairPetKataPhaseFromTotalPlyWithTables(boardSize, totalPly, {
+        seven: PAIR_PET_KATA_PHASE_PLY_7,
         nine: PAIR_PET_KATA_PHASE_PLY_9,
         eleven: PAIR_PET_KATA_PHASE_PLY_11,
         thirteen: PAIR_PET_KATA_PHASE_PLY_13,
@@ -111,6 +111,7 @@ export function pairPetKataPhaseFromTotalPly(boardSize: number, totalPly: number
 }
 
 const PAIR_PET_KATA_PHASE_TABLES_DEFAULT = {
+    seven: PAIR_PET_KATA_PHASE_PLY_7,
     nine: PAIR_PET_KATA_PHASE_PLY_9,
     eleven: PAIR_PET_KATA_PHASE_PLY_11,
     thirteen: PAIR_PET_KATA_PHASE_PLY_13,
@@ -135,7 +136,7 @@ export function pairPetKataPliesRemainingInCurrentPhase(
     return { phase, remaining: Math.max(0, to - n) };
 }
 
-/** 가중 능력치 점수(반올림 정수) */
+/** 가중 능력치 점수(반올림 정수). `weights` 생략 시 챔피언십과 동일한 코드 상수 사용. */
 export function pairPetKataAbilityScore(
     phase: PairPetKataPhase,
     stats: PairPetCoreStatsSix,
@@ -232,12 +233,14 @@ export function pairPetKataLevelFromAbilityScore(score: number): number {
 function phaseTableFromRuntime(
     boardSize: number,
     tables: {
+        seven: Record<PairPetKataPhase, { from: number; to: number | null }>;
         nine: Record<PairPetKataPhase, { from: number; to: number | null }>;
         eleven: Record<PairPetKataPhase, { from: number; to: number | null }>;
         thirteen: Record<PairPetKataPhase, { from: number; to: number | null }>;
         nineteen: Record<PairPetKataPhase, { from: number; to: number | null }>;
     },
 ): Record<PairPetKataPhase, { from: number; to: number | null }> | null {
+    if (boardSize === 7) return tables.seven;
     if (boardSize === 9) return tables.nine;
     if (boardSize === 11) return tables.eleven;
     if (boardSize === 13) return tables.thirteen;
@@ -245,11 +248,12 @@ function phaseTableFromRuntime(
     return null;
 }
 
-/** @internal pairPet 런타임 테이블(9·11·13·19)로 페이즈 판별 */
+/** @internal pairPet 런타임 테이블(7·9·11·13·19)로 페이즈 판별 */
 export function pairPetKataPhaseFromTotalPlyWithTables(
     boardSize: number,
     totalPly: number,
     tables: {
+        seven: Record<PairPetKataPhase, { from: number; to: number | null }>;
         nine: Record<PairPetKataPhase, { from: number; to: number | null }>;
         eleven: Record<PairPetKataPhase, { from: number; to: number | null }>;
         thirteen: Record<PairPetKataPhase, { from: number; to: number | null }>;
@@ -270,36 +274,26 @@ export function pairPetKataPhaseFromTotalPlyWithTables(
     return 'endgame';
 }
 
-/** 한 수순에서 쓸 KATA 레벨(오프셋) — 보드 크기·총 수순·펫 6스탯으로 결정 */
+/**
+ * 한 수순에서 쓸 KATA 레벨(오프셋).
+ * 보드·총 수순으로 **현재 페이즈**를 정한 뒤, 그 페이즈의 가중 6스탯 점수를 `abilityKataLadder`에 넣어 오프셋을 구합니다(구간별 영향).
+ * 가중치·착수 구간 표는 챔피언십과 동일한 코드 상수만 사용.
+ */
 export function pairPetKataLevelForTotalPly(
     boardSize: number,
     totalPly: number,
     stats: PairPetCoreStatsSix,
-    pairRuntime?: {
-        abilityKataLadder: readonly PairPetAbilityKataLadderRow[];
-        phaseWeights: Record<PairPetKataPhase, PairPetCoreStatsSix>;
-        phasePly9: Record<PairPetKataPhase, { from: number; to: number | null }>;
-        phasePly11: Record<PairPetKataPhase, { from: number; to: number | null }>;
-        phasePly13: Record<PairPetKataPhase, { from: number; to: number | null }>;
-        phasePly19: Record<PairPetKataPhase, { from: number; to: number | null }>;
-    },
+    pairRuntime?: { abilityKataLadder?: readonly PairPetAbilityKataLadderRow[] } | null,
 ): number {
-    const weights = pairRuntime?.phaseWeights ?? PAIR_PET_KATA_PHASE_WEIGHTS;
-    const tables = pairRuntime
-        ? {
-              nine: pairRuntime.phasePly9,
-              eleven: pairRuntime.phasePly11,
-              thirteen: pairRuntime.phasePly13,
-              nineteen: pairRuntime.phasePly19,
-          }
-        : {
-              nine: PAIR_PET_KATA_PHASE_PLY_9,
-              eleven: PAIR_PET_KATA_PHASE_PLY_11,
-              thirteen: PAIR_PET_KATA_PHASE_PLY_13,
-              nineteen: PAIR_PET_KATA_PHASE_PLY_19,
-          };
+    const tables = {
+        seven: PAIR_PET_KATA_PHASE_PLY_7,
+        nine: PAIR_PET_KATA_PHASE_PLY_9,
+        eleven: PAIR_PET_KATA_PHASE_PLY_11,
+        thirteen: PAIR_PET_KATA_PHASE_PLY_13,
+        nineteen: PAIR_PET_KATA_PHASE_PLY_19,
+    };
     const phase = pairPetKataPhaseFromTotalPlyWithTables(boardSize, totalPly, tables);
-    const ability = pairPetKataAbilityScore(phase, stats, weights);
+    const ability = pairPetKataAbilityScore(phase, stats);
     const ladder = pairRuntime?.abilityKataLadder ?? DEFAULT_PAIR_PET_ABILITY_KATA_LADDER;
     return pairPetKataLevelFromAbilityScoreWithLadder(ability, ladder);
 }

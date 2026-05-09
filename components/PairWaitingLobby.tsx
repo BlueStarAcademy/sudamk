@@ -1426,6 +1426,14 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         () => rooms.find((r) => userInPairRoomClient(r, currentUserId)) || null,
         [rooms, currentUserId],
     );
+    /** 페어 펫 랭킹전 큐 껍데기로 매칭 대기 중 — 중앙 슬롯 목록에는 비표시, 포커스는 랭킹 패널(전략 경기장 랭킹전과 동일) */
+    const isPairPetRankedQueueShellMatching = Boolean(
+        lobbyChannel === 'pair' &&
+            myRoom?.roomKind === 'ai_duel' &&
+            myRoom.pairPetRankedQueueShell &&
+            myRoom.phase === 'matching' &&
+            !myRoom.pairRankedPetProposal,
+    );
     const pairRankedMatchApButtonLabel = useMemo(() => {
         const base = pairRankedLobbyActionPointCost(lobbyChannel, myRoom?.selectedGameMode);
         if (!currentUserWithStatus) return String(base);
@@ -1473,14 +1481,31 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         if (!aggregateLobbyMode && pairLobbyRightTab === 'ai') setPairLobbyRightTab('users');
     }, [aggregateLobbyMode, pairLobbyRightTab]);
 
+    /** 페어 랭킹전 대기(모바일): 랭킹 탭으로 포커스 — PC는 `pairLobbyRightTab` 이펙트·분할 숨김으로 처리 */
+    useEffect(() => {
+        if (!isPairPetRankedQueueShellMatching || !isHandheld) return;
+        setPairLobbyMobileTab('ranked');
+    }, [isPairPetRankedQueueShellMatching, isHandheld]);
+
     useEffect(() => {
         if (aggregateLobbyMode !== 'playful' || !isHandheld) return;
         if (pairLobbyRightTab === 'ai') setPairLobbyRightTab('users');
     }, [aggregateLobbyMode, isHandheld, pairLobbyRightTab]);
 
+    /** 방 입장 시 우측을 방 탭으로 — 펫 랭킹 큐 껍데기 방(PC)은 방 UI 대신 유저 열(랭킹·매칭 패널) 유지 */
     useEffect(() => {
-        if (myRoom) setPairLobbyRightTab('room');
-    }, [myRoom?.id]);
+        if (!myRoom) return;
+        if (isPairPetRankedQueueShellMatching && !isHandheld) {
+            setPairLobbyRightTab('users');
+            return;
+        }
+        setPairLobbyRightTab('room');
+    }, [
+        myRoom,
+        myRoom?.id,
+        isHandheld,
+        isPairPetRankedQueueShellMatching,
+    ]);
 
     useEffect(() => {
         if (!myRoom) {
@@ -1558,18 +1583,23 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     /** 그리드 슬롯별 방: 가상 스크롤 구간(`lobbyGridRooms`) + 전체 채널 목록 보강 — 경기 시작 후에도 번호 점유·상태가 보이게 함 */
     const roomBySlotNumberForLobbyGrid = useMemo(() => {
         const m = new Map<number, PairRoom>();
-        for (const room of sortedLobbyGridRoomsForPublicList) {
+        const hideOwnRankedShellId =
+            isPairPetRankedQueueShellMatching && myRoom?.id ? myRoom.id : null;
+        const tryPlace = (room: PairRoom) => {
+            if (hideOwnRankedShellId && room.id === hideOwnRankedShellId) return;
             const sn = pairLobbyGridSlotFromRoomCode(room.code);
-            if (sn === null) continue;
+            if (sn === null) return;
             if (!m.has(sn)) m.set(sn, room);
-        }
-        for (const room of sortedRoomsMatchingFilters) {
-            const sn = pairLobbyGridSlotFromRoomCode(room.code);
-            if (sn === null) continue;
-            if (!m.has(sn)) m.set(sn, room);
-        }
+        };
+        for (const room of sortedLobbyGridRoomsForPublicList) tryPlace(room);
+        for (const room of sortedRoomsMatchingFilters) tryPlace(room);
         return m;
-    }, [sortedLobbyGridRoomsForPublicList, sortedRoomsMatchingFilters]);
+    }, [
+        sortedLobbyGridRoomsForPublicList,
+        sortedRoomsMatchingFilters,
+        isPairPetRankedQueueShellMatching,
+        myRoom?.id,
+    ]);
 
     const orphanPairRoomsForLobbyGrid = useMemo(
         () =>
@@ -2319,7 +2349,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         setIsBusy(true);
         try {
             if (lobbyChannel === 'pair') {
-                if (myRoom && myRoom.roomKind !== 'ai_duel') {
+                if (myRoom && (myRoom.roomKind !== 'ai_duel' || !myRoom.pairPetRankedQueueShell)) {
                     window.alert('페어 랭킹전을 시작하려면 다른 페어 방에서 나와 주세요.');
                     return;
                 }
@@ -2327,26 +2357,22 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                     window.alert('방장만 랭킹전 매칭을 시작할 수 있습니다.');
                     return;
                 }
-                if (!myRoom) {
-                    const rankedSettings = getRankedGameSettings(mode);
-                    const createResult = await handlers.handleAction({
-                        type: 'PAIR_CREATE_ROOM',
-                        payload: {
-                            roomKind: 'ai_duel',
-                            lobbyChannel: 'pair',
-                            selectedGameMode: mode,
-                            settings: { ...DEFAULT_GAME_SETTINGS, ...rankedSettings },
-                            visibility: 'public',
-                            pairPetRankedQueueShell: true,
-                        },
-                    } as ServerAction);
-                    const createErr = (createResult as { error?: string } | undefined)?.error;
-                    if (createErr) {
-                        window.alert(createErr);
-                        return;
-                    }
-                    await handlers.handleAction({ type: 'PAIR_SYNC' } as ServerAction).catch(() => undefined);
+                const result = await handlers.handleAction({ type: 'PAIR_QUEUE_PET_RANKED', payload: { mode } } as ServerAction);
+                const error = (result as { error?: string } | undefined)?.error;
+                if (error) {
+                    window.alert(error);
+                    return;
                 }
+                const gameId =
+                    (result as { gameId?: string; clientResponse?: { gameId?: string } } | undefined)?.gameId ||
+                    (result as { clientResponse?: { gameId?: string } } | undefined)?.clientResponse?.gameId;
+                if (gameId) {
+                    pairShellGameNavAllowIdRef.current = gameId;
+                    window.location.hash = `#/game/${gameId}`;
+                }
+                setPairRankedMatchModalOpen(false);
+                setPairLobbyPetRankedModalOpen(false);
+                return;
             }
             const result = await handlers.handleAction({ type: 'PAIR_START_MATCH', payload: { mode } } as ServerAction);
             const error = (result as { error?: string } | undefined)?.error;
@@ -2567,9 +2593,10 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         return next;
     }, [createModalRoomKind, lobbyChannel]);
 
-    /** 경기 종료 후 집계 경기장으로 돌아올 때, 이전에 머물던 페어 방으로 포커스(모바일 N번방 탭·필요 시 재입장) */
+    /** 경기 종료 후 집계·페어 경기장으로 돌아올 때, 이전에 머물던 페어 방으로 포커스(모바일 N번방 탭·필요 시 재입장) */
     useEffect(() => {
-        if (!aggregateLobbyMode || postGamePairRoomRestoreDoneRef.current) return;
+        if (postGamePairRoomRestoreDoneRef.current) return;
+        if (lobbyChannel !== 'pair' && !aggregateLobbyMode) return;
         let storedId: string | null = null;
         try {
             storedId = sessionStorage.getItem(POST_GAME_PAIR_ROOM_RESTORE_SESSION_KEY);
@@ -2603,6 +2630,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         }
     }, [
         aggregateLobbyMode,
+        lobbyChannel,
         rooms,
         myRoom?.id,
         myRoomAnyLobbyChannel?.id,
@@ -3193,7 +3221,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                         window.alert('페어 랭킹전을 이용하려면 페어 펫을 장착해야 합니다.');
                                         return;
                                     }
-                                    if (myRoom && myRoom.roomKind !== 'ai_duel') {
+                                    if (myRoom && (myRoom.roomKind !== 'ai_duel' || !myRoom.pairPetRankedQueueShell)) {
                                         window.alert(
                                             '이미 참여 중인 방이 있습니다. 펫 페어 랭킹전은 다른 페어 방에서 나온 뒤 유저 목록 상단에서 시작해 주세요.',
                                         );
@@ -3585,7 +3613,11 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     const userListPanel = (
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
             {!(isHandheld && showHandheldRankedTab) && handheldStrategicRankedMatchPanel}
-            {aggregateLobbyMode === 'playful' && pairLobbyAggregateAiChallengeCardEl ? (
+            {(
+                aggregateLobbyMode === 'playful' ||
+                (aggregateLobbyMode === 'strategic' && !myRoom)
+            ) &&
+            pairLobbyAggregateAiChallengeCardEl ? (
                 <div className="shrink-0">{pairLobbyAggregateAiChallengeCardEl}</div>
             ) : null}
             {!(isHandheld && showHandheldRankedTab) && renderPairLobbyPairRankedStats()}
@@ -4522,7 +4554,10 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         </div>
     );
 
-    const showRoomUserSplitInUsersColumn = Boolean(myRoom && (!isHandheld || aggregateLobbyMode));
+    /** PC 페어 랭킹 큐 껍데기 방: 「N번방」·방 내부 UI를 숨겨 방 생성처럼 보이지 않게 함 */
+    const showRoomUserSplitInUsersColumn = Boolean(
+        myRoom && (!isHandheld || aggregateLobbyMode) && !(isPairPetRankedQueueShellMatching && !isHandheld),
+    );
 
     const handheldOrDesktopUsersColumnPanel = isHandheld ? pairLobbyMobileUsersTabPanel : userListPanel;
 
@@ -5686,6 +5721,9 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                 <AiChallengeModal
                     lobbyType={lobbyChannel === 'playful' ? 'playful' : 'strategic'}
                     preferredGameSettingsBucket={lobbyChannel === 'playful' ? 'playful_ai_challenge' : 'strategic_ai_challenge'}
+                    title={
+                        lobbyChannel === 'playful' ? '놀이바둑 AI와 대결하기' : '전략바둑 AI와 대결하기'
+                    }
                     onClose={() => setAggregateLobbyAiModalOpen(false)}
                     onAction={handlers.handleAction}
                 />
@@ -5697,7 +5735,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                     onClose={() => setPairLobbyAiModalOpen(false)}
                     onAction={(a) => void handlePairLobbyAiChallengeAction(a)}
                     startActionType="PAIR_START_AI_MATCH"
-                    title="페어 AI 대전"
+                    title="페어바둑 AI와 대결하기"
                     submitLabel="AI와 대국 시작"
                     showActionPointCost
                     transformSettingsBeforeStart={transformPairAiSettings}

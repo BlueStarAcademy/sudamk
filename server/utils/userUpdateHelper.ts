@@ -76,7 +76,7 @@ export function getSelectiveUserUpdate(
         ],
         'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL': ['onboardingSpResultTutorialStep'],
         'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ': ['onboardingSpResultTutorialStep'],
-        'ADMIN_SET_VIP_TEST_FLAGS': ['rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt'],
+        'ADMIN_SET_VIP_TEST_FLAGS': ['rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt', 'removeAdsPurchased'],
         'ADMIN_SET_DIAMOND_PACKAGE_TEST': [
             'activeDiamondPackageTier',
             'diamondPackageExpiresAt',

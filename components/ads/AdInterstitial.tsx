@@ -54,12 +54,12 @@ const AdInterstitial: React.FC = () => {
         </div>
         {isShopAdReward && (
           <p className="text-center text-[11px] leading-snug text-stone-400 px-1">
-            {SHOP_AD_REWARD_INTERSTITIAL_SECONDS}초 후 「보상 받기」를 누르면 정해진 보상이 지급됩니다. 「취소」는 보상 없이 닫습니다.
+            {SHOP_AD_REWARD_INTERSTITIAL_SECONDS}초 후 아래 「보상 받기」를 누르면 보상이 지급됩니다. 광고 영역이 아니라 초록 버튼을 눌러 주세요. 「취소」는 보상 없이 닫습니다.
           </p>
         )}
 
-        {/* 광고 콘텐츠 영역 */}
-        <div className="w-[336px] h-[280px] max-w-full flex items-center justify-center">
+        {/* 광고 콘텐츠 영역 — iframe이 영역 밖으로 나와 버튼을 가리지 않도록 잘라냄 */}
+        <div className="relative z-0 isolate w-[336px] h-[280px] max-w-full overflow-hidden rounded flex items-center justify-center">
           {isProduction && clientId ? (
             <ins
               ref={adRef}
@@ -78,7 +78,7 @@ const AdInterstitial: React.FC = () => {
 
         {/* 상점 광고: 취소(항상) + 보상 받기(30초 후) / 기타 전면: 단일 닫기 */}
         {isShopAdReward ? (
-          <div className="flex w-full max-w-sm flex-col gap-2 sm:flex-row sm:justify-center">
+          <div className="relative z-20 flex w-full max-w-sm flex-col gap-2 sm:flex-row sm:justify-center">
             <button
               type="button"
               onClick={(e) => {
@@ -92,17 +92,17 @@ const AdInterstitial: React.FC = () => {
             </button>
             <button
               type="button"
+              aria-disabled={!interstitial.canSkip}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 if (!interstitial.canSkip) return;
                 closeInterstitial({ grantShopAdReward: true });
               }}
-              disabled={!interstitial.canSkip}
-              className={`order-1 min-h-[44px] flex-1 rounded-lg px-4 py-2 text-sm font-semibold transition-all sm:order-2 sm:flex-none sm:min-w-[140px] ${
+              className={`order-1 min-h-[44px] flex-1 touch-manipulation rounded-lg px-4 py-2 text-sm font-semibold transition-all sm:order-2 sm:flex-none sm:min-w-[140px] ${
                 interstitial.canSkip
-                  ? 'cursor-pointer bg-emerald-700 text-white hover:bg-emerald-600'
-                  : 'cursor-not-allowed bg-gray-800 text-gray-500'
+                  ? 'cursor-pointer bg-emerald-700 text-white hover:bg-emerald-600 active:bg-emerald-500'
+                  : 'pointer-events-none cursor-not-allowed bg-gray-800 text-gray-500'
               }`}
             >
               {interstitial.canSkip ? '보상 받기' : `${interstitial.skipCountdown}초 후 보상 받기`}

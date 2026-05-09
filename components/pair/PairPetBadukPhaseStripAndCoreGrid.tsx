@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { useAppContext } from '../../contexts/AppContext.js';
 import type { InventoryItem, User } from '../../types.js';
 import { resolvePairPetMetaFromInventoryRow } from '../../shared/utils/pairPetRoll.js';
 import { effectivePairPetGradeFromRow } from '../../shared/constants/pairPetGrade.js';
@@ -39,7 +38,6 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
     const tight = layout !== 'default';
     const homeColumn = layout === 'homeColumn';
 
-    const { kataServerRuntimeConfig } = useAppContext();
     const meta = useMemo(() => resolvePairPetMetaFromInventoryRow(item), [item]);
     const petGrade = effectivePairPetGradeFromRow(item);
     const isModal = statsGridVariant === 'modal';
@@ -79,18 +77,18 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
 
     const kataCoreSix = useMemo(() => computePairPetKataCoreStatsSixFromMeta(meta, petGrade), [meta, petGrade]);
     const badukTotalPower = useMemo(
-        () => computePairPetBadukTotalPower(currentUser, meta.disposition, petGrade, meta.levelUpCoreBonuses),
-        [currentUser, meta.disposition, petGrade, meta.levelUpCoreBonuses],
+        () =>
+            computePairPetBadukTotalPower(currentUser, meta.disposition, petGrade, meta.levelUpCoreBonuses, meta.birthCoreBases),
+        [currentUser, meta.disposition, petGrade, meta.levelUpCoreBonuses, meta.birthCoreBases],
     );
     const phaseScores = useMemo(() => {
         const phases: PairPetKataPhase[] = ['opening', 'midgame', 'endgame'];
-        const w = kataServerRuntimeConfig?.pairPet?.phaseWeights;
         const out: Partial<Record<PairPetKataPhase, number>> = {};
         for (const p of phases) {
-            out[p] = w ? pairPetKataAbilityScore(p, kataCoreSix, w) : pairPetKataAbilityScore(p, kataCoreSix);
+            out[p] = pairPetKataAbilityScore(p, kataCoreSix);
         }
         return out as Record<PairPetKataPhase, number>;
-    }, [kataCoreSix, kataServerRuntimeConfig?.pairPet?.phaseWeights]);
+    }, [kataCoreSix]);
 
     const stripPad = homeColumn
         ? 'gap-x-1 px-1 py-0.5 sm:gap-x-1.5 sm:px-1.5 sm:py-1'
@@ -188,6 +186,7 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
                 currentUser={currentUser}
                 disposition={meta.disposition}
                 petGrade={petGrade}
+                birthCoreBases={meta.birthCoreBases}
                 levelUpCoreBonuses={meta.levelUpCoreBonuses}
                 variant={statsGridVariant}
                 density={gridDensity}

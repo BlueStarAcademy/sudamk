@@ -5,6 +5,7 @@ import { TOURNAMENT_DEFINITIONS, NEIGHBORHOOD_MATCH_REWARDS, NATIONAL_MATCH_REWA
 import { ItemGrade } from '../shared/types/enums.js';
 import { generateNewItem } from './actions/inventoryActions.js';
 import { assignChampionshipCondition } from './championshipRealMatchService.js';
+import { CHAMPIONSHIP_SIMULATION_PHASE_STAT_WEIGHTS } from '../shared/constants/championshipRealMatch.js';
 
 const EARLY_GAME_DURATION = 15;
 const MID_GAME_DURATION = 20;
@@ -14,24 +15,7 @@ const TOTAL_GAME_DURATION = EARLY_GAME_DURATION + MID_GAME_DURATION + END_GAME_D
 const BASIC_COMMENTARY_INTERVAL_SECONDS = 3;
 const ALL_SLOTS: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
 
-const STAT_WEIGHTS: Record<'early' | 'mid' | 'end', Partial<Record<CoreStat, number>>> = {
-    early: {
-        [CoreStat.CombatPower]: 0.4,
-        [CoreStat.ThinkingSpeed]: 0.3,
-        [CoreStat.Concentration]: 0.3,
-    },
-    mid: {
-        [CoreStat.CombatPower]: 0.3,
-        [CoreStat.Judgment]: 0.3,
-        [CoreStat.Concentration]: 0.2,
-        [CoreStat.Stability]: 0.2,
-    },
-    end: {
-        [CoreStat.Calculation]: 0.5,
-        [CoreStat.Stability]: 0.3,
-        [CoreStat.Concentration]: 0.2,
-    },
-};
+const STAT_WEIGHTS = CHAMPIONSHIP_SIMULATION_PHASE_STAT_WEIGHTS;
 
 const COMMENTARY_POOLS = {
     start: "{p1}님과 {p2}님의 대국이 시작되었습니다.",

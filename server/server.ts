@@ -111,6 +111,13 @@ const STALE_USER_STATUS_CLEANUP_INTERVAL_MS = 60_000; // 1000명 규모: userSta
 
 /** 소규모 플랜(기본 512MB)에서 RSS가 이 값을 넘으면 재시작. `MEMORY_EXIT_RSS_MB`로 재정의 가능 */
 const MEMORY_EXIT_RSS_MB_SMALL = parseInt(process.env.MEMORY_EXIT_RSS_MB || '440', 10);
+/**
+ * RSS 초과 시 process.exit는 실제 Railway 런타임에서만 수행한다.
+ * 로컬에서 Railway DB URL만 쓰면 RAILWAY_ENVIRONMENT가 자동 설정되지만 DEPLOYMENT_ID는 없으므로
+ * 랭킹 캐시 등으로 RSS가 440MB를 넘어도 개발 서버가 죽지 않게 한다.
+ */
+const IS_RAILWAY_HOSTED_RUNTIME = !!process.env.RAILWAY_DEPLOYMENT_ID;
+const MEMORY_FORCE_EXIT_ON_RSS = process.env.MEMORY_FORCE_EXIT_ON_RSS === '1';
 /** 메모리 한계로 종료 시도 중복 방지 */
 let pendingMemoryCriticalExit = false;
 
@@ -1600,32 +1607,42 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                             if (pendingMemoryCriticalExit) {
                                 // 이미 종료 예약됨
                             } else {
-                                pendingMemoryCriticalExit = true;
-                                console.error(`[Memory] CRITICAL: Memory usage too high (${memUsageMB.rss}MB). Scheduling restart after client notice.`);
-                                process.stderr.write(`[CRITICAL] Memory too high (${memUsageMB.rss}MB) - scheduling restart\n`);
-                                try {
-                                    if (global.gc) {
-                                        global.gc();
-                                    }
-                                } catch {
-                                    // ignore
-                                }
-                                void (async () => {
+                                const rssExitEnabled =
+                                    IS_RAILWAY_HOSTED_RUNTIME || MEMORY_FORCE_EXIT_ON_RSS;
+                                if (!rssExitEnabled) {
+                                    console.warn(
+                                        `[Memory] RSS ${memUsageMB.rss}MB > exit threshold ${MEM_EXIT}MB — skipping automatic restart ` +
+                                            `(local/dev: no RAILWAY_DEPLOYMENT_ID). On a Railway replica this exits so the platform can restart cleanly. ` +
+                                            `Set MEMORY_FORCE_EXIT_ON_RSS=1 to test exit behavior.`
+                                    );
+                                } else {
+                                    pendingMemoryCriticalExit = true;
+                                    console.error(`[Memory] CRITICAL: Memory usage too high (${memUsageMB.rss}MB). Scheduling restart after client notice.`);
+                                    process.stderr.write(`[CRITICAL] Memory too high (${memUsageMB.rss}MB) - scheduling restart\n`);
                                     try {
-                                        const { broadcastServerRestarting } = await import('./socket.js');
-                                        broadcastServerRestarting('memory');
-                                    } catch (e) {
-                                        console.warn('[Memory] broadcastServerRestarting failed:', (e as Error)?.message);
-                                    }
-                                    // 클라이언트가 토스트를 받고 재연결 준비할 시간
-                                    await new Promise((r) => setTimeout(r, 2800));
-                                    try {
-                                        if (global.gc) global.gc();
+                                        if (global.gc) {
+                                            global.gc();
+                                        }
                                     } catch {
-                                        /* ignore */
+                                        // ignore
                                     }
-                                    process.exit(1);
-                                })();
+                                    void (async () => {
+                                        try {
+                                            const { broadcastServerRestarting } = await import('./socket.js');
+                                            broadcastServerRestarting('memory');
+                                        } catch (e) {
+                                            console.warn('[Memory] broadcastServerRestarting failed:', (e as Error)?.message);
+                                        }
+                                        // 클라이언트가 토스트를 받고 재연결 준비할 시간
+                                        await new Promise((r) => setTimeout(r, 2800));
+                                        try {
+                                            if (global.gc) global.gc();
+                                        } catch {
+                                            /* ignore */
+                                        }
+                                        process.exit(1);
+                                    })();
+                                }
                             }
                         }
                     }

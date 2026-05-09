@@ -773,7 +773,6 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 return { error: '토너먼트 정보를 찾을 수 없습니다.' };
             }
 
-            // 컨디션 회복제: 1회차 경기가 시작되기 전에만 사용 가능. 시작 후 및 경기 종료 후에는 비활성화.
             if (tournamentState.status === 'round_in_progress') {
                 return { error: '경기가 진행 중에는 컨디션 회복제를 사용할 수 없습니다.' };
             }
@@ -781,17 +780,23 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 return { error: '경기가 종료된 후에는 컨디션 회복제를 사용할 수 없습니다.' };
             }
 
-            // 이미 한 건이라도 유저 경기가 완료되었으면 사용 불가 (1회차 시작 전에만 허용)
-            const hasAnyFinishedUserMatch = tournamentState.rounds.some(round => 
-                round.matches.some(match => match.isUserMatch && match.isFinished)
-            );
-            if (hasAnyFinishedUserMatch) {
-                return { error: '경기가 시작된 후에는 컨디션 회복제를 사용할 수 없습니다.' };
-            }
-
-            // bracket_ready 상태에서만 사용 가능 (아직 어떤 경기도 시작하지 않음)
-            if (tournamentState.status !== 'bracket_ready') {
-                return { error: '컨디션 회복제는 경기 시작 전에만 사용할 수 있습니다.' };
+            const isChampionshipDungeon = tournamentState.currentStageAttempt != null;
+            if (isChampionshipDungeon) {
+                // 던전 인게임: 대기·회차 사이(round_complete / bracket_ready)에도 회복 허용
+                if (tournamentState.status !== 'bracket_ready' && tournamentState.status !== 'round_complete') {
+                    return { error: '지금은 컨디션 회복제를 사용할 수 없습니다.' };
+                }
+            } else {
+                // 일반 토너먼트: 첫 경기 시작 전(bracket_ready)만
+                const hasAnyFinishedUserMatch = tournamentState.rounds.some((round) =>
+                    round.matches.some((match) => match.isUserMatch && match.isFinished),
+                );
+                if (hasAnyFinishedUserMatch) {
+                    return { error: '경기가 시작된 후에는 컨디션 회복제를 사용할 수 없습니다.' };
+                }
+                if (tournamentState.status !== 'bracket_ready') {
+                    return { error: '컨디션 회복제는 경기 시작 전에만 사용할 수 있습니다.' };
+                }
             }
 
             // Find user player in tournament
@@ -863,7 +868,15 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (컨디션 스냅샷 포함해 재입장 시 유지 반영)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['actionPoints', 'dungeonConditionSnapshot', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament']);
+            broadcastUserUpdate(user, [
+                'actionPoints',
+                'gold',
+                'inventory',
+                'dungeonConditionSnapshot',
+                'lastNeighborhoodTournament',
+                'lastNationalTournament',
+                'lastWorldTournament',
+            ]);
 
             return { 
                 clientResponse: { 

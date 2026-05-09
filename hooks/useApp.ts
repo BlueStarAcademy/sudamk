@@ -57,6 +57,11 @@ import {
 } from '../constants/arenaEntrance.js';
 import { applyOnboardingArenaEntranceTutorialLocks } from '../shared/constants/onboardingTutorial.js';
 import { PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE } from '../shared/constants/pairHatchery.js';
+import {
+    pairArenaLobbyHash,
+    readPairArenaRestoreFromGameStateStorage,
+    stashPairArenaRoomRestoreForLobbyNavigation,
+} from '../shared/utils/pairArenaSessionRestore.js';
 import { advancePairTurn, getCurrentPairTurnSeat, isPairAiSeat, resetPairPasses } from '../shared/utils/pairGameTurn.js';
 
 const HOME_BOARD_READ_STORAGE_PREFIX = 'sudamr-home-board-read-posts';
@@ -424,6 +429,51 @@ function reconcilePlayingSeatLock(merged: LiveGameSession, existing?: LiveGameSe
         }
     }
     return next;
+}
+
+/**
+ * 베이스 본대국: 낙관적 업데이트·지연 WS가 `blackPlayerId`/`whitePlayerId`를 임시 좌석으로 덮어
+ * 수순은 같은데 진영만 바뀌는 현상 방지 — 클라에 이미 잠금과 일치한 좌석이 있으면 그것을 우선한다.
+ */
+function preferClientLockedStrategicSeatsOverIncomingDrift(
+    merged: LiveGameSession,
+    existing: LiveGameSession | undefined,
+): LiveGameSession {
+    if (!existing) return merged;
+    const includesBase = liveSessionIncludesBaseMode(merged) || liveSessionIncludesBaseMode(existing);
+    if (!includesBase) return merged;
+    if (merged.gameStatus !== 'playing') return merged;
+
+    const elb = existing.playingLockedBlackPlayerId;
+    const elw = existing.playingLockedWhitePlayerId;
+    if (typeof elb !== 'string' || elb.length === 0 || typeof elw !== 'string' || elw.length === 0) return merged;
+    if (existing.blackPlayerId !== elb || existing.whitePlayerId !== elw) return merged;
+
+    const im = merged.moveHistory?.length ?? 0;
+    const ex = existing.moveHistory?.length ?? 0;
+    if (im > ex) return merged;
+
+    if (
+        merged.blackPlayerId === existing.blackPlayerId &&
+        merged.whitePlayerId === existing.whitePlayerId &&
+        merged.playingLockedBlackPlayerId === elb &&
+        merged.playingLockedWhitePlayerId === elw
+    ) {
+        return merged;
+    }
+
+    const out: LiveGameSession = {
+        ...merged,
+        blackPlayerId: existing.blackPlayerId,
+        whitePlayerId: existing.whitePlayerId,
+        playingLockedBlackPlayerId: elb,
+        playingLockedWhitePlayerId: elw,
+    };
+    const bfa = (existing as { baseFinalColorAssignment?: unknown }).baseFinalColorAssignment;
+    if (bfa && typeof bfa === 'object') {
+        (out as any).baseFinalColorAssignment = bfa;
+    }
+    return out;
 }
 
 /**
@@ -1631,6 +1681,12 @@ export const useApp = () => {
     const pvpDicePlaceRevertRef = useRef<Record<string, LiveGameSession>>({});
     /** TOWER_ADD_TURNS: fetch 전 낙관 보너스(+3) 적용분 — 실패 시 롤백 */
     const towerAddTurnOptimisticPendingByGameRef = useRef<Record<string, number>>({});
+    /** 싱글/탑 기권: 서버 정산(processSinglePlayerGameSummary 등) 지연 동안 즉시 ended 반영 후 실패 시 롤백 */
+    const pveResignOptimisticRevertRef = useRef<{
+        gameId: string;
+        bucket: 'singleplayer' | 'tower';
+        snapshot: LiveGameSession;
+    } | null>(null);
     /** AI 주사위 바둑: 턴 내 착수 배치를 모아 마지막에 1회 전송 */
     const aiDicePlaceBatchRef = useRef<Record<string, Array<{ x: number; y: number }>>>({});
     /** 같은 턴에서 stonesToPlace는 착수마다 줄어들므로, 배치 flush 기준은 턴 시작 시점의 남은 돌 수로 고정한다. */
@@ -4103,6 +4159,64 @@ export const useApp = () => {
             return;
         }
 
+        // 싱글/탑 기권: 서버가 정산·saveGame 끝낼 때까지 HTTP가 지연되므로, 종료 상태만 먼저 반영해 결과 모달을 즉시 연다.
+        if (action.type === 'RESIGN_GAME') {
+            const payload = (action as { payload?: { gameId?: string } }).payload;
+            const gid = payload?.gameId;
+            const uid = currentUserRef.current?.id;
+            if (gid && uid) {
+                const fromSp = singlePlayerGamesRef.current[gid];
+                const fromTower = towerGamesRef.current[gid];
+                const g = fromSp || fromTower;
+                if (
+                    g &&
+                    g.gameStatus !== 'ended' &&
+                    g.gameStatus !== 'no_contest' &&
+                    (g.isSinglePlayer || (g as { gameCategory?: string }).gameCategory === 'tower')
+                ) {
+                    const myEnum =
+                        g.blackPlayerId === uid
+                            ? Player.Black
+                            : g.whitePlayerId === uid
+                              ? Player.White
+                              : Player.None;
+                    if (myEnum !== Player.None) {
+                        const winner = myEnum === Player.Black ? Player.White : Player.Black;
+                        let snapshot: LiveGameSession;
+                        try {
+                            snapshot = structuredClone(g);
+                        } catch {
+                            snapshot = { ...g } as LiveGameSession;
+                        }
+                        const bucket: 'singleplayer' | 'tower' = fromSp ? 'singleplayer' : 'tower';
+                        pveResignOptimisticRevertRef.current = { gameId: gid, bucket, snapshot };
+                        const patch = (prev: LiveGameSession): LiveGameSession => ({
+                            ...prev,
+                            gameStatus: 'ended',
+                            winner,
+                            winReason: 'resign',
+                            disconnectionState: null,
+                            disconnectionCounts: {},
+                            serverRevision: (prev.serverRevision ?? 0) + 1,
+                        });
+                        if (fromSp) {
+                            setSinglePlayerGames((c) => {
+                                const cur = c[gid];
+                                if (!cur || cur.gameStatus === 'ended' || cur.gameStatus === 'no_contest') return c;
+                                return { ...c, [gid]: patch(cur) };
+                            });
+                        } else if (fromTower) {
+                            setTowerGames((c) => {
+                                const cur = c[gid];
+                                if (!cur || cur.gameStatus === 'ended' || cur.gameStatus === 'no_contest') return c;
+                                return { ...c, [gid]: patch(cur) };
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
         let dicePlaceGameId: string | undefined;
         const rollbackTowerAddTurnOptimistic = () => {
             if (action.type !== 'TOWER_ADD_TURNS') return;
@@ -4180,6 +4294,18 @@ export const useApp = () => {
                 if (!snap) return;
                 setLiveGames((c) => (c[gid] ? { ...c, [gid]: snap } : c));
                 delete pvpDicePlaceRevertRef.current[gid];
+            };
+
+            const revertPveResignOptimistic = () => {
+                const entry = pveResignOptimisticRevertRef.current;
+                if (!entry) return;
+                pveResignOptimisticRevertRef.current = null;
+                const { gameId, bucket, snapshot } = entry;
+                if (bucket === 'singleplayer') {
+                    setSinglePlayerGames((c) => (c[gameId] ? { ...c, [gameId]: snapshot } : c));
+                } else {
+                    setTowerGames((c) => (c[gameId] ? { ...c, [gameId]: snapshot } : c));
+                }
             };
 
             if (dicePlaceGameId && action.type === 'DICE_PLACE_STONE') {
@@ -4446,6 +4572,7 @@ export const useApp = () => {
                         }
                         revertPvpDicePlaceSnapshot();
                         rollbackTowerAddTurnOptimistic();
+                        revertPveResignOptimistic();
                         return { error: errorMessage } as HandleActionResult;
                     }
                     // 장시간 유휴 후 주사위바둑 상태가 어긋난 경우:
@@ -4479,6 +4606,7 @@ export const useApp = () => {
                                     if (synced.gameStatus === 'dice_rolling' && isMyTurnAfterSync) {
                                         revertPvpDicePlaceSnapshot();
                                         rollbackTowerAddTurnOptimistic();
+                                        revertPveResignOptimistic();
                                         return await handleAction({
                                             ...action,
                                             payload: {
@@ -4509,6 +4637,7 @@ export const useApp = () => {
                     }
                     revertPvpDicePlaceSnapshot();
                     rollbackTowerAddTurnOptimistic();
+                    revertPveResignOptimistic();
                     return;
                 }
                 if (typeof errorMessage === 'string' && isOpponentInsufficientActionPointsError(errorMessage)) {
@@ -4533,6 +4662,7 @@ export const useApp = () => {
                 }
                 revertPvpDicePlaceSnapshot();
                 rollbackTowerAddTurnOptimistic();
+                revertPveResignOptimistic();
                 // Return error object so components can handle it
                 return { error: errorMessage } as HandleActionResult;
             } else {
@@ -4563,7 +4693,11 @@ export const useApp = () => {
                     }
                     revertPvpDicePlaceSnapshot();
                     rollbackTowerAddTurnOptimistic();
+                    revertPveResignOptimistic();
                     return { error: errorMessage } as HandleActionResult;
+                }
+                if (action.type === 'RESIGN_GAME') {
+                    pveResignOptimisticRevertRef.current = null;
                 }
                 const currencyCapNotices = (result as { currencyCapNotices?: unknown }).currencyCapNotices;
                 if (Array.isArray(currencyCapNotices) && currencyCapNotices.length > 0) {
@@ -5070,6 +5204,7 @@ export const useApp = () => {
                         'USE_CONDITION_POTION',
                         'BUY_BORDER',
                         'BUY_TOWER_ITEM',
+                        'CLAIM_SHOP_AD_REWARD',
                         'SAVE_EXCHANGE_STATE',
                         'CLAIM_EXCHANGE_SETTLEMENT',
                         'PURCHASE_EXCHANGE_LISTING',
@@ -5198,20 +5333,8 @@ export const useApp = () => {
                         diamonds: mergedUser?.diamonds,
                         actionPoints: mergedUser?.actionPoints
                     });
-                    
-                    // 보상 수령 액션의 경우 추가로 강제 업데이트
-                    if (isInventoryCriticalAction) {
-                        flushSync(() => {
-                            setUpdateTrigger(prev => prev + 1);
-                            // currentUser 상태를 다시 설정하여 확실히 업데이트
-                            setCurrentUser(prev => {
-                                if (prev && mergedUser && prev.id === mergedUser.id) {
-                                    return mergedUser;
-                                }
-                                return prev;
-                            });
-                        });
-                    }
+
+                    // applyUserUpdate가 이미 flushSync로 setCurrentUser·setUpdateTrigger를 수행함 — 여기서 한 번 더 하면 대형 트리(페어대기실 등)에서 메인 스레드만 두 배로 막힘
                     // 도전의 탑 클리어 시 대기실 랭킹 즉시 갱신 (10초 대기 없이)
                     if (action.type === 'END_TOWER_GAME') {
                         setTowerRankingsRefetchTrigger(prev => prev + 1);
@@ -5241,6 +5364,7 @@ export const useApp = () => {
                         'MANNER_ACTION',
                         'START_GUILD_BOSS_BATTLE',
                         'BUY_TOWER_ITEM',
+                        'CLAIM_SHOP_AD_REWARD',
                         'SAVE_EXCHANGE_STATE',
                         'CLAIM_EXCHANGE_SETTLEMENT',
                         'PURCHASE_EXCHANGE_LISTING',
@@ -6129,6 +6253,17 @@ export const useApp = () => {
                         delete pvpDicePlaceRevertRef.current[gid];
                     }
                     delete pvpDicePlaceInFlightRef.current[gid];
+                }
+            }
+            if (action.type === 'RESIGN_GAME') {
+                const rev = pveResignOptimisticRevertRef.current;
+                if (rev) {
+                    pveResignOptimisticRevertRef.current = null;
+                    if (rev.bucket === 'singleplayer') {
+                        setSinglePlayerGames((c) => (c[rev.gameId] ? { ...c, [rev.gameId]: rev.snapshot } : c));
+                    } else {
+                        setTowerGames((c) => (c[rev.gameId] ? { ...c, [rev.gameId]: rev.snapshot } : c));
+                    }
                 }
             }
             rollbackTowerAddTurnOptimistic();
@@ -7715,6 +7850,64 @@ export const useApp = () => {
                                                 }
                                                 return currentGames;
                                             }
+                                            const localAdvancedSp =
+                                                existingGame.gameStatus === 'scoring' ||
+                                                existingGame.gameStatus === 'hidden_final_reveal' ||
+                                                existingGame.gameStatus === 'ended' ||
+                                                existingGame.gameStatus === 'no_contest';
+                                            if (localAdvancedSp && game.gameStatus === 'pending') {
+                                                if (process.env.NODE_ENV === 'development') {
+                                                    console.warn(
+                                                        '[WebSocket] SinglePlayer: ignoring stale pending GAME_UPDATE while local is scoring/terminal',
+                                                        { gameId, local: existingGame.gameStatus }
+                                                    );
+                                                }
+                                                return currentGames;
+                                            }
+                                            if (
+                                                localAdvancedSp &&
+                                                game.gameStatus === 'base_game_start_confirmation'
+                                            ) {
+                                                if (process.env.NODE_ENV === 'development') {
+                                                    console.warn(
+                                                        '[WebSocket] SinglePlayer: ignoring base pre-play GAME_UPDATE while local is scoring/terminal',
+                                                        { gameId, incoming: game.gameStatus }
+                                                    );
+                                                }
+                                                return currentGames;
+                                            }
+                                            if (
+                                                existingGame.gameStatus === 'scoring' &&
+                                                game.gameStatus === 'playing' &&
+                                                (game.moveHistory?.length ?? 0) <= (existingGame.moveHistory?.length ?? 0)
+                                            ) {
+                                                if (process.env.NODE_ENV === 'development') {
+                                                    console.warn(
+                                                        '[WebSocket] SinglePlayer: ignoring stale playing GAME_UPDATE during local scoring',
+                                                        { gameId }
+                                                    );
+                                                }
+                                                return currentGames;
+                                            }
+                                            // 기권 낙관(ended) 직후 WS에 아직 playing이 실려 오면 잠깐 스테이지 재시작·사운드가 나는 레이스 방지
+                                            const incomingSpPostPlayOk =
+                                                game.gameStatus === 'ended' ||
+                                                game.gameStatus === 'no_contest' ||
+                                                game.gameStatus === 'scoring' ||
+                                                game.gameStatus === 'hidden_final_reveal';
+                                            if (
+                                                (existingGame.gameStatus === 'ended' ||
+                                                    existingGame.gameStatus === 'no_contest') &&
+                                                !incomingSpPostPlayOk
+                                            ) {
+                                                if (process.env.NODE_ENV === 'development') {
+                                                    console.warn(
+                                                        '[WebSocket] SinglePlayer: ignoring non-terminal GAME_UPDATE while local is ended/no_contest',
+                                                        { gameId, incoming: game.gameStatus }
+                                                    );
+                                                }
+                                                return currentGames;
+                                            }
                                             const keyFieldsChanged = 
                                                 existingGame.gameStatus !== game.gameStatus ||
                                                 existingGame.currentPlayer !== game.currentPlayer ||
@@ -8136,6 +8329,10 @@ export const useApp = () => {
                                                 updatedGames[gameId],
                                                 game,
                                                 existingGame
+                                            );
+                                            updatedGames[gameId] = preferClientLockedStrategicSeatsOverIncomingDrift(
+                                                updatedGames[gameId],
+                                                existingGame,
                                             );
                                             updatedGames[gameId] = alignBaseModeCurrentPlayerWithExistingWhenSlimDrift(
                                                 updatedGames[gameId],
@@ -8923,6 +9120,7 @@ export const useApp = () => {
                                                 mergedGame.captures as LiveGameSession['captures']
                                             ) ?? mergedGame.captures,
                                         };
+                                        mergedGame = preferClientLockedStrategicSeatsOverIncomingDrift(mergedGame, existingGame);
                                         mergedGame = alignBaseModeCurrentPlayerWithExistingWhenSlimDrift(
                                             mergedGame,
                                             game,
@@ -9518,6 +9716,17 @@ export const useApp = () => {
             }
             // 새로고침(F5) 후 서버가 게임 없음/권한 없음으로 확정한 경우에만 리다이렉트한다.
             if (gameRejoinFailure?.gameId === urlGameId && gameRejoinFailure.reason === 'notFound') {
+                const pairArenaRestore = readPairArenaRestoreFromGameStateStorage(urlGameId);
+                if (pairArenaRestore) {
+                    stashPairArenaRoomRestoreForLobbyNavigation(
+                        pairArenaRestore.roomId,
+                        pairArenaRestore.lobbyChannel,
+                    );
+                    setGameRejoinFailure((prev) => (prev?.gameId === urlGameId ? null : prev));
+                    const h = pairArenaLobbyHash(pairArenaRestore.lobbyChannel);
+                    if (currentHash !== h) replaceAppHash(h);
+                    return;
+                }
                 let targetHash = '#/profile';
                 if (currentUserWithStatus?.status === 'waiting') {
                     if (currentUserWithStatus.arenaChannel === 'pair') {

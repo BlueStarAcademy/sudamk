@@ -89,6 +89,24 @@ const CAPTURE_WIN_SCORE_DEBOUNCE_MS = 48;
 const CAPTURE_WIN_HIDDEN_FLOAT_LAG_MS = 450;
 const CAPTURE_WIN_SCORE_FLOAT_CSS_MS = 2850;
 
+const BOARD_SYNC_OVERLAY_MESSAGE = '바둑판 정보를 불러오는 중입니다. 잠시만 기다려주세요';
+
+function boardGridStructureHydrated(board: Player[][] | undefined | null): boolean {
+    if (!board || !Array.isArray(board) || board.length === 0) return false;
+    const row0 = board[0];
+    return Array.isArray(row0) && row0.length > 0;
+}
+
+function boardHasAnyPlacedStone(board: Player[][] | undefined | null): boolean {
+    if (!boardGridStructureHydrated(board)) return false;
+    return board.some(
+        (row) =>
+            row &&
+            Array.isArray(row) &&
+            row.some((cell) => cell !== Player.None && cell != null),
+    );
+}
+
 /** 로비 Kata AI·모험·길드전 등 서버 전략바둑 AI 대국 (타워/싱글플 제외) */
 const KATA_STYLE_AI_GO_MODES = new Set<GameMode>([
     GameMode.Standard,
@@ -1171,14 +1189,54 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     ...(session.gameCategory === 'tower' && (session as any).blackTurnLimitBonus != null
                         ? { blackTurnLimitBonus: Number((session as any).blackTurnLimitBonus) || 0 }
                         : {}),
+                    ...(!session.isAiGame &&
+                    session.settings?.pairGame?.roomId &&
+                    typeof session.settings.pairGame.roomId === 'string' &&
+                    session.settings.pairGame.roomId.length > 0
+                        ? {
+                              pairArenaRestore: {
+                                  roomId: session.settings.pairGame.roomId,
+                                  lobbyChannel: session.settings.pairGame.lobbyChannel ?? 'pair',
+                              },
+                          }
+                        : {}),
                     timestamp: Date.now()
                 };
                 sessionStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(gameStateToSave));
             } catch (e) {
                 console.error(`[Game] Failed to save game state to sessionStorage:`, e);
             }
+        } else {
+            const rid = session.settings?.pairGame?.roomId;
+            if (!session.isAiGame && typeof rid === 'string' && rid.length > 0) {
+                try {
+                    const key = GAME_STATE_STORAGE_KEY;
+                    const merged: Record<string, unknown> = {
+                        gameId,
+                        pairArenaRestore: {
+                            roomId: rid,
+                            lobbyChannel: session.settings?.pairGame?.lobbyChannel ?? 'pair',
+                        },
+                    };
+                    const existing = sessionStorage.getItem(key);
+                    if (existing) {
+                        try {
+                            Object.assign(merged, JSON.parse(existing));
+                            merged.pairArenaRestore = {
+                                roomId: rid,
+                                lobbyChannel: session.settings?.pairGame?.lobbyChannel ?? 'pair',
+                            };
+                        } catch {
+                            // ignore
+                        }
+                    }
+                    sessionStorage.setItem(key, JSON.stringify(merged));
+                } catch {
+                    // ignore
+                }
+            }
         }
-    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, (session as any).aiHiddenItemAnimationEndTime, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, session.totalTurns, session.round, gameId, gameStatus, isSinglePlayer, session.gameCategory, useRefreshSessionStorageMerge, session.gameStartTime, session.blackTimeLeft, session.whiteTimeLeft, (session as any).adventureEncounterDeadlineMs, (session as any).adventureEncounterFrozenHumanMsRemaining, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced, (session as any).blackTurnLimitBonus, isBoardRotated]);
+    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, (session as any).aiHiddenItemAnimationEndTime, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, session.totalTurns, session.round, gameId, gameStatus, isSinglePlayer, session.gameCategory, useRefreshSessionStorageMerge, session.gameStartTime, session.blackTimeLeft, session.whiteTimeLeft, (session as any).adventureEncounterDeadlineMs, (session as any).adventureEncounterFrozenHumanMsRemaining, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced, (session as any).blackTurnLimitBonus, isBoardRotated, session.isAiGame, session.settings?.pairGame?.roomId, session.settings?.pairGame?.lobbyChannel]);
     
     // 도전의 탑/싱글/전략바둑 수순 제한: 새로고침 후 서버 페이로드에 문양돌·totalTurns·moveHistory가 없을 수 있으므로 sessionStorage에서 복원해 표시
     const sessionWithRestoredPatternStones = useMemo(() => {
@@ -1511,10 +1569,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             if (PLAYFUL_GAME_MODES.some(m => m.mode === mode)) return Player.Black;
             return Player.None;
         }
-        const pairSeat = session.settings.pairGame?.turnOrder?.find((seat) => pairSeatMatchesViewerUser(seat, currentUser.id));
-        if (pairSeat) return pairSeat.player;
         if (blackPlayerId === currentUser.id) return Player.Black;
         if (whitePlayerId === currentUser.id) return Player.White;
+        const pairTurnOrder = session.settings.pairGame?.turnOrder;
+        const pairSeat =
+            isPairClassicGame(session.settings, mode) && Array.isArray(pairTurnOrder) && pairTurnOrder.length > 0
+                ? pairTurnOrder.find((seat) => pairSeatMatchesViewerUser(seat, currentUser.id))
+                : undefined;
+        if (pairSeat) return pairSeat.player;
         if ((mode === GameMode.Base || (mode === GameMode.Mix && session.settings.mixedModes?.includes(GameMode.Base))) && gameStatus === 'base_placement') {
              return currentUser.id === player1.id ? Player.Black : Player.White;
         }
@@ -3098,7 +3160,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     sessionStorage.setItem('postGameRedirect', '#/pair');
                 }
                 const rid = session.settings.pairGame?.roomId;
-                if (rid && (pairCh === 'strategic' || pairCh === 'playful')) {
+                if (rid) {
                     try {
                         sessionStorage.setItem(POST_GAME_PAIR_ROOM_RESTORE_SESSION_KEY, rid);
                         sessionStorage.setItem(PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY, '1');
@@ -3946,7 +4008,50 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         !showResultModal &&
         (session as { startTime?: number | null }).startTime == null &&
         towerValidMoveCount === 0;
-    
+
+    /** 새로고침 직후 INITIAL_STATE/rejoin 전에 격자·돌이 맞지 않으면 안내 레이어(착점은 handleBoardClick에서도 차단) */
+    const boardSyncHydrationOverlayActive = useMemo(() => {
+        if (isSpectator) return false;
+        if (['ended', 'no_contest', 'rematch_pending'].includes(gameStatus)) return false;
+
+        const effectiveBoard = restoredBoardState || session.boardState;
+        const moveCount = session.moveHistory?.length ?? 0;
+        const gridOk = boardGridStructureHydrated(effectiveBoard);
+        const hasStones = boardHasAnyPlacedStone(effectiveBoard);
+
+        if (!isSinglePlayer && !isTower) {
+            if (gameStatus === 'pending') return false;
+            return !gridOk || (moveCount > 0 && !hasStones);
+        }
+
+        if (showGameDescription || showTowerGameDescription) return false;
+        if (gameStatus === 'pending') return false;
+        if (moveCount === 0) return false;
+        return !gridOk || !hasStones;
+    }, [
+        isSpectator,
+        gameStatus,
+        showGameDescription,
+        showTowerGameDescription,
+        restoredBoardState,
+        session.boardState,
+        session.moveHistory?.length,
+        isSinglePlayer,
+        isTower,
+    ]);
+
+    const boardHydrationOverlayEl = boardSyncHydrationOverlayActive ? (
+        <div
+            className="pointer-events-auto absolute inset-0 z-[100] flex items-center justify-center bg-black/60 px-4 backdrop-blur-[2px]"
+            role="status"
+            aria-live="polite"
+        >
+            <p className="max-w-sm text-center text-base font-semibold leading-relaxed text-slate-100 drop-shadow-md sm:text-lg">
+                {BOARD_SYNC_OVERLAY_MESSAGE}
+            </p>
+        </div>
+    ) : null;
+
     // 도전의 탑 배경 이미지 설정
     const towerBackgroundImage = isTower && session.towerFloor 
         ? (session.towerFloor === 100 ? '/images/tower/Tower100.png' : '/images/tower/InTower.png')
@@ -4153,6 +4258,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                     />
+                                    {boardHydrationOverlayEl}
                                     {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
                                     {showMoveConfirmPanel && (
                                         <MoveConfirmDraggable
@@ -4332,17 +4438,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                     />
+                                    {boardHydrationOverlayEl}
                                 {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
                                 {showMoveConfirmPanel && (
-                                    <MoveConfirmDraggable
-                                        layoutMode={isMobile ? 'mobile' : 'desktop'}
-                                        pendingMove={pendingMove}
-                                        handleConfirmMove={handleConfirmMove}
-                                        mobileConfirm={settings.features.mobileConfirm}
-                                        updateFeatureSetting={updateFeatureSetting}
-                                        setPendingMove={setPendingMove}
-                                    />
-                                )}
+                                        <MoveConfirmDraggable
+                                            layoutMode={isMobile ? 'mobile' : 'desktop'}
+                                            pendingMove={pendingMove}
+                                            handleConfirmMove={handleConfirmMove}
+                                            mobileConfirm={settings.features.mobileConfirm}
+                                            updateFeatureSetting={updateFeatureSetting}
+                                            setPendingMove={setPendingMove}
+                                        />
+                                    )}
                                 </div>
                             </div>
                             <div className="flex-shrink-0 w-full flex flex-col gap-1">
@@ -4586,6 +4693,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                         intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                                     />
+                                                    {boardHydrationOverlayEl}
                                                 </div>
                                             </div>
                                         ) : (
@@ -4622,6 +4730,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                 intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                             />
                                         )}
+                                        {boardHydrationOverlayEl}
                                     </div>
                                     {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
                                     {showMoveConfirmPanel && (
