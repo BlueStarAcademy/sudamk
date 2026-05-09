@@ -20,6 +20,7 @@ import ChampionshipVenueEntryModal from './ChampionshipVenueEntryModal.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { normalizeDungeonProgress, isStageCleared } from '../utils/championshipDungeonProgress.js';
 import HomeNativeMergedEquipmentAbilityPanel from './HomeNativeMergedEquipmentAbilityPanel.js';
+import { championshipKataAbilityScore } from '../shared/constants/championshipRealMatch.js';
 
 /** 챔피언십 로비 패널: 경기장 배경 블러(전략/놀이 대기실과 동일 계열) */
 const CHAMPIONSHIP_PANEL_GLASS =
@@ -827,6 +828,14 @@ const TournamentLobby: React.FC = () => {
             }, 0),
         [finalByStat],
     );
+    const championshipPhaseAbilityScores = useMemo(
+        () => ({
+            opening: championshipKataAbilityScore('opening', finalByStat),
+            midgame: championshipKataAbilityScore('midgame', finalByStat),
+            endgame: championshipKataAbilityScore('endgame', finalByStat),
+        }),
+        [finalByStat],
+    );
     const userDungeonCoreStatAverage = useMemo(() => badukAbilityTotal / 6, [badukAbilityTotal]);
     const totalPoints = (Math.max(0, currentUserWithStatus.userLevel - 1) * 2) + (currentUserWithStatus.bonusStatPoints || 0);
     const spentPoints = Object.values(currentUserWithStatus.spentStatPoints || {}).reduce((sum, points) => sum + points, 0);
@@ -871,6 +880,7 @@ const TournamentLobby: React.FC = () => {
                         availablePoints={availablePoints}
                         framed
                         compactLayout
+                        championshipPhaseAbilityScores={championshipPhaseAbilityScores}
                     />
 
                     {/* 입장 카드: 세로 나열, 이 영역만 스크롤 */}
@@ -959,6 +969,7 @@ const TournamentLobby: React.FC = () => {
                                 availablePoints={availablePoints}
                                 framed
                                 compactLayout={false}
+                                championshipPhaseAbilityScores={championshipPhaseAbilityScores}
                             />
                             <section
                                 className="relative shrink-0 overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_40px_-20px_rgba(0,0,0,0.7)] ring-1 ring-amber-100/10"

@@ -190,6 +190,14 @@ export function championshipBestMoveChancePercent(phaseAbilityScore: number, con
     return clampPercent(20 + (Number(phaseAbilityScore) || 0) * 0.01 + (Number(condition) || 0) * 0.1);
 }
 
+/**
+ * 예정 이벤트 수(실수 vs 신의 한수)에서 **신의 한수 분기**를 고를 확률(0~100, 퍼센트 포인트).
+ * 기본 50%에 해당 구간(초·중·종) 능력 점수의 2%p를 가산한다. 예: 구간 능력 1000 → 70%.
+ */
+export function championshipEventBranchBestMovePercent(phaseAbilityScore: number): number {
+    return clampPercent(50 + (Number(phaseAbilityScore) || 0) * 0.02);
+}
+
 function clampPercent(value: number): number {
     return Math.max(0, Math.min(100, value));
 }

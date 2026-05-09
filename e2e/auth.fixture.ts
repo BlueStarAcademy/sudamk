@@ -16,7 +16,7 @@ export const test = base.extend<{ authenticatedPage: void }>({
             await page.locator('#username-login').fill(E2E_USERNAME);
             await page.locator('#password-login').fill(E2E_PASSWORD);
             await page.locator('form').filter({ has: page.locator('#username-login') }).locator('button[type="submit"]').click();
-            await page.waitForURL(/\#\/profile|\#\/set-nickname|\#\/game\//, { timeout: 20000 }).catch(() => {});
+            await page.waitForURL(/\#\/profile|\#\/set-nickname|\#\/game\//, { timeout: 25000 });
             await page.waitForTimeout(1500);
             if (page.url().includes('set-nickname')) {
                 const nickInput = page.locator('input[type="text"]').first();
@@ -26,6 +26,12 @@ export const test = base.extend<{ authenticatedPage: void }>({
                 }
                 await page.waitForTimeout(2000);
             }
+        }
+        const loginStillVisible = await page.locator('#username-login').first().isVisible().catch(() => false);
+        if (loginStillVisible) {
+            throw new Error(
+                'E2E: 로그인에 실패했거나 세션이 없습니다. API/DB가 떠 있는지(Vite 프록시·DATABASE_URL), E2E_USERNAME/E2E_PASSWORD를 확인하세요.',
+            );
         }
         // 진행 중 대국이 있으면 로비·싱글·탑으로 가도 앱이 다시 경기장으로 끌고 가 E2E가 실패함
         await dismissBlockingLiveGameIfNeeded(page);

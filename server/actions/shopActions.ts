@@ -684,9 +684,9 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
 
             const now = Date.now();
             const rewardConfig = await getRewardConfig();
-            /** 탭당 1회 · 장비/재료/소모품/다이아 네 탭 각 1회 */
+            /** 탭당 1회 · 장비/재료/소모품/다이아 탭별 1회, 일 총 3회 */
             const PER_TAB_DAILY_LIMIT = 1;
-            const GLOBAL_DAILY_LIMIT = 4;
+            const GLOBAL_DAILY_LIMIT = 3;
             const purchaseKey = `ad_reward_${tab}`;
             const globalPurchaseKey = 'ad_reward_global';
             if (!user.dailyShopPurchases) user.dailyShopPurchases = {};

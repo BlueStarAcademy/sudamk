@@ -3,6 +3,7 @@ import { CoreStat } from '../../../shared/types/index.js';
 import {
     CHAMPIONSHIP_REAL_MATCH_RULES_19,
     championshipBestMoveChancePercent,
+    championshipEventBranchBestMovePercent,
     championshipKataLevelFromAbilityScore,
     championshipKataLevelForPly,
     championshipMistakeChancePercent,
@@ -50,5 +51,12 @@ describe('championship real match policy', () => {
     it('applies condition to mistake and best move chances', () => {
         expect(championshipMistakeChancePercent(500, 100)).toBe(15);
         expect(championshipBestMoveChancePercent(1000, 100)).toBe(40);
+    });
+
+    it('weights scheduled event branch toward best move by 2%p per phase ability score', () => {
+        expect(championshipEventBranchBestMovePercent(0)).toBe(50);
+        expect(championshipEventBranchBestMovePercent(1000)).toBe(70);
+        expect(championshipEventBranchBestMovePercent(500)).toBe(60);
+        expect(championshipEventBranchBestMovePercent(2500)).toBe(100);
     });
 });

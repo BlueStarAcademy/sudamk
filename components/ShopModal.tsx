@@ -104,7 +104,7 @@ type ShopAdRewardTab = 'equipment' | 'materials' | 'consumables' | 'diamonds';
 
 /** 서버 `CLAIM_SHOP_AD_REWARD`와 동일 */
 const SHOP_AD_TAB_DAILY_LIMIT = 1;
-const SHOP_AD_GLOBAL_DAILY_LIMIT = 4;
+const SHOP_AD_GLOBAL_DAILY_LIMIT = 3;
 
 function getShopAdTabClaimsToday(user: UserWithStatus, tab: ShopAdRewardTab, kstDayKey: string): number {
     const rec = user.dailyShopPurchases?.[`ad_reward_${tab}`];
@@ -120,6 +120,11 @@ function getShopAdGlobalClaimsToday(user: UserWithStatus, kstDayKey: string): nu
     const d = shopPurchaseRecordDateMs(rec.date);
     if (!(d > 0)) return 0;
     return getTodayKSTDateString(d) === kstDayKey ? rec.quantity : 0;
+}
+
+/** 오늘 남은 광고 보상 총 횟수(모든 탭 공통 표시용). */
+function getShopAdGlobalRemainingToday(user: UserWithStatus, kstDayKey: string): number {
+    return Math.max(0, SHOP_AD_GLOBAL_DAILY_LIMIT - getShopAdGlobalClaimsToday(user, kstDayKey));
 }
 
 /** 이 탭에서 오늘 추가 시청 가능 횟수(탭·전체 한도 중 작은 값). `kstDayKey`는 KST 일자 문자열로 자정 이후 UI와 서버 판정을 맞춥니다. */
@@ -306,12 +311,15 @@ const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void
 const ShopAdRewardCard: React.FC<{
     tab: ShopAdRewardTab;
     rewardDescription: string;
-    remaining: number;
+    /** 이 탭에서 수령 가능하면 1, 불가면 0(탭·전역 한도 반영) */
+    claimableRemaining: number;
+    /** 오늘 남은 총 광고 보상 횟수 — 버튼 옆 (남은/한도) 표시 */
+    globalRemaining: number;
     onClaim: (tab: ShopAdRewardTab) => void;
     mobile?: boolean;
-}> = ({ tab, rewardDescription, remaining, onClaim, mobile = false }) => {
+}> = ({ tab, rewardDescription, claimableRemaining, globalRemaining, onClaim, mobile = false }) => {
     const { isAdFree } = useAdContext();
-    const exhausted = remaining <= 0;
+    const exhausted = claimableRemaining <= 0;
     const [showDescription, setShowDescription] = useState(false);
     const imageAnchorRef = useRef<HTMLDivElement>(null);
     const refinedDescription = formatDescription(rewardDescription);
@@ -384,7 +392,7 @@ const ShopAdRewardCard: React.FC<{
                             {exhausted ? '오늘 수령 완료' : isAdFree ? '무료 보상' : '광고 보기'}
                         </span>
                         <span className="tabular-nums font-extrabold opacity-90">
-                            ({remaining}/{SHOP_AD_GLOBAL_DAILY_LIMIT})
+                            ({globalRemaining}/{SHOP_AD_GLOBAL_DAILY_LIMIT})
                         </span>
                     </span>
                 </Button>
@@ -1415,6 +1423,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
     };
 
     const renderContent = () => {
+        const shopAdGlobalRemaining = getShopAdGlobalRemainingToday(currentUser, kstCalendarDay);
         const equipmentItems = [
             { itemId: 'equipment_box_1', name: "장비 상자 I", description: "일반~희귀 등급 장비", price: { gold: 500 }, image: "/images/Box/EquipmentBox1.png", type: 'equipment' as const },
             { itemId: 'equipment_box_2', name: "장비 상자 II", description: "일반~에픽 등급 장비", price: { gold: 1500 }, image: "/images/Box/EquipmentBox2.png", type: 'equipment' as const },
@@ -1431,7 +1440,8 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                         <ShopAdRewardCard
                             tab="equipment"
                             rewardDescription="장비 상자 II를 1회 연 것과 동일한 규칙으로 장비 1개가 지급됩니다. 일반~에픽 등급 장비입니다."
-                            remaining={getShopAdRemainingForTab(currentUser, 'equipment', kstCalendarDay)}
+                            claimableRemaining={getShopAdRemainingForTab(currentUser, 'equipment', kstCalendarDay)}
+                            globalRemaining={shopAdGlobalRemaining}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
                         />
@@ -1444,7 +1454,8 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                         <ShopAdRewardCard
                             tab="materials"
                             rewardDescription="재료 상자 II를 1회 연 것과 동일한 규칙으로 강화석 5개가 지급됩니다. 하급~상급 강화석이 포함됩니다."
-                            remaining={getShopAdRemainingForTab(currentUser, 'materials', kstCalendarDay)}
+                            claimableRemaining={getShopAdRemainingForTab(currentUser, 'materials', kstCalendarDay)}
+                            globalRemaining={shopAdGlobalRemaining}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
                         />
@@ -1457,7 +1468,8 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                         <ShopAdRewardCard
                             tab="diamonds"
                             rewardDescription="다이아몬드 10개가 지급됩니다. 서버 보상 설정에 따라 추가 보너스가 더해질 수 있습니다."
-                            remaining={getShopAdRemainingForTab(currentUser, 'diamonds', kstCalendarDay)}
+                            claimableRemaining={getShopAdRemainingForTab(currentUser, 'diamonds', kstCalendarDay)}
+                            globalRemaining={shopAdGlobalRemaining}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
                         />
@@ -1550,7 +1562,8 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                         <ShopAdRewardCard
                             tab="consumables"
                             rewardDescription="행동력 회복제(+10) 1개가 지급됩니다."
-                            remaining={getShopAdRemainingForTab(currentUser, 'consumables', kstCalendarDay)}
+                            claimableRemaining={getShopAdRemainingForTab(currentUser, 'consumables', kstCalendarDay)}
+                            globalRemaining={shopAdGlobalRemaining}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
                         />

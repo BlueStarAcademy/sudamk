@@ -41,6 +41,22 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     needs: unit-and-integration
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sudamr_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sudamr_e2e"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sudamr_e2e
     steps:
       - uses: actions/checkout@v6
 
@@ -55,23 +71,40 @@ jobs:
 
       - name: Generate Prisma client
         run: npm run prisma:generate
-        env:
-          DATABASE_URL: 'postgresql://dummy:dummy@localhost:5432/dummy'
+
+      - name: Apply migrations (E2E DB)
+        run: npm run prisma:migrate:deploy
 
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
 
-      - name: Build client
-        run: npm run build:client
+      # 정적 serve만 켜면 프로덕션 번들이 /api를 같은 오리진으로 호출해 로그인 불가.
+      # Vite 프록시 + API 서버로 시드 유저(푸른별/1217)로 로그인 가능한 스택을 기동한다.
+      - name: Start Vite + API server
+        run: |
+          nohup npm run start > /tmp/e2e-app.log 2>&1 &
+          echo $! > /tmp/e2e-app.pid
+          sleep 3
 
-      - name: Install serve
-        run: npm install -g serve
+      - name: Wait for API and seeded database
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 90); do
+            body=$(curl -fsS "http://localhost:4000/" 2>/dev/null || echo "")
+            if echo "$body" | grep -q '"database":"connected"'; then
+              echo "Database ready (attempt $i)"
+              exit 0
+            fi
+            echo "Waiting for DB init... ($i)"
+            sleep 2
+          done
+          echo "--- /tmp/e2e-app.log (tail) ---"
+          tail -n 200 /tmp/e2e-app.log || true
+          exit 1
 
-      - name: Start static server
-        run: serve -s dist -l 5173 &
-
-      - name: Wait for server
-        run: npx wait-on http://localhost:5173 -t 60000
+      - name: Wait for Vite
+        run: npx wait-on http://localhost:5173 -t 120000
 
       - name: Run E2E tests
         run: npx playwright test --project=chromium

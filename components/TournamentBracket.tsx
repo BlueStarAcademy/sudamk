@@ -6295,11 +6295,20 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const mutedText = isWhite ? 'text-slate-700' : 'text-slate-300';
         const strongText = isWhite ? 'text-slate-950' : 'text-slate-50';
         const chipClass = isWhite ? 'bg-slate-900/10 text-slate-800' : 'bg-white/10 text-slate-200';
-        const conditionValue = player?.condition;
+        const rawCondition = player?.condition;
+        const displayCondition: number | null =
+            rawCondition !== undefined && rawCondition !== null && rawCondition !== 1000
+                ? rawCondition
+                : isCurrentUser &&
+                    championshipConditionFallback !== undefined &&
+                    championshipConditionFallback !== null &&
+                    championshipConditionFallback !== 1000
+                  ? championshipConditionFallback
+                  : null;
         const conditionTone =
-            typeof conditionValue === 'number' && conditionValue < 40
+            typeof displayCondition === 'number' && displayCondition < 40
                 ? 'text-red-300'
-                : typeof conditionValue === 'number' && conditionValue >= 80
+                : typeof displayCondition === 'number' && displayCondition >= 80
                   ? 'text-emerald-300'
                   : strongText;
         const scoreValue = championshipPanelScores
@@ -6344,7 +6353,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         <span className={`truncate text-sm font-bold ${strongText}`}>{player?.nickname ?? '선수 대기'}</span>
                         {isCurrentUser ? <span className="rounded-md bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-100">나</span> : null}
                         <span className={`whitespace-nowrap text-[12px] font-semibold ${mutedText}`}>
-                            컨디션 <b className={`text-base tabular-nums ${conditionTone}`}>{conditionValue ?? '-'}</b>
+                            컨디션{' '}
+                            <b className={`text-base tabular-nums ${conditionTone}`}>
+                                {displayCondition == null ? '-' : displayCondition}
+                            </b>
                         </span>
                         {isCurrentUser && canUseConditionPotion ? (
                             <button
@@ -6464,11 +6476,20 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const clickable = Boolean(player?.id && !player.id.startsWith('bot-') && !isCurrentUser);
         const avatarUrl = player ? AVATAR_POOL.find((a) => a.id === player.avatarId)?.url : undefined;
         const borderUrl = player ? BORDER_POOL.find((b) => b.id === player.borderId)?.url : undefined;
-        const conditionValue = player?.condition;
+        const rawCondition = player?.condition;
+        const effectiveCondition: number | null =
+            rawCondition !== undefined && rawCondition !== null && rawCondition !== 1000
+                ? rawCondition
+                : isCurrentUser &&
+                    championshipConditionFallback !== undefined &&
+                    championshipConditionFallback !== null &&
+                    championshipConditionFallback !== 1000
+                  ? championshipConditionFallback
+                  : null;
         const conditionTone =
-            typeof conditionValue === 'number' && conditionValue !== 1000 && conditionValue < 40
+            typeof effectiveCondition === 'number' && effectiveCondition < 40
                 ? 'text-red-300'
-                : typeof conditionValue === 'number' && conditionValue !== 1000 && conditionValue >= 80
+                : typeof effectiveCondition === 'number' && effectiveCondition >= 80
                   ? 'text-emerald-300'
                   : isWhitePlayer
                     ? 'text-slate-900'
@@ -6484,7 +6505,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const strongText = isWhitePlayer ? 'text-slate-950' : 'text-slate-50';
         const chipClass = isWhitePlayer ? 'bg-slate-900/12 text-slate-800' : 'bg-white/12 text-slate-100';
         const isRightSide = side === 'right';
-        const condDisplay = conditionValue == null || conditionValue === 1000 ? '-' : conditionValue;
+        const condDisplay = effectiveCondition == null ? '-' : effectiveCondition;
 
         return (
             <div

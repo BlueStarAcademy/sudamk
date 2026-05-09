@@ -71,10 +71,17 @@ export async function handleAiAction(
   const now = Date.now();
   normalizeStrategicAiScoringSettings(game as any);
 
-  // 1:1 vs AI 대국에 `pairGame`이 남아 있으면 클라이언트가 페어 인게임으로 분기할 수 있어 제거한다.
+  // 로비 `START_AI_GAME`는 negotiationActions에서 이미 `pairGame`을 제거한다.
+  // 페어 경기장 AI(`PAIR_START_AI_MATCH` → pairMode `ai`, 상대 팀 `pair-opponent-ai`)는 유지해야
+  // CONFIRM 직후 일반 전략 AI 대국으로 바뀌는 버그가 나지 않는다.
   const p2 = game.player2 as { id?: string } | undefined;
   if (p2?.id === aiUserId && game.settings) {
-    delete (game.settings as { pairGame?: unknown }).pairGame;
+    const pg = (game.settings as { pairGame?: { pairMode?: string; teamB?: { members?: { id?: string }[] } } }).pairGame;
+    const isPairArenaVsAi =
+      pg?.pairMode === 'ai' || pg?.teamB?.members?.some((m) => m.id === 'pair-opponent-ai');
+    if (!isPairArenaVsAi) {
+      delete (game.settings as { pairGame?: unknown }).pairGame;
+    }
   }
 
   // Minimal "negotiation-like" object for initializer functions that need settings/mode.

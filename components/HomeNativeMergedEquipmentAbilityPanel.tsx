@@ -96,6 +96,13 @@ const EquipmentSlotDisplay: React.FC<{
     );
 };
 
+/** 챔피언십 실전 KATA 가중 합산 점수(로비·경기장 패널과 동일 공식) */
+export type ChampionshipPhaseAbilityScores = {
+    opening: number;
+    midgame: number;
+    endgame: number;
+};
+
 export interface HomeNativeMergedEquipmentAbilityPanelProps {
     equippedItems: InventoryItem[];
     presets: Array<{ name: string }> | undefined;
@@ -112,6 +119,8 @@ export interface HomeNativeMergedEquipmentAbilityPanelProps {
     framed?: boolean;
     /** false면 PC 프로필 홈 통합 스택과 동일(네이티브 홈보다 여유 있는 크기) */
     compactLayout?: boolean;
+    /** 챔피언십 로비: 장비·6스탯 하단에 초반/중반/종반 가중 능력치 점수 */
+    championshipPhaseAbilityScores?: ChampionshipPhaseAbilityScores;
 }
 
 /**
@@ -132,6 +141,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
     availablePoints,
     framed = false,
     compactLayout = true,
+    championshipPhaseAbilityScores,
 }) => {
     const ch = compactLayout;
     const getItemForSlot = (slot: EquipmentSlot) => equippedItems.find((it) => it.slot === slot);
@@ -281,6 +291,48 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
         </div>
     );
 
+    const phaseAbilityFooter =
+        championshipPhaseAbilityScores != null ? (
+            <div
+                className={`mt-1.5 w-full shrink-0 rounded-lg border border-amber-500/25 bg-black/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
+                    ch ? 'px-1 py-1.5 sm:px-1.5 sm:py-2' : 'px-2 py-2 sm:px-2.5 sm:py-2.5'
+                }`}
+                aria-label="챔피언십 페이즈별 능력치 점수"
+            >
+                <div className="grid w-full grid-cols-3 gap-1 sm:gap-1.5">
+                    {(
+                        [
+                            { key: 'opening' as const, label: '초반' },
+                            { key: 'midgame' as const, label: '중반' },
+                            { key: 'endgame' as const, label: '종반' },
+                        ] as const
+                    ).map(({ key, label }) => (
+                        <div
+                            key={key}
+                            className={`flex min-w-0 flex-col items-center justify-center rounded-md border border-white/10 bg-black/35 px-0.5 py-1 sm:px-1 ${
+                                ch ? 'gap-0.5 py-1.5 sm:py-2' : 'gap-1 py-2 sm:py-2.5'
+                            }`}
+                        >
+                            <span
+                                className={`font-bold text-slate-200 ${
+                                    ch ? 'text-xs font-extrabold sm:text-sm' : 'text-sm font-extrabold sm:text-base'
+                                }`}
+                            >
+                                {label}
+                            </span>
+                            <span
+                                className={`font-mono font-black tabular-nums text-amber-100 ${
+                                    ch ? 'text-sm sm:text-base' : 'text-base sm:text-lg'
+                                }`}
+                            >
+                                {championshipPhaseAbilityScores[key]}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        ) : null;
+
     const inner = (
         <>
             {bannerBlock}
@@ -292,6 +344,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                 />
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center overflow-x-hidden py-0.5">{coreStatsGrid}</div>
             </div>
+            {phaseAbilityFooter}
         </>
     );
 

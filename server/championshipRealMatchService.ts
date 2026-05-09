@@ -5,6 +5,7 @@ import {
     type ChampionshipKataPhase,
     type ChampionshipRealMatchRules,
     championshipBestMoveChancePercent,
+    championshipEventBranchBestMovePercent,
     championshipKataLevelForPly,
     championshipMistakeChancePercent,
 } from '../shared/constants/championshipRealMatch.js';
@@ -276,7 +277,9 @@ export async function generateChampionshipRealMatch(
             nextEventPly !== null && nextEventPlayerId !== null && ply === nextEventPly && actor.id === nextEventPlayerId;
 
         if (isScheduledEventPly) {
-            const eventType: 'mistake' | 'bestMove' = Math.random() < 0.5 ? 'mistake' : 'bestMove';
+            const branchBestPct = championshipEventBranchBestMovePercent(levelInfo.abilityScore);
+            const eventType: 'mistake' | 'bestMove' =
+                Math.random() * 100 < branchBestPct ? 'bestMove' : 'mistake';
             if (eventType === 'mistake') {
                 const chance = championshipMistakeChancePercent(actor.stats[CoreStat.Stability] || 0, normalizeCondition(actor.condition));
                 const mistakeMove = Math.random() * 100 < chance
