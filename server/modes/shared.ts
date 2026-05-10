@@ -56,11 +56,12 @@ export const enforceBaseSeatLockIfDriftedDuringPlay = (game: types.LiveGameSessi
     const lb = game.playingLockedBlackPlayerId;
     const lw = game.playingLockedWhitePlayerId;
     if (typeof lb !== 'string' || lb.length === 0 || typeof lw !== 'string' || lw.length === 0) return false;
-    // The lock is only written when Base setup reaches the real game, so the
+    // The lock is written when Base finalize commits final seats, so the
     // lock itself is enough evidence even if slim/stale packets lost mode metadata.
     const status = String(game.gameStatus ?? '');
-    /** 본경기·아이템 연출 등 좌석이 절대 바뀌어선 안 되는 단계만 강제한다(베이스 사전 단계는 예외) */
+    /** 본경기·아이템 연출·시작 확인 등 색이 확정된 뒤로 좌석이 바뀌어선 안 되는 단계만 강제한다(베이스 사전 단계는 예외) */
     const protectedStatuses = new Set([
+        'base_game_start_confirmation',
         'playing',
         'hidden_placing',
         'scanning',

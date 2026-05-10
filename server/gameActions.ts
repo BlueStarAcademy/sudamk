@@ -1462,6 +1462,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 'SUBMIT_BASE_STONE_COLOR_CHOICE',
                 'UPDATE_KOMI_BID',
                 'CONFIRM_BASE_REVEAL',
+                'UPDATE_CAPTURE_BID',
+                'CONFIRM_CAPTURE_REVEAL',
             ]);
             const shouldHandleBaseFlowOnStrategicPve =
                 pveStrategicBaseFlow && baseFlowServerActionTypes.has(type);
@@ -1533,12 +1535,20 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             'base_stone_color_choice',
             'base_same_color_points_bid',
             'base_game_start_confirmation',
+            'capture_bidding',
+            'capture_reveal',
+            'capture_tiebreaker',
         ]);
         const mixForBaseTick = (((game.settings as { mixedModes?: GameMode[] } | undefined)?.mixedModes ??
             []) as GameMode[]) as GameMode[];
         const isStrategicBaseOrMixWithBase =
             SPECIAL_GAME_MODES.some((m) => m.mode === game.mode) &&
             (game.mode === GameMode.Base || (game.mode === GameMode.Mix && mixForBaseTick.includes(GameMode.Base)));
+        /** 베이스 전이 없는 순수 따내기·따내만 믹스는 `isStrategicBaseOrMixWithBase`가 false라 사후 틱이 빠져 `capture_reveal`에서 멈출 수 있음 — 싱글플레이(`sp-game-*`) 포함 */
+        const needsStrategicCapturePrePlayTick =
+            SPECIAL_GAME_MODES.some((m) => m.mode === game.mode) &&
+            strategicBasePrePlayStatuses.has(game.gameStatus) &&
+            (game.mode === GameMode.Capture || (game.mode === GameMode.Mix && mixForBaseTick.includes(GameMode.Capture)));
         const needsSinglePlayerBaseStrategicTick =
             game.isSinglePlayer &&
             isStrategicBaseOrMixWithBase &&
@@ -1555,6 +1565,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             SPECIAL_GAME_MODES.some((m) => m.mode === game.mode) &&
             (needsSinglePlayerBaseStrategicTick ||
                 needsPvpHumanBaseStrategicTick ||
+                needsStrategicCapturePrePlayTick ||
                 (game.isAiGame &&
                     !game.isSinglePlayer &&
                     ((game as any).gameCategory === 'adventure' || (game as any).gameCategory === 'guildwar')))
@@ -1620,6 +1631,12 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 const isPlayableForInlineAi =
                     game.gameStatus === 'playing' ||
                     game.gameStatus === 'hidden_placing';
+                /** 따내기 확인 직후 인라인 AI(Kata 등)가 HTTP를 수 초 막으면 모달·버튼이 멈춘 것처럼 보임 → 비동기로 넘김 */
+                const deferInlineAiAfterCaptureRevealConfirm =
+                    type === 'CONFIRM_CAPTURE_REVEAL' &&
+                    game.isAiGame &&
+                    (game.isSinglePlayer ||
+                        ['singleplayer', 'tower', 'adventure', 'guildwar'].includes(String((game as any).gameCategory ?? '')));
                 if (
                     isGoMode &&
                     isPlayableForInlineAi &&
@@ -1627,55 +1644,62 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     isAiTurnAfterUser
                 ) {
                     const gameIdInlineAi = game.id;
-                    try {
-                        const { waitUntilAiProcessingReleased } = await import('./aiSessionManager.js');
-                        const { PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS } = await import(
-                            './constants/pveStrategicAiSchedule.js'
-                        );
-                        const { aiUserId: aiUserIdInline } = await import('./aiPlayer.js');
-                        await waitUntilAiProcessingReleased(game.id, 10_000);
-                        await new Promise<void>((r) => setTimeout(r, PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS));
-                        const { getCachedGame } = await import('./gameCache.js');
-                        const freshForInline = await getCachedGame(gameIdInlineAi);
-                        if (freshForInline) {
-                            Object.assign(game, freshForInline);
-                        }
-                        const pidBeforeInline = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-                        const currentAfterRefresh = game.currentPlayer;
-                        const aiStillTurn =
-                            (currentAfterRefresh === types.Player.Black || currentAfterRefresh === types.Player.White) &&
-                            (pidBeforeInline === aiUserIdInline ||
-                                (pidBeforeInline && String(pidBeforeInline).startsWith('dungeon-bot-')));
-                        const stillPlayable =
-                            game.gameStatus === 'playing' ||
-                            game.gameStatus === 'hidden_placing';
-                        if (aiStillTurn && stillPlayable) {
-                            const moveBeforeInline = game.moveHistory?.length ?? 0;
-                            await makeAiMove(game);
-                            const aiAdvanced = (game.moveHistory?.length ?? 0) > moveBeforeInline;
-                            if (aiAdvanced) {
-                                game.aiTurnStartTime = undefined;
-                                if (!game.turnStartTime) game.turnStartTime = Date.now();
-                            } else {
-                                game.aiTurnStartTime = Date.now() + 50;
-                            }
-                            updateGameCache(game);
-                            await db.saveGame(game);
-                            const payloadAfterAi =
-                                game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0
-                                    ? { ...game, boardState: game.boardState.map((row: number[]) => [...row]) }
-                                    : game;
-                            broadcastToGameParticipants(
-                                gameIdInlineAi,
-                                { type: 'GAME_UPDATE', payload: { [gameIdInlineAi]: payloadAfterAi } },
-                                game
+                    const runInlinePveAi = async () => {
+                        try {
+                            const { waitUntilAiProcessingReleased } = await import('./aiSessionManager.js');
+                            const { PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS } = await import(
+                                './constants/pveStrategicAiSchedule.js'
                             );
-                        } else {
-                            game.aiTurnStartTime = undefined;
+                            const { aiUserId: aiUserIdInline } = await import('./aiPlayer.js');
+                            await waitUntilAiProcessingReleased(gameIdInlineAi, 10_000);
+                            await new Promise<void>((r) => setTimeout(r, PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS));
+                            const { getCachedGame } = await import('./gameCache.js');
+                            const freshForInline = await getCachedGame(gameIdInlineAi);
+                            if (!freshForInline) return;
+                            Object.assign(game, freshForInline);
+                            const pidBeforeInline =
+                                game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                            const currentAfterRefresh = game.currentPlayer;
+                            const aiStillTurn =
+                                (currentAfterRefresh === types.Player.Black || currentAfterRefresh === types.Player.White) &&
+                                (pidBeforeInline === aiUserIdInline ||
+                                    (pidBeforeInline && String(pidBeforeInline).startsWith('dungeon-bot-')));
+                            const stillPlayable =
+                                game.gameStatus === 'playing' || game.gameStatus === 'hidden_placing';
+                            if (aiStillTurn && stillPlayable) {
+                                const moveBeforeInline = game.moveHistory?.length ?? 0;
+                                await makeAiMove(game);
+                                const aiAdvanced = (game.moveHistory?.length ?? 0) > moveBeforeInline;
+                                if (aiAdvanced) {
+                                    game.aiTurnStartTime = undefined;
+                                    if (!game.turnStartTime) game.turnStartTime = Date.now();
+                                } else {
+                                    game.aiTurnStartTime = Date.now() + 50;
+                                }
+                                updateGameCache(game);
+                                await db.saveGame(game);
+                                const payloadAfterAi =
+                                    game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0
+                                        ? { ...game, boardState: game.boardState.map((row: number[]) => [...row]) }
+                                        : game;
+                                const { broadcastToGameParticipants } = await import('./socket.js');
+                                broadcastToGameParticipants(
+                                    gameIdInlineAi,
+                                    { type: 'GAME_UPDATE', payload: { [gameIdInlineAi]: payloadAfterAi } },
+                                    game
+                                );
+                            } else {
+                                game.aiTurnStartTime = undefined;
+                            }
+                        } catch (e: any) {
+                            console.error('[GameActions] Inline adventure/guildwar AI move failed:', e?.message);
+                            game.aiTurnStartTime = Date.now() + 1000;
                         }
-                    } catch (e: any) {
-                        console.error('[GameActions] Inline adventure/guildwar AI move failed:', e?.message);
-                        game.aiTurnStartTime = Date.now() + 1000;
+                    };
+                    if (deferInlineAiAfterCaptureRevealConfirm) {
+                        void runInlinePveAi();
+                    } else {
+                        await runInlinePveAi();
                     }
                 }
             }
@@ -1777,6 +1801,22 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 }, ALKKAGI_FLICK_DURATION_MS + 500);
             }
 
+            if (type === 'CONFIRM_CAPTURE_REVEAL' && !(result as any)?.error) {
+                const { baseHttpGameSnapshot } = await import('./modes/base.js');
+                const httpSnap = baseHttpGameSnapshot(game) as {
+                    clientResponse: { gameId: string; game: types.LiveGameSession };
+                };
+                const baseResult =
+                    result && typeof result === 'object' && !Array.isArray(result) ? (result as Record<string, unknown>) : {};
+                return {
+                    ...baseResult,
+                    clientResponse: {
+                        ...(typeof (baseResult as any).clientResponse === 'object' ? (baseResult as any).clientResponse : {}),
+                        ...httpSnap.clientResponse,
+                    },
+                };
+            }
+
             return result;
         }
     }
@@ -1818,7 +1858,15 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
     }
     
     if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'SAVE_EXCHANGE_STATE', 'PURCHASE_EXCHANGE_LISTING', 'CLAIM_EXCHANGE_SETTLEMENT', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS', 'UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT', 'SET_BLOCK_ARENA_PARTNER_INVITES', 'SAVE_GAME_RECORD', 'DELETE_GAME_RECORD', 'RECORD_ADVENTURE_MONSTER_DEFEAT', 'START_ADVENTURE_MONSTER_BATTLE', 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST', 'CONFIRM_ADVENTURE_MAP_TREASURE_CHEST', 'ABANDON_ADVENTURE_MAP_TREASURE_PICK', 'REROLL_ADVENTURE_REGIONAL_BUFF', 'ENHANCE_ADVENTURE_REGIONAL_BUFF', 'ADVANCE_ONBOARDING_TUTORIAL', 'BEGIN_ONBOARDING_ON_FIRST_HOME', 'SKIP_ONBOARDING_TUTORIAL', 'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD', 'CLAIM_ONBOARDING_INTRO1_FAN', 'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL', 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ', 'ADMIN_SET_VIP_TEST_FLAGS', 'ADMIN_SET_DIAMOND_PACKAGE_TEST', 'RESET_PAIR_ARENA_SINGLE_STAT', 'RESET_PAIR_ARENA_STRATEGIC_ALL'].includes(type)) return handleUserAction(volatileState, action, userData);
-    if (type.startsWith('CLAIM_') || type.startsWith('DELETE_MAIL') || type === 'DELETE_ALL_CLAIMED_MAIL' || type === 'MARK_MAIL_AS_READ') return handleRewardAction(volatileState, action, userData);
+    // CLAIM_SHOP_AD_REWARD는 상점 전용 — `CLAIM_` 보상 분기보다 먼저 두면 안 됨(보상 핸들러 default 오류).
+    if (
+        (type.startsWith('CLAIM_') && type !== 'CLAIM_SHOP_AD_REWARD') ||
+        type.startsWith('DELETE_MAIL') ||
+        type === 'DELETE_ALL_CLAIMED_MAIL' ||
+        type === 'MARK_MAIL_AS_READ'
+    ) {
+        return handleRewardAction(volatileState, action, userData);
+    }
     if (
         type.startsWith('BUY_') ||
         type === 'PURCHASE_ACTION_POINTS' ||

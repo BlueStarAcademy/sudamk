@@ -8,7 +8,7 @@ import { updateQuestProgress } from '../questService.js';
 import { createItemFromTemplate, SHOP_ITEMS } from '../shop.js';
 import { isSameDayKST, getStartOfDayKST } from '../../utils/timeUtils.js';
 import * as tournamentService from '../tournamentService.js';
-import { addItemsToInventory, createItemInstancesFromReward } from '../../utils/inventoryUtils.js';
+import { addItemsToInventory, createItemInstancesFromReward, normalizeInventoryAfterLoad } from '../../utils/inventoryUtils.js';
 import { calculateTotalStats } from '../statService.js';
 import { handleRewardAction } from './rewardActions.js';
 import { generateNewItem } from './inventoryActions.js';
@@ -18,6 +18,10 @@ import { getCachedUser, updateUserCache } from '../gameCache.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
 import { generateChampionshipRealMatch } from '../championshipRealMatchService.js';
+import {
+    DEFAULT_CHAMPIONSHIP_REAL_MATCH_RULES,
+    resolveChampionshipDungeonRulesFromStage,
+} from '../../shared/constants/championshipRealMatch.js';
 
 
 type HandleActionResult = { 
@@ -846,12 +850,10 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             try {
                 // 사용자 캐시 업데이트
                 updateUserCache(user);
-                // DB 저장은 비동기로 처리하여 응답 지연 최소화
-                db.updateUser(user).catch(err => {
-                    console.error(`[TournamentActions] Failed to save user ${user.id}:`, err);
-                });
-                
-                // 저장 후 DB에서 다시 읽어서 검증 (인벤토리 변경사항이 확실히 반영되었는지 확인)
+                // DB 저장 완료 후 응답: 비동기 저장만 하면 직후 getCachedUser/직렬화 타이밍에 낡은 스냅샷이 섞일 수 있음
+                await db.updateUser(user);
+
+                // 저장 후 캐시에서 읽어 HTTP/WS 응답과 브로드캐스트에 동일 스냅샷 사용
                 const savedUser = await getCachedUser(user.id);
                 if (!savedUser) {
                     console.error(`[USE_CONDITION_POTION] User not found after save: ${user.id}`);
@@ -1030,7 +1032,12 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             tournamentState.timeElapsed = 0;
             tournamentState.currentMatchScores = { player1: 0, player2: 0 };
 
-            const realMatch = await generateChampionshipRealMatch(match, tournamentState.players, freshUser);
+            const dungeonStage = tournamentState.currentStageAttempt;
+            const champRules =
+                dungeonStage != null && dungeonStage >= 1
+                    ? resolveChampionshipDungeonRulesFromStage(dungeonStage)
+                    : DEFAULT_CHAMPIONSHIP_REAL_MATCH_RULES;
+            const realMatch = await generateChampionshipRealMatch(match, tournamentState.players, freshUser, champRules);
             match.championshipRealGame = realMatch.game;
             tournamentState.currentMatchScores = {
                 player1: realMatch.scorePercent.player1,
@@ -2122,8 +2129,12 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             const itemInstances = itemsToCreate.length > 0 ? createItemInstancesFromReward(itemsToCreate) : [];
             const allItemsToAdd = equipmentDropsToAdd.length > 0 ? [...itemInstances, ...equipmentDropsToAdd] : itemInstances;
             if (allItemsToAdd.length > 0) {
+                // 분산된 변경권·재료 스택 등으로 슬롯 점유만 높고 실제 합치기 가능한 경우가 있어, 지급 직전에 정규화한 뒤 공간 판정
+                const inventoryForGrant = normalizeInventoryAfterLoad(
+                    JSON.parse(JSON.stringify(freshUser.inventory || [])) as InventoryItem[],
+                );
                 const addResult = addItemsToInventory(
-                    freshUser.inventory || [],
+                    inventoryForGrant,
                     freshUser.inventorySlots || { equipment: 30, consumable: 30, material: 30 },
                     allItemsToAdd
                 );

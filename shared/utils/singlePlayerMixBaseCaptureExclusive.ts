@@ -1,16 +1,12 @@
 import { GameMode } from '../types/enums.js';
 
-/**
- * 믹스룰: 베이스가 포함되면 따내기(Capture)와 동시에 둘 수 없다.
- * 베이스 우선 — 따내기를 목록에서 제거한다.
- */
+/** Base+Capture 믹스가 허용되므로, 과거 호환용 함수는 순서/중복만 보존한다. */
 export const stripCaptureFromMixWhenBaseIncluded = (modes: GameMode[]): GameMode[] => {
-    if (!modes.includes(GameMode.Base)) return modes;
-    return modes.filter((m) => m !== GameMode.Capture);
+    return [...new Set(modes)];
 };
 
 /**
- * 따내기 제거 후 모드가 1개뿐이면 싱글 믹스가 무효가 되므로, 흔한 조합으로 보조 모드를 채운다.
+ * 모드가 1개뿐이면 싱글 믹스가 무효가 되므로, 흔한 조합으로 보조 모드를 채운다.
  */
 export const ensureMixModesMinTwoAfterBaseCaptureSanitize = (modes: GameMode[]): GameMode[] => {
     const m = stripCaptureFromMixWhenBaseIncluded(modes);

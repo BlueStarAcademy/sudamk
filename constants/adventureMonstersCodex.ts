@@ -79,26 +79,26 @@ export const ADVENTURE_MONSTERS_NEIGHBORHOOD_HILL = [
     },
     {
         codexId: 'hill_09',
-        imageWebp: `${hill}/neighborhood_hill_09.webp`,
+        imageWebp: `${hill}/neighborhood_hill_12.webp`,
         name: '돌지기',
         codexDescription: '산길을 지키는 돌 지킴이 느낌이 물씬 나요. 지도 앱이 틀려도 이 친구만 따라가면 덤불은 대체로 피할 수 있습니다.',
         codexPercentBossBonus: { target: 'core', stat: CoreStat.Concentration },
     },
     {
         codexId: 'hill_10',
-        imageWebp: `${hill}/neighborhood_hill_10.webp`,
+        imageWebp: `${hill}/neighborhood_hill_09.webp`,
         name: '돌줍이',
         codexDescription: '예쁜 돌맹이만 골라 주머니에 넣는 수집가예요. 다른 몬스터에게도 “이거 네 얼굴 닮았다”며 선물하는 친절함이 있습니다.'
     },
     {
         codexId: 'hill_11',
-        imageWebp: `${hill}/neighborhood_hill_11.webp`,
+        imageWebp: `${hill}/neighborhood_hill_10.webp`,
         name: '토판이',
         codexDescription: '흙과 돌이 한데 뭉쳐 태어난 납작이예요. 비 피할 때 나무 뒤에 딱 붙어 위장술이 특기입니다.'
     },
     {
         codexId: 'hill_12',
-        imageWebp: `${hill}/neighborhood_hill_12.webp`,
+        imageWebp: `${hill}/neighborhood_hill_11.webp`,
         name: '이끼판왕',
         codexDescription: '숲 끝자락에서 군림하는 이끼 왕관의 주인이에요. 천천히 기어가도 위엄만큼은 빠릅니다.',
         codexPercentBossBonus: { target: 'adventureGold' },

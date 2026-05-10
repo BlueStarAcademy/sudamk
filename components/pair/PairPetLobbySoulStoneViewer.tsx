@@ -13,9 +13,10 @@ export type PairPetLobbySoulStoneViewerProps = {
     item: InventoryItem;
     isBusy: boolean;
     primaryStackId: string | null;
-    primaryStackQty: number;
+    /** 동일 종류 영혼석 합산 보유(여러 스택 포함) — 일괄 판매 버튼 표시용 */
+    totalSoulQuantity: number;
     onSellOne: () => void;
-    onSellAll: () => void;
+    onOpenBulkSell: () => void;
 };
 
 function itemGradeSafe(g: InventoryItem['grade']): ItemGrade {
@@ -85,9 +86,9 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
     item,
     isBusy,
     primaryStackId,
-    primaryStackQty,
+    totalSoulQuantity,
     onSellOne,
-    onSellAll,
+    onOpenBulkSell,
 }) => {
     const grade = itemGradeSafe(item.grade);
     const gradeMeta = gradeStyles[grade] ?? gradeStyles[ItemGrade.Normal];
@@ -233,17 +234,17 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
                     colorScheme="none"
                     className={`!mx-auto !block w-full max-w-[14rem] sm:!mx-0 sm:inline-block sm:max-w-[16rem] sm:w-auto ${soulStonePrimaryBtnClass}`}
                 >
-                    판매 (1)
+                    판매
                 </Button>
-                {primaryStackId && primaryStackQty > 1 ? (
+                {primaryStackId && totalSoulQuantity > 1 ? (
                     <Button
                         type="button"
                         disabled={isBusy}
-                        onClick={onSellAll}
+                        onClick={onOpenBulkSell}
                         colorScheme="none"
                         className={`!mx-auto !block w-full max-w-[14rem] sm:!mx-0 sm:inline-block sm:max-w-[16rem] sm:w-auto ${soulStoneSecondaryBtnClass}`}
                     >
-                        일괄 판매 ({primaryStackQty.toLocaleString()})
+                        일괄 판매
                     </Button>
                 ) : null}
             </div>

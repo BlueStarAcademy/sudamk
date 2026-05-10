@@ -7,6 +7,7 @@ import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { getCurrentSeason } from '../utils/timeUtils.js';
 import { PairArenaStatsPanel } from './PairArenaDetailedStatsModal.js';
 import ConfirmModal from './ConfirmModal.js';
+import { readStrategicRankedMatchRecord } from '../shared/utils/unifiedRankedStatsMigration.js';
 
 interface DetailedStatsModalProps {
     currentUser: UserWithStatus;
@@ -105,11 +106,8 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
         }
         const dr = currentUser.dailyRankings?.strategic;
         const modeList = SPECIAL_GAME_MODES;
-        let totalGames = 0;
-        for (const m of modeList) {
-            const s = currentUser.stats?.[m.mode];
-            if (s) totalGames += (s.wins || 0) + (s.losses || 0);
-        }
+        const rankedRec = readStrategicRankedMatchRecord(currentUser.stats);
+        const totalGames = rankedRec.wins + rankedRec.losses;
         if (dr && typeof dr.rank === 'number') {
             const delta = typeof dr.score === 'number' ? dr.score : 0;
             const seasonScore = SEASON_BASE_SCORE + delta;
@@ -301,6 +299,10 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
                                         const losses = gameStats?.losses ?? 0;
                                         const totalGames = wins + losses;
                                         const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
+                                        const aiW = gameStats?.aiWins ?? 0;
+                                        const aiL = gameStats?.aiLosses ?? 0;
+                                        const aiTot = aiW + aiL;
+                                        const aiWr = aiTot > 0 ? Math.round((aiW / aiTot) * 100) : 0;
 
                                         return (
                                             <div
@@ -319,15 +321,23 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
                                                     </p>
                                                 </div>
                                                 <div
-                                                    className={`mb-2 flex min-w-0 items-center justify-center gap-x-1.5 text-xs tabular-nums sm:text-sm ${theme.winText}`}
+                                                    className={`mb-1 flex min-w-0 flex-col items-center justify-center gap-y-0.5 text-[11px] tabular-nums sm:text-xs ${theme.winText}`}
                                                 >
                                                     <span className="shrink-0 text-center leading-tight">
+                                                        <span className="text-secondary/80">PVP </span>
                                                         <span className="font-bold">{wins}</span>
                                                         <span className="text-secondary/75">승 </span>
                                                         <span className="font-bold text-slate-200">{losses}</span>
                                                         <span className="text-secondary/75">패</span>
                                                         <span className="ml-1 text-sky-200/95">({winRate}%)</span>
                                                     </span>
+                                                    {aiTot > 0 ? (
+                                                        <span className="shrink-0 text-center leading-tight text-violet-200/90">
+                                                            <span className="text-violet-300/70">AI </span>
+                                                            <span className="font-bold">{aiW}</span>승{' '}
+                                                            <span className="font-bold">{aiL}</span>패 ({aiWr}%)
+                                                        </span>
+                                                    ) : null}
                                                 </div>
                                                 <button
                                                     type="button"

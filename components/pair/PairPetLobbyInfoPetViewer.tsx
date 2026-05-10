@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import Button from '../Button.js';
+import DraggableWindow from '../DraggableWindow.js';
 import PairPetGradeUpgradeModal from './PairPetGradeUpgradeModal.js';
 import PairPetDetailEmbedPanel from './PairPetDetailEmbedPanel.js';
 import type { InventoryItem, ServerAction, User } from '../../types.js';
@@ -51,6 +52,7 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
         tid && equippedTemplateId === tid && (!eqRowId || eqRowId === item.id),
     );
     const [gradeModalOpen, setGradeModalOpen] = useState(false);
+    const [gradeBlockHint, setGradeBlockHint] = useState<string | null>(null);
 
     const meta = useMemo(() => resolvePairPetMetaFromInventoryRow(item), [item]);
     const levelSafe = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(meta.level) || 1));
@@ -72,6 +74,33 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
         soulNeed != null &&
         soulTid != null &&
         ownedSoul >= soulNeed;
+
+    const openGradeUpgradeOrHint = () => {
+        if (isBusy) return;
+        if (petInTraining) {
+            setGradeBlockHint('수련 중인 펫은 등급 강화할 수 없습니다. 수련을 마친 뒤 이용해 주세요.');
+            return;
+        }
+        if (!isPairPetUpgradeableGrade(storedPetGrade)) {
+            setGradeBlockHint('더 올릴 수 있는 등급이 없습니다.');
+            return;
+        }
+        if (levelSafe < needLv) {
+            setGradeBlockHint(`펫 레벨이 부족합니다. Lv.${needLv} 필요 (현재 Lv.${levelSafe})`);
+            return;
+        }
+        if (soulNeed == null || soulTid == null) {
+            setGradeBlockHint('등급 강화 조건을 확인할 수 없습니다.');
+            return;
+        }
+        if (ownedSoul < soulNeed) {
+            setGradeBlockHint(
+                `${soulNameKo ?? '영혼석'}이 부족합니다. ${soulNeed}개 필요 (보유 ${ownedSoul}개)`,
+            );
+            return;
+        }
+        setGradeModalOpen(true);
+    };
 
     const onGradeConfirm = async () => {
         const res = await applyPetAction({
@@ -130,14 +159,18 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                 )}
                 <Button
                     type="button"
-                    disabled={isBusy || !canGradeUpgrade}
-                    onClick={() => setGradeModalOpen(true)}
+                    disabled={isBusy}
+                    onClick={() => void openGradeUpgradeOrHint()}
                     title={
                         canGradeUpgrade
                             ? `${soulNameKo ?? '영혼석'} ${soulNeed ?? ''}개 소모 · 등급 상승`
-                            : soulNeed != null && ownedSoul < soulNeed
-                              ? `${soulNameKo ?? '영혼석'}이 부족합니다. (${soulNeed}개 필요, 보유 ${ownedSoul})`
-                              : `Lv.${needLv} 이상에서 등급 강화할 수 있습니다.`
+                            : petInTraining
+                              ? '수련 중인 펫은 등급 강화할 수 없습니다.'
+                              : !isPairPetUpgradeableGrade(storedPetGrade)
+                                ? '더 올릴 수 있는 등급이 없습니다.'
+                                : soulNeed != null && ownedSoul < soulNeed
+                                  ? `${soulNameKo ?? '영혼석'}이 부족합니다. (${soulNeed}개 필요, 보유 ${ownedSoul})`
+                                  : `Lv.${needLv} 이상에서 등급 강화할 수 있습니다.`
                     }
                     colorScheme="none"
                     className="!min-w-0 !flex-1 !shrink !rounded-lg !border !border-amber-400/55 !bg-amber-950/45 !px-1 !py-2 !text-[0.7rem] !font-extrabold !leading-tight !text-amber-50 disabled:!opacity-45 sm:!rounded-xl sm:!px-2 sm:!text-xs"
@@ -172,6 +205,25 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                     onConfirm={onGradeConfirm}
                     isTopmost
                 />
+            ) : null}
+            {gradeBlockHint ? (
+                <DraggableWindow
+                    title="안내"
+                    onClose={() => setGradeBlockHint(null)}
+                    windowId="pair-pet-grade-block-hint"
+                    initialWidth={420}
+                    shrinkHeightToContent
+                    isTopmost
+                    zIndex={73}
+                    skipSavedPosition
+                    variant="store"
+                    hideFooter
+                    bodyPaddingClassName="!p-4 sm:!p-5"
+                >
+                    <p className="text-center text-sm font-medium leading-relaxed text-slate-200 sm:text-[0.95rem]">
+                        {gradeBlockHint}
+                    </p>
+                </DraggableWindow>
             ) : null}
         </div>
     );

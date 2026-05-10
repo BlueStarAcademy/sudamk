@@ -8,7 +8,13 @@ import { CHAMPIONSHIP_ABILITY_KATA_LADDER, type ChampionshipAbilityKataLadderRow
 import { HandleActionResult, type PairRoomChatLine } from '../types/api.js';
 import { Point } from '../types/enums.js';
 import { audioService } from '../services/audioService.js';
-import { stableStringify, parseHash, replaceAppHash, navigateFromGameIfApplicable } from '../utils/appUtils.js';
+import {
+    stableStringify,
+    parseHash,
+    replaceAppHash,
+    navigateFromGameIfApplicable,
+    markSkipGameHashLeaveInterceptOnce,
+} from '../utils/appUtils.js';
 import { getApiUrl, getWebSocketUrlFor } from '../utils/apiConfig.js';
 import { 
     DAILY_MILESTONE_THRESHOLDS,
@@ -62,6 +68,10 @@ import {
     readPairArenaRestoreFromGameStateStorage,
     stashPairArenaRoomRestoreForLobbyNavigation,
 } from '../shared/utils/pairArenaSessionRestore.js';
+import {
+    hasPairPetClaimReadyForQuickMenu,
+    pairPetQuickMenuNeedsSecondTick,
+} from '../shared/utils/pairPetQuickClaimNotification.js';
 import { advancePairTurn, getCurrentPairTurnSeat, isPairAiSeat, resetPairPasses } from '../shared/utils/pairGameTurn.js';
 
 const HOME_BOARD_READ_STORAGE_PREFIX = 'sudamr-home-board-read-posts';
@@ -70,6 +80,14 @@ function isPairHatcheryPetInventoryFullError(action: ServerAction, errorMessage:
     return (
         (action.type === 'PAIR_PET_HATCHERY_CLAIM' || action.type === 'PAIR_PET_HATCHERY_INSTANT_FINISH') &&
         errorMessage === PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE
+    );
+}
+
+/** 챔피언십 던전 보상 수령: 가방 부족 시 TournamentBracket 전용 모달로만 안내(토스트 중복 방지) */
+function isChampionshipCompleteDungeonInventoryFullError(action: ServerAction, errorMessage: string): boolean {
+    return (
+        action.type === 'COMPLETE_DUNGEON_STAGE' &&
+        /가방|인벤토리|공간/.test(errorMessage)
     );
 }
 import {
@@ -400,13 +418,22 @@ function isBasePrePlayStatus(status: LiveGameSession['gameStatus'] | undefined):
     );
 }
 
-/** `playing` 이후 서버가 고정한 흑/백 좌석을 유지·적용 (베이스 배치 단계 임시 좌석 역주입 방지) */
+/**
+ * `playing`(또는 시작 확인) 이후 서버가 고정한 흑/백 좌석을 유지·적용 (베이스 배치 단계 임시 좌석 역주입 방지).
+ * 서버는 색이 확정되는 시점(finalize/komi bid 결과)에 좌석 잠금까지 같이 박는다 — `base_game_start_confirmation`에도
+ * 잠금이 적용되어 있어야, 시작 확인 모달 단계에서 늦게 도착한 슬림 패킷이 좌석을 임시값으로 되돌리지 못한다.
+ */
+const SEAT_LOCK_ENFORCE_STATUSES: ReadonlySet<string> = new Set([
+    'base_game_start_confirmation',
+    'playing',
+]);
 function reconcilePlayingSeatLock(merged: LiveGameSession, existing?: LiveGameSession): LiveGameSession {
     let next = merged;
+    const status = String(next.gameStatus ?? '');
     const exB = existing?.playingLockedBlackPlayerId;
     const exW = existing?.playingLockedWhitePlayerId;
     if (
-        next.gameStatus === 'playing' &&
+        SEAT_LOCK_ENFORCE_STATUSES.has(status) &&
         typeof exB === 'string' &&
         exB.length > 0 &&
         typeof exW === 'string' &&
@@ -418,7 +445,7 @@ function reconcilePlayingSeatLock(merged: LiveGameSession, existing?: LiveGameSe
     const lb = next.playingLockedBlackPlayerId;
     const lw = next.playingLockedWhitePlayerId;
     if (
-        next.gameStatus === 'playing' &&
+        SEAT_LOCK_ENFORCE_STATUSES.has(status) &&
         typeof lb === 'string' &&
         lb.length > 0 &&
         typeof lw === 'string' &&
@@ -558,7 +585,30 @@ function alignBaseModeCurrentPlayerWithExistingWhenSlimDrift(
         return finish(merged);
     }
     if (merged.currentPlayer === existing.currentPlayer) return finish(merged);
-    return finish({ ...merged, currentPlayer: existing.currentPlayer });
+
+    // 페어 교대석은 수순만으로 다음 착석자를 복원하기 어렵다 — 기존(로컬 우선) 동작 유지
+    const pairTurnOrder = (merged.settings as { pairGame?: { turnOrder?: unknown[] } } | undefined)?.pairGame?.turnOrder;
+    if (Array.isArray(pairTurnOrder) && pairTurnOrder.length > 0) {
+        return finish({ ...merged, currentPlayer: existing.currentPlayer });
+    }
+
+    // 본대국 첫 수는 항상 흑. 이후는 수순 꼬리의 `player`로 다음 차례를 복원한다.
+    const mh = merged.moveHistory ?? [];
+    const expectedNext: Player =
+        mh.length === 0
+            ? Player.Black
+            : inferCurrentPlayerFromLastStoredMove(mh[mh.length - 1] as { player?: number }) ?? Player.Black;
+
+    const mergedMatches = merged.currentPlayer === expectedNext;
+    const existingMatches = existing.currentPlayer === expectedNext;
+    if (mergedMatches && !existingMatches) {
+        return finish(merged);
+    }
+    if (existingMatches && !mergedMatches) {
+        return finish({ ...merged, currentPlayer: existing.currentPlayer });
+    }
+    // 둘 다 맞거나 둘 다 어긋나면 서버(merged)를 신뢰 — 로컬만 고정하면 백 차례·아이템이 영구 비활성화될 수 있음
+    return finish(merged);
 }
 
 function liveSessionIncludesBaseMode(g: LiveGameSession | undefined): boolean {
@@ -580,6 +630,34 @@ function liveSessionIncludesBaseMode(g: LiveGameSession | undefined): boolean {
     if (Array.isArray(g.baseStones) && g.baseStones.length > 0) return true;
     if (typeof g.settings?.baseStones === 'number' && g.settings.baseStones > 0) return true;
     return false;
+}
+
+/** `pending`·베이스 사전 단계가 아닌 본대국·아이템·계가·종료 등 — 재접속 후 낡은 WS가 사전 단계로 되돌리는지 판별할 때 사용 */
+function isPastBaseClientFlowGameStatus(status: LiveGameSession['gameStatus'] | undefined): boolean {
+    if (!status) return false;
+    if (status === 'pending') return false;
+    if (isBasePrePlayStatus(status)) return false;
+    return true;
+}
+
+/**
+ * 베이스(순·믹스): 재연결 직후 등 늦게 도착한 GAME_UPDATE가 본대국 이후 상태를
+ * `base_placement` 등 사전 단계로 덮어 베이스돌 배치 UI가 다시 뜨는 것을 막는다.
+ * (같은 라운드에서만; 리비전이 확실히 앞선 패킷은 그대로 신뢰)
+ */
+function shouldIgnoreBaseModeGameStatusRegression(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined,
+): boolean {
+    if (!existing) return false;
+    if (!liveSessionIncludesBaseMode(incoming) && !liveSessionIncludesBaseMode(existing)) return false;
+    if ((incoming.round ?? 1) !== (existing.round ?? 1)) return false;
+    if (!isBasePrePlayStatus(incoming.gameStatus)) return false;
+    if (!isPastBaseClientFlowGameStatus(existing.gameStatus)) return false;
+    const ir = incoming.serverRevision ?? 0;
+    const er = existing.serverRevision ?? 0;
+    if (ir > 0 && er > 0 && ir > er) return false;
+    return true;
 }
 
 /** sessionStorage 수순 끝에서 차례 추론 — `player` 누락 시 Black으로 잘못 고정되면 흑백 차례·좌석 검사가 전부 어긋난다. */
@@ -959,6 +1037,69 @@ function hasHydratedBoardGridForRejoin(game: LiveGameSession | undefined): boole
     if (!b || !Array.isArray(b) || b.length === 0) return false;
     const row0 = b[0];
     return Array.isArray(row0) && row0.length > 0;
+}
+
+/** 격자 행렬만 있고 돌이 하나도 없는 패킷(종료·슬림 WS)을 "유효한 서버 보드"로 취급하지 않기 위함 */
+function boardGridHasAnyStones(board: LiveGameSession['boardState'] | undefined): boolean {
+    const b = board;
+    if (!b || !Array.isArray(b)) return false;
+    return b.some(
+        (row) =>
+            row &&
+            Array.isArray(row) &&
+            row.some((c: unknown) => c !== 0 && c != null && c !== undefined),
+    );
+}
+
+/** `/api/game/rejoin`·계가 폴링 응답이 종료 직후 판 없이 오면 빈 격자·턴 알림으로 덮어쓰는 것을 막는다. */
+/** WS가 동일 히든 공개 연출을 짧은 간격에 여러 번내면 startTime/revealEnd가 리셋되어 스파클·공개음이 연속 재생된다. */
+function shouldKeepExistingHiddenRevealAnimationClock(
+    existing: LiveGameSession | undefined,
+    incoming: LiveGameSession,
+): boolean {
+    if (!existing) return false;
+    if (existing.gameStatus !== 'hidden_reveal_animating' || incoming.gameStatus !== 'hidden_reveal_animating') {
+        return false;
+    }
+    const ea = existing.animation as { type?: string; stones?: Array<{ point: Point }> } | null | undefined;
+    const ia = incoming.animation as { type?: string; stones?: Array<{ point: Point }> } | null | undefined;
+    if (!ea || !ia || ea.type !== 'hidden_reveal' || ia.type !== 'hidden_reveal') return false;
+    const sig = (a: typeof ea) =>
+        (a.stones || [])
+            .map((s) => `${s.point?.x ?? ''},${s.point?.y ?? ''}`)
+            .sort()
+            .join('|');
+    const s1 = sig(ea);
+    return Boolean(s1) && s1 === sig(ia);
+}
+
+function mergePveRejoinResponseWithExistingBoard(
+    existing: LiveGameSession | undefined,
+    incoming: LiveGameSession,
+): LiveGameSession {
+    if (!existing) return incoming;
+    const isPve =
+        incoming.gameCategory === 'singleplayer' ||
+        incoming.isSinglePlayer ||
+        incoming.gameCategory === 'tower';
+    if (!isPve) return incoming;
+    const terminal = incoming.gameStatus === 'ended' || incoming.gameStatus === 'no_contest';
+    if (!terminal) return incoming;
+    if (!hasHydratedBoardGridForRejoin(existing) || hasHydratedBoardGridForRejoin(incoming)) return incoming;
+    const mh = existing.moveHistory?.length ? existing.moveHistory : incoming.moveHistory;
+    return {
+        ...incoming,
+        boardState: existing.boardState,
+        moveHistory: mh,
+        lastMove: existing.lastMove ?? incoming.lastMove,
+        captures: existing.captures ?? incoming.captures,
+        baseStoneCaptures: existing.baseStoneCaptures ?? incoming.baseStoneCaptures,
+        hiddenStoneCaptures: existing.hiddenStoneCaptures ?? incoming.hiddenStoneCaptures,
+        blackTimeLeft: existing.blackTimeLeft ?? incoming.blackTimeLeft,
+        whiteTimeLeft: existing.whiteTimeLeft ?? incoming.whiteTimeLeft,
+        turnDeadline: existing.turnDeadline ?? incoming.turnDeadline,
+        turnStartTime: existing.turnStartTime ?? incoming.turnStartTime,
+    };
 }
 
 /**
@@ -1745,10 +1886,14 @@ export const useApp = () => {
     );
     const [homeBoardPosts, setHomeBoardPosts] = useState<HomeBoardPost[]>([]);
     const [readHomeBoardPostIds, setReadHomeBoardPostIds] = useState<string[]>([]);
+    /** 공지 모달 닫기 등에서 최신 목록으로 읽음 처리할 때 클로저 고착을 피함 */
+    const homeBoardPostsRef = useRef<HomeBoardPost[]>([]);
     const [guilds, setGuilds] = useState<Record<string, Guild>>({});
     
     // --- UI Modals & Toasts ---
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+    const [isPetManagementModalOpen, setIsPetManagementModalOpen] = useState(false);
+    const [isAdventureMonsterCodexModalOpen, setIsAdventureMonsterCodexModalOpen] = useState(false);
     const [isInventoryOpen, setIsInventoryOpen] = useState(false);
     const [isMailboxOpen, setIsMailboxOpen] = useState(false);
     const [isQuestsOpen, setIsQuestsOpen] = useState(false);
@@ -1870,6 +2015,39 @@ export const useApp = () => {
         return homeBoardPosts.filter((post) => !readSet.has(post.id)).map((post) => post.id);
     }, [homeBoardPosts, readHomeBoardPostIds]);
     const hasUnreadHomeBoardPosts = unreadHomeBoardPostIds.length > 0;
+
+    homeBoardPostsRef.current = homeBoardPosts;
+
+    const markAllHomeBoardPostsReadFromRef = useCallback(() => {
+        setReadHomeBoardPostIds((prev) => {
+            const posts = homeBoardPostsRef.current;
+            if (posts.length === 0) return prev;
+            const next = new Set(prev);
+            for (const p of posts) {
+                if (p?.id) next.add(p.id);
+            }
+            const arr = Array.from(next);
+            if (arr.length === prev.length && prev.every((id) => next.has(id))) return prev;
+            return arr;
+        });
+    }, []);
+
+    const sortedHomeBoardPostIdsKey = useMemo(
+        () =>
+            homeBoardPosts.length === 0
+                ? ''
+                : [...homeBoardPosts]
+                      .map((p) => p.id)
+                      .filter(Boolean)
+                      .sort()
+                      .join('\u0001'),
+        [homeBoardPosts],
+    );
+
+    useEffect(() => {
+        if (!isAnnouncementsModalOpen || !sortedHomeBoardPostIdsKey) return;
+        markAllHomeBoardPostsReadFromRef();
+    }, [isAnnouncementsModalOpen, sortedHomeBoardPostIdsKey, markAllHomeBoardPostsReadFromRef]);
 
     const markHomeBoardPostRead = useCallback((postId: string) => {
         if (!postId) return;
@@ -2358,6 +2536,26 @@ export const useApp = () => {
         if (!Array.isArray(list)) return false;
         return list.some((entry) => entry && typeof entry === 'object' && (entry as { claimed?: boolean }).claimed !== true);
     }, [currentUser?.exchangeState?.settlements]);
+
+    /** 펫 퀵메뉴: 수련·부화 완료(수령/획득 가능) 시 붉은점 — 진행 타이머가 있을 때만 1초 틱, 완료 후 interval 자동 종료 */
+    const [pairPetQuickMenuTick, setPairPetQuickMenuTick] = useState(0);
+    useEffect(() => {
+        if (!currentUser) return undefined;
+        if (!pairPetQuickMenuNeedsSecondTick(currentUser, Date.now())) return undefined;
+        const id = window.setInterval(() => {
+            const u = currentUserRef.current;
+            setPairPetQuickMenuTick((n) => n + 1);
+            if (!u || !pairPetQuickMenuNeedsSecondTick(u, Date.now())) {
+                window.clearInterval(id);
+            }
+        }, 1000);
+        return () => window.clearInterval(id);
+    }, [currentUser]);
+    const hasClaimablePairPetTrainingOrHatchery = useMemo(() => {
+        if (!currentUser) return false;
+        void pairPetQuickMenuTick;
+        return hasPairPetClaimReadyForQuickMenu(currentUser, Date.now());
+    }, [currentUser, pairPetQuickMenuTick]);
     
     const showError = (message: string) => {
         let displayMessage = message;
@@ -4540,9 +4738,16 @@ export const useApp = () => {
 
             if (!res.ok) {
                 let errorMessage = 'An unknown error occurred.';
+                let baseStoneColorSubmitBenign400 = false;
                 try {
                     const errorData = await res.json();
                     errorMessage = errorData.message || errorData.error || errorMessage;
+                    baseStoneColorSubmitBenign400 =
+                        action.type === 'SUBMIT_BASE_STONE_COLOR_CHOICE' &&
+                        res.status === 400 &&
+                        typeof errorMessage === 'string' &&
+                        (errorMessage.includes('선호 돌 선택 단계가 아닙니다') ||
+                            errorMessage.includes('이미 선택했습니다'));
                     if (isTransientServerStatus(res.status)) {
                         setConnectionNotice({
                             kind: 'degraded',
@@ -4620,10 +4825,26 @@ export const useApp = () => {
                             }
                         }
                     }
-                    console.error(`[handleAction] ${action.type} - HTTP ${res.status} error:`, errorData);
+                    if (!baseStoneColorSubmitBenign400) {
+                        console.error(`[handleAction] ${action.type} - HTTP ${res.status} error:`, errorData);
+                    }
                 } catch (parseError) {
                     console.error(`[handleAction] ${action.type} - Failed to parse error response:`, parseError);
                     errorMessage = `서버 오류 (${res.status})`;
+                }
+                // 베이스 선호: 직후 틱이 단계를 넘기거나 이중 전송 시 400이 나올 수 있음 — 조용히 동기화만
+                if (baseStoneColorSubmitBenign400) {
+                    const gid = (action as { payload?: { gameId?: string } }).payload?.gameId;
+                    if (typeof gid === 'string' && gid.length > 0) {
+                        void handleAction({ type: 'REQUEST_GAME_STATE_SYNC', payload: { gameId: gid } } as ServerAction);
+                    }
+                    if (import.meta.env.DEV) {
+                        console.debug(`[handleAction] SUBMIT_BASE_STONE_COLOR_CHOICE benign HTTP 400:`, errorMessage);
+                    }
+                    revertPvpDicePlaceSnapshot();
+                    rollbackTowerAddTurnOptimistic();
+                    revertPveResignOptimistic();
+                    return {} as HandleActionResult;
                 }
                 // 401 에러는 특별 처리 (인증 문제)
                 if (res.status === 401) {
@@ -4649,6 +4870,11 @@ export const useApp = () => {
                     isPairHatcheryPetInventoryFullError(action, errorMessage)
                 ) {
                     // PairPetLobbyPanel 전용 모달로만 안내
+                } else if (
+                    typeof errorMessage === 'string' &&
+                    isChampionshipCompleteDungeonInventoryFullError(action, errorMessage)
+                ) {
+                    // TournamentBracket 전용 모달로만 안내
                 } else if (!shouldSuppressModalForKoPlaceStone(action, typeof errorMessage === 'string' ? errorMessage : '')) {
                     // 길드 정보는 백그라운드 동기화 성격이 강하고, 게이트웨이/DB 지연 시 502·504가 잦음 — 상단 연결 안내만으로 충분
                     const suppressGuildInfoModal =
@@ -4688,6 +4914,11 @@ export const useApp = () => {
                         isPairHatcheryPetInventoryFullError(action, errorMessage)
                     ) {
                         // PairPetLobbyPanel 전용 모달로만 안내
+                    } else if (
+                        typeof errorMessage === 'string' &&
+                        isChampionshipCompleteDungeonInventoryFullError(action, errorMessage)
+                    ) {
+                        // TournamentBracket 전용 모달로만 안내
                     } else if (!shouldSuppressModalForKoPlaceStone(action, typeof errorMessage === 'string' ? errorMessage : '')) {
                         showError(errorMessage);
                     }
@@ -4695,6 +4926,10 @@ export const useApp = () => {
                     rollbackTowerAddTurnOptimistic();
                     revertPveResignOptimistic();
                     return { error: errorMessage } as HandleActionResult;
+                }
+                if (action.type === 'EMERGENCY_EXIT') {
+                    // Settings 등이 해시를 바꾸기 전에 동기 설정 — Game.tsx hash 인터셉터가 기권 확인을 띄우지 않도록
+                    markSkipGameHashLeaveInterceptOnce();
                 }
                 if (action.type === 'RESIGN_GAME') {
                     pveResignOptimisticRevertRef.current = null;
@@ -5443,6 +5678,15 @@ export const useApp = () => {
                     
                     // USE_ITEM의 경우 obtainedItemsBulk가 있으면 result를 반환하여 모달에서 확인할 수 있도록 함
                     if (action.type === 'USE_ITEM') {
+                        if (result.clientResponse?.boxRewardSentToMail) {
+                            try {
+                                window.alert(
+                                    '가방(장비) 칸이 부족해 상자 보상을 우편으로 보냈습니다.\n우편함에서 수령해 주세요.',
+                                );
+                            } catch {
+                                /* ignore */
+                            }
+                        }
                         return result;
                     }
                 }
@@ -5794,6 +6038,7 @@ export const useApp = () => {
                         action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||
                         action.type === 'CONFIRM_AI_GAME_START' ||
                         action.type === 'CONFIRM_BASE_REVEAL' ||
+                        action.type === 'CONFIRM_CAPTURE_REVEAL' ||
                         action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' ||
                         action.type === 'SINGLE_PLAYER_SYNC_PENDING_STAGE' ||
                         action.type === 'SINGLE_PLAYER_ADMIN_JUMP_PENDING_STAGE' ||
@@ -5828,6 +6073,7 @@ export const useApp = () => {
                                 const shouldUpdate =
                                     action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||
                                     action.type === 'CONFIRM_BASE_REVEAL' ||
+                                    action.type === 'CONFIRM_CAPTURE_REVEAL' ||
                                     action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' ||
                                     action.type === 'SINGLE_PLAYER_SYNC_PENDING_STAGE' ||
                                     action.type === 'SINGLE_PLAYER_ADMIN_JUMP_PENDING_STAGE' ||
@@ -7378,6 +7624,15 @@ export const useApp = () => {
                                 const isPostTowerGameEndInventoryWs =
                                     lastHttpActionType.current === 'END_TOWER_GAME' &&
                                     Array.isArray(updatedCurrentUser.inventory);
+                                /** 컨디션 회복제 직후 WS(인벤·토너·던전 스냅샷) — HTTP 디바운스로 버리면 경기장 UI가 늦게 갱신됨 */
+                                const isPostUseConditionPotionSyncWs =
+                                    lastHttpActionType.current === 'USE_CONDITION_POTION' &&
+                                    (Array.isArray(updatedCurrentUser.inventory) ||
+                                        updatedCurrentUser.lastNeighborhoodTournament !== undefined ||
+                                        updatedCurrentUser.lastNationalTournament !== undefined ||
+                                        updatedCurrentUser.lastWorldTournament !== undefined ||
+                                        (updatedCurrentUser as { dungeonConditionSnapshot?: unknown }).dungeonConditionSnapshot !==
+                                            undefined);
 
                                 const hadHttpUpdate = lastHttpUpdateTime.current > 0;
                                 const httpUpdateHadUser = lastHttpHadUpdatedUser.current;
@@ -7386,6 +7641,7 @@ export const useApp = () => {
                                     if (
                                         !isPostExchangePurchaseInventoryWs &&
                                         !isPostTowerGameEndInventoryWs &&
+                                        !isPostUseConditionPotionSyncWs &&
                                         hadHttpUpdate &&
                                         httpUpdateHadUser &&
                                         timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS
@@ -7401,6 +7657,7 @@ export const useApp = () => {
                                     if (
                                         !isPostExchangePurchaseInventoryWs &&
                                         !isPostTowerGameEndInventoryWs &&
+                                        !isPostUseConditionPotionSyncWs &&
                                         hadHttpUpdate &&
                                         httpUpdateHadUser &&
                                         timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS * 2 &&
@@ -7835,6 +8092,15 @@ export const useApp = () => {
                                         if (shouldDropStaleStrategicGameUpdate(game, existingGame)) {
                                             return currentGames;
                                         }
+                                        if (shouldIgnoreBaseModeGameStatusRegression(game, existingGame)) {
+                                            if (process.env.NODE_ENV === 'development') {
+                                                console.warn(
+                                                    '[WebSocket] SinglePlayer: ignoring stale base pre-play GAME_UPDATE while local already past base flow',
+                                                    { gameId, incoming: game.gameStatus, local: existingGame?.gameStatus },
+                                                );
+                                            }
+                                            return currentGames;
+                                        }
                                         
                                         // 중요한 필드만 비교하여 빠른 early return (stableStringify 호출 전에)
                                         if (existingGame) {
@@ -8078,8 +8344,19 @@ export const useApp = () => {
                                                         mergedRevealed.push(p);
                                                 }
                                                 const mergedPendingCapture = game.pendingCapture ?? existingGame?.pendingCapture ?? null;
-                                                const mergedRevealAnimationEndTime = game.revealAnimationEndTime ?? existingGame?.revealAnimationEndTime;
-                                                const mergedAnimation = game.animation ?? existingGame?.animation ?? null;
+                                                let mergedRevealAnimationEndTime =
+                                                    game.revealAnimationEndTime ?? existingGame?.revealAnimationEndTime;
+                                                let mergedAnimation = game.animation ?? existingGame?.animation ?? null;
+                                                if (
+                                                    shouldKeepExistingHiddenRevealAnimationClock(
+                                                        existingGame,
+                                                        game as LiveGameSession,
+                                                    )
+                                                ) {
+                                                    mergedAnimation = existingGame.animation ?? mergedAnimation;
+                                                    mergedRevealAnimationEndTime =
+                                                        existingGame.revealAnimationEndTime ?? mergedRevealAnimationEndTime;
+                                                }
                                                 const mergedHiddenMoves = mergeHiddenMovesByStableHistory(game, existingGame);
                                                 const mergedAiInitialHiddenStone =
                                                     (game as any).aiInitialHiddenStone ?? (existingGame as any)?.aiInitialHiddenStone;
@@ -8271,19 +8548,33 @@ export const useApp = () => {
                                                 const wasScanningAnimating = existingGame?.gameStatus === 'scanning_animating';
                                                 const wasMissileAnimatingToPlaying =
                                                     existingGame?.gameStatus === 'missile_animating' && game.gameStatus === 'playing';
-                                                const serverBoardValid = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0 && game.boardState[0] && Array.isArray(game.boardState[0]);
+                                                const serverBoardStructural =
+                                                    !!(
+                                                        game.boardState &&
+                                                        Array.isArray(game.boardState) &&
+                                                        game.boardState.length > 0 &&
+                                                        game.boardState[0] &&
+                                                        Array.isArray(game.boardState[0])
+                                                    );
+                                                const serverBoardSubstantive =
+                                                    serverBoardStructural && boardGridHasAnyStones(game.boardState);
                                                 const serverMoveHistoryValid = game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0;
                                                 const existingBoardValid = existingGame?.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0;
+                                                const existingBoardSubstantive =
+                                                    !!existingBoardValid && boardGridHasAnyStones(existingGame?.boardState);
                                                 const existingMoveHistoryValid = existingGame?.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0;
                                                 const preserveBoardFromExisting =
-                                                    (wasScanningAnimating || wasMissileAnimatingToPlaying) && (!serverBoardValid && existingBoardValid);
+                                                    (wasScanningAnimating || wasMissileAnimatingToPlaying) &&
+                                                    (!serverBoardSubstantive && !!existingBoardValid);
                                                 const preserveMoveHistoryFromExisting =
                                                     (wasScanningAnimating || wasMissileAnimatingToPlaying) && (!serverMoveHistoryValid && existingMoveHistoryValid);
                                                 const finalBoardState = preserveBoardFromExisting
-                                                    ? existingGame.boardState
-                                                    : serverBoardValid
+                                                    ? existingGame!.boardState
+                                                    : serverBoardSubstantive
                                                       ? game.boardState
-                                                      : (existingGame?.boardState ?? game.boardState);
+                                                      : existingBoardSubstantive
+                                                        ? existingGame!.boardState
+                                                        : (existingGame?.boardState ?? game.boardState);
                                                 const finalMoveHistory = preserveMoveHistoryFromExisting ? existingGame.moveHistory : (serverMoveHistoryValid ? game.moveHistory : (existingGame?.moveHistory ?? game.moveHistory));
                                                 const existingRevealedGen = existingGame?.permanentlyRevealedStones ?? [];
                                                 const serverRevealedGen = game.permanentlyRevealedStones ?? [];
@@ -8434,8 +8725,17 @@ export const useApp = () => {
                                         if (shouldDropStaleStrategicGameUpdate(game, existingGame)) {
                                             return currentGames;
                                         }
-                                        
-                                        // 타워 게임은 클라이언트에서만 실행되므로, 
+                                        if (shouldIgnoreBaseModeGameStatusRegression(game, existingGame)) {
+                                            if (process.env.NODE_ENV === 'development') {
+                                                console.warn(
+                                                    '[WebSocket] Tower: ignoring stale base pre-play GAME_UPDATE while local already past base flow',
+                                                    { gameId, incoming: game.gameStatus, local: existingGame?.gameStatus },
+                                                );
+                                            }
+                                            return currentGames;
+                                        }
+
+                                        // 타워 게임은 클라이언트에서만 실행되므로,
                                         // 클라이언트의 로컬 상태가 더 최신이면 서버 상태를 무시
                                         if (existingGame) {
                                             const localMidGamePlaying =
@@ -8758,6 +9058,15 @@ export const useApp = () => {
                                     setLiveGames(currentGames => {
                                         const existingGame = currentGames[gameId];
                                         if (shouldDropStaleStrategicGameUpdate(game, existingGame)) {
+                                            return currentGames;
+                                        }
+                                        if (shouldIgnoreBaseModeGameStatusRegression(game, existingGame)) {
+                                            if (process.env.NODE_ENV === 'development') {
+                                                console.warn(
+                                                    '[WebSocket] Live: ignoring stale base pre-play GAME_UPDATE while local already past base flow',
+                                                    { gameId, incoming: game.gameStatus, local: existingGame?.gameStatus },
+                                                );
+                                            }
                                             return currentGames;
                                         }
                                         // 주사위/도둑: 소켓 패킷이 HTTP보다 늦거나 순서가 뒤바뀌면 낡은 상태로 덮어쓰지 않음
@@ -9790,6 +10099,16 @@ export const useApp = () => {
             liveGames[routeGameId] ||
             singlePlayerGames[routeGameId] ||
             towerGames[routeGameId];
+        // 싱글/타워 종료 후: recovery rejoin이 캐시·DB의 슬림 스냅샷으로 덮어 «초기화·턴 알림»이 나는 회귀 방지 (F5용 effect와 동일한 취지)
+        const isPveEndedNoRecoveryRejoin =
+            !!currentGame &&
+            (currentGame.gameCategory === 'singleplayer' ||
+                currentGame.isSinglePlayer ||
+                currentGame.gameCategory === 'tower') &&
+            (currentGame.gameStatus === 'ended' || currentGame.gameStatus === 'no_contest');
+        if (isCurrentlyViewingSameGame && isPveEndedNoRecoveryRejoin) {
+            return;
+        }
         const isLiveMatchNow =
             !!currentGame &&
             !['ended', 'no_contest', 'scoring', 'hidden_final_reveal', 'rematch_pending'].includes(
@@ -9811,6 +10130,15 @@ export const useApp = () => {
                     liveGamesRef.current[gid] ||
                     singlePlayerGamesRef.current[gid] ||
                     towerGamesRef.current[gid];
+                if (
+                    inStore &&
+                    (inStore.gameCategory === 'singleplayer' ||
+                        inStore.isSinglePlayer ||
+                        inStore.gameCategory === 'tower') &&
+                    (inStore.gameStatus === 'ended' || inStore.gameStatus === 'no_contest')
+                ) {
+                    return;
+                }
                 if (inStore && hasHydratedBoardGridForRejoin(inStore)) return;
 
                 const res = await fetch(getApiUrl('/api/game/rejoin'), {
@@ -9824,9 +10152,15 @@ export const useApp = () => {
                     const g = data.game as LiveGameSession;
                     const category = g.gameCategory || (g.isSinglePlayer ? 'singleplayer' : 'normal');
                     if (category === 'singleplayer') {
-                        setSinglePlayerGames(prev => ({ ...prev, [g.id]: g }));
+                        setSinglePlayerGames(prev => ({
+                            ...prev,
+                            [g.id]: mergePveRejoinResponseWithExistingBoard(prev[g.id], g),
+                        }));
                     } else if (category === 'tower') {
-                        setTowerGames(prev => ({ ...prev, [g.id]: g }));
+                        setTowerGames(prev => ({
+                            ...prev,
+                            [g.id]: mergePveRejoinResponseWithExistingBoard(prev[g.id], g),
+                        }));
                     } else {
                         setLiveGames(prev => ({ ...prev, [g.id]: g }));
                     }
@@ -9895,9 +10229,15 @@ export const useApp = () => {
                     const g = data.game as LiveGameSession;
                     const category = g.gameCategory || (g.isSinglePlayer ? 'singleplayer' : 'normal');
                     if (category === 'singleplayer') {
-                        setSinglePlayerGames(prev => ({ ...prev, [g.id]: g }));
+                        setSinglePlayerGames(prev => ({
+                            ...prev,
+                            [g.id]: mergePveRejoinResponseWithExistingBoard(prev[g.id], g),
+                        }));
                     } else if (category === 'tower') {
-                        setTowerGames(prev => ({ ...prev, [g.id]: g }));
+                        setTowerGames(prev => ({
+                            ...prev,
+                            [g.id]: mergePveRejoinResponseWithExistingBoard(prev[g.id], g),
+                        }));
                     } else {
                         setLiveGames(prev => ({ ...prev, [g.id]: g }));
                     }
@@ -9961,9 +10301,15 @@ export const useApp = () => {
                 if (g.gameStatus !== 'scoring' && g.gameStatus !== 'hidden_final_reveal') {
                     const category = g.gameCategory || (g.isSinglePlayer ? 'singleplayer' : 'normal');
                     if (category === 'singleplayer') {
-                        setSinglePlayerGames(prev => ({ ...prev, [g.id]: g }));
+                        setSinglePlayerGames(prev => ({
+                            ...prev,
+                            [g.id]: mergePveRejoinResponseWithExistingBoard(prev[g.id], g),
+                        }));
                     } else if (category === 'tower') {
-                        setTowerGames(prev => ({ ...prev, [g.id]: g }));
+                        setTowerGames(prev => ({
+                            ...prev,
+                            [g.id]: mergePveRejoinResponseWithExistingBoard(prev[g.id], g),
+                        }));
                     } else {
                         setLiveGames(prev => ({ ...prev, [g.id]: g }));
                     }
@@ -10330,6 +10676,7 @@ export const useApp = () => {
         unreadMailCount,
         hasClaimableQuest,
         hasClaimableExchangeSettlement,
+        hasClaimablePairPetTrainingOrHatchery,
         settings,
         isNarrowViewport,
         isNativeMobile,
@@ -10350,7 +10697,7 @@ export const useApp = () => {
         specialStatBonuses,
         aggregatedMythicStats,
         modals: {
-            isSettingsModalOpen, isInventoryOpen, isMailboxOpen, isQuestsOpen, isShopOpen, isExchangeOpen, shopInitialTab, lastUsedItemResult, pairPetDetailModal,
+            isSettingsModalOpen, isPetManagementModalOpen, isAdventureMonsterCodexModalOpen, isInventoryOpen, isMailboxOpen, isQuestsOpen, isShopOpen, isExchangeOpen, shopInitialTab, lastUsedItemResult, pairPetDetailModal,
             disassemblyResult, craftResult, rewardSummary, viewingUser, isInfoModalOpen, isAnnouncementsModalOpen, isRankingQuickModalOpen, isChatQuickModalOpen, isEncyclopediaOpen, isStatAllocationModalOpen, enhancementAnimationTarget,
             isGameRecordListOpen, viewingGameRecord,
             pastRankingsInfo, viewingItem, isProfileEditModalOpen, moderatingUser,
@@ -10384,6 +10731,10 @@ export const useApp = () => {
             applyPreset,
             openSettingsModal: () => setIsSettingsModalOpen(true),
             closeSettingsModal: () => setIsSettingsModalOpen(false),
+            openPetManagementModal: () => setIsPetManagementModalOpen(true),
+            closePetManagementModal: () => setIsPetManagementModalOpen(false),
+            openAdventureMonsterCodexModal: () => setIsAdventureMonsterCodexModalOpen(true),
+            closeAdventureMonsterCodexModal: () => setIsAdventureMonsterCodexModalOpen(false),
             openInventory: () => setIsInventoryOpen(true),
             closeInventory: () => setIsInventoryOpen(false),
             openMailbox: () => setIsMailboxOpen(true),
@@ -10429,7 +10780,10 @@ export const useApp = () => {
             openInfoModal: () => setIsInfoModalOpen(true),
             closeInfoModal: () => setIsInfoModalOpen(false),
             openAnnouncementsModal: () => setIsAnnouncementsModalOpen(true),
-            closeAnnouncementsModal: () => setIsAnnouncementsModalOpen(false),
+            closeAnnouncementsModal: () => {
+                markAllHomeBoardPostsReadFromRef();
+                setIsAnnouncementsModalOpen(false);
+            },
             markHomeBoardPostRead,
             openRankingQuickModal: () => setIsRankingQuickModalOpen(true),
             closeRankingQuickModal: () => setIsRankingQuickModalOpen(false),

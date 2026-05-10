@@ -139,7 +139,14 @@ export function getSelectiveUserUpdate(
         'CLAIM_SINGLE_PLAYER_CLASS_BAR_REWARD': ['inventory', 'singlePlayerClassBarClaims'],
         
         // 토너먼트 관련
-        'USE_CONDITION_POTION': ['inventory', 'gold', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament'],
+        'USE_CONDITION_POTION': [
+            'inventory',
+            'gold',
+            'dungeonConditionSnapshot',
+            'lastNeighborhoodTournament',
+            'lastNationalTournament',
+            'lastWorldTournament',
+        ],
         'START_TOURNAMENT_SESSION': ['lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament', 'actionPoints'],
         'START_TOURNAMENT_ROUND': ['lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament'],
         'ADMIN_RESET_TOURNAMENT_SESSION': ['lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament', 'dungeonProgress'],

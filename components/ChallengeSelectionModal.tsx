@@ -525,27 +525,21 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
           paddingRight: `${Math.max(4, Math.round(6 * scaleFactor))}px`,
         }}
       >
-        {showMixModeSelection && (() => {
-          const isBaseSel = mix.includes(GameMode.Base);
-          const isCapSel = mix.includes(GameMode.Capture);
-          return (
+        {showMixModeSelection && (
             <SettingsSection title="믹스룰 조합 (2개 이상)" scaleFactor={scaleFactor}>
               <p className="mb-2 text-gray-500" style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor))}px`, lineHeight: 1.35 }}>
                 클래식 바둑은 기본 포함입니다. 함께 쓸 규칙을 고릅니다.
               </p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {SPECIAL_GAME_MODES.filter((m) => m.mode !== GameMode.Standard && m.mode !== GameMode.Mix).map((m) => {
-                  const conflict =
-                    (m.mode === GameMode.Base && isCapSel) || (m.mode === GameMode.Capture && isBaseSel);
                   return (
                     <label
                       key={m.mode}
-                      className={`flex items-center gap-2 rounded-md bg-gray-700/50 p-2 ${conflict ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                      className="flex cursor-pointer items-center gap-2 rounded-md bg-gray-700/50 p-2"
                     >
                       <input
                         type="checkbox"
                         checked={mix.includes(m.mode)}
-                        disabled={conflict}
                         onChange={(e) => handleMixedModeChange(m.mode, e.target.checked)}
                         className="h-4 w-4 shrink-0"
                       />
@@ -562,8 +556,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 </p>
               )}
             </SettingsSection>
-          );
-        })()}
+        )}
 
         <SettingsSection title="바둑판·계가·덤·따내기" scaleFactor={scaleFactor}>
         {showBoardSize && (

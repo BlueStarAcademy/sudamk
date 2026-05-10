@@ -33,28 +33,29 @@ const GRADE_RING: Record<PotionInfo['grade'], string> = {
     rare: 'border bg-gradient-to-b border-amber-400/55 from-amber-950/90 to-slate-950 text-amber-100',
 };
 
+/** 서버 tournamentActions USE_CONDITION_POTION과 동일한 수치(표시·낙관적 UI 일치) */
 const POTION_TYPES: Record<PotionType, PotionInfo> = {
     small: {
         name: '컨디션회복제(소)',
         image: '/images/use/con1.png',
-        minRecovery: 1,
-        maxRecovery: 10,
+        minRecovery: 5,
+        maxRecovery: 15,
         price: 100,
         grade: 'normal'
     },
     medium: {
         name: '컨디션회복제(중)',
         image: '/images/use/con2.png',
-        minRecovery: 10,
-        maxRecovery: 20,
+        minRecovery: 15,
+        maxRecovery: 25,
         price: 150,
         grade: 'uncommon'
     },
     large: {
         name: '컨디션회복제(대)',
         image: '/images/use/con3.png',
-        minRecovery: 20,
-        maxRecovery: 30,
+        minRecovery: 25,
+        maxRecovery: 35,
         price: 200,
         grade: 'rare'
     }
@@ -88,6 +89,9 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
     const [showConditionIncrease, setShowConditionIncrease] = useState(false);
     const [conditionIncreaseAmount, setConditionIncreaseAmount] = useState(0);
     const prevConditionRef = useRef<number>(currentCondition);
+    /** HTTP 응답 전에도 보유 수·컨디션 바가 즉시 반응하도록(서버 확정값은 updateTrigger로 동기화) */
+    const [optimisticPotionDelta, setOptimisticPotionDelta] = useState<Partial<Record<PotionType, number>>>({});
+    const [optimisticConditionAdd, setOptimisticConditionAdd] = useState(0);
 
     // 상점을 닫고 돌아올 때(구매 직후 포함) 보유 수·골드 UI가 남는 경우 방지
     useEffect(() => {
@@ -96,6 +100,11 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
         }
         prevShopOpenRef.current = isShopOpen;
     }, [isShopOpen]);
+
+    useEffect(() => {
+        setOptimisticPotionDelta({});
+        setOptimisticConditionAdd(0);
+    }, [updateTrigger, currentUser?.id, shopCloseRefreshNonce]);
 
     // 컨디션 변화 감지 및 애니메이션 트리거
     useEffect(() => {
@@ -128,13 +137,21 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                     counts.large += item.quantity || 1;
                 }
             });
+        (['small', 'medium', 'large'] as PotionType[]).forEach((t) => {
+            const d = optimisticPotionDelta[t];
+            if (d) counts[t] = Math.max(0, counts[t] + d);
+        });
         return counts;
-    }, [currentUser, updateTrigger, shopCloseRefreshNonce]);
+    }, [currentUser, updateTrigger, shopCloseRefreshNonce, optimisticPotionDelta]);
 
-    // 선택한 회복제의 예상 회복량 계산
+    const displayCondition =
+        currentCondition === 1000 ? 1000 : Math.min(100, currentCondition + optimisticConditionAdd);
+
+    // 선택한 회복제의 예상 회복량 계산(서버 확정 `currentCondition` 기준 — 낙관적 표시 수치와 1틱 어긋날 수 있음)
     const expectedRecovery = useMemo(() => {
         if (!selectedPotionType) return null;
         const potion = POTION_TYPES[selectedPotionType];
+        if (currentCondition === 1000) return null;
         const minAfter = Math.min(100, currentCondition + potion.minRecovery);
         const maxAfter = Math.min(100, currentCondition + potion.maxRecovery);
         return { min: minAfter, max: maxAfter, avg: Math.floor((minAfter + maxAfter) / 2) };
@@ -154,7 +171,16 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
             // 창을 닫지 않음 (구매 후 돌아올 수 있도록)
             return;
         }
-        
+
+        const potion = POTION_TYPES[selectedPotionType];
+        setOptimisticPotionDelta((prev) => ({
+            ...prev,
+            [selectedPotionType]: (prev[selectedPotionType] ?? 0) - 1,
+        }));
+        if (currentCondition !== 1000) {
+            setOptimisticConditionAdd((a) => Math.min(100 - currentCondition, a + potion.minRecovery));
+        }
+
         onConfirm(selectedPotionType);
     };
 
@@ -301,7 +327,7 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                                 isNativeMobile ? 'text-xl' : 'text-2xl'
                             } ${showConditionIncrease ? 'scale-110 text-emerald-300' : ''}`}
                         >
-                            {currentCondition === 1000 ? '—' : currentCondition}
+                            {displayCondition === 1000 ? '—' : displayCondition}
                         </span>
                         {showConditionIncrease && conditionIncreaseAmount > 0 && (
                             <span

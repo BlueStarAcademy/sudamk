@@ -39,6 +39,7 @@ function modeIncludesCaptureRule(mode: GameMode, settings: { mixedModes?: GameMo
     return mode === GameMode.Capture || (mode === GameMode.Mix && Boolean(settings.mixedModes?.includes(GameMode.Capture)));
 }
 import { getEffectivePairLobbyOwnerId } from './shared/utils/effectivePairLobbyOwnerId.js';
+import { resolveBasePlacementSeatColors } from './shared/utils/basePlacementSeatColors.js';
 import GuildWarHiddenTowerControls from './components/game/GuildWarHiddenTowerControls.js';
 import GuildWarTowerSidebar from './components/game/GuildWarTowerSidebar.js';
 import PairPetRpsBadge from './components/pair/PairPetRpsBadge.js';
@@ -51,7 +52,7 @@ import Button from './components/Button.js';
 import ToggleSwitch from './components/ui/ToggleSwitch.js';
 import { DraggableMoveConfirmPanel } from './components/game/DraggableMoveConfirmPanel.js';
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
-import { replaceAppHash } from './utils/appUtils.js';
+import { consumeSkipGameHashLeaveInterceptOnce, replaceAppHash } from './utils/appUtils.js';
 import { getAdventureMapWebpPath } from './constants/adventureConstants.js';
 import { InGameModalLayoutProvider } from './contexts/InGameModalLayoutContext.js';
 import {
@@ -99,7 +100,8 @@ function boardGridStructureHydrated(board: Player[][] | undefined | null): boole
 
 function boardHasAnyPlacedStone(board: Player[][] | undefined | null): boolean {
     if (!boardGridStructureHydrated(board)) return false;
-    return board.some(
+    const hydratedBoard = board as Player[][];
+    return hydratedBoard.some(
         (row) =>
             row &&
             Array.isArray(row) &&
@@ -359,7 +361,10 @@ function getPairMoveCountDisplay(session: LiveGameSession): { label: string; pri
     const moveHistory = session.moveHistory ?? [];
     const moveCount = moveHistory.length;
     const limit = session.settings?.scoringTurnLimit;
-    if (session.mode === GameMode.Capture) {
+    const captureRuleActive =
+        session.mode === GameMode.Capture ||
+        (session.mode === GameMode.Mix && Boolean(session.settings?.mixedModes?.includes(GameMode.Capture)));
+    if (captureRuleActive) {
         return { label: '수순', primary: moveCount };
     }
     if (limit != null && limit > 0) {
@@ -1569,6 +1574,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             if (PLAYFUL_GAME_MODES.some(m => m.mode === mode)) return Player.Black;
             return Player.None;
         }
+        const isBaseMode =
+            mode === GameMode.Base ||
+            (mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Base)));
+        /** 베이스 임시 좌석 단계: GoBoard·서버는 `basePlacementBlackPlayerId` 기준 색을 쓰므로 여기도 동일해야 베이스돌 오버레이가 보인다 */
+        const isBaseTempSeatPhase =
+            isBaseMode &&
+            (gameStatus === 'base_placement' ||
+                gameStatus === 'base_stone_color_choice' ||
+                gameStatus === 'base_same_color_points_bid');
+        if (isBaseTempSeatPhase) {
+            const { baseStonesP1Player, baseStonesP2Player } = resolveBasePlacementSeatColors(session);
+            if (currentUser.id === player1.id) return baseStonesP1Player;
+            if (currentUser.id === player2.id) return baseStonesP2Player;
+        }
         if (blackPlayerId === currentUser.id) return Player.Black;
         if (whitePlayerId === currentUser.id) return Player.White;
         const pairTurnOrder = session.settings.pairGame?.turnOrder;
@@ -1577,11 +1596,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 ? pairTurnOrder.find((seat) => pairSeatMatchesViewerUser(seat, currentUser.id))
                 : undefined;
         if (pairSeat) return pairSeat.player;
-        if ((mode === GameMode.Base || (mode === GameMode.Mix && session.settings.mixedModes?.includes(GameMode.Base))) && gameStatus === 'base_placement') {
-             return currentUser.id === player1.id ? Player.Black : Player.White;
-        }
         return Player.None;
-    }, [currentUser.id, blackPlayerId, whitePlayerId, isSpectator, mode, gameStatus, player1.id, player2.id, session.settings.mixedModes, session.settings.pairGame?.turnOrder]);
+    }, [
+        currentUser.id,
+        blackPlayerId,
+        whitePlayerId,
+        isSpectator,
+        mode,
+        gameStatus,
+        player1.id,
+        player2.id,
+        session.settings.mixedModes,
+        session.settings.pairGame?.turnOrder,
+        session.basePlacementBlackPlayerId,
+    ]);
 
     const pendingMoveForBoard = useMemo(() => {
         if (!settings.features.moveConfirmButtonBox || !settings.features.mobileConfirm || !pendingMove) return null;
@@ -3218,6 +3246,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
         const interceptBackNavigation = () => {
             if (window.location.hash === gameHash) return;
+            // 비상탈출 등: 서버가 이미 종료·기권패 처리한 뒤 홈으로 보낼 때는 인터셉트하지 않음
+            if (consumeSkipGameHashLeaveInterceptOnce()) return;
             // 뒤로가기로 경기장을 벗어나려는 경우, 화면은 유지하고 기권/나가기 확인 흐름을 재사용한다.
             replaceAppHash(gameHash);
             handleLeaveOrResignClick();
@@ -3626,48 +3656,26 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return;
         }
 
-        // 디버깅: AI 차례 판단 로그 (도전의 탑/싱글/길드전에서 상세하게)
-        if ((isTower || session.isSinglePlayer || isGuildWarGame) && (currentPlayer === Player.Black || currentPlayer === Player.White)) {
-            const logData = {
+        // 디버깅: AI 차례 판단 (베이스 선호/동색 덤 이후 흑백 좌석은 바뀔 수 있음 — 흑=유저·백=AI 가정은 하지 않음)
+        if (
+            import.meta.env.DEV &&
+            (isTower || session.isSinglePlayer || isGuildWarGame) &&
+            (currentPlayer === Player.Black || currentPlayer === Player.White)
+        ) {
+            const currentSeatId = currentPlayer === Player.Black ? session.blackPlayerId : session.whitePlayerId;
+            console.log(`[Game] ${isTower ? 'Tower' : isGuildWarGame ? 'Guild war' : 'Single player'} AI turn check:`, {
                 gameId: session.id,
                 gameCategory: session.gameCategory,
-                isTower,
-                isSinglePlayer: session.isSinglePlayer,
                 currentPlayer,
-                'currentPlayer === Player.White': currentPlayer === Player.White,
-                'currentPlayer === Player.Black': currentPlayer === Player.Black,
+                currentSeatId,
                 aiPlayerId,
-                AI_USER_ID,
-                'aiPlayerId === AI_USER_ID': aiPlayerId === AI_USER_ID,
                 isAiTurn,
                 blackPlayerId: session.blackPlayerId,
                 whitePlayerId: session.whitePlayerId,
-                'whitePlayerId === AI_USER_ID': session.whitePlayerId === AI_USER_ID,
-                'blackPlayerId === AI_USER_ID': session.blackPlayerId === AI_USER_ID,
                 gameStatus,
                 lastAiMove: lastAiMoveRef.current,
-                moveHistoryLength: session.moveHistory?.length || 0
-            };
-            const gameLabel = isTower ? 'Tower' : isGuildWarGame ? 'Guild war' : 'Single player';
-            console.log(`[Game] ${gameLabel} AI turn check:`, logData);
-            if (currentPlayer === Player.White && session.whitePlayerId !== AI_USER_ID) {
-                console.error(`[Game] MISMATCH: Current player is White but whitePlayerId is not AI_USER_ID!`, {
-                    whitePlayerId: session.whitePlayerId,
-                    AI_USER_ID,
-                    blackPlayerId: session.blackPlayerId,
-                    gameCategory: session.gameCategory,
-                    isSinglePlayer: session.isSinglePlayer
-                });
-            }
-            // 싱글플레이에서는 blackPlayerId가 유저 ID여야 하고, whitePlayerId가 AI_USER_ID여야 함
-            if (currentPlayer === Player.Black && session.blackPlayerId !== currentUser.id && session.isSinglePlayer) {
-                console.error(`[Game] MISMATCH: Single player - Current player is Black but blackPlayerId is not current user!`, {
-                    blackPlayerId: session.blackPlayerId,
-                    whitePlayerId: session.whitePlayerId,
-                    AI_USER_ID,
-                    currentUserId: currentUser.id
-                });
-            }
+                moveHistoryLength: session.moveHistory?.length || 0,
+            });
         }
 
         if (isAiTurn) {

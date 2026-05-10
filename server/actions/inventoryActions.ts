@@ -1,6 +1,19 @@
 import { randomUUID } from 'crypto';
 import * as db from '../db.js';
-import { type ServerAction, type User, type VolatileState, InventoryItem, ItemOption, EquipmentSlot, CoreStat, SpecialStat, MythicStat, type BorderInfo, type ChatMessage } from '../../types/index.js';
+import {
+    type ServerAction,
+    type User,
+    type VolatileState,
+    InventoryItem,
+    ItemOption,
+    EquipmentSlot,
+    CoreStat,
+    SpecialStat,
+    MythicStat,
+    type BorderInfo,
+    type ChatMessage,
+    type Mail,
+} from '../../types/index.js';
 import { ItemGrade } from '../../types/enums.js';
 import { broadcast } from '../socket.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
@@ -33,12 +46,14 @@ import {
     BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL,
     calculateEnhancementGoldCost,
     MAIN_ENHANCEMENT_STEP_MULTIPLIER,
+    isRefinementTicketMaterial,
 } from '../../constants/index.js';
 import { mythicStatPoolForItemGrade } from '../../shared/utils/specialOptionGearEffects.js';
 import { isPairEggItem, isPairPetMaterial } from '../../shared/constants/petLobby.js';
 import { reconcileEquippedPairPetInventoryItem } from '../../shared/utils/pairEquippedPet.js';
 import { isItemIdInPairTraining, normalizePairPetTrainingSlots } from '../../shared/constants/pairTraining.js';
 import { maxExchangeListPrice } from '../../shared/constants/numericLimits.js';
+import { sellGoldTenPercentOfShopGold } from '../../shared/constants/shopSellGoldReference.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 import { exchangeListingFeeFromPrice } from '../../shared/utils/gameIntegerField.js';
 import {
@@ -52,6 +67,11 @@ import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
 import { SHOP_ITEMS, createItemFromTemplate } from '../shop.js';
 import { updateQuestProgress } from '../questService.js';
 import { addItemsToInventory as addItemsToInventoryUtil } from '../../utils/inventoryUtils.js';
+import {
+    canonicalShopConsumableBoxKey,
+    inventoryStacksMatchConsumableBulkAnchor,
+    normalizeBoxItemName,
+} from '../../utils/itemTemplateLookup.js';
 import { resolveCurrencyBundleConsumableKey } from '../../shared/utils/currencyBundleConsumable.js';
 import {
     applySuccessfulEnhancementTick,
@@ -420,28 +440,14 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             
             // itemId로 찾지 못한 경우, itemName으로 찾기 (골드 꾸러미 등 이름 변형 대응)
             if (itemIndex === -1 && itemName) {
-                // 아이템 이름 정규화 함수 (장비상자1 -> 장비 상자 I 등)
+                // 상점·보상 ID·장비상자III 등 — `normalizeBoxItemName`으로 표준 표기 통일 후 비교
                 const normalizeItemNameForSearch = (name: string): string => {
-                    const numToRoman: Record<string, string> = {
-                        '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI'
-                    };
-                    
-                    let normalized = name;
-                    // 장비상자/재료상자 숫자를 로마숫자로 변환
-                    normalized = normalized.replace(/장비상자(\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
-                    normalized = normalized.replace(/재료상자(\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
-                    normalized = normalized.replace(/장비 상자(\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
-                    normalized = normalized.replace(/재료 상자(\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
-                    normalized = normalized.replace(/장비 상자 (\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
-                    normalized = normalized.replace(/재료 상자 (\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
-                    
-                    // 골드/다이아 꾸러미 처리
+                    let normalized = normalizeBoxItemName(name);
                     if (normalized.startsWith('골드꾸러미')) {
                         normalized = normalized.replace('골드꾸러미', '골드 꾸러미');
                     } else if (normalized.startsWith('다이아꾸러미')) {
                         normalized = normalized.replace('다이아꾸러미', '다이아 꾸러미');
                     }
-                    
                     return normalized.trim();
                 };
                 
@@ -452,7 +458,9 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                     if (!i) return false;
                     const isMaterialUsableByName =
                         i.type === 'material' && (i.name === '거래 등록권' || i.name === '제련의 부적');
-                    if (i.type !== 'consumable' && !isMaterialUsableByName) return false;
+                    const isMisstoredConsumableStack =
+                        i.type === 'material' && itemName && inventoryStacksMatchConsumableBulkAnchor(itemName, i);
+                    if (i.type !== 'consumable' && !isMaterialUsableByName && !isMisstoredConsumableStack) return false;
                     const itemNameNormalized = normalizeItemNameForSearch(i.name);
                     const nameMatch = (
                         i.name === itemName || i.name === normalizedName ||
@@ -485,16 +493,35 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 console.error(`[USE_ITEM] Item at index ${itemIndex} is null/undefined for user ${user.id}`);
                 return { error: '아이템 데이터가 손상되었습니다.' };
             }
+            // 인벤 표기 오류(이중 공백·전각 공백 등) — 상자/상점 키와 동일한 표준 이름으로 슬롯 정규화
+            const shopBoxCanonicalName = canonicalShopConsumableBoxKey(item.name || '');
+            const matchesKnownShopBox = Object.values(SHOP_ITEMS).some(
+                (v) => v.name === shopBoxCanonicalName && (v.type === 'equipment' || v.type === 'material'),
+            );
+            if (matchesKnownShopBox && item.name !== shopBoxCanonicalName) {
+                user.inventory[itemIndex] = { ...item, name: shopBoxCanonicalName };
+                item = user.inventory[itemIndex]!;
+            }
             const isTradeListingTicketMaterial = item.type === 'material' && item.name === '거래 등록권';
             const isRefinementCharmMaterial = item.type === 'material' && item.name === '제련의 부적';
-            if (item.type !== 'consumable' && !isTradeListingTicketMaterial && !isRefinementCharmMaterial) return { error: '사용할 수 없는 아이템입니다.' };
+            const openableShopBoxEntry = Object.values(SHOP_ITEMS).find(
+                (v) =>
+                    v.name === canonicalShopConsumableBoxKey(item.name || '') &&
+                    (v.type === 'equipment' || v.type === 'material'),
+            );
+            const allowMisstoredMaterialShopBox = item.type === 'material' && !!openableShopBoxEntry;
+            if (
+                item.type !== 'consumable' &&
+                !isTradeListingTicketMaterial &&
+                !isRefinementCharmMaterial &&
+                !allowMisstoredMaterialShopBox
+            ) {
+                return { error: '사용할 수 없는 아이템입니다.' };
+            }
 
-            // 변경권 사용 시 대장간 제련 탭으로 이동하도록 플래그 설정
-            const isRefinementTicket = item.name === '옵션 종류 변경권' || 
-                                      item.name === '옵션 수치 변경권' || 
-                                      item.name === '스페셜 옵션 변경권' ||
-                                      item.name === '신화 옵션 변경권';
-            
+            // 변경권 사용 시 대장간 제련 탭으로 이동하도록 플래그 설정 (공백 변형 포함)
+            const isRefinementTicket = isRefinementTicketMaterial(item.name);
+
             if (isRefinementTicket) {
                 // 변경권은 실제로 소모하지 않고, 대장간 제련 탭으로 이동하도록 클라이언트에 알림
                 return { 
@@ -520,10 +547,9 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                               (!isTowerOnlyItemName(item.name) || !isTowerSource(i)),
                       )
                     : user.inventory.filter(
-                          i =>
+                          (i) =>
                               i &&
-                              i.name === item.name &&
-                              i.type === 'consumable' &&
+                              inventoryStacksMatchConsumableBulkAnchor(item.name, i) &&
                               (!isTowerOnlyItemName(item.name) || !isTowerSource(i)),
                       );
             const totalAvailableQuantity = isCurrencyBundleBulk
@@ -801,26 +827,11 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 return { clientResponse: { obtainedItemsBulk: obtainedItems, updatedUser } };
             }
             
-            // 아이템 이름을 표준 형식으로 변환 (장비상자1 -> 장비 상자 I)
-            const normalizeItemNameForShop = (name: string): string => {
-                const numToRoman: Record<string, string> = {
-                    '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI'
-                };
-                let normalized = (name || '').replace(/\s+/g, ' ').trim();
-                normalized = normalized.replace(/장비상자(\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
-                normalized = normalized.replace(/재료상자(\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
-                normalized = normalized.replace(/장비 상자(\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
-                normalized = normalized.replace(/재료 상자(\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
-                normalized = normalized.replace(/장비 상자 (\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
-                normalized = normalized.replace(/재료 상자 (\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
-                return normalized.trim();
-            };
-
-            normalizedItemName = normalizeItemNameForShop(item.name);
-            let shopItemKey = Object.keys(SHOP_ITEMS).find(key => SHOP_ITEMS[key as keyof typeof SHOP_ITEMS].name === item.name);
-            if (!shopItemKey) {
-                shopItemKey = Object.keys(SHOP_ITEMS).find(key => SHOP_ITEMS[key as keyof typeof SHOP_ITEMS].name === normalizedItemName);
-            }
+            normalizedItemName = canonicalShopConsumableBoxKey(item.name);
+            let shopItemKey = Object.keys(SHOP_ITEMS).find((key) => {
+                const n = SHOP_ITEMS[key as keyof typeof SHOP_ITEMS].name;
+                return n === item.name || n === normalizedItemName;
+            });
             if (!shopItemKey) return { error: '알 수 없는 아이템입니다.' };
             
             const shopItem = SHOP_ITEMS[shopItemKey as keyof typeof SHOP_ITEMS];
@@ -844,8 +855,10 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             for (let i = 0; i < user.inventory.length; i++) {
                 const invItem = user.inventory[i];
                 
-                // 같은 이름의 소모품인지 확인하고, 아직 제거할 수량이 남아있는 경우 (도전의 탑 전용은 비탑만 제거)
-                const canRemove = invItem.name === item.name && invItem.type === 'consumable' && remainingToRemove > 0 &&
+                // 동일 소모품 스택(표기·material 오저장 포함), 도전의 탑 전용은 비탑만 제거
+                const canRemove =
+                    remainingToRemove > 0 &&
+                    inventoryStacksMatchConsumableBulkAnchor(normalizedItemName, invItem) &&
                     (!isTowerOnlyItemName(invItem.name) || !isTowerSource(invItem));
                 if (canRemove) {
                     const itemQuantity = invItem.quantity || 1;
@@ -877,8 +890,53 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             console.log(`[USE_ITEM] Removal complete: remainingToRemove=${remainingToRemove}, tempInventoryLength=${tempInventoryAfterUse.length}, originalLength=${user.inventory.length}`);
 
             const { success, finalItemsToAdd } = addItemsToInventoryUtil(tempInventoryAfterUse, user.inventorySlots, allObtainedItems);
-            if (!success) return { error: '인벤토리 공간이 부족합니다.' };
-            
+            if (!success) {
+                const eqSlots = user.inventorySlots?.equipment ?? 0;
+                const eqUsed = tempInventoryAfterUse.filter((i) => i && i.type === 'equipment').length;
+                console.warn(
+                    `[USE_ITEM] Box reward did not fit in bag (user=${user.id}, key=${shopItemKey}, type=${shopItem.type}, equipment=${eqUsed}/${eqSlots}, rewards=${allObtainedItems.length}) — consuming box and sending mail`,
+                );
+                user.inventory = [...tempInventoryAfterUse];
+                if (!user.mail) user.mail = [];
+                const mail: Mail = {
+                    id: `mail-box-overflow-${randomUUID()}`,
+                    from: '시스템',
+                    title: `${shopItem.name} 보상`,
+                    message:
+                        shopItem.type === 'equipment'
+                            ? '장비 칸이 가득 차 상자 보상이 우편으로 지급되었습니다. 우편함에서 수령해 주세요.'
+                            : '가방 칸이 부족하여 상자 보상이 우편으로 지급되었습니다. 우편함에서 수령해 주세요.',
+                    attachments: {
+                        items: JSON.parse(JSON.stringify(allObtainedItems)) as InventoryItem[],
+                    },
+                    receivedAt: Date.now(),
+                    isRead: false,
+                    attachmentsClaimed: false,
+                };
+                user.mail.unshift(mail);
+
+                if (shopItem.type === 'equipment') {
+                    recordAchievementBoxOpens(user, 'equipment', useQuantity);
+                } else if (shopItem.type === 'material') {
+                    recordAchievementBoxOpens(user, 'material', useQuantity);
+                }
+                await guildService.recordGuildEpicPlusEquipmentAcquisition(user, allObtainedItems);
+
+                const updatedUser = getSelectiveUserUpdate(user, 'USE_ITEM', { includeAll: true });
+                db.updateUser(user).catch((err) => {
+                    console.error(`[USE_ITEM] Failed to save user ${user.id} (box→mail):`, err);
+                });
+                const { broadcastUserUpdate } = await import('../socket.js');
+                broadcastUserUpdate(user, ['inventory', 'quests', 'mail']);
+                return {
+                    clientResponse: {
+                        obtainedItemsBulk: allObtainedItems,
+                        updatedUser,
+                        boxRewardSentToMail: true,
+                    },
+                };
+            }
+
             // 새 배열 생성 (성능 최적화)
             user.inventory = [...tempInventoryAfterUse, ...finalItemsToAdd];
 
@@ -907,31 +965,23 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
         
         case 'USE_ALL_ITEMS_OF_TYPE': {
             const { itemName } = payload;
-            
-            // 아이템 이름을 표준 형식으로 변환 (장비상자1 -> 장비 상자 I)
-            const normalizeItemNameForShop = (name: string): string => {
-                const numToRoman: Record<string, string> = {
-                    '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI'
-                };
-                let normalized = (name || '').replace(/\s+/g, ' ').trim();
-                normalized = normalized.replace(/장비상자(\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
-                normalized = normalized.replace(/재료상자(\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
-                normalized = normalized.replace(/장비 상자(\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
-                normalized = normalized.replace(/재료 상자(\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
-                normalized = normalized.replace(/장비 상자 (\d)/g, (match, num) => `장비 상자 ${numToRoman[num] || num}`);
-                normalized = normalized.replace(/재료 상자 (\d)/g, (match, num) => `재료 상자 ${numToRoman[num] || num}`);
-                return normalized.trim();
-            };
 
-            const normalizedItemName = normalizeItemNameForShop(itemName);
-            
-            // 인벤토리에서 아이템 찾기 (원본 이름과 정규화된 이름 모두 시도)
-            const itemsToUse = user.inventory.filter(i => 
-                i.type === 'consumable' && (
-                    i.name === itemName || 
-                    i.name === normalizedItemName ||
-                    normalizeItemNameForShop(i.name) === normalizedItemName
-                )
+            const isTowerOnlyItemNameUseAll = (name: string): boolean => {
+                if (!name || typeof name !== 'string') return false;
+                const n = name.trim();
+                return ['턴 추가', '턴증가', '미사일', '히든', '스캔', '배치 새로고침', '배치변경'].includes(n) ||
+                    ['turn_add', 'turn_add_item', 'addturn', 'missile', 'hidden', 'scan', 'reflesh', 'refresh'].includes(n);
+            };
+            const isTowerSourceUseAll = (inv: InventoryItem): boolean =>
+                (inv as InventoryItem & { source?: string }).source === 'tower';
+
+            const normalizedItemName = canonicalShopConsumableBoxKey(itemName);
+
+            const itemsToUse = user.inventory.filter(
+                (i) =>
+                    i &&
+                    inventoryStacksMatchConsumableBulkAnchor(itemName, i) &&
+                    (!isTowerOnlyItemNameUseAll(i.name) || !isTowerSourceUseAll(i)),
             );
             if (itemsToUse.length === 0) return { error: '사용할 아이템이 없습니다.' };
 
@@ -940,10 +990,10 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             let totalGoldGained = 0;
             let totalDiamondsGained = 0;
 
-            let shopItemKey = Object.keys(SHOP_ITEMS).find(key => SHOP_ITEMS[key as keyof typeof SHOP_ITEMS].name === itemName);
-            if (!shopItemKey) {
-                shopItemKey = Object.keys(SHOP_ITEMS).find(key => SHOP_ITEMS[key as keyof typeof SHOP_ITEMS].name === normalizedItemName);
-            }
+            let shopItemKey = Object.keys(SHOP_ITEMS).find((key) => {
+                const n = SHOP_ITEMS[key as keyof typeof SHOP_ITEMS].name;
+                return n === itemName || n === normalizedItemName;
+            });
             const bundleInfo = currencyBundles[itemName] || currencyBundles[normalizedItemName];
             
             // First, generate all potential rewards
@@ -963,13 +1013,9 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 }
             }
 
-            // Then, check for inventory space
-            // 인벤토리에서 아이템 제거 (원본 이름과 정규화된 이름 모두 제거)
-            const inventoryAfterRemoval = user.inventory.filter(i => 
-                i.name !== itemName && 
-                i.name !== normalizedItemName &&
-                normalizeItemNameForShop(i.name) !== normalizedItemName
-            );
+            // Then, check for inventory space — 제거 대상은 itemsToUse와 id로 정확히 일치
+            const removeIds = new Set(itemsToUse.map((i) => i.id));
+            const inventoryAfterRemoval = user.inventory.filter((i) => i && !removeIds.has(i.id));
             const { success: hasSpace, finalItemsToAdd, updatedInventory } = addItemsToInventoryUtil(inventoryAfterRemoval, user.inventorySlots, allObtainedItems);
             if (!hasSpace) {
                 return { error: '모든 아이템을 받기에 가방 공간이 부족합니다.' };
@@ -1214,6 +1260,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             if (itemIndex === -1) return { error: '아이템을 찾을 수 없습니다.' };
 
             const item = user.inventory[itemIndex];
+            /** 템플릿은 material인데 레거시로 type이 consumable 등인 제련 변경권 — 재료 판매 분기로 통일 */
+            const sellAsRefinementMaterial = isRefinementTicketMaterial(item.name);
             if (item.type === 'material' && isPairPetMaterial(item) && !isPairEggItem(item)) {
                 const slots = normalizePairPetTrainingSlots(user.pairPetTrainingSlots);
                 if (isItemIdInPairTraining(slots, item.id)) {
@@ -1232,8 +1280,15 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 sellPrice = Math.floor(basePrice * enhancementMultiplier);
                 // 장비는 전체 판매
                 user.inventory.splice(itemIndex, 1);
-            } else if (item.type === 'material') {
-                const pricePerUnit = MATERIAL_SELL_PRICES[item.name] || 1;
+            } else if (item.type === 'material' || sellAsRefinementMaterial) {
+                const nameKey = (item.name || '').replace(/\s+/g, ' ').trim();
+                const rawMat = MATERIAL_SELL_PRICES[nameKey] ?? MATERIAL_SELL_PRICES[item.name || ''];
+                const pricePerUnit =
+                    rawMat != null && rawMat > 0
+                        ? rawMat
+                        : sellAsRefinementMaterial
+                          ? sellGoldTenPercentOfShopGold(500)
+                          : rawMat ?? 1;
                 const currentQuantity = item.quantity || 1;
                 
                 if (sellQuantity > currentQuantity) {
@@ -1256,7 +1311,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 
                 // 판매 가능 여부 확인 (sellable === false인 경우만 판매 불가)
                 const consumableItem = CONSUMABLE_ITEMS.find(ci => ci.name === itemName || ci.name === itemName.replace('꾸러미', ' 꾸러미') || ci.name === itemName.replace(' 꾸러미', '꾸러미'));
-                if (consumableItem?.sellable === false) {
+                if (consumableItem?.sellable === false && !isRefinementTicketMaterial(itemName)) {
                     return { error: '판매할 수 없는 아이템입니다.' };
                 }
                 

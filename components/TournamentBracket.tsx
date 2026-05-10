@@ -21,6 +21,7 @@ import {
     CHAMPIONSHIP_ABILITY_KATA_LADDER,
     CHAMPIONSHIP_SIMULATION_PHASE_STAT_WEIGHTS,
     championshipKataLevelForPly,
+    resolveChampionshipDungeonPlaybackSpeedChoices,
     type ChampionshipAbilityKataLadderRow,
 } from '../shared/constants/championshipRealMatch.js';
 import { championshipCapturesAtPly } from '../utils/championshipLiveScores.js';
@@ -480,10 +481,16 @@ const ChampionshipRealGoBoard: React.FC<{
 };
 
 const CHAMPIONSHIP_PHASE_META = [
-    { key: 'opening' as const, label: '초반', ply19: 1, ply13: 1 },
-    { key: 'midgame' as const, label: '중반', ply19: 61, ply13: 31 },
-    { key: 'endgame' as const, label: '종반', ply19: 121, ply13: 61 },
+    { key: 'opening' as const, label: '초반', ply19: 1, ply13: 1, ply9: 1 },
+    { key: 'midgame' as const, label: '중반', ply19: 61, ply13: 31, ply9: 15 },
+    { key: 'endgame' as const, label: '종반', ply19: 121, ply13: 61, ply9: 29 },
 ];
+
+function championshipPhaseMetaPly(boardSize: number, phase: (typeof CHAMPIONSHIP_PHASE_META)[number]): number {
+    if (boardSize === 13) return phase.ply13;
+    if (boardSize === 9) return phase.ply9;
+    return phase.ply19;
+}
 
 const CHAMPIONSHIP_CORE_STATS: CoreStat[] = [
     CoreStat.Concentration,
@@ -597,7 +604,7 @@ const ChampionshipAbilityPlayerPanel: React.FC<{
             <div className={`shrink-0 rounded-lg border bg-gradient-to-b p-2.5 shadow-lg ${statCardTone}`}>
                 <div className="space-y-2">
                     {CHAMPIONSHIP_PHASE_META.map((phase) => {
-                        const ply = boardSize === 13 ? phase.ply13 : phase.ply19;
+                        const ply = championshipPhaseMetaPly(boardSize, phase);
                         const fromSnapshot = player?.id ? realGame?.phaseStatsByPlayerId?.[player.id]?.[phase.key] : undefined;
                         const computed =
                             fromSnapshot ?? championshipKataLevelForPly(ply, stats as any, undefined, abilityKataLadder);
@@ -3039,6 +3046,10 @@ const FinalRewardPanel: React.FC<{
     
     // 모든 경기가 완료되었는지 확인
     const allMatchesFinished = rounds.every(r => r.matches.every(m => m.isFinished));
+    /** 월드 등: 예상 변경권 칩은 최소 1경기 종료 후에만 표시 (경기 전 단계 테이블 값 노출 방지) */
+    const hasAnyFinishedMatch = (Array.isArray(rounds) ? rounds : []).some((r) =>
+        (r.matches ?? []).some((m) => m.isFinished),
+    );
     
     // 토너먼트가 완전히 완료되었는지 확인 (status가 complete이거나, 모든 경기가 완료된 경우)
     const isTournamentFullyComplete = tournamentState.status === 'complete' || (allMatchesFinished && tournamentState.status !== 'round_in_progress');
@@ -3282,7 +3293,9 @@ const FinalRewardPanel: React.FC<{
                     }
                     const n =
                         br?.changeTickets ?? DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[effectiveStageAttempt]?.changeTickets ?? 0;
-                    if (n > 0) return [{ name: '변경권', quantity: n, image: '/images/use/change2.png' }];
+                    if (n > 0 && hasAnyFinishedMatch) {
+                        return [{ name: '변경권', quantity: n, image: '/images/use/change2.png' }];
+                    }
                     return [];
                 })();
                 const hasWorldChangeTickets = worldChangeTicketChips.length > 0;
@@ -4599,6 +4612,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     /** 던전 챔피언십: 컨디션 낮을 때 경기 시작 전 안내(회복제로 조절 가능) */
     const [showChampionshipLowConditionStartModal, setShowChampionshipLowConditionStartModal] = useState(false);
     const [showChampionshipExitConfirmModal, setShowChampionshipExitConfirmModal] = useState(false);
+    /** 던전 보상 수령 시 인벤토리(가방) 부족 — 서버 오류 문구를 모달로 표시 */
+    const [championshipInventoryFullMessage, setChampionshipInventoryFullMessage] = useState<string | null>(null);
     /** 모바일 챔피언십 경기장: 대국자정보 / 실시간중계 / 바둑판 / 대진표 / 보상정보 */
     const [mobileChampionshipTab, setMobileChampionshipTab] = useState<'players' | 'board' | 'live' | 'bracket' | 'rewards'>('players');
     const [championshipSidebarTab, setChampionshipSidebarTab] = useState<'commentary' | 'bracket'>('bracket');
@@ -4813,7 +4828,15 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             
             type DungeonRes = { userRank: number; userWins: number; userLosses: number; baseRewards: Record<string, unknown>; grantedRankReward?: { items: Array<{ itemId: string; quantity: number }> }; grantedEquipmentDrops?: Array<{ name: string; image: string }>; nextStageUnlocked: boolean; nextStageWasAlreadyUnlocked?: boolean; dungeonState?: TournamentState };
             const raw = (await (onAction({ type: 'COMPLETE_DUNGEON_STAGE', payload: { dungeonType, stage } }) as unknown as Promise<unknown>)) as { error?: string; clientResponse?: DungeonRes } | DungeonRes | undefined;
-            const res: DungeonRes | null = raw && typeof raw === 'object' && !(raw as { error?: string }).error ? ((raw as { clientResponse?: DungeonRes }).clientResponse ?? (raw as DungeonRes)) : null;
+            const errMsg =
+                raw && typeof raw === 'object' && typeof (raw as { error?: unknown }).error === 'string'
+                    ? (raw as { error: string }).error
+                    : undefined;
+            if (errMsg && /가방|인벤토리|공간/.test(errMsg)) {
+                setChampionshipInventoryFullMessage(errMsg);
+                return;
+            }
+            const res: DungeonRes | null = raw && typeof raw === 'object' && !errMsg ? ((raw as { clientResponse?: DungeonRes }).clientResponse ?? (raw as DungeonRes)) : null;
             if (!res || res.userRank == null) return;
             setDungeonStageSummaryData({
                 dungeonType,
@@ -4877,7 +4900,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         }
     }, [currentUser.dungeonProgress, currentUser.neighborhoodRewardClaimed, currentUser.nationalRewardClaimed, currentUser.worldRewardClaimed, dungeonStageSummaryData]);
     
-    // 챔피언십 실대국 중계 배속(x0.5 / x1 / x2 / x3). localStorage에 영속화하여 새 경기에도 유지된다.
+    // 챔피언십 실대국 중계 배속. localStorage에 영속화. 던전 단계에 따라 허용 배속이 달라진다(아래 effective 참고).
     const [championshipPlaybackSpeed, setChampionshipPlaybackSpeed] = useState<ChampionshipPlaybackSpeed>(() => {
         if (typeof window === 'undefined') return 1;
         try {
@@ -4895,8 +4918,24 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         } catch { /* 무시 */ }
     }, [championshipPlaybackSpeed]);
 
+    const championshipDungeonPlaybackSpeedChoices = useMemo((): readonly ChampionshipPlaybackSpeed[] => {
+        const attempt = tournament?.currentStageAttempt;
+        if (attempt == null || attempt < 1 || attempt > 10) {
+            return [0.5, 1, 2, 3];
+        }
+        return resolveChampionshipDungeonPlaybackSpeedChoices(attempt) as readonly ChampionshipPlaybackSpeed[];
+    }, [tournament?.currentStageAttempt]);
+
+    /** 저장값이 현재 단계에서 불가하면(예: 1단계에서 x3) 재생은 x1 등 허용값으로만 진행 */
+    const effectiveChampionshipPlaybackSpeed = useMemo((): ChampionshipPlaybackSpeed => {
+        const choices = championshipDungeonPlaybackSpeedChoices;
+        if (choices.includes(championshipPlaybackSpeed)) return championshipPlaybackSpeed;
+        if (choices.includes(1)) return 1;
+        return choices[choices.length - 1]!;
+    }, [championshipDungeonPlaybackSpeedChoices, championshipPlaybackSpeed]);
+
     // 클라이언트에서 시뮬레이션 실행
-    const simulatedTournament = useTournamentSimulation(tournament, currentUser, championshipPlaybackSpeed);
+    const simulatedTournament = useTournamentSimulation(tournament, currentUser, effectiveChampionshipPlaybackSpeed);
     const displayTournament = simulatedTournament || tournament;
     
     const safeRounds = useMemo(() => {
@@ -6203,12 +6242,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             </Button>
         ) : null;
 
-    // 배속 조절 버튼 (x0.5: 3초/수, x1: 1.5초/수, x2: 1초/수, x3: 0.5초/수). 모든 챔피언십 매치 화면에서 노출된다.
+    // 배속 조절 — 던전 1~3단계는 x0.5·x1만, 4~5단계는 x0.5·x1·x2, 6단계 이상·비던전은 x3까지.
     const championshipPlaybackSpeedSelector = (
         <div className="mt-1.5 flex items-center justify-center gap-1">
             <span className="text-[10px] font-semibold tracking-wider text-cyan-100/75">배속</span>
-            {([0.5, 1, 2, 3] as const).map((speed) => {
-                const isActive = championshipPlaybackSpeed === speed;
+            {championshipDungeonPlaybackSpeedChoices.map((speed) => {
+                const isActive = effectiveChampionshipPlaybackSpeed === speed;
                 const titleBySpeed: Record<string, string> = {
                     '0.5': '3초에 한 수',
                     '1': '1.5초에 한 수',
@@ -6974,7 +7013,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 </div>
                 <div className="grid grid-cols-3 gap-0.5">
                     {CHAMPIONSHIP_PHASE_META.map((phase) => {
-                        const ply = boardSize === 13 ? phase.ply13 : phase.ply19;
+                        const ply = championshipPhaseMetaPly(boardSize, phase);
                         const fromSnapshot = player?.id
                             ? realGame?.phaseStatsByPlayerId?.[player.id]?.[phase.key]
                             : undefined;
@@ -7084,7 +7123,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     /** 모바일 전용: 큰 바둑판 영역 */
     const mobileChampionshipBoardSection = (
         <div
-            className={`relative flex min-h-0 w-full min-w-0 flex-1 items-center justify-center rounded-md border border-slate-600/55 bg-gradient-to-b from-slate-950/48 to-black/55 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md ${championshipBoardHostClipClass}`}
+            className={`relative flex min-h-[min(22dvh,260px)] w-full min-w-0 flex-1 items-center justify-center rounded-md bg-transparent p-1 ${championshipBoardHostClipClass}`}
         >
             <ChampionshipRealGoBoard
                 match={matchForDisplay}
@@ -7099,15 +7138,16 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     /** 모바일 전용: 전체 인게임 경기장 — 정보행 + 능력치행 + 점수/계가행 + 큰 바둑판 + 푸터 */
     const mobileChampionshipMainGameRoom = (
-        <main className={`flex flex-1 min-h-0 min-w-0 items-stretch justify-center bg-transparent ${championshipBoardHostClipClass}`}>
+        <main className={`flex flex-1 min-h-0 min-w-0 flex-col items-stretch justify-center bg-transparent ${championshipBoardHostClipClass}`}>
             <div
-                className={`flex h-full w-full max-h-full max-w-full min-h-0 flex-col items-stretch gap-1 bg-transparent px-1 py-1 ${championshipBoardHostClipClass}`}
+                className={`flex min-h-0 w-full max-w-full flex-1 flex-col items-stretch gap-1 overflow-y-auto overflow-x-hidden bg-transparent px-1 py-1 ${championshipBoardHostClipClass}`}
+                style={{ WebkitOverflowScrolling: 'touch' }}
             >
                 {mobileChampionshipPlayerInfoRow}
                 {mobileChampionshipAbilityRow}
                 {mobileChampionshipScoreCountdownRow}
                 {mobileChampionshipBoardSection}
-                <div className="w-full shrink-0 min-h-0 max-h-[38vh] overflow-y-auto overflow-x-hidden">
+                <div className="w-full shrink-0 min-h-0 max-h-[min(30vh,280px)] overflow-y-auto overflow-x-hidden">
                     {renderChampionshipMatchControlPanel()}
                 </div>
                 {championshipMobileStickyBar}
@@ -7421,6 +7461,38 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     isTopmost={true}
                 />
             )}
+            {championshipInventoryFullMessage &&
+                typeof document !== 'undefined' &&
+                createPortal(
+                    <div
+                        className="fixed inset-0 z-[403] flex items-center justify-center bg-black/70 p-4"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="championship-inventory-full-title"
+                        onClick={() => setChampionshipInventoryFullMessage(null)}
+                    >
+                        <div
+                            className="max-w-md w-full rounded-2xl border border-rose-400/45 bg-gradient-to-b from-slate-900 via-slate-950 to-black p-5 shadow-2xl ring-1 ring-rose-300/20"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <h2 id="championship-inventory-full-title" className="text-lg font-black text-rose-100">
+                                인벤토리 공간 부족
+                            </h2>
+                            <p className="mt-3 text-sm leading-relaxed text-slate-200">{championshipInventoryFullMessage}</p>
+                            <div className="mt-5 flex justify-end">
+                                <Button
+                                    type="button"
+                                    colorScheme="none"
+                                    className={championshipFooterPrimaryButton}
+                                    onClick={() => setChampionshipInventoryFullMessage(null)}
+                                >
+                                    확인
+                                </Button>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
             {showChampionshipLowConditionStartModal &&
                 typeof document !== 'undefined' &&
                 createPortal(

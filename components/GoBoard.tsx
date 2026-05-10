@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { BoardState, Point, Player, GameStatus, Move, AnalysisResult, LiveGameSession, User, AnimationData, GameMode, RecommendedMove, ServerAction } from '../types.js';
 import { WHITE_BASE_STONE_IMG, BLACK_BASE_STONE_IMG, WHITE_HIDDEN_STONE_IMG, BLACK_HIDDEN_STONE_IMG } from '../assets.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
+import { modeIncludesBaseCaptureMix } from '../shared/utils/liveSessionArenaKind.js';
 
 /** 따내기/보너스 점수 플로트: mid(5~9) 기준 폰트 배율 */
 const CAPTURE_SCORE_FLOAT_BASE_EM = 0.92;
@@ -523,9 +524,13 @@ const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boo
     );
 };
 
-function lastMoveIndexAtForHiddenClassify(moveHistory: Move[], x: number, y: number): number {
+/** `Game.tsx` findLatestMoveIndexAt와 동일: 같은 좌표 재착수 시 판에 있는 돌 색과 맞는 수순만 히든 판별에 사용 */
+function lastMoveIndexAtForHiddenClassify(moveHistory: Move[], x: number, y: number, player?: Player): number {
     for (let i = moveHistory.length - 1; i >= 0; i--) {
-        if (moveHistory[i].x === x && moveHistory[i].y === y) return i;
+        const m = moveHistory[i];
+        if (m.x === x && m.y === y && (player === undefined || m.player === player)) {
+            return i;
+        }
     }
     return -1;
 }
@@ -537,10 +542,22 @@ function classifyMissileFromStone(
     hiddenMoves: { [moveIndex: number]: boolean } | undefined,
     permanentlyRevealedStones: Point[] | undefined,
     myRevealedStones: Point[] | undefined,
-    myRevealedMoveIndices?: readonly number[] | undefined
+    myRevealedMoveIndices?: readonly number[] | undefined,
+    stonePlayer?: Player,
+    /** LAUNCH 직후 from 칸이 비어 있어도, 본인이 쏜 내 히든돌 비행은 항상 보이게 한다 */
+    viewerPlayer?: Player,
 ): 'normal' | 'unrevealed_hidden' | 'scan_only_hidden' | 'revealed_hidden' {
     if (!moveHistory?.length || !hiddenMoves) return 'normal';
-    const moveIndex = lastMoveIndexAtForHiddenClassify(moveHistory, from.x, from.y);
+    const moveIndex = lastMoveIndexAtForHiddenClassify(moveHistory, from.x, from.y, stonePlayer);
+    if (
+        viewerPlayer !== undefined &&
+        stonePlayer !== undefined &&
+        stonePlayer === viewerPlayer &&
+        moveIndex !== -1 &&
+        hiddenMoves[moveIndex]
+    ) {
+        return 'revealed_hidden';
+    }
     if (moveIndex === -1 || !hiddenMoves[moveIndex]) return 'normal';
     if (permanentlyRevealedStones?.some(p => p.x === from.x && p.y === from.y)) return 'revealed_hidden';
     const softByIndex = myRevealedMoveIndices != null && myRevealedMoveIndices.includes(moveIndex);
@@ -1453,10 +1470,13 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         if (gameStatus !== 'playing' && gameStatus !== 'hidden_placing') return false;
 
         const opponentPlayer = myPlayerEnum === Player.Black ? Player.White : Player.Black;
+        const cell = displayBoardState[pos.y]?.[pos.x];
+        if (cell === myPlayerEnum) return false;
+
         for (let i = moveHistory.length - 1; i >= 0; i--) {
             const move = moveHistory[i];
-            if (move.x === pos.x && move.y === pos.y) {
-                return !!hiddenMoves[i] && move.player === opponentPlayer;
+            if (move.x === pos.x && move.y === pos.y && move.player === opponentPlayer) {
+                return !!hiddenMoves[i];
             }
         }
         return false;
@@ -1884,7 +1904,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     const isLast = !!(isSingleLastMove || isMultiLastMove);
                     const isMyJustPlacedStone = !!lastMove && lastMove.x === x && lastMove.y === y && actualPlayer === myPlayerEnum;
                     
-                    const moveIndex = moveHistory ? lastMoveIndexAtForHiddenClassify(moveHistory, x, y) : -1;
+                    const moveIndex = moveHistory ? lastMoveIndexAtForHiddenClassify(moveHistory, x, y, actualPlayer) : -1;
                     const histMove = moveIndex >= 0 && moveHistory ? moveHistory[moveIndex] : undefined;
                     const isHiddenMove =
                         !isPlainStoneReuseIntersection &&
@@ -2028,7 +2048,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     })
                 )}
                 {(gameStatus === 'base_stone_color_choice' ||
-                    gameStatus === 'base_same_color_points_bid') && (
+                    gameStatus === 'base_same_color_points_bid' ||
+                    (gameStatus === 'capture_bidding' && modeIncludesBaseCaptureMix(mode, { mixedModes }))) && (
                     <>
                         {baseStones_p1?.map((stone, i) => {
                             const { cx, cy } = toSvgCoords(stone);
@@ -2128,13 +2149,19 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     return (
                         <>
                             {(animation.type === 'missile' || animation.type === 'hidden_missile') && (() => {
+                                const fromCell =
+                                    displayBoardState[animation.from.y]?.[animation.from.x] ?? Player.None;
+                                const fromStonePlayer =
+                                    fromCell !== Player.None ? fromCell : animation.player;
                                 const fromKind = classifyMissileFromStone(
                                     animation.from,
                                     moveHistory,
                                     hiddenMoves,
                                     permanentlyRevealedStones,
                                     myRevealedStones,
-                                    myRevealedMoveIndices
+                                    myRevealedMoveIndices,
+                                    fromStonePlayer,
+                                    isSpectator ? undefined : myPlayerEnum,
                                 );
                                 // 완전 비공개 히든: 날아가는 돌·불꽃 없음 (발사음은 Game.tsx에서 1회)
                                 if (fromKind === 'unrevealed_hidden') {
@@ -2195,7 +2222,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                         isAtLastPlacedPoint && s.player === myPlayerEnum;
                                     return (
                                         <Stone
-                                            key={`reveal-${i}`}
+                                            key={`reveal-${s.point.x}-${s.point.y}-${s.player}`}
                                             player={s.player}
                                             cx={toSvgCoords(s.point).cx}
                                             cy={toSvgCoords(s.point).cy}

@@ -276,7 +276,7 @@ export type ChampionshipRealGameEvent = {
 };
 
 export type ChampionshipRealGameState = {
-    boardSize: 19 | 13;
+    boardSize: 9 | 13 | 19;
     maxPly: number;
     blackPlayerId: string;
     whitePlayerId: string;
@@ -1221,6 +1221,14 @@ export type LiveGameSession = {
   player2: User;
   blackPlayerId: string | null;
   whitePlayerId: string | null;
+  /**
+   * 베이스 바둑 배치 단계 임시 좌석:
+   * - `base_placement` ~ `base_*_*` 사전 단계에서만 의미 있다.
+   * - 색이 확정되어 본대국 좌석(`blackPlayerId`/`whitePlayerId`)이 정해지면 즉시 비운다.
+   * - 본대국(`playing`) 이후에는 절대로 읽지 말 것 — `blackPlayerId`/`whitePlayerId`만 진실원이다.
+   */
+  basePlacementBlackPlayerId?: string | null;
+  basePlacementWhitePlayerId?: string | null;
   /** 베이스(순·믹스) 본대국 `playing` 최초 진입 시 고정된 흑/백 좌석 — 재동기화·슬림 WS에서 임시 배치 좌석이 덮어쓰지 않도록 함 */
   playingLockedBlackPlayerId?: string | null;
   playingLockedWhitePlayerId?: string | null;
@@ -1287,6 +1295,8 @@ export type LiveGameSession = {
   guessDeadline?: number;
   bids?: { [userId: string]: number | null };
   biddingRound?: number;
+  /** 베이스+따내기: 1차 입찰이 동점일 때 2차 재제시 동안 전광판·하단에 1차 점수 유지 (키=player1/player2 좌석 id) */
+  captureFirstRoundTieBidSnapshot?: { [seatPlayerId: string]: number };
   captureBidDeadline?: number;
   effectiveCaptureTargets?: { [key in Player]: number };
   baseStones?: { x: number; y: number; player: Player; }[];

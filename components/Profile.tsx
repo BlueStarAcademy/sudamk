@@ -118,17 +118,6 @@ const CombinedLevelBadge: React.FC<{ level: number; compact?: boolean }> = ({ le
     );
 };
 
-/** 전략·페어·놀이바둑 홈 입장 이미지 우측 상단 — 좌측 경기장 뱃지와 대칭되는 페어 펫 안내 */
-const ArenaPetManageCornerBadge = () => (
-    <span
-        className="pointer-events-none absolute right-2 top-2 z-[3] inline-flex items-center justify-center rounded border border-white/40 bg-black px-1.5 py-0.5 text-[9px] font-black leading-none tracking-tight text-white/95 shadow-[0_2px_10px_rgba(0,0,0,0.55)] sm:text-[10px]"
-        aria-hidden
-    >
-        펫 관리
-    </span>
-);
-
-
 const gradeBackgrounds: Record<ItemGrade, string> = {
     normal: '/images/equipments/normalbgi.png',
     uncommon: '/images/equipments/uncommonbgi.png',
@@ -335,7 +324,7 @@ const LobbyCard: React.FC<{
     );
 };
 
-const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tall'; footerContent?: React.ReactNode; onClick?: () => void; isComingSoon?: boolean; compact?: boolean; arenaMobile?: boolean; hideOverlayText?: boolean; locked?: boolean; lockReason?: string; imageScaleClass?: string; newBadge?: boolean; showPetManageCornerBadge?: boolean }> = ({ title, imageUrl, layout, footerContent, onClick, isComingSoon, compact, arenaMobile, hideOverlayText = false, locked = false, lockReason, imageScaleClass = '', newBadge = false, showPetManageCornerBadge = false }) => {
+const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tall'; footerContent?: React.ReactNode; onClick?: () => void; isComingSoon?: boolean; compact?: boolean; arenaMobile?: boolean; hideOverlayText?: boolean; locked?: boolean; lockReason?: string; imageScaleClass?: string; newBadge?: boolean }> = ({ title, imageUrl, layout, footerContent, onClick, isComingSoon, compact, arenaMobile, hideOverlayText = false, locked = false, lockReason, imageScaleClass = '', newBadge = false }) => {
     const shadowColor = "hover:shadow-purple-500/30";
     const compactMode = Boolean(compact && !arenaMobile);
 
@@ -368,7 +357,6 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
                         {title}
                     </span>
                 </div>
-                {showPetManageCornerBadge && <ArenaPetManageCornerBadge />}
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-black/85 via-black/40 to-transparent pb-2 pt-8">
                     <span className="rounded-full border border-white/15 bg-black/55 px-2.5 py-1 text-[10px] font-semibold text-slate-100 shadow-lg backdrop-blur-sm ring-1 ring-white/10 sm:text-xs">
                         {isComingSoon ? '오픈 예정' : '탭하여 입장'}
@@ -414,7 +402,6 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
             {newBadge && <span className={`${NEW_FEATURE_BADGE_CLASS} left-2 top-2 ${compactMode ? 'scale-75' : ''}`}>NEW</span>}
             <img src={imageUrl} alt={title} className={`absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105 ${imageScaleClass}`} />
             <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/5 via-violet-950/5 to-black/16" />
-            {showPetManageCornerBadge && <ArenaPetManageCornerBadge />}
             {locked && (
                 <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
                     <span className="text-[2rem] leading-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] sm:text-[2.4rem]">🔒</span>
@@ -462,7 +449,6 @@ const StrategicPairPvpSymbolCard: React.FC<{
                 <span className="pointer-events-none absolute left-2 top-2 rounded-md border border-cyan-300/55 bg-cyan-900/70 px-2 py-0.5 text-xs font-black tracking-wide text-cyan-100">
                     전략
                 </span>
-                <ArenaPetManageCornerBadge />
                 {strategicLocked && (
                     <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
                         <span className="text-[1.35rem] leading-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] sm:text-[1.6rem]">🔒</span>
@@ -489,7 +475,6 @@ const StrategicPairPvpSymbolCard: React.FC<{
                 <span className="pointer-events-none absolute left-2 top-2 rounded-md border border-violet-300/55 bg-violet-900/70 px-2 py-0.5 text-xs font-black tracking-wide text-violet-100">
                     페어
                 </span>
-                <ArenaPetManageCornerBadge />
                 {pairLocked && (
                     <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
                         <span className="text-[1.35rem] leading-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] sm:text-[1.6rem]">🔒</span>
@@ -2257,7 +2242,6 @@ const Profile: React.FC<ProfileProps> = () => {
                             onClick={() => onSelectLobby('playful')}
                             compact={false}
                             hideOverlayText
-                            showPetManageCornerBadge
                             locked={!!getArenaLobbyLockReason('playfulLobby')}
                             lockReason={getArenaLobbyLockReason('playfulLobby') ?? undefined}
                         />
@@ -2404,6 +2388,14 @@ const Profile: React.FC<ProfileProps> = () => {
                                     </div>
                                 </div>
                             </div>
+                            <Button
+                                type="button"
+                                colorScheme="none"
+                                onClick={() => handlers.openAdventureMonsterCodexModal()}
+                                className="w-full shrink-0 !justify-center rounded-lg border border-violet-400/45 bg-gradient-to-r from-violet-950/55 via-purple-950/40 to-fuchsia-950/40 !px-2 !py-1.5 !text-[12px] !font-bold !text-violet-50 hover:from-violet-900/55 hover:via-purple-900/45 hover:to-fuchsia-900/45"
+                            >
+                                몬스터 도감
+                            </Button>
                         </div>
                     </div>
                 )}
@@ -2788,7 +2780,6 @@ const Profile: React.FC<ProfileProps> = () => {
                                                 onClick={() => onSelectLobby('playful')}
                                                 compact={false}
                                                 hideOverlayText
-                                                showPetManageCornerBadge
                                                 locked={!!getArenaLobbyLockReason('playfulLobby')}
                                                 lockReason={getArenaLobbyLockReason('playfulLobby') ?? undefined}
                                             />

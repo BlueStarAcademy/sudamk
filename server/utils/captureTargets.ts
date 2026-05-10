@@ -2,6 +2,7 @@ import type { LiveGameSession } from '../../types/index.js';
 import { Player } from '../../types/index.js';
 import { GameCategory, GameMode } from '../../types/enums.js';
 import * as summaryService from '../summaryService.js';
+import { getSpeedTimePressureConsumptionSnapshot } from './speedTimePressureLiveCaptures.js';
 
 export const NO_CAPTURE_TARGET = 999;
 
@@ -50,20 +51,8 @@ function resolveSpeedTimeBonusForCaptureTarget(game: LiveGameSession): { black: 
         mixedModes.includes(GameMode.Capture);
     if (!isSpeedCaptureMix) return { black: 0, white: 0 };
 
-    const speedConsumed = ((game.settings as any)?.__speedBonusConsumedSec ?? {}) as { black?: number; white?: number };
-    const committedBlackConsumed = Math.max(0, Number(speedConsumed.black ?? 0));
-    const committedWhiteConsumed = Math.max(0, Number(speedConsumed.white ?? 0));
     const nowMs = Date.now();
-    const liveBlackTurnUsed =
-        game.currentPlayer === Player.Black && typeof game.turnDeadline === 'number'
-            ? Math.max(0, Math.max(0, Number(game.blackTimeLeft ?? 0)) - Math.max(0, (game.turnDeadline - nowMs) / 1000))
-            : 0;
-    const liveWhiteTurnUsed =
-        game.currentPlayer === Player.White && typeof game.turnDeadline === 'number'
-            ? Math.max(0, Math.max(0, Number(game.whiteTimeLeft ?? 0)) - Math.max(0, (game.turnDeadline - nowMs) / 1000))
-            : 0;
-    const blackConsumed = committedBlackConsumed + liveBlackTurnUsed;
-    const whiteConsumed = committedWhiteConsumed + liveWhiteTurnUsed;
+    const { blackConsumed, whiteConsumed } = getSpeedTimePressureConsumptionSnapshot(game, nowMs);
     const secondsPerPoint = 10;
 
     if (game.isAiGame) {

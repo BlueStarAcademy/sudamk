@@ -91,12 +91,12 @@ export const SINGLE_PLAYER_MISSIONS: SinglePlayerMissionInfo[] = [
         name: '[중급반] 심화학습',
         description: '깊이있는 수를 배우는 실력',
         unlockStageId: '중급-20',
-        rewardType: 'diamonds',
+        rewardType: 'gold',
         image: '/images/single/Mission4.webp',
         levels: createMissionLevels(
-            [60, 58, 56, 54, 52, 50, 47, 44, 41, 35],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [2, 2, 2, 2, 3, 3, 3, 3, 3, 4],
+            [5, 5, 5, 5, 5, 5, 4.5, 4, 3.5, 3],
+            [50, 50, 50, 50, 50, 50, 50, 50, 100, 100],
+            [500, 550, 600, 650, 700, 750, 800, 850, 900, 1000],
             '중급-20'
         )
     },
@@ -105,12 +105,12 @@ export const SINGLE_PLAYER_MISSIONS: SinglePlayerMissionInfo[] = [
         name: '[고급반] 리그전참여',
         description: '시합방식을 익히며 대회참여',
         unlockStageId: '고급-20',
-        rewardType: 'gold',
+        rewardType: 'diamonds',
         image: '/images/single/Mission5.webp',
         levels: createMissionLevels(
-            [5, 5, 5, 5, 5, 5, 4.5, 4, 3.5, 3],
-            [50, 50, 50, 50, 50, 50, 50, 50, 100, 100],
-            [500, 550, 600, 650, 700, 750, 800, 850, 900, 1000],
+            [60, 58, 56, 54, 52, 50, 47, 44, 41, 35],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [2, 2, 2, 2, 3, 3, 3, 3, 3, 4],
             '고급-20'
         )
     },

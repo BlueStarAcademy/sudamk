@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { handleBaseAction, initializeBase, updateBaseState } from '../../modes/base.js';
+import { updateCaptureState } from '../../modes/capture.js';
 import { aiUserId } from '../../aiPlayer.js';
 import { applyPveItemActionClientSync } from '../../pveItemSync.js';
 import { enforceBaseSeatLockIfDriftedDuringPlay } from '../../modes/shared.js';
@@ -75,7 +76,12 @@ describe('base mode', () => {
     it('uses only color choice, same-color komi, and start confirmation for PvP base flow', () => {
         const game = makeBaseGame();
         initializeBase(game, Date.now());
-        const provisionalBlackId = game.blackPlayerId;
+        // 임시 좌석은 배치 단계 동안만 의미가 있고, 본대국 좌석은 색이 확정될 때까지 비어 있어야 한다.
+        expect(game.blackPlayerId).toBeNull();
+        expect(game.whitePlayerId).toBeNull();
+        const provisionalBlackId = game.basePlacementBlackPlayerId;
+        expect(provisionalBlackId).toBeTypeOf('string');
+        expect(game.basePlacementWhitePlayerId).toBeTypeOf('string');
 
         finishPlacement(game);
         expect(game.gameStatus).toBe('base_stone_color_choice');
@@ -87,15 +93,23 @@ describe('base mode', () => {
 
         expect(game.gameStatus).toBe('base_same_color_points_bid');
         expect(game.baseSameColorTieColor).toBe(Player.Black);
-        expect(game.blackPlayerId).toBe(provisionalBlackId);
+        // 색 확정 전(같은 색 입찰 단계)에는 본대국 좌석이 여전히 비어 있어야 한다 — 임시 좌석만 살아 있다.
+        expect(game.blackPlayerId).toBeNull();
+        expect(game.whitePlayerId).toBeNull();
+        expect(game.basePlacementBlackPlayerId).toBe(provisionalBlackId);
 
         handleBaseAction(game, { type: 'UPDATE_KOMI_BID', userId: game.player1.id, payload: { gameId: game.id, bid: { color: Player.White, komi: 3 } } } as any, game.player1);
         handleBaseAction(game, { type: 'UPDATE_KOMI_BID', userId: game.player2.id, payload: { gameId: game.id, bid: { color: Player.White, komi: 1 } } } as any, game.player2);
         updateBaseState(game, Date.now());
 
         expect(game.gameStatus).toBe('base_game_start_confirmation');
+        // 색이 확정되는 순간 본대국 좌석이 단 한 번 박히고, 좌석 잠금까지 같이 걸리며, 임시 좌석은 즉시 사라진다.
         expect(game.blackPlayerId).toBe(game.player1.id);
         expect(game.whitePlayerId).toBe(game.player2.id);
+        expect(game.playingLockedBlackPlayerId).toBe(game.player1.id);
+        expect(game.playingLockedWhitePlayerId).toBe(game.player2.id);
+        expect(game.basePlacementBlackPlayerId).toBeUndefined();
+        expect(game.basePlacementWhitePlayerId).toBeUndefined();
         expect((game as any).baseFinalColorAssignment).toMatchObject({
             blackPlayerId: game.player1.id,
             whitePlayerId: game.player2.id,
@@ -121,6 +135,11 @@ describe('base mode', () => {
         expect(game.gameStatus).toBe('base_game_start_confirmation');
         expect(game.blackPlayerId).toBe(game.player1.id);
         expect(game.whitePlayerId).toBe(game.player2.id);
+        // 색 확정과 동시에 좌석 잠금이 박히고 임시 좌석은 즉시 비어 있다 — 어떤 패킷도 좌석을 임시값으로 되돌릴 수 없다.
+        expect(game.playingLockedBlackPlayerId).toBe(game.player1.id);
+        expect(game.playingLockedWhitePlayerId).toBe(game.player2.id);
+        expect(game.basePlacementBlackPlayerId).toBeUndefined();
+        expect(game.basePlacementWhitePlayerId).toBeUndefined();
         expect((game as any).baseFinalColorAssignment).toMatchObject({
             blackPlayerId: game.player1.id,
             whitePlayerId: game.player2.id,
@@ -134,8 +153,9 @@ describe('base mode', () => {
     it('keeps placed base stone colors after final player colors are chosen', () => {
         const game = makeBaseGame();
         initializeBase(game, Date.now());
-        const provisionalP1Color = game.blackPlayerId === game.player1.id ? Player.Black : Player.White;
-        const provisionalP2Color = game.blackPlayerId === game.player2.id ? Player.Black : Player.White;
+        // 베이스돌 색은 임시 좌석으로 결정된다 — 본대국 좌석은 색 확정 시점까지 비어 있다.
+        const provisionalP1Color = game.basePlacementBlackPlayerId === game.player1.id ? Player.Black : Player.White;
+        const provisionalP2Color = game.basePlacementBlackPlayerId === game.player2.id ? Player.Black : Player.White;
         finishPlacement(game);
 
         handleBaseAction(game, { type: 'SUBMIT_BASE_STONE_COLOR_CHOICE', userId: game.player1.id, payload: { gameId: game.id, color: Player.White } } as any, game.player1);
@@ -394,5 +414,106 @@ describe('base mode', () => {
         expect(game.totalTurns).toBe(1);
         expect(game.baseStones).toEqual([{ x: 2, y: 2, player: Player.White }]);
         expect(game.boardState[2][2]).toBe(Player.White);
+    });
+
+    it('keeps blackPlayerId/whitePlayerId empty during base placement and only writes them at color finalization', () => {
+        const game = makeBaseGame();
+        initializeBase(game, Date.now());
+        // 사전 조건: 임시 좌석에만 적혀 있고, 본대국 좌석은 색이 확정될 때까지 비어 있다.
+        expect(game.gameStatus).toBe('base_placement');
+        expect(game.blackPlayerId).toBeNull();
+        expect(game.whitePlayerId).toBeNull();
+        expect(game.basePlacementBlackPlayerId).toBeTypeOf('string');
+        expect(game.basePlacementWhitePlayerId).toBeTypeOf('string');
+
+        // 배치·선호 단계까지는 본대국 좌석이 계속 비어 있어야 한다.
+        finishPlacement(game);
+        expect(game.gameStatus).toBe('base_stone_color_choice');
+        expect(game.blackPlayerId).toBeNull();
+        expect(game.whitePlayerId).toBeNull();
+
+        // 색이 확정되는 순간 본대국 좌석·좌석 잠금이 동시에 박히고 임시 좌석은 즉시 사라진다.
+        handleBaseAction(game, { type: 'SUBMIT_BASE_STONE_COLOR_CHOICE', userId: game.player1.id, payload: { gameId: game.id, color: Player.Black } } as any, game.player1);
+        handleBaseAction(game, { type: 'SUBMIT_BASE_STONE_COLOR_CHOICE', userId: game.player2.id, payload: { gameId: game.id, color: Player.White } } as any, game.player2);
+        updateBaseState(game, Date.now());
+        expect(game.gameStatus).toBe('base_game_start_confirmation');
+        expect(game.blackPlayerId).toBe(game.player1.id);
+        expect(game.whitePlayerId).toBe(game.player2.id);
+        expect(game.playingLockedBlackPlayerId).toBe(game.blackPlayerId);
+        expect(game.playingLockedWhitePlayerId).toBe(game.whitePlayerId);
+        expect(game.basePlacementBlackPlayerId).toBeUndefined();
+        expect(game.basePlacementWhitePlayerId).toBeUndefined();
+    });
+
+    it('applies capture bid points after Base+Capture placement while preserving base stone colors', () => {
+        const game = makeBaseGame({
+            mode: GameMode.Mix,
+            settings: {
+                boardSize: 9,
+                baseStones: 2,
+                komi: 0.5,
+                captureTarget: 20,
+                mixedModes: [GameMode.Base, GameMode.Capture],
+            } as any,
+        });
+        initializeBase(game, Date.now());
+        const provisionalP1Color = game.basePlacementBlackPlayerId === game.player1.id ? Player.Black : Player.White;
+
+        finishPlacement(game);
+        expect(game.gameStatus).toBe('capture_bidding');
+
+        game.bids = { [game.player1.id]: 6, [game.player2.id]: 2 };
+        updateCaptureState(game, Date.now());
+
+        expect(game.blackPlayerId).toBe(game.player1.id);
+        expect(game.whitePlayerId).toBe(game.player2.id);
+        expect(game.effectiveCaptureTargets).toMatchObject({
+            [Player.Black]: 20,
+            [Player.White]: 14,
+        });
+        expect(game.baseStones?.find((p) => p.x === 2 && p.y === 2)?.player).toBe(provisionalP1Color);
+        expect(game.boardState[2][2]).toBe(provisionalP1Color);
+    });
+
+    it('rejects drift back to provisional seats once colors are committed (regression: white reverts mid-game)', () => {
+        const game = makeBaseGame();
+        initializeBase(game, Date.now());
+        const provisionalBlackId = game.basePlacementBlackPlayerId!;
+        const provisionalWhiteId = game.basePlacementWhitePlayerId!;
+        finishPlacement(game);
+
+        // 양쪽이 같은 색을 선호 → 동색 입찰 → p1이 더 큰 입찰로 흑 선점, 임시 색이 결과적으로 뒤집힌다고 가정
+        handleBaseAction(game, { type: 'SUBMIT_BASE_STONE_COLOR_CHOICE', userId: game.player1.id, payload: { gameId: game.id, color: Player.Black } } as any, game.player1);
+        handleBaseAction(game, { type: 'SUBMIT_BASE_STONE_COLOR_CHOICE', userId: game.player2.id, payload: { gameId: game.id, color: Player.Black } } as any, game.player2);
+        updateBaseState(game, Date.now());
+
+        const winnerId = provisionalBlackId === game.player1.id ? game.player2.id : game.player1.id;
+        const loserId = winnerId === game.player1.id ? game.player2.id : game.player1.id;
+        handleBaseAction(game, { type: 'UPDATE_KOMI_BID', userId: winnerId, payload: { gameId: game.id, bid: { color: Player.Black, komi: 5 } } } as any, { id: winnerId } as any);
+        handleBaseAction(game, { type: 'UPDATE_KOMI_BID', userId: loserId, payload: { gameId: game.id, bid: { color: Player.Black, komi: 1 } } } as any, { id: loserId } as any);
+        updateBaseState(game, Date.now());
+
+        expect(game.gameStatus).toBe('base_game_start_confirmation');
+        const finalBlackId = game.blackPlayerId!;
+        const finalWhiteId = game.whitePlayerId!;
+        expect(typeof finalBlackId).toBe('string');
+        expect(typeof finalWhiteId).toBe('string');
+        // 좌석 잠금이 색 확정과 동시에 박혀 있어, 늦게 도착한 임시 좌석 패킷은 무시되어야 한다.
+        expect(game.playingLockedBlackPlayerId).toBe(finalBlackId);
+        expect(game.playingLockedWhitePlayerId).toBe(finalWhiteId);
+
+        // playing으로 진입 후, 어떤 경로로 임시 좌석이 다시 들어와도(예: 슬림 패킷 역주입) 잠금이 좌석을 되돌린다.
+        game.preGameConfirmations = { [game.player1.id]: true, [game.player2.id]: true };
+        updateBaseState(game, Date.now());
+        expect(game.gameStatus).toBe('playing');
+
+        // 시뮬레이션: 늦은 패킷이 좌석을 임시값으로 되돌리려 시도
+        game.blackPlayerId = provisionalBlackId;
+        game.whitePlayerId = provisionalWhiteId;
+        const reverted = enforceBaseSeatLockIfDriftedDuringPlay(game);
+
+        expect(reverted).toBe(true);
+        expect(game.blackPlayerId).toBe(finalBlackId);
+        expect(game.whitePlayerId).toBe(finalWhiteId);
     });
 });

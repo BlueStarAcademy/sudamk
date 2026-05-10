@@ -97,6 +97,12 @@ const DropRateReferencePanel: React.FC<DropRateReferencePanelProps> = ({ onBack 
             rateText: `${entry.chance}%`,
         }))
     );
+    const pvpStrategicPlayfulBoxLootEnabled =
+        STRATEGIC_LOOT_TABLE.length > 0 ||
+        PLAYFUL_LOOT_TABLES_BY_ROUNDS[1].length +
+            PLAYFUL_LOOT_TABLES_BY_ROUNDS[2].length +
+            PLAYFUL_LOOT_TABLES_BY_ROUNDS[3].length >
+            0;
     const playfulLootRows = useMemo(
         () =>
             ([3, 2, 1] as const).map((rounds) => ({
@@ -276,36 +282,49 @@ const DropRateReferencePanel: React.FC<DropRateReferencePanelProps> = ({ onBack 
                 </div>
             </section>}
 
-            {showPvpSection && (showStrategicSection || filteredPlayfulLootRows.length > 0) && (
+            {showPvpSection && (
                 <section className={adminCard}>
                     <h2 className={adminCardTitle}>전략/놀이 바둑 상자 드롭 확률</h2>
                     <div className="space-y-4 text-sm text-gray-200">
-                        {showStrategicSection && (
-                            <div>
-                                <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">전략바둑 (승리 시 롤 테이블)</h3>
-                                <p>{strategicLootLine}</p>
-                            </div>
-                        )}
-                        {filteredPlayfulLootRows.length > 0 && (
-                            <div className="overflow-x-auto">
-                                <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">놀이바둑 (라운드별 승리 롤 테이블)</h3>
-                                <table className="w-full min-w-[760px] text-left text-xs">
-                                    <thead className="uppercase text-gray-400">
-                                        <tr>
-                                            <th className="px-2 py-2">라운드</th>
-                                            <th className="px-2 py-2">드롭 테이블</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredPlayfulLootRows.map((row) => (
-                                            <tr key={`playful-${row.rounds}`} className="border-t border-color/40 text-gray-200">
-                                                <td className="px-2 py-2 font-semibold text-sky-300">{row.rounds}라운드</td>
-                                                <td className="px-2 py-2">{row.line}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                        {!pvpStrategicPlayfulBoxLootEnabled ? (
+                            <p className="text-gray-400">
+                                전략·놀이 바둑 종료 보상에는 장비·재료 상자 드롭이 없습니다. 골드·경험치·랭킹 및 별도 정책 재화만
+                                적용됩니다.
+                            </p>
+                        ) : (
+                            <>
+                                {showStrategicSection && (
+                                    <div>
+                                        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                                            전략바둑 (승리 시 롤 테이블)
+                                        </h3>
+                                        <p>{strategicLootLine}</p>
+                                    </div>
+                                )}
+                                {filteredPlayfulLootRows.length > 0 && (
+                                    <div className="overflow-x-auto">
+                                        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                                            놀이바둑 (라운드별 승리 롤 테이블)
+                                        </h3>
+                                        <table className="w-full min-w-[760px] text-left text-xs">
+                                            <thead className="uppercase text-gray-400">
+                                                <tr>
+                                                    <th className="px-2 py-2">라운드</th>
+                                                    <th className="px-2 py-2">드롭 테이블</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {filteredPlayfulLootRows.map((row) => (
+                                                    <tr key={`playful-${row.rounds}`} className="border-t border-color/40 text-gray-200">
+                                                        <td className="px-2 py-2 font-semibold text-sky-300">{row.rounds}라운드</td>
+                                                        <td className="px-2 py-2">{row.line}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </section>

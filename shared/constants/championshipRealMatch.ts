@@ -5,7 +5,7 @@ export type ChampionshipKataPhase = 'opening' | 'midgame' | 'endgame';
 export type ChampionshipCoreStatsSix = Record<CoreStat, number>;
 
 export type ChampionshipRealMatchRules = {
-    boardSize: 19 | 13;
+    boardSize: 9 | 13 | 19;
     phasePly: Record<ChampionshipKataPhase, { from: number; to: number }>;
     maxPly: number;
 };
@@ -30,7 +30,44 @@ export const CHAMPIONSHIP_REAL_MATCH_RULES_13: ChampionshipRealMatchRules = {
     maxPly: 90,
 };
 
+/** 챔피언십 던전 1~3단계: 9줄, 초·중·종 각 14수(총 42수, 흑·백 동수) */
+export const CHAMPIONSHIP_REAL_MATCH_RULES_9: ChampionshipRealMatchRules = {
+    boardSize: 9,
+    phasePly: {
+        opening: { from: 1, to: 14 },
+        midgame: { from: 15, to: 28 },
+        endgame: { from: 29, to: 42 },
+    },
+    maxPly: 42,
+};
+
 export const DEFAULT_CHAMPIONSHIP_REAL_MATCH_RULES = CHAMPIONSHIP_REAL_MATCH_RULES_19;
+
+/**
+ * 인게임 챔피언십 던전 단계별 판 크기·수 구간.
+ * 1~3단계: 9줄(14+14+14수), 4~5단계: 13줄(30+30+30), 6단계 이상: 19줄(기존 60+60+60).
+ */
+export function resolveChampionshipDungeonRulesFromStage(stage: number): ChampionshipRealMatchRules {
+    const s = Math.floor(Number(stage));
+    if (!Number.isFinite(s) || s < 1) return DEFAULT_CHAMPIONSHIP_REAL_MATCH_RULES;
+    if (s <= 3) return CHAMPIONSHIP_REAL_MATCH_RULES_9;
+    if (s <= 5) return CHAMPIONSHIP_REAL_MATCH_RULES_13;
+    return CHAMPIONSHIP_REAL_MATCH_RULES_19;
+}
+
+/** 챔피언십 실대국 중계 UI 배속 — 던전 단계별로 허용 버튼만 노출 */
+export type ChampionshipPlaybackSpeedChoice = 0.5 | 1 | 2 | 3;
+
+/** 1~3단계: x0.5·x1만, 4~5단계: x0.5·x1·x2, 6단계 이상·비던전: 전체 */
+export function resolveChampionshipDungeonPlaybackSpeedChoices(
+    stage: number,
+): readonly ChampionshipPlaybackSpeedChoice[] {
+    const s = Math.floor(Number(stage));
+    if (!Number.isFinite(s) || s < 1) return [0.5, 1, 2, 3];
+    if (s <= 3) return [0.5, 1];
+    if (s <= 5) return [0.5, 1, 2];
+    return [0.5, 1, 2, 3];
+}
 
 /** 포석·중원·끝내기 구간별 능력치 가중합 (집중력·사고속도·판단력·계산력·전투력·안정감) */
 export const CHAMPIONSHIP_KATA_PHASE_WEIGHTS: Record<ChampionshipKataPhase, ChampionshipCoreStatsSix> = {

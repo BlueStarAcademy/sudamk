@@ -34,6 +34,7 @@ import {
     isSessionSpeedTimePressureMode,
     SPEED_TIME_PRESSURE_SECONDS_PER_POINT,
 } from './utils/speedTimePressureLiveCaptures.js';
+import { modeIncludesCaptureRule } from '../shared/utils/liveSessionArenaKind.js';
 
 // 정확한 계가 결과는 1회만 표시한다는 전제 하에,
 // (특히 히든돌 최종 공개 애니메이션 동안) KataGo 분석을 백그라운드로 미리 시작해
@@ -957,7 +958,8 @@ export const initializeGame = async (neg: Negotiation): Promise<LiveGameSession>
 
     // 전략바둑 AI 대결에서 "제한없음(0)" 옵션 제거 정책:
     // 서버에서 scoringTurnLimit이 0/음수/없으면 보드 크기에 맞는 기본값으로 강제한다.
-    if (isAiGame && SPECIAL_GAME_MODES.some(m => m.mode === mode) && mode !== types.GameMode.Capture) {
+    const captureRuleGame = modeIncludesCaptureRule(mode, settings);
+    if (isAiGame && SPECIAL_GAME_MODES.some(m => m.mode === mode) && !captureRuleGame) {
         const scoringTurnLimit = (settings as any)?.scoringTurnLimit;
         if (typeof scoringTurnLimit !== 'number' || !Number.isFinite(scoringTurnLimit) || scoringTurnLimit <= 0) {
             const options = getScoringTurnLimitOptionsByBoardSize((settings as any)?.boardSize ?? 19).filter(l => l > 0);
@@ -966,7 +968,7 @@ export const initializeGame = async (neg: Negotiation): Promise<LiveGameSession>
     }
 
     // 따내기 바둑: 목표 점수 달성으로만 승패 — 계가까지 턴/자동 계가 수 설정은 무시(이전 모드 설정 잔존 방지)
-    if (mode === types.GameMode.Capture) {
+    if (captureRuleGame) {
         (settings as any).scoringTurnLimit = 0;
         delete (settings as any).autoScoringTurns;
     }
@@ -1098,7 +1100,7 @@ export async function mergeGamesWithLatestCache(
     snapshots: LiveGameSession[],
     lookupMs: number,
 ): Promise<LiveGameSession[]> {
-    const { getCachedGame } = await import('./gameCache.js');
+    const { getCachedGame, pickFresherLiveSessionForPveCache } = await import('./gameCache.js');
     return Promise.all(
         snapshots.map(async (snap) => {
             if (!snap?.id) return snap;
@@ -1106,7 +1108,7 @@ export async function mergeGamesWithLatestCache(
                 getCachedGame(snap.id),
                 new Promise<LiveGameSession | null>((r) => setTimeout(() => r(null), lookupMs)),
             ]);
-            return cached ?? snap;
+            return pickFresherLiveSessionForPveCache(snap, cached);
         }),
     );
 }
@@ -1161,9 +1163,9 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                     game.gameStatus === 'capture_bidding' ||
                     game.gameStatus === 'capture_reveal' ||
                     game.gameStatus === 'capture_tiebreaker');
-            /** 싱글 베이스(또는 믹스에 베이스): 메인 루프에서 제외되면 updateBaseState가 안 돌아 덤 입찰·타임아웃 전환이 멈춤 */
+            /** PVE 베이스(또는 믹스에 베이스): 메인 루프에서 제외되면 사전 단계 전환·AI 입찰이 멈춤 */
             const needsSinglePlayerBasePrePlayTick =
-                game.isSinglePlayer &&
+                isPVEGame &&
                 (game.mode === types.GameMode.Base ||
                     (game.mode === types.GameMode.Mix &&
                         Boolean((game.settings as { mixedModes?: types.GameMode[] } | undefined)?.mixedModes?.includes(types.GameMode.Base)))) &&
@@ -1172,6 +1174,9 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                     'base_stone_color_choice',
                     'base_same_color_points_bid',
                     'base_game_start_confirmation',
+                    'capture_bidding',
+                    'capture_reveal',
+                    'capture_tiebreaker',
                 ].includes(game.gameStatus);
             // 싱글 베이스 사전 단계는 `needsSinglePlayerBasePrePlayTick`으로 처리(도전의 탑 등에는 베이스 모드 없음).
             // 싱글/타워 등 PVE는 기본적으로 메인 루프에서 제외되나, 주사위·도둑은 update*State / AI 턴이
@@ -1472,6 +1477,19 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                     : getAiUser(game.mode);
             if (String((game as any).gameCategory ?? '') === 'tower') {
                 aiUserResolved = { ...aiUserResolved, nickname: TOWER_AI_BOT_DISPLAY_NAME };
+            }
+            // 싱글플레이: 봇 닉네임·레벨은 START/CONFIRM에서 스테이지(반·번호) 기준으로 설정되므로
+            // 메인 루프가 모드 기본 닉네임(`히든 바둑봇`/`베이스 바둑봇` 등)으로 되돌리지 않도록 보존한다.
+            const isSinglePlayerSession =
+                Boolean(game.isSinglePlayer) || String((game as any).gameCategory ?? '') === 'singleplayer';
+            if (isSinglePlayerSession && game.player2?.id === aiUserId) {
+                const preservedNickname = typeof game.player2.nickname === 'string' && game.player2.nickname.length > 0
+                    ? game.player2.nickname
+                    : aiUserResolved.nickname;
+                const preservedUserLevel = typeof game.player2.userLevel === 'number'
+                    ? game.player2.userLevel
+                    : aiUserResolved.userLevel;
+                aiUserResolved = { ...aiUserResolved, nickname: preservedNickname, userLevel: preservedUserLevel };
             }
 
             if (needsP1Load || needsP2Load) {

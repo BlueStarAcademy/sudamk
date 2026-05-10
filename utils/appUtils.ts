@@ -21,6 +21,50 @@ export function replaceAppHash(hash: string): void {
     window.dispatchEvent(new Event('hashchange'));
 }
 
+const SKIP_GAME_HASH_LEAVE_INTERCEPT_KEY = 'skipGameHashLeaveIntercept';
+
+type SkipInterceptPayload = { until: number; remaining: number };
+
+/**
+ * 비상탈출 등 의도적 홈 이동 시 `Game.tsx`의 hashchange·popstate 인터셉터가
+ * 기권 확인 모달을 띄우지 않도록 짧은 구간 안에서 최대 2회 건너뛴다(동일 네비에서 이벤트가 둘 다 올 수 있음).
+ */
+export function markSkipGameHashLeaveInterceptOnce(): void {
+    try {
+        const payload: SkipInterceptPayload = { until: Date.now() + 1200, remaining: 2 };
+        sessionStorage.setItem(SKIP_GAME_HASH_LEAVE_INTERCEPT_KEY, JSON.stringify(payload));
+    } catch {
+        /* ignore */
+    }
+}
+
+export function consumeSkipGameHashLeaveInterceptOnce(): boolean {
+    try {
+        const raw = sessionStorage.getItem(SKIP_GAME_HASH_LEAVE_INTERCEPT_KEY);
+        if (!raw) return false;
+        const p = JSON.parse(raw) as SkipInterceptPayload;
+        if (typeof p.until !== 'number' || typeof p.remaining !== 'number') {
+            sessionStorage.removeItem(SKIP_GAME_HASH_LEAVE_INTERCEPT_KEY);
+            return false;
+        }
+        if (Date.now() > p.until || p.remaining <= 0) {
+            sessionStorage.removeItem(SKIP_GAME_HASH_LEAVE_INTERCEPT_KEY);
+            return false;
+        }
+        const next: SkipInterceptPayload = { until: p.until, remaining: p.remaining - 1 };
+        if (next.remaining <= 0) sessionStorage.removeItem(SKIP_GAME_HASH_LEAVE_INTERCEPT_KEY);
+        else sessionStorage.setItem(SKIP_GAME_HASH_LEAVE_INTERCEPT_KEY, JSON.stringify(next));
+        return true;
+    } catch {
+        try {
+            sessionStorage.removeItem(SKIP_GAME_HASH_LEAVE_INTERCEPT_KEY);
+        } catch {
+            /* ignore */
+        }
+        return false;
+    }
+}
+
 /** 현재 URL이 경기장이고 목적지가 경기장이 아니면 replace, 그 외에는 일반 해시 이동(스택 추가). */
 export function navigateFromGameIfApplicable(targetHash: string): void {
     const h = targetHash.startsWith('#') ? targetHash : `#${targetHash}`;

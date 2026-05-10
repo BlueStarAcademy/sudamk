@@ -44,7 +44,10 @@ const SHOP_ITEM_ID_TO_DISPLAY_NAME: Record<string, string> = {
 
 export const normalizeBoxItemName = (name: string): string => {
     if (!name || typeof name !== 'string') return name;
-    const trimmed = name.replace(/\s+/g, ' ').trim();
+    let trimmed = name.replace(/\s+/g, ' ').trim();
+    if (typeof trimmed.normalize === 'function') {
+        trimmed = trimmed.normalize('NFKC');
+    }
     const fromShopId = SHOP_ITEM_ID_TO_DISPLAY_NAME[trimmed];
     if (fromShopId) return fromShopId;
     const numToRoman: Record<string, string> = {
@@ -66,6 +69,32 @@ export const normalizeBoxItemName = (name: string): string => {
     normalized = normalized.replace(/재료 상자 (\d)/g, (_, num) => `재료 상자 ${numToRoman[num] || num}`);
     normalized = normalized.replace(/골드 꾸러미(\d)/g, (_, num) => `골드 꾸러미 ${numToRoman[num] || num}`);
     normalized = normalized.replace(/다이아 꾸러미(\d)/g, (_, num) => `다이아 꾸러미 ${numToRoman[num] || num}`);
+    // "장비상자III" / "장비 상자III" 등 — 숫자(3) 치환에 안 걸리는 로마 숫자 붙임 표기
+    const roman = 'I|II|III|IV|V|VI';
+    normalized = normalized.replace(new RegExp(`^장비\\s*상자\\s*(${roman})$`, 'i'), (_, r: string) => `장비 상자 ${r.toUpperCase()}`);
+    normalized = normalized.replace(new RegExp(`^재료\\s*상자\\s*(${roman})$`, 'i'), (_, r: string) => `재료 상자 ${r.toUpperCase()}`);
+    return normalized.trim();
+};
+
+const numToRomanBoxDigit: Record<string, string> = {
+    '1': 'I',
+    '2': 'II',
+    '3': 'III',
+    '4': 'IV',
+    '5': 'V',
+    '6': 'VI',
+};
+
+/** 상점·인벤 표기 차이(장비상자1 ↔ 장비 상자 I)를 한 키로 통일 — USE_ITEM/USE_ALL과 동일 */
+export const canonicalShopConsumableBoxKey = (name: string): string => {
+    let normalized = (name || '').replace(/\s+/g, ' ').trim();
+    normalized = normalizeBoxItemName(normalized);
+    normalized = normalized.replace(/장비상자(\d)/g, (_, num: string) => `장비 상자 ${numToRomanBoxDigit[num] || num}`);
+    normalized = normalized.replace(/재료상자(\d)/g, (_, num: string) => `재료 상자 ${numToRomanBoxDigit[num] || num}`);
+    normalized = normalized.replace(/장비 상자(\d)/g, (_, num: string) => `장비 상자 ${numToRomanBoxDigit[num] || num}`);
+    normalized = normalized.replace(/재료 상자(\d)/g, (_, num: string) => `재료 상자 ${numToRomanBoxDigit[num] || num}`);
+    normalized = normalized.replace(/장비 상자 (\d)/g, (_, num: string) => `장비 상자 ${numToRomanBoxDigit[num] || num}`);
+    normalized = normalized.replace(/재료 상자 (\d)/g, (_, num: string) => `재료 상자 ${numToRomanBoxDigit[num] || num}`);
     return normalized.trim();
 };
 
@@ -142,4 +171,18 @@ export const getItemTemplateByName = (itemName: string) => {
     }
 
     return null;
+};
+
+/** 일괄 사용: 표기 차이·레거시 material 저장 스택을 동일 소모품으로 합산 */
+export const inventoryStacksMatchConsumableBulkAnchor = (
+    anchorName: string,
+    row: Pick<InventoryItem, 'name' | 'type'> | null | undefined,
+): boolean => {
+    if (!row || (row.type !== 'consumable' && row.type !== 'material')) return false;
+    const anchorTpl = getItemTemplateByName(anchorName);
+    const rowTpl = getItemTemplateByName(row.name || '');
+    if (anchorTpl?.type === 'consumable' && rowTpl && rowTpl.name === anchorTpl.name) {
+        return true;
+    }
+    return row.type === 'consumable' && row.name === anchorName;
 };

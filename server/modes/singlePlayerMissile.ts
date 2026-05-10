@@ -172,6 +172,18 @@ function calculateSinglePlayerMissilePath(
     return { to: current, revealedHiddenStone };
 }
 
+function findLatestOwnedMoveIndexAt(
+    game: types.LiveGameSession,
+    point: types.Point,
+    player: types.Player
+): number {
+    for (let i = game.moveHistory.length - 1; i >= 0; i--) {
+        const m = game.moveHistory[i];
+        if (m.x === point.x && m.y === point.y && m.player === player) return i;
+    }
+    return -1;
+}
+
 function relocateMissileStoneMetadata(
     game: types.LiveGameSession,
     from: types.Point,
@@ -205,6 +217,12 @@ function relocateMissileStoneMetadata(
         if (ridx !== -1) {
             game.permanentlyRevealedStones[ridx] = { x: to.x, y: to.y };
         }
+    }
+
+    const movedIdx = findLatestOwnedMoveIndexAt(game, from, player);
+    if (movedIdx !== -1 && game.moveHistory[movedIdx]) {
+        const cur = game.moveHistory[movedIdx];
+        game.moveHistory[movedIdx] = { ...cur, x: to.x, y: to.y };
     }
 }
 
@@ -243,8 +261,10 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
         game.gameStatus = 'playing';
         game.currentPlayer = timedOutPlayerEnum;
         
-        // 미사일 아이템 소멸 (p1/p2는 흑/백 — player1 좌석과 무관)
-        const missileKey = timedOutPlayerEnum === types.Player.Black ? 'missiles_p1' : 'missiles_p2';
+        // 미사일 아이템 소멸 — 싱글플레이는 USE 경로(`handleSinglePlayerMissileAction`)가 player1=p1 / player2=p2 매핑을
+        // 진실원으로 쓴다. 베이스 싱글에서 유저가 백이 되면 색→키 매핑은 USE 경로와 어긋나 잘못된 인벤(`missiles_p2`=AI)이 줄어들 수 있다.
+        // 시간 초과 패널티도 같은 매핑으로 통일해 주인의 미사일 발수만 깎이도록 한다.
+        const missileKey = timedOutPlayerId === game.player1.id ? 'missiles_p1' : 'missiles_p2';
         const currentMissiles = game[missileKey] ?? game.settings.missileCount ?? 0;
         if (currentMissiles > 0) {
             game[missileKey] = currentMissiles - 1;

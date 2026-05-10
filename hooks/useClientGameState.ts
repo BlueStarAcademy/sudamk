@@ -59,10 +59,16 @@ const upsertPoint = (points: Point[] | undefined, target: Point): Point[] => {
     return [...(points || []), target];
 };
 
-const findMoveIndexAt = (moveHistory: LiveGameSession['moveHistory'] | undefined, x: number, y: number): number => {
+const findMoveIndexAt = (
+    moveHistory: LiveGameSession['moveHistory'] | undefined,
+    x: number,
+    y: number,
+    player?: Player
+): number => {
     const moves = moveHistory || [];
     for (let i = moves.length - 1; i >= 0; i--) {
-        if (moves[i].x === x && moves[i].y === y) {
+        const m = moves[i];
+        if (m.x === x && m.y === y && (player === undefined || m.player === player)) {
             return i;
         }
     }
@@ -97,7 +103,7 @@ const collectCaptureAdjacentHiddenStones = (
         for (const neighbor of getNeighbors(capturedStone.x, capturedStone.y, boardState.length)) {
             if (boardState[neighbor.y]?.[neighbor.x] !== movePlayer) continue;
 
-            const moveIndex = findMoveIndexAt(moveHistory, neighbor.x, neighbor.y);
+            const moveIndex = findMoveIndexAt(moveHistory, neighbor.x, neighbor.y, movePlayer);
             const isHiddenStone = moveIndex !== -1 && !!hiddenMoves[moveIndex];
             const key = `${neighbor.x},${neighbor.y}`;
             if (!isHiddenStone || seen.has(key) || hasPoint(permanentlyRevealedStones, neighbor)) continue;
@@ -266,7 +272,7 @@ export function updateGameStateAfterMove(
     const capturedHiddenStones: { point: Point; player: Player }[] = [];
     if (revealModeActive && capturedStones.length > 0) {
         for (const stone of capturedStones) {
-            const moveIndex = findMoveIndexAt(game.moveHistory, stone.x, stone.y);
+            const moveIndex = findMoveIndexAt(game.moveHistory, stone.x, stone.y, opponentPlayer);
             const wasHiddenMove = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
             const wasAiInitialHidden =
                 (gameType === 'singleplayer' || gameType === 'tower') &&
@@ -324,7 +330,7 @@ export function updateGameStateAfterMove(
             const isPatternStone = opponentPlayer === Player.Black
                 ? !!updatedBlackPatternStones?.some(p => isSamePoint(p, stone))
                 : !!updatedWhitePatternStones?.some(p => isSamePoint(p, stone));
-            const moveIndex = findMoveIndexAt(game.moveHistory, stone.x, stone.y);
+            const moveIndex = findMoveIndexAt(game.moveHistory, stone.x, stone.y, opponentPlayer);
             const wasHiddenMove = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
             const wasAiInitialHidden =
                 (gameType === 'singleplayer' || gameType === 'tower') &&

@@ -12,8 +12,13 @@ import { getAdventureDesignScoringTurnLimit } from '../shared/utils/adventureBat
  * `playingLockedBlackPlayerId/whitePlayerId`가 있는 본경기·아이템 연출 단계라면
  * `blackPlayerId/whitePlayerId`를 잠금값으로 되돌린다. INITIAL_STATE/HTTP 응답 등
  * 다양한 병합 경로에서 임시 좌석으로 새어들지 않게 하는 마지막 안전장치.
+ *
+ * 서버는 색이 확정되는 시점(finalize/komi bid 결과)에 좌석 잠금까지 같이 박는다.
+ * 그래서 `base_game_start_confirmation`도 보호 대상에 포함해, 시작 확인 모달이 떠 있는 동안
+ * 늦은 슬림 패킷이 좌석을 임시값으로 되돌리는 일을 막는다.
  */
 const BASE_SEAT_LOCK_PROTECTED_STATUSES = new Set([
+    'base_game_start_confirmation',
     'playing',
     'hidden_placing',
     'scanning',
@@ -34,6 +39,27 @@ function coerceBaseSessionPlayingSeatLock(session: LiveGameSession): LiveGameSes
     if (!BASE_SEAT_LOCK_PROTECTED_STATUSES.has(String(session.gameStatus ?? ''))) return session;
     if (session.blackPlayerId === lb && session.whitePlayerId === lw) return session;
     return { ...session, blackPlayerId: lb, whitePlayerId: lw };
+}
+
+/**
+ * 본대국 좌석 잠금이 있는데 들어온 패킷이 잠금만 비워서 들고 오면(슬림 WS·HTTP 응답 등)
+ * 기존 클라 잠금값을 유지한다. 잠금이 사라지면 `coerceBaseSessionPlayingSeatLock`가 좌석을 되돌릴
+ * 근거 자체를 잃기 때문이다.
+ */
+function preserveExistingBaseSeatLockAgainstSlimDrop(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined,
+): LiveGameSession {
+    if (!existing) return incoming;
+    const elb = (existing as { playingLockedBlackPlayerId?: unknown }).playingLockedBlackPlayerId;
+    const elw = (existing as { playingLockedWhitePlayerId?: unknown }).playingLockedWhitePlayerId;
+    if (typeof elb !== 'string' || elb.length === 0 || typeof elw !== 'string' || elw.length === 0) return incoming;
+    const ilb = (incoming as { playingLockedBlackPlayerId?: unknown }).playingLockedBlackPlayerId;
+    const ilw = (incoming as { playingLockedWhitePlayerId?: unknown }).playingLockedWhitePlayerId;
+    const incomingHasLock =
+        typeof ilb === 'string' && ilb.length > 0 && typeof ilw === 'string' && ilw.length > 0;
+    if (incomingHasLock) return incoming;
+    return { ...incoming, playingLockedBlackPlayerId: elb, playingLockedWhitePlayerId: elw };
 }
 
 export type ClientGameMergeSource = 'initial_state' | 'game_update' | 'http_action';
@@ -70,8 +96,10 @@ export function mergeGameUpdateByArena(
     existing: LiveGameSession | undefined,
     _context: ClientGameMergeContext,
 ): LiveGameSession {
-    const merged = existing ? ({ ...existing, ...incoming } as LiveGameSession) : incoming;
-    /** 본경기 진입 후 들어온 패킷이 임시 좌석을 들고 오면 잠금값으로 되돌린다(흑/백 영구 스왑 방지). */
+    /** 들어온 패킷이 좌석 잠금을 비운 채 오면 기존 잠금을 살려 두어, 좌석 보호 근거를 잃지 않게 한다. */
+    const incomingWithLock = preserveExistingBaseSeatLockAgainstSlimDrop(incoming, existing);
+    const merged = existing ? ({ ...existing, ...incomingWithLock } as LiveGameSession) : incomingWithLock;
+    /** 본경기·시작 확인 단계로 들어온 패킷이 임시 좌석을 들고 오면 잠금값으로 되돌린다(흑/백 영구 스왑 방지). */
     const seatLocked = coerceBaseSessionPlayingSeatLock(merged);
     return coerceAdventureLiveGameScoringTurnLimit(seatLocked);
 }

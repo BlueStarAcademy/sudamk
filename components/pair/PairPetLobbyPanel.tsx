@@ -14,6 +14,7 @@ import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import PurchaseQuantityModal from '../PurchaseQuantityModal.js';
 import SellItemConfirmModal from '../SellItemConfirmModal.js';
+import SellMaterialBulkModal from '../SellMaterialBulkModal.js';
 import type { User, UserWithStatus, InventoryItem, ServerAction, PairPetLobbyInventorySortMode } from '../../types.js';
 import { MATERIAL_ITEMS, gradeBackgrounds } from '../../shared/constants/items.js';
 import { ItemGrade } from '../../types/enums.js';
@@ -70,6 +71,10 @@ import {
 } from '../../shared/constants/pairHatchery.js';
 import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
 import { resolvePairPetMetaFromInventoryRow } from '../../shared/utils/pairPetRoll.js';
+import {
+    hasPairPetHatcheryClaimReadyForQuickMenu,
+    hasPairPetTrainingClaimReadyForQuickMenu,
+} from '../../shared/utils/pairPetQuickClaimNotification.js';
 import { resolvePairPetRpsAttributeFromMeta } from '../../shared/utils/pairPetRps.js';
 import PairPetRpsBadge from './PairPetRpsBadge.js';
 type AiTab = 'info' | 'training' | 'hatchery' | 'shop';
@@ -133,7 +138,7 @@ function hatcheryLevelOutcomeLine(def: PairHatcherySlotDef): React.ReactNode {
     const rule = def.levelRule;
     if (rule.kind === 'default') {
         return (
-            <span className="text-[clamp(0.62rem,1.85vmin,0.8125rem)] font-semibold tabular-nums leading-snug text-amber-200">
+            <span className="text-[13px] font-semibold tabular-nums leading-normal text-amber-100 antialiased sm:text-sm">
                 부화 펫 레벨 : 1
             </span>
         );
@@ -141,7 +146,7 @@ function hatcheryLevelOutcomeLine(def: PairHatcherySlotDef): React.ReactNode {
     if (rule.kind === 'fixed') {
         const n = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(rule.level)));
         return (
-            <span className="text-[clamp(0.62rem,1.85vmin,0.8125rem)] font-semibold tabular-nums leading-snug text-amber-200">
+            <span className="text-[13px] font-semibold tabular-nums leading-normal text-amber-100 antialiased sm:text-sm">
                 부화 펫 레벨 : {n}
             </span>
         );
@@ -150,13 +155,13 @@ function hatcheryLevelOutcomeLine(def: PairHatcherySlotDef): React.ReactNode {
     const hi = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.max(rule.min, rule.max)));
     if (lo === hi) {
         return (
-            <span className="text-[clamp(0.62rem,1.85vmin,0.8125rem)] font-semibold tabular-nums leading-snug text-amber-200">
+            <span className="text-[13px] font-semibold tabular-nums leading-normal text-amber-100 antialiased sm:text-sm">
                 부화 펫 레벨 : {lo}
             </span>
         );
     }
     return (
-        <span className="text-[clamp(0.62rem,1.85vmin,0.8125rem)] font-semibold tabular-nums leading-snug text-amber-200">
+        <span className="text-[13px] font-semibold tabular-nums leading-normal text-amber-100 antialiased sm:text-sm">
             부화 펫 레벨 : {lo} ~ {hi}
         </span>
     );
@@ -474,6 +479,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     const [soulStoneSellConfirm, setSoulStoneSellConfirm] = useState<{ stackItem: InventoryItem; quantity: number } | null>(
         null,
     );
+    /** 영혼석 일괄 판매: 수량 조절 모달(가방 일괄 판매와 동일 로직) */
+    const [soulStoneSellBulkItem, setSoulStoneSellBulkItem] = useState<InventoryItem | null>(null);
     /** 모바일: 빈 수련 슬롯 탭 후 인벤에서 펫 선택 */
     const [trainingMobilePickSlotIndex, setTrainingMobilePickSlotIndex] = useState<number | null>(null);
     /** 수련 시작 직전 확인(드롭·모바일 탭 공통) */
@@ -519,35 +526,14 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     const pairHatcheryHasClaimReady = useMemo(() => {
         void hatcheryTick;
         void pairLobbyPendingTick;
-        const sessions = normalizePairPetHatcherySessions(currentUser.pairPetHatcherySessions);
-        const now = Date.now();
-        for (const def of PAIR_HATCHERY_SLOT_DEFS) {
-            const idx = def.slotIndex;
-            if (!canUsePairHatcherySlot(currentUser, idx)) continue;
-            const session = sessions[idx];
-            if (!session) continue;
-            if (now >= hatcheryEndsAt(session.startedAt, idx, session)) return true;
-        }
-        return false;
+        return hasPairPetHatcheryClaimReadyForQuickMenu(currentUser, Date.now());
     }, [currentUser, hatcheryTick, pairLobbyPendingTick]);
 
     const pairTrainingHasClaimReady = useMemo(() => {
         void trainingTick;
         void pairLobbyPendingTick;
-        const slots = normalizePairPetTrainingSlots(currentUser.pairPetTrainingSlots);
-        const now = Date.now();
-        for (const def of PAIR_TRAINING_SLOT_DEFS) {
-            const i = def.slotIndex;
-            if (!isPairTrainingSlotUnlocked(currentUser, i)) continue;
-            const session = slots[i];
-            if (!session) continue;
-            const petRowSess = inventory.find((x) => x.id === session.itemId);
-            const sessMeta = petRowSess ? resolvePairPetMetaFromInventoryRow(petRowSess) : null;
-            if (now < trainingEndsAt(session.startedAt, i, sessMeta)) continue;
-            if (inventory.some((x) => x.id === session.itemId)) return true;
-        }
-        return false;
-    }, [currentUser, inventory, trainingTick, pairLobbyPendingTick]);
+        return hasPairPetTrainingClaimReadyForQuickMenu(currentUser, Date.now());
+    }, [currentUser, trainingTick, pairLobbyPendingTick]);
 
     const shopSkusVisible = useMemo(
         () =>
@@ -663,11 +649,6 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         const tid = selectedLobbyItemId.slice(SOUL_SLOT_PREFIX.length);
         return inventory.find((i) => i.templateId === tid && isPairSoulStoneItem(i))?.id ?? null;
     }, [inventory, selectedLobbyItemId]);
-
-    const selectedSoulPrimaryStackQty = useMemo(() => {
-        if (!selectedSoulPrimaryStackId) return 0;
-        return inventory.find((i) => i.id === selectedSoulPrimaryStackId)?.quantity ?? 0;
-    }, [inventory, selectedSoulPrimaryStackId]);
 
     useEffect(() => {
         if (!selectedLobbyItemId) return;
@@ -870,7 +851,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     (!session && firstHatchEgg && isPairWelcomeEggItem(firstHatchEgg)),
             );
             const levelOutcome = hatchUsesWelcomeEgg ? (
-                <span className="text-[clamp(0.62rem,1.85vmin,0.8125rem)] font-semibold tabular-nums leading-snug text-amber-200">
+                <span className="text-[13px] font-semibold tabular-nums leading-normal text-amber-100 antialiased sm:text-sm">
                     부화 펫 레벨 : 5
                 </span>
             ) : (
@@ -895,9 +876,9 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
             const infoPanel = (
                 <div
-                    className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border p-[clamp(0.35rem,1.1vmin,0.65rem)] backdrop-blur-[2px] ${infoPanelShell}`}
+                    className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border p-[clamp(0.35rem,1.1vmin,0.65rem)] ${infoPanelShell} antialiased [text-rendering:optimizeLegibility]`}
                 >
-                    <div className="shrink-0 border-b border-white/[0.08] pb-[clamp(0.25rem,0.85vmin,0.45rem)] leading-snug text-amber-100/95">
+                    <div className="shrink-0 border-b border-white/[0.08] pb-[clamp(0.25rem,0.85vmin,0.45rem)] leading-normal text-amber-100">
                         {levelOutcome}
                     </div>
                     {/* 부화 시작 ↔ 진행 중(즉시·취소) 전환 시 높이 고정 */}
@@ -908,7 +889,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 disabled={isBusy || eggCount < 1}
                                 onClick={() => setHatcheryConfirmSlotIndex(slotIndex)}
                                 colorScheme="none"
-                                className={`!w-auto !min-w-0 self-center !rounded-lg !px-[clamp(0.65rem,2vmin,1.1rem)] !py-[clamp(0.2rem,0.75vmin,0.55rem)] !text-[clamp(0.58rem,1.5vmin,0.75rem)] !font-black !uppercase !tracking-widest disabled:!opacity-40 ${hatchStartBtn}`}
+                                className={`!w-auto !min-w-0 self-center !rounded-lg !px-[clamp(0.65rem,2vmin,1.1rem)] !py-[clamp(0.2rem,0.75vmin,0.55rem)] !text-xs !font-black !uppercase !tracking-wide !antialiased sm:!text-[0.8125rem] sm:!tracking-wider disabled:!opacity-40 ${hatchStartBtn}`}
                             >
                                 부화 시작
                             </Button>
@@ -957,7 +938,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 }
                                 onClick={() => void handleHatcheryClaim(slotIndex)}
                                 colorScheme="none"
-                                className="!flex !w-full !min-w-0 !flex-row !items-center !justify-center !gap-1 !rounded-lg !border !border-amber-400/55 !bg-gradient-to-b !from-amber-500/95 !to-amber-800/95 !px-[clamp(0.25rem,1vmin,0.55rem)] !py-[clamp(0.22rem,0.8vmin,0.5rem)] !text-[clamp(0.48rem,1.25vmin,0.68rem)] !font-black !uppercase !tracking-wide !text-amber-50 !shadow-[0_4px_14px_rgba(245,158,11,0.3)] hover:!from-amber-500 hover:!to-amber-800 disabled:!opacity-40"
+                                className="!flex !w-full !min-w-0 !flex-row !items-center !justify-center !gap-1 !rounded-lg !border !border-amber-400/55 !bg-gradient-to-b !from-amber-500/95 !to-amber-800/95 !px-[clamp(0.25rem,1vmin,0.55rem)] !py-[clamp(0.22rem,0.8vmin,0.5rem)] !text-xs !font-black !uppercase !tracking-wide !text-amber-50 !antialiased !shadow-[0_4px_14px_rgba(245,158,11,0.3)] hover:!from-amber-500 hover:!to-amber-800 disabled:!opacity-40 sm:!text-sm lg:!w-auto lg:self-center lg:!px-[clamp(0.55rem,1.6vmin,0.85rem)]"
                             >
                                 펫 받기
                             </Button>
@@ -1809,18 +1790,15 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         item={selectedItem}
                         isBusy={isBusy}
                         primaryStackId={selectedSoulPrimaryStackId}
-                        primaryStackQty={selectedSoulPrimaryStackQty}
+                        totalSoulQuantity={selectedItem.quantity ?? 0}
                         onSellOne={() => {
                             if (!selectedSoulPrimaryStackId) return;
                             const row = inventory.find((i) => i.id === selectedSoulPrimaryStackId);
                             if (row) setSoulStoneSellConfirm({ stackItem: row, quantity: 1 });
                         }}
-                        onSellAll={() => {
-                            if (!selectedSoulPrimaryStackId) return;
-                            const row = inventory.find((i) => i.id === selectedSoulPrimaryStackId);
-                            if (row && selectedSoulPrimaryStackQty >= 1) {
-                                setSoulStoneSellConfirm({ stackItem: row, quantity: selectedSoulPrimaryStackQty });
-                            }
+                        onOpenBulkSell={() => {
+                            if (!selectedItem || !isPairSoulStoneItem(selectedItem)) return;
+                            setSoulStoneSellBulkItem(selectedItem);
                         }}
                     />
                 </div>
@@ -2147,6 +2125,30 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         const pending = soulStoneSellConfirm;
                         setSoulStoneSellConfirm(null);
                         if (pending) void sellItem(pending.stackItem.id, pending.quantity);
+                    }}
+                    isTopmost
+                />
+            ) : null}
+
+            {soulStoneSellBulkItem ? (
+                <SellMaterialBulkModal
+                    item={soulStoneSellBulkItem}
+                    currentUser={currentUser as UserWithStatus}
+                    onClose={() => setSoulStoneSellBulkItem(null)}
+                    onConfirm={async (quantity) => {
+                        const anchor = soulStoneSellBulkItem;
+                        if (!anchor) return;
+                        const itemsToSell = (currentUser.inventory || [])
+                            .filter((i) => i.type === anchor.type && i.name === anchor.name)
+                            .sort((a, b) => (a.quantity || 0) - (b.quantity || 0));
+                        let remaining = quantity;
+                        for (const it of itemsToSell) {
+                            if (remaining <= 0) break;
+                            const sellQty = Math.min(remaining, it.quantity || 1);
+                            await sellItem(it.id, sellQty);
+                            remaining -= sellQty;
+                        }
+                        setSoulStoneSellBulkItem(null);
                     }}
                     isTopmost
                 />

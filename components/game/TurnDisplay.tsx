@@ -13,6 +13,7 @@ import { arenaGameRoomTurnDisplayBgClass } from './arenaGameRoomStyles.js';
 import { getSessionPlayerDisplayName } from '../../utils/gameDisplayNames.js';
 import { getCurrentPairTurnSeat } from '../../shared/utils/pairGameTurn.js';
 import { getEffectivePairLobbyOwnerId } from '../../shared/utils/effectivePairLobbyOwnerId.js';
+import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
 
 const AI_HIDDEN_ITEM_MESSAGE = 'AI봇이 히든 아이템을 사용했습니다!';
 const MONSTER_HIDDEN_ITEM_MESSAGE = '몬스터가 히든 아이템을 사용했습니다!';
@@ -144,6 +145,17 @@ const getGameStatusText = (session: LiveGameSession): string => {
             return '같은 돌 선택 — 상대에게 줄 점수를 정하세요.';
         case 'base_game_start_confirmation':
             return '대국 시작 버튼을 누르면 착수가 시작됩니다.';
+        case 'capture_bidding':
+            if (
+                modeIncludesBaseCaptureMix(mode, settings) &&
+                session.biddingRound === 2 &&
+                session.captureFirstRoundTieBidSnapshot
+            ) {
+                return '제시한 동점이 같습니다. 이번에도 같다면 랜덤으로 결정됩니다.';
+            }
+            return modeIncludesBaseCaptureMix(mode, settings)
+                ? '공개된 판을 보며 흑(선)을 위한 제시 점수를 하단에서 확정하세요.'
+                : '흑(선) 점수 제시 단계입니다.';
         case 'ended':
             return '대국 종료';
         case 'no_contest':

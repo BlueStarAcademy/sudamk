@@ -179,7 +179,28 @@ function openBoxWithLootTable(lootTable: { grade: ItemGrade; weight: number }[])
         random -= item.weight;
     }
 
-    const itemsOfSelectedGrade = EQUIPMENT_POOL.filter(item => item.grade === selectedGrade);
+    const ascendingGrades: ItemGrade[] = [
+        ItemGrade.Normal,
+        ItemGrade.Uncommon,
+        ItemGrade.Rare,
+        ItemGrade.Epic,
+        ItemGrade.Legendary,
+        ItemGrade.Mythic,
+        ItemGrade.Transcendent,
+    ];
+    let grade: ItemGrade = selectedGrade;
+    let itemsOfSelectedGrade = EQUIPMENT_POOL.filter((item) => item.grade === grade);
+    let guard = 0;
+    while (itemsOfSelectedGrade.length === 0 && guard < ascendingGrades.length) {
+        const idx = ascendingGrades.indexOf(grade);
+        if (idx <= 0) break;
+        grade = ascendingGrades[idx - 1]!;
+        itemsOfSelectedGrade = EQUIPMENT_POOL.filter((item) => item.grade === grade);
+        guard += 1;
+    }
+    if (itemsOfSelectedGrade.length === 0) {
+        throw new Error(`[openBoxWithLootTable] EQUIPMENT_POOL has no items for grade walk from ${selectedGrade}`);
+    }
     const template = itemsOfSelectedGrade[Math.floor(Math.random() * itemsOfSelectedGrade.length)];
     return createItemFromTemplate(template);
 }
@@ -258,12 +279,12 @@ export const SHOP_ITEMS: { [key: string]: { type: 'equipment' | 'material'; name
     'equipment_box_4': { type: 'equipment', name: '장비 상자 IV', description: '희귀~신화 등급 장비 획득', cost: { gold: 10000 }, onPurchase: openEquipmentBox4, image: '/images/Box/EquipmentBox4.png' },
     'equipment_box_5': { type: 'equipment', name: '장비 상자 V', description: '에픽~신화 등급 장비 획득', cost: { diamonds: 100 }, onPurchase: openEquipmentBox5, image: '/images/Box/EquipmentBox5.png' },
     'equipment_box_6': { type: 'equipment', name: '장비 상자 VI', description: '전설~신화 등급 장비 획득', cost: { diamonds: 500 }, onPurchase: openEquipmentBox6, image: '/images/Box/EquipmentBox6.png' },
-    'material_box_1': { type: 'material', name: '재료 상자 I', description: '하급 ~ 상급 강화석 5개 획득', cost: { gold: 500 }, onPurchase: () => openMaterialBox('material_box_1', 5), image: '/images/Box/ResourceBox1.png', dailyLimit: 10 },
-    'material_box_2': { type: 'material', name: '재료 상자 II', description: '하급 ~ 상급 강화석 5개 획득', cost: { gold: 1000 }, onPurchase: () => openMaterialBox('material_box_2', 5), image: '/images/Box/ResourceBox2.png', dailyLimit: 10 },
-    'material_box_3': { type: 'material', name: '재료 상자 III', description: '하급 ~ 상급 강화석 5개 획득', cost: { gold: 2000 }, onPurchase: () => openMaterialBox('material_box_3', 5), image: '/images/Box/ResourceBox3.png', dailyLimit: 10 },
-    'material_box_4': { type: 'material', name: '재료 상자 IV', description: '중급 ~ 최상급 강화석 5개 획득', cost: { gold: 3500 }, onPurchase: () => openMaterialBox('material_box_4', 5), image: '/images/Box/ResourceBox4.png', dailyLimit: 10 },
-    'material_box_5': { type: 'material', name: '재료 상자 V', description: '상급 ~ 신비의 강화석 5개 획득', cost: { gold: 5000 }, onPurchase: () => openMaterialBox('material_box_5', 5), image: '/images/Box/ResourceBox5.png', dailyLimit: 10 },
-    'material_box_6': { type: 'material', name: '재료 상자 VI', description: '상급 ~ 신비의 강화석 5개 획득', cost: { diamonds: 100 }, onPurchase: () => openMaterialBox('material_box_6', 5), image: '/images/Box/ResourceBox6.png', dailyLimit: 10 },
+    'material_box_1': { type: 'material', name: '재료 상자 I', description: '하급 ~ 상급 강화석 5개 획득', cost: { gold: 500 }, onPurchase: () => openMaterialBox('material_box_1', 5), image: '/images/Box/ResourceBox1.png' },
+    'material_box_2': { type: 'material', name: '재료 상자 II', description: '하급 ~ 상급 강화석 5개 획득', cost: { gold: 1000 }, onPurchase: () => openMaterialBox('material_box_2', 5), image: '/images/Box/ResourceBox2.png' },
+    'material_box_3': { type: 'material', name: '재료 상자 III', description: '하급 ~ 상급 강화석 5개 획득', cost: { gold: 2000 }, onPurchase: () => openMaterialBox('material_box_3', 5), image: '/images/Box/ResourceBox3.png' },
+    'material_box_4': { type: 'material', name: '재료 상자 IV', description: '중급 ~ 최상급 강화석 5개 획득', cost: { gold: 3500 }, onPurchase: () => openMaterialBox('material_box_4', 5), image: '/images/Box/ResourceBox4.png' },
+    'material_box_5': { type: 'material', name: '재료 상자 V', description: '상급 ~ 신비의 강화석 5개 획득', cost: { gold: 5000 }, onPurchase: () => openMaterialBox('material_box_5', 5), image: '/images/Box/ResourceBox5.png' },
+    'material_box_6': { type: 'material', name: '재료 상자 VI', description: '상급 ~ 신비의 강화석 5개 획득', cost: { diamonds: 100 }, onPurchase: () => openMaterialBox('material_box_6', 5), image: '/images/Box/ResourceBox6.png' },
     'equipment_unbind_ticket': {
         type: 'material',
         name: '귀속 해제권',

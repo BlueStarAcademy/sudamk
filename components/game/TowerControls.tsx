@@ -528,16 +528,16 @@ const TowerControls: React.FC<TowerControlsProps> = ({
         <div className={`relative ${colClass}`}>
             {showPetHintBubble && strategicPetHintFooterBubble?.message ? (
                 <div
-                    className="pointer-events-none absolute bottom-full left-1/2 z-[81] mb-2 w-max max-w-[min(17rem,78vw)] -translate-x-1/2 px-0.5"
+                    className="pointer-events-none absolute bottom-full left-1/2 z-[81] mb-2 w-max max-w-[min(26rem,92vw)] -translate-x-1/2 px-0.5"
                     role="status"
                     aria-live="polite"
                 >
-                    <div className="relative rounded-xl border border-sky-400/45 bg-slate-950/96 px-2.5 pb-2 pt-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)] ring-1 ring-sky-500/25">
-                        <p className="line-clamp-2 break-words text-center text-[10px] font-medium leading-snug text-sky-50 sm:text-[11px]">
+                    <div className="relative rounded-xl border border-white/20 bg-black px-3 py-2.5 shadow-[0_12px_32px_rgba(0,0,0,0.75)] ring-1 ring-white/10 sm:px-4 sm:py-3">
+                        <p className="line-clamp-4 break-words text-center text-base font-semibold leading-snug text-white sm:text-lg">
                             {strategicPetHintFooterBubble.message}
                         </p>
                         <div
-                            className="absolute left-1/2 top-full -mt-px h-0 w-0 -translate-x-1/2 border-x-[7px] border-x-transparent border-t-[8px] border-t-slate-950/96 drop-shadow-[0_1px_0_rgba(56,189,248,0.35)]"
+                            className="absolute left-1/2 top-full -mt-px h-0 w-0 -translate-x-1/2 border-x-[8px] border-x-transparent border-t-[9px] border-t-black"
                             aria-hidden
                         />
                     </div>

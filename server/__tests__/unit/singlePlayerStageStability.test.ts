@@ -169,6 +169,8 @@ describe('single-player stage stability', () => {
                 hiddenCount: 2,
                 scanCount: 1,
                 autoScoringTurns: 120,
+                blackTurnLimit: undefined,
+                survivalTurns: undefined,
                 timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 3 },
             },
         ]);
@@ -180,7 +182,7 @@ describe('single-player stage stability', () => {
         expect(stage.autoScoringTurns).toBe(120);
     });
 
-    it('mix including Base removes Capture and clears pre-placed stones / 따내기 한도', () => {
+    it('mix including Base preserves Capture while clearing pre-placed stones', () => {
         const base = DEFAULT_SINGLE_PLAYER_STAGES[0];
         const normalized = normalizeSinglePlayerStagesOverride([
             {
@@ -194,12 +196,12 @@ describe('single-player stage stability', () => {
         ]);
         const stage = normalized[0]!;
 
-        expect(stage.mixedStrategicModes).not.toContain(GameMode.Capture);
+        expect(stage.mixedStrategicModes).toContain(GameMode.Capture);
         expect(stage.mixedStrategicModes).toContain(GameMode.Base);
         expect(stage.mixedStrategicModes!.length).toBeGreaterThanOrEqual(2);
         expect(stage.fixedOpening).toBeUndefined();
         expect(stage.placements).toEqual({ black: 0, white: 0, blackPattern: 0, whitePattern: 0 });
-        expect(stage.blackTurnLimit).toBeUndefined();
+        expect(stage.blackTurnLimit).toBe(10);
     });
 
     it('promotes capture preset to mix when missile + 따내기 한도 are both set (관리자 편집 필드 유지)', () => {

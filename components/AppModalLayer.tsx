@@ -34,6 +34,8 @@ import BulkItemObtainedModal from './BulkItemObtainedModal.js';
 import RewardSummaryModal from './RewardSummaryModal.js';
 import CraftingResultModal from './CraftingResultModal.js';
 import SettingsModal from './SettingsModal.js';
+import PetManagementModal from './PetManagementModal.js';
+import AdventureMonsterCodexModal from './adventure/AdventureMonsterCodexModal.js';
 import ClaimAllSummaryModal from './ClaimAllSummaryModal.js';
 import MbtiInfoModal from './MbtiInfoModal.js';
 import CombinationResultModal from './blacksmith/CombinationResultModal.js';
@@ -106,6 +108,8 @@ const AppModalLayer: React.FC = () => {
         const ids: string[] = [];
         if (activeNegotiation) ids.push('negotiation');
         if (modals.isSettingsModalOpen) ids.push('settings');
+        if (modals.isPetManagementModalOpen) ids.push('petManagement');
+        if (modals.isAdventureMonsterCodexModalOpen) ids.push('adventureMonsterCodex');
         if (modals.isInventoryOpen) ids.push('inventory');
         if (modals.isMailboxOpen) ids.push('mailbox');
         if (modals.isQuestsOpen) ids.push('quests');
@@ -230,6 +234,15 @@ const AppModalLayer: React.FC = () => {
                 />
             )}
             {modals.isSettingsModalOpen && <SettingsModal onClose={handlers.closeSettingsModal} isTopmost={topmostModalId === 'settings'} />}
+            {modals.isPetManagementModalOpen && (
+                <PetManagementModal onClose={handlers.closePetManagementModal} isTopmost={topmostModalId === 'petManagement'} />
+            )}
+            {modals.isAdventureMonsterCodexModalOpen && (
+                <AdventureMonsterCodexModal
+                    onClose={handlers.closeAdventureMonsterCodexModal}
+                    isTopmost={topmostModalId === 'adventureMonsterCodex'}
+                />
+            )}
             {modals.isInventoryOpen && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <InventoryModal currentUser={currentUserWithStatus} onClose={onInventoryCloseForTutorial} onAction={handlers.handleAction} onStartEnhance={handlers.openEnhancingItem} onOpenBlacksmithTab={handlers.openBlacksmithTabFromInventory} enhancementAnimationTarget={modals.enhancementAnimationTarget} onAnimationComplete={handlers.clearEnhancementAnimation} isTopmost={topmostModalId === 'inventory'} />

@@ -10,7 +10,11 @@ import {
     DEFAULT_GAME_SETTINGS,
     RANKED_ELO_BASE_SCORE,
 } from '../../constants';
-import { PAIR_RANKED_STAT_KEY, PAIR_RANKED_MATCH_RECORD_KEY } from '../../shared/constants/userRankedStats.js';
+import {
+    PAIR_RANKED_STAT_KEY,
+    PAIR_RANKED_MATCH_RECORD_KEY,
+    PAIR_ARENA_AI_MATCH_RECORD_KEY,
+} from '../../shared/constants/userRankedStats.js';
 import {
     getAdventureMonsterAttackActionPointCost,
     isAdventureChapterBossCodexId,
@@ -674,6 +678,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             }
             if (!user.stats) user.stats = {};
             user.stats[PAIR_RANKED_MATCH_RECORD_KEY] = { wins: 0, losses: 0 };
+            user.stats[PAIR_ARENA_AI_MATCH_RECORD_KEY] = { wins: 0, losses: 0 };
             user.stats[PAIR_RANKED_STAT_KEY] = { rankingScore: RANKED_ELO_BASE_SCORE };
             if (!user.cumulativeRankingScore) user.cumulativeRankingScore = {};
             user.cumulativeRankingScore.pair = 0;

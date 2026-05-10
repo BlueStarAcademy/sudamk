@@ -42,6 +42,16 @@ export function modeIncludesCaptureRule(mode: unknown, settings: Pick<GameSettin
     return mode === GameMode.Capture || (mode === GameMode.Mix && Boolean(settings?.mixedModes?.includes?.(GameMode.Capture)));
 }
 
+export function modeIncludesBaseRule(mode: unknown, settings: Pick<GameSettings, 'mixedModes'> | null | undefined): boolean {
+    return mode === GameMode.Base || (mode === GameMode.Mix && Boolean(settings?.mixedModes?.includes?.(GameMode.Base)));
+}
+
+export function modeIncludesBaseCaptureMix(mode: unknown, settings: Pick<GameSettings, 'mixedModes'> | null | undefined): boolean {
+    return mode === GameMode.Mix &&
+        Boolean(settings?.mixedModes?.includes?.(GameMode.Base)) &&
+        Boolean(settings?.mixedModes?.includes?.(GameMode.Capture));
+}
+
 export function isAdventureSessionLike(session: SessionLike | null | undefined): boolean {
     if (!session) return false;
     const gc = String(session.gameCategory ?? '');

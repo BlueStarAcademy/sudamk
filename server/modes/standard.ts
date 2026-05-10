@@ -66,6 +66,7 @@ import {
     resolveArenaFixedScoringTurnLimit,
     resolveArenaTurnLimitState,
 } from '../utils/arenaTurnPolicy.js';
+import { modeIncludesBaseRule } from '../../shared/utils/liveSessionArenaKind.js';
 
 function modeIncludesCaptureRule(game: types.LiveGameSession): boolean {
     return game.mode === types.GameMode.Capture ||
@@ -359,6 +360,10 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
             if (game.mode === types.GameMode.Mix) {
                 initializeHidden(game);
                 initializeMissile(game);
+            }
+            if (modeIncludesBaseRule(game.mode, game.settings)) {
+                initializeBase(game, now);
+                break;
             }
             if (game.isAiGame) {
                 const humanPlayerColor = resolveStrategicAiHumanColor(game, neg);

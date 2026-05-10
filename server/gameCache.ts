@@ -3,6 +3,60 @@ import { volatileState } from './state.js';
 import * as db from './db.js';
 import { isPairClassicGame } from '../shared/utils/pairGameTurn.js';
 
+function countPlacedMovesInHistory(h: LiveGameSession['moveHistory'] | undefined): number {
+    if (!Array.isArray(h)) return 0;
+    let n = 0;
+    for (const m of h as { x?: number; y?: number }[]) {
+        if (!m || typeof m.x !== 'number' || typeof m.y !== 'number') continue;
+        if (m.x < 0 || m.y < 0) continue;
+        n++;
+    }
+    return n;
+}
+
+function isServerBaseClientPrePlayStatus(st: string | undefined): boolean {
+    return (
+        st === 'base_placement' ||
+        st === 'base_stone_color_choice' ||
+        st === 'base_same_color_points_bid' ||
+        st === 'base_game_start_confirmation'
+    );
+}
+
+function isPastBaseClientFlowGameStatus(st: string | undefined): boolean {
+    if (!st) return false;
+    if (st === 'pending') return false;
+    return !isServerBaseClientPrePlayStatus(st);
+}
+
+/**
+ * PVE·메인루프 캐시 병합: 수순·본대국 진행·serverRevision으로 더 앞선 세션을 고른다.
+ * DB 저장 지연으로 `base_placement`가 남아 본대국 `playing`을 덮으면 흑백 좌석·AI 턴이 깨진다.
+ */
+export function compareLiveSessionProgressForPveMerge(a: LiveGameSession, b: LiveGameSession): number {
+    const ma = countPlacedMovesInHistory(a.moveHistory);
+    const mb = countPlacedMovesInHistory(b.moveHistory);
+    if (ma !== mb) return ma - mb;
+    const aPast = isPastBaseClientFlowGameStatus(a.gameStatus);
+    const bPast = isPastBaseClientFlowGameStatus(b.gameStatus);
+    if (aPast !== bPast) return aPast ? 1 : -1;
+    const ra = a.serverRevision ?? 0;
+    const rb = b.serverRevision ?? 0;
+    if (ra !== rb) return ra - rb;
+    return 0;
+}
+
+/** `snap`은 메인루프 스냅샷, `candidate`는 캐시/DB — 앞선 쪽을 반환 */
+export function pickFresherLiveSessionForPveCache(
+    snap: LiveGameSession,
+    candidate: LiveGameSession | null,
+): LiveGameSession {
+    if (!candidate) return snap;
+    const c = compareLiveSessionProgressForPveMerge(snap, candidate);
+    if (c > 0) return snap;
+    return candidate;
+}
+
 const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production';
 const CACHE_TTL_MS = isRailway ? 300 * 1000 : 30 * 1000;
 const USER_CACHE_TTL_MS = isRailway ? 1800 * 1000 : 600 * 1000;
@@ -98,6 +152,11 @@ export async function getCachedGame(gameId: string): Promise<LiveGameSession | n
             cache.set(gameId, { game: cached.game, lastUpdated: now });
             return cached.game;
         }
+        // 만료 직전 캐시(본대국)가 DB(아직 베이스 사전 등)보다 앞선 경우 — DB로 덮어 캐시·진영이 사라지는 것 방지
+        if (cached?.game && compareLiveSessionProgressForPveMerge(cached.game, game) > 0) {
+            cache.set(gameId, { game: cached.game, lastUpdated: now });
+            return cached.game;
+        }
         cache.set(gameId, { game, lastUpdated: now });
         return game;
     }
@@ -136,6 +195,14 @@ export function updateGameCache(game: LiveGameSession): void {
         prev.game.gameStatus === 'playing' &&
         game.gameStatus === 'pair_order_reveal'
     ) {
+        return;
+    }
+    const isPve =
+        game.isSinglePlayer === true ||
+        game.gameCategory === 'tower' ||
+        game.gameCategory === 'singleplayer' ||
+        game.gameCategory === 'adventure';
+    if (isPve && prev?.game && compareLiveSessionProgressForPveMerge(prev.game, game) > 0) {
         return;
     }
     cache.set(game.id, { game, lastUpdated: Date.now() });

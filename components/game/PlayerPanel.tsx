@@ -29,6 +29,7 @@ import { mergeStaffNicknameDisplayClass } from '../../shared/utils/staffNickname
 import { getAdventureCodexMonsterById } from '../../constants/adventureMonstersCodex.js';
 import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
+import { applyPveSpeedTimePressureGraceToLiveUsedSec } from '../../shared/utils/speedTimePveGrace.js';
 const formatTime = (seconds: number) => {
     if (seconds < 0) seconds = 0;
     const total = Math.floor(seconds);
@@ -308,7 +309,12 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     } = props;
     const { gameStatus, winner, blackPlayerId, whitePlayerId } = session;
 
-    const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === user.avatarId)?.url, [user.avatarId]);
+    /** 싱글플레이 AI 봇 좌석은 전용 봇 프로필 이미지(/images/bot.webp)를 사용 */
+    const useSinglePlayerAiBotProfile = !!isSinglePlayer && !!isAiPlayer && !opponentMonsterDisplay;
+    const avatarUrl = useMemo(() => {
+        if (useSinglePlayerAiBotProfile) return '/images/bot.webp';
+        return AVATAR_POOL.find(a => a.id === user.avatarId)?.url;
+    }, [user.avatarId, useSinglePlayerAiBotProfile]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === user.borderId)?.url, [user.borderId]);
 
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
@@ -466,7 +472,9 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const gap = isMobile ? 'gap-1.5' : 'gap-2';
 
     const displayNickname = opponentMonsterDisplay?.displayName ?? user.nickname;
-    const nameTitle = `${displayNickname}${isAiPlayer && !opponentMonsterDisplay ? ' 🤖' : ''}${role ? ` (${role})` : ''}`;
+    /** 싱글플레이 AI 봇은 닉네임 자체가 `입문봇`/`초급봇`/… 이라 로봇 이모지를 표시하지 않는다 */
+    const showAiRobotEmoji = !!isAiPlayer && !opponentMonsterDisplay && !isSinglePlayer;
+    const nameTitle = `${displayNickname}${showAiRobotEmoji ? ' 🤖' : ''}${role ? ` (${role})` : ''}`;
 
     const ingameOnboardingUserAttrs = spIngameOnboardingUserTarget
         ? ({ 'data-onboarding-target': 'onboarding-sp-ingame-user-panel' } as const)
@@ -686,7 +694,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                                         >
                                             {user.nickname}
                                         </span>
-                                        {isAiPlayer ? ' 🤖' : ''}
+                                        {showAiRobotEmoji ? ' 🤖' : ''}
                                     </>
                                 )}
                                 {role ? ` (${role})` : ''}
@@ -793,7 +801,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                                         >
                                             {user.nickname}
                                         </span>
-                                        {isAiPlayer ? ' 🤖' : ''}
+                                        {showAiRobotEmoji ? ' 🤖' : ''}
                                     </>
                                 )}
                                 {role ? ` (${role})` : ''}
@@ -1230,6 +1238,20 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         !(isPveLikeSpeedSession &&
             isHumanSeatForAiSpeedBonus(playerEnum) &&
             isAiHiddenItemThinkPresentationForSpeed);
+    /**
+     * 턴 직후 deadline·클라 시각이 한 프레임 어긋나면 (remaining≈0) stored−remaining이 턴 전체로 폭주해
+     * 10초 막대가 비었다가 차는 것처럼 보인다. turnStartTime 기준 경과로 상한을 둔다.
+     */
+    const getLiveTurnUsedSecRawForSpeedBonusUi = (playerEnum: Player, storedAtTurnStart: number, currentMainRemaining: number): number => {
+        if (!humanLiveSpeedTurnClockActive(playerEnum)) return 0;
+        const stored = Math.max(0, Number(storedAtTurnStart));
+        const cur = Math.max(0, Number(currentMainRemaining) || 0);
+        const fromFischer = Math.max(0, stored - cur);
+        const turnStart = typeof session.turnStartTime === 'number' ? session.turnStartTime : speedBonusNowMs;
+        const wallElapsedSec = Math.max(0, (speedBonusNowMs - turnStart) / 1000);
+        const clockSkewSlackSec = 0.5;
+        return Math.max(0, Math.min(fromFischer, wallElapsedSec + clockSkewSlackSec));
+    };
     const getLiveMainTimeForBonus = (playerEnum: Player, storedMainTimeLeft: number): number => {
         if (!isSpeedLiveBonusUi) return storedMainTimeLeft;
         if (humanLiveSpeedTurnClockActive(playerEnum)) {
@@ -1252,9 +1274,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 ? Math.max(0, Number(session.blackTimeLeft ?? 0))
                 : Math.max(0, Number(session.whiteTimeLeft ?? 0));
         const current = Math.max(0, Number(currentMainTimeLeft) || 0);
-        const liveTurnUsedSec = humanLiveSpeedTurnClockActive(playerEnum)
-            ? Math.max(0, storedAtTurnStart - current)
-            : 0;
+        const liveTurnUsedSecRaw = getLiveTurnUsedSecRawForSpeedBonusUi(playerEnum, storedAtTurnStart, current);
+        const liveTurnUsedSec = applyPveSpeedTimePressureGraceToLiveUsedSec(session, playerEnum, liveTurnUsedSecRaw, aiUserId);
         const usedSec = committedUsedSec + liveTurnUsedSec;
         return Math.floor(usedSec / 10);
     };
@@ -1312,9 +1333,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 ? Math.max(0, Number(session.blackTimeLeft ?? 0))
                 : Math.max(0, Number(session.whiteTimeLeft ?? 0));
         const current = Math.max(0, Number(currentMainTimeLeft) || 0);
-        const liveTurnUsedSec = humanLiveSpeedTurnClockActive(playerEnum)
-            ? Math.max(0, storedAtTurnStart - current)
-            : 0;
+        const liveTurnUsedSecRaw = getLiveTurnUsedSecRawForSpeedBonusUi(playerEnum, storedAtTurnStart, current);
+        const liveTurnUsedSec = applyPveSpeedTimePressureGraceToLiveUsedSec(session, playerEnum, liveTurnUsedSecRaw, aiUserId);
         const usedSec = committedUsedSec + liveTurnUsedSec;
         const withinChunk = ((usedSec % 10) + 10) % 10;
         const secToNextDropRaw = 10 - withinChunk;
@@ -1447,9 +1467,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 ? Math.max(0, Number(session.blackTimeLeft ?? 0))
                 : Math.max(0, Number(session.whiteTimeLeft ?? 0));
         const current = Math.max(0, Number(liveMainTime) || 0);
-        const liveTurnUsedSec = humanLiveSpeedTurnClockActive(playerEnum)
-            ? Math.max(0, storedAtTurnStart - current)
-            : 0;
+        const liveTurnUsedSecRaw = getLiveTurnUsedSecRawForSpeedBonusUi(playerEnum, storedAtTurnStart, current);
+        const liveTurnUsedSec = applyPveSpeedTimePressureGraceToLiveUsedSec(session, playerEnum, liveTurnUsedSecRaw, aiUserId);
         return committedUsedSec + liveTurnUsedSec;
     };
     const humanCumulativeUsedSecForAiSpeed =
@@ -1507,8 +1526,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const strategicLobbyTurnInfoRaw = useMemo(() => {
         if (session.settings?.pairGame) return null;
         if (!isStrategicMode || isSinglePlayer || session.gameCategory === 'tower') return null;
-        // 모험 스테이지는 stageId가 있어도 상단 수순 박스를 표시(도감 스테이지 id와 전략 로비 수순 표시가 겹치지 않음)
-        if (session.stageId && session.gameCategory !== 'adventure') return null;
+        // stageId(길드전·챔피언십 등)가 있어도 중앙 수순·계가 카운트는 항상 표시(빈 간격 방지)
         const moveHistory = session.moveHistory ?? [];
         // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
         const turnCountFromHistory = moveHistory.length;
@@ -1523,11 +1541,12 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                   : (session.totalTurns ?? 0);
         const blackMoves = moveHistory.filter(m => m.player === Player.Black && m.x !== -1 && m.y !== -1).length;
         const blackTurnLimit = (session.settings as any)?.blackTurnLimit as number | undefined;
-        if (session.gameCategory === 'guildwar' && mode === GameMode.Capture && blackTurnLimit != null && blackTurnLimit > 0) {
+        if (session.gameCategory === 'guildwar' && isCaptureRuleActive && blackTurnLimit != null && blackTurnLimit > 0) {
             const remaining = Math.max(0, blackTurnLimit - blackMoves);
             return { type: 'capture_limit' as const, label: '흑 남은 턴', current: remaining, total: blackTurnLimit };
         }
-        if (mode === GameMode.Capture) {
+        /** 따내기 규칙이 켜진 믹스는 계가 수 제한이 있어도 대국자 패널에는 항상 현재 수순(N수)을 둔다. */
+        if (isCaptureRuleActive) {
             return { type: 'moves_only' as const, label: '수순', current };
         }
         const limit = settings.scoringTurnLimit;
@@ -1547,13 +1566,13 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         isStrategicMode,
         isSinglePlayer,
         session.gameCategory,
-        session.stageId,
         settings.scoringTurnLimit,
         session.moveHistory,
         session.totalTurns,
         session.settings?.pairGame,
         mode,
         session.settings,
+        isCaptureRuleActive,
     ]);
     const strategicLobbyTurnInfo = useMemo(() => {
         if (!strategicLobbyTurnInfoRaw) return strategicLobbyTurnInfoRaw;
@@ -1575,12 +1594,14 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         // 초기 동기화 payload에서 moveHistory가 생략될 수 있으므로 방어
         const moveHistory = session.moveHistory ?? [];
         const isTower = session.gameCategory === 'tower';
-        if ((!isSinglePlayer && !isTower) || !session.stageId) return null;
-        
-        // 도전의 탑이면 TOWER_STAGES에서, 싱글플레이면 세션 스냅샷·서버 동기화 목록에서 스테이지 찾기
-        const stage = isTower
-            ? TOWER_STAGES.find(s => s.id === session.stageId)
-            : resolveLiveSessionSinglePlayerStageRow(session);
+        if (!isSinglePlayer && !isTower) return null;
+
+        // 도전의 탑이면 TOWER_STAGES에서, 싱글플레이면 세션 스냅샷·서버 동기화 목록에서 스테이지 찾기 (stageId 없으면 null — 아래에서 수순만 표시)
+        const stage = session.stageId
+            ? isTower
+                ? TOWER_STAGES.find(s => s.id === session.stageId)
+                : resolveLiveSessionSinglePlayerStageRow(session)
+            : undefined;
 
         const st = session.settings as Record<string, unknown> | undefined;
         const stageDisplaySnap = session.singlePlayerStageDisplay;
@@ -1592,16 +1613,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         const settingsBlackTurnLimit =
             typeof st?.blackTurnLimit === 'number' && st.blackTurnLimit > 0 ? st.blackTurnLimit : undefined;
 
-        if (isTower && !stage) return null;
-        // 싱글: 관리자 편집·소켓 타이밍으로 상수 목록에 없을 수 있음 — 서버가 내려준 settings로 턴 박스 표시
-        if (!isTower && !stage) {
-            const canInferFromSettings =
-                autoScoringCapForUi != null ||
-                settingsBlackTurnLimit != null ||
-                st?.isSurvivalMode === true ||
-                (typeof st?.survivalTurns === 'number' && (st.survivalTurns as number) > 0);
-            if (!canInferFromSettings) return null;
-        }
+        // 싱글: stage 행이 목록에 없어도 settings·아래 분기로 턴 박스 표시; 모두 없으면 맨 아래 pve_moves_only
 
         const stageForSurvivalPreset = (stage ?? {}) as SinglePlayerStageInfo;
         const isSurvivalMode = resolveSinglePlayerSurvivalModeForSession(session, stageForSurvivalPreset);
@@ -1678,9 +1690,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             };
         }
         
-        // 기본: 현재 턴 표시 (다른 조건이 없는 경우)
-        // 이 경우에는 턴 정보를 표시하지 않음
-        return null;
+        // 기본: 제한·살리기·따내기 턴 한도가 없어도 수순만 표시 (모바일 2행 헤더 중앙 빈칸 방지)
+        const turnCountFromHistory = moveHistory.length;
+        const currentMoves = turnCountFromHistory > 0 ? turnCountFromHistory : (session.totalTurns ?? 0);
+        return { type: 'pve_moves_only' as const, label: '수순', current: currentMoves };
     }, [
         isSinglePlayer,
         session.stageId,
@@ -1793,10 +1806,14 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     <span className={`${turnInfoLabelSize} text-stone-300 ${compactPlayerBar ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>
                         {turnInfo.label}
                     </span>
-                    <div className="flex items-baseline justify-center gap-0.5">
-                        <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{turnInfo.remaining}</span>
-                        <span className={`${turnInfoTotalSize} text-stone-400`}>/{turnInfo.total}</span>
-                    </div>
+                    {turnInfo.type === 'pve_moves_only' ? (
+                        <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{turnInfo.current}수</span>
+                    ) : (
+                        <div className="flex items-baseline justify-center gap-0.5">
+                            <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{turnInfo.remaining}</span>
+                            <span className={`${turnInfoTotalSize} text-stone-400`}>/{turnInfo.total}</span>
+                        </div>
+                    )}
                 </div>
             </div>
         ) : null;
@@ -2012,10 +2029,14 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                         }`}
                     >
                         <span className={`${turnInfoLabelSize} text-stone-300 ${compactPlayerBar ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>{turnInfo.label}</span>
-                        <div className="flex items-baseline justify-center gap-0.5">
-                            <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{turnInfo.remaining}</span>
-                            <span className={`${turnInfoTotalSize} text-stone-400`}>/{turnInfo.total}</span>
-                        </div>
+                        {turnInfo.type === 'pve_moves_only' ? (
+                            <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{turnInfo.current}수</span>
+                        ) : (
+                            <div className="flex items-baseline justify-center gap-0.5">
+                                <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{turnInfo.remaining}</span>
+                                <span className={`${turnInfoTotalSize} text-stone-400`}>/{turnInfo.total}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

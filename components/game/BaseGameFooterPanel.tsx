@@ -3,6 +3,8 @@ import { GameMode, LiveGameSession, ServerAction, User, GameStatus } from '../..
 import BaseStoneColorChoicePanel from '../BaseStoneColorChoicePanel.js';
 import BaseSameColorPointsBidPanel from '../BaseSameColorPointsBidPanel.js';
 import { getEffectivePairLobbyOwnerId } from '../../shared/utils/effectivePairLobbyOwnerId.js';
+import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
+import BaseCaptureMixBidFooterStrip from './BaseCaptureMixBidFooterStrip.js';
 
 const BASE_PLACEMENT_TIME_LIMIT_SEC = 30;
 
@@ -21,7 +23,9 @@ export function sessionUsesBaseBottomStrip(session: LiveGameSession): boolean {
 }
 
 export function isBaseGameFooterPhase(session: LiveGameSession): boolean {
-    return sessionUsesBaseBottomStrip(session) && BASE_FOOTER_PHASES.includes(session.gameStatus);
+    if (!sessionUsesBaseBottomStrip(session)) return false;
+    if (BASE_FOOTER_PHASES.includes(session.gameStatus)) return true;
+    return modeIncludesBaseCaptureMix(session.mode, session.settings) && session.gameStatus === 'capture_bidding';
 }
 
 interface BaseGameFooterPanelProps {
@@ -160,6 +164,19 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
         const id = setInterval(tick, 250);
         return () => clearInterval(id);
     }, [gameStatus, session.basePlacementDeadline]);
+
+    if (modeIncludesBaseCaptureMix(session.mode, session.settings) && gameStatus === 'capture_bidding') {
+        return (
+            <div className="flex w-full min-w-0 flex-col gap-1">
+                <BaseCaptureMixBidFooterStrip
+                    session={session}
+                    currentUser={currentUser}
+                    onAction={onAction}
+                    isMobile={isMobile}
+                />
+            </div>
+        );
+    }
 
     if (gameStatus === 'base_stone_color_choice') {
         return (

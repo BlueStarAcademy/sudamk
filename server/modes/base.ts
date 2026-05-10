@@ -11,6 +11,7 @@ import {
     cloneBoardStateForKataOpeningSnapshot,
     encodeBoardStateAsKataSetupMovesFromEmpty,
 } from '../kataCaptureSetupEncoding.js';
+import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
 
 /** 메인 루프가 매 틱 호출해도 동일한 값이 나오게 (AI 선호·타임아웃 무작위 흔들림 방지) */
 const pickBlackOrWhiteFromDeterministicSeed = (seed: string): types.Player => {
@@ -32,23 +33,58 @@ const skipBaseStartConfirmationDeadline = (game: types.LiveGameSession) =>
 
 const shouldUseBaseSetupCountdown = (game: types.LiveGameSession) => !game.isAiGame && !isAdventureBaseGame(game);
 
+/**
+ * 배치 단계 임시 좌석으로 p1/p2 키의 돌 색을 정한다.
+ * - 본대국 좌석(`blackPlayerId`/`whitePlayerId`)은 색 확정 전에는 비어 있어야 하므로 절대 읽지 않는다.
+ * - 임시 좌석이 둘 다 비어 있으면(예: 잘못된 호출) p1=Black, p2=White로 안전하게 폴백한다.
+ */
 const getBasePlacementColorForKey = (
     game: types.LiveGameSession,
     key: 'baseStones_p1' | 'baseStones_p2'
 ): types.Player => {
     const playerId = key === 'baseStones_p1' ? game.player1.id : game.player2.id;
-    return game.blackPlayerId === playerId ? types.Player.Black : types.Player.White;
+    const tempBlackId = game.basePlacementBlackPlayerId;
+    if (typeof tempBlackId === 'string' && tempBlackId.length > 0) {
+        return tempBlackId === playerId ? types.Player.Black : types.Player.White;
+    }
+    return key === 'baseStones_p1' ? types.Player.Black : types.Player.White;
 };
 
+/**
+ * 베이스 배치 단계 동안 사용할 임시 흑/백 좌석을 결정해 `basePlacementBlackPlayerId`/`basePlacementWhitePlayerId`에만 적는다.
+ * - 본대국 좌석(`blackPlayerId`/`whitePlayerId`)은 깔끔하게 비워서, 색이 확정될 때 단 한 번만 씌우도록 보장한다.
+ * - 같은 게임 id·참가자 조합에 대해 결정적이라 매 틱 호출해도 동일한 임시 좌석이 나온다.
+ */
 const assignProvisionalBaseColors = (game: types.LiveGameSession) => {
     const p1Color = pickBlackOrWhiteFromDeterministicSeed(`${game.id}:baseProvisionalColor:${game.player1.id}:${game.player2.id}`);
     if (p1Color === types.Player.Black) {
-        game.blackPlayerId = game.player1.id;
-        game.whitePlayerId = game.player2.id;
+        game.basePlacementBlackPlayerId = game.player1.id;
+        game.basePlacementWhitePlayerId = game.player2.id;
     } else {
-        game.blackPlayerId = game.player2.id;
-        game.whitePlayerId = game.player1.id;
+        game.basePlacementBlackPlayerId = game.player2.id;
+        game.basePlacementWhitePlayerId = game.player1.id;
     }
+    /** 색 확정 전까지는 본대국 좌석을 비워 둔다 — 어디에서도 임시 좌석을 진실원으로 오인하지 않게 한다. */
+    game.blackPlayerId = null;
+    game.whitePlayerId = null;
+};
+
+/**
+ * 색이 최종 확정된 직후, 본대국 좌석을 한 번만 씌우고 임시 좌석을 즉시 깨끗이 비운다.
+ * - `playingLockedBlackPlayerId/whitePlayerId`도 같은 시점에 박아 두어, 본대국 진입 전후 어떤 패킷도 좌석을 뒤집지 못하게 한다.
+ * - 호출 후에는 `basePlacementBlackPlayerId/whitePlayerId`가 사라지므로, 이후 로직은 절대 임시 좌석을 읽지 않는다.
+ */
+const commitFinalBaseSeats = (
+    game: types.LiveGameSession,
+    finalBlackPlayerId: string,
+    finalWhitePlayerId: string,
+) => {
+    game.blackPlayerId = finalBlackPlayerId;
+    game.whitePlayerId = finalWhitePlayerId;
+    game.playingLockedBlackPlayerId = finalBlackPlayerId;
+    game.playingLockedWhitePlayerId = finalWhitePlayerId;
+    game.basePlacementBlackPlayerId = undefined;
+    game.basePlacementWhitePlayerId = undefined;
 };
 
 const enterBaseGameStartConfirmation = (game: types.LiveGameSession, now: number) => {
@@ -65,6 +101,8 @@ const enterBaseGameStartConfirmation = (game: types.LiveGameSession, now: number
     game.turnStartTime = undefined;
     game.pausedTurnTimeLeft = undefined;
 };
+
+export const enterBaseCaptureStartConfirmation = enterBaseGameStartConfirmation;
 
 export const initializeBase = (game: types.LiveGameSession, now: number) => {
     game.gameStatus = 'base_placement';
@@ -470,6 +508,24 @@ const runBasePlacementAutoFillAndValidate = (game: types.LiveGameSession) => {
 const resolveBasePlacementAndTransition = (game: types.LiveGameSession, now: number) => {
     runBasePlacementAutoFillAndValidate(game);
 
+    if (modeIncludesBaseCaptureMix(game.mode, game.settings)) {
+        game.gameStatus = 'capture_bidding';
+        game.bids = { [game.player1.id]: null, [game.player2.id]: null };
+        game.biddingRound = 1;
+        game.captureFirstRoundTieBidSnapshot = undefined;
+        game.captureBidDeadline = shouldUseBaseSetupCountdown(game) ? now + 30000 : undefined;
+        game.baseStoneColorChoices = undefined;
+        game.baseColorChoiceDeadline = undefined;
+        game.baseSameColorTieColor = undefined;
+        game.komiBids = undefined;
+        game.komiBiddingDeadline = undefined;
+        game.komiBiddingRound = undefined;
+        game.turnDeadline = undefined;
+        game.turnStartTime = undefined;
+        game.pausedTurnTimeLeft = undefined;
+        return;
+    }
+
     game.gameStatus = 'base_stone_color_choice';
     game.baseStoneColorChoices = { [game.player1.id]: null, [game.player2.id]: null };
     game.baseColorChoiceDeadline = shouldUseBaseSetupCountdown(game) ? now + 30000 : undefined;
@@ -495,6 +551,9 @@ const clearBasePrePlayState = (game: types.LiveGameSession) => {
     game.komiBiddingDeadline = undefined;
     game.basePlacementDeadline = undefined;
     game.revealEndTime = undefined;
+    /** 임시 좌석은 색 확정과 함께 commitFinalBaseSeats에서 이미 비워졌어야 하지만, 안전을 위해 한 번 더 보장 */
+    game.basePlacementBlackPlayerId = undefined;
+    game.basePlacementWhitePlayerId = undefined;
 };
 
 const markBaseFinalColorAssignment = (game: types.LiveGameSession, now: number) => {
@@ -526,6 +585,24 @@ const commitBaseStonesToBoardPreservingPlacementColors = (
     game.baseStones_p2 = [];
 };
 
+export const finalizeBaseCaptureBidResolution = (
+    game: types.LiveGameSession,
+    now: number,
+    finalBlackPlayerId: string,
+    finalWhitePlayerId: string,
+) => {
+    const newBoardState = Array(game.settings.boardSize)
+        .fill(0)
+        .map(() => Array(game.settings.boardSize).fill(types.Player.None));
+    commitBaseStonesToBoardPreservingPlacementColors(game, newBoardState);
+    commitFinalBaseSeats(game, finalBlackPlayerId, finalWhitePlayerId);
+    markBaseFinalColorAssignment(game, now);
+    game.finalKomi = game.settings.komi ?? 0.5;
+    (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(newBoardState);
+    (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(newBoardState);
+    clearBasePrePlayState(game);
+};
+
 /** 선호 색이 다르면 즉시 흑·백 유저·덤(백 +0.5)·판(배치 색 유지) 확정 후 대국 시작 */
 const finalizeBaseDifferentStoneColorChoices = (
     game: types.LiveGameSession,
@@ -543,9 +620,10 @@ const finalizeBaseDifferentStoneColorChoices = (
     const newBoardState = Array(game.settings.boardSize)
         .fill(0)
         .map(() => Array(game.settings.boardSize).fill(types.Player.None));
+    /** 임시 좌석을 commitFinalBaseSeats로 깨끗이 비우기 직전에 베이스돌의 배치 색을 판에 반영해야 한다. */
     commitBaseStonesToBoardPreservingPlacementColors(game, newBoardState);
-    game.blackPlayerId = blackPlayerId;
-    game.whitePlayerId = whitePlayerId;
+    /** 본대국 좌석을 단 한 번 박고, 같은 시점에 좌석 잠금까지 켠 뒤 임시 좌석을 즉시 제거 — 어떤 패킷도 더 이상 임시 좌석으로 되돌리지 못한다. */
+    commitFinalBaseSeats(game, blackPlayerId, whitePlayerId);
     markBaseFinalColorAssignment(game, now);
     game.finalKomi = finalKomi;
     /** 본대국에서는 `game.baseStones`만 베이스 좌표 소스 — p1/p2가 남으면 빈 자리 재착수가 베이스로 오인될 수 있음 */
@@ -644,9 +722,10 @@ const applyBaseKomiBidResolution = (game: types.LiveGameSession, now: number) =>
     const newBoardState = Array(game.settings.boardSize)
         .fill(0)
         .map(() => Array(game.settings.boardSize).fill(types.Player.None));
+    /** 임시 좌석을 commitFinalBaseSeats로 비우기 직전, 베이스돌 배치 색을 그대로 판에 반영 */
     commitBaseStonesToBoardPreservingPlacementColors(game, newBoardState);
-    game.blackPlayerId = finalBlackPlayerId;
-    game.whitePlayerId = finalWhitePlayerId;
+    /** 본대국 좌석 단 한 번 박고 좌석 잠금까지 켠 뒤 임시 좌석 즉시 제거 */
+    commitFinalBaseSeats(game, finalBlackPlayerId, finalWhitePlayerId);
     markBaseFinalColorAssignment(game, now);
     game.finalKomi = finalKomi;
     (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(newBoardState);
@@ -722,7 +801,7 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
 };
 
 /** `/api/action` 본문에 game을 실어 WS 없이도 클라가 본경기 전환을 반영하게 함 */
-function baseHttpGameSnapshot(game: types.LiveGameSession): types.HandleActionResult {
+export function baseHttpGameSnapshot(game: types.LiveGameSession): types.HandleActionResult {
     const boardState =
         game.boardState && Array.isArray(game.boardState)
             ? game.boardState.map((row: number[]) => [...row])

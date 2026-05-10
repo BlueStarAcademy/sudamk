@@ -186,45 +186,45 @@ export const BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL: ItemGrade[] = [
 
 export const BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES: CombinationGreatSuccessRates[] = [
     // Level 1
-    { 'normal': 50, 'uncommon': 30 },
+    { normal: 55, uncommon: 30 },
     // Level 2
-    { 'normal': 50, 'uncommon': 30, 'rare': 20 },
+    { normal: 60, uncommon: 35, rare: 40 },
     // Level 3
-    { 'normal': 50, 'uncommon': 30, 'rare': 20, 'epic': 10 },
+    { normal: 65, uncommon: 40, rare: 45, epic: 20 },
     // Level 4
-    { 'normal': 50, 'uncommon': 30, 'rare': 20, 'epic': 10, 'legendary': 1 },
+    { normal: 70, uncommon: 45, rare: 50, epic: 22.5, legendary: 10 },
     // Level 5
-    { 'normal': 50, 'uncommon': 30, 'rare': 20, 'epic': 10, 'legendary': 1.5, 'mythic': 10 },
+    { normal: 75, uncommon: 50, rare: 55, epic: 25, legendary: 11, mythic: 10 },
     // Level 6
-    { 'normal': 65, 'uncommon': 40, 'rare': 25, 'epic': 12.5, 'legendary': 2, 'mythic': 13 },
+    { normal: 80, uncommon: 55, rare: 60, epic: 27.5, legendary: 12, mythic: 11 },
     // Level 7
-    { 'normal': 80, 'uncommon': 50, 'rare': 30, 'epic': 15, 'legendary': 2.5, 'mythic': 16 },
+    { normal: 85, uncommon: 60, rare: 65, epic: 30, legendary: 13, mythic: 12 },
     // Level 8
-    { 'normal': 95, 'uncommon': 60, 'rare': 35, 'epic': 17.5, 'legendary': 3, 'mythic': 19 },
+    { normal: 90, uncommon: 65, rare: 70, epic: 32.5, legendary: 14, mythic: 13 },
     // Level 9
-    { 'normal': 100, 'uncommon': 70, 'rare': 40, 'epic': 20, 'legendary': 3.5, 'mythic': 22 },
+    { normal: 95, uncommon: 70, rare: 75, epic: 35, legendary: 15, mythic: 14 },
     // Level 10
-    { 'normal': 100, 'uncommon': 80, 'rare': 45, 'epic': 22.5, 'legendary': 4, 'mythic': 25 },
+    { normal: 100, uncommon: 80, rare: 80, epic: 37.5, legendary: 16, mythic: 15 },
     // Level 11
-    { 'normal': 100, 'uncommon': 90, 'rare': 50, 'epic': 25, 'legendary': 4.5, 'mythic': 28 },
+    { normal: 100, uncommon: 90, rare: 85, epic: 40, legendary: 17, mythic: 16 },
     // Level 12
-    { 'normal': 100, 'uncommon': 100, 'rare': 55, 'epic': 27.5, 'legendary': 5, 'mythic': 31 },
+    { normal: 100, uncommon: 100, rare: 90, epic: 42.5, legendary: 18, mythic: 17 },
     // Level 13
-    { 'normal': 100, 'uncommon': 100, 'rare': 60, 'epic': 30, 'legendary': 5.5, 'mythic': 34 },
+    { normal: 100, uncommon: 100, rare: 95, epic: 45, legendary: 19, mythic: 18 },
     // Level 14
-    { 'normal': 100, 'uncommon': 100, 'rare': 65, 'epic': 32.5, 'legendary': 6, 'mythic': 37 },
+    { normal: 100, uncommon: 100, rare: 100, epic: 47.5, legendary: 20, mythic: 19 },
     // Level 15
-    { 'normal': 100, 'uncommon': 100, 'rare': 70, 'epic': 35, 'legendary': 6.5, 'mythic': 40 },
+    { normal: 100, uncommon: 100, rare: 100, epic: 50, legendary: 22.5, mythic: 20 },
     // Level 16
-    { 'normal': 100, 'uncommon': 100, 'rare': 75, 'epic': 37.5, 'legendary': 7, 'mythic': 43 },
+    { normal: 100, uncommon: 100, rare: 100, epic: 52.5, legendary: 25, mythic: 22 },
     // Level 17
-    { 'normal': 100, 'uncommon': 100, 'rare': 80, 'epic': 40, 'legendary': 7.5, 'mythic': 46 },
+    { normal: 100, uncommon: 100, rare: 100, epic: 55, legendary: 27.5, mythic: 24 },
     // Level 18
-    { 'normal': 100, 'uncommon': 100, 'rare': 85, 'epic': 42.5, 'legendary': 8, 'mythic': 49 },
+    { normal: 100, uncommon: 100, rare: 100, epic: 57.5, legendary: 30, mythic: 26 },
     // Level 19
-    { 'normal': 100, 'uncommon': 100, 'rare': 90, 'epic': 45, 'legendary': 8.5, 'mythic': 52 },
+    { normal: 100, uncommon: 100, rare: 100, epic: 60, legendary: 32.5, mythic: 28 },
     // Level 20
-    { 'normal': 100, 'uncommon': 100, 'rare': 100, 'epic': 50, 'legendary': 10, 'mythic': 55 },
+    { normal: 100, uncommon: 100, rare: 100, epic: 65, legendary: 35, mythic: 30 },
 ];
 
 export const BLACKSMITH_DISASSEMBLY_JACKPOT_RATES: number[] = [

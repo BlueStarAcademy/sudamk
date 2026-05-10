@@ -231,7 +231,7 @@ const ShopMobileImageDescriptionPortal: React.FC<{
                 <div
                     role="dialog"
                     aria-modal="true"
-                    className="pointer-events-auto fixed max-h-[min(50dvh,320px)] overflow-y-auto rounded-lg border border-indigo-400/50 bg-gray-950/98 p-2.5 text-left shadow-2xl [scrollbar-width:thin]"
+                    className="pointer-events-auto fixed max-h-[min(50dvh,320px)] overflow-y-auto rounded-lg border border-indigo-400/50 bg-[#0b1220] p-2.5 text-left text-slate-100 shadow-2xl [scrollbar-width:thin]"
                     style={{
                         zIndex: SHOP_IMAGE_DESC_POPOVER_Z,
                         left: box.left,
@@ -369,14 +369,12 @@ const ShopAdRewardCard: React.FC<{
                     anchorRef={imageAnchorRef}
                     onRequestClose={() => setShowDescription(false)}
                 >
-                    <p className="text-[11px] text-left leading-relaxed text-slate-200/90">{refinedDescription}</p>
+                    <p className="text-left text-[11px] leading-relaxed text-slate-100">{refinedDescription}</p>
                 </ShopMobileImageDescriptionPortal>
             )}
             {showDescription && !mobile && (
-                <div
-                    className={`absolute z-50 left-1/2 -translate-x-1/2 bg-gray-900/95 border border-indigo-400/50 rounded-lg shadow-xl top-20 w-52 p-2`}
-                >
-                    <p className="text-[10px] text-left text-slate-200/90 leading-relaxed">{refinedDescription}</p>
+                <div className="absolute left-1/2 top-20 z-50 w-52 -translate-x-1/2 rounded-lg border border-indigo-400/50 bg-[#0b1220] p-2 shadow-xl">
+                    <p className="text-left text-[10px] leading-relaxed text-slate-100">{refinedDescription}</p>
                 </div>
             )}
             <div className="mt-1.5 flex w-full flex-shrink-0 flex-col items-stretch justify-center gap-1">
@@ -484,12 +482,12 @@ const ShopItemCard: React.FC<{
                     anchorRef={imageAnchorRef}
                     onRequestClose={() => setShowDescription(false)}
                 >
-                    <p className="text-[11px] leading-relaxed text-slate-200/90">{refinedDescription}</p>
+                    <p className="text-[11px] leading-relaxed text-slate-100">{refinedDescription}</p>
                 </ShopMobileImageDescriptionPortal>
             )}
             {showDescription && !mobile && (
-                <div className="absolute z-50 left-1/2 top-20 w-48 -translate-x-1/2 rounded-lg border border-indigo-400/50 bg-gray-900/95 p-2 shadow-xl">
-                    <p className="text-[10px] leading-relaxed text-slate-200/90">{refinedDescription}</p>
+                <div className="absolute left-1/2 top-20 z-50 w-48 -translate-x-1/2 rounded-lg border border-indigo-400/50 bg-[#0b1220] p-2 shadow-xl">
+                    <p className="text-[10px] leading-relaxed text-slate-100">{refinedDescription}</p>
                 </div>
             )}
             <div className="mt-1.5 flex w-full flex-shrink-0 flex-col items-stretch justify-center gap-1">
@@ -1145,12 +1143,12 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         ? 'grid grid-cols-2 gap-1.5 min-[390px]:grid-cols-3 min-[390px]:gap-2 items-stretch [&>*]:min-h-0'
         : 'grid grid-cols-4 gap-3 items-stretch [&>*]:min-h-0';
     const materialItems = [
-        { itemId: "material_box_1", name: "재료 상자 I", description: "하급~상급강화석 5개", price: { gold: 500 }, image: "/images/Box/ResourceBox1.png", dailyLimit: 10, type: 'material' as const },
-        { itemId: "material_box_2", name: "재료 상자 II", description: "하급~상급강화석 5개", price: { gold: 1000 }, image: "/images/Box/ResourceBox2.png", dailyLimit: 10, type: 'material' as const },
-        { itemId: "material_box_3", name: "재료 상자 III", description: "하급~상급강화석 5개", price: { gold: 3000 }, image: "/images/Box/ResourceBox3.png", dailyLimit: 10, type: 'material' as const },
-        { itemId: "material_box_4", name: "재료 상자 IV", description: "중급~최상급강화석 5개", price: { gold: 5000 }, image: "/images/Box/ResourceBox4.png", dailyLimit: 10, type: 'material' as const },
-        { itemId: "material_box_5", name: "재료 상자 V", description: "상급~신비의강화석 5개", price: { gold: 10000 }, image: "/images/Box/ResourceBox5.png", dailyLimit: 10, type: 'material' as const },
-        { itemId: "material_box_6", name: "재료 상자 VI", description: "상급~신비의강화석 5개", price: { diamonds: 100 }, image: "/images/Box/ResourceBox6.png", dailyLimit: 10, type: 'material' as const },
+        { itemId: "material_box_1", name: "재료 상자 I", description: "하급~상급강화석 5개", price: { gold: 500 }, image: "/images/Box/ResourceBox1.png", type: 'material' as const },
+        { itemId: "material_box_2", name: "재료 상자 II", description: "하급~상급강화석 5개", price: { gold: 1000 }, image: "/images/Box/ResourceBox2.png", type: 'material' as const },
+        { itemId: "material_box_3", name: "재료 상자 III", description: "하급~상급강화석 5개", price: { gold: 3000 }, image: "/images/Box/ResourceBox3.png", type: 'material' as const },
+        { itemId: "material_box_4", name: "재료 상자 IV", description: "중급~최상급강화석 5개", price: { gold: 5000 }, image: "/images/Box/ResourceBox4.png", type: 'material' as const },
+        { itemId: "material_box_5", name: "재료 상자 V", description: "상급~신비의강화석 5개", price: { gold: 10000 }, image: "/images/Box/ResourceBox5.png", type: 'material' as const },
+        { itemId: "material_box_6", name: "재료 상자 VI", description: "상급~신비의강화석 5개", price: { diamonds: 100 }, image: "/images/Box/ResourceBox6.png", type: 'material' as const },
         {
             itemId: 'equipment_unbind_ticket',
             name: '귀속 해제권',

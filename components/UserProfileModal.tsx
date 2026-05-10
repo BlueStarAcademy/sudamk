@@ -10,7 +10,11 @@ import { useAppContext } from '../hooks/useAppContext.js';
 import type { ServerAction } from '../types.js';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
-import { readStrategicRankedBlock, readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
+import {
+    readStrategicRankedBlock,
+    readPairRankedBlock,
+    readPairArenaAiMatchRecord,
+} from '../shared/utils/unifiedRankedStatsMigration.js';
 import PairPetProfilePanel from './pair/PairPetProfilePanel.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 
@@ -185,6 +189,9 @@ const PairStatsTab: React.FC<{ user: UserWithStatus; dense?: boolean }> = ({ use
     const totalLosses = pairRanked.losses;
     const totalGames = totalWins + totalLosses;
     const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
+    const pairAi = readPairArenaAiMatchRecord(user.stats as Record<string, { wins?: number; losses?: number }>);
+    const pairAiGames = pairAi.wins + pairAi.losses;
+    const pairAiWinRate = pairAiGames > 0 ? Math.round((pairAi.wins / pairAiGames) * 100) : 0;
     const byMode = user.pairArenaStatsByMode;
 
     const wrap = dense ? 'space-y-1 text-[0.68rem]' : 'space-y-1.5 text-xs';
@@ -199,6 +206,13 @@ const PairStatsTab: React.FC<{ user: UserWithStatus; dense?: boolean }> = ({ use
             >
                 <span className="font-bold tracking-tight text-violet-100/95">
                     랭킹전 통합: {totalWins}승 {totalLosses}패 ({winRate}%)
+                </span>
+            </div>
+            <div
+                className={`rounded-lg border border-fuchsia-500/25 bg-gradient-to-r from-fuchsia-950/40 via-black/35 to-violet-950/30 text-center shadow-inner ring-1 ring-inset ring-white/[0.04] ${sumPad}`}
+            >
+                <span className="font-bold tracking-tight text-fuchsia-100/95">
+                    페어 AI 대전: {pairAi.wins}승 {pairAi.losses}패 ({pairAiWinRate}%)
                 </span>
             </div>
             <div className={dense ? 'space-y-0.5' : 'space-y-1'}>
@@ -231,12 +245,16 @@ const StatsTab: React.FC<{ user: UserWithStatus; type: 'strategic' | 'playful'; 
     
     let totalWins = 0;
     let totalLosses = 0;
+    let totalAiWins = 0;
+    let totalAiLosses = 0;
 
     const gameStats = modes.map(m => {
         const s = stats[m.mode];
         if (s) {
             totalWins += s.wins ?? 0;
             totalLosses += s.losses ?? 0;
+            totalAiWins += s.aiWins ?? 0;
+            totalAiLosses += s.aiLosses ?? 0;
             return { mode: m.mode, ...s };
         }
         return { mode: m.mode, wins: 0, losses: 0, rankingScore: 1200 };
@@ -244,6 +262,8 @@ const StatsTab: React.FC<{ user: UserWithStatus; type: 'strategic' | 'playful'; 
     
     const totalGames = totalWins + totalLosses;
     const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
+    const aiGames = totalAiWins + totalAiLosses;
+    const aiWinRate = aiGames > 0 ? Math.round((totalAiWins / aiGames) * 100) : 0;
 
     const summaryTint =
         type === 'strategic'
@@ -260,20 +280,38 @@ const StatsTab: React.FC<{ user: UserWithStatus; type: 'strategic' | 'playful'; 
             <div
                 className={`rounded-lg border bg-gradient-to-r text-center shadow-inner ring-1 ring-inset ring-white/[0.04] ${summaryTint} ${sumPad}`}
             >
-                <span className="font-bold tracking-tight">총 전적: {totalWins}승 {totalLosses}패 ({winRate}%)</span>
+                <span className="font-bold tracking-tight">
+                    PVP 전적: {totalWins}승 {totalLosses}패 ({winRate}%)
+                    {aiGames > 0 ? (
+                        <span className="ml-2 font-semibold text-violet-200/90">
+                            · AI {totalAiWins}승 {totalAiLosses}패 ({aiWinRate}%)
+                        </span>
+                    ) : null}
+                </span>
             </div>
             <div className={dense ? 'space-y-0.5' : 'space-y-1'}>
                 {gameStats.map((stat) => {
                     const gameTotal = (stat.wins ?? 0) + (stat.losses ?? 0);
                     const gameWinRate = gameTotal > 0 ? Math.round(((stat.wins ?? 0) / gameTotal) * 100) : 0;
+                    const aw = stat.aiWins ?? 0;
+                    const al = stat.aiLosses ?? 0;
+                    const aiTot = aw + al;
+                    const aiWr = aiTot > 0 ? Math.round((aw / aiTot) * 100) : 0;
                     return (
                         <div
                             key={stat.mode}
                             className={`flex items-center justify-between gap-1.5 rounded-md border border-white/[0.06] bg-black/35 shadow-sm ring-1 ring-inset ring-white/[0.03] ${rowPad}`}
                         >
                             <span className="truncate font-semibold text-slate-200/95">{stat.mode}</span>
-                            <span className={`whitespace-nowrap text-right font-mono tabular-nums text-slate-300/90 ${rowMono}`}>
-                                {stat.wins ?? 0}승 {stat.losses ?? 0}패 ({gameWinRate}%)
+                            <span className={`min-w-0 flex-1 text-right font-mono tabular-nums text-slate-300/90 ${rowMono}`}>
+                                <span className="block">
+                                    PVP {stat.wins ?? 0}승 {stat.losses ?? 0}패 ({gameWinRate}%)
+                                </span>
+                                {aiTot > 0 ? (
+                                    <span className="mt-0.5 block text-violet-200/85">
+                                        AI {aw}승 {al}패 ({aiWr}%)
+                                    </span>
+                                ) : null}
                             </span>
                         </div>
                     );

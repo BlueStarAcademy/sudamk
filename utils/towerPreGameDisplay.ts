@@ -19,22 +19,42 @@ export function getTowerSessionFloor(session: Pick<LiveGameSession, 'towerFloor'
     return 1;
 }
 
-/** 결과 모달·인게임 종료 푸터 공통: 흑(유저) 승리로 볼지 (`TowerSummaryModal`과 동일 규칙). */
+/** 결과 모달·인게임 종료 푸터 공통: 유저(player1) 진영 승리 여부 (`TowerSummaryModal`·`TowerControls`와 동일). 베이스 등으로 백이 될 수 있음. */
 export function isTowerHumanWinnerFromSession(
-    session: Pick<LiveGameSession, 'gameStatus' | 'winner' | 'analysisResult'>,
+    session: Pick<
+        LiveGameSession,
+        'gameStatus' | 'winner' | 'analysisResult' | 'blackPlayerId' | 'whitePlayerId' | 'player1'
+    >,
 ): boolean {
     const isEnded = session.gameStatus === 'ended';
     const isScoring = session.gameStatus === 'scoring';
     const analysisResult = session.analysisResult?.['system'];
+    const humanId = session.player1?.id;
+    const humanEnum: Player | null =
+        humanId && session.blackPlayerId === humanId
+            ? Player.Black
+            : humanId && session.whitePlayerId === humanId
+              ? Player.White
+              : null;
+
+    const humanWonByWinner = (): boolean =>
+        humanEnum != null ? session.winner === humanEnum : session.winner === Player.Black;
+
     // 계가 중에도 서버가 먼저 winner를 넣는 경우가 있어 분석 전에 승패 UI가 뒤집히지 않게 한다.
     if (isScoring && session.winner != null) {
-        return session.winner === Player.Black;
+        return humanWonByWinner();
     }
     return isEnded && session.winner != null
-        ? session.winner === Player.Black
-        : analysisResult
-          ? (analysisResult.scoreDetails?.black?.total ?? 0) > (analysisResult.scoreDetails?.white?.total ?? 0)
-          : session.winner === Player.Black;
+        ? humanWonByWinner()
+        : analysisResult?.scoreDetails
+          ? (() => {
+                const bt = analysisResult.scoreDetails.black?.total ?? 0;
+                const wt = analysisResult.scoreDetails.white?.total ?? 0;
+                if (humanEnum === Player.Black) return bt > wt;
+                if (humanEnum === Player.White) return wt > bt;
+                return (analysisResult.scoreDetails?.black?.total ?? 0) > (analysisResult.scoreDetails?.white?.total ?? 0);
+            })()
+          : humanWonByWinner();
 }
 
 /**

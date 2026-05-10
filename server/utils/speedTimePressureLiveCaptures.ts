@@ -2,6 +2,7 @@ import type { LiveGameSession } from '../../types/index.js';
 import { GameMode, Player } from '../../types/enums.js';
 import { aiUserId } from '../aiPlayer.js';
 import { hasTimeControl, shouldEnforceTimeControl } from '../modes/shared.js';
+import { applyPveSpeedTimePressureGraceToLiveUsedSec } from '../../shared/utils/speedTimePveGrace.js';
 
 /** `finalizeAnalysisResult` 스피드 분기와 동일 */
 export const SPEED_TIME_PRESSURE_SECONDS_PER_POINT = 10;
@@ -49,6 +50,8 @@ export function getSpeedTimePressureConsumptionSnapshot(
         if (session.blackPlayerId === aiUserId) liveBlackTurnUsed = 0;
         if (session.whitePlayerId === aiUserId) liveWhiteTurnUsed = 0;
     }
+    liveBlackTurnUsed = applyPveSpeedTimePressureGraceToLiveUsedSec(session, Player.Black, liveBlackTurnUsed, aiUserId);
+    liveWhiteTurnUsed = applyPveSpeedTimePressureGraceToLiveUsedSec(session, Player.White, liveWhiteTurnUsed, aiUserId);
     return {
         blackConsumed: committedBlackConsumed + liveBlackTurnUsed,
         whiteConsumed: committedWhiteConsumed + liveWhiteTurnUsed,

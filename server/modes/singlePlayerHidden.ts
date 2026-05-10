@@ -10,8 +10,23 @@ import {
 } from './hiddenScanShared.js';
 import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
 import { resolveSinglePlayerAutoScoringTurnCap } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
+import { aiUserId } from '../aiPlayer.js';
 
 type HandleActionResult = types.HandleActionResult;
+
+/**
+ * 베이스·덤 입찰 이후 유저가 백이 될 수 있어 `currentPlayer === Player.White` 가정은 더이상 통하지 않는다.
+ * 좌석 ID 기반으로 현재 차례가 AI(또는 봇)인지 판단한다.
+ */
+const isAiSeatTurn = (game: types.LiveGameSession): boolean => {
+    const id = game.currentPlayer === types.Player.Black
+        ? game.blackPlayerId
+        : game.currentPlayer === types.Player.White
+          ? game.whitePlayerId
+          : null;
+    if (!id) return false;
+    return id === aiUserId || String(id).startsWith('dungeon-bot-');
+};
 
 export const initializeSinglePlayerHidden = (game: types.LiveGameSession) => {
     const isHiddenMode = game.mode === types.GameMode.Hidden || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
@@ -224,8 +239,8 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                     const stage = (await getEffectiveSinglePlayerStages()).find(s => s.id === g.stageId);
                     const autoScoringTurns = resolveSinglePlayerAutoScoringTurnCap(g.settings as any, stage);
                     if (autoScoringTurns === undefined) return;
-                    const isAiTurn = g.currentPlayer === types.Player.White && g.isSinglePlayer;
-                    if (isAiTurn) return;
+                    /** 베이스·덤 후 유저가 백/AI가 흑이 되는 케이스에서도 AI 차례에 자동계가가 트리거되지 않게 좌석 기반으로 판단한다. */
+                    if (g.isSinglePlayer && isAiSeatTurn(g)) return;
                     const validMoves = g.moveHistory.filter(m => m.x !== -1 && m.y !== -1);
                     const totalTurns = g.totalTurns ?? validMoves.length;
                     g.totalTurns = totalTurns;

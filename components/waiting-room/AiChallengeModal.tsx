@@ -252,9 +252,6 @@ function mergeSeedIntoChallengeSettings(
     if (mode === GameMode.Base) {
         newSettings.komi = 0.5;
     }
-    if (mode === GameMode.Mix && newSettings.mixedModes?.includes(GameMode.Base) && newSettings.mixedModes?.includes(GameMode.Capture)) {
-        newSettings.mixedModes = newSettings.mixedModes.filter(m => m !== GameMode.Base);
-    }
     if (!newSettings.player1Color) {
         newSettings.player1Color = Player.Black;
     }
@@ -560,9 +557,6 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                     parsed.alkkagiSlowItemCount = parsed.alkkagiItemCount;
                     parsed.alkkagiAimingLineItemCount = parsed.alkkagiItemCount;
                 }
-                if (parsed.mixedModes && parsed.mixedModes.includes(GameMode.Base) && parsed.mixedModes.includes(GameMode.Capture)) {
-                    parsed.mixedModes = parsed.mixedModes.filter((m: GameMode) => m !== GameMode.Base);
-                }
                 const mergedPrefs = clampAiLobbyStrategicItemCaps(selectedGameMode, { ...DEFAULT_GAME_SETTINGS, ...parsed });
                 setSettings(normalizeAiScoringTurnLimit(selectedGameMode, mergedPrefs));
             } catch {
@@ -644,13 +638,6 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         if (pairDuoRankedLobbyReadOnly) return;
         setSettings(prev => {
             let newSettings = { ...prev, [key]: value };
-            if (newSettings.mixedModes) {
-                const isBaseSelected = newSettings.mixedModes.includes(GameMode.Base);
-                const isCaptureSelected = newSettings.mixedModes.includes(GameMode.Capture);
-                if (isBaseSelected && isCaptureSelected) {
-                    newSettings.mixedModes = newSettings.mixedModes.filter(m => m !== GameMode.Base);
-                }
-            }
             if (selectedGameMode && (key === 'boardSize' || key === 'mixedModes')) {
                 newSettings = normalizeAiScoringTurnLimit(selectedGameMode, newSettings);
             }
@@ -674,9 +661,6 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             let nextMixed = checked
                 ? [...(prev.mixedModes || []), subMode]
                 : (prev.mixedModes || []).filter(m => m !== subMode);
-            if (nextMixed.includes(GameMode.Base) && nextMixed.includes(GameMode.Capture)) {
-                nextMixed = nextMixed.filter(m => m !== GameMode.Base);
-            }
             let newSettings = normalizeAiScoringTurnLimit(selectedGameMode ?? GameMode.Mix, { ...prev, mixedModes: nextMixed });
             if (selectedGameMode) {
                 newSettings = clampAiLobbyStrategicItemCaps(selectedGameMode, newSettings);
@@ -1056,24 +1040,19 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 )}
 
                 {showMixModeSelection && (() => {
-                    const isBaseSelected = settings.mixedModes?.includes(GameMode.Base);
-                    const isCaptureSelected = settings.mixedModes?.includes(GameMode.Capture);
                     const mixEmbedCompactHeader = denseSettings && pairRoomEmbeddedRightSlot;
                     const mixCheckboxes = SPECIAL_GAME_MODES.filter(
                         (m) => m.mode !== GameMode.Standard && m.mode !== GameMode.Mix,
                     ).map((m) => {
-                        const isDisabledByConflict =
-                            (m.mode === GameMode.Base && isCaptureSelected) ||
-                            (m.mode === GameMode.Capture && isBaseSelected);
                         return (
                             <label
                                 key={m.mode}
                                 className={`flex items-center rounded-md text-gray-200 ${
                                     denseSettings
                                         ? handheldStandaloneAiSettingsGrid
-                                            ? `min-h-[2rem] w-full flex-wrap gap-1 border border-white/12 bg-gray-800/55 px-1.5 py-1 ${isDisabledByConflict ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`
-                                            : `h-7 shrink-0 flex-nowrap gap-1.5 whitespace-nowrap py-0.5 pl-1 pr-1.5 sm:gap-2 sm:pl-1.5 sm:pr-2 ${isDisabledByConflict ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} bg-gray-700/50`
-                                        : `gap-2 p-2 ${isDisabledByConflict ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} bg-gray-700/50`
+                                            ? 'min-h-[2rem] w-full flex-wrap gap-1 border border-white/12 bg-gray-800/55 px-1.5 py-1 cursor-pointer'
+                                            : 'h-7 shrink-0 flex-nowrap gap-1.5 whitespace-nowrap py-0.5 pl-1 pr-1.5 sm:gap-2 sm:pl-1.5 sm:pr-2 cursor-pointer bg-gray-700/50'
+                                        : 'gap-2 p-2 cursor-pointer bg-gray-700/50'
                                 }`}
                                 style={{
                                     fontSize: denseSettings
@@ -1087,7 +1066,6 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                     type="checkbox"
                                     checked={settings.mixedModes?.includes(m.mode) ?? false}
                                     onChange={(e) => handleMixedModeChange(m.mode, e.target.checked)}
-                                    disabled={isDisabledByConflict}
                                     className={`flex-shrink-0 ${
                                         denseSettings
                                             ? handheldStandaloneAiSettingsGrid

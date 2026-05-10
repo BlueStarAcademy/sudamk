@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import { SHOP_AD_REWARD_INTERSTITIAL_SECONDS } from '../../constants/ads.js';
 import { useAdContext } from './AdProvider.js';
 
 /**
@@ -49,13 +48,8 @@ const AdInterstitial: React.FC = () => {
       }}
     >
       <div className="relative bg-gray-900 border border-gray-700 rounded-xl shadow-2xl p-4 max-w-[90vw] max-h-[80vh] flex flex-col items-center gap-4">
-        <div className="text-xs text-gray-500 uppercase tracking-wider">
-          {interstitial.trigger === 'shop_ad_reward' ? '상점 광고 보상' : '광고'}
-        </div>
-        {isShopAdReward && (
-          <p className="text-center text-[11px] leading-snug text-stone-400 px-1">
-            {SHOP_AD_REWARD_INTERSTITIAL_SECONDS}초 후 아래 「보상 받기」를 누르면 보상이 지급됩니다. 광고 영역이 아니라 초록 버튼을 눌러 주세요. 「취소」는 보상 없이 닫습니다.
-          </p>
+        {!isShopAdReward && (
+          <div className="text-xs text-gray-500 uppercase tracking-wider">광고</div>
         )}
 
         {/* 광고 콘텐츠 영역 — iframe이 영역 밖으로 나와 버튼을 가리지 않도록 잘라냄 */}

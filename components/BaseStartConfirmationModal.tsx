@@ -6,6 +6,7 @@ import PreGameColorRoulette from './PreGameColorRoulette.js';
 import { getSessionPlayerDisplayName } from '../utils/gameDisplayNames.js';
 import { aiUserId } from '../constants/index.js';
 import { getAdventureCodexMonsterById } from '../constants/adventureMonstersCodex.js';
+import { modeIncludesBaseCaptureMix } from '../shared/utils/liveSessionArenaKind.js';
 
 interface BaseStartConfirmationModalProps {
     session: LiveGameSession;
@@ -26,7 +27,9 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
         whitePlayerId,
         preGameConfirmations,
         finalKomi,
-        baseKomiBidsSnapshot
+        baseKomiBidsSnapshot,
+        effectiveCaptureTargets,
+        settings,
     } = session;
     const hasConfirmed = !!preGameConfirmations?.[currentUser.id];
 
@@ -35,6 +38,11 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
     const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
     const whitePlayer = player1.id === whitePlayerId ? player1 : player2;
     const komiLabel = finalKomi != null ? String(finalKomi) : '—';
+    const isBaseCaptureMix = modeIncludesBaseCaptureMix(session.mode, settings);
+    const baseCaptureTarget = settings.captureTarget ?? effectiveCaptureTargets?.[Player.Black] ?? 20;
+    const blackCaptureTarget = effectiveCaptureTargets?.[Player.Black] ?? baseCaptureTarget;
+    const whiteCaptureTarget = effectiveCaptureTargets?.[Player.White] ?? baseCaptureTarget;
+    const captureBidPoints = Math.max(0, baseCaptureTarget - whiteCaptureTarget);
 
     const monsterEntry =
         session.gameCategory === 'adventure' && session.adventureMonsterCodexId
@@ -66,7 +74,7 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
     return (
         <div className={`${startPanelShell} space-y-4 px-4 py-4 sm:px-5 sm:py-5`}>
             <p className="text-center text-xs font-medium uppercase tracking-[0.18em] text-cyan-300/85">
-                베이스 대국 준비
+                {isBaseCaptureMix ? '베이스 + 따내기 대국 준비' : '베이스 대국 준비'}
             </p>
             <div className="flex justify-center">{cards}</div>
             <div className="space-y-2 rounded-lg border border-white/10 bg-black/35 px-3 py-3 text-[0.9rem] sm:text-[0.95rem]">
@@ -83,7 +91,31 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
                     </span>
                 </div>
                 <div className="border-t border-white/5 pt-2 space-y-2">
-                    {baseKomiBidsSnapshot?.[player1.id] && baseKomiBidsSnapshot?.[player2.id] ? (
+                    {isBaseCaptureMix ? (
+                        <div className="space-y-2">
+                            <p className="text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+                                따내기 점수 제시 결과
+                            </p>
+                            <div className="grid grid-cols-3 gap-2 text-center">
+                                <div className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-2">
+                                    <p className="text-[10px] font-semibold text-stone-500">기본 목표</p>
+                                    <p className="font-mono text-lg font-black text-stone-100">{baseCaptureTarget}점</p>
+                                </div>
+                                <div className="rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-2 py-2">
+                                    <p className="text-[10px] font-semibold text-stone-500">제시 점수</p>
+                                    <p className="font-mono text-lg font-black text-amber-200">{captureBidPoints}점</p>
+                                </div>
+                                <div className="rounded-lg border border-cyan-300/20 bg-cyan-300/[0.06] px-2 py-2">
+                                    <p className="text-[10px] font-semibold text-stone-500">백 목표</p>
+                                    <p className="font-mono text-lg font-black text-cyan-100">{whiteCaptureTarget}점</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-sm">
+                                <span className="font-semibold text-stone-400">흑 승리 조건</span>
+                                <span className="font-mono font-bold text-amber-100">{blackCaptureTarget}점 따내기</span>
+                            </div>
+                        </div>
+                    ) : baseKomiBidsSnapshot?.[player1.id] && baseKomiBidsSnapshot?.[player2.id] ? (
                         <div className="space-y-1.5">
                             <p className="text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
                                 덤 입찰(최종 라운드)
@@ -101,9 +133,11 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
                             })}
                         </div>
                     ) : null}
-                    <p className="text-center text-sm text-cyan-100/90">
-                        덤 <span className="font-mono font-bold text-amber-200">{komiLabel}</span>집
-                    </p>
+                    {!isBaseCaptureMix && (
+                        <p className="text-center text-sm text-cyan-100/90">
+                            덤 <span className="font-mono font-bold text-amber-200">{komiLabel}</span>집
+                        </p>
+                    )}
                 </div>
             </div>
             <p className="text-center text-xs leading-relaxed text-stone-400">

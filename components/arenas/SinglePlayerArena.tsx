@@ -7,6 +7,8 @@ import { resolveSinglePlayerAutoScoringCapForClientSession } from '../../shared/
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
 import { resolveSinglePlayerSurvivalMode } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 import { canViewerPlaceMoreBaseStones } from '../../shared/utils/basePlacementCanPlaceMore.js';
+import { resolveBasePlacementSeatColors } from '../../shared/utils/basePlacementSeatColors.js';
+import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
 
 interface SinglePlayerArenaProps extends GameProps {
     /** 전략 대표펫 힌트: Game.tsx → GameArena → 바둑판 파란 점 */
@@ -169,6 +171,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         baseStones,
         baseStones_p1,
         baseStones_p2,
+        mode,
     } = session;
     const scoringOverlayStorageKey = `scoringOverlayPlayed_${session.id}`;
     const [hasPlayedScoringOverlay, setHasPlayedScoringOverlay] = useState<boolean>(() => {
@@ -217,11 +220,15 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         'base_same_color_points_bid',
         'base_game_start_confirmation',
     ];
-    const isBasePrePlayOnBoard = basePrePlayStatusesForBoard.includes(gameStatus);
+    const isBaseCaptureMixBidOnBoard = gameStatus === 'capture_bidding' && modeIncludesBaseCaptureMix(mode, settings);
+    const isBasePrePlayOnBoard = basePrePlayStatusesForBoard.includes(gameStatus) || isBaseCaptureMixBidOnBoard;
     const allowBackBoardBaseStonesOnMobile = !isMobile || stageDescriptionCollapsed || isBasePrePlayOnBoard;
     const showPlacedBaseStoneArrays = allowBackBoardBaseStonesOnMobile && isBasePrePlayOnBoard;
-    const baseStonesP1Player = session.blackPlayerId === session.player1.id ? Player.Black : Player.White;
-    const baseStonesP2Player = session.blackPlayerId === session.player2.id ? Player.Black : Player.White;
+    /**
+     * 사전 단계는 임시 좌석을 사용해 베이스돌 색을 결정한다.
+     * 본대국 좌석(`session.blackPlayerId`)은 색 확정 전에는 비어 있어야 정상이다.
+     */
+    const { baseStonesP1Player, baseStonesP2Player } = resolveBasePlacementSeatColors(session);
 
     const canPlaceMoreBaseStones = useMemo(
         () => canViewerPlaceMoreBaseStones(session, currentUser.id),

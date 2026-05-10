@@ -160,16 +160,34 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     const stagesList = getSinglePlayerStages();
     const currentStageIndex = stagesList.findIndex(s => s.id === session.stageId);
     const currentStage = resolveLiveSessionSinglePlayerStageRow(session);
-    
+
+    /** 베이스·니기리 등으로 유저가 백일 수 있음 — `Player.Black === 승` 가정은 틀림 */
+    const humanPlayerEnum = useMemo((): Player | null => {
+        if (session.blackPlayerId === currentUser.id) return Player.Black;
+        if (session.whitePlayerId === currentUser.id) return Player.White;
+        return null;
+    }, [session.blackPlayerId, session.whitePlayerId, currentUser.id]);
+
     // 계가 결과가 있으면 점수를 기반으로 승리/실패 판단, 없으면 session.winner 사용
     // 계가 중일 때는 승리/실패를 판단하지 않음 (잘못된 실패 표시 방지)
     // 살리기 바둑 모드에서는 session.winner를 우선 사용 (계가 전에 종료될 수 있음)
     const isSurvivalMode = currentStage?.survivalTurns;
-    const isWinner = isSurvivalMode && session.winner !== null
-        ? (session.winner === Player.Black)
-        : (analysisResult 
-            ? (analysisResult.scoreDetails?.black?.total ?? 0) > (analysisResult.scoreDetails?.white?.total ?? 0)
-            : (session.winner === Player.Black)); // Human is always Black
+    const isWinner = useMemo(() => {
+        if (isSurvivalMode && session.winner !== null) {
+            return humanPlayerEnum != null ? session.winner === humanPlayerEnum : session.winner === Player.Black;
+        }
+        if (analysisResult?.scoreDetails) {
+            const bt = analysisResult.scoreDetails.black?.total ?? 0;
+            const wt = analysisResult.scoreDetails.white?.total ?? 0;
+            if (bt !== wt) {
+                if (humanPlayerEnum === Player.Black) return bt > wt;
+                if (humanPlayerEnum === Player.White) return wt > bt;
+                return bt > wt;
+            }
+            return humanPlayerEnum != null && session.winner != null && session.winner === humanPlayerEnum;
+        }
+        return humanPlayerEnum != null ? session.winner === humanPlayerEnum : session.winner === Player.Black;
+    }, [isSurvivalMode, session.winner, analysisResult, humanPlayerEnum]);
     
     // summary가 없을 때도 보상을 계산해서 표시 (summary가 아직 생성되지 않았을 수 있음)
     const calculatedSummary = useMemo((): GameSummary | SinglePlayerFallbackSummary | null => {

@@ -499,6 +499,12 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
             if (target?.closest?.(`[data-draggable-satellite="${windowId}"]`)) {
                 return;
             }
+            /** 백드롭은 `windowRef`와 형제라 ancestor 탐색에 안 잡힘 — 다른 창의 딤 클릭 시 부모 모달이 닫히지 않게 함 */
+            const foreignBackdrop = target?.closest?.('[data-draggable-window-backdrop]') as HTMLElement | null;
+            const backdropOwnerId = foreignBackdrop?.getAttribute('data-draggable-window-backdrop');
+            if (backdropOwnerId && backdropOwnerId !== windowId) {
+                return;
+            }
             // 클릭된 요소가 다른 DraggableWindow 내부에 있는지 확인
             if (target) {
                 // 클릭된 요소의 부모 중에 다른 DraggableWindow가 있는지 확인
@@ -1271,7 +1277,8 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     const { main: stickyMain, footer: stickyFooter } = partitionMobileStickyFooter(children);
     const useStickyMobileFooter = isMobileModalShell && !useReadableSmallPcViewportPortal && stickyFooter !== null;
-    const scrollRegionAllowsVerticalScroll = useStickyMobileFooter || bodyAllowsVerticalScroll;
+    /** `bodyNoScroll`이면 본문 스크롤을 끄는데, sticky 푸터 경로만 예외로 켜져 있으면 빈 스크롤 트랙이 생길 수 있음 → 함께 끔(내부에서 스크롤 처리) */
+    const scrollRegionAllowsVerticalScroll = (useStickyMobileFooter && !bodyNoScroll) || bodyAllowsVerticalScroll;
     const useSmallPcScaledBodyContent = useReadableSmallPcViewportPortal;
     const smallPcChromeScale = useReadableSmallPcViewportPortal ? smallPcBodyContentScale : 1;
     /** 모바일 셸: 예전 기본(`sudamr-mobile-modal-body`만)은 text-sm 등을 키워 한 화면에 넘치기 쉬움 → dense-copy를 함께 둔다 */
@@ -1322,6 +1329,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         <>
             {modal && modalBackdrop && (
                 <div
+                    data-draggable-window-backdrop={windowId}
                     className={`sudamr-draggable-modal-backdrop${transparentModalBackdrop ? ' sudamr-draggable-modal-backdrop--transparent' : ''} ${
                         modalLayerUsesDesignPixels ? 'absolute' : 'fixed'
                     } inset-0`}

@@ -30,6 +30,7 @@ import {
 } from './waitingLobbyHomePanelStyles.js';
 import { WaitingLobbyAnnouncementBoard, WAITING_LOBBY_PANEL_GLASS } from './WaitingLobbyAnnouncementBoard.js';
 import { userInUnifiedArenaLobbyUserList } from './aggregateWaitingLobbyUserFilter.js';
+import { sumLobbyAiMatchRecordFromStats } from '../../shared/utils/lobbyAiMatchRecord.js';
 
 interface WaitingRoomComponentProps {
     mode: GameMode | 'strategic' | 'playful';
@@ -306,6 +307,10 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   }
     
   const isStrategicPlayfulLobby = mode === 'strategic' || mode === 'playful';
+  const waitingLobbyAiRecord = useMemo(() => {
+    if (!currentUserWithStatus?.stats || !isStrategicPlayfulLobby) return { wins: 0, losses: 0 };
+    return sumLobbyAiMatchRecordFromStats(currentUserWithStatus.stats, isStrategic ? 'strategic' : 'playful');
+  }, [currentUserWithStatus?.stats, isStrategic, isStrategicPlayfulLobby]);
   const waitingShellBgClass =
     mode === 'strategic'
       ? 'bg-lobby-shell-strategic'
@@ -509,13 +514,31 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     <div className={`${aiChallengeFeatureShellClass} relative shrink-0 overflow-hidden p-2`}>
                       <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
                       <div className={aiChallengePanelInnerGradientClass}>
-                        <AiChallengePanel mode={mode} noOuterShell onOpenModal={() => setIsAiChallengeModalOpen(true)} />
+                        <AiChallengePanel
+                          mode={mode}
+                          noOuterShell
+                          headingTitle={isStrategic ? '전략 AI대전' : '놀이 AI대전'}
+                          aiRecord={waitingLobbyAiRecord}
+                          onOpenModal={() => setIsAiChallengeModalOpen(true)}
+                        />
                       </div>
                     </div>
                   </div>
                 )}
                 {nativeWaitingTab === 'rankedAi' && mode === 'strategic' && (
                   <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden pb-0.5">
+                    <div className={`${aiChallengeFeatureShellClass} relative shrink-0 overflow-hidden p-2`}>
+                      <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
+                      <div className={aiChallengePanelInnerGradientClass}>
+                        <AiChallengePanel
+                          mode={mode}
+                          noOuterShell
+                          headingTitle="전략 AI대전"
+                          aiRecord={waitingLobbyAiRecord}
+                          onOpenModal={() => setIsAiChallengeModalOpen(true)}
+                        />
+                      </div>
+                    </div>
                     <div
                       className={`flex min-h-0 shrink-0 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
                     >
@@ -534,12 +557,6 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                           setRankedMatchingStartTime(0);
                         }}
                       />
-                    </div>
-                    <div className={`${aiChallengeFeatureShellClass} relative shrink-0 overflow-hidden p-2`}>
-                      <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
-                      <div className={aiChallengePanelInnerGradientClass}>
-                        <AiChallengePanel mode={mode} noOuterShell onOpenModal={() => setIsAiChallengeModalOpen(true)} />
-                      </div>
                     </div>
                   </div>
                 )}
@@ -597,6 +614,18 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                 </div>
                 {mode === 'strategic' ? (
                   <>
+                    <div className={`${aiChallengeFeatureShellClass} relative shrink-0 overflow-hidden p-2`}>
+                      <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
+                      <div className={aiChallengePanelInnerGradientClass}>
+                        <AiChallengePanel
+                          mode={mode}
+                          noOuterShell
+                          headingTitle="전략 AI대전"
+                          aiRecord={waitingLobbyAiRecord}
+                          onOpenModal={() => setIsAiChallengeModalOpen(true)}
+                        />
+                      </div>
+                    </div>
                     <div className={`shrink-0 overflow-hidden ${waitingLobbyPcShellClass}`}>
                       <RankedMatchPanel
                         currentUser={currentUserWithStatus}
@@ -626,14 +655,28 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     </div>
                   </>
                 ) : (
-                  <div
-                    className={`flex min-h-0 min-w-0 flex-1 flex-col justify-center gap-2 overflow-hidden rounded-lg border border-amber-600/30 bg-black/25 p-4 text-center text-sm text-amber-100/90 ${waitingLobbyPcShellClass}`}
-                  >
-                    <p className="font-semibold text-amber-50">놀이바둑 안내</p>
-                    <p className="text-xs leading-relaxed text-amber-100/80">
-                      놀이바둑 경기장에서는 랭킹전·시즌 랭킹 점수를 사용하지 않습니다. 전략바둑 대기실에서만 랭킹전을 이용할 수 있습니다.
-                    </p>
-                  </div>
+                  <>
+                    <div className={`${aiChallengeFeatureShellClass} relative shrink-0 overflow-hidden p-2`}>
+                      <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
+                      <div className={aiChallengePanelInnerGradientClass}>
+                        <AiChallengePanel
+                          mode={mode}
+                          noOuterShell
+                          headingTitle="놀이 AI대전"
+                          aiRecord={waitingLobbyAiRecord}
+                          onOpenModal={() => setIsAiChallengeModalOpen(true)}
+                        />
+                      </div>
+                    </div>
+                    <div
+                      className={`flex min-h-0 min-w-0 flex-1 flex-col justify-center gap-2 overflow-hidden rounded-lg border border-amber-600/30 bg-black/25 p-4 text-center text-sm text-amber-100/90 ${waitingLobbyPcShellClass}`}
+                    >
+                      <p className="font-semibold text-amber-50">놀이바둑 안내</p>
+                      <p className="text-xs leading-relaxed text-amber-100/80">
+                        놀이바둑 경기장에서는 랭킹전·시즌 랭킹 점수를 사용하지 않습니다. 전략바둑 대기실에서만 랭킹전을 이용할 수 있습니다.
+                      </p>
+                    </div>
+                  </>
                 )}
               </div>
               {/* 중앙: 공지 전광판 + 진행 중 대국 */}
@@ -655,27 +698,19 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
               {/* 우: 유저 목록(하단까지) + 퀵 메뉴 — shrink-0으로 중앙 대국 열이 유저 폭을 과도하게 잡아먹지 않도록 */}
               <div className="flex h-full min-h-0 shrink-0 flex-row gap-1.5 overflow-hidden sm:gap-2">
                 <div className="flex h-full min-h-0 min-w-0 w-[min(100%,40rem)] max-w-2xl flex-1 flex-col overflow-hidden sm:min-w-[30rem]">
-                  <div className="flex h-full min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-                    <div className={`${aiChallengeFeatureShellClass} relative shrink-0 overflow-hidden p-2`}>
-                      <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
-                      <div className={aiChallengePanelInnerGradientClass}>
-                        <AiChallengePanel mode={mode} noOuterShell onOpenModal={() => setIsAiChallengeModalOpen(true)} />
-                      </div>
-                    </div>
-                    <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/15 ${waitingLobbyPcShellClass}`}>
-                      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                        <PlayerList
-                          users={playersForListPanel}
-                          mode={mode}
-                          onAction={handlers.handleAction}
-                          currentUser={currentUserWithStatus}
-                          onViewUser={handlers.openViewingUser}
-                          lobbyType={isStrategic ? 'strategic' : 'playful'}
-                          userCount={playersForListPanel.length}
-                          listScopeTabs={waitingUserScopeTabs}
-                          showArenaPartnerInviteBlockToggle
-                        />
-                      </div>
+                  <div className={`flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/15 ${waitingLobbyPcShellClass}`}>
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                      <PlayerList
+                        users={playersForListPanel}
+                        mode={mode}
+                        onAction={handlers.handleAction}
+                        currentUser={currentUserWithStatus}
+                        onViewUser={handlers.openViewingUser}
+                        lobbyType={isStrategic ? 'strategic' : 'playful'}
+                        userCount={playersForListPanel.length}
+                        listScopeTabs={waitingUserScopeTabs}
+                        showArenaPartnerInviteBlockToggle
+                      />
                     </div>
                   </div>
                 </div>
@@ -683,7 +718,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                   className={`flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`}
                   aria-label="퀵 메뉴"
                 >
-                  <div className="flex h-full min-h-0 flex-col rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40">
+                  <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40">
                     <QuickAccessSidebar fillHeight />
                   </div>
                 </div>
@@ -717,41 +752,65 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     />
                   </div>
                   <div
-                    className={`flex min-h-0 min-w-0 flex-[0.58] flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg sm:min-w-[25rem] lg:min-w-[30rem] lg:flex-[0.62] ${waitingLobbyGlass}`}
+                    className={`flex min-h-0 min-w-0 flex-[0.58] flex-col gap-2 overflow-hidden rounded-lg border border-color bg-panel shadow-lg sm:min-w-[25rem] lg:min-w-[30rem] lg:flex-[0.62] ${waitingLobbyGlass}`}
                   >
                     {isStrategic ? (
-                      <RankedMatchPanel
-                        currentUser={currentUserWithStatus}
-                        onAction={handlers.handleAction}
-                        isMatching={isRankedMatching}
-                        matchingStartTime={rankedMatchingStartTime}
-                        onMatchingStateChange={(isMatching, startTime) => {
-                          setIsRankedMatching(isMatching);
-                          setRankedMatchingStartTime(startTime);
-                        }}
-                        onCancelMatching={() => {
-                          setIsRankedMatching(false);
-                          setRankedMatchingStartTime(0);
-                        }}
-                      />
+                      <>
+                        <div className={`${aiChallengeFeatureShellClass} relative shrink-0 overflow-hidden p-2`}>
+                          <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
+                          <div className={aiChallengePanelInnerGradientClass}>
+                            <AiChallengePanel
+                              mode={mode}
+                              noOuterShell
+                              headingTitle="전략 AI대전"
+                              aiRecord={waitingLobbyAiRecord}
+                              onOpenModal={() => setIsAiChallengeModalOpen(true)}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                          <RankedMatchPanel
+                            currentUser={currentUserWithStatus}
+                            onAction={handlers.handleAction}
+                            isMatching={isRankedMatching}
+                            matchingStartTime={rankedMatchingStartTime}
+                            onMatchingStateChange={(isMatching, startTime) => {
+                              setIsRankedMatching(isMatching);
+                              setRankedMatchingStartTime(startTime);
+                            }}
+                            onCancelMatching={() => {
+                              setIsRankedMatching(false);
+                              setRankedMatchingStartTime(0);
+                            }}
+                          />
+                        </div>
+                      </>
                     ) : (
-                      <div className="flex h-full min-h-[8rem] flex-col items-center justify-center gap-2 p-4 text-center text-xs text-secondary">
-                        <p className="font-semibold text-primary">랭킹전 없음</p>
-                        <p className="leading-relaxed">전략바둑 대기실에서만 랭킹전을 이용할 수 있습니다.</p>
-                      </div>
+                      <>
+                        <div className={`${aiChallengeFeatureShellClass} relative shrink-0 overflow-hidden p-2`}>
+                          <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
+                          <div className={aiChallengePanelInnerGradientClass}>
+                            <AiChallengePanel
+                              mode={mode}
+                              noOuterShell
+                              headingTitle="놀이 AI대전"
+                              aiRecord={waitingLobbyAiRecord}
+                              onOpenModal={() => setIsAiChallengeModalOpen(true)}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex h-full min-h-[8rem] flex-1 flex-col items-center justify-center gap-2 p-4 text-center text-xs text-secondary">
+                          <p className="font-semibold text-primary">랭킹전 없음</p>
+                          <p className="leading-relaxed">전략바둑 대기실에서만 랭킹전을 이용할 수 있습니다.</p>
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
               </div>
               <div className="col-span-2 flex min-h-0 flex-col gap-4 overflow-hidden">
                 <div className="flex min-h-0 flex-1 flex-row items-stretch gap-4 overflow-hidden">
-                  <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
-                    <div className={`${aiChallengeFeatureShellClass} relative shrink-0 overflow-hidden p-2`}>
-                      <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
-                      <div className={aiChallengePanelInnerGradientClass}>
-                        <AiChallengePanel mode={mode} noOuterShell onOpenModal={() => setIsAiChallengeModalOpen(true)} />
-                      </div>
-                    </div>
+                  <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                     <div
                       className={`min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-white/10 bg-panel shadow-lg ring-1 ring-white/[0.06] ${waitingLobbyGlass}`}
                     >
@@ -768,7 +827,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     </div>
                   </div>
                   <div className={`${PC_QUICK_RAIL_COLUMN_CLASS} flex flex-col overflow-hidden`}>
-                    <div className="flex h-full min-h-0 flex-col rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40">
+                    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40">
                       <QuickAccessSidebar fillHeight />
                     </div>
                   </div>

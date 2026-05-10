@@ -21,7 +21,6 @@ import BaseStoneColorChoicePanel from '../BaseStoneColorChoicePanel.js';
 import BaseSameColorPointsBidPanel from '../BaseSameColorPointsBidPanel.js';
 import NegotiationModal from '../NegotiationModal.js';
 import DiceGoTurnSelectionModal from '../DiceGoTurnSelectionModal.js';
-import BaseStartConfirmationModal from '../BaseStartConfirmationModal.js';
 import DiceGoStartConfirmationModal from '../DiceGoStartConfirmationModal.js';
 import CurlingStartConfirmationModal from '../CurlingStartConfirmationModal.js';
 import AlkkagiStartConfirmationModal from '../AlkkagiStartConfirmationModal.js';
@@ -30,6 +29,7 @@ import TowerSummaryModal from '../TowerSummaryModal.js';
 import AiGameDescriptionModal from '../AiGameDescriptionModal.js';
 import ColorStartConfirmationModal from '../ColorStartConfirmationModal.js';
 import PairTurnOrderModal from '../PairTurnOrderModal.js';
+import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
 interface GameModalsProps extends GameProps {
     confirmModalType: 'resign' | null;
     onHideConfirmModal: () => void;
@@ -129,7 +129,9 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         if (gameStatus === 'color_start_confirmation') return <ColorStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'turn_preference_roulette') return <TurnPreferenceRouletteModal session={session} />;
         if (gameStatus === 'turn_preference_selection') return <TurnPreferenceSelection session={session} currentUser={currentUser} onAction={onAction} tiebreaker={session.turnSelectionTiebreaker} />;
-        if (gameStatus === 'capture_bidding') return <CaptureBidModal session={session} currentUser={currentUser} onAction={onAction} />;
+        if (gameStatus === 'capture_bidding' && !modeIncludesBaseCaptureMix(session.mode, session.settings)) {
+            return <CaptureBidModal session={session} currentUser={currentUser} onAction={onAction} />;
+        }
         if (['capture_tiebreaker', 'capture_reveal'].includes(gameStatus)) return <CaptureTiebreakerModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'base_stone_color_choice') {
             if (baseUsesBottomStrip) return null;
@@ -161,7 +163,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         }
         if (gameStatus === 'base_game_start_confirmation') {
             if (isSpectator || !session.blackPlayerId || !session.whitePlayerId) return null;
-            return <BaseStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
+            return <CaptureTiebreakerModal session={session} currentUser={currentUser} onAction={onAction} />;
         }
         if (rpsStates.includes(gameStatus)) return <RPSMinigame session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'alkkagi_start_confirmation') return <AlkkagiStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;

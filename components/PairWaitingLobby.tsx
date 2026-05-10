@@ -19,12 +19,11 @@ import PairRoomSeatGrid, { type PairSeatMember } from './pair/PairRoomSeatGrid.j
 import PairRoomChatPanel, { type PairRoomChatScope } from './pair/PairRoomChatPanel.js';
 import type { PairLobbyPetSnapshot, PairRoomChatLine } from '../types/api.js';
 import type { InventoryItem } from '../types.js';
-import PairPetLobbyPanel from './pair/PairPetLobbyPanel.js';
 import PairPartnerInviteModal from './pair/PairPartnerInviteModal.js';
 import PairPetRankedMatchOfferModal from './pair/PairPetRankedMatchOfferModal.js';
 import PairPetRankedMatchModeModal, { resolveMyPairRankedTierForPairArena } from './pair/PairPetRankedMatchModeModal.js';
 import AiChallengeModal, { type AiLobbyPreferredGameSettingsBucket } from './waiting-room/AiChallengeModal.js';
-import AiChallengePanel from './waiting-room/AiChallengePanel.js';
+import AiChallengePanel, { formatLobbyAiRecordLine } from './waiting-room/AiChallengePanel.js';
 import RankedMatchPanel from './waiting-room/RankedMatchPanel.js';
 import { GameMode, type GameSettings, type ServerAction } from '../types.js';
 import {
@@ -42,6 +41,7 @@ import {
     effectiveStrategicRankedQueueApCostForUser,
     formatActionPointCostWithPetDiscount,
 } from '../shared/utils/pairPetArenaApDiscount.js';
+import { sumLobbyAiMatchRecordFromStats } from '../shared/utils/lobbyAiMatchRecord.js';
 import {
     type WaitingLobbyPanelTone,
     aiChallengeFeatureShellClass,
@@ -111,7 +111,7 @@ import { RANKED_STRATEGIC_MODES, getRankedGameSettings } from '../constants/rank
 import { PAIR_GO_GAME_MODES } from '../shared/utils/pairGameTurn.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { resolvePairPetMetaFromInventoryRow } from '../shared/utils/pairPetRoll.js';
-import { readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
+import { readPairRankedBlock, readPairArenaAiMatchRecord } from '../shared/utils/unifiedRankedStatsMigration.js';
 import {
     buildPairRoomLobbyGameSettingRows,
     normalizePairListRoomKind,
@@ -967,7 +967,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     const [joinPasswordDraft, setJoinPasswordDraft] = useState('');
     const [userTab, setUserTab] = useState<'users' | 'friends' | 'guild'>('users');
     const [pairLobbyMobileTab, setPairLobbyMobileTab] = useState<
-        'pet' | 'rooms' | 'room' | 'users' | 'ranked' | 'ai' | 'rankedAi'
+        'rooms' | 'room' | 'users' | 'ranked' | 'ai' | 'rankedAi'
     >('rooms');
     /** PC·모바일 우측(유저 열): 방 내부 UI ↔ 유저 목록 ↔ AI대결(전략·놀이 집계만) */
     const [pairLobbyRightTab, setPairLobbyRightTab] = useState<'room' | 'users' | 'ai'>('room');
@@ -997,6 +997,10 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     }, [lobbyChannel]);
 
     const aggregateLobbyMode = lobbyChannel === 'strategic' || lobbyChannel === 'playful' ? lobbyChannel : null;
+    const aggregateLobbyAiRecord = useMemo(() => {
+        if (!aggregateLobbyMode || !currentUserWithStatus?.stats) return { wins: 0, losses: 0 };
+        return sumLobbyAiMatchRecordFromStats(currentUserWithStatus.stats, aggregateLobbyMode);
+    }, [aggregateLobbyMode, currentUserWithStatus?.stats]);
     /** 모바일 상단 탭에 「랭킹전」 분리 표시 (전략 집계·페어 본로비) */
     const showHandheldRankedTab = lobbyChannel === 'strategic' || lobbyChannel === 'pair';
 
@@ -1023,17 +1027,17 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             if (lobbyChannel !== 'pair') return;
             if (sessionStorage.getItem('sudamr_pair_lobby_open_pet_tab') === '1') {
                 sessionStorage.removeItem('sudamr_pair_lobby_open_pet_tab');
-                setPairLobbyMobileTab('pet');
+                handlers.openPetManagementModal();
             }
         } catch {
             // ignore
         }
-    }, [lobbyChannel]);
+    }, [lobbyChannel, handlers]);
 
-    /** 전략/놀이: 모바일 좌측 첫 탭이 펫 패널이 되도록 — 페어로 나가면 집계 전용 탭 정리 */
+    /** 전략/놀이: 펫은 퀵메뉴 모달로 — 모바일도 방목록이 기본 탭 */
     useEffect(() => {
         if (lobbyChannel === 'strategic' || lobbyChannel === 'playful') {
-            setPairLobbyMobileTab('pet');
+            setPairLobbyMobileTab('rooms');
         } else {
             setPairLobbyMobileTab((t) => (t === 'rankedAi' || t === 'ai' ? 'rooms' : t));
         }
@@ -1458,7 +1462,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     );
 
     const handheldLobbyMainTabGridColsClass = useMemo(() => {
-        let n = 2;
+        let n = 1;
         if (myRoom) n += 1;
         n += 1;
         if (aggregateLobbyMode === 'strategic') {
@@ -1489,6 +1493,12 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
 
     useEffect(() => {
         if (aggregateLobbyMode !== 'playful' || !isHandheld) return;
+        if (pairLobbyRightTab === 'ai') setPairLobbyRightTab('users');
+    }, [aggregateLobbyMode, isHandheld, pairLobbyRightTab]);
+
+    /** PC: AI 대결 카드는 좌측 패널로 옮겨 우측 「AI대결」탭 제거 */
+    useEffect(() => {
+        if (isHandheld || !aggregateLobbyMode) return;
         if (pairLobbyRightTab === 'ai') setPairLobbyRightTab('users');
     }, [aggregateLobbyMode, isHandheld, pairLobbyRightTab]);
 
@@ -2810,6 +2820,11 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         return { ...tierInfo, wins: blk.wins, losses: blk.losses };
     }, [currentUserWithStatus]);
 
+    const pairLobbyPairArenaAiRecord = useMemo(() => {
+        if (!currentUserWithStatus) return { wins: 0, losses: 0 };
+        return readPairArenaAiMatchRecord(currentUserWithStatus.stats as User['stats']);
+    }, [currentUserWithStatus]);
+
     const pairLobbyPairRankedCurrentSeasonName = getCurrentSeason().name;
     const pairLobbyPairRankedAllTimeBest = useMemo(() => {
         if (!currentUserWithStatus) return null;
@@ -3483,6 +3498,9 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                 <h3 className="truncate text-base font-extrabold tracking-tight text-fuchsia-100 drop-shadow-[0_0_10px_rgba(217,70,239,0.35)]">
                                     페어 AI 대전
                                 </h3>
+                                <p className="mt-0.5 text-[11px] font-semibold tabular-nums text-fuchsia-200/85 sm:text-xs">
+                                    {formatLobbyAiRecordLine(pairLobbyPairArenaAiRecord)}
+                                </p>
                             </div>
                         </div>
                         <Button
@@ -3518,23 +3536,51 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             </div>
         ) : null;
 
-    /** 전략·놀이 집계 로비: 유저 목록 열과 분리해 단독으로 쓰는 AI 대결 카드 */
+    /** 전략·놀이 집계 로비: 가로형 AI 패널(랭킹전 상단·유저열 AI 탭 등) */
     const pairLobbyAggregateAiChallengeCardEl =
         aggregateLobbyMode === 'strategic' ? (
             <div className={`${aiChallengeFeatureShellClass} relative overflow-hidden p-2`}>
                 <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
                 <div className={aiChallengePanelInnerGradientClass}>
-                    <AiChallengePanel mode="strategic" noOuterShell onOpenModal={() => setAggregateLobbyAiModalOpen(true)} />
+                    <AiChallengePanel
+                        mode="strategic"
+                        noOuterShell
+                        headingTitle="전략 AI대전"
+                        aiRecord={aggregateLobbyAiRecord}
+                        onOpenModal={() => setAggregateLobbyAiModalOpen(true)}
+                    />
                 </div>
             </div>
         ) : aggregateLobbyMode === 'playful' ? (
             <div className={`${aiChallengeFeatureShellClass} relative overflow-hidden p-2`}>
                 <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
                 <div className={aiChallengePanelInnerGradientClass}>
-                    <AiChallengePanel mode="playful" noOuterShell onOpenModal={() => setAggregateLobbyAiModalOpen(true)} />
+                    <AiChallengePanel
+                        mode="playful"
+                        noOuterShell
+                        headingTitle="놀이 AI대전"
+                        aiRecord={aggregateLobbyAiRecord}
+                        onOpenModal={() => setAggregateLobbyAiModalOpen(true)}
+                    />
                 </div>
             </div>
         ) : null;
+
+    const showAggregateLobbyAiAboveRanked =
+        Boolean(pairLobbyAggregateAiChallengeCardEl) &&
+        (aggregateLobbyMode === 'playful' || (aggregateLobbyMode === 'strategic' && !myRoom));
+
+    /** PC 좌측: 집계 AI·전략 랭킹전 → 페어 AI 대전 → 페어 랭킹전 */
+    const pairLobbyDesktopLeftRankedAiStack = (
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch] pr-0.5">
+            {showAggregateLobbyAiAboveRanked ? (
+                <div className="shrink-0">{pairLobbyAggregateAiChallengeCardEl}</div>
+            ) : null}
+            {handheldStrategicRankedMatchPanel}
+            {pairLobbyAiDuelQuickMatchCard}
+            {renderPairLobbyPairRankedStats()}
+        </div>
+    );
 
     const pairLobbyPlayerListSection = (
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -3581,47 +3627,35 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     const pairLobbyMobileRankedTabPanel = (
         <div className={`${waitingLobbyPcPanelShellClass(lobbyTone)} flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2`}>
             <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch] pr-0.5">
+                {pairLobbyAiDuelQuickMatchCard}
                 {handheldStrategicRankedMatchPanel}
                 {renderPairLobbyPairRankedStats()}
             </div>
         </div>
     );
 
-    /** 모바일 전략 경기장: 랭킹전 패널 + AI 대결 카드 한 탭에 통합 */
+    /** 모바일 전략 경기장: AI 대전 → 랭킹전 패널 */
     const pairLobbyMobileStrategicRankedAiTabPanel = (
         <div className={`${waitingLobbyPcPanelShellClass(lobbyTone)} flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2`}>
             <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch] pr-0.5">
+                {showAggregateLobbyAiAboveRanked ? (
+                    <div className="shrink-0">{pairLobbyAggregateAiChallengeCardEl}</div>
+                ) : null}
                 {handheldStrategicRankedMatchPanel}
                 {renderPairLobbyPairRankedStats()}
-                {pairLobbyAggregateAiChallengeCardEl}
             </div>
         </div>
     );
 
     const pairLobbyMobileUsersTabPanel = (
         <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-            {aggregateLobbyMode === 'playful' && pairLobbyAggregateAiChallengeCardEl ? (
-                <div className="min-h-0 shrink-0 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]">
-                    {pairLobbyAggregateAiChallengeCardEl}
-                </div>
-            ) : null}
-            {pairLobbyAiDuelQuickMatchCard}
+            {lobbyChannel === 'pair' && showHandheldRankedTab ? null : pairLobbyAiDuelQuickMatchCard}
             {pairLobbyPlayerListSection}
         </div>
     );
 
     const userListPanel = (
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-            {!(isHandheld && showHandheldRankedTab) && handheldStrategicRankedMatchPanel}
-            {(
-                aggregateLobbyMode === 'playful' ||
-                (aggregateLobbyMode === 'strategic' && !myRoom)
-            ) &&
-            pairLobbyAggregateAiChallengeCardEl ? (
-                <div className="shrink-0">{pairLobbyAggregateAiChallengeCardEl}</div>
-            ) : null}
-            {!(isHandheld && showHandheldRankedTab) && renderPairLobbyPairRankedStats()}
-            {pairLobbyAiDuelQuickMatchCard}
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/20 shadow-inner ring-1 ring-white/[0.06]">
                 {pairLobbyPlayerListSection}
             </div>
@@ -4570,7 +4604,9 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                             aggregateLobbyMode
                                 ? aggregateLobbyMode === 'playful' && isHandheld
                                     ? 'grid-cols-2'
-                                    : 'grid-cols-3'
+                                    : isHandheld
+                                      ? 'grid-cols-3'
+                                      : 'grid-cols-2'
                                 : 'grid-cols-2'
                         }`}
                     >
@@ -4588,7 +4624,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                         >
                             {aggregateLobbyMode === 'playful' && isHandheld ? '유저목록/AI대결' : '유저목록'}
                         </button>
-                        {aggregateLobbyMode && !(aggregateLobbyMode === 'playful' && isHandheld) ? (
+                        {aggregateLobbyMode && !(aggregateLobbyMode === 'playful' && isHandheld) && isHandheld ? (
                             <button
                                 type="button"
                                 onClick={() => setPairLobbyRightTab('ai')}
@@ -4603,7 +4639,8 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                             renderPairLobbyRoomInteriorPanel()
                         ) : pairLobbyRightTab === 'ai' &&
                           aggregateLobbyMode &&
-                          !(aggregateLobbyMode === 'playful' && isHandheld) ? (
+                          !(aggregateLobbyMode === 'playful' && isHandheld) &&
+                          isHandheld ? (
                             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
                                 {pairLobbyAggregateAiChallengeCardEl}
                             </div>
@@ -5524,17 +5561,6 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                     >
                         <button
                             type="button"
-                            onClick={() => setPairLobbyMobileTab('pet')}
-                            className={`min-w-0 rounded-lg px-1 py-1.5 text-[0.58rem] font-extrabold leading-tight sm:px-2 sm:py-2 sm:text-xs ${
-                                pairLobbyMobileTab === 'pet'
-                                    ? 'bg-cyan-500 text-cyan-950'
-                                    : 'text-cyan-100 hover:bg-cyan-950/45'
-                            }`}
-                        >
-                            펫
-                        </button>
-                        <button
-                            type="button"
                             onClick={() => setPairLobbyMobileTab('rooms')}
                             className={`min-w-0 rounded-lg px-1 py-1.5 text-[0.58rem] font-extrabold leading-tight sm:px-2 sm:py-2 sm:text-xs ${
                                 pairLobbyMobileTab === 'rooms'
@@ -5578,7 +5604,9 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                     ? '유저 목록과 AI 대결을 한 화면에서'
                                     : aggregateLobbyMode
                                       ? '유저 목록'
-                                      : '유저 목록 · 페어 AI 대전'
+                                      : lobbyChannel === 'pair' && showHandheldRankedTab
+                                        ? '유저 목록'
+                                        : '유저 목록 · 페어 AI 대전'
                             }
                         >
                             {lobbyChannel === 'playful' ? '유저목록/AI대결' : '유저목록'}
@@ -5613,18 +5641,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                         ) : null}
                     </div>
                     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-                        {pairLobbyMobileTab === 'pet' ? (
-                            <div
-                                className={`${waitingLobbyPcPanelShellClass(lobbyTone)} mx-0 flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2`}
-                            >
-                                <PairPetLobbyPanel
-                                    currentUser={currentUserWithStatus}
-                                    currentUserId={currentUserId}
-                                    isBusy={isBusy}
-                                    applyPetAction={applyPetAction}
-                                />
-                            </div>
-                        ) : pairLobbyMobileTab === 'rooms' ? (
+                        {pairLobbyMobileTab === 'rooms' ? (
                             <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-0.5">
                                 {renderPairLobbyCenterColumn()}
                             </div>
@@ -5659,16 +5676,6 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                             onBackToProfile={backToProfile}
                             titleHeadingClass={`${titleHeadingClass} text-base sm:text-lg lg:text-xl`}
                         />
-                        <div className={`${waitingLobbyPcPanelShellClass(lobbyTone)} flex min-h-0 flex-1 flex-col overflow-hidden p-3`}>
-                            <PairPetLobbyPanel
-                                currentUser={currentUserWithStatus}
-                                currentUserId={currentUserId}
-                                isBusy={isBusy}
-                                applyPetAction={applyPetAction}
-                            />
-                        </div>
-                    </div>
-                    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden">
                         <ArenaLobbyArenaSwitcherPanel
                             kind={lobbyChannel as ArenaLobbyNavKind}
                             currentUser={currentUserWithStatus}
@@ -5676,6 +5683,11 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                             arenaEntranceAvailability={arenaEntranceAvailability}
                             onSelectArena={navigateArenaTab}
                         />
+                        <div className={`${waitingLobbyPcPanelShellClass(lobbyTone)} flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-2.5`}>
+                            {pairLobbyDesktopLeftRankedAiStack}
+                        </div>
+                    </div>
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{renderPairLobbyCenterColumn()}</div>
                     </div>
                     <div className="flex h-full min-h-0 shrink-0 flex-1 flex-row gap-2 overflow-hidden">
@@ -5684,7 +5696,10 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                 {renderPairLobbyUsersColumn()}
                             </div>
                         </div>
-                        <aside className={`flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden`}>
+                        <aside
+                            className={`flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden`}
+                            aria-label="퀵 메뉴"
+                        >
                             <div className="flex h-full min-h-0 flex-col rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40">
                                 <QuickAccessSidebar fillHeight />
                             </div>
@@ -5721,9 +5736,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                 <AiChallengeModal
                     lobbyType={lobbyChannel === 'playful' ? 'playful' : 'strategic'}
                     preferredGameSettingsBucket={lobbyChannel === 'playful' ? 'playful_ai_challenge' : 'strategic_ai_challenge'}
-                    title={
-                        lobbyChannel === 'playful' ? '놀이바둑 AI와 대결하기' : '전략바둑 AI와 대결하기'
-                    }
+                    title={lobbyChannel === 'playful' ? '놀이 AI대전' : '전략 AI대전'}
                     onClose={() => setAggregateLobbyAiModalOpen(false)}
                     onAction={handlers.handleAction}
                 />

@@ -7,6 +7,8 @@ import { resolveSinglePlayerAutoScoringCapForClientSession } from '../../shared/
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
 import { getEffectivePairLobbyOwnerId } from '../../shared/utils/effectivePairLobbyOwnerId.js';
 import { canViewerPlaceMoreBaseStones } from '../../shared/utils/basePlacementCanPlaceMore.js';
+import { resolveBasePlacementSeatColors } from '../../shared/utils/basePlacementSeatColors.js';
+import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
 
 interface GoGameArenaProps extends GameProps {
     isMyTurn: boolean;
@@ -182,9 +184,13 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         gameStatus === 'base_placement' ||
         gameStatus === 'base_stone_color_choice' ||
         gameStatus === 'base_same_color_points_bid' ||
-        gameStatus === 'base_game_start_confirmation';
-    const baseStonesP1Player = session.blackPlayerId === session.player1.id ? Player.Black : Player.White;
-    const baseStonesP2Player = session.blackPlayerId === session.player2.id ? Player.Black : Player.White;
+        gameStatus === 'base_game_start_confirmation' ||
+        (gameStatus === 'capture_bidding' && modeIncludesBaseCaptureMix(mode, session.settings));
+    /**
+     * 사전 단계에서는 임시 좌석(`basePlacementBlackPlayerId`)을, 시작 확인 이후에는 본대국 좌석을 사용한다.
+     * 배치 단계에 본대국 좌석(`session.blackPlayerId`)은 비어 있어야 정상이라 직접 읽지 않는다.
+     */
+    const { baseStonesP1Player, baseStonesP2Player } = resolveBasePlacementSeatColors(session);
 
     const isPairBasePlacementHost = useMemo(() => {
         if (gameStatus !== 'base_placement') return false;

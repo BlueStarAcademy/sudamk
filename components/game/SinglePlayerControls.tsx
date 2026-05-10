@@ -182,9 +182,27 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     };
     const myMissilesLeftForRefresh = resolvePveItemCount(session.missiles_p1, missileCountSetting);
     const usedMissileBeforeFirstMove = isMissileOnlyMode && moveCount === 0 && (missileCountSetting - myMissilesLeftForRefresh) > 0;
-    const refreshDisabled = !canRefresh || !canAfford || usedMissileBeforeFirstMove;
 
-    const isMyTurn = session.currentPlayer === Player.Black; // 싱글플레이어에서는 유저가 항상 흑
+    // 싱글플레이 베이스바둑: 덤 결정 후 유저가 백이 될 수도 있다. `currentPlayer === Player.Black` 가정은 더이상 통하지 않으므로
+    // 본대국 좌석(`blackPlayerId`/`whitePlayerId`) → 본대국 잠금 좌석 → player1=흑 폴백 순으로 본인 색을 확정한다.
+    const myPlayerEnum: Player = (() => {
+        if (myUserId && session.blackPlayerId === myUserId) return Player.Black;
+        if (myUserId && session.whitePlayerId === myUserId) return Player.White;
+        const lockedBlack = (session as { playingLockedBlackPlayerId?: string | null }).playingLockedBlackPlayerId ?? null;
+        const lockedWhite = (session as { playingLockedWhitePlayerId?: string | null }).playingLockedWhitePlayerId ?? null;
+        if (myUserId && typeof lockedBlack === 'string' && lockedBlack === myUserId) return Player.Black;
+        if (myUserId && typeof lockedWhite === 'string' && lockedWhite === myUserId) return Player.White;
+        // 본대국 좌석/잠금이 비어 있는 사전 단계나 잘못된 동기화 상태: 싱글플레이는 player1=유저=흑 가정으로 폴백.
+        return session.player1?.id === myUserId ? Player.Black : Player.None;
+    })();
+    const isMyTurn = myPlayerEnum !== Player.None && session.currentPlayer === myPlayerEnum;
+    /** 베이스 싱글에서 유저가 백이면 상대(AI)는 흑. 스캔 활성 판정에서 더 이상 `Player.White=상대` 가정을 쓸 수 없으므로
+     * `myPlayerEnum`에서 파생한 색을 사용한다. `myPlayerEnum=None`인 잠깐의 사전 단계는 흑(=폴백) 가정을 유지한다. */
+    const opponentPlayerEnum: Player = myPlayerEnum === Player.White ? Player.Black : Player.White;
+    /** 배치변경(돌 재배치)은 첫 수 전이라면 색과 무관하게 허용해야 한다.
+     * 베이스에서 유저가 백이 되면 AI(흑)가 먼저 두기 전 단계에 currentPlayer는 Black이라 isMyTurn=false다.
+     * 이때까지는 보드 패턴만 다시 섞는 동작이므로 `!isMyTurn`을 비활성 조건에 넣지 않는다. */
+    const refreshDisabled = !canRefresh || !canAfford || usedMissileBeforeFirstMove;
     const gameStatus = session.gameStatus;
     
     // 히든 아이템 (스캔 아이템처럼 개수 기반)
@@ -200,7 +218,8 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
         });
     }, [session, gameStatus, onAction, isMoveInFlight, isBoardLocked, hasPendingRevealResolution, isMyTurn]);
     
-    // 스캔 아이템: 상대(백/AI)에 미공개 히든돌이 1개라도 있을 때만 활성화
+    // 스캔 아이템: 상대(AI)에 미공개 히든돌이 1개라도 있을 때만 활성화
+    // 베이스 싱글에서 유저가 백이 되면 상대 AI가 흑이므로 색 비교에 `opponentPlayerEnum`을 사용해야 한다.
     const myScansLeft = resolvePveItemCount(session.scans_p1, scanCountSetting);
     const canScan = React.useMemo(() => {
         const board = session.boardState;
@@ -212,13 +231,13 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
         if (aiInitialHiddenStone) {
             const { x, y } = aiInitialHiddenStone;
             const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
-            if (inBounds && board[y][x] === Player.White) {
+            if (inBounds && board[y][x] === opponentPlayerEnum) {
                 const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
                 if (!isPermanentlyRevealed && !scannedAiInitialByMe) return true;
             }
         }
 
-        // moveHistory 상의 백(봇) 히든 스톤이 하나라도 있어야 스캔 가능
+        // moveHistory 상의 상대(봇) 히든 스톤이 하나라도 있어야 스캔 가능
         if (!session.hiddenMoves || typeof session.hiddenMoves !== 'object' || !session.moveHistory?.length) return false;
         const myRevealed = myUserId ? session.revealedHiddenMoves?.[myUserId] : undefined;
         const hasOpponentUnrevealedHidden = Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
@@ -226,16 +245,17 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
             const idx = parseInt(moveIndexStr, 10);
             if (myRevealed?.includes(idx)) return false;
             const move = session.moveHistory![idx];
-            if (!move || move.player !== Player.White) return false;
+            if (!move || move.player !== opponentPlayerEnum) return false;
             const { x, y } = move;
             const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
-            if (!inBounds || board[y][x] !== Player.White) return false;
+            if (!inBounds || board[y][x] !== opponentPlayerEnum) return false;
             const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
             return !isPermanentlyRevealed;
         });
         return hasOpponentUnrevealedHidden;
     }, [
         myUserId,
+        opponentPlayerEnum,
         session.hiddenMoves,
         session.moveHistory,
         session.boardState,
@@ -318,7 +338,11 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     }, [session.id, session.gameStatus, onAction]);
     
     if (session.gameStatus === 'ended' || session.gameStatus === 'no_contest') {
-        const isWinner = session.winner === Player.Black;
+        /** 베이스/덤 결정 후 유저가 백이 될 수 있다 — 흑=유저 가정 대신 위에서 계산한 본인 색을 기준으로 승패를 판단한다. */
+        const isWinner =
+            myPlayerEnum !== Player.None
+                ? session.winner === myPlayerEnum
+                : session.winner === Player.Black;
         const stagesList = getSinglePlayerStages();
         const currentStageIndex = stagesList.findIndex(s => s.id === session.stageId);
         const currentStage = stagesList.find(s => s.id === session.stageId);
@@ -525,16 +549,16 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
         <div className={`relative ${colClass}`}>
             {showPetHintBubble && strategicPetHintFooterBubble?.message ? (
                 <div
-                    className="pointer-events-none absolute bottom-full left-1/2 z-[81] mb-2 w-max max-w-[min(17rem,78vw)] -translate-x-1/2 px-0.5"
+                    className="pointer-events-none absolute bottom-full left-1/2 z-[81] mb-2 w-max max-w-[min(26rem,92vw)] -translate-x-1/2 px-0.5"
                     role="status"
                     aria-live="polite"
                 >
-                    <div className="relative rounded-xl border border-sky-400/45 bg-slate-950/96 px-2.5 pb-2 pt-2 shadow-[0_10px_28px_rgba(0,0,0,0.5)] ring-1 ring-sky-500/25">
-                        <p className="line-clamp-2 break-words text-center text-[10px] font-medium leading-snug text-sky-50 sm:text-[11px]">
+                    <div className="relative rounded-xl border border-white/20 bg-black px-3 py-2.5 shadow-[0_12px_32px_rgba(0,0,0,0.75)] ring-1 ring-white/10 sm:px-4 sm:py-3">
+                        <p className="line-clamp-4 break-words text-center text-base font-semibold leading-snug text-white sm:text-lg">
                             {strategicPetHintFooterBubble.message}
                         </p>
                         <div
-                            className="absolute left-1/2 top-full -mt-px h-0 w-0 -translate-x-1/2 border-x-[7px] border-x-transparent border-t-[8px] border-t-slate-950/96 drop-shadow-[0_1px_0_rgba(56,189,248,0.35)]"
+                            className="absolute left-1/2 top-full -mt-px h-0 w-0 -translate-x-1/2 border-x-[8px] border-x-transparent border-t-[9px] border-t-black"
                             aria-hidden
                         />
                     </div>

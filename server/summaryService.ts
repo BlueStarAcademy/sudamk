@@ -65,7 +65,7 @@ import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig, type RewardConfig } from 
 import { getAdventureBaseStrategyXp, getAdventureMonsterLevelXpBonus } from '../shared/constants/adventureStrategyXp.js';
 import { PAIR_GO_REWARD_BANDS } from '../shared/constants/pairGoRewardBands.js';
 import { isRewardVipActive } from '../shared/utils/rewardVip.js';
-import { rollVipPlayRewardOutcome } from '../shared/utils/rewardVipPlayRoll.js';
+import { rollVipPlayRewardOutcome, rollVipPlayRewardOutcomeGoldOnly } from '../shared/utils/rewardVipPlayRoll.js';
 import { isAdventureChapterBossCodexId } from '../constants/adventureMonstersCodex.js';
 import { getEffectiveSinglePlayerStages } from './singlePlayerStageConfigService.js';
 import { reconcileSinglePlayerProgress } from '../shared/utils/singlePlayerProgress.js';
@@ -86,8 +86,9 @@ import {
     PAIR_RANKED_STAT_KEY,
     STRATEGIC_RANKED_MATCH_RECORD_KEY,
     PAIR_RANKED_MATCH_RECORD_KEY,
+    PAIR_ARENA_AI_MATCH_RECORD_KEY,
 } from '../shared/constants/userRankedStats.js';
-import { readStrategicRankedBlock, readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
+import { readStrategicRankedBlock, readPairRankedBlock, readPairArenaAiMatchRecord } from '../shared/utils/unifiedRankedStatsMigration.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import { effectivePvpEntryApCostForUser } from '../shared/utils/pairPetArenaApDiscount.js';
 
@@ -205,10 +206,17 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
     }
     
     const user = freshUser; // 최신 사용자 데이터 사용
-    const isWinner = game.winner === Player.Black; // Human is always black
+    /** 베이스/덤 결정 후 유저가 백이 될 수 있다 — `Player.Black=유저` 가정 대신 좌석 ID로 본인 색을 결정한다. */
+    const humanPlayerEnum: Player =
+        game.blackPlayerId === user.id
+            ? Player.Black
+            : game.whitePlayerId === user.id
+              ? Player.White
+              : Player.Black;
+    const isWinner = game.winner === humanPlayerEnum;
     
     // 디버깅: 승자 판정 로그
-    console.log(`[processSinglePlayerGameSummary] Game ${game.id}: game.winner=${game.winner === Player.Black ? 'Black' : game.winner === Player.White ? 'White' : 'None'}, isWinner=${isWinner}, finalScores=${JSON.stringify(game.finalScores)}`);
+    console.log(`[processSinglePlayerGameSummary] Game ${game.id}: game.winner=${game.winner === Player.Black ? 'Black' : game.winner === Player.White ? 'White' : 'None'}, humanPlayerEnum=${humanPlayerEnum === Player.Black ? 'Black' : 'White'}, isWinner=${isWinner}, finalScores=${JSON.stringify(game.finalScores)}`);
     const stages = await getEffectiveSinglePlayerStages();
     const stage = stages.find(s => s.id === game.stageId);
 
@@ -381,10 +389,17 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
     }
     
     const user = freshUser; // 최신 사용자 데이터 사용
-    const isWinner = game.winner === Player.Black; // Human is always black
+    /** 도전의 탑은 통상 유저=흑이지만 향후 색이 바뀌는 흐름(베이스 등)에서도 안전하도록 좌석 ID로 본인 색을 결정한다. */
+    const humanPlayerEnum: Player =
+        game.blackPlayerId === user.id
+            ? Player.Black
+            : game.whitePlayerId === user.id
+              ? Player.White
+              : Player.Black;
+    const isWinner = game.winner === humanPlayerEnum;
     
     // 디버깅: 승자 판정 로그
-    console.log(`[processTowerGameSummary] Game ${game.id}: game.winner=${game.winner === Player.Black ? 'Black' : game.winner === Player.White ? 'White' : 'None'}, isWinner=${isWinner}, finalScores=${JSON.stringify(game.finalScores)}`);
+    console.log(`[processTowerGameSummary] Game ${game.id}: game.winner=${game.winner === Player.Black ? 'Black' : game.winner === Player.White ? 'White' : 'None'}, humanPlayerEnum=${humanPlayerEnum === Player.Black ? 'Black' : 'White'}, isWinner=${isWinner}, finalScores=${JSON.stringify(game.finalScores)}`);
     
     const floor = game.towerFloor ?? 1;
     const userTowerFloor = user.towerFloor ?? 0;
@@ -737,7 +752,14 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
         console.warn(`[endGame] getLiveGame missed ${game.id} after save; broadcasting in-memory session (category=${game.gameCategory})`);
         freshGame = game;
     }
-    
+
+    try {
+        const { updateGameCache } = await import('./gameCache.js');
+        updateGameCache(freshGame);
+    } catch {
+        /* 캐시 갱신 실패는 무시 — 브로드캐스트는 계속 */
+    }
+
     clearAiSession(game.id);
     
     // AI 처리 큐에서도 제거
@@ -985,8 +1007,8 @@ export type RewardVipResolvedGrant = {
     grantedDisplay: { name: string; quantity: number; image?: string };
 };
 
-export function rollAndResolveRewardVipPlayGrant(): RewardVipResolvedGrant {
-    const outcome = rollVipPlayRewardOutcome();
+export function rollAndResolveRewardVipPlayGrant(opts?: { goldOnlyInventory?: boolean }): RewardVipResolvedGrant {
+    const outcome = opts?.goldOnlyInventory ? rollVipPlayRewardOutcomeGoldOnly() : rollVipPlayRewardOutcome();
     if (outcome.type === 'gold') {
         return {
             goldBonus: outcome.amount,
@@ -1757,9 +1779,24 @@ const processPlayerSummary = async (
     await mannerService.applyMannerRankChange(updatedPlayer, initialMannerBeforeGame);
 
     // --- Wins/Losses (모드별 전적; 전략 통합 레이팅 행은 별도) ---
+    /** 전략·놀이: 대기실/경기장 AI 대국은 `aiWins`·`aiLosses`, 그 외(PVP)는 `wins`·`losses`만 증가 */
+    const isLobbyAiAggregateModeStats =
+        (isStrategic || isPlayful) &&
+        isAiGame &&
+        !isAdventureGame &&
+        !game.isSinglePlayer &&
+        (game.gameCategory as string) !== 'tower' &&
+        (game.gameCategory as string) !== 'guildwar';
     if (!isNoContest) {
-        if (isWinner) gameStats.wins++;
-        else if (!isDraw) gameStats.losses++;
+        if (isLobbyAiAggregateModeStats) {
+            const aw = gameStats.aiWins ?? 0;
+            const al = gameStats.aiLosses ?? 0;
+            if (isWinner) gameStats.aiWins = aw + 1;
+            else if (!isDraw) gameStats.aiLosses = al + 1;
+        } else {
+            if (isWinner) gameStats.wins++;
+            else if (!isDraw) gameStats.losses++;
+        }
     }
 
     updatedPlayer.stats[mode] = gameStats;
@@ -2018,8 +2055,10 @@ const processPlayerSummary = async (
     let vipGoldBonus = 0;
     let vipGrant: InventoryItem | null = null;
     let vipGrantedDisplay: { name: string; quantity: number; image?: string } | undefined;
+    const vipStrategicPlayfulGoldOnlyInventory =
+        (isStrategic || isPlayful) && !isAdventureGame && !isGuildWarMatch;
     if (vipWinEligible && isRewardVipActive(updatedPlayer)) {
-        const vip = rollAndResolveRewardVipPlayGrant();
+        const vip = rollAndResolveRewardVipPlayGrant({ goldOnlyInventory: vipStrategicPlayfulGoldOnlyInventory });
         vipGoldBonus = vip.goldBonus;
         vipGrant = vip.inventoryItem;
         vipGrantedDisplay = vip.grantedDisplay;
@@ -2235,6 +2274,11 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
 
     const seats = game.settings.pairGame?.turnOrder ?? [];
     const humanIds = getPairGoHumanParticipantIds(game);
+    const pairVipGoldOnlyInventory =
+        (SPECIAL_GAME_MODES.some((m) => m.mode === game.mode) || PLAYFUL_GAME_MODES.some((m) => m.mode === game.mode)) &&
+        game.gameCategory !== 'adventure' &&
+        !isGuildWarLiveSession(game as any);
+    const isPairAiGame = game.settings?.pairGame?.pairMode === 'ai';
     /** 펫·2인 페어 AI는 `isAiGame`이 false일 수 있어 `pairMode === 'ai'`로 구분 */
     const pairAiDifficultyMul =
         game.settings?.pairGame?.pairMode === 'ai'
@@ -2281,6 +2325,9 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         let pairRankingScore = pairBlk.rankingScore;
         let nextPairRankedWins = pairBlk.wins;
         let nextPairRankedLosses = pairBlk.losses;
+        const pairAiRec = readPairArenaAiMatchRecord(user.stats as Record<string, unknown>);
+        let nextPairAiWins = pairAiRec.wins;
+        let nextPairAiLosses = pairAiRec.losses;
         const initialRating = initialRatingByUserId[userId] ?? pairRankingScore;
         const rankedOpponentId = game.isRankedGame ? humanIds.find((id) => id !== userId) : undefined;
         const opponentRating = rankedOpponentId ? initialRatingByUserId[rankedOpponentId] ?? RANKED_ELO_BASE_SCORE : RANKED_ELO_BASE_SCORE;
@@ -2306,7 +2353,7 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         let vipGrant: InventoryItem | null = null;
         let vipGrantedDisplay: { name: string; quantity: number; image?: string } | undefined;
         if (vipSlotWinEligible && isRewardVipActive(user)) {
-            const vip = rollAndResolveRewardVipPlayGrant();
+            const vip = rollAndResolveRewardVipPlayGrant({ goldOnlyInventory: pairVipGoldOnlyInventory });
             vipGoldBonus = vip.goldBonus;
             vipGrant = vip.inventoryItem;
             vipGrantedDisplay = vip.grantedDisplay;
@@ -2378,6 +2425,11 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         user.pairArenaStatsByMode[modeKey] = pas;
         user.stats[game.mode] = modeStats;
         user.stats[PAIR_RANKED_MATCH_RECORD_KEY] = { wins: nextPairRankedWins, losses: nextPairRankedLosses };
+        if (!isNoContest && !isDraw && isPairAiGame) {
+            if (isWinner) nextPairAiWins += 1;
+            else nextPairAiLosses += 1;
+        }
+        user.stats[PAIR_ARENA_AI_MATCH_RECORD_KEY] = { wins: nextPairAiWins, losses: nextPairAiLosses };
         user.stats[PAIR_RANKED_STAT_KEY] = { rankingScore: pairRankingScore };
         if (game.isRankedGame && !game.isAiGame && !isNoContest) {
             if (!user.cumulativeRankingScore) user.cumulativeRankingScore = {};

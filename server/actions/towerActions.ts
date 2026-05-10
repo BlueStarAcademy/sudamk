@@ -332,6 +332,30 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             }
             
             console.log('[CONFIRM_TOWER_GAME_START] Starting tower game:', { gameId, floor: game.towerFloor, userId: user.id });
+
+            const towerStartsWithBaseFlow =
+                game.mode === GameMode.Base ||
+                (game.mode === GameMode.Mix && Boolean((game.settings as any)?.mixedModes?.includes?.(GameMode.Base)));
+            if (towerStartsWithBaseFlow) {
+                const { initializeStrategicGame } = await import('../modes/standard.js');
+                initializeStrategicGame(game, {
+                    challenger: game.player1,
+                    opponent: game.player2,
+                    mode: game.mode,
+                    settings: game.settings,
+                    proposerId: game.player1.id,
+                    status: 'pending',
+                    deadline: 0,
+                    id: 'tower-base-start',
+                } as any, now);
+                game.startTime = now;
+                (game as any).gameStartTime = undefined;
+                updateGameCache(game);
+                await db.saveGame(game);
+                const { broadcastToGameParticipants } = await import('../socket.js');
+                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                return { clientResponse: { gameId: game.id, game } };
+            }
             
             game.gameStatus = 'playing';
             game.startTime = now;

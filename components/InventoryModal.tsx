@@ -3024,7 +3024,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         // 순차적으로 처리하여 인벤토리 상태가 올바르게 업데이트되도록 함
                         for (const item of itemsToSell) {
                             if (remainingQuantity <= 0) break;
-                            const sellQty = Math.min(remainingQuantity, item.quantity || 0);
+                            const sellQty = Math.min(remainingQuantity, item.quantity || 1);
                             await onAction({ type: 'SELL_ITEM', payload: { itemId: item.id, quantity: sellQty } });
                             remainingQuantity -= sellQty;
                         }

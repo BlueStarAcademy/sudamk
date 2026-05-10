@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import DraggableWindow from '../DraggableWindow.js';
 import type { InventoryItem, User } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
@@ -9,6 +9,7 @@ import {
     MATERIAL_ITEMS,
 } from '../../shared/constants/items.js';
 import {
+    isPairPetUpgradeableGrade,
     nextPairPetGrade,
     PAIR_PET_MAX_LEVEL,
     pairPetGradeUpgradeSoulStoneCount,
@@ -64,7 +65,29 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
 
     const budgetNext = nextG ? pairPetLevelUpStatBudget(nextG) : null;
 
-    const canAttempt = Boolean(nextG && soulNeed != null && soulTid && levelSafe >= needLv && ownedSoul >= soulNeed);
+    const [gradeBlockHint, setGradeBlockHint] = useState<string | null>(null);
+
+    const tryConfirm = () => {
+        if (isBusy) return;
+        if (!isPairPetUpgradeableGrade(mainGradeStored) || !nextG) {
+            setGradeBlockHint('더 올릴 수 있는 등급이 없습니다.');
+            return;
+        }
+        if (levelSafe < needLv) {
+            setGradeBlockHint(`펫 레벨이 부족합니다. Lv.${needLv} 필요 (현재 Lv.${levelSafe})`);
+            return;
+        }
+        if (soulNeed == null || soulTid == null) {
+            setGradeBlockHint('등급 강화 조건을 확인할 수 없습니다.');
+            return;
+        }
+        if (ownedSoul < soulNeed) {
+            const nameKo = soulMat?.name ?? soulMatName ?? '영혼석';
+            setGradeBlockHint(`${nameKo}이 부족합니다. ${soulNeed}개 필요 (보유 ${ownedSoul}개)`);
+            return;
+        }
+        void onConfirm();
+    };
 
     const mainSt = gradeStyles[mainGradeStored];
     const mainBg = gradeBackgrounds[mainGradeStored] ?? gradeBackgrounds[ItemGrade.Normal];
@@ -226,14 +249,33 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                 <div className="flex shrink-0 justify-center border-t border-white/10 pt-2">
                     <button
                         type="button"
-                        disabled={!canAttempt || isBusy}
-                        onClick={() => void onConfirm()}
+                        disabled={isBusy}
+                        onClick={() => tryConfirm()}
                         className="min-w-[9rem] rounded-lg border border-amber-400/45 bg-gradient-to-b from-amber-600/95 to-amber-950 px-5 py-2 text-sm font-extrabold text-amber-50 shadow-[0_0_24px_rgba(245,158,11,0.12)] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                         등급 강화
                     </button>
                 </div>
             </div>
+            {gradeBlockHint ? (
+                <DraggableWindow
+                    title="안내"
+                    onClose={() => setGradeBlockHint(null)}
+                    windowId="pair-pet-grade-upgrade-modal-hint"
+                    initialWidth={420}
+                    shrinkHeightToContent
+                    isTopmost
+                    zIndex={73}
+                    skipSavedPosition
+                    variant="store"
+                    hideFooter
+                    bodyPaddingClassName="!p-4 sm:!p-5"
+                >
+                    <p className="text-center text-sm font-medium leading-relaxed text-slate-200 sm:text-[0.95rem]">
+                        {gradeBlockHint}
+                    </p>
+                </DraggableWindow>
+            ) : null}
         </DraggableWindow>
     );
 };

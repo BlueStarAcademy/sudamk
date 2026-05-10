@@ -10,7 +10,7 @@ import {
     inferSinglePlayerStrategicRulePreset,
     resolveSinglePlayerMixedModes,
 } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
-import { ensureMixModesMinTwoAfterBaseCaptureSanitize } from '../../shared/utils/singlePlayerMixBaseCaptureExclusive.js';
+import { stripCaptureFromMixWhenBaseIncluded } from '../../shared/utils/singlePlayerMixBaseCaptureExclusive.js';
 import Button from '../Button.js';
 import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
@@ -270,7 +270,7 @@ function nextDraftAfterStrategicRulePresetChange(
             );
         case 'mix': {
             const modesRaw = resolveSinglePlayerMixedModes({ ...prev, strategicRulePreset: 'mix' });
-            const modes = ensureMixModesMinTwoAfterBaseCaptureSanitize(modesRaw);
+            const modes = stripCaptureFromMixWhenBaseIncluded(modesRaw).slice(0, 5);
             const withMix: SinglePlayerStageInfo = { ...prev, strategicRulePreset: 'mix', mixedStrategicModes: modes };
             return pruneDraftForMixedStrategicModes(withMix, modes);
         }
@@ -549,7 +549,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
     const mixHasHidden = mixedModes.includes(GameMode.Hidden);
     const mixHasMissile = mixedModes.includes(GameMode.Missile);
     const showCaptureFields =
-        effectiveRulePreset === 'capture' || (isMixPreset && mixHasCapture && !mixHasBase);
+        effectiveRulePreset === 'capture' || (isMixPreset && mixHasCapture);
     const showSurvivalFields = effectiveRulePreset === 'survival';
     const showAutoScoringTurns =
         effectiveRulePreset === 'classic'
@@ -1105,9 +1105,9 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                         </label>
                         {isMixPreset && (
                             <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2">
-                                <p className="text-xs font-semibold text-zinc-200">섞을 모드 (2개 이상 권장)</p>
+                                <p className="text-xs font-semibold text-zinc-200">섞을 모드 (2개 이상 선택)</p>
                                 <p className="mt-1 text-[11px] text-zinc-400">
-                                    따내기가 섞이면 계가까지 수순은 사용하지 않습니다. 베이스와 따내기는 함께 섞을 수 없으며, 베이스가 섞이면 시작 전 배치 돌은 없습니다.
+                                    따내기가 섞이면 계가까지 수순은 사용하지 않습니다. 베이스가 섞이면 시작 전 배치 돌은 없고, Base+Capture는 베이스 배치 후 따내기 입찰로 흑백을 정합니다.
                                 </p>
                                 <div className="mt-2 grid grid-cols-2 gap-2">
                                     {MIX_MODE_OPTIONS.map(({ mode, label }) => {
@@ -1123,15 +1123,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                             let next = e.target.checked
                                                                 ? [...prev, mode]
                                                                 : prev.filter((m) => m !== mode);
-                                                            if (e.target.checked) {
-                                                                if (mode === GameMode.Base) {
-                                                                    next = next.filter((m) => m !== GameMode.Capture);
-                                                                }
-                                                                if (mode === GameMode.Capture) {
-                                                                    next = next.filter((m) => m !== GameMode.Base);
-                                                                }
-                                                            }
-                                                            next = ensureMixModesMinTwoAfterBaseCaptureSanitize(next);
+                                                            next = stripCaptureFromMixWhenBaseIncluded(next).slice(0, 5);
                                                             return pruneDraftForMixedStrategicModes(
                                                                 { ...p, strategicRulePreset: 'mix', mixedStrategicModes: next },
                                                                 next,

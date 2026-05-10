@@ -9,6 +9,12 @@ import {
     PAIR_WELCOME_EGG_TEMPLATE_ID,
     pairSoulStoneMaterialSellGoldPerUnit,
 } from './petLobby.js';
+import {
+    buildGuildEnhancementStoneSellPrices,
+    pairMysteryEggSellGoldPerUnit,
+    sellGoldTenPercentOfShopDiamonds,
+    sellGoldTenPercentOfShopGold,
+} from './shopSellGoldReference.js';
 
 export const emptySlotImages: Record<EquipmentSlot, string> = {
     fan: 'images/equipments/EmptyFanSlot.png',
@@ -276,7 +282,12 @@ export function isTowerOnlyConsumable(name: string | undefined): boolean {
 
 export function isRefinementTicketMaterial(name: string | undefined): boolean {
     if (!name) return false;
-    return REFINEMENT_TICKET_NAMES.has(name);
+    if (REFINEMENT_TICKET_NAMES.has(name)) return true;
+    let collapsed = name.replace(/\s+/g, ' ').trim();
+    if (typeof collapsed.normalize === 'function') {
+        collapsed = collapsed.normalize('NFKC');
+    }
+    return REFINEMENT_TICKET_NAMES.has(collapsed);
 }
 
 export const gradeBackgrounds: Record<ItemGrade, string> = {
@@ -490,15 +501,22 @@ export const ITEM_SELL_PRICES: Record<ItemGrade, number> = {
 };
 
 export const MATERIAL_SELL_PRICES: Record<string, number> = {
-    '하급 강화석': 10,
-    '중급 강화석': 30,
-    '상급 강화석': 50,
-    '최상급 강화석': 100,
-    '신비의 강화석': 200,
-    신비로운알: 120,
+    ...buildGuildEnhancementStoneSellPrices(),
+    /** `server/actions/shopActions.ts` BUY_CONSUMABLE 골드가의 10% */
+    '옵션 종류 변경권': sellGoldTenPercentOfShopGold(2000),
+    '옵션 수치 변경권': sellGoldTenPercentOfShopGold(500),
+    '스페셜 옵션 변경권': sellGoldTenPercentOfShopGold(500),
+    '신화 옵션 변경권': sellGoldTenPercentOfShopGold(500),
+    /** `server/shop.ts` SHOP_ITEMS 다이아가의 10%(골드 환산 후) */
+    '귀속 해제권': sellGoldTenPercentOfShopDiamonds(50),
+    '제련의 부적': sellGoldTenPercentOfShopDiamonds(100),
+    /** 전용 상점가 없음 — 동일 계열 소비재(옵션 수치 변경권 500골드)과 동일 10% */
+    '거래 등록권': sellGoldTenPercentOfShopGold(500),
+    /** `PAIR_PET_SHOP_SKUS` 알 구매가(최저 상당 골드)의 10% */
+    신비로운알: pairMysteryEggSellGoldPerUnit(),
     /** 구 인벤 호환 */
-    '페어 미스터리 알': 120,
-    [PAIR_WELCOME_EGG_MATERIAL_NAME]: 120,
+    '페어 미스터리 알': pairMysteryEggSellGoldPerUnit(),
+    [PAIR_WELCOME_EGG_MATERIAL_NAME]: pairMysteryEggSellGoldPerUnit(),
 };
 
 for (const soulName of PAIR_SOULSTONE_NAMES) {
@@ -539,16 +557,21 @@ export const CONSUMABLE_SELL_PRICES: Record<string, number> = {
     '다이아꾸러미2': 0,
     '다이아꾸러미3': 0,
     '다이아꾸러미4': 0,
-    // 도전의 탑 아이템 판매 가격 (구매 가격의 20%)
-    '턴 추가': 60, // 300 * 0.2
-    '미사일': 60, // 300 * 0.2
-    '히든': 100, // 500 * 0.2
-    '스캔': 40, // 200 * 0.2
-    '배치변경': 20, // 100 * 0.2
-    '옵션 종류 변경권': 100, // 500 * 0.2
-    '옵션 수치 변경권': 100, // 500 * 0.2
-    '스페셜 옵션 변경권': 0, // 판매 불가
-    '신화 옵션 변경권': 0, // 레거시 이름
+    /** `server/actions/shopActions.ts` BUY_TOWER_ITEM 골드가의 10% */
+    '턴 추가': sellGoldTenPercentOfShopGold(300),
+    '미사일': sellGoldTenPercentOfShopGold(300),
+    '히든': sellGoldTenPercentOfShopGold(500),
+    '스캔': sellGoldTenPercentOfShopGold(400),
+    '배치변경': sellGoldTenPercentOfShopGold(100),
+    /** `server/actions/shopActions.ts` BUY_CONDITION_POTION 골드가의 10% */
+    '컨디션회복제(소)': sellGoldTenPercentOfShopGold(180),
+    '컨디션회복제(중)': sellGoldTenPercentOfShopGold(270),
+    '컨디션회복제(대)': sellGoldTenPercentOfShopGold(360),
+    /** 레거시 `type: consumable` 인벤 호환 — 재료 판매가와 동일 */
+    '옵션 종류 변경권': sellGoldTenPercentOfShopGold(2000),
+    '옵션 수치 변경권': sellGoldTenPercentOfShopGold(500),
+    '스페셜 옵션 변경권': sellGoldTenPercentOfShopGold(500),
+    '신화 옵션 변경권': sellGoldTenPercentOfShopGold(500),
 };
 
 export const BASE_SLOTS_PER_CATEGORY = 30;

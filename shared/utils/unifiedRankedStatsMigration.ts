@@ -5,6 +5,7 @@ import {
     PAIR_RANKED_STAT_KEY,
     STRATEGIC_RANKED_MATCH_RECORD_KEY,
     PAIR_RANKED_MATCH_RECORD_KEY,
+    PAIR_ARENA_AI_MATCH_RECORD_KEY,
     type RankedStatBlock,
     type RankedPvpMatchRecord,
 } from '../constants/userRankedStats.js';
@@ -64,6 +65,19 @@ export function readPairRankedMatchRecord(stats: StatsMapInput): RankedPvpMatchR
     const wins = typeof legacy?.wins === 'number' && Number.isFinite(legacy.wins) ? legacy.wins : 0;
     const losses = typeof legacy?.losses === 'number' && Number.isFinite(legacy.losses) ? legacy.losses : 0;
     return { wins: Math.max(0, wins), losses: Math.max(0, losses) };
+}
+
+/** 페어 경기장 펫 AI 대전 전적 — `pairArenaAiMatchRecord`만 사용 */
+export function readPairArenaAiMatchRecord(stats: StatsMapInput): RankedPvpMatchRecord {
+    const sm = toStatsMap(stats);
+    if (statsObjectHasOwnKey(sm, PAIR_ARENA_AI_MATCH_RECORD_KEY)) {
+        const rec = sm![PAIR_ARENA_AI_MATCH_RECORD_KEY]!;
+        return {
+            wins: typeof rec.wins === 'number' && Number.isFinite(rec.wins) ? Math.max(0, rec.wins) : 0,
+            losses: typeof rec.losses === 'number' && Number.isFinite(rec.losses) ? Math.max(0, rec.losses) : 0,
+        };
+    }
+    return { wins: 0, losses: 0 };
 }
 
 /**

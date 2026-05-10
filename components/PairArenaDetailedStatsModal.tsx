@@ -5,7 +5,7 @@ import DraggableWindow from './DraggableWindow.js';
 import ConfirmModal from './ConfirmModal.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { getCurrentSeason } from '../utils/timeUtils.js';
-import { readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
+import { readPairRankedBlock, readPairArenaAiMatchRecord } from '../shared/utils/unifiedRankedStatsMigration.js';
 
 /** `UserProfileModal`과 동일: 시즌 표시 점수 = 1200 + dailyRankings.pair 델타 */
 const SEASON_BASE_SCORE = 1200;
@@ -74,6 +74,7 @@ export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({ curren
     const pairRankedBlk = readPairRankedBlock(stats as Record<string, { wins?: number; losses?: number; rankingScore?: number }>);
     const aggWins = pairRankedBlk.wins;
     const aggLosses = pairRankedBlk.losses;
+    const pairAiBlk = readPairArenaAiMatchRecord(stats as Record<string, { wins?: number; losses?: number }>);
 
     const pairSeasonRank = useMemo(() => {
         const dr = currentUser.dailyRankings?.pair;
@@ -107,7 +108,7 @@ export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({ curren
         if (pairResetConfirm.type === 'single') {
             return `「${pairResetConfirm.displayName}」 모드의 페어 경기장 전적만 초기화합니다. 랭킹전 레이팅·랭킹전 승패는 변하지 않습니다.`;
         }
-        return '페어 경기장 모드별 전적을 모두 지우고, 페어 랭킹전 레이팅·랭킹전 승·패도 초기화합니다.';
+        return '페어 경기장 모드별 전적을 모두 지우고, 페어 랭킹전 레이팅·랭킹전 승·패·페어 AI 대전 전적도 초기화합니다.';
     }, [pairResetConfirm]);
 
     const handleResetSingle = (mode: GameMode, displayName: string) => {
@@ -163,6 +164,9 @@ export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({ curren
                             </span>
                             <span className="text-[11px] font-semibold text-zinc-300 tabular-nums sm:text-xs">
                                 통합 {aggWins.toLocaleString()}승 {aggLosses.toLocaleString()}패
+                            </span>
+                            <span className="basis-full text-[11px] font-semibold text-fuchsia-200/90 tabular-nums sm:text-xs">
+                                페어 AI {pairAiBlk.wins.toLocaleString()}승 {pairAiBlk.losses.toLocaleString()}패
                             </span>
                             {typeof pairSeasonRank.rank === 'number' && (
                                 <span className="text-[11px] font-semibold text-violet-200/55 tabular-nums sm:text-xs">

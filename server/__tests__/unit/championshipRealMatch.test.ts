@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { CoreStat } from '../../../shared/types/index.js';
 import {
     CHAMPIONSHIP_REAL_MATCH_RULES_19,
+    CHAMPIONSHIP_REAL_MATCH_RULES_9,
+    resolveChampionshipDungeonPlaybackSpeedChoices,
+    resolveChampionshipDungeonRulesFromStage,
     championshipBestMoveChancePercent,
     championshipEventBranchBestMovePercent,
     championshipKataAbilityScore,
@@ -54,6 +57,34 @@ describe('championship real match policy', () => {
         expect(championshipKataLevelForPly(120, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_19).phase).toBe('midgame');
         expect(championshipKataLevelForPly(121, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_19).phase).toBe('endgame');
         expect(championshipKataLevelForPly(180, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_19).phase).toBe('endgame');
+    });
+
+    it('uses 9-line phase boundaries in three 14-move thirds up to 42 moves', () => {
+        expect(championshipKataLevelForPly(1, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_9).phase).toBe('opening');
+        expect(championshipKataLevelForPly(14, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_9).phase).toBe('opening');
+        expect(championshipKataLevelForPly(15, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_9).phase).toBe('midgame');
+        expect(championshipKataLevelForPly(28, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_9).phase).toBe('midgame');
+        expect(championshipKataLevelForPly(29, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_9).phase).toBe('endgame');
+        expect(championshipKataLevelForPly(42, statsFor(200), CHAMPIONSHIP_REAL_MATCH_RULES_9).phase).toBe('endgame');
+    });
+
+    it('maps dungeon stage to board size rules', () => {
+        expect(resolveChampionshipDungeonRulesFromStage(1).boardSize).toBe(9);
+        expect(resolveChampionshipDungeonRulesFromStage(3).boardSize).toBe(9);
+        expect(resolveChampionshipDungeonRulesFromStage(4).boardSize).toBe(13);
+        expect(resolveChampionshipDungeonRulesFromStage(5).boardSize).toBe(13);
+        expect(resolveChampionshipDungeonRulesFromStage(6).boardSize).toBe(19);
+        expect(resolveChampionshipDungeonRulesFromStage(10).boardSize).toBe(19);
+        expect(resolveChampionshipDungeonRulesFromStage(0).boardSize).toBe(19);
+    });
+
+    it('maps dungeon stage to playback speed choices', () => {
+        expect(resolveChampionshipDungeonPlaybackSpeedChoices(1)).toEqual([0.5, 1]);
+        expect(resolveChampionshipDungeonPlaybackSpeedChoices(3)).toEqual([0.5, 1]);
+        expect(resolveChampionshipDungeonPlaybackSpeedChoices(4)).toEqual([0.5, 1, 2]);
+        expect(resolveChampionshipDungeonPlaybackSpeedChoices(5)).toEqual([0.5, 1, 2]);
+        expect(resolveChampionshipDungeonPlaybackSpeedChoices(6)).toEqual([0.5, 1, 2, 3]);
+        expect(resolveChampionshipDungeonPlaybackSpeedChoices(0)).toEqual([0.5, 1, 2, 3]);
     });
 
     it('applies condition to mistake and best move chances', () => {

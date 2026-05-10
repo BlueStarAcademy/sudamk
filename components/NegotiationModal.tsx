@@ -173,15 +173,6 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
         newSettings.boardSize = validBoardSizes[0] as GameSettings['boardSize'];
     }
 
-    if (newSettings.mixedModes) {
-        const isBaseSelected = newSettings.mixedModes.includes(GameMode.Base);
-        const isCaptureSelected = newSettings.mixedModes.includes(GameMode.Capture);
-        if (isBaseSelected && isCaptureSelected) {
-            // Uncheck Base Go, keep Capture Go.
-            newSettings.mixedModes = newSettings.mixedModes.filter(mode => mode !== GameMode.Base);
-        }
-    }
-
     setSettings(newSettings);
     notificationPlayedRef.current = false;
   }, [negotiation.id, negotiation.turnCount]); // Simplified and corrected dependencies
@@ -450,10 +441,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
             </div>
 
             <div className="space-y-3 max-h-[calc(60vh - 12rem)] overflow-y-auto pr-2">
-                {showMixModeSelection && (() => {
-                    const isBaseSelected = settings.mixedModes?.includes(GameMode.Base);
-                    const isCaptureSelected = settings.mixedModes?.includes(GameMode.Capture);
-                    return (
+                {showMixModeSelection && (
                         <div className="col-span-2 pb-2 border-b border-gray-700">
                             <h3 className="mb-1 text-base font-semibold text-gray-300">믹스룰 조합 (2개 이상 선택)</h3>
                             <p className="mb-2 text-sm leading-snug text-gray-500">
@@ -461,17 +449,13 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                             </p>
                             <div className="grid grid-cols-2 gap-2 text-base">
                                 {SPECIAL_GAME_MODES.filter(m => m.mode !== GameMode.Standard && m.mode !== GameMode.Mix).map(m => {
-                                    const isDisabledByConflict = 
-                                        (m.mode === GameMode.Base && isCaptureSelected) ||
-                                        (m.mode === GameMode.Capture && isBaseSelected);
-                                    
                                     return (
-                                        <label key={m.mode} className={`flex items-center gap-2 p-2 bg-gray-700/50 rounded-md ${isReadOnly || isDisabledByConflict ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                                        <label key={m.mode} className={`flex items-center gap-2 p-2 bg-gray-700/50 rounded-md ${isReadOnly ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                                             <input 
                                                 type="checkbox" 
                                                 checked={settings.mixedModes?.includes(m.mode)} 
                                                 onChange={e => handleMixedModeChange(m.mode, e.target.checked)} 
-                                                disabled={isReadOnly || isDisabledByConflict} 
+                                                disabled={isReadOnly} 
                                                 className="w-4 h-4"
                                             />
                                             <span className="leading-tight">{mixSubRuleDisplayName(m.name)}</span>
@@ -515,8 +499,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                                 </SettingRow>
                             )}
                         </div>
-                    );
-                })()}
+                )}
 
                 {showBoardSize && (
                     <SettingRow label="판 크기">

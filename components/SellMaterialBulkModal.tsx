@@ -16,7 +16,7 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({ item, cur
     const totalQuantity = useMemo(() => {
         return currentUser.inventory
             .filter((i) => i.type === item.type && i.name === item.name)
-            .reduce((sum, i) => sum + (i.quantity || 0), 0);
+            .reduce((sum, i) => sum + (i.quantity || 1), 0);
     }, [currentUser.inventory, item.name, item.type]);
 
     const pricePerUnit =

@@ -3,7 +3,7 @@ import * as db from '../db.js';
 import { type ServerAction, type User, type VolatileState, LiveGameSession, Player, GameMode, Point, BoardState, SinglePlayerStageInfo, SinglePlayerMissionState, UserStatus, SinglePlayerLevel } from '../../types/index.js';
 import { SINGLE_PLAYER_MISSIONS, SINGLE_PLAYER_CLASS_BAR_REWARDS } from '../../shared/constants/singlePlayerConstants.js';
 import { addItemsToInventory, createItemInstancesFromReward } from '../../utils/inventoryUtils.js';
-import { getAiUser } from '../aiPlayer.js';
+import { aiUserId, getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
 import {
     cloneBoardStateForKataOpeningSnapshot,
@@ -76,6 +76,25 @@ const getSinglePlayerKataProfileStep = (level: SinglePlayerLevel): number => {
         default:
             return 1;
     }
+};
+
+/** 싱글플레이 AI 봇 표시 레벨: 스테이지 번호(1~20)에 맞춰 변동 */
+const getSinglePlayerBotDisplayLevelFromStage = (stage: SinglePlayerStageInfo): number => {
+    const trailing = String(stage.id).split('-').pop();
+    const parsed = trailing ? parseInt(trailing, 10) : NaN;
+    if (Number.isFinite(parsed) && parsed >= 1) {
+        return Math.max(1, Math.min(20, parsed));
+    }
+    return 1;
+};
+
+/** 싱글플레이 AI 봇 표시 닉네임: 입문봇 / 초급봇 / 중급봇 / 고급봇 / 유단자봇 */
+const getSinglePlayerBotNicknameFromStage = (stage: SinglePlayerStageInfo): string => {
+    const levelName = stage.level === SinglePlayerLevel.입문 ? '입문' :
+                      stage.level === SinglePlayerLevel.초급 ? '초급' :
+                      stage.level === SinglePlayerLevel.중급 ? '중급' :
+                      stage.level === SinglePlayerLevel.고급 ? '고급' : '유단자';
+    return `${levelName}봇`;
 };
 
 const generateSinglePlayerBoard = (stage: SinglePlayerStageInfo): { board: BoardState, blackPattern: Point[], whitePattern: Point[] } => {
@@ -318,6 +337,17 @@ const applyLatestPendingSinglePlayerStage = async (
     }
 
     (game as any).singlePlayerStageDisplay = JSON.parse(JSON.stringify(stage)) as SinglePlayerStageInfo;
+
+    // pending 동안 스테이지가 바뀌어도 AI 봇 표시(닉네임·레벨)가 새 스테이지를 따라가도록 동기화
+    const aiSeatUser = game.whitePlayerId === aiUserId
+        ? game.player2 ?? null
+        : game.blackPlayerId === aiUserId
+          ? game.player1 ?? null
+          : null;
+    if (aiSeatUser) {
+        aiSeatUser.nickname = getSinglePlayerBotNicknameFromStage(stage);
+        aiSeatUser.userLevel = getSinglePlayerBotDisplayLevelFromStage(stage);
+    }
 };
 
 
@@ -384,12 +414,9 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             // 싱글플레이용 AI: 표시 프로필은 반별 1~5, 실제 Kata는 관리자 스테이지 값(`kataServerLevel`) 우선
             const kataProfileStep = getSinglePlayerKataProfileStep(stage.level);
             const kataServerLevel = resolveSinglePlayerStageKataServerLevel(stage);
-            const levelName = stage.level === SinglePlayerLevel.입문 ? '입문' :
-                             stage.level === SinglePlayerLevel.초급 ? '초급' :
-                             stage.level === SinglePlayerLevel.중급 ? '중급' :
-                             stage.level === SinglePlayerLevel.고급 ? '고급' : '유단자';
-            const botNickname = `${levelName}봇`;
-            const botLevel = kataProfileStep * 10;
+            const botNickname = getSinglePlayerBotNicknameFromStage(stage);
+            // 표시 레벨은 스테이지 번호(1~20)에 맞춰 변동. (반별 1~5 단계는 `aiDifficulty`/`goAiBotLevel`로 사용)
+            const botLevel = getSinglePlayerBotDisplayLevelFromStage(stage);
             
             const aiUser = {
                 ...getAiUser(gameMode),
@@ -735,7 +762,9 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             if (game.gameStatus === 'pending') {
                 return { error: '게임이 시작되지 않았습니다.' };
             }
-            if (game.gameStatus !== 'playing' || game.currentPlayer !== Player.Black || (game.moveHistory && game.moveHistory.length > 0)) {
+            // 베이스 싱글플레이에서 유저가 백이 되면 첫 수는 흑(AI)이 둔다 — `currentPlayer === Player.Black` 가정은
+            // 더이상 통하지 않는다. moveHistory가 비어 있고 게임이 playing 상태이면 색과 무관하게 재배치를 허용한다.
+            if (game.gameStatus !== 'playing' || (game.moveHistory && game.moveHistory.length > 0)) {
                 console.log(`[handleSinglePlayerAction] SINGLE_PLAYER_REFRESH_PLACEMENT: Invalid state - gameStatus=${game.gameStatus}, currentPlayer=${game.currentPlayer}, moveHistory.length=${game.moveHistory?.length || 0}`);
                 return { error: '배치는 첫 수 전에만 새로고침할 수 있습니다.' };
             }

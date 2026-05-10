@@ -12,8 +12,11 @@ import { getArenaTurnCount } from './utils/arenaTurnPolicy.js';
  * `playingLockedBlackPlayerId/whitePlayerId`가 있고 본경기·아이템 연출 단계라면
  * `blackPlayerId/whitePlayerId`를 잠금값으로 강제한다. (베이스 임시 좌석 잔재가 새어나가는 것을 차단)
  * 순환 import 방지를 위해 socket.ts 내부에 두며, server/modes/shared.ts의 동명 함수와 동일 정책이다.
+ *
+ * 색이 확정되는 시점(finalize/komi bid 결과)에 좌석 잠금까지 같이 박으므로 `base_game_start_confirmation`도 보호 대상.
  */
 const BASE_SEAT_LOCK_PROTECTED_STATUSES = new Set([
+    'base_game_start_confirmation',
     'playing',
     'hidden_placing',
     'scanning',

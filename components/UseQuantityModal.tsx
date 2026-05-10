@@ -3,6 +3,7 @@ import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './Drag
 import { InventoryItem, UserWithStatus } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import { isActionPointConsumable, gradeBackgrounds, gradeStyles } from '../constants/items.js';
+import { inventoryStacksMatchConsumableBulkAnchor } from '../utils/itemTemplateLookup.js';
 import { resolveCurrencyBundleConsumableKey } from '../shared/utils/currencyBundleConsumable.js';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
@@ -29,7 +30,7 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
                 .reduce((sum, i) => sum + (i.quantity || 1), 0);
         }
         return currentUser.inventory
-            .filter(i => i.type === 'consumable' && i.name === item.name)
+            .filter((i) => i && inventoryStacksMatchConsumableBulkAnchor(item.name, i))
             .reduce((sum, i) => sum + (i.quantity || 1), 0);
     }, [currentUser.inventory, item.name, bundleKey]);
 

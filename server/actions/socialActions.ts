@@ -1670,7 +1670,11 @@ export function configurePairClassicGameStart(
     const white1 = turnOrder.find((s) => s.seatId === 'white1') ?? turnOrder.find((s) => s.player === types.Player.White);
     game.blackPlayerId = black1?.participantId ?? game.blackPlayerId;
     game.whitePlayerId = white1?.participantId ?? game.whitePlayerId;
-    const usesModePreGameFlow = game.mode === GameMode.Capture || game.mode === GameMode.Base;
+    const usesModePreGameFlow =
+        game.mode === GameMode.Capture ||
+        game.mode === GameMode.Base ||
+        (game.mode === GameMode.Mix &&
+            Boolean(game.settings?.mixedModes?.some((m) => m === GameMode.Base || m === GameMode.Capture)));
     if (!usesModePreGameFlow) {
         game.currentPlayer = types.Player.None;
         game.gameStatus = 'pair_order_reveal';

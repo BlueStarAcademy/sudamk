@@ -190,6 +190,14 @@ function relocateMissileStoneMetadata(
             game.permanentlyRevealedStones[ridx] = { x: to.x, y: to.y };
         }
     }
+
+    // 미사일은 moveHistory 길이를 늘리지 않지만, 이동한 돌의 착점 좌표는 보드와 일치시켜야
+    // hiddenMoves(수순 인덱스)·렌더가 from에 남아 다른 교차점/일반돌과 섞이는 버그가 나지 않는다.
+    const movedIdx = findLatestOwnedMoveIndexAt(game, from, player);
+    if (movedIdx !== -1 && game.moveHistory[movedIdx]) {
+        const cur = game.moveHistory[movedIdx];
+        game.moveHistory[movedIdx] = { ...cur, x: to.x, y: to.y };
+    }
 }
 
 export const updateMissileState = (game: types.LiveGameSession, now: number): boolean => {
