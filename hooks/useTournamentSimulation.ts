@@ -86,6 +86,61 @@ function mergeResolvedPlayersKeepPrevSimStats(
     });
 }
 
+/**
+ * 상점·인벤 동기화 등으로 서버에서 온 토너먼트 스냅샷은 timeElapsed/currentPly를 갱신하지 않는 경우가 많다.
+ * 이때 `rounds`만 서버 것으로 통째로 바꾸면 실대국 재생이 처음(0수)으로 되돌아가 무한 반복처럼 보인다.
+ * 클라이언트가 더 앞서 재생 중이면 활성 매치의 championshipRealGame 재생 필드만 이전 값을 유지한다.
+ */
+function mergeResolvedRoundsPreserveChampionshipPlayback(
+    prev: TournamentState,
+    resolved: TournamentState,
+): TournamentState['rounds'] {
+    const sim = prev.currentSimulatingMatch;
+    if (
+        !sim ||
+        prev.status !== 'round_in_progress' ||
+        resolved.status !== 'round_in_progress' ||
+        getMatchKey(prev) !== getMatchKey(resolved)
+    ) {
+        return resolved.rounds;
+    }
+    const prevMatch = prev.rounds[sim.roundIndex]?.matches[sim.matchIndex];
+    const prevGame = prevMatch?.championshipRealGame;
+    const resolvedMatch = resolved.rounds[sim.roundIndex]?.matches[sim.matchIndex];
+    const resolvedGame = resolvedMatch?.championshipRealGame;
+    if (
+        !prevGame?.moves?.length ||
+        !resolvedGame?.moves?.length ||
+        prevGame.moves.length !== resolvedGame.moves.length
+    ) {
+        return resolved.rounds;
+    }
+    const prevPly = prevGame.currentPly || 0;
+    const resPly = resolvedGame.currentPly || 0;
+    const prevT = prev.timeElapsed || 0;
+    const resT = resolved.timeElapsed || 0;
+    if (!(prevPly > resPly || (prevT > resT && prevPly >= resPly))) {
+        return resolved.rounds;
+    }
+    return resolved.rounds.map((round, ri) => ({
+        ...round,
+        matches: round.matches.map((match, mi) => {
+            if (ri !== sim.roundIndex || mi !== sim.matchIndex) return match;
+            return {
+                ...match,
+                championshipRealGame: {
+                    ...resolvedGame,
+                    boardState: prevGame.boardState,
+                    currentPly: prevGame.currentPly,
+                    lastMove: prevGame.lastMove,
+                    status: prevGame.status,
+                    timeMetrics: prevGame.timeMetrics ?? resolvedGame.timeMetrics,
+                },
+            };
+        }),
+    }));
+}
+
 const getStorageKey = (userId: string, type: TournamentState['type']) => `tournamentSimulation_${userId}_${type}`;
 
 // 좋은 수(bestMove) 이벤트 멘트 풀 — {nickname} 토큰을 선수 이름으로 치환해 사용한다.
@@ -306,10 +361,29 @@ export const useTournamentSimulation = (
             if (prev.status === 'round_in_progress' &&
                 resolvedTournament.status === 'round_in_progress' &&
                 getMatchKey(prev) === getMatchKey(resolvedTournament)) {
-                const usePrevClientState = (prev.timeElapsed || 0) > (resolvedTournament.timeElapsed || 0);
+                const sim = prev.currentSimulatingMatch;
+                const prevGame =
+                    sim &&
+                    prev.rounds[sim.roundIndex]?.matches[sim.matchIndex]?.championshipRealGame;
+                const resolvedGame =
+                    sim &&
+                    resolvedTournament.rounds[sim.roundIndex]?.matches[sim.matchIndex]?.championshipRealGame;
+                const playbackClientAhead =
+                    !!prevGame?.moves?.length &&
+                    !!resolvedGame?.moves?.length &&
+                    prevGame.moves.length === resolvedGame.moves.length &&
+                    ((prevGame.currentPly || 0) > (resolvedGame.currentPly || 0) ||
+                        ((prev.timeElapsed || 0) > (resolvedTournament.timeElapsed || 0) &&
+                            (prevGame.currentPly || 0) >= (resolvedGame.currentPly || 0)));
+                const usePrevClientState =
+                    (prev.timeElapsed || 0) > (resolvedTournament.timeElapsed || 0) || playbackClientAhead;
                 if (usePrevClientState) {
+                    const rounds = playbackClientAhead
+                        ? mergeResolvedRoundsPreserveChampionshipPlayback(prev, resolvedTournament)
+                        : resolvedTournament.rounds;
                     return {
                         ...resolvedTournament,
+                        rounds,
                         timeElapsed: prev.timeElapsed,
                         currentMatchScores: prev.currentMatchScores,
                         currentMatchCommentary: prev.currentMatchCommentary,
@@ -826,7 +900,7 @@ export const useTournamentSimulation = (
         localTournament?.simulationSeed,
         localTournament?.currentSimulatingMatch?.roundIndex,
         localTournament?.currentSimulatingMatch?.matchIndex,
-        currentUser,
+        currentUser?.id,
     ]);
 
     return localTournament;

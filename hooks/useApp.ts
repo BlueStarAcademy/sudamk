@@ -7639,6 +7639,12 @@ export const useApp = () => {
                                         updatedCurrentUser.lastWorldTournament !== undefined ||
                                         (updatedCurrentUser as { dungeonConditionSnapshot?: unknown }).dungeonConditionSnapshot !==
                                             undefined);
+                                /** 상점에서 회복제 구매 직후 WS(인벤·골드·일일구매) — 디바운스에 걸리면 가방에 안 들어온 것처럼 보일 수 있음 */
+                                const isPostBuyConditionPotionSyncWs =
+                                    lastHttpActionType.current === 'BUY_CONDITION_POTION' &&
+                                    (Array.isArray(updatedCurrentUser.inventory) ||
+                                        updatedCurrentUser.gold !== undefined ||
+                                        updatedCurrentUser.dailyShopPurchases !== undefined);
 
                                 const hadHttpUpdate = lastHttpUpdateTime.current > 0;
                                 const httpUpdateHadUser = lastHttpHadUpdatedUser.current;
@@ -7648,6 +7654,7 @@ export const useApp = () => {
                                         !isPostExchangePurchaseInventoryWs &&
                                         !isPostTowerGameEndInventoryWs &&
                                         !isPostUseConditionPotionSyncWs &&
+                                        !isPostBuyConditionPotionSyncWs &&
                                         hadHttpUpdate &&
                                         httpUpdateHadUser &&
                                         timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS
@@ -7664,6 +7671,7 @@ export const useApp = () => {
                                         !isPostExchangePurchaseInventoryWs &&
                                         !isPostTowerGameEndInventoryWs &&
                                         !isPostUseConditionPotionSyncWs &&
+                                        !isPostBuyConditionPotionSyncWs &&
                                         hadHttpUpdate &&
                                         httpUpdateHadUser &&
                                         timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS * 2 &&

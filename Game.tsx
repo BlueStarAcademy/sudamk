@@ -749,13 +749,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (!reward) return '/images/icon/Reward.png';
         if (reward.kind === 'gold') return '/images/icon/Gold.png';
         if (reward.kind === 'diamonds') return '/images/icon/Zem.png';
-        if (reward.kind === 'actionPoints') return '/images/icon/lightning.png';
+        if (reward.kind === 'actionPoints') return '';
         return MATERIAL_ITEMS[reward.itemName]?.image || '/images/icon/Reward.png';
     }, []);
 
     const strategicPetHintRewardQuantity = useCallback((reward: StrategicPetHintBonusReward | undefined): string => {
-        const raw = reward?.kind === 'material' ? reward.quantity : reward?.amount;
-        const amount = Math.max(1, Math.floor(Number(raw) || 1));
+        if (!reward) return '';
+        if (reward.kind === 'material') {
+            const amount = Math.max(1, Math.floor(Number(reward.quantity) || 1));
+            return String(amount);
+        }
+        const amount = Math.max(1, Math.floor(Number(reward.amount) || 1));
+        if (reward.kind === 'actionPoints') return `⚡${amount}`;
         return String(amount);
     }, []);
 

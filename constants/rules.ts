@@ -184,48 +184,33 @@ export const BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL: ItemGrade[] = [
     ItemGrade.Mythic,   // Level 20
 ];
 
-export const BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES: CombinationGreatSuccessRates[] = [
-    // Level 1
-    { normal: 55, uncommon: 30 },
-    // Level 2
-    { normal: 60, uncommon: 35, rare: 40 },
-    // Level 3
-    { normal: 65, uncommon: 40, rare: 45, epic: 20 },
-    // Level 4
-    { normal: 70, uncommon: 45, rare: 50, epic: 22.5, legendary: 10 },
-    // Level 5
-    { normal: 75, uncommon: 50, rare: 55, epic: 25, legendary: 11, mythic: 10 },
-    // Level 6
-    { normal: 80, uncommon: 55, rare: 60, epic: 27.5, legendary: 12, mythic: 11 },
-    // Level 7
-    { normal: 85, uncommon: 60, rare: 65, epic: 30, legendary: 13, mythic: 12 },
-    // Level 8
-    { normal: 90, uncommon: 65, rare: 70, epic: 32.5, legendary: 14, mythic: 13 },
-    // Level 9
-    { normal: 95, uncommon: 70, rare: 75, epic: 35, legendary: 15, mythic: 14 },
-    // Level 10
-    { normal: 100, uncommon: 80, rare: 80, epic: 37.5, legendary: 16, mythic: 15 },
-    // Level 11
-    { normal: 100, uncommon: 90, rare: 85, epic: 40, legendary: 17, mythic: 16 },
-    // Level 12
-    { normal: 100, uncommon: 100, rare: 90, epic: 42.5, legendary: 18, mythic: 17 },
-    // Level 13
-    { normal: 100, uncommon: 100, rare: 95, epic: 45, legendary: 19, mythic: 18 },
-    // Level 14
-    { normal: 100, uncommon: 100, rare: 100, epic: 47.5, legendary: 20, mythic: 19 },
-    // Level 15
-    { normal: 100, uncommon: 100, rare: 100, epic: 50, legendary: 22.5, mythic: 20 },
-    // Level 16
-    { normal: 100, uncommon: 100, rare: 100, epic: 52.5, legendary: 25, mythic: 22 },
-    // Level 17
-    { normal: 100, uncommon: 100, rare: 100, epic: 55, legendary: 27.5, mythic: 24 },
-    // Level 18
-    { normal: 100, uncommon: 100, rare: 100, epic: 57.5, legendary: 30, mythic: 26 },
-    // Level 19
-    { normal: 100, uncommon: 100, rare: 100, epic: 60, legendary: 32.5, mythic: 28 },
-    // Level 20
-    { normal: 100, uncommon: 100, rare: 100, epic: 65, legendary: 35, mythic: 30 },
-];
+/**
+ * 장비 합성 대성공률(%) — 대장간 레벨 L(1~20) 기준.
+ * - 일반: L1에 50%, 레벨당 +10%(100% 캡)
+ * - 고급: L1에 30%, 레벨당 +10%(100% 캡)
+ * - 희귀: L2에 30%, 레벨당 +10%(100% 캡)
+ * - 에픽: L3에 30%, 레벨당 +5%(100% 캡)
+ * - 전설: L4에 10%, L20에 45% — +2%×16=42%와 불일치하므로 L4~20 구간을 선형(레벨당 +35/16%p)으로 맞춤
+ * - 신화: L5에 10%, L20에 35% — +1.5%×15=32.5%와 불일치하므로 L5~20 구간을 선형(레벨당 +25/15%p ≈1.67%p)으로 맞춤
+ */
+function buildBlacksmithCombinationGreatSuccessRates(): CombinationGreatSuccessRates[] {
+    const out: CombinationGreatSuccessRates[] = [];
+    for (let L = 1; L <= 20; L++) {
+        const row: CombinationGreatSuccessRates = {
+            normal: Math.min(100, 50 + (L - 1) * 10),
+            uncommon: Math.min(100, 30 + (L - 1) * 10),
+        };
+        if (L >= 2) row.rare = Math.min(100, 30 + (L - 2) * 10);
+        if (L >= 3) row.epic = Math.min(100, 30 + (L - 3) * 5);
+        if (L >= 4) row.legendary = Math.min(100, 10 + (L - 4) * (35 / 16));
+        if (L >= 5) row.mythic = Math.min(100, 10 + (L - 5) * (25 / 15));
+        out.push(row);
+    }
+    return out;
+}
+
+export const BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES: CombinationGreatSuccessRates[] =
+    buildBlacksmithCombinationGreatSuccessRates();
 
 export const BLACKSMITH_DISASSEMBLY_JACKPOT_RATES: number[] = [
     2, 4, 6, 8, 10, 12, 14, 16, 18, 20,

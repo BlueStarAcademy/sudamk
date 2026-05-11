@@ -2301,7 +2301,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 {strategicPetHintRewardAnimation &&
                     strategicPetHintRewardAnimation.x >= 0 &&
                     strategicPetHintRewardAnimation.y >= 0 &&
-                    strategicPetHintRewardAnimation.iconSrc &&
+                    (strategicPetHintRewardAnimation.iconSrc || strategicPetHintRewardAnimation.quantityLabel) &&
                     (() => {
                         const { cx, cy } = toSvgCoords({
                             x: strategicPetHintRewardAnimation.x,
@@ -2314,6 +2314,11 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                 f.point.y === strategicPetHintRewardAnimation.y,
                         );
                         const animationDelay = overlapsCaptureScoreFloat ? '1s' : undefined;
+                        const hasIcon = Boolean(strategicPetHintRewardAnimation.iconSrc);
+                        const quantityY = hasIcon ? size * 0.52 : -size * 0.1;
+                        const quantityFont = hasIcon
+                            ? Math.max(11, cell_size * 0.36)
+                            : Math.max(13, cell_size * 0.42);
                         return (
                             <g
                                 key={strategicPetHintRewardAnimation.id}
@@ -2332,21 +2337,23 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                         stroke="#facc15"
                                         strokeWidth={Math.max(1.4, cell_size * 0.035)}
                                     />
-                                    <image
-                                        href={strategicPetHintRewardAnimation.iconSrc}
-                                        x={-size / 2}
-                                        y={-size * 0.6}
-                                        width={size}
-                                        height={size}
-                                        preserveAspectRatio="xMidYMid meet"
-                                    />
+                                    {hasIcon ? (
+                                        <image
+                                            href={strategicPetHintRewardAnimation.iconSrc}
+                                            x={-size / 2}
+                                            y={-size * 0.6}
+                                            width={size}
+                                            height={size}
+                                            preserveAspectRatio="xMidYMid meet"
+                                        />
+                                    ) : null}
                                     <text
                                         x={0}
-                                        y={size * 0.52}
+                                        y={quantityY}
                                         textAnchor="middle"
                                         dominantBaseline="middle"
                                         className="pet-hint-reward-quantity"
-                                        fontSize={Math.max(11, cell_size * 0.36)}
+                                        fontSize={quantityFont}
                                         strokeWidth={Math.max(2.2, cell_size * 0.06)}
                                     >
                                         {strategicPetHintRewardAnimation.quantityLabel}

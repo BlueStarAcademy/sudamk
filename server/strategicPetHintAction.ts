@@ -81,48 +81,54 @@ function weightedPick<T extends { weight: number }>(rows: readonly T[]): T {
 
 function rollStrategicPetHintBonus(petLevel: number): BonusReward {
     const category = weightedPick([
-        { kind: 'gold' as const, weight: 70 },
-        { kind: 'enhancementStone' as const, weight: 15 },
-        { kind: 'soulStone' as const, weight: 10 },
+        { kind: 'gold' as const, weight: 80 },
+        { kind: 'enhancementStone' as const, weight: 10 },
+        { kind: 'soulStone' as const, weight: 5 },
         { kind: 'actionPoints' as const, weight: 4 },
         { kind: 'diamonds' as const, weight: 1 },
     ]);
 
     if (category.kind === 'gold') {
-        const amount = randomInt(10, 500 + Math.max(0, petLevel) * 2);
+        const amount = randomInt(10, 50 + Math.max(0, petLevel));
         return { kind: 'gold', amount, label: `골드 ${amount.toLocaleString('ko-KR')}` };
     }
     if (category.kind === 'enhancementStone') {
         const row = weightedPick([
-            { itemName: '하급 강화석', weight: 60, min: 1, max: 5 },
-            { itemName: '중급 강화석', weight: 20, min: 1, max: 3 },
-            { itemName: '상급 강화석', weight: 15, min: 1, max: 2 },
-            { itemName: '최상급 강화석', weight: 4, min: 1, max: 1 },
-            { itemName: '신비의 강화석', weight: 1, min: 1, max: 1 },
+            { itemName: '하급 강화석', weight: 60 },
+            { itemName: '중급 강화석', weight: 20 },
+            { itemName: '상급 강화석', weight: 15 },
+            { itemName: '최상급 강화석', weight: 4 },
+            { itemName: '신비의 강화석', weight: 1 },
         ]);
-        const quantity = randomInt(row.min, row.max);
+        const quantity = 1;
         return { kind: 'material', itemName: row.itemName, quantity, label: `${row.itemName} ${quantity}개` };
     }
     if (category.kind === 'soulStone') {
         const row = weightedPick([
-            { itemName: '새싹영혼석', weight: 60, min: 1, max: 3 },
-            { itemName: '파동영혼석', weight: 20, min: 1, max: 2 },
-            { itemName: '심연영혼석', weight: 15, min: 1, max: 1 },
-            { itemName: '화염영혼석', weight: 4, min: 1, max: 1 },
-            { itemName: '천광영혼석', weight: 1, min: 1, max: 1 },
+            { itemName: '새싹영혼석', weight: 60 },
+            { itemName: '파동영혼석', weight: 20 },
+            { itemName: '심연영혼석', weight: 15 },
+            { itemName: '화염영혼석', weight: 4 },
+            { itemName: '천광영혼석', weight: 1 },
         ]);
-        const quantity = randomInt(row.min, row.max);
+        const quantity = 1;
         return { kind: 'material', itemName: row.itemName, quantity, label: `${row.itemName} ${quantity}개` };
     }
     if (category.kind === 'actionPoints') {
-        const amount = randomInt(3, 10);
-        return { kind: 'actionPoints', amount, label: `행동력 ${amount}` };
+        const amount = 1;
+        return { kind: 'actionPoints', amount, label: `⚡${amount}` };
     }
-    const amount = randomInt(1, 5);
+    const amount = 1;
     return { kind: 'diamonds', amount, label: `다이아 ${amount}` };
 }
 
-function bonusSpeech(rewardLabel: string): string {
+function bonusSpeechRewardPhrase(reward: BonusReward): string {
+    if (reward.kind === 'actionPoints') return `행동력 ${reward.amount}`;
+    return reward.label;
+}
+
+function bonusSpeech(reward: BonusReward): string {
+    const rewardLabel = bonusSpeechRewardPhrase(reward);
     const lines = [
         `나를 믿어줘서 고마워! 보너스로 ${rewardLabel}를 찾았어.`,
         `내 힌트를 따라와 줬구나! ${rewardLabel} 보너스야.`,
@@ -270,7 +276,7 @@ export async function handleStrategicPetHintBonusClaim(
             strategicPetHintBonus: {
                 x: point.x,
                 y: point.y,
-                message: bonusSpeech(reward.label),
+                message: bonusSpeech(reward),
                 reward,
             },
         },

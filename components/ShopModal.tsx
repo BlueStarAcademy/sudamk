@@ -1354,7 +1354,10 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
             const actionType = item.type === 'equipment' ? 'BUY_SHOP_ITEM' : 'BUY_MATERIAL_BOX';
             onAction({ type: actionType, payload: { itemId, quantity } });
         }
-        setToastMessage('구매 완료! 가방을 확인하세요.');
+        // 컨디션 회복제는 서버 검증(골드·일일한도·인벤) 후에만 성공이며, 실패해도 이전에는 여기서 먼저 "구매 완료"가 떠 오해가 생겼음.
+        if (!itemId.startsWith('condition_potion_')) {
+            setToastMessage('구매 완료! 가방을 확인하세요.');
+        }
         setPurchasingItem(null);
     };
     

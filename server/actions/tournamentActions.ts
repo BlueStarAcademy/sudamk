@@ -17,7 +17,7 @@ import { createDefaultQuests } from '../initialData.js';
 import { getCachedUser, updateUserCache } from '../gameCache.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
-import { generateChampionshipRealMatch } from '../championshipRealMatchService.js';
+import { assignChampionshipCondition, generateChampionshipRealMatch } from '../championshipRealMatchService.js';
 import {
     DEFAULT_CHAMPIONSHIP_REAL_MATCH_RULES,
     resolveChampionshipDungeonRulesFromStage,
@@ -824,8 +824,25 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 return { error: '선수를 찾을 수 없습니다.' };
             }
 
-            // Check if condition is already 100
-            if (userPlayer.condition >= 100) {
+            // condition 1000은 "미설정" 플래그 — >= 100 체크에 걸리면 회복제를 쓸 수 없는 버그가 난다.
+            let baseCondition = userPlayer.condition;
+            const conditionUnset =
+                baseCondition === undefined ||
+                baseCondition === null ||
+                baseCondition === 1000 ||
+                baseCondition < 1 ||
+                baseCondition > 100;
+            if (conditionUnset) {
+                const snap = user.dungeonConditionSnapshot?.[tournamentType];
+                if (snap && snap.condition >= 1 && snap.condition <= 100) {
+                    baseCondition = snap.condition;
+                } else {
+                    baseCondition = assignChampionshipCondition();
+                }
+                userPlayer.condition = baseCondition;
+            }
+
+            if (baseCondition >= 100) {
                 return { error: '컨디션이 이미 최대입니다.' };
             }
 
@@ -854,7 +871,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 return Math.floor(Math.random() * (max - min + 1)) + min;
             };
             const recoveryAmount = getRandomInt(potionInfo.minRecovery, potionInfo.maxRecovery);
-            const newCondition = Math.min(100, userPlayer.condition + recoveryAmount);
+            const newCondition = Math.min(100, baseCondition + recoveryAmount);
             userPlayer.condition = newCondition;
             // 재입장 시에도 회복된 컨디션이 유지되도록 스냅샷 갱신
             const todayStart = getStartOfDayKST(Date.now());
