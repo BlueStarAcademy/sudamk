@@ -422,6 +422,7 @@ export type ServerAction =
     | { type: 'REQUEST_SERVER_AI_MOVE', payload: { gameId: string; clientSync?: PveItemActionClientSync } }
     /** 전략바둑 로비: 대표 펫 힌트(Kata 1수, 페이즈당 1회) */
     | { type: 'REQUEST_STRATEGIC_PET_HINT', payload: { gameId: string } }
+    | { type: 'CLAIM_STRATEGIC_PET_HINT_BONUS', payload: { gameId: string; x: number; y: number; expectedMoveHistoryLength: number } }
     /** 모험/길드전·로비 Kata AI 대국: 클라이언트가 장시간 미착수 등으로 서버 상태를 다시 맞출 때 */
     | { type: 'REQUEST_GAME_STATE_SYNC', payload: { gameId: string } }
     | { type: 'EMERGENCY_EXIT', payload?: never }
@@ -641,7 +642,7 @@ export type ServerAction =
     | { type: 'ADVANCE_TOURNAMENT_SIMULATION', payload: { type: TournamentType; timestamp: number } }
     | { type: 'COMPLETE_TOURNAMENT_SIMULATION', payload: { type: TournamentType; result: { timeElapsed: number; player1Score: number; player2Score: number; commentary: CommentaryLine[]; winnerId: string } } }
     | { type: 'CLEAR_TOURNAMENT_SESSION', payload: { type?: TournamentType } }
-    | { type: 'SAVE_TOURNAMENT_PROGRESS', payload: { type: TournamentType } }
+    | { type: 'SAVE_TOURNAMENT_PROGRESS', payload: { type: TournamentType; tournamentSnapshot?: TournamentState } }
     | { type: 'FORFEIT_TOURNAMENT', payload: { type: TournamentType } }
     | { type: 'FORFEIT_CURRENT_MATCH', payload: { type: TournamentType } }
     | { type: 'SKIP_TOURNAMENT_END', payload: { type: TournamentType } }
@@ -733,7 +734,11 @@ export type GameClientActionResult =
     | { gameId?: string; claimAllTrainingQuestRewards?: any }
     | {
           strategicPetHint?: { x: number; y: number; message: string };
-          clientResponse?: { strategicPetHint?: { x: number; y: number; message: string } };
+          strategicPetHintBonus?: { x: number; y: number; message: string; reward?: any };
+          clientResponse?: {
+              strategicPetHint?: { x: number; y: number; message: string };
+              strategicPetHintBonus?: { x: number; y: number; message: string; reward?: any };
+          };
       };
 
 export interface GameProps {

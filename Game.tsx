@@ -34,6 +34,7 @@ import SinglePlayerSidebar from './components/game/SinglePlayerSidebar.js';
 import TowerControls from './components/game/TowerControls.js';
 import TowerSidebar from './components/game/TowerSidebar.js';
 import GuildWarMissileTowerControls from './components/game/GuildWarMissileTowerControls.js';
+import { MATERIAL_ITEMS } from './constants/items.js';
 
 function modeIncludesCaptureRule(mode: GameMode, settings: { mixedModes?: GameMode[] }): boolean {
     return mode === GameMode.Capture || (mode === GameMode.Mix && Boolean(settings.mixedModes?.includes(GameMode.Capture)));
@@ -719,18 +720,117 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         message: string;
         showBubble: boolean;
     } | null>(null);
+    const [strategicPetHintRewardAnimation, setStrategicPetHintRewardAnimation] = useState<{
+        id: string;
+        x: number;
+        y: number;
+        iconSrc: string;
+        quantityLabel: string;
+    } | null>(null);
     const strategicPetHintMoveLenRef = useRef<number | null>(null);
     const strategicPetHintBubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const strategicPetHintRewardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    type StrategicPetHintActionResult = {
+        strategicPetHint?: { x: number; y: number; message: string };
+        strategicPetHintBonus?: { x: number; y: number; message: string; reward?: StrategicPetHintBonusReward };
+        clientResponse?: {
+            strategicPetHint?: { x: number; y: number; message: string };
+            strategicPetHintBonus?: { x: number; y: number; message: string; reward?: StrategicPetHintBonusReward };
+        };
+    };
+    type StrategicPetHintBonusReward =
+        | { kind: 'gold'; amount: number; label?: string }
+        | { kind: 'material'; itemName: string; quantity: number; label?: string }
+        | { kind: 'actionPoints'; amount: number; label?: string }
+        | { kind: 'diamonds'; amount: number; label?: string };
+
+    const strategicPetHintRewardIcon = useCallback((reward: StrategicPetHintBonusReward | undefined): string => {
+        if (!reward) return '/images/icon/Reward.png';
+        if (reward.kind === 'gold') return '/images/icon/Gold.png';
+        if (reward.kind === 'diamonds') return '/images/icon/Zem.png';
+        if (reward.kind === 'actionPoints') return '/images/icon/lightning.png';
+        return MATERIAL_ITEMS[reward.itemName]?.image || '/images/icon/Reward.png';
+    }, []);
+
+    const strategicPetHintRewardQuantity = useCallback((reward: StrategicPetHintBonusReward | undefined): string => {
+        const raw = reward?.kind === 'material' ? reward.quantity : reward?.amount;
+        const amount = Math.max(1, Math.floor(Number(raw) || 1));
+        return String(amount);
+    }, []);
+
+    const showStrategicPetHintBonusBubble = useCallback((bonus: { x: number; y: number; message: string }) => {
+        if (strategicPetHintBubbleTimerRef.current) {
+            clearTimeout(strategicPetHintBubbleTimerRef.current);
+            strategicPetHintBubbleTimerRef.current = null;
+        }
+        strategicPetHintMoveLenRef.current = null;
+        setStrategicPetHintBoardOverlay({
+            x: bonus.x,
+            y: bonus.y,
+            message: bonus.message,
+            showBubble: true,
+        });
+        strategicPetHintBubbleTimerRef.current = setTimeout(() => {
+            setStrategicPetHintBoardOverlay(null);
+            strategicPetHintBubbleTimerRef.current = null;
+        }, 4500);
+    }, []);
+
+    const showStrategicPetHintRewardAnimation = useCallback(
+        (bonus: { x: number; y: number; reward?: StrategicPetHintBonusReward }) => {
+            if (strategicPetHintRewardTimerRef.current) {
+                clearTimeout(strategicPetHintRewardTimerRef.current);
+                strategicPetHintRewardTimerRef.current = null;
+            }
+            setStrategicPetHintRewardAnimation({
+                id: `${session.id}-${bonus.x}-${bonus.y}-${Date.now()}`,
+                x: bonus.x,
+                y: bonus.y,
+                iconSrc: strategicPetHintRewardIcon(bonus.reward),
+                quantityLabel: strategicPetHintRewardQuantity(bonus.reward),
+            });
+            strategicPetHintRewardTimerRef.current = setTimeout(() => {
+                setStrategicPetHintRewardAnimation(null);
+                strategicPetHintRewardTimerRef.current = null;
+            }, 2700);
+        },
+        [session.id, strategicPetHintRewardIcon, strategicPetHintRewardQuantity],
+    );
+
+    const handleStrategicPetHintActionResult = useCallback(
+        (result: StrategicPetHintActionResult | void | undefined) => {
+            const bonus =
+                (result as StrategicPetHintActionResult | undefined)?.strategicPetHintBonus ??
+                (result as StrategicPetHintActionResult | undefined)?.clientResponse?.strategicPetHintBonus;
+            if (bonus && Number.isInteger(bonus.x) && Number.isInteger(bonus.y) && typeof bonus.message === 'string') {
+                showStrategicPetHintBonusBubble(bonus);
+                showStrategicPetHintRewardAnimation(bonus);
+            }
+        },
+        [showStrategicPetHintBonusBubble, showStrategicPetHintRewardAnimation],
+    );
+
+    const claimStrategicPetHintBonusIfMatched = useCallback(
+        (x: number, y: number, expectedMoveHistoryLength: number) => {
+            const hint = strategicPetHintBoardOverlay;
+            if (!hint || hint.x !== x || hint.y !== y) return;
+            void Promise.resolve(
+                handlers.handleAction({
+                    type: 'CLAIM_STRATEGIC_PET_HINT_BONUS',
+                    payload: { gameId: session.id, x, y, expectedMoveHistoryLength },
+                } as ServerAction),
+            ).then(handleStrategicPetHintActionResult);
+        },
+        [handlers.handleAction, handleStrategicPetHintActionResult, session.id, strategicPetHintBoardOverlay],
+    );
 
     const ingameHandleAction = useCallback(
         async (action: ServerAction) => {
             const moveLenBefore =
                 action.type === 'REQUEST_STRATEGIC_PET_HINT' ? session.moveHistory?.length ?? 0 : null;
             const r = (await handlers.handleAction(action)) as
-                | {
-                      strategicPetHint?: { x: number; y: number; message: string };
-                      clientResponse?: { strategicPetHint?: { x: number; y: number; message: string } };
-                  }
+                | StrategicPetHintActionResult
                 | void
                 | undefined;
             if (action.type === 'REQUEST_STRATEGIC_PET_HINT') {
@@ -756,15 +856,19 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     }, 5000);
                 }
             }
+            handleStrategicPetHintActionResult(r);
             return r;
         },
-        [handlers.handleAction, session.moveHistory?.length, session.id],
+        [handleStrategicPetHintActionResult, handlers.handleAction, session.moveHistory?.length, session.id],
     );
 
     useEffect(() => {
         return () => {
             if (strategicPetHintBubbleTimerRef.current) {
                 clearTimeout(strategicPetHintBubbleTimerRef.current);
+            }
+            if (strategicPetHintRewardTimerRef.current) {
+                clearTimeout(strategicPetHintRewardTimerRef.current);
             }
         };
     }, []);
@@ -786,6 +890,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             clearTimeout(strategicPetHintBubbleTimerRef.current);
             strategicPetHintBubbleTimerRef.current = null;
         }
+        if (strategicPetHintRewardTimerRef.current) {
+            clearTimeout(strategicPetHintRewardTimerRef.current);
+            strategicPetHintRewardTimerRef.current = null;
+        }
+        setStrategicPetHintRewardAnimation(null);
     }, [session.id]);
 
     const [boardRuleFlashMessage, setBoardRuleFlashMessage] = useState<string | null>(null);
@@ -2465,7 +2574,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     !(session.permanentlyRevealedStones || []).some(point => point.x === x && point.y === y);
                 if (stoneAtTarget === opponentPlayerEnum && !isHiddenTarget) return;
                 if (stoneAtTarget === opponentPlayerEnum && isHiddenTarget) {
-                    handlers.handleAction({
+                    void Promise.resolve(handlers.handleAction({
                         type: 'PLACE_STONE',
                         payload: {
                             gameId,
@@ -2475,7 +2584,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             boardState: boardStateToUse,
                             moveHistory: session.moveHistory || [],
                         }
-                    } as ServerAction);
+                    } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
                     if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
                     return;
                 }
@@ -2509,8 +2618,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         isHidden: true,
                     }
                 } as any);
+                claimStrategicPetHintBonusIfMatched(x, y, (session.moveHistory?.length || 0) + 1);
                 // 서버에 히든 착수 전송 (서버가 hiddenMoves 기록·AI에 비공개)
-                handlers.handleAction({
+                void Promise.resolve(handlers.handleAction({
                     type: 'PLACE_STONE',
                     payload: {
                         gameId,
@@ -2520,7 +2630,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         boardState: boardStateToUse,
                         moveHistory: session.moveHistory || [],
                     }
-                } as ServerAction);
+                } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
                 if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
                 return;
             }
@@ -2541,7 +2651,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     !(session.permanentlyRevealedStones || []).some(point => point.x === x && point.y === y);
                 if (stoneAtTarget === opponentPlayerEnum && !isHiddenTarget) return;
                 if (stoneAtTarget === opponentPlayerEnum && isHiddenTarget) {
-                    handlers.handleAction({
+                    void Promise.resolve(handlers.handleAction({
                         type: 'PLACE_STONE',
                         payload: {
                             gameId,
@@ -2551,7 +2661,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             boardState: boardStateToUse,
                             moveHistory: session.moveHistory || [],
                         },
-                    } as ServerAction);
+                    } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
                     if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
                     return;
                 }
@@ -2572,7 +2682,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     !(session.permanentlyRevealedStones || []).some(point => point.x === x && point.y === y);
                 if (stoneAtTarget === opponentPlayerEnum && !isHiddenTarget) return;
                 if (stoneAtTarget === opponentPlayerEnum && isHiddenTarget) {
-                    handlers.handleAction({
+                    void Promise.resolve(handlers.handleAction({
                         type: 'PLACE_STONE',
                         payload: {
                             gameId,
@@ -2582,7 +2692,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             boardState: boardStateToUse,
                             moveHistory: session.moveHistory || [],
                         }
-                    } as ServerAction);
+                    } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
                     if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
                     return;
                 }
@@ -2616,7 +2726,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         isHidden: true,
                     }
                 } as any);
-                handlers.handleAction({
+                claimStrategicPetHintBonusIfMatched(x, y, (session.moveHistory?.length || 0) + 1);
+                void Promise.resolve(handlers.handleAction({
                     type: 'PLACE_STONE',
                     payload: {
                         gameId,
@@ -2626,7 +2737,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         boardState: moveResult.newBoardState,
                         moveHistory: [...(session.moveHistory || []), { x, y, player: myPlayerEnum }],
                     }
-                } as ServerAction);
+                } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
                 if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
                 return;
             }
@@ -2750,6 +2861,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         movePlayer: myPlayerEnum,
                     }
                 } as any);
+                claimStrategicPetHintBonusIfMatched(x, y, (session.moveHistory?.length || 0) + 1);
                 return;
             }
             // 전략바둑 AI 대국 포함: 모든 온라인 게임은 서버에서만 검증/반영
@@ -2822,6 +2934,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             setIsMoveInFlight(true);
             void Promise.resolve(handlers.handleAction({ type: actionType, payload } as ServerAction))
                 .then((res) => {
+                    handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined);
                     const hasErr = res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error;
                     if (hasErr) {
                         setIsMoveInFlight(false);
@@ -2881,6 +2994,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         isSinglePlayer,
         isGuildWarGame,
         isOnlineHiddenStrategic,
+        handleStrategicPetHintActionResult,
+        claimStrategicPetHintBonusIfMatched,
         showKoRuleFlash,
         myPlayerEnum,
         applyOptimisticAiUserMove,
@@ -3073,6 +3188,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             const at = actionType;
             void Promise.resolve(handlers.handleAction({ type: at, payload } as ServerAction))
                 .then((res) => {
+                    handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined);
+                    if (at === 'TOWER_CLIENT_MOVE' || at === 'SINGLE_PLAYER_CLIENT_MOVE') {
+                        claimStrategicPetHintBonusIfMatched(x, y, (session.moveHistory?.length || 0) + 1);
+                    }
                     const hasErr = res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error;
                     if (hasErr) {
                         setIsMoveInFlight(false);
@@ -3107,6 +3226,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.moveHistory,
         session.stonesToPlace,
         myPlayerEnum,
+        handleStrategicPetHintActionResult,
+        claimStrategicPetHintBonusIfMatched,
         showKoRuleFlash,
         session.isAiGame,
         applyOptimisticAiUserMove,
@@ -4318,6 +4439,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
                                         intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
+                                        strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                     />
                                     {boardHydrationOverlayEl}
                                     {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
@@ -4498,6 +4620,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
                                         intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
+                                        strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                     />
                                     {boardHydrationOverlayEl}
                                 {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
@@ -4753,6 +4876,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                         onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
                                                         intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
+                                                        strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                                     />
                                                     {boardHydrationOverlayEl}
                                                 </div>
@@ -4771,6 +4895,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                 showLastMoveMarker={settings.features.lastMoveMarker}
                                                 captureScoreFloatMinPoints={settings.features.captureScoreAnimation ? 1 : 2}
                                                 strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
+                                                strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                                 isBoardRotated={isBoardRotated}
                                                 onToggleBoardRotation={() => setIsBoardRotated((prev: boolean) => !prev)}
                                                 showBoardGlow={boardGlowForHiddenScanItem}

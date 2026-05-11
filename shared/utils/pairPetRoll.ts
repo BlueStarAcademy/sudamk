@@ -24,7 +24,7 @@ export const PAIR_PET_HATCH_DISPOSITION_ENCYCLOPEDIA_LINES: readonly string[] = 
         return `${name} +10%~20%`;
     }),
     '모든 능력치 +5%',
-    '임의 한 능력치의 10~15%를 다른 한 능력치로 전환 (빠진 만큼의 2배를 대상에 합산)',
+    '임의 한 능력치의 10~20%를 다른 한 능력치로 전환 (빠진 만큼의 2배를 대상에 합산)',
 ];
 
 /** 도감용 — 부화 시 특화 종류·수치 범위 (`rollPairPetMetaForHatch` 와 동일) */
@@ -82,7 +82,7 @@ function rollInt(rng: () => number, min: number, max: number): number {
 }
 
 function rollConvertDisposition(rng: () => number): PairPetDisposition {
-    const pct = rollInt(rng, 10, 15);
+    const pct = rollInt(rng, 10, 20);
     const fromStat = CORE_ORDER[Math.floor(rng() * CORE_ORDER.length)]!;
     let toStat: CoreStat;
     do {

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import { InventoryItem, UserWithStatus } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
-import { MATERIAL_SELL_PRICES, CONSUMABLE_SELL_PRICES, gradeBackgrounds, gradeStyles } from '../constants/items.js';
+import { MATERIAL_SELL_PRICES, CONSUMABLE_SELL_PRICES, gradeBackgrounds, gradeStyles, isRefinementTicketMaterial } from '../constants/items.js';
 
 interface SellMaterialBulkModalProps {
     item: InventoryItem;
@@ -13,14 +13,19 @@ interface SellMaterialBulkModalProps {
 }
 
 const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({ item, currentUser, onClose, onConfirm, isTopmost }) => {
+    const isTicket = isRefinementTicketMaterial(item.name);
     const totalQuantity = useMemo(() => {
         return currentUser.inventory
-            .filter((i) => i.type === item.type && i.name === item.name)
+            .filter((i) =>
+                isTicket
+                    ? isRefinementTicketMaterial(i.name) && i.name === item.name
+                    : i.type === item.type && i.name === item.name
+            )
             .reduce((sum, i) => sum + (i.quantity || 1), 0);
-    }, [currentUser.inventory, item.name, item.type]);
+    }, [currentUser.inventory, isTicket, item.name, item.type]);
 
     const pricePerUnit =
-        item.type === 'consumable'
+        item.type === 'consumable' && !isTicket
             ? CONSUMABLE_SELL_PRICES[item.name] ??
               CONSUMABLE_SELL_PRICES[item.name?.replace('골드꾸러미', '골드 꾸러미')] ??
               CONSUMABLE_SELL_PRICES[item.name?.replace('골드 꾸러미', '골드꾸러미')] ??

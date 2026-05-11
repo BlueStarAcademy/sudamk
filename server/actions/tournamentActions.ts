@@ -439,19 +439,15 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             if (!definition) return { error: '유효하지 않은 토너먼트 타입입니다.' };
             
             let stateKey: keyof User;
-            let playedDateKey: keyof User;
             switch (type) {
                 case 'neighborhood':
                     stateKey = 'lastNeighborhoodTournament';
-                    playedDateKey = 'lastNeighborhoodPlayedDate';
                     break;
                 case 'national':
                     stateKey = 'lastNationalTournament';
-                    playedDateKey = 'lastNationalPlayedDate';
                     break;
                 case 'world':
                     stateKey = 'lastWorldTournament';
-                    playedDateKey = 'lastWorldPlayedDate';
                     break;
                 default:
                     return { error: 'Invalid tournament type.' };
@@ -464,6 +460,21 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             }
 
             const existingState = (user as any)[stateKey] as TournamentState | null;
+
+            const canHydrateVolatileFromPersisted =
+                existingState &&
+                existingState.type === type &&
+                existingState.currentStageAttempt != null &&
+                existingState.currentStageAttempt >= 1 &&
+                (existingState.status === 'round_in_progress' ||
+                    existingState.status === 'bracket_ready' ||
+                    existingState.status === 'round_complete');
+
+            if (canHydrateVolatileFromPersisted) {
+                if (!volatileState.activeTournaments) volatileState.activeTournaments = {};
+                volatileState.activeTournaments[user.id] = existingState;
+                return { clientResponse: { redirectToTournament: type } };
+            }
 
             // Championship은 던전 모드로만 진행됩니다.
             // START_TOURNAMENT_SESSION은 던전 선택 화면으로 리다이렉트하는 용도로만 사용됩니다.
@@ -674,10 +685,14 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
         }
 
         case 'SAVE_TOURNAMENT_PROGRESS': {
-            const { type } = payload as { type: TournamentType };
+            const { type, tournamentSnapshot } = payload as { type: TournamentType; tournamentSnapshot?: types.TournamentState };
+            if (tournamentSnapshot && tournamentSnapshot.type === type) {
+                if (!volatileState.activeTournaments) volatileState.activeTournaments = {};
+                volatileState.activeTournaments[user.id] = JSON.parse(JSON.stringify(tournamentSnapshot)) as types.TournamentState;
+            }
             const tournamentState = volatileState.activeTournaments?.[user.id];
             
-            if (tournamentState) {
+            if (tournamentState && tournamentState.type === type) {
                 let stateKey: keyof User;
                 switch (type) {
                     case 'neighborhood': stateKey = 'lastNeighborhoodTournament'; break;
@@ -1652,9 +1667,33 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
         }
 
         case 'ENTER_TOURNAMENT_VIEW':
-        case 'LEAVE_TOURNAMENT_VIEW':
-            // 단순히 뷰 진입/이탈을 추적하는 액션이므로 성공 응답만 반환
             return {};
+
+        case 'LEAVE_TOURNAMENT_VIEW': {
+            const volatileTs = volatileState.activeTournaments?.[user.id];
+            if (volatileTs && volatileTs.status === 'round_in_progress') {
+                let sk: keyof User;
+                switch (volatileTs.type) {
+                    case 'neighborhood':
+                        sk = 'lastNeighborhoodTournament';
+                        break;
+                    case 'national':
+                        sk = 'lastNationalTournament';
+                        break;
+                    case 'world':
+                        sk = 'lastWorldTournament';
+                        break;
+                    default:
+                        return {};
+                }
+                (user as any)[sk] = JSON.parse(JSON.stringify(volatileTs)) as types.TournamentState;
+                updateUserCache(user);
+                db.updateUser(user).catch(err => {
+                    console.error(`[LEAVE_TOURNAMENT_VIEW] Failed to save user ${user.id}:`, err);
+                });
+            }
+            return {};
+        }
 
         case 'START_DUNGEON_STAGE': {
             // Payload 상세 로깅
@@ -1742,6 +1781,48 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             // 오늘 이미 이 경기장에 입장한 적 있으면 컨디션 스냅샷이 있음 → 재입장 시 시도 횟수 중복 차감 방지
             const snapshot = freshUser.dungeonConditionSnapshot?.[dungeonType];
             const hasSnapshotToday = snapshot && isSameDayKST(snapshot.dateStartOfDayKST, now);
+
+            let stateKey: keyof User;
+            let statusKey: keyof User;
+            switch (dungeonType) {
+                case 'neighborhood':
+                    stateKey = 'lastNeighborhoodTournament';
+                    statusKey = 'neighborhoodRewardClaimed';
+                    break;
+                case 'national':
+                    stateKey = 'lastNationalTournament';
+                    statusKey = 'nationalRewardClaimed';
+                    break;
+                case 'world':
+                    stateKey = 'lastWorldTournament';
+                    statusKey = 'worldRewardClaimed';
+                    break;
+                default:
+                    return { error: 'Invalid dungeon type.' };
+            }
+
+            const persisted = (freshUser as any)[stateKey] as types.TournamentState | null | undefined;
+            const hasUnclaimedComplete =
+                persisted &&
+                (persisted.status === 'complete' || persisted.status === 'eliminated') &&
+                !(freshUser as any)[statusKey];
+            if (hasUnclaimedComplete) {
+                return { error: '완료된 경기의 보상을 먼저 수령해주세요.' };
+            }
+
+            const resumable =
+                persisted &&
+                persisted.type === dungeonType &&
+                persisted.currentStageAttempt === stage &&
+                persisted.status !== 'complete' &&
+                persisted.status !== 'eliminated';
+
+            if (resumable) {
+                if (!volatileState.activeTournaments) volatileState.activeTournaments = {};
+                volatileState.activeTournaments[freshUser.id] = persisted;
+                updateUserCache(freshUser);
+                return { clientResponse: { dungeonState: persisted, updatedUser: freshUser } };
+            }
             
             // 전체 토너먼트 생성 (유저 + 봇들)
             const definition = TOURNAMENT_DEFINITIONS[dungeonType];
@@ -1793,30 +1874,6 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             dungeonState.currentStageAttempt = stage;
             
             // 던전 상태 저장 (새 토너먼트 시작 시 해당 경기장 보상 수령 플래그 초기화 → 경기 종료 후 '보상받기' 표시)
-            let stateKey: keyof User;
-            let statusKey: keyof User;
-            switch (dungeonType) {
-                case 'neighborhood':
-                    stateKey = 'lastNeighborhoodTournament';
-                    statusKey = 'neighborhoodRewardClaimed';
-                    break;
-                case 'national':
-                    stateKey = 'lastNationalTournament';
-                    statusKey = 'nationalRewardClaimed';
-                    break;
-                case 'world':
-                    stateKey = 'lastWorldTournament';
-                    statusKey = 'worldRewardClaimed';
-                    break;
-                default:
-                    return { error: 'Invalid dungeon type.' };
-            }
-            // 미수령 보상이 있으면 새 단계 시작 불가 (나갔다 와서 결과가 뒤바뀌는 것 방지)
-            const existingState = (freshUser as any)[stateKey] as TournamentState | null | undefined;
-            const hasUnclaimedComplete = existingState && (existingState.status === 'complete' || existingState.status === 'eliminated') && !(freshUser as any)[statusKey];
-            if (hasUnclaimedComplete) {
-                return { error: '완료된 경기의 보상을 먼저 수령해주세요.' };
-            }
             (freshUser as any)[statusKey] = false;
             (freshUser as any)[stateKey] = dungeonState;
             
@@ -2012,7 +2069,10 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 }
             }
             
-            if (dungeonState.accumulatedEquipmentBoxes) {
+            // 월드챔피언십은 경기 중 생성된 실제 장비를 지급한다.
+            // accumulatedEquipmentBoxes는 구 UI/레거시 표시용으로 남을 수 있어 여기서 소모품 상자로 지급하면
+            // 장비 칸은 충분해도 소모품 칸 부족으로 수령이 막힐 수 있다.
+            if (dungeonType !== 'world' && dungeonState.accumulatedEquipmentBoxes) {
                 for (const [boxName, quantity] of Object.entries(dungeonState.accumulatedEquipmentBoxes)) {
                     const boxItemKey = Object.keys(SHOP_ITEMS).find(key => {
                         const shopItem = SHOP_ITEMS[key as keyof typeof SHOP_ITEMS];

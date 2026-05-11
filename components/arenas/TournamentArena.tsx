@@ -123,8 +123,13 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
         return () => {
             const latestState = latestTournamentStateRef.current;
             if (!latestState) return;
-            // 경기 진행 중 나간 경우: 상태 유지(이어보기용)
-            if (latestState.status === 'round_in_progress') return;
+            if (latestState.status === 'round_in_progress') {
+                void handlers.handleAction({
+                    type: 'SAVE_TOURNAMENT_PROGRESS',
+                    payload: { type, tournamentSnapshot: latestState },
+                }).catch((error) => console.error('[TournamentArena] Failed to save tournament on unmount:', error));
+                return;
+            }
             // bracket_ready에서 unmount 시 CLEAR 하지 않음 (Strict Mode/이중 마운트 시 방금 입장한 세션이 지워지는 버그 방지).
             // 사용자가 로비에서 '나가기' 등으로 초기화하려면 CLEAR는 로비/별도 액션에서만 호출.
             if (latestState.status === 'bracket_ready') return;
@@ -193,19 +198,17 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
                         currentUser={currentUserWithStatus}
                         onBack={async () => {
                             if (tournamentState.status === 'round_in_progress') {
-                                if (window.confirm('경기를 포기하시겠습니까?')) {
-                                    handlers.handleAction({ type: 'FORFEIT_CURRENT_MATCH', payload: { type } });
+                                replaceAppHash('#/tournament');
+                                return;
+                            }
+                            try {
+                                if (tournamentState) {
+                                    await handlers.handleAction({ type: 'SAVE_TOURNAMENT_PROGRESS', payload: { type } });
                                 }
-                            } else {
-                                try {
-                                    if (tournamentState) {
-                                        await handlers.handleAction({ type: 'SAVE_TOURNAMENT_PROGRESS', payload: { type } });
-                                    }
-                                } catch (error) {
-                                    console.error('[TournamentArena] Failed to save tournament progress on exit:', error);
-                                } finally {
-                                    replaceAppHash('#/tournament');
-                                }
+                            } catch (error) {
+                                console.error('[TournamentArena] Failed to save tournament progress on exit:', error);
+                            } finally {
+                                replaceAppHash('#/tournament');
                             }
                         }}
                         allUsersForRanking={allUsers}

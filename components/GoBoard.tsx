@@ -645,6 +645,8 @@ interface GoBoardProps {
   onboardingForcedFirstMovePoint?: Point | null;
   /** 전략바둑 대표펫 힌트: 좌표 점만(말풍선은 푸터) */
   strategicPetHintOverlay?: { x: number; y: number } | null;
+  /** 펫 힌트 보너스 획득: 해당 좌표에서 아이콘이 위로 떠오르는 1회성 연출 */
+  strategicPetHintRewardAnimation?: { id: string; x: number; y: number; iconSrc: string; quantityLabel: string } | null;
   /** 페어 방장: 양측 베이스돌을 모두 직접 배치할 때 오버레이·중복클릭 방지에 p1+p2를 함께 사용 */
   isPairBasePlacementHost?: boolean;
   baseStonesP1Player?: Player;
@@ -680,6 +682,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         onboardingDemoAnchorPoint = null,
         onboardingForcedFirstMovePoint = null,
         strategicPetHintOverlay = null,
+        strategicPetHintRewardAnimation = null,
         isPairBasePlacementHost = false,
         canPlaceMoreBaseStones,
     } = props;
@@ -2292,6 +2295,63 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                     strokeWidth={Math.max(1, cell_size * 0.02)}
                                     opacity={0.92}
                                 />
+                            </g>
+                        );
+                    })()}
+                {strategicPetHintRewardAnimation &&
+                    strategicPetHintRewardAnimation.x >= 0 &&
+                    strategicPetHintRewardAnimation.y >= 0 &&
+                    strategicPetHintRewardAnimation.iconSrc &&
+                    (() => {
+                        const { cx, cy } = toSvgCoords({
+                            x: strategicPetHintRewardAnimation.x,
+                            y: strategicPetHintRewardAnimation.y,
+                        });
+                        const size = Math.max(cell_size * 0.76, 18);
+                        const overlapsCaptureScoreFloat = captureScoreFloats.some(
+                            (f) =>
+                                f.point.x === strategicPetHintRewardAnimation.x &&
+                                f.point.y === strategicPetHintRewardAnimation.y,
+                        );
+                        const animationDelay = overlapsCaptureScoreFloat ? '1s' : undefined;
+                        return (
+                            <g
+                                key={strategicPetHintRewardAnimation.id}
+                                transform={`translate(${cx}, ${cy})`}
+                                style={{ pointerEvents: 'none' }}
+                            >
+                                <g
+                                    className={isRotated ? 'pet-hint-reward-float pet-hint-reward-float--rotated' : 'pet-hint-reward-float'}
+                                    style={animationDelay ? { animationDelay } : undefined}
+                                >
+                                    <circle
+                                        cx={0}
+                                        cy={-size * 0.1}
+                                        r={size * 0.46}
+                                        fill="rgba(255,255,255,0.72)"
+                                        stroke="#facc15"
+                                        strokeWidth={Math.max(1.4, cell_size * 0.035)}
+                                    />
+                                    <image
+                                        href={strategicPetHintRewardAnimation.iconSrc}
+                                        x={-size / 2}
+                                        y={-size * 0.6}
+                                        width={size}
+                                        height={size}
+                                        preserveAspectRatio="xMidYMid meet"
+                                    />
+                                    <text
+                                        x={0}
+                                        y={size * 0.52}
+                                        textAnchor="middle"
+                                        dominantBaseline="middle"
+                                        className="pet-hint-reward-quantity"
+                                        fontSize={Math.max(11, cell_size * 0.36)}
+                                        strokeWidth={Math.max(2.2, cell_size * 0.06)}
+                                    >
+                                        {strategicPetHintRewardAnimation.quantityLabel}
+                                    </text>
+                                </g>
                             </g>
                         );
                     })()}

@@ -3014,9 +3014,15 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     currentUser={currentUser}
                     onClose={() => setItemToSellBulk(null)}
                     onConfirm={async (quantity) => {
-                        // 같은 이름의 아이템을 모두 찾아서 순차적으로 판매 (재료 또는 소모품)
+                        // 같은 이름의 아이템을 모두 찾아서 순차적으로 판매 (재료 또는 소모품).
+                        // 변경권은 레거시 consumable 행과 현재 material 행을 같은 재료로 취급한다.
+                        const sellBulkAsRefinementTicket = isRefinementTicketMaterial(itemToSellBulk.name);
                         const itemsToSell = currentUser.inventory
-                            .filter(i => i.type === itemToSellBulk.type && i.name === itemToSellBulk.name)
+                            .filter(i =>
+                                sellBulkAsRefinementTicket
+                                    ? isRefinementTicketMaterial(i.name) && i.name === itemToSellBulk.name
+                                    : i.type === itemToSellBulk.type && i.name === itemToSellBulk.name
+                            )
                             .sort((a, b) => (a.quantity || 0) - (b.quantity || 0)); // 수량이 적은 것부터 정렬
                         
                         let remainingQuantity = quantity;

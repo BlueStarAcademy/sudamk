@@ -21,7 +21,7 @@ export type InterstitialTrigger =
   | 'reward_claim'
   | 'lobby_transition'
   | 'tower_clear'
-  /** 상점 광고보기 보상 — 빈도 제한 없이 30초 후 「보상 받기」 시 콜백 */
+  /** 상점 광고보기 보상 — 30초 후 「보상 받기」 시 콜백(탭별 일일 수령 한도는 서버·상점 UI에서 적용) */
   | 'shop_ad_reward';
 
 /** 전면 광고 상태 */

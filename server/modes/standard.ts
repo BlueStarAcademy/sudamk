@@ -768,6 +768,16 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
         });
     }
 
+    if (type === 'CLAIM_STRATEGIC_PET_HINT_BONUS') {
+        if (!isMyTurn || myPlayerEnum === types.Player.None) return null;
+        const { handleStrategicPetHintBonusClaim } = await import('../strategicPetHintAction.js');
+        return handleStrategicPetHintBonusClaim(game, user, {
+            x: Number(payload?.x),
+            y: Number(payload?.y),
+            expectedMoveHistoryLength: Number(payload?.expectedMoveHistoryLength),
+        });
+    }
+
     switch (type) {
         case 'PLACE_STONE': {
             // 계가까지 수순이 고정된 모드에서는 제한 수순이 이미 채워졌다면 추가 착수를 차단한다.
@@ -1351,6 +1361,14 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     if (!game.hiddenMoves) game.hiddenMoves = {};
                     game.hiddenMoves[game.moveHistory.length - 1] = true;
                 }
+                const petHintBonusResult = await (async () => {
+                    const { handleStrategicPetHintBonusClaim } = await import('../strategicPetHintAction.js');
+                    return handleStrategicPetHintBonusClaim(game, user, {
+                        x,
+                        y,
+                        expectedMoveHistoryLength: game.moveHistory.length,
+                    });
+                })();
             
                 game.boardState = result.newBoardState;
                 for (const stone of result.capturedStones) {
@@ -1370,7 +1388,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     game.turnStartTime = undefined;
                 }
                 game.itemUseDeadline = undefined;
-                return {};
+                return petHintBonusResult ?? {};
             }
 
 
@@ -1389,6 +1407,15 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 if (!game.hiddenMoves) game.hiddenMoves = {};
                 game.hiddenMoves[game.moveHistory.length - 1] = true;
             }
+
+            const petHintBonusResult = await (async () => {
+                const { handleStrategicPetHintBonusClaim } = await import('../strategicPetHintAction.js');
+                return handleStrategicPetHintBonusClaim(game, user, {
+                    x,
+                    y,
+                    expectedMoveHistoryLength: game.moveHistory.length,
+                });
+            })();
 
             if (result.capturedStones.length > 0) {
                 // 길드전 별 판정(한 번에 따낸 최대 개수) 정확도를 위해 실시간 최대값 저장
@@ -1559,7 +1586,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
 
             // 따내기 목표 달성 시 턴을 넘기기 전에 종료(상대가 한 수 더 두는 레이스 방지)
             if (await tryEndGameWhenCaptureTargetReached(game, myPlayerEnum)) {
-                return {};
+                return petHintBonusResult ?? {};
             }
 
             if (pairCurrentSeat) {
@@ -1622,7 +1649,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                         } catch (scoringError: any) {
                             console.error(`[handleStandardAction] Error during auto-scoring for game ${game.id}:`, scoringError?.message);
                         }
-                        return {};
+                        return petHintBonusResult ?? {};
                     }
                     
                     // totalTurns가 autoScoringTurns-1이면 다음 AI 턴이 마지막 턴
@@ -1682,7 +1709,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 }
             }
             
-            return {};
+            return petHintBonusResult ?? {};
         }
         case 'PASS_TURN': {
             if (!isMyTurn || game.gameStatus !== 'playing') return { error: 'Not your turn to pass.' };

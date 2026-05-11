@@ -4944,7 +4944,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     // 클라이언트에서 시뮬레이션 실행
     const simulatedTournament = useTournamentSimulation(tournament, currentUser, effectiveChampionshipPlaybackSpeed);
     const displayTournament = simulatedTournament || tournament;
-    
+    const displayTournamentRef = useRef(displayTournament);
+    useEffect(() => {
+        displayTournamentRef.current = displayTournament;
+    }, [displayTournament]);
+
     const safeRounds = useMemo(() => {
         if (!tournament || !Array.isArray(tournament.rounds)) {
             return [];
@@ -5010,6 +5014,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             console.log('[TournamentBracket] ENTER_TOURNAMENT_VIEW 호출');
             onAction({ type: 'ENTER_TOURNAMENT_VIEW' });
             return () => {
+                const t = displayTournamentRef.current;
+                if (t?.status === 'round_in_progress') {
+                    void onAction({
+                        type: 'SAVE_TOURNAMENT_PROGRESS',
+                        payload: { type: t.type, tournamentSnapshot: t },
+                    });
+                }
                 console.log('[TournamentBracket] LEAVE_TOURNAMENT_VIEW 호출');
                 onAction({ type: 'LEAVE_TOURNAMENT_VIEW' });
             };
@@ -5622,7 +5633,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     
     const handleBackClickRaw = useCallback(() => {
         if (tournament.status === 'round_in_progress') {
-            // 경기 진행 중 뒤로가기: 일시정지(LEAVE) 후 로비로 이동 → 로비에서 "진행중.." + 이어보기 표시
+            // 경기 진행 중 뒤로가기: 클라 시뮬/실대국 상태를 스냅샷으로 저장 후 로비로 이동
+            void onAction({
+                type: 'SAVE_TOURNAMENT_PROGRESS',
+                payload: { type: tournament.type, tournamentSnapshot: displayTournament },
+            });
             onAction({ type: 'LEAVE_TOURNAMENT_VIEW' });
             onBack();
         } else if (tournament.status === 'bracket_ready' || tournament.status === 'round_complete') {
@@ -5632,7 +5647,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         } else {
             onBack();
         }
-    }, [onBack, onAction, tournament.status, tournament.type]);
+    }, [onBack, onAction, tournament.status, tournament.type, displayTournament]);
 
     const handleForfeitClickRaw = useCallback(() => {
         if (window.confirm('토너먼트를 포기하고 나가시겠습니까? 오늘의 참가 기회는 사라집니다.')) {
@@ -5652,17 +5667,22 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         handleBackClickRaw();
     }, [tournament.status, handleBackClickRaw]);
 
-    const confirmChampionshipArenaExitForfeit = useCallback(async () => {
+    const confirmChampionshipArenaExitToLobby = useCallback(async () => {
         const t = tournament.type;
         setShowChampionshipExitConfirmModal(false);
-        onAction({ type: 'LEAVE_TOURNAMENT_VIEW' });
         try {
-            await Promise.resolve(onAction({ type: 'FORFEIT_CURRENT_MATCH', payload: { type: t } }));
+            await Promise.resolve(
+                onAction({
+                    type: 'SAVE_TOURNAMENT_PROGRESS',
+                    payload: { type: t, tournamentSnapshot: displayTournament },
+                }),
+            );
         } catch (e) {
-            console.error('[TournamentBracket] FORFEIT_CURRENT_MATCH failed:', e);
+            console.error('[TournamentBracket] SAVE_TOURNAMENT_PROGRESS failed:', e);
         }
+        onAction({ type: 'LEAVE_TOURNAMENT_VIEW' });
         replaceAppHash('#/tournament');
-    }, [tournament.type, onAction]);
+    }, [tournament.type, onAction, displayTournament]);
 
     // 경기가 진행 중이거나, 경기가 막 끝났지만 아직 서버에서 상태가 업데이트되지 않은 경우
     // currentSimulatingMatch가 있으면 시뮬레이션 중으로 간주 (단, 토너 종료 후에는 stale 참조로 무한 시뮬 방지)
@@ -6221,9 +6241,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 onClick={handleChampionshipArenaExitClick}
                 colorScheme="none"
                 className={`${championshipFooterExitButton} !text-sm !py-2 !px-4`}
-                title={
+                                title={
                     tournament.status === 'round_in_progress'
-                        ? '나가면 이번 대국은 패배로 처리됩니다.'
+                        ? '로비로 나가도 저장 후 이어서 할 수 있습니다.'
                         : '경기장을 나갑니다.'
                 }
             >
@@ -6239,9 +6259,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 onClick={handleChampionshipArenaExitClick}
                 colorScheme="none"
                 className={`${championshipFooterExitButton} !text-xs !py-1.5 !px-3`}
-                title={
+                                title={
                     tournament.status === 'round_in_progress'
-                        ? '나가면 이번 대국은 패배로 처리됩니다.'
+                        ? '로비로 나가도 저장 후 이어서 할 수 있습니다.'
                         : '경기장을 나갑니다.'
                 }
             >
@@ -7597,8 +7617,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                 경기장 나가기
                             </h2>
                             <p className="mt-3 text-sm leading-relaxed text-slate-200">
-                                지금 나가면 진행 중이던 이번 대국은{' '}
-                                <span className="font-bold text-amber-200">패배</span>로 처리됩니다. 계속하시겠습니까?
+                                로비로 나가도 진행 중인 경기는 저장됩니다. 오늘 안에 같은 단계에서 이어서 진행할 수 있습니다. (날짜가 바뀌어 입장이 초기화되면 해당 진행은 무효됩니다.)
                             </p>
                             <div className="mt-5 flex flex-wrap justify-end gap-2">
                                 <Button
@@ -7613,9 +7632,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                     type="button"
                                     colorScheme="none"
                                     className={championshipFooterExitButton}
-                                    onClick={() => void confirmChampionshipArenaExitForfeit()}
+                                    onClick={() => void confirmChampionshipArenaExitToLobby()}
                                 >
-                                    그래도 나가기
+                                    로비로 나가기
                                 </Button>
                             </div>
                         </div>

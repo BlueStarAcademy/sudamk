@@ -13,6 +13,7 @@ import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaK
 interface SinglePlayerArenaProps extends GameProps {
     /** 전략 대표펫 힌트: Game.tsx → GameArena → 바둑판 파란 점 */
     strategicPetHintBoardOverlay?: { x: number; y: number; message: string; showBubble: boolean } | null;
+    strategicPetHintRewardAnimation?: { id: string; x: number; y: number; iconSrc: string; quantityLabel: string } | null;
     isMyTurn: boolean;
     myPlayerEnum: Player;
     handleBoardClick: (x: number, y: number) => void;
@@ -138,6 +139,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         intro1TutorialHighlight = null,
         singlePlayerStagesListRevision = 0,
         strategicPetHintBoardOverlay = null,
+        strategicPetHintRewardAnimation = null,
     } = props;
 
     const strategicPetHintDotOverlay = useMemo(() => {
@@ -544,6 +546,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     highlightStyle="ring"
                     canPlaceMoreBaseStones={canPlaceMoreBaseStones}
                     strategicPetHintOverlay={strategicPetHintDotOverlay}
+                    strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                 />
                 {showBoardGlow && (
                     <div

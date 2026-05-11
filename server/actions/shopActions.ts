@@ -684,24 +684,15 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
 
             const now = Date.now();
             const rewardConfig = await getRewardConfig();
-            /** 탭당 1회 · 장비/재료/소모품/다이아 탭별 1회, 일 총 3회 */
-            const PER_TAB_DAILY_LIMIT = 1;
-            const GLOBAL_DAILY_LIMIT = 3;
+            /** 장비·재료·소모품·다이아 탭 각각 일 3회(상점 광고 보상 합계 최대 12회) */
+            const PER_TAB_DAILY_LIMIT = 3;
             const purchaseKey = `ad_reward_${tab}`;
-            const globalPurchaseKey = 'ad_reward_global';
             if (!user.dailyShopPurchases) user.dailyShopPurchases = {};
             const rec = user.dailyShopPurchases[purchaseKey];
             const tabDateMs = shopPurchaseRecordDateMs(rec?.date);
             const claimsToday = rec && tabDateMs > 0 && isSameDayKST(tabDateMs, now) ? rec.quantity : 0;
-            const globalRec = user.dailyShopPurchases[globalPurchaseKey];
-            const globalDateMs = shopPurchaseRecordDateMs(globalRec?.date);
-            const globalClaimsToday =
-                globalRec && globalDateMs > 0 && isSameDayKST(globalDateMs, now) ? globalRec.quantity : 0;
             if (!user.isAdmin && claimsToday >= PER_TAB_DAILY_LIMIT) {
-                return { error: '오늘 광고 보상 수령 한도에 도달했습니다.' };
-            }
-            if (!user.isAdmin && globalClaimsToday >= GLOBAL_DAILY_LIMIT) {
-                return { error: '오늘 광고 보상 일일 총 수령 한도에 도달했습니다.' };
+                return { error: '오늘 이 탭 광고 보상 수령 한도에 도달했습니다.' };
             }
 
             const obtainedItems: InventoryItem[] = [];
@@ -764,7 +755,6 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
 
             if (!user.isAdmin) {
                 user.dailyShopPurchases[purchaseKey] = { quantity: claimsToday + 1, date: now };
-                user.dailyShopPurchases[globalPurchaseKey] = { quantity: globalClaimsToday + 1, date: now };
             }
 
             const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_SHOP_AD_REWARD', { includeAll: true });

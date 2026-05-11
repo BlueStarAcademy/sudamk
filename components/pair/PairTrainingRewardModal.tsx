@@ -385,7 +385,9 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
 
                     {phase === 'ready' && autoClaimOnMount ? (
                         <div className="mx-auto flex min-h-[5.5rem] max-w-sm flex-col items-center justify-center gap-1.5 py-2 sm:min-h-[6.5rem] sm:gap-2">
-                            <p className="text-xs font-bold text-fuchsia-100/90 sm:text-base">보상을 받는 중…</p>
+                            <p className="text-center text-xs font-bold leading-snug text-fuchsia-100/90 sm:text-base sm:leading-snug">
+                                펫이 수련을 완료하고 돌아올 준비를 하고 있습니다.
+                            </p>
                             <p className="text-[0.65rem] font-medium text-slate-500 sm:text-xs">잠시만 기다려 주세요.</p>
                         </div>
                     ) : phase === 'ready' ? (

@@ -66,7 +66,7 @@ import * as effectService from '../effectService.js';
 import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
 import { SHOP_ITEMS, createItemFromTemplate } from '../shop.js';
 import { updateQuestProgress } from '../questService.js';
-import { addItemsToInventory as addItemsToInventoryUtil } from '../../utils/inventoryUtils.js';
+import { addItemsToInventory as addItemsToInventoryUtil, normalizeInventoryAfterLoad } from '../../utils/inventoryUtils.js';
 import {
     canonicalShopConsumableBoxKey,
     inventoryStacksMatchConsumableBulkAnchor,
@@ -1347,7 +1347,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 item.type === 'material' && item.templateId && isPairPetMaterial(item) ? item.templateId : null;
 
             // 인벤토리를 깊은 복사하여 새로운 배열로 할당 (참조 문제 방지)
-            user.inventory = JSON.parse(JSON.stringify(user.inventory));
+            // 변경권은 슬롯당 100개까지만 쌓이고 총 보유량 제한은 없으므로, 판매 후 남은 레거시 초과 스택을 분할한다.
+            user.inventory = normalizeInventoryAfterLoad(JSON.parse(JSON.stringify(user.inventory)));
 
             let pairEquipFieldsChanged = false;
             if (soldPairPetTemplateId) {

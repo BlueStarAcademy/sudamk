@@ -4,7 +4,7 @@ import * as db from './db.js';
 import { type ServerAction, type User, type VolatileState, InventoryItem, Quest, QuestLog, Negotiation, Player, LeagueTier, TournamentType, GameMode } from '../shared/types/index.js';
 import * as types from '../shared/types/index.js';
 import { volatileState } from './state.js';
-import { isDifferentDayKST, isDifferentWeekKST, isDifferentMonthKST, getStartOfDayKST } from '../shared/utils/timeUtils.js';
+import { isDifferentDayKST, isDifferentWeekKST, isDifferentMonthKST, getStartOfDayKST, isSameDayKST } from '../shared/utils/timeUtils.js';
 import * as effectService from './effectService.js';
 import { regenerateActionPoints } from './effectService.js';
 import { updateGameStates } from './gameModes.js';
@@ -357,16 +357,55 @@ export const resetAndGenerateQuests = async (user: User): Promise<User> => {
     }
 
     const tournamentTypes: TournamentType[] = ['neighborhood', 'national', 'world'];
+    const typesClearedVolatile = new Set<TournamentType>();
     for (const type of tournamentTypes) {
         const playedDateKey = `last${type.charAt(0).toUpperCase() + type.slice(1)}PlayedDate` as keyof User;
         const rewardClaimedKey = `${type}RewardClaimed` as keyof User;
         const tournamentKey = `last${type.charAt(0).toUpperCase() + type.slice(1)}Tournament` as keyof User;
 
-        if (isDifferentDayKST((user as any)[playedDateKey], now)) {
+        const lastPlayedRaw = (user as any)[playedDateKey] as number | undefined | null;
+        const lastPlayed = typeof lastPlayedRaw === 'number' && lastPlayedRaw > 0 ? lastPlayedRaw : undefined;
+        // playedDate가 없을 때 매 로그인마다 토너먼트를 지우면 진행 중 이어보기가 불가능해짐
+        if (lastPlayed && isDifferentDayKST(lastPlayed, now)) {
             (updatedUser as any)[playedDateKey] = undefined;
             (updatedUser as any)[rewardClaimedKey] = undefined;
             (updatedUser as any)[tournamentKey] = null;
             modified = true;
+            typesClearedVolatile.add(type);
+        }
+
+        // 입장일(컨디션 스냅샷)이 바뀐 날: 일일 입장이 리셋된 것과 동일 → 진행 중 던전 런만 무효
+        const snap = updatedUser.dungeonConditionSnapshot?.[type];
+        const snapDay = snap?.dateStartOfDayKST;
+        if (snapDay && !isSameDayKST(snapDay, now)) {
+            const ts = (updatedUser as any)[tournamentKey] as types.TournamentState | null | undefined;
+            const rewardClaimed = !!(updatedUser as any)[rewardClaimedKey];
+            const midRun =
+                ts &&
+                ts.currentStageAttempt != null &&
+                ts.currentStageAttempt >= 1 &&
+                ts.type === type &&
+                ts.status !== 'complete' &&
+                ts.status !== 'eliminated';
+            if (midRun) {
+                (updatedUser as any)[tournamentKey] = null;
+                modified = true;
+                typesClearedVolatile.add(type);
+            }
+            if (updatedUser.dungeonConditionSnapshot?.[type]) {
+                delete updatedUser.dungeonConditionSnapshot[type];
+                if (Object.keys(updatedUser.dungeonConditionSnapshot).length === 0) {
+                    updatedUser.dungeonConditionSnapshot = undefined;
+                }
+                modified = true;
+            }
+        }
+    }
+
+    if (volatileState.activeTournaments) {
+        const activeT = volatileState.activeTournaments[updatedUser.id];
+        if (activeT && typesClearedVolatile.has(activeT.type)) {
+            delete volatileState.activeTournaments[updatedUser.id];
         }
     }
 
@@ -1467,10 +1506,11 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             ]);
             const shouldHandleBaseFlowOnStrategicPve =
                 pveStrategicBaseFlow && baseFlowServerActionTypes.has(type);
-            // 펫 힌트는 상태 변경 없이 clientResponse만 반환 — 아래 `handleStrategicGameAction`으로 넘긴다.
+            // 펫 힌트/힌트 보너스는 아래 `handleStrategicGameAction`으로 넘긴다.
             if (
                 type !== 'RESIGN_GAME' &&
                 type !== 'REQUEST_STRATEGIC_PET_HINT' &&
+                type !== 'CLAIM_STRATEGIC_PET_HINT_BONUS' &&
                 !shouldHandlePlaceStoneOnServer &&
                 !shouldHandleBaseFlowOnStrategicPve
             ) {
