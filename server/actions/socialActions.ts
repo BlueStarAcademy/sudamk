@@ -34,6 +34,7 @@ import { clearAiSession } from '../aiSessionManager.js';
 import { isLingerEndedPvpRoomCandidate, maybeDeleteDetachedEndedPvpGame } from '../maybeDeleteDetachedEndedPvpGame.js';
 import { aiUserId, getAiUser } from '../aiPlayer.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
+import { repairInProgressGhostPairPetTrainingSessions } from '../utils/repairPairPetTrainingSlots.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
 import { initializeGame } from '../gameModes.js';
@@ -5127,6 +5128,16 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             }
             user.pairPetTrainingSlots = normalizePairPetTrainingSlots(user.pairPetTrainingSlots);
             if (user.pairPetTrainingSlots[slotIndex]) {
+                const occ = user.pairPetTrainingSlots[slotIndex]!;
+                const petIdxOcc = user.inventory.findIndex((it) => it.id === occ.itemId);
+                const metaOcc =
+                    petIdxOcc >= 0 ? readPairPetMetaFromRow(user.inventory[petIdxOcc]!) : null;
+                const endAtOcc = trainingEndsAt(occ.startedAt, slotIndex, metaOcc);
+                if (petIdxOcc >= 0 && Date.now() >= endAtOcc) {
+                    return {
+                        error: '이 슬롯의 수련이 완료되었습니다. 보상을 수령한 뒤 새 수련을 시작해 주세요.',
+                    };
+                }
                 return { error: '이미 수련 중인 슬롯입니다.' };
             }
             const petIdx = user.inventory.findIndex((it) => it.id === itemId);
@@ -5323,6 +5334,18 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(user, ['inventory', 'gold', 'pairPetTrainingSlots']);
             return { clientResponse: { updatedUser, pairTrainingClaimSummary } };
+        }
+
+        case 'PAIR_PET_RESYNC_TRAINING_SLOTS': {
+            user.pairPetTrainingSlots = normalizePairPetTrainingSlots(user.pairPetTrainingSlots);
+            const repaired = repairInProgressGhostPairPetTrainingSessions(user);
+            if (repaired) {
+                await db.updateUser(user);
+                const { broadcastUserUpdate } = await import('../socket.js');
+                broadcastUserUpdate(user, ['pairPetTrainingSlots']);
+            }
+            const updatedUser = getSelectiveUserUpdate(user, 'PAIR_PET_RESYNC_TRAINING_SLOTS');
+            return { clientResponse: { updatedUser } };
         }
 
         case 'PAIR_PET_EXPAND_LOBBY_SLOTS': {

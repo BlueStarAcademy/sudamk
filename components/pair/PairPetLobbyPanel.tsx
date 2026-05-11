@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
@@ -467,6 +467,15 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         const persisted = normalizePairPetLobbyInventorySort(currentUser.pairPetLobbyInventorySort);
         if (persisted !== undefined) setInvSort(persisted);
     }, [currentUser.pairPetLobbyInventorySort]);
+
+    /** 클라·서버 수련 슬롯 불일치·진행 중 고아 세션 복구 — 로비 진입 시 1회(백그라운드) */
+    const pairTrainingSlotsResyncedRef = useRef(false);
+    useEffect(() => {
+        if (pairTrainingSlotsResyncedRef.current) return;
+        pairTrainingSlotsResyncedRef.current = true;
+        void handlers.handleAction({ type: 'PAIR_PET_RESYNC_TRAINING_SLOTS' });
+    }, [handlers.handleAction]);
+
     const [trainingTick, setTrainingTick] = useState(0);
     const [hatcheryTick, setHatcheryTick] = useState(0);
     /** 수련·부화 탭 붉은점: 다른 탭에 있어도 완료 시각이 지나면 갱신 */
@@ -1570,7 +1579,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                         }}
                                         onClick={() => {
                                             if (unlocked && session && canClaim && petRow && !isBusy) {
-                                                setTrainingRewardModal({ slotIndex: i, petItem: petRow });
+                                                setTrainingRewardModal({ slotIndex: i, petItem: petRow, autoClaimOnMount: true });
                                                 return;
                                             }
                                             if (!useTapTrainingFlow || !unlocked || session || isBusy) return;
@@ -1651,7 +1660,12 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                             tabIndex={0}
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                if (!isBusy) setTrainingRewardModal({ slotIndex: i, petItem: petRow });
+                                                                if (!isBusy)
+                                                                    setTrainingRewardModal({
+                                                                        slotIndex: i,
+                                                                        petItem: petRow,
+                                                                        autoClaimOnMount: true,
+                                                                    });
                                                             }}
                                                             className="absolute inset-0 flex items-center justify-center rounded-md bg-gradient-to-b from-lime-600/88 via-emerald-800/82 to-zinc-950/90 px-0.5 outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] transition hover:from-lime-500/90 hover:via-emerald-700/85 focus-visible:ring-2 focus-visible:ring-lime-200/90 disabled:opacity-45"
                                                             aria-label="수련 보상 수령"
@@ -2299,7 +2313,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     slotIndex={trainingRewardModal.slotIndex}
                     slotLabel={getPairTrainingSlotDisplayName(trainingRewardModal.slotIndex)}
                     petItem={trainingRewardModal.petItem}
-                    /** 마운트 시 자동 수령은 React Strict Mode에서 이중 호출되어 두 번째가 실패·모달만 닫히는 문제가 있어 기본은 수동 수령만 사용 */
+                    /** 완료 슬롯 탭 시 확인 없이 수령 — 중복 API는 PairTrainingRewardModal 쪽 in-flight 공유로 방지 */
                     autoClaimOnMount={trainingRewardModal.autoClaimOnMount === true}
                     onClose={() => setTrainingRewardModal(null)}
                     applyPetAction={applyPetAction}

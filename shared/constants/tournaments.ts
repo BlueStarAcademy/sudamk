@@ -18,6 +18,28 @@ export const CHAMPIONSHIP_VENUE_LOBBY_BG_IMAGE: Record<TournamentType, string> =
 /** PVE 던전과 별도 — PVP 챔피언십(예정) 로비 카드·향후 인게임 배경 등 */
 export const CHAMPIONSHIP_PVP_VENUE_BG_WEBP = '/images/bg/champ4.webp';
 
+/** 펫 챔피언십 로비 입장 카드·인게임 배경 (`public/images/bg/pet.webp`) */
+export const CHAMPIONSHIP_PET_VENUE_BG_WEBP = '/images/bg/pet.webp';
+
+/** 펫 페어 챔피언십 로비 입장 카드·인게임 배경 (`public/images/bg/petpair.webp`) */
+export const CHAMPIONSHIP_PET_PAIR_VENUE_BG_WEBP = '/images/bg/petpair.webp';
+
+/** 인게임 챔피언십 경기장 전면 배경 (던전 종류별). `pet`은 향후 세션 타입 연동 시 동일 URL 사용 */
+export const CHAMPIONSHIP_ARENA_IN_GAME_BG: Record<TournamentType, string> = {
+    neighborhood: '/images/bg/champ1.webp',
+    national: '/images/bg/champ2.webp',
+    world: '/images/bg/champ3.webp',
+};
+
+export function getChampionshipArenaBackgroundUrl(venueType: string): string {
+    if (venueType === 'pet') return CHAMPIONSHIP_PET_VENUE_BG_WEBP;
+    if (venueType === 'petpair') return CHAMPIONSHIP_PET_PAIR_VENUE_BG_WEBP;
+    if (venueType === 'neighborhood' || venueType === 'national' || venueType === 'world') {
+        return CHAMPIONSHIP_ARENA_IN_GAME_BG[venueType];
+    }
+    return CHAMPIONSHIP_ARENA_IN_GAME_BG.world;
+}
+
 export type TournamentRewardInfo = QuestReward;
 
 // 동네바둑리그 리그별 경기 보상 (승리/패배)

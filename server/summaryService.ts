@@ -41,6 +41,7 @@ import {
 } from '../shared/utils/strategicAiDifficulty.js';
 import { getKataServerRuntimeSnapshot } from './kataServerRuntimeStore.js';
 import { createItemInstancesFromReward, addItemsToInventory } from '../utils/inventoryUtils.js';
+import { finalizeRewardEquipmentInstances } from './finalizeRewardEquipmentInstances.js';
 import * as guildService from './guildService.js';
 import { adventureMonsterGoldLevelMultiplier } from '../constants/adventureConstants.js';
 import {
@@ -293,7 +294,9 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
             summary.gold = rewards.gold;
             summary.xp = { initial: initialXp, change: rewards.exp, final: user.userXp };
 
-            const itemsToCreate = rewards.items?.length ? createItemInstancesFromReward(rewards.items) : [];
+            const itemsToCreate = rewards.items?.length
+                ? finalizeRewardEquipmentInstances(createItemInstancesFromReward(rewards.items))
+                : [];
             const { success, updatedInventory } = addItemsToInventory([...user.inventory], user.inventorySlots, itemsToCreate);
 
             if (!success) {
@@ -489,7 +492,7 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
             
             // 아이템 보상 처리
             if (rewards.items && rewards.items.length > 0) {
-                const itemInstances = createItemInstancesFromReward(rewards.items);
+                const itemInstances = finalizeRewardEquipmentInstances(createItemInstancesFromReward(rewards.items));
                 const grantedStageItems = grantTowerItemsToInventory(itemInstances);
                 summary.items = [...(summary.items ?? []), ...grantedStageItems];
             }

@@ -4,6 +4,8 @@ import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './Drag
 import Button from './Button.js';
 import Avatar from './Avatar.js';
 import { getSinglePlayerStages, AVATAR_POOL, BORDER_POOL } from '../constants';
+import { getItemTemplateByName } from '../utils/itemTemplateLookup.js';
+import { ItemGrade } from '../types/enums.js';
 import { resolveLiveSessionSinglePlayerStageRow } from '../shared/utils/liveSessionSinglePlayerStage.js';
 import { ScoringOverlay } from './game/ScoringOverlay.js';
 import { useAppContext } from '../hooks/useAppContext.js';
@@ -217,14 +219,44 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                     final: currentUser.userXp + (rewards.exp || 0),
                 },
                 items: rewards.items
-                    ? rewards.items.map((item: any) => ({
-                          id: `temp-${item.itemId}-${Date.now()}`,
-                          name: item.itemId,
-                          image: '/images/icon/item.png',
-                          type: 'consumable',
-                          grade: 'common',
-                          quantity: item.quantity || 1,
-                      }))
+                    ? rewards.items.map((ref: { itemId: string; quantity: number }) => {
+                          const tpl = getItemTemplateByName(ref.itemId);
+                          const qty = ref.quantity || 1;
+                          const imageSrc = tpl?.image
+                              ? tpl.image.startsWith('/')
+                                  ? tpl.image
+                                  : `/${tpl.image}`
+                              : '/images/icon/item.png';
+                          if (tpl?.type === 'equipment') {
+                              return {
+                                  id: `temp-${ref.itemId}-${Date.now()}`,
+                                  name: tpl.name,
+                                  image: imageSrc,
+                                  type: 'equipment' as const,
+                                  grade: tpl.grade,
+                                  slot: tpl.slot,
+                                  quantity: qty,
+                              };
+                          }
+                          if (tpl) {
+                              return {
+                                  id: `temp-${ref.itemId}-${Date.now()}`,
+                                  name: tpl.name,
+                                  image: imageSrc,
+                                  type: tpl.type,
+                                  grade: tpl.grade,
+                                  quantity: qty,
+                              };
+                          }
+                          return {
+                              id: `temp-${ref.itemId}-${Date.now()}`,
+                              name: ref.itemId,
+                              image: '/images/icon/item.png',
+                              type: 'consumable' as const,
+                              grade: ItemGrade.Normal,
+                              quantity: qty,
+                          };
+                      })
                     : [],
             };
         }
@@ -481,6 +513,12 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                     quantity={item.quantity}
                                     compact={desktopCompactRewards || isMobile}
                                     dimmed={!summary}
+                                    equipmentGrade={
+                                        item.type === 'equipment' && item.grade != null
+                                            ? (item.grade as ItemGrade)
+                                            : undefined
+                                    }
+                                    alwaysShowNameBelow={item.type === 'equipment'}
                                     onImageError={(e) => {
                                         (e.target as HTMLImageElement).style.display = 'none';
                                     }}

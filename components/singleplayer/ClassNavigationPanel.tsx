@@ -71,27 +71,31 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
     return (
         <div
             className={`${shellClass} ${
-                isMobile ? 'p-1 sm:p-1.5' : lobbyChrome ? 'p-3 sm:p-4' : 'p-4'
+                topShelf ? 'p-1' : isMobile ? 'p-1 sm:p-1.5' : lobbyChrome ? 'p-3 sm:p-4' : 'p-4'
             }`}
         >
             {lobbyChrome && (
                 <>
                     {lobbyChrome.compactTitleBar ? (
-                        <div className={`mb-1.5 w-full shrink-0 ${lobbyTitleStripVisual}`}>
-                            <div className="grid w-full grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-1">
+                        <div className={`mb-1 w-full shrink-0 ${lobbyTitleStripVisual} ${topShelf ? '!p-1' : ''}`}>
+                            <div
+                                className={`grid w-full items-center gap-0.5 ${topShelf ? 'grid-cols-[2.125rem_minmax(0,1fr)_2.125rem]' : 'grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] gap-1'}`}
+                            >
                                 <button
                                     type="button"
                                     onClick={lobbyChrome.onBack}
                                     data-onboarding-target="onboarding-sp-lobby-back"
-                                    className="relative z-[1] flex h-9 w-9 shrink-0 items-center justify-center transition-transform active:scale-90 hover:drop-shadow-lg"
+                                    className={`relative z-[1] flex shrink-0 items-center justify-center transition-transform active:scale-90 hover:drop-shadow-lg ${topShelf ? 'h-8 w-8' : 'h-9 w-9'}`}
                                     aria-label="뒤로가기"
                                 >
                                     <img src="/images/button/back.png" alt="" className="h-full w-full" />
                                 </button>
-                                <h1 className="truncate text-center text-sm font-bold bg-gradient-to-r from-emerald-100 to-teal-200 bg-clip-text text-transparent">
+                                <h1
+                                    className={`truncate text-center font-bold bg-gradient-to-r from-emerald-100 to-teal-200 bg-clip-text text-transparent ${topShelf ? 'text-xs' : 'text-sm'}`}
+                                >
                                     {lobbyChrome.screenTitle}
                                 </h1>
-                                <div className="w-9 shrink-0" aria-hidden />
+                                <div className={`shrink-0 ${topShelf ? 'w-8' : 'w-9'}`} aria-hidden />
                             </div>
                         </div>
                     ) : (
@@ -111,11 +115,11 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                 </>
             )}
             <h2
-                className={`border-b border-white/10 text-center font-bold tracking-tight text-on-panel ${
+                className={`border-b border-white/10 text-center font-semibold tracking-tight text-on-panel ${
                     lobbyChrome && !isMobile
                         ? 'mb-2 pb-1.5 text-base lg:text-lg'
                         : topShelf
-                          ? 'mb-0.5 pb-0 text-sm'
+                          ? 'mb-0 border-white/[0.07] pb-0 text-[11px] text-zinc-300/95'
                           : isMobile
                             ? 'mb-1 pb-0.5 text-sm'
                             : 'mb-4 pb-2 text-xl'
@@ -125,19 +129,19 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
             </h2>
 
             {/* 큰 이미지와 좌우 화살표 — py로 상·하 그림자/스케일 여유, 화살표는 세로 중앙 고정 */}
-            <div className={`relative flex min-h-0 flex-1 items-center justify-center ${topShelf ? 'py-1.5' : isMobile ? 'py-2' : 'py-2.5'}`}>
+            <div className={`relative flex min-h-0 flex-1 items-center justify-center ${topShelf ? 'py-1' : isMobile ? 'py-2' : 'py-2.5'}`}>
                 {/* 좌측 화살표 버튼 */}
                 <button
                     onClick={handlePrevious}
                     disabled={currentIndex === 0}
                     className={`
-                        absolute left-0 top-1/2 z-10 -translate-y-1/2 ${isMobile ? 'h-10 w-10' : 'h-14 w-14'} ${navBtnBase}
+                        absolute left-0 top-1/2 z-10 -translate-y-1/2 ${topShelf ? 'h-8 w-8' : isMobile ? 'h-10 w-10' : 'h-14 w-14'} ${navBtnBase}
                         ${currentIndex === 0 ? navBtnDisabled : navBtnActive}
                     `}
                     aria-label="이전 단계"
                 >
                     <svg
-                        className={`${isMobile ? 'h-5 w-5' : 'h-8 w-8'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}
+                        className={`${topShelf ? 'h-4 w-4' : isMobile ? 'h-5 w-5' : 'h-8 w-8'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}
                         fill="none" 
                         stroke="currentColor" 
                         viewBox="0 0 24 24"
@@ -147,11 +151,11 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                 </button>
 
                 {/* 현재 선택된 클래스 이미지 */}
-                <div className={`relative flex h-full min-h-0 flex-1 flex-col items-center justify-center ${isMobile ? 'mx-11' : 'mx-16'}`}>
+                <div className={`relative flex h-full min-h-0 flex-1 flex-col items-center justify-center ${topShelf ? 'mx-9' : isMobile ? 'mx-11' : 'mx-16'}`}>
                     <div
                         className={`relative h-full w-full overflow-hidden rounded-xl border-2 border-emerald-400/40 shadow-[0_0_28px_rgba(16,185,129,0.2),0_6px_20px_rgba(0,0,0,0.45)] ring-1 ring-amber-400/20 ${
                             topShelf
-                                ? 'max-h-[min(24dvh,200px)] min-h-[min(11dvh,92px)]'
+                                ? 'max-h-[min(17dvh,148px)] min-h-[min(8dvh,72px)] sm:max-h-[min(19dvh,168px)]'
                                 : isMobile
                                   ? 'max-h-[min(58dvh,440px)] min-h-[min(32dvh,240px)]'
                                   : 'max-h-[500px]'
@@ -174,13 +178,13 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                         {/* PC·모바일 공통: 상단 단계명(반투명 패널) + 하단 진행 표시 */}
                         <div
                             className={`pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/92 via-black/45 to-transparent text-center ${
-                                topShelf ? 'px-2 pb-3.5 pt-1' : isMobile ? 'px-2 pb-12 pt-2.5' : 'px-4 pb-14 pt-4'
+                                topShelf ? 'px-1.5 pb-2 pt-0.5' : isMobile ? 'px-2 pb-12 pt-2.5' : 'px-4 pb-14 pt-4'
                             }`}
                         >
-                            <div className="mx-auto inline-flex items-center justify-center rounded-lg border border-amber-400/35 bg-black/55 shadow-[0_2px_14px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-[2px]">
+                            <div className="mx-auto inline-flex items-center justify-center rounded-md border border-amber-400/35 bg-black/55 shadow-[0_2px_14px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-[2px] sm:rounded-lg">
                                 <div
                                     className={`font-black leading-tight tracking-tight text-amber-50 [text-shadow:0_1px_0_rgba(255,255,255,0.15),0_3px_12px_rgba(0,0,0,0.95),0_0_18px_rgba(251,191,36,0.4)] ${
-                                        topShelf ? 'px-2 py-0.5 text-lg' : isMobile ? 'px-3 py-1 text-2xl' : 'px-4 py-1.5 text-3xl lg:text-4xl'
+                                        topShelf ? 'px-1.5 py-0.5 text-sm' : isMobile ? 'px-3 py-1 text-2xl' : 'px-4 py-1.5 text-3xl lg:text-4xl'
                                     }`}
                                 >
                                     {currentClass.name}
@@ -188,10 +192,10 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                             </div>
                         </div>
                         <div
-                            className={`pointer-events-none absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/88 via-black/55 to-transparent text-center ${isMobile ? 'px-2 py-2' : 'px-4 py-3'}`}
+                            className={`pointer-events-none absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/88 via-black/55 to-transparent text-center ${topShelf ? 'px-1.5 py-1' : isMobile ? 'px-2 py-2' : 'px-4 py-3'}`}
                         >
                             <div
-                                className={`font-semibold tabular-nums text-amber-100/90 ${topShelf ? 'text-[11px]' : isMobile ? 'text-xs' : 'text-sm'}`}
+                                className={`font-semibold tabular-nums text-amber-100/90 ${topShelf ? 'text-[10px]' : isMobile ? 'text-xs' : 'text-sm'}`}
                             >
                                 {currentIndex + 1} / {CLASS_INFO.length}
                             </div>
@@ -199,7 +203,7 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                     </div>
                     
                     {/* 하단 클래스 선택 인디케이터 — 하단 클리핑 여유 */}
-                    <div className={`flex shrink-0 flex-wrap justify-center gap-1 ${isMobile ? 'mt-1 pb-0.5' : 'mt-3 pb-1'}`}>
+                    <div className={`flex shrink-0 flex-wrap justify-center gap-0.5 ${topShelf ? 'mt-0.5 pb-0' : isMobile ? 'mt-1 pb-0.5' : 'mt-3 pb-1'}`}>
                         {CLASS_INFO.map((classInfo, index) => {
                             const isSelected = selectedClass === classInfo.level;
                             return (
@@ -228,13 +232,13 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                     onClick={handleNext}
                     disabled={currentIndex === CLASS_INFO.length - 1}
                     className={`
-                        absolute right-0 top-1/2 z-10 -translate-y-1/2 ${isMobile ? 'h-10 w-10' : 'h-14 w-14'} ${navBtnBase}
+                        absolute right-0 top-1/2 z-10 -translate-y-1/2 ${topShelf ? 'h-8 w-8' : isMobile ? 'h-10 w-10' : 'h-14 w-14'} ${navBtnBase}
                         ${currentIndex === CLASS_INFO.length - 1 ? navBtnDisabled : navBtnActive}
                     `}
                     aria-label="다음 단계"
                 >
                     <svg
-                        className={`${isMobile ? 'h-5 w-5' : 'h-8 w-8'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}
+                        className={`${topShelf ? 'h-4 w-4' : isMobile ? 'h-5 w-5' : 'h-8 w-8'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}
                         fill="none" 
                         stroke="currentColor" 
                         viewBox="0 0 24 24"

@@ -268,7 +268,7 @@ interface SinglePlayerPanelProps {
     speedBonusSecToNextDrop?: number | null;
     /** 스피드: 10초 단위 막대·카운트(패널 하단). PVP는 양쪽, PVE는 내 패널만 */
     showSpeedTenSecBar?: boolean;
-    /** 싱글/탑 모바일 2행 헤더: `profile` = 가로 프로필만, `stats` = 시간·점수만(수순 박스는 PlayerPanel 중앙) */
+    /** 싱글/탑 모바일 2행 헤더: `profile` = 가로 프로필만, `stats` = 시간·점수·스피드 10초 막대(수순 박스는 PlayerPanel 중앙) */
     pveMobileLayoutTier?: 'full' | 'profile' | 'stats';
 }
 
@@ -714,7 +714,6 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                         </p>
                     </div>
                 </div>
-                {speedPressureFooter}
             </div>
         );
     }
@@ -1779,14 +1778,132 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         ? `${compactBarFixedHeightClass} items-stretch justify-between gap-1.5 overflow-hidden`
         : 'h-full items-stretch gap-2 min-[1025px]:gap-1.5';
 
-    /** 싱글/탑 모바일·좁은 창: 프로필 행 + (시간·점수 | 수순 | 시간·점수) — 모험·중앙 특수 박스(알까기 등)는 기존 1행 유지 */
-    const usePveSplitCompactHeader =
-        compactPlayerBar &&
-        (Boolean(session.isSinglePlayer) || session.gameCategory === 'tower') &&
-        session.gameCategory !== 'adventure' &&
-        !showPlayfulStonesBox &&
-        !showStrategicTurnBox &&
-        !showAlkkagiRoundBox;
+    /** 모바일·좁은 창: 2행 상단 — (1) 대국자 (2) 시간·점수·중앙 특수 박스(주사위/알까기/전략 턴·싱글·탑 수순 등) */
+    const mobileSplitCenterEl = useMemo(() => {
+        if (showPlayfulStonesBox) {
+            return (
+                <div
+                    className={`flex flex-col items-center justify-center ${playfulStonesBoxSize} flex-shrink-0 self-stretch rounded-lg border-2 border-amber-400/55 bg-gradient-to-b from-gray-900/95 to-black/90 shadow-xl px-1 py-1`}
+                    role="status"
+                    aria-live="polite"
+                    aria-label={
+                        hidePlayfulStonesCountDuringRollAnim
+                            ? thiefUiRound != null
+                                ? `라운드 ${thiefUiRound} / ${THIEF_NIGHTS_PER_SEGMENT}. ${playfulRollAnimAriaHint}`
+                                : playfulRollAnimAriaHint
+                            : thiefUiRound != null
+                              ? `라운드 ${thiefUiRound} / ${THIEF_NIGHTS_PER_SEGMENT}, 남은 착수 ${playfulStonesCountDisplay}개`
+                              : `남은 착수 ${playfulStonesCountDisplay}개`
+                    }
+                >
+                    {thiefUiRound != null && (
+                        <span
+                            className={`${compactPlayerBar ? 'text-[0.65rem]' : 'text-[clamp(0.55rem,1.8vmin,0.72rem)]'} mb-0.5 text-center font-bold tabular-nums leading-none text-amber-100/95`}
+                        >
+                            라운드 {thiefUiRound}/{THIEF_NIGHTS_PER_SEGMENT}
+                        </span>
+                    )}
+                    <span
+                        className={`${compactPlayerBar ? 'text-xs' : 'text-[clamp(0.55rem,1.8vmin,0.7rem)]'} text-center font-semibold leading-tight whitespace-nowrap text-amber-200/85`}
+                    >
+                        남은 돌
+                    </span>
+                    <span
+                        className={`font-mono font-bold tabular-nums text-amber-300 ${compactPlayerBar ? 'text-3xl' : 'text-3xl md:text-4xl'} mt-0.5 leading-none min-w-[1.25em] text-center`}
+                    >
+                        {hidePlayfulStonesCountDuringRollAnim ? (
+                            <span className="inline-block text-amber-200/25 select-none" aria-hidden>
+                                —
+                            </span>
+                        ) : (
+                            playfulStonesCountDisplay
+                        )}
+                    </span>
+                </div>
+            );
+        }
+        if (showAlkkagiRoundBox) {
+            return (
+                <div className={`${turnInfoShellClass} bg-gray-800/95 rounded-lg border-2 border-gray-500 shadow-xl`}>
+                    <div
+                        className={`flex w-full flex-col items-center justify-center px-1 text-center ${
+                            compactPlayerBar ? 'min-h-0 flex-1' : ''
+                        }`}
+                    >
+                        <span className={`${turnInfoLabelSize} text-gray-300 ${compactPlayerBar ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>
+                            라운드
+                        </span>
+                        <span className={`${turnInfoValueSize} font-bold text-amber-300 tabular-nums`}>
+                            ({alkkagiRoundCurrent}/{alkkagiRoundTotal})
+                        </span>
+                    </div>
+                </div>
+            );
+        }
+        if (showStrategicTurnBox && strategicLobbyTurnInfo) {
+            return (
+                <div className={`${turnInfoShellClass} bg-gray-800/95 rounded-lg border-2 border-gray-500 shadow-xl`}>
+                    <div
+                        className={`flex w-full flex-col items-center justify-center px-1 text-center ${
+                            compactPlayerBar ? 'min-h-0 flex-1' : ''
+                        }`}
+                    >
+                        <span className={`${turnInfoLabelSize} text-gray-300 ${compactPlayerBar ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>
+                            {strategicLobbyTurnInfo.label}
+                        </span>
+                        {strategicLobbyTurnInfo.type === 'moves_only' ? (
+                            <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{strategicLobbyTurnInfo.current}수</span>
+                        ) : (
+                            <div className="flex items-baseline justify-center gap-0.5">
+                                <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{strategicLobbyTurnInfo.current}</span>
+                                <span className={`${turnInfoTotalSize} text-gray-400`}>/ {strategicLobbyTurnInfo.total}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+        if ((isSinglePlayer || session.gameCategory === 'tower') && turnInfo) {
+            return (
+                <div className={`${turnInfoShellClass} bg-stone-800/95 rounded-lg border-2 border-stone-500 shadow-xl`}>
+                    <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center px-1 text-center">
+                        <span className={`${turnInfoLabelSize} text-stone-300 ${compactPlayerBar ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>
+                            {turnInfo.label}
+                        </span>
+                        {turnInfo.type === 'pve_moves_only' ? (
+                            <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{turnInfo.current}수</span>
+                        ) : (
+                            <div className="flex items-baseline justify-center gap-0.5">
+                                <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{turnInfo.remaining}</span>
+                                <span className={`${turnInfoTotalSize} text-stone-400`}>/{turnInfo.total}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+        return null;
+    }, [
+        showPlayfulStonesBox,
+        playfulStonesBoxSize,
+        hidePlayfulStonesCountDuringRollAnim,
+        thiefUiRound,
+        playfulRollAnimAriaHint,
+        playfulStonesCountDisplay,
+        compactPlayerBar,
+        showAlkkagiRoundBox,
+        turnInfoShellClass,
+        turnInfoLabelSize,
+        turnInfoValueSize,
+        turnInfoTotalSize,
+        alkkagiRoundCurrent,
+        alkkagiRoundTotal,
+        showStrategicTurnBox,
+        strategicLobbyTurnInfo,
+        isSinglePlayer,
+        session.gameCategory,
+        turnInfo,
+    ]);
 
     const adventurePregameColorReveal =
         session.gameCategory === 'adventure' &&
@@ -1799,25 +1916,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const userPanelOnboardingTarget =
         singlePlayerOnboardingBarHighlight === 'user-panel' && currentUser?.id === leftPlayerUser.id;
 
-    const pveSplitTurnInfoCenter =
-        (isSinglePlayer || session.gameCategory === 'tower') && turnInfo ? (
-            <div className={`${turnInfoShellClass} bg-stone-800/95 rounded-lg border-2 border-stone-500 shadow-xl`}>
-                <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center px-1 text-center">
-                    <span className={`${turnInfoLabelSize} text-stone-300 ${compactPlayerBar ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>
-                        {turnInfo.label}
-                    </span>
-                    {turnInfo.type === 'pve_moves_only' ? (
-                        <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{turnInfo.current}수</span>
-                    ) : (
-                        <div className="flex items-baseline justify-center gap-0.5">
-                            <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{turnInfo.remaining}</span>
-                            <span className={`${turnInfoTotalSize} text-stone-400`}>/{turnInfo.total}</span>
-                        </div>
-                    )}
-                </div>
-            </div>
-        ) : null;
-
     if (adventurePregameColorReveal) {
         return (
             <div
@@ -1829,7 +1927,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         );
     }
 
-    if (usePveSplitCompactHeader) {
+    if (compactPlayerBar) {
         return (
             <div className="flex w-full min-w-0 flex-shrink-0 flex-col gap-1.5" {...barHighlightAttrs}>
                 <div className="flex w-full min-h-[3.25rem] flex-shrink-0 items-stretch gap-2 overflow-hidden">
@@ -1942,7 +2040,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             {...leftAdventureCdProps}
                         />
                     </div>
-                    {pveSplitTurnInfoCenter}
+                    {mobileSplitCenterEl}
                     <div className={playerColClass}>
                         <SinglePlayerPanel
                             user={towerOpponentPanelUser}
@@ -2007,7 +2105,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     mode={mode}
                     isSinglePlayer={isSinglePlayer}
                     isMobile={isMobile}
-                    fluidTextLayout={compactPlayerBar}
+                    fluidTextLayout={false}
                     showElapsedOnly={leftShowElapsedOnly}
                     isCurrentUser={leftPlayerUser.id === currentUser?.id}
                     opponentMonsterDisplay={isLeftAi ? adventureMonsterPanel : undefined}

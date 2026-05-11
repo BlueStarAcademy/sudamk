@@ -17,6 +17,13 @@ import PairPetLevelUpCoreDelta from './PairPetLevelUpCoreDelta.js';
 const XP_BAR_BASE_MS = 700;
 const XP_BAR_GAIN_MS = 600;
 
+/**
+ * 마운트 직후 자동 수령: React Strict Mode에서 effect가 두 번 실행되면 동일 슬롯으로
+ * `PAIR_PET_CLAIM_TRAINING`이 중복 전송되어 첫 요청은 성공·두 번째는 실패할 수 있다.
+ * 같은 slotIndex에 대해 진행 중인 Promise를 공유한다.
+ */
+const pairTrainingClaimInFlightBySlotIndex = new Map<number, Promise<unknown>>();
+
 /** 대국 결과 모달 `XpBar`와 동일한 애니메이션·레이아웃(펫 수련 보상 전용) */
 const TrainingClaimXpBar: React.FC<{
     initial: number;
@@ -266,16 +273,28 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
         setSummary(null);
         if (!autoClaimOnMount) return;
         let cancelled = false;
-        void (async () => {
-            const res = (await applyPetActionRef.current({
+
+        let inflight = pairTrainingClaimInFlightBySlotIndex.get(slotIndex);
+        if (!inflight) {
+            inflight = applyPetActionRef.current({
                 type: 'PAIR_PET_CLAIM_TRAINING',
                 payload: { slotIndex },
-            })) as {
+            });
+            pairTrainingClaimInFlightBySlotIndex.set(slotIndex, inflight);
+            void inflight.finally(() => {
+                if (pairTrainingClaimInFlightBySlotIndex.get(slotIndex) === inflight) {
+                    pairTrainingClaimInFlightBySlotIndex.delete(slotIndex);
+                }
+            });
+        }
+
+        void inflight.then((raw) => {
+            if (cancelled) return;
+            const res = raw as {
                 error?: string;
                 pairTrainingClaimSummary?: PairTrainingClaimClientSummary;
                 clientResponse?: { pairTrainingClaimSummary?: PairTrainingClaimClientSummary };
             } | null;
-            if (cancelled) return;
             if (res?.error) {
                 window.alert(res.error);
                 onCloseRef.current();
@@ -293,7 +312,8 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
             }
             setSummary(s);
             setPhase('done');
-        })();
+        });
+
         return () => {
             cancelled = true;
         };

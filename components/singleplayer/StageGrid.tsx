@@ -165,20 +165,20 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                 usePremiumDesktop
                     ? 'rounded-xl border border-emerald-500/20 bg-gradient-to-b from-zinc-900 via-zinc-950 to-black ring-1 ring-white/[0.06]'
                     : 'rounded-lg bg-panel'
-            } ${tabShelf ? 'p-2.5' : isMobile ? 'p-2.5' : usePremiumDesktop ? 'p-4 sm:p-5' : 'p-4'}`}
+            } ${tabShelf ? 'p-1.5' : isMobile ? 'p-2.5' : usePremiumDesktop ? 'p-4 sm:p-5' : 'p-4'}`}
         >
             <div
-                className={`flex flex-shrink-0 items-start justify-between gap-2 border-b border-color ${tabShelf ? 'mb-1.5 pb-1' : isMobile ? 'mb-2 pb-1' : 'mb-4 pb-2'}`}
+                className={`flex flex-shrink-0 items-start justify-between gap-1.5 border-b border-color ${tabShelf ? 'mb-1 pb-0.5' : isMobile ? 'mb-2 pb-1' : 'mb-4 pb-2'}`}
             >
                 <h2
-                    className={`font-bold text-on-panel min-w-0 flex-1 leading-tight ${tabShelf ? 'text-xl' : isMobile ? 'text-lg' : 'text-xl'}`}
+                    className={`font-bold text-on-panel min-w-0 flex-1 leading-tight ${tabShelf ? 'text-base' : isMobile ? 'text-lg' : 'text-xl'}`}
                 >
                     {classLabel} 스테이지
                 </h2>
                 <button
                     type="button"
                     onClick={() => setRewardsModalOpen(true)}
-                    className={`flex-shrink-0 rounded-lg border border-amber-400/45 bg-gradient-to-b from-amber-500/25 via-amber-900/35 to-amber-950/50 px-2 py-1 font-bold text-amber-100 shadow-[0_2px_12px_rgba(245,158,11,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] hover:brightness-110 active:scale-[0.98] transition-all sm:px-2.5 sm:py-1.5 ${tabShelf ? 'text-sm' : isMobile ? 'text-xs' : 'text-xs sm:text-sm'}`}
+                    className={`flex-shrink-0 rounded-md border border-amber-400/45 bg-gradient-to-b from-amber-500/25 via-amber-900/35 to-amber-950/50 font-bold text-amber-100 shadow-[0_2px_12px_rgba(245,158,11,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] hover:brightness-110 active:scale-[0.98] transition-all sm:rounded-lg ${tabShelf ? 'px-1.5 py-0.5 text-[10px]' : isMobile ? 'px-2 py-1 text-xs' : 'px-2 py-1 text-xs sm:px-2.5 sm:py-1.5 sm:text-sm'}`}
                     aria-label="스테이지 클리어 보상표 열기"
                 >
                     보상표
@@ -196,18 +196,18 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
             />
             
             <div
-                className={`min-h-0 flex-1 overflow-y-auto overscroll-contain pb-2 pr-1 pt-2 pl-2 -mr-1 ${tabShelf ? 'sm:pt-2 sm:pl-2' : isMobile ? 'sm:pt-2 sm:pl-2' : 'sm:pt-2.5 sm:pl-2.5'}`}
+                className={`min-h-0 flex-1 overflow-y-auto overscroll-contain pb-1.5 pr-0.5 pt-1.5 pl-1.5 -mr-0.5 ${tabShelf ? '' : isMobile ? 'sm:pt-2 sm:pl-2' : 'sm:pt-2.5 sm:pl-2.5'}`}
             >
                 <div
-                    className={`grid min-w-0 pb-1 ${tabShelf ? 'gap-2.5' : isMobile ? 'gap-2' : 'gap-2.5'}`}
+                    className={`grid min-w-0 pb-0.5 ${tabShelf ? 'gap-1.5' : isMobile ? 'gap-2' : 'gap-2.5'}`}
                     style={{
                         gridTemplateColumns: tabShelf
-                            ? 'repeat(auto-fill, minmax(118px, 1fr))'
+                            ? 'repeat(auto-fill, minmax(100px, 1fr))'
                             : isMobile
                               ? 'repeat(auto-fill, minmax(108px, 1fr))'
                               : 'repeat(auto-fill, minmax(140px, 1fr))',
                         gridAutoRows: tabShelf
-                            ? 'minmax(180px, auto)'
+                            ? 'minmax(148px, auto)'
                             : isMobile
                               ? 'minmax(158px, auto)'
                               : 'minmax(180px, auto)'
@@ -241,7 +241,9 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
 
                         const cardSurface = usePremiumDesktop
                             ? 'relative flex min-h-0 min-w-0 flex-col items-center justify-between overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-b from-zinc-800/95 via-zinc-900 to-black/95 px-2.5 py-3 shadow-[0_14px_34px_-18px_rgba(0,0,0,0.88)] ring-1 ring-white/[0.06]'
-                            : 'relative bg-tertiary/90 rounded-lg border border-color/40 px-2.5 py-3 flex flex-col items-center justify-between min-h-0 min-w-0';
+                            : tabShelf
+                              ? 'relative flex min-h-0 min-w-0 flex-col items-center justify-between overflow-hidden rounded-md border border-color/40 bg-tertiary/90 px-1.5 py-2'
+                              : 'relative flex min-h-0 min-w-0 flex-col items-center justify-between overflow-hidden rounded-lg border border-color/40 bg-tertiary/90 px-2.5 py-3';
 
                         return (
                             <div
@@ -289,12 +291,18 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                     <div
                                         className={`absolute inset-0 z-10 flex items-center justify-center bg-gradient-to-b from-black/55 to-black/80 ${usePremiumDesktop ? 'rounded-2xl' : 'rounded-lg'}`}
                                     >
-                                        <span className="text-2xl font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">🔒</span>
+                                        <span
+                                            className={`font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] ${tabShelf ? 'text-lg' : 'text-2xl'}`}
+                                        >
+                                            🔒
+                                        </span>
                                     </div>
                                 )}
 
                                 {isCleared && (
-                                    <div className="absolute top-1.5 right-1.5 bg-green-500/90 rounded-full w-5 h-5 flex items-center justify-center z-20 shadow text-[11px] font-bold text-white">
+                                    <div
+                                        className={`absolute right-1 top-1 z-20 flex items-center justify-center rounded-full bg-green-500/90 font-bold text-white shadow ${tabShelf ? 'h-4 w-4 text-[9px]' : 'top-1.5 h-5 w-5 text-[11px]'}`}
+                                    >
                                         ✓
                                     </div>
                                 )}
@@ -316,7 +324,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                         </div>
                                     ) : (
                                         <div
-                                            className={`font-black text-primary drop-shadow [text-shadow:0_1px_2px_rgba(0,0,0,0.5)] ${isMobile ? 'text-2xl' : 'text-2xl sm:text-3xl'}`}
+                                            className={`font-black text-primary drop-shadow [text-shadow:0_1px_2px_rgba(0,0,0,0.5)] ${tabShelf ? 'text-lg' : isMobile ? 'text-2xl' : 'text-2xl sm:text-3xl'}`}
                                         >
                                             {stageNumber}
                                         </div>
@@ -336,9 +344,9 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                                 {mixedModeLabels.map((label, i) => (
                                                     <span
                                                         key={`${stage.id}-mix-mode-${i}-${label}`}
-                                                        className={`inline-flex items-center justify-center rounded-sm border border-amber-300/45 bg-black/35 px-1.5 py-0.5 font-semibold text-amber-100/95 ${
+                                                        className={`inline-flex items-center justify-center rounded-sm border border-amber-300/45 bg-black/35 px-1 py-0.5 font-semibold text-amber-100/95 ${
                                                             tabShelf
-                                                                ? 'text-[11px]'
+                                                                ? 'text-[9px]'
                                                                 : isMobile
                                                                   ? 'text-[10px]'
                                                                   : usePremiumDesktop
@@ -352,7 +360,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                             </div>
                                         ) : (
                                             <div
-                                                className={`truncate text-center font-semibold tracking-tight text-amber-100/95 ${tabShelf ? 'text-sm' : isMobile ? 'text-xs' : usePremiumDesktop ? 'text-[11px]' : 'text-xs sm:text-sm'}`}
+                                                className={`truncate text-center font-semibold tracking-tight text-amber-100/95 ${tabShelf ? 'text-[11px]' : isMobile ? 'text-xs' : usePremiumDesktop ? 'text-[11px]' : 'text-xs sm:text-sm'}`}
                                             >
                                                 {gameModeName}
                                             </div>
@@ -361,18 +369,26 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                 </div>
 
                                 {isCleared && (
-                                    <div className={`text-green-400 font-semibold mb-1 ${isMobile ? 'text-xs' : 'text-[10px]'}`}>
+                                    <div
+                                        className={`mb-0.5 font-semibold text-green-400 ${tabShelf ? 'text-[9px]' : isMobile ? 'text-xs' : 'text-[10px]'}`}
+                                    >
                                         클리어 완료
                                     </div>
                                 )}
 
                                 {/* 최초 클리어 보상만 표시(이미 클리어한 스테이지는 재클리어 보상 없음) */}
                                 {!isCleared && (
-                                    <div className="mb-1.5 w-full min-w-0">
-                                        <div className="flex w-full items-center justify-center gap-1.5 overflow-hidden whitespace-nowrap font-semibold text-[clamp(8px,0.65vw,13px)] text-amber-200/95">
+                                    <div className={`mb-1 w-full min-w-0 ${tabShelf ? 'mb-0.5' : ''}`}>
+                                        <div
+                                            className={`flex w-full items-center justify-center gap-1 overflow-hidden whitespace-nowrap font-semibold text-amber-200/95 ${tabShelf ? 'text-[9px]' : 'text-[clamp(8px,0.65vw,13px)]'}`}
+                                        >
                                             {stage.rewards.firstClear.gold > 0 && (
                                                 <span className="flex min-w-0 items-center gap-0.5">
-                                                    <img src="/images/icon/Gold.png" alt="골드" className="h-3.5 w-3.5" />
+                                                    <img
+                                                        src="/images/icon/Gold.png"
+                                                        alt="골드"
+                                                        className={tabShelf ? 'h-3 w-3' : 'h-3.5 w-3.5'}
+                                                    />
                                                     <span className="truncate">+{stage.rewards.firstClear.gold}</span>
                                                 </span>
                                             )}
@@ -384,7 +400,13 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                                     {stage.rewards.firstClear.items.slice(0, 3).map((item, idx) => {
                                                         const itemTemplate = CONSUMABLE_ITEMS.find((i) => i.name === item.itemId);
                                                         return itemTemplate ? (
-                                                            <img key={idx} src={itemTemplate.image} alt={item.itemId} className="h-3.5 w-3.5" title={item.itemId} />
+                                                            <img
+                                                                key={idx}
+                                                                src={itemTemplate.image}
+                                                                alt={item.itemId}
+                                                                className={tabShelf ? 'h-3 w-3' : 'h-3.5 w-3.5'}
+                                                                title={item.itemId}
+                                                            />
                                                         ) : null;
                                                     })}
                                                     {stage.rewards.firstClear.items.length > 3 && <span>…</span>}
@@ -412,7 +434,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                         title={`입장 · 행동력 ${effectiveActionPointCost}`}
                                         style={
                                             tabShelf
-                                                ? { fontSize: '12px', fontWeight: 700, letterSpacing: '0.02em' }
+                                                ? { fontSize: '10px', fontWeight: 700, letterSpacing: '0.02em' }
                                                 : isMobile
                                                   ? { fontSize: '10px', fontWeight: 700, letterSpacing: '0.02em' }
                                                   : undefined

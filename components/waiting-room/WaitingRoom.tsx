@@ -462,12 +462,12 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                   mode === 'playful'
                     ? [
                           { id: 'users' as const, label: '유저목록' },
-                          { id: 'ai' as const, label: 'AI대결' },
+                          { id: 'ai' as const, label: 'AI대전' },
                           { id: 'games' as const, label: '대국실목록' },
                       ]
                     : [
                           { id: 'users' as const, label: '유저목록' },
-                          { id: 'rankedAi' as const, label: '랭킹전/AI대결' },
+                          { id: 'rankedAi' as const, label: 'AI대전/랭킹전' },
                           { id: 'games' as const, label: '대국실목록' },
                           { id: 'rankingInfo' as const, label: '랭킹정보' },
                       ]

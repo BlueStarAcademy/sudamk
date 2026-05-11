@@ -171,6 +171,8 @@ export function getSelectiveUserUpdate(
         'PAIR_PET_START_TRAINING': ['pairPetTrainingSlots'],
         'PAIR_PET_CANCEL_TRAINING': ['pairPetTrainingSlots'],
         'PAIR_PET_CLAIM_TRAINING': ['inventory', 'gold', 'pairPetTrainingSlots'],
+        /** 수련 슬롯 서버 진실값 동기화 + 진행 중 고아 세션 정리 */
+        'PAIR_PET_RESYNC_TRAINING_SLOTS': ['pairPetTrainingSlots'],
         'PAIR_PET_HATCHERY_UNLOCK': ['pairPetHatcherySlotUnlocked', 'gold'],
         'PAIR_PET_HATCHERY_START': ['inventory', 'pairPetHatcherySessions'],
         'PAIR_PET_HATCHERY_CLAIM': ['inventory', 'pairPetHatcherySessions'],

@@ -392,17 +392,27 @@ const PairMoveCountBox: React.FC<{ session: LiveGameSession }> = ({ session }) =
     );
 };
 
-const PairMobileTeamPanel: React.FC<{
+const pairMobileTeamHighlightClass = (
+    black: boolean,
+    isMyTurnHighlight: boolean,
+): string => {
+    if (isMyTurnHighlight) {
+        return black
+            ? 'sudamr-pair-mobile-my-turn-black border-2 border-emerald-400/70 bg-gradient-to-br from-emerald-950/80 via-slate-950 to-black text-emerald-50'
+            : 'sudamr-pair-mobile-my-turn-white border-2 border-amber-500/80 bg-gradient-to-br from-amber-100 via-white to-amber-50 text-slate-950';
+    }
+    return black ? 'border border-slate-500/65 bg-slate-950 text-slate-100' : 'border border-amber-200/85 bg-amber-50 text-slate-950';
+};
+
+/** 모바일 페어: 상단 1행 — 팀 대국자(아바타·속성)만 */
+const PairMobileTeamProfilePanel: React.FC<{
     session: LiveGameSession;
-    clientTimes: PairClientTimes;
     player: Player.Black | Player.White;
     viewerUserId?: string;
-}> = ({ session, clientTimes, player, viewerUserId }) => {
+}> = ({ session, player, viewerUserId }) => {
     const black = player === Player.Black;
     const seats = sortPairSeatsBySeatId((session.settings.pairGame?.turnOrder ?? []).filter((seat) => seat.player === player));
     const showPairMobileRpsRow = seats.some((s) => s.kind === 'pet' || s.kind === 'ai');
-    const colorTime = black ? clientTimes.black : clientTimes.white;
-    const score = session.captures?.[player] ?? 0;
     const currentSeat = getCurrentPairTurnSeat(session.settings);
     const inPairTurnPhase = session.gameStatus === 'playing' || session.gameStatus === 'hidden_placing';
     const isMyTurnHighlight =
@@ -414,15 +424,7 @@ const PairMobileTeamPanel: React.FC<{
 
     return (
         <div
-            className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-xl px-1.5 py-1 shadow-lg ${
-                isMyTurnHighlight
-                    ? black
-                        ? 'sudamr-pair-mobile-my-turn-black border-2 border-emerald-400/70 bg-gradient-to-br from-emerald-950/80 via-slate-950 to-black text-emerald-50'
-                        : 'sudamr-pair-mobile-my-turn-white border-2 border-amber-500/80 bg-gradient-to-br from-amber-100 via-white to-amber-50 text-slate-950'
-                    : black
-                      ? 'border border-slate-500/65 bg-slate-950 text-slate-100'
-                      : 'border border-amber-200/85 bg-amber-50 text-slate-950'
-            }`}
+            className={`flex min-h-[3.25rem] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-1.5 py-1 shadow-lg ${pairMobileTeamHighlightClass(black, isMyTurnHighlight)}`}
             aria-current={isMyTurnHighlight ? 'true' : undefined}
         >
             <div className="flex shrink-0 flex-col items-center gap-0.5">
@@ -459,15 +461,59 @@ const PairMobileTeamPanel: React.FC<{
                     </div>
                 ) : null}
             </div>
-            <div className={`min-w-0 flex-1 ${black ? 'text-left' : 'text-right'}`}>
-                <div className="truncate font-mono text-[12px] font-black leading-none tabular-nums">
-                    {formatPairClock(colorTime)}
-                </div>
-                <div className={`mt-0.5 flex items-baseline gap-1 ${black ? 'justify-start' : 'justify-end'}`}>
-                    <span className="text-[9px] font-black opacity-70">점수</span>
-                    <span className="font-mono text-lg font-black leading-none tabular-nums">{score}</span>
-                </div>
-            </div>
+        </div>
+    );
+};
+
+/** 모바일 페어: 상단 2행 — 거울 배치: 흑 시계→점수 | (수순) | 백 점수→시계 */
+const PairMobileTeamTimeScorePanel: React.FC<{
+    session: LiveGameSession;
+    clientTimes: PairClientTimes;
+    player: Player.Black | Player.White;
+    viewerUserId?: string;
+}> = ({ session, clientTimes, player, viewerUserId }) => {
+    const black = player === Player.Black;
+    const colorTime = black ? clientTimes.black : clientTimes.white;
+    const score = session.captures?.[player] ?? 0;
+    const currentSeat = getCurrentPairTurnSeat(session.settings);
+    const inPairTurnPhase = session.gameStatus === 'playing' || session.gameStatus === 'hidden_placing';
+    const isMyTurnHighlight =
+        Boolean(viewerUserId) &&
+        inPairTurnPhase &&
+        currentSeat != null &&
+        currentSeat.player === player &&
+        pairSeatAllowsViewerStonePlacement(currentSeat, viewerUserId);
+
+    const clockEl = (
+        <div
+            className={`min-w-0 flex-1 truncate font-mono text-[11px] font-black leading-none tabular-nums sm:text-[12px] ${black ? 'text-left' : 'text-right'}`}
+        >
+            {formatPairClock(colorTime)}
+        </div>
+    );
+    const scoreEl = (
+        <div className={`flex shrink-0 items-baseline gap-0.5 ${black ? 'justify-start' : 'justify-end'}`}>
+            <span className="text-[8px] font-black opacity-70 sm:text-[9px]">점수</span>
+            <span className="font-mono text-base font-black leading-none tabular-nums sm:text-lg">{score}</span>
+        </div>
+    );
+
+    return (
+        <div
+            className={`flex min-h-0 min-w-0 flex-1 flex-row items-center gap-1.5 rounded-xl px-1.5 py-0.5 shadow-lg ${pairMobileTeamHighlightClass(black, isMyTurnHighlight)}`}
+            aria-current={isMyTurnHighlight ? 'true' : undefined}
+        >
+            {black ? (
+                <>
+                    {clockEl}
+                    {scoreEl}
+                </>
+            ) : (
+                <>
+                    {scoreEl}
+                    {clockEl}
+                </>
+            )}
         </div>
     );
 };
@@ -522,10 +568,17 @@ const PairIngameTopPanel: React.FC<{
 }> = ({ session, clientTimes, mobile = false, pairMobileViewerUserId }) => {
     if (mobile) {
         return (
-            <div className="flex w-full shrink-0 items-stretch gap-0.5 px-1 pb-0.5">
-                <PairMobileTeamPanel session={session} player={Player.Black} clientTimes={clientTimes} viewerUserId={pairMobileViewerUserId} />
-                <PairMobileMoveCountBox session={session} />
-                <PairMobileTeamPanel session={session} player={Player.White} clientTimes={clientTimes} viewerUserId={pairMobileViewerUserId} />
+            <div className="flex w-full shrink-0 flex-col gap-1.5 px-1 pb-0.5">
+                <div className="flex w-full min-h-[3.25rem] flex-shrink-0 items-stretch gap-0.5">
+                    <PairMobileTeamProfilePanel session={session} player={Player.Black} viewerUserId={pairMobileViewerUserId} />
+                    <div className="min-w-[3.25rem] shrink-0" aria-hidden />
+                    <PairMobileTeamProfilePanel session={session} player={Player.White} viewerUserId={pairMobileViewerUserId} />
+                </div>
+                <div className="flex min-h-[4.5rem] w-full flex-shrink-0 items-stretch gap-0.5">
+                    <PairMobileTeamTimeScorePanel session={session} clientTimes={clientTimes} player={Player.Black} viewerUserId={pairMobileViewerUserId} />
+                    <PairMobileMoveCountBox session={session} />
+                    <PairMobileTeamTimeScorePanel session={session} clientTimes={clientTimes} player={Player.White} viewerUserId={pairMobileViewerUserId} />
+                </div>
             </div>
         );
     }

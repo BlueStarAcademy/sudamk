@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useId } from 'react';
 import { ServerAction, AdminProps, InventoryItemType, User } from '../../types/index.js';
 import { ItemGrade, type MythicStat, type EquipmentSlot } from '../../types/enums.js';
 import DraggableWindow from '../DraggableWindow.js';
@@ -343,6 +343,11 @@ interface MailSystemPanelProps extends AdminProps {
 }
 
 const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, currentUser, onAction, onBack }) => {
+    /** 데스크톱/모바일에 수신 UI가 각각 마운트되므로 라디오 name을 분리해야 HTML 그룹이 한 세트로만 동작합니다. */
+    const mailTargetRadioId = useId();
+    const targetTypeRadioNameDesktop = `${mailTargetRadioId}-desktop`;
+    const targetTypeRadioNameMobile = `${mailTargetRadioId}-mobile`;
+
     const [targetType, setTargetType] = useState<'all' | 'specific'>('all');
     const [targetSearchQuery, setTargetSearchQuery] = useState('');
     const [title, setTitle] = useState('');
@@ -487,23 +492,37 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
 
     const mailFormId = 'admin-mail-send-form';
 
-    const recipientsInner = (
+    const renderRecipientsInner = (targetTypeRadioName: string) => (
         <>
             <h2 className={`${adminCardTitle} shrink-0`}>받는 사람</h2>
             <div className="flex shrink-0 flex-wrap gap-x-4 gap-y-2">
                 <label className="flex cursor-pointer items-center">
-                    <input type="radio" name="targetType" value="all" checked={targetType === 'all'} onChange={() => setTargetType('all')} className="mr-2" />
+                    <input
+                        type="radio"
+                        name={targetTypeRadioName}
+                        value="all"
+                        checked={targetType === 'all'}
+                        onChange={() => setTargetType('all')}
+                        className="mr-2"
+                    />
                     전체 사용자
                 </label>
                 <label className="flex cursor-pointer items-center">
-                    <input type="radio" name="targetType" value="specific" checked={targetType === 'specific'} onChange={() => setTargetType('specific')} className="mr-2" />
+                    <input
+                        type="radio"
+                        name={targetTypeRadioName}
+                        value="specific"
+                        checked={targetType === 'specific'}
+                        onChange={() => setTargetType('specific')}
+                        className="mr-2"
+                    />
                     특정 사용자
                 </label>
             </div>
 
             {targetType === 'all' && (
                 <p className="mt-6 text-sm leading-relaxed text-gray-400">
-                    로그인한 모든 유저에게 동일한 우편이 발송됩니다. 아래 단계에서 내용·보상·첨부를 설정한 뒤 하단에서 발송하세요.
+                    DB에 등록된 모든 계정에 동일한 우편이 저장됩니다. 접속 중이 아닌 유저도 다음 로그인 시 우편함에서 확인할 수 있습니다. 아래에서 내용·보상·첨부를 설정한 뒤 「우편 내용 · 보상」란 하단의 발송하기를 누르세요.
                 </p>
             )}
 
@@ -598,7 +617,7 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
     );
 
     const contentRewardsInner = (
-        <>
+        <div className="flex min-h-0 flex-1 flex-col gap-0">
             <h2 className={`${adminCardTitle} shrink-0`}>우편 내용 · 보상</h2>
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
                 <div>
@@ -635,7 +654,12 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
                     </div>
                 </div>
             </div>
-        </>
+            <div className="mt-4 shrink-0 border-t border-color/60 pt-3">
+                <Button type="submit" className="w-full py-3.5 text-base" colorScheme="green">
+                    발송하기
+                </Button>
+            </div>
+        </div>
     );
 
     const attachedItemsInner = (
@@ -702,7 +726,7 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
             <form id={mailFormId} onSubmit={handleSendMail} className="text-sm">
                 {/* 데스크톱: 기존 3열 */}
                 <div className="hidden grid-cols-1 items-stretch gap-6 xl:grid xl:grid-cols-3 xl:gap-6">
-                    <div className={`${panelShell} p-5`}>{recipientsInner}</div>
+                    <div className={`${panelShell} p-5`}>{renderRecipientsInner(targetTypeRadioNameDesktop)}</div>
                     <div className={`${panelShell} p-5`}>{contentRewardsInner}</div>
                     <div className={`${panelShell} p-5`}>{attachedItemsInner}</div>
                 </div>
@@ -742,16 +766,10 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
                     </div>
 
                     <div className="min-h-[min(60vh,28rem)]" role="tabpanel">
-                        {mobileStep === 1 && <div className={mobileStepShell}>{recipientsInner}</div>}
+                        {mobileStep === 1 && <div className={mobileStepShell}>{renderRecipientsInner(targetTypeRadioNameMobile)}</div>}
                         {mobileStep === 2 && <div className={mobileStepShell}>{contentRewardsInner}</div>}
                         {mobileStep === 3 && <div className={mobileStepShell}>{attachedItemsInner}</div>}
                     </div>
-                </div>
-
-                <div className="mx-auto mt-8 hidden max-w-2xl border-t border-color/60 pt-2 xl:mx-0 xl:block xl:max-w-none">
-                    <Button type="submit" className="w-full py-3.5 text-base" colorScheme="green">
-                        발송하기
-                    </Button>
                 </div>
             </form>
 
@@ -771,9 +789,11 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
                                 </Button>
                             )}
                         </div>
-                        <Button type="submit" form={mailFormId} className="w-full py-3.5 text-base" colorScheme="green">
-                            발송하기
-                        </Button>
+                        {mobileStep !== 2 && (
+                            <Button type="submit" form={mailFormId} className="w-full py-3.5 text-base" colorScheme="green">
+                                발송하기
+                            </Button>
+                        )}
                     </div>
                 </div>
             </div>

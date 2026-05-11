@@ -407,6 +407,8 @@ export type ServerAction =
     | { type: 'PAIR_PET_START_TRAINING', payload: { slotIndex: number; itemId: string } }
     | { type: 'PAIR_PET_CANCEL_TRAINING', payload: { slotIndex: number } }
     | { type: 'PAIR_PET_CLAIM_TRAINING', payload: { slotIndex: number } }
+    /** 클라·서버 수련 슬롯 불일치 복구: 서버 진실값 반환 + 진행 중 고아 세션만 DB에서 정리 */
+    | { type: 'PAIR_PET_RESYNC_TRAINING_SLOTS' }
     | { type: 'FRIEND_SYNC', payload?: never }
     | { type: 'FRIEND_SEND_REQUEST', payload: { targetUserId: string } }
     | { type: 'FRIEND_ACCEPT_REQUEST', payload: { requesterUserId: string } }

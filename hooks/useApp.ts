@@ -4875,6 +4875,8 @@ export const useApp = () => {
                     isChampionshipCompleteDungeonInventoryFullError(action, errorMessage)
                 ) {
                     // TournamentBracket 전용 모달로만 안내
+                } else if (action.type === 'PAIR_PET_RESYNC_TRAINING_SLOTS') {
+                    console.warn(`[handleAction] PAIR_PET_RESYNC_TRAINING_SLOTS HTTP ${res.status}:`, errorMessage);
                 } else if (!shouldSuppressModalForKoPlaceStone(action, typeof errorMessage === 'string' ? errorMessage : '')) {
                     // 길드 정보는 백그라운드 동기화 성격이 강하고, 게이트웨이/DB 지연 시 502·504가 잦음 — 상단 연결 안내만으로 충분
                     const suppressGuildInfoModal =
@@ -4919,6 +4921,9 @@ export const useApp = () => {
                         isChampionshipCompleteDungeonInventoryFullError(action, errorMessage)
                     ) {
                         // TournamentBracket 전용 모달로만 안내
+                    } else if (action.type === 'PAIR_PET_RESYNC_TRAINING_SLOTS') {
+                        // 페어 펫 로비 마운트 시 백그라운드 동기화 — 실패해도 전역 오류 모달은 띄우지 않음
+                        console.warn('[handleAction] PAIR_PET_RESYNC_TRAINING_SLOTS failed:', errorMessage);
                     } else if (!shouldSuppressModalForKoPlaceStone(action, typeof errorMessage === 'string' ? errorMessage : '')) {
                         showError(errorMessage);
                     }
@@ -5464,6 +5469,7 @@ export const useApp = () => {
                         'PAIR_PET_START_TRAINING',
                         'PAIR_PET_CANCEL_TRAINING',
                         'PAIR_PET_CLAIM_TRAINING',
+                        'PAIR_PET_RESYNC_TRAINING_SLOTS',
                         'PAIR_PET_HATCHERY_UNLOCK',
                         'PAIR_PET_HATCHERY_START',
                         'PAIR_PET_HATCHERY_CLAIM',

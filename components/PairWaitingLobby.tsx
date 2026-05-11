@@ -1468,6 +1468,9 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         if (aggregateLobbyMode === 'strategic') {
             n += 1;
         }
+        if (lobbyChannel === 'playful') {
+            n += 1;
+        }
         if (lobbyChannel === 'pair' && showHandheldRankedTab) {
             n += 1;
         }
@@ -1490,11 +1493,6 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         if (!isPairPetRankedQueueShellMatching || !isHandheld) return;
         setPairLobbyMobileTab('ranked');
     }, [isPairPetRankedQueueShellMatching, isHandheld]);
-
-    useEffect(() => {
-        if (aggregateLobbyMode !== 'playful' || !isHandheld) return;
-        if (pairLobbyRightTab === 'ai') setPairLobbyRightTab('users');
-    }, [aggregateLobbyMode, isHandheld, pairLobbyRightTab]);
 
     /** PC: AI 대결 카드는 좌측 패널로 옮겨 우측 「AI대결」탭 제거 */
     useEffect(() => {
@@ -4602,11 +4600,9 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                     <div
                         className={`grid shrink-0 gap-1 border-b border-white/10 bg-black/25 p-1 ${
                             aggregateLobbyMode
-                                ? aggregateLobbyMode === 'playful' && isHandheld
-                                    ? 'grid-cols-2'
-                                    : isHandheld
-                                      ? 'grid-cols-3'
-                                      : 'grid-cols-2'
+                                ? isHandheld
+                                    ? 'grid-cols-3'
+                                    : 'grid-cols-2'
                                 : 'grid-cols-2'
                         }`}
                     >
@@ -4622,25 +4618,22 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                             onClick={() => setPairLobbyRightTab('users')}
                             className={pairLobbyRightTabButtonClass(pairLobbyRightTab === 'users', 'amber')}
                         >
-                            {aggregateLobbyMode === 'playful' && isHandheld ? '유저목록/AI대결' : '유저목록'}
+                            유저목록
                         </button>
-                        {aggregateLobbyMode && !(aggregateLobbyMode === 'playful' && isHandheld) && isHandheld ? (
+                        {aggregateLobbyMode && isHandheld ? (
                             <button
                                 type="button"
                                 onClick={() => setPairLobbyRightTab('ai')}
                                 className={pairLobbyRightTabButtonClass(pairLobbyRightTab === 'ai', 'violet')}
                             >
-                                AI대결
+                                AI대전
                             </button>
                         ) : null}
                     </div>
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2">
                         {pairLobbyRightTab === 'room' ? (
                             renderPairLobbyRoomInteriorPanel()
-                        ) : pairLobbyRightTab === 'ai' &&
-                          aggregateLobbyMode &&
-                          !(aggregateLobbyMode === 'playful' && isHandheld) &&
-                          isHandheld ? (
+                        ) : pairLobbyRightTab === 'ai' && aggregateLobbyMode && isHandheld ? (
                             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
                                 {pairLobbyAggregateAiChallengeCardEl}
                             </div>
@@ -5601,7 +5594,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                             }`}
                             title={
                                 aggregateLobbyMode === 'playful'
-                                    ? '유저 목록과 AI 대결을 한 화면에서'
+                                    ? '접속 중인 유저 목록'
                                     : aggregateLobbyMode
                                       ? '유저 목록'
                                       : lobbyChannel === 'pair' && showHandheldRankedTab
@@ -5609,8 +5602,22 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                         : '유저 목록 · 페어 AI 대전'
                             }
                         >
-                            {lobbyChannel === 'playful' ? '유저목록/AI대결' : '유저목록'}
+                            유저목록
                         </button>
+                        {lobbyChannel === 'playful' ? (
+                            <button
+                                type="button"
+                                onClick={() => setPairLobbyMobileTab('ai')}
+                                className={`min-w-0 rounded-lg px-1 py-1.5 text-[0.58rem] font-extrabold leading-tight sm:px-2 sm:py-2 sm:text-xs ${
+                                    pairLobbyMobileTab === 'ai'
+                                        ? 'bg-violet-600 text-violet-50'
+                                        : 'text-violet-100 hover:bg-violet-950/45'
+                                }`}
+                                title="놀이 AI대전"
+                            >
+                                AI대전
+                            </button>
+                        ) : null}
                         {aggregateLobbyMode === 'strategic' ? (
                             <button
                                 type="button"
@@ -5620,9 +5627,9 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                         ? 'bg-emerald-600 text-emerald-50'
                                         : 'text-emerald-100 hover:bg-emerald-950/45'
                                 }`}
-                                title="전략바둑 랭킹전 매칭 · AI와 대결"
+                                title="AI와 대결 · 전략바둑 랭킹전 매칭"
                             >
-                                랭킹전/AI대결
+                                AI대전/랭킹전
                             </button>
                         ) : null}
                         {lobbyChannel === 'pair' && showHandheldRankedTab ? (
@@ -5634,9 +5641,9 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                         ? 'bg-emerald-600 text-emerald-50'
                                         : 'text-emerald-100 hover:bg-emerald-950/45'
                                 }`}
-                                title="페어 랭킹전 · 시즌 정보"
+                                title="페어 랭킹전 · 시즌 정보 · AI와 대전"
                             >
-                                랭킹전
+                                AI대전/랭킹전
                             </button>
                         ) : null}
                     </div>
@@ -5659,6 +5666,12 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                             pairLobbyMobileStrategicRankedAiTabPanel
                         ) : pairLobbyMobileTab === 'ranked' && lobbyChannel === 'pair' ? (
                             pairLobbyMobileRankedTabPanel
+                        ) : pairLobbyMobileTab === 'ai' && lobbyChannel === 'playful' ? (
+                            <div className={`${waitingLobbyPcPanelShellClass(lobbyTone)} flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2`}>
+                                <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch] pr-0.5">
+                                    {pairLobbyAggregateAiChallengeCardEl}
+                                </div>
+                            </div>
                         ) : (
                             <div
                                 className={`${waitingLobbyPcPanelShellClass(lobbyTone)} flex min-h-0 flex-1 flex-col overflow-hidden`}

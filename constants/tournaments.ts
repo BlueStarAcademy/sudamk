@@ -8,7 +8,14 @@ export const TOURNAMENT_DEFINITIONS: Record<TournamentType, TournamentDefinition
     world: { id: 'world', name: '월드챔피언십', description: '세계 각국의 강자들이 모인 16강 토너먼트입니다.', format: 'tournament', players: 16, image: '/images/championship/Champ3.png' },
 };
 
-export { CHAMPIONSHIP_VENUE_LOBBY_BG_IMAGE, CHAMPIONSHIP_PVP_VENUE_BG_WEBP } from '../shared/constants/tournaments.js';
+export {
+    CHAMPIONSHIP_VENUE_LOBBY_BG_IMAGE,
+    CHAMPIONSHIP_PVP_VENUE_BG_WEBP,
+    CHAMPIONSHIP_PET_VENUE_BG_WEBP,
+    CHAMPIONSHIP_PET_PAIR_VENUE_BG_WEBP,
+    CHAMPIONSHIP_ARENA_IN_GAME_BG,
+    getChampionshipArenaBackgroundUrl,
+} from '../shared/constants/tournaments.js';
 
 export type TournamentRewardInfo = QuestReward;
 

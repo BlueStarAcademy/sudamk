@@ -8,6 +8,7 @@ import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSid
 import { SinglePlayerLevel, UserWithStatus } from '../types.js';
 import { getSinglePlayerStages } from '../constants/singlePlayerConstants.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { userHasFullTrainingQuestReward } from '../utils/trainingQuestRewardNotify.js';
 import { isOnboardingTutorialActive } from '../shared/constants/onboardingTutorial.js';
 
@@ -67,6 +68,9 @@ const DesktopSinglePlayerLobbyLayout: React.FC<{
 const SinglePlayerLobby: React.FC = () => {
     const { currentUser, currentUserWithStatus, singlePlayerStagesListRevision } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
+    const isHandheldViewport = useIsHandheldDevice(1024);
+    /** 네이티브 앱 + 좁은 브라우저(폰) 동일 로비 밀도 */
+    const compactSpLobby = isNativeMobile || isHandheldViewport;
     const progressForDefault = currentUserWithStatus?.singlePlayerProgress ?? 0;
     const defaultClass = useMemo(
         () => defaultSinglePlayerLevelFromProgress(progressForDefault),
@@ -89,11 +93,11 @@ const SinglePlayerLobby: React.FC = () => {
         const p = currentUserWithStatus.onboardingTutorialPhase ?? 0;
         if (p === 2 || p === 4) {
             setOverrideClass(SinglePlayerLevel.입문);
-            if (isNativeMobile) setMobileLobbySubTab('stages');
+            if (compactSpLobby) setMobileLobbySubTab('stages');
         }
-        if (!isNativeMobile) return;
+        if (!compactSpLobby) return;
         if (p === 8) setMobileLobbySubTab('quests');
-    }, [isNativeMobile, currentUserWithStatus]);
+    }, [compactSpLobby, currentUserWithStatus]);
 
     const hasTrainingQuestRewardToClaim = useMemo(
         () => userHasFullTrainingQuestReward(currentUserWithStatus),
@@ -106,11 +110,17 @@ const SinglePlayerLobby: React.FC = () => {
 
     return (
         <div
-            className={`relative mx-auto flex w-full flex-col bg-lobby-shell-singleplayer text-gray-100 ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-hidden px-0.5 pt-0.5' : 'h-full min-h-0 px-2 pb-2 pt-1 sm:px-3 sm:pb-3 sm:pt-2 lg:px-6 lg:pb-6 lg:pt-3'}`}
+            className={`relative mx-auto flex w-full flex-col bg-lobby-shell-singleplayer text-gray-100 ${
+                isNativeMobile
+                    ? 'sudamr-native-route-root min-h-0 flex-1 overflow-hidden px-0.5 pt-0.5'
+                    : compactSpLobby
+                      ? 'h-full min-h-0 flex-1 overflow-hidden px-1 pb-1 pt-0.5 sm:px-2 sm:pb-1.5'
+                      : 'h-full min-h-0 px-2 pb-2 pt-1 sm:px-3 sm:pb-3 sm:pt-2 lg:px-6 lg:pb-6 lg:pt-3'
+            }`}
         >
-            {isNativeMobile ? (
+            {compactSpLobby ? (
                 <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden px-0.5 pb-0.5">
-                    <div className="min-h-0 max-h-[min(34dvh,300px)] shrink-0 overflow-hidden rounded-xl">
+                    <div className="min-h-0 max-h-[min(22dvh,200px)] shrink-0 overflow-hidden rounded-xl sm:max-h-[min(24dvh,220px)]">
                         <ClassNavigationPanel
                             selectedClass={selectedClass}
                             onClassSelect={setOverrideClass}
@@ -130,9 +140,9 @@ const SinglePlayerLobby: React.FC = () => {
                             density="compact"
                         />
                     </div>
-                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-emerald-500/20 bg-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-emerald-500/20 bg-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:rounded-xl">
                         <div
-                            className="flex shrink-0 gap-1 border-b border-white/10 px-1 py-0.5 sm:p-1.5"
+                            className="flex shrink-0 gap-0.5 border-b border-white/10 px-1 py-0.5"
                             role="tablist"
                             aria-label="바둑학원 하단"
                         >
@@ -146,7 +156,7 @@ const SinglePlayerLobby: React.FC = () => {
                                         : '수련과제'
                                 }
                                 onClick={() => setMobileLobbySubTab('quests')}
-                                className={`relative min-h-0 min-w-0 flex-1 rounded-lg px-2 py-1.5 text-sm font-bold transition-all sm:py-2 sm:text-base ${
+                                className={`relative min-h-0 min-w-0 flex-1 rounded-md px-1.5 py-1 text-xs font-semibold tracking-tight transition-all sm:rounded-lg sm:px-2 sm:py-1.5 sm:text-[0.8125rem] ${
                                     mobileLobbySubTab === 'quests'
                                         ? 'border border-amber-400/55 bg-gradient-to-b from-emerald-900/50 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
                                         : 'border border-transparent text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200'
@@ -155,7 +165,7 @@ const SinglePlayerLobby: React.FC = () => {
                                 수련과제
                                 {hasTrainingQuestRewardToClaim && (
                                     <span
-                                        className="absolute right-1 top-1 z-[1] h-2 w-2 rounded-full border-2 border-slate-950 bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.65)]"
+                                        className="absolute right-0.5 top-0.5 z-[1] h-1.5 w-1.5 rounded-full border border-slate-950 bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.55)] sm:right-1 sm:top-1 sm:h-2 sm:w-2 sm:border-2"
                                         aria-hidden
                                         title="수령 가능한 보상"
                                     />
@@ -166,7 +176,7 @@ const SinglePlayerLobby: React.FC = () => {
                                 role="tab"
                                 aria-selected={mobileLobbySubTab === 'stages'}
                                 onClick={() => setMobileLobbySubTab('stages')}
-                                className={`min-h-0 min-w-0 flex-1 rounded-lg px-2 py-1.5 text-sm font-bold transition-all sm:py-2 sm:text-base ${
+                                className={`min-h-0 min-w-0 flex-1 rounded-md px-1.5 py-1 text-xs font-semibold tracking-tight transition-all sm:rounded-lg sm:px-2 sm:py-1.5 sm:text-[0.8125rem] ${
                                     mobileLobbySubTab === 'stages'
                                         ? 'border border-amber-400/55 bg-gradient-to-b from-emerald-900/50 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
                                         : 'border border-transparent text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200'
@@ -176,7 +186,7 @@ const SinglePlayerLobby: React.FC = () => {
                             </button>
                         </div>
                         <div
-                            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-contain p-2 sm:p-2.5"
+                            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-contain p-1.5 sm:p-2"
                             role="tabpanel"
                         >
                             {mobileLobbySubTab === 'quests' ? (

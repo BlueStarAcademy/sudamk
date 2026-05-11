@@ -4,6 +4,8 @@ import {
     TOURNAMENT_DEFINITIONS,
     CHAMPIONSHIP_VENUE_LOBBY_BG_IMAGE,
     CHAMPIONSHIP_PVP_VENUE_BG_WEBP,
+    CHAMPIONSHIP_PET_VENUE_BG_WEBP,
+    CHAMPIONSHIP_PET_PAIR_VENUE_BG_WEBP,
     AVATAR_POOL,
     LEAGUE_DATA,
     BORDER_POOL,
@@ -25,6 +27,14 @@ import { championshipKataAbilityScore } from '../shared/constants/championshipRe
 /** 챔피언십 로비 패널: 경기장 배경 블러(전략/놀이 대기실과 동일 계열) */
 const CHAMPIONSHIP_PANEL_GLASS =
     'backdrop-blur-xl backdrop-saturate-150 will-change-[backdrop-filter] [transform:translateZ(0)]';
+
+/** 프로필 홈 경기장 그리드(`Profile.tsx` lobbyGridShell)와 동일 — 2열 동일 폭·3행 동일 높이 */
+const CHAMPIONSHIP_ENTRY_GRID_DESKTOP_HOME_MATCH =
+    'grid h-full min-h-0 w-full content-center grid-cols-2 grid-rows-[repeat(3,minmax(0,15rem))] gap-2.5 overflow-hidden lg:grid-rows-[repeat(3,minmax(0,17.5rem))] lg:gap-3 [&>*]:min-h-0 [&>*]:min-w-0';
+
+/** 탭·네이티브: 남는 세로 공간을 3등분해 카드 높이 통일 */
+const CHAMPIONSHIP_ENTRY_GRID_TAB_EQUAL_ROWS =
+    'grid min-h-0 h-full w-full min-w-0 flex-1 grid-cols-1 [grid-template-rows:repeat(3,minmax(0,1fr))] gap-[clamp(0.3rem,1.2dvh,0.55rem)] pb-1';
 const CORE_STAT_CAP = 1500;
 
 const stringToSeed = (str: string): number => {
@@ -340,16 +350,146 @@ const RankItem: React.FC<RankItemProps> = ({ user, rank, isMyRankDisplay }) => {
     );
 };
 
+const PetChampionshipComingSoonCard: React.FC<{
+    compactMerged: boolean;
+    mergedInfoPanelStretch?: boolean;
+    /** 데스크톱 2×3 그리드: 셀 높이에 맞춰 카드 세로를 채움 */
+    fillLobbyGridCell?: boolean;
+}> = ({ compactMerged, mergedInfoPanelStretch = false, fillLobbyGridCell = false }) => {
+    if (compactMerged) {
+        return (
+            <div
+                className={`flex w-full overflow-hidden rounded-2xl border border-fuchsia-500/45 bg-gradient-to-br from-violet-950 via-purple-950 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-fuchsia-200/10 ${
+                    mergedInfoPanelStretch
+                        ? fillLobbyGridCell
+                            ? 'h-full min-h-0 w-full min-w-0 shrink-0'
+                            : 'aspect-[2.06/1] max-h-full min-h-0 w-full shrink-0'
+                        : 'h-full min-h-[5rem] max-h-[7.85rem]'
+                }`}
+            >
+                <div className="relative min-h-0 min-w-0 flex-[1.58] overflow-hidden rounded-l-2xl bg-violet-950/90">
+                    <img
+                        src={CHAMPIONSHIP_PET_VENUE_BG_WEBP}
+                        alt=""
+                        className="absolute inset-0 h-full w-full object-cover object-center opacity-85"
+                    />
+                    <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/55 via-violet-950/20 to-black/78" />
+                    <div className="pointer-events-none absolute left-2 top-2 z-10 rounded-md border border-fuchsia-400/45 bg-violet-950/88 px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-fuchsia-100 shadow-md sm:text-[11px]">
+                        Coming Soon
+                    </div>
+                </div>
+                <div className="flex min-h-0 min-w-0 max-w-[42%] flex-1 flex-col items-stretch justify-center border-l border-fuchsia-200/15 bg-gradient-to-b from-violet-950/90 to-black/84 p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-2.5">
+                    <div className="inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-fuchsia-400/40 bg-gradient-to-r from-violet-900/75 via-purple-900/70 to-violet-900/75 px-1.5 py-1 text-[12px] font-black leading-tight tracking-tight text-fuchsia-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:text-[13px]">
+                        펫 챔피언십
+                    </div>
+                    <p className="mt-2 text-[11px] font-semibold leading-snug text-fuchsia-200/80 sm:text-xs">펫 동행 대회·보상 (준비 중)</p>
+                </div>
+            </div>
+        );
+    }
+    return (
+        <div
+            className={`flex w-full overflow-hidden rounded-2xl border border-fuchsia-500/45 bg-gradient-to-br from-violet-950 via-purple-950 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-fuchsia-200/10 ${
+                fillLobbyGridCell ? 'h-full min-h-0' : 'aspect-[2.08/1] max-h-full min-h-0'
+            }`}
+        >
+            <div className="relative min-h-0 min-w-0 flex-[1.52] overflow-hidden rounded-l-2xl bg-violet-950/90">
+                <img
+                    src={CHAMPIONSHIP_PET_VENUE_BG_WEBP}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover object-center opacity-90"
+                />
+                <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/50 via-purple-950/15 to-black/72" />
+                <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-md border border-fuchsia-400/50 bg-violet-950/88 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-fuchsia-50 shadow-md">
+                    Coming Soon
+                </div>
+            </div>
+            <div className="flex min-h-0 min-w-[200px] flex-[1.08] flex-col items-center justify-center border-l border-fuchsia-200/15 bg-gradient-to-b from-violet-950/90 to-black/84 p-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                <div className="mb-2 inline-flex w-full max-w-[16rem] items-center justify-center rounded-lg border border-fuchsia-400/40 bg-gradient-to-r from-violet-900/75 via-purple-900/70 to-violet-900/75 px-3 py-2 text-[17px] font-black tracking-tight text-fuchsia-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
+                    펫 챔피언십
+                </div>
+                <p className="max-w-[15rem] text-sm font-medium leading-relaxed text-fuchsia-200/75">펫과 함께하는 대회와 보상이 열릴 예정입니다.</p>
+            </div>
+        </div>
+    );
+};
+
+const PetPairChampionshipComingSoonCard: React.FC<{
+    compactMerged: boolean;
+    mergedInfoPanelStretch?: boolean;
+    fillLobbyGridCell?: boolean;
+}> = ({ compactMerged, mergedInfoPanelStretch = false, fillLobbyGridCell = false }) => {
+    if (compactMerged) {
+        return (
+            <div
+                className={`flex w-full overflow-hidden rounded-2xl border border-sky-500/45 bg-gradient-to-br from-slate-950 via-cyan-950 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-sky-200/10 ${
+                    mergedInfoPanelStretch
+                        ? fillLobbyGridCell
+                            ? 'h-full min-h-0 w-full min-w-0 shrink-0'
+                            : 'aspect-[2.06/1] max-h-full min-h-0 w-full shrink-0'
+                        : 'h-full min-h-[5rem] max-h-[7.85rem]'
+                }`}
+            >
+                <div className="relative min-h-0 min-w-0 flex-[1.58] overflow-hidden rounded-l-2xl bg-cyan-950/90">
+                    <img
+                        src={CHAMPIONSHIP_PET_PAIR_VENUE_BG_WEBP}
+                        alt=""
+                        className="absolute inset-0 h-full w-full object-cover object-center opacity-85"
+                    />
+                    <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/55 via-cyan-950/20 to-black/78" />
+                    <div className="pointer-events-none absolute left-2 top-2 z-10 rounded-md border border-sky-400/45 bg-cyan-950/88 px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-sky-100 shadow-md sm:text-[11px]">
+                        Coming Soon
+                    </div>
+                </div>
+                <div className="flex min-h-0 min-w-0 max-w-[42%] flex-1 flex-col items-stretch justify-center border-l border-sky-200/15 bg-gradient-to-b from-cyan-950/90 to-black/84 p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-2.5">
+                    <div className="inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-sky-400/40 bg-gradient-to-r from-cyan-900/75 via-sky-900/70 to-cyan-900/75 px-1.5 py-1 text-[12px] font-black leading-tight tracking-tight text-sky-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:text-[13px]">
+                        펫 페어 챔피언십
+                    </div>
+                    <p className="mt-2 text-[11px] font-semibold leading-snug text-sky-200/80 sm:text-xs">페어·듀오 대전 (준비 중)</p>
+                </div>
+            </div>
+        );
+    }
+    return (
+        <div
+            className={`flex w-full overflow-hidden rounded-2xl border border-sky-500/45 bg-gradient-to-br from-slate-950 via-cyan-950 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-sky-200/10 ${
+                fillLobbyGridCell ? 'h-full min-h-0' : 'aspect-[2.08/1] max-h-full min-h-0'
+            }`}
+        >
+            <div className="relative min-h-0 min-w-0 flex-[1.52] overflow-hidden rounded-l-2xl bg-cyan-950/90">
+                <img
+                    src={CHAMPIONSHIP_PET_PAIR_VENUE_BG_WEBP}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover object-center opacity-90"
+                />
+                <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/50 via-cyan-950/15 to-black/72" />
+                <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-md border border-sky-400/50 bg-cyan-950/88 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-sky-50 shadow-md">
+                    Coming Soon
+                </div>
+            </div>
+            <div className="flex min-h-0 min-w-[200px] flex-[1.08] flex-col items-center justify-center border-l border-sky-200/15 bg-gradient-to-b from-cyan-950/90 to-black/84 p-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                <div className="mb-2 inline-flex w-full max-w-[16rem] items-center justify-center rounded-lg border border-sky-400/40 bg-gradient-to-r from-cyan-900/75 via-sky-900/70 to-cyan-900/75 px-3 py-2 text-[17px] font-black tracking-tight text-sky-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
+                    펫 페어 챔피언십
+                </div>
+                <p className="max-w-[15rem] text-sm font-medium leading-relaxed text-sky-200/75">펫 페어 대전과 보상이 열릴 예정입니다.</p>
+            </div>
+        </div>
+    );
+};
+
 const PvpChampionshipComingSoonCard: React.FC<{
     compactMerged: boolean;
     mergedInfoPanelStretch?: boolean;
-}> = ({ compactMerged, mergedInfoPanelStretch = false }) => {
+    fillLobbyGridCell?: boolean;
+}> = ({ compactMerged, mergedInfoPanelStretch = false, fillLobbyGridCell = false }) => {
     if (compactMerged) {
         return (
             <div
                 className={`flex w-full overflow-hidden rounded-2xl border border-slate-500/45 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10 ${
                     mergedInfoPanelStretch
-                        ? 'aspect-[2.06/1] max-h-full min-h-0 w-full shrink-0'
+                        ? fillLobbyGridCell
+                            ? 'h-full min-h-0 w-full min-w-0 shrink-0'
+                            : 'aspect-[2.06/1] max-h-full min-h-0 w-full shrink-0'
                         : 'h-full min-h-[5rem] max-h-[7.85rem]'
                 }`}
             >
@@ -374,7 +514,11 @@ const PvpChampionshipComingSoonCard: React.FC<{
         );
     }
     return (
-        <div className="flex aspect-[2.08/1] max-h-full min-h-0 w-full overflow-hidden rounded-2xl border border-slate-500/45 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10">
+        <div
+            className={`flex w-full overflow-hidden rounded-2xl border border-slate-500/45 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10 ${
+                fillLobbyGridCell ? 'h-full min-h-0' : 'aspect-[2.08/1] max-h-full min-h-0'
+            }`}
+        >
             <div className="relative min-h-0 min-w-0 flex-[1.52] overflow-hidden rounded-l-2xl bg-slate-950/90">
                 <img
                     src={CHAMPIONSHIP_PVP_VENUE_BG_WEBP}
@@ -411,9 +555,24 @@ const TournamentCard: React.FC<{
     mergedInfoPanelCompact?: boolean;
     /** 모바일 로비: 입장 카드가 남는 세로 공간을 균등 분배할 때 고정 max-height 제거 */
     mergedInfoPanelStretch?: boolean;
+    /** 2×3 데스크톱·탭·네이티브 균등 행: 카드가 aspect 대신 셀 높이를 채움 */
+    fillLobbyGridCell?: boolean;
     /** 6코어 최종 능력치 산술평균(장비 반영). 모바일 입장카드 추천 단계 표시용 */
     userDungeonCoreStatAverage?: number;
-}> = ({ type, onClick, onContinue, inProgress, currentUser, compact, compactInline, mergedInfoPanel = false, mergedInfoPanelCompact = false, mergedInfoPanelStretch = false, userDungeonCoreStatAverage }) => {
+}> = ({
+    type,
+    onClick,
+    onContinue,
+    inProgress,
+    currentUser,
+    compact,
+    compactInline,
+    mergedInfoPanel = false,
+    mergedInfoPanelCompact = false,
+    mergedInfoPanelStretch = false,
+    fillLobbyGridCell = false,
+    userDungeonCoreStatAverage,
+}) => {
     const definition = TOURNAMENT_DEFINITIONS[type];
     const lobbyVenueBg = CHAMPIONSHIP_VENUE_LOBBY_BG_IMAGE[type];
     const hasResultToView = inProgress && (inProgress.status === 'complete' || inProgress.status === 'eliminated');
@@ -518,7 +677,9 @@ const TournamentCard: React.FC<{
                         <div
                             className={`flex w-full overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10 ${
                                 mergedInfoPanelStretch
-                                    ? 'aspect-[2.06/1] max-h-full min-h-0 w-full shrink-0'
+                                    ? fillLobbyGridCell
+                                        ? 'h-full min-h-0 w-full min-w-0 shrink-0'
+                                        : 'aspect-[2.06/1] max-h-full min-h-0 w-full shrink-0'
                                     : 'h-full min-h-[5rem] max-h-[7.85rem]'
                             }`}
                         >
@@ -559,7 +720,11 @@ const TournamentCard: React.FC<{
                         </div>
                     </>
                 ) : (
-                <div className="flex aspect-[2.08/1] max-h-full min-h-0 w-full overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10">
+                <div
+                    className={`flex w-full overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10 ${
+                        fillLobbyGridCell ? 'h-full min-h-0' : 'aspect-[2.08/1] max-h-full min-h-0'
+                    }`}
+                >
                     <button
                         type="button"
                         onClick={() => setEntryModalOpen(true)}
@@ -713,6 +878,8 @@ const TournamentLobby: React.FC = () => {
     const { isNativeMobile, isNarrowViewport, pcLikeMobileLayout } = useNativeMobileShell();
     /** 네이티브 앱이 아니어도 좁은 화면(모바일 브라우저 등)에서는 입장카드 우측을 컴팩트 패널로 */
     const useCompactMergedChampionshipCards = isNarrowViewport && !pcLikeMobileLayout;
+    /** 입장 카드: PVE / PVP 탭 (네이티브·좁은 뷰포트). 넓은 화면은 홈과 동일 2×3 그리드(열 50:50, 좌 PVE·우 PVP·펫·펫페어) */
+    const useChampionshipLobbyEntryTabs = isNativeMobile || useCompactMergedChampionshipCards;
 
     const venueLobbyPanelStyle = useMemo(
         () =>
@@ -725,6 +892,7 @@ const TournamentLobby: React.FC = () => {
     const [hasRankChanged, setHasRankChanged] = useState(false);
     const [enrollingIn, setEnrollingIn] = useState<TournamentType | null>(null);
     const [selectedPreset, setSelectedPreset] = useState(0);
+    const [championshipLobbyEntryTab, setChampionshipLobbyEntryTab] = useState<'pve' | 'pvp'>('pve');
 
     if (!currentUserWithStatus) {
         return (
@@ -883,53 +1051,102 @@ const TournamentLobby: React.FC = () => {
                         championshipPhaseAbilityScores={championshipPhaseAbilityScores}
                     />
 
-                    {/* 입장 카드: 세로 나열, 이 영역만 스크롤 */}
-                    <div
-                        className={`min-h-0 w-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-lg border border-stone-600/40 p-[clamp(0.2rem,0.85dvh,0.45rem)] shadow-inner [-webkit-overflow-scrolling:touch] ${CHAMPIONSHIP_PANEL_GLASS} bg-stone-950/45`}
-                    >
-                        <div className="flex w-full min-w-0 flex-col items-stretch gap-[clamp(0.3rem,1.2dvh,0.55rem)] pb-1">
-                            <div className="flex w-full shrink-0 flex-col items-stretch">
-                                <TournamentCard
-                                    type="neighborhood"
-                                    onClick={(stage) => handleEnterArena('neighborhood', stage)}
-                                    onContinue={() => handleContinueTournament('neighborhood')}
-                                    inProgress={neighborhoodState || null}
-                                    currentUser={currentUserWithStatus}
-                                    mergedInfoPanel
-                                    mergedInfoPanelCompact
-                                    mergedInfoPanelStretch
-                                    userDungeonCoreStatAverage={userDungeonCoreStatAverage}
-                                />
-                            </div>
-                            <div className="flex w-full shrink-0 flex-col items-stretch">
-                                <TournamentCard
-                                    type="national"
-                                    onClick={(stage) => handleEnterArena('national', stage)}
-                                    onContinue={() => handleContinueTournament('national')}
-                                    inProgress={nationalState || null}
-                                    currentUser={currentUserWithStatus}
-                                    mergedInfoPanel
-                                    mergedInfoPanelCompact
-                                    mergedInfoPanelStretch
-                                    userDungeonCoreStatAverage={userDungeonCoreStatAverage}
-                                />
-                            </div>
-                            <div className="flex w-full shrink-0 flex-col items-stretch">
-                                <TournamentCard
-                                    type="world"
-                                    onClick={(stage) => handleEnterArena('world', stage)}
-                                    onContinue={() => handleContinueTournament('world')}
-                                    inProgress={worldState || null}
-                                    currentUser={currentUserWithStatus}
-                                    mergedInfoPanel
-                                    mergedInfoPanelCompact
-                                    mergedInfoPanelStretch
-                                    userDungeonCoreStatAverage={userDungeonCoreStatAverage}
-                                />
-                            </div>
-                            <div className="flex w-full shrink-0 flex-col items-stretch">
-                                <PvpChampionshipComingSoonCard compactMerged mergedInfoPanelStretch />
-                            </div>
+                    {/* 입장 카드: PVE / PVP 탭 + 스크롤 */}
+                    <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-1 overflow-hidden">
+                        <div
+                            role="tablist"
+                            aria-label="챔피언십 입장 종류"
+                            className="flex w-full shrink-0 gap-1 rounded-lg border border-amber-500/40 bg-black/45 p-0.5 shadow-inner"
+                        >
+                            <button
+                                type="button"
+                                role="tab"
+                                aria-selected={championshipLobbyEntryTab === 'pve'}
+                                onClick={() => setChampionshipLobbyEntryTab('pve')}
+                                className={`min-h-[2.25rem] flex-1 rounded-md px-2 text-xs font-black transition-colors sm:text-sm ${
+                                    championshipLobbyEntryTab === 'pve'
+                                        ? 'bg-amber-500/90 text-slate-950 shadow'
+                                        : 'text-amber-100/80 hover:bg-white/10'
+                                }`}
+                            >
+                                PVE
+                            </button>
+                            <button
+                                type="button"
+                                role="tab"
+                                aria-selected={championshipLobbyEntryTab === 'pvp'}
+                                onClick={() => setChampionshipLobbyEntryTab('pvp')}
+                                className={`min-h-[2.25rem] flex-1 rounded-md px-2 text-xs font-black transition-colors sm:text-sm ${
+                                    championshipLobbyEntryTab === 'pvp'
+                                        ? 'bg-amber-500/90 text-slate-950 shadow'
+                                        : 'text-amber-100/80 hover:bg-white/10'
+                                }`}
+                            >
+                                PVP
+                            </button>
+                        </div>
+                        <div
+                            className={`flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden overflow-x-hidden overscroll-y-contain rounded-lg border border-stone-600/40 p-[clamp(0.2rem,0.85dvh,0.45rem)] shadow-inner [-webkit-overflow-scrolling:touch] ${CHAMPIONSHIP_PANEL_GLASS} bg-stone-950/45`}
+                            role="tabpanel"
+                        >
+                            {championshipLobbyEntryTab === 'pve' ? (
+                                <div className={CHAMPIONSHIP_ENTRY_GRID_TAB_EQUAL_ROWS}>
+                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                        <TournamentCard
+                                            type="neighborhood"
+                                            onClick={(stage) => handleEnterArena('neighborhood', stage)}
+                                            onContinue={() => handleContinueTournament('neighborhood')}
+                                            inProgress={neighborhoodState || null}
+                                            currentUser={currentUserWithStatus}
+                                            mergedInfoPanel
+                                            mergedInfoPanelCompact
+                                            mergedInfoPanelStretch
+                                            fillLobbyGridCell
+                                            userDungeonCoreStatAverage={userDungeonCoreStatAverage}
+                                        />
+                                    </div>
+                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                        <TournamentCard
+                                            type="national"
+                                            onClick={(stage) => handleEnterArena('national', stage)}
+                                            onContinue={() => handleContinueTournament('national')}
+                                            inProgress={nationalState || null}
+                                            currentUser={currentUserWithStatus}
+                                            mergedInfoPanel
+                                            mergedInfoPanelCompact
+                                            mergedInfoPanelStretch
+                                            fillLobbyGridCell
+                                            userDungeonCoreStatAverage={userDungeonCoreStatAverage}
+                                        />
+                                    </div>
+                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                        <TournamentCard
+                                            type="world"
+                                            onClick={(stage) => handleEnterArena('world', stage)}
+                                            onContinue={() => handleContinueTournament('world')}
+                                            inProgress={worldState || null}
+                                            currentUser={currentUserWithStatus}
+                                            mergedInfoPanel
+                                            mergedInfoPanelCompact
+                                            mergedInfoPanelStretch
+                                            fillLobbyGridCell
+                                            userDungeonCoreStatAverage={userDungeonCoreStatAverage}
+                                        />
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className={CHAMPIONSHIP_ENTRY_GRID_TAB_EQUAL_ROWS}>
+                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                        <PvpChampionshipComingSoonCard compactMerged mergedInfoPanelStretch fillLobbyGridCell />
+                                    </div>
+                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                        <PetChampionshipComingSoonCard compactMerged mergedInfoPanelStretch fillLobbyGridCell />
+                                    </div>
+                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                        <PetPairChampionshipComingSoonCard compactMerged mergedInfoPanelStretch fillLobbyGridCell />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1001,54 +1218,172 @@ const TournamentLobby: React.FC = () => {
                         </div>
                     </aside>
                     <main className="min-h-0 flex-1 flex flex-col items-center overflow-hidden rounded-lg border border-zinc-600/80 bg-panel p-1 shadow-inner">
-                        <div className="mx-auto flex h-full min-h-0 w-full max-w-[min(100%,1120px)] flex-col justify-center">
-                            <div className="grid h-full min-h-0 grid-cols-2 grid-rows-2 content-stretch gap-2 sm:gap-3 lg:gap-4">
-                                <div className="flex min-h-0 min-w-0 flex-col items-center justify-center">
-                                    <TournamentCard
-                                        type="neighborhood"
-                                        onClick={(stage) => handleEnterArena('neighborhood', stage)}
-                                        onContinue={() => handleContinueTournament('neighborhood')}
-                                        inProgress={neighborhoodState || null}
-                                        currentUser={currentUserWithStatus}
-                                        mergedInfoPanel
-                                        mergedInfoPanelCompact={useCompactMergedChampionshipCards}
-                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
-                                        userDungeonCoreStatAverage={userDungeonCoreStatAverage}
-                                    />
+                        <div className="mx-auto flex h-full min-h-0 w-full max-w-[min(100%,1280px)] flex-col justify-center px-0.5">
+                            {useChampionshipLobbyEntryTabs ? (
+                                <div className="flex h-full min-h-0 w-full flex-col gap-2 overflow-hidden">
+                                    <div
+                                        role="tablist"
+                                        aria-label="챔피언십 입장 종류"
+                                        className="flex w-full shrink-0 gap-1.5 rounded-lg border border-amber-500/40 bg-black/40 p-1 shadow-inner"
+                                    >
+                                        <button
+                                            type="button"
+                                            role="tab"
+                                            aria-selected={championshipLobbyEntryTab === 'pve'}
+                                            onClick={() => setChampionshipLobbyEntryTab('pve')}
+                                            className={`min-h-[2.5rem] flex-1 rounded-md px-2 text-sm font-black transition-colors sm:text-base ${
+                                                championshipLobbyEntryTab === 'pve'
+                                                    ? 'bg-amber-500/90 text-slate-950 shadow'
+                                                    : 'text-amber-100/85 hover:bg-white/10'
+                                            }`}
+                                        >
+                                            PVE
+                                        </button>
+                                        <button
+                                            type="button"
+                                            role="tab"
+                                            aria-selected={championshipLobbyEntryTab === 'pvp'}
+                                            onClick={() => setChampionshipLobbyEntryTab('pvp')}
+                                            className={`min-h-[2.5rem] flex-1 rounded-md px-2 text-sm font-black transition-colors sm:text-base ${
+                                                championshipLobbyEntryTab === 'pvp'
+                                                    ? 'bg-amber-500/90 text-slate-950 shadow'
+                                                    : 'text-amber-100/85 hover:bg-white/10'
+                                            }`}
+                                        >
+                                            PVP
+                                        </button>
+                                    </div>
+                                    <div
+                                        className={`flex min-h-0 flex-1 flex-col overflow-hidden overflow-x-hidden overscroll-y-contain rounded-lg border border-stone-600/45 p-2 shadow-inner [-webkit-overflow-scrolling:touch] ${CHAMPIONSHIP_PANEL_GLASS} bg-stone-950/40`}
+                                        role="tabpanel"
+                                    >
+                                        {championshipLobbyEntryTab === 'pve' ? (
+                                            <div className={CHAMPIONSHIP_ENTRY_GRID_TAB_EQUAL_ROWS}>
+                                                <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                                    <TournamentCard
+                                                        type="neighborhood"
+                                                        onClick={(stage) => handleEnterArena('neighborhood', stage)}
+                                                        onContinue={() => handleContinueTournament('neighborhood')}
+                                                        inProgress={neighborhoodState || null}
+                                                        currentUser={currentUserWithStatus}
+                                                        mergedInfoPanel
+                                                        mergedInfoPanelCompact={useCompactMergedChampionshipCards}
+                                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
+                                                        fillLobbyGridCell
+                                                        userDungeonCoreStatAverage={userDungeonCoreStatAverage}
+                                                    />
+                                                </div>
+                                                <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                                    <TournamentCard
+                                                        type="national"
+                                                        onClick={(stage) => handleEnterArena('national', stage)}
+                                                        onContinue={() => handleContinueTournament('national')}
+                                                        inProgress={nationalState || null}
+                                                        currentUser={currentUserWithStatus}
+                                                        mergedInfoPanel
+                                                        mergedInfoPanelCompact={useCompactMergedChampionshipCards}
+                                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
+                                                        fillLobbyGridCell
+                                                        userDungeonCoreStatAverage={userDungeonCoreStatAverage}
+                                                    />
+                                                </div>
+                                                <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                                    <TournamentCard
+                                                        type="world"
+                                                        onClick={(stage) => handleEnterArena('world', stage)}
+                                                        onContinue={() => handleContinueTournament('world')}
+                                                        inProgress={worldState || null}
+                                                        currentUser={currentUserWithStatus}
+                                                        mergedInfoPanel
+                                                        mergedInfoPanelCompact={useCompactMergedChampionshipCards}
+                                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
+                                                        fillLobbyGridCell
+                                                        userDungeonCoreStatAverage={userDungeonCoreStatAverage}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className={CHAMPIONSHIP_ENTRY_GRID_TAB_EQUAL_ROWS}>
+                                                <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                                    <PvpChampionshipComingSoonCard
+                                                        compactMerged={useCompactMergedChampionshipCards}
+                                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
+                                                        fillLobbyGridCell
+                                                    />
+                                                </div>
+                                                <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                                    <PetChampionshipComingSoonCard
+                                                        compactMerged={useCompactMergedChampionshipCards}
+                                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
+                                                        fillLobbyGridCell
+                                                    />
+                                                </div>
+                                                <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                                    <PetPairChampionshipComingSoonCard
+                                                        compactMerged={useCompactMergedChampionshipCards}
+                                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
+                                                        fillLobbyGridCell
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="flex min-h-0 min-w-0 flex-col items-center justify-center">
-                                    <TournamentCard
-                                        type="national"
-                                        onClick={(stage) => handleEnterArena('national', stage)}
-                                        onContinue={() => handleContinueTournament('national')}
-                                        inProgress={nationalState || null}
-                                        currentUser={currentUserWithStatus}
-                                        mergedInfoPanel
-                                        mergedInfoPanelCompact={useCompactMergedChampionshipCards}
-                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
-                                        userDungeonCoreStatAverage={userDungeonCoreStatAverage}
-                                    />
+                            ) : (
+                                <div className={CHAMPIONSHIP_ENTRY_GRID_DESKTOP_HOME_MATCH}>
+                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                        <TournamentCard
+                                            type="neighborhood"
+                                            onClick={(stage) => handleEnterArena('neighborhood', stage)}
+                                            onContinue={() => handleContinueTournament('neighborhood')}
+                                            inProgress={neighborhoodState || null}
+                                            currentUser={currentUserWithStatus}
+                                            mergedInfoPanel
+                                            mergedInfoPanelCompact={false}
+                                            mergedInfoPanelStretch={false}
+                                            fillLobbyGridCell
+                                            userDungeonCoreStatAverage={userDungeonCoreStatAverage}
+                                        />
+                                    </div>
+                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                        <PvpChampionshipComingSoonCard compactMerged={false} fillLobbyGridCell />
+                                    </div>
+                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                        <TournamentCard
+                                            type="national"
+                                            onClick={(stage) => handleEnterArena('national', stage)}
+                                            onContinue={() => handleContinueTournament('national')}
+                                            inProgress={nationalState || null}
+                                            currentUser={currentUserWithStatus}
+                                            mergedInfoPanel
+                                            mergedInfoPanelCompact={false}
+                                            mergedInfoPanelStretch={false}
+                                            fillLobbyGridCell
+                                            userDungeonCoreStatAverage={userDungeonCoreStatAverage}
+                                        />
+                                    </div>
+                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                        <PetChampionshipComingSoonCard compactMerged={false} fillLobbyGridCell />
+                                    </div>
+                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                        <TournamentCard
+                                            type="world"
+                                            onClick={(stage) => handleEnterArena('world', stage)}
+                                            onContinue={() => handleContinueTournament('world')}
+                                            inProgress={worldState || null}
+                                            currentUser={currentUserWithStatus}
+                                            mergedInfoPanel
+                                            mergedInfoPanelCompact={false}
+                                            mergedInfoPanelStretch={false}
+                                            fillLobbyGridCell
+                                            userDungeonCoreStatAverage={userDungeonCoreStatAverage}
+                                        />
+                                    </div>
+                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                        <PetPairChampionshipComingSoonCard compactMerged={false} fillLobbyGridCell />
+                                    </div>
                                 </div>
-                                <div className="flex min-h-0 min-w-0 flex-col items-center justify-center">
-                                    <TournamentCard
-                                        type="world"
-                                        onClick={(stage) => handleEnterArena('world', stage)}
-                                        onContinue={() => handleContinueTournament('world')}
-                                        inProgress={worldState || null}
-                                        currentUser={currentUserWithStatus}
-                                        mergedInfoPanel
-                                        mergedInfoPanelCompact={useCompactMergedChampionshipCards}
-                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
-                                        userDungeonCoreStatAverage={userDungeonCoreStatAverage}
-                                    />
-                                </div>
-                                <div className="flex min-h-0 min-w-0 flex-col items-center justify-center">
-                                    <PvpChampionshipComingSoonCard
-                                        compactMerged={useCompactMergedChampionshipCards}
-                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
-                                    />
-                                </div>
-                            </div>
+                            )}
                         </div>
                     </main>
                     </div>

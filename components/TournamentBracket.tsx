@@ -4,7 +4,19 @@ import { UserWithStatus, TournamentState, PlayerForTournament, ServerAction, Use
 import Button from './Button.js';
 import { useButtonClickThrottle } from '../hooks/useButtonClickThrottle.js';
 import { useTournamentSimulation, type ChampionshipPlaybackSpeed } from '../hooks/useTournamentSimulation.js';
-import { TOURNAMENT_DEFINITIONS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, AVATAR_POOL, BORDER_POOL, CORE_STATS_DATA, LEAGUE_DATA, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT, gradeBackgrounds, EQUIPMENT_GRADE_LABEL_KO } from '../constants';
+import {
+    TOURNAMENT_DEFINITIONS,
+    CONSUMABLE_ITEMS,
+    MATERIAL_ITEMS,
+    AVATAR_POOL,
+    BORDER_POOL,
+    CORE_STATS_DATA,
+    LEAGUE_DATA,
+    DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT,
+    gradeBackgrounds,
+    EQUIPMENT_GRADE_LABEL_KO,
+    getChampionshipArenaBackgroundUrl,
+} from '../constants';
 import { getDungeonRankRewardForDisplay, getDungeonRankRewardRangeForDisplay } from '../shared/constants/tournaments';
 import Avatar from './Avatar.js';
 import RadarChart from './RadarChart.js';
@@ -501,11 +513,6 @@ const CHAMPIONSHIP_CORE_STATS: CoreStat[] = [
     CoreStat.Stability,
 ];
 
-const CHAMPIONSHIP_ARENA_BACKGROUND_BY_TYPE: Record<TournamentType, string> = {
-    neighborhood: '/images/bg/champ1.webp',
-    national: '/images/bg/champ2.webp',
-    world: '/images/bg/champ3.webp',
-};
 
 const ChampionshipAbilityPlayerPanel: React.FC<{
     player: PlayerForTournament | null;
@@ -7373,7 +7380,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         >
             <div
                 className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat"
-                style={{ backgroundImage: `url(${resolvePublicUrl(CHAMPIONSHIP_ARENA_BACKGROUND_BY_TYPE[tournament.type])})` }}
+                style={{
+                    backgroundImage: `url(${resolvePublicUrl(getChampionshipArenaBackgroundUrl(tournament.type as string))})`,
+                }}
                 aria-hidden
             />
             <div className={`relative z-10 flex min-h-0 flex-1 flex-row gap-2 ${championshipBoardHostClipClass}`}>

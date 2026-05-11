@@ -22,7 +22,7 @@ function dispositionLabel(meta: PairPetMeta['disposition']): string {
     if (meta.kind === 'convert') {
         const fromName = CORE_STATS_DATA[meta.fromStat]?.name ?? meta.fromStat;
         const toName = CORE_STATS_DATA[meta.toStat]?.name ?? meta.toStat;
-        return `${fromName} ${meta.pct}% → ${toName} (2배 전환)`;
+        return `${fromName} ${meta.pct}% → ${toName} (2배)`;
     }
     const name = CORE_STATS_DATA[meta.stat]?.name ?? meta.stat;
     return `${name} +${meta.pct}%`;

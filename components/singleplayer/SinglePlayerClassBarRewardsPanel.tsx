@@ -109,20 +109,20 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
                   : '유단자';
 
     const shellClass = isCompact
-        ? 'flex flex-col gap-0.5 rounded-lg border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-zinc-900/50 to-amber-950/30 px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
+        ? 'flex flex-col gap-0.5 rounded-md border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-zinc-900/50 to-amber-950/30 px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:rounded-lg sm:px-2 sm:py-1.5'
         : 'mb-2 flex flex-shrink-0 flex-col gap-1 rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-950/35 via-zinc-900/45 to-amber-950/25 px-3 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]';
 
     const titleRowClass = isCompact
-        ? 'flex items-center justify-between gap-1.5 text-[10px] font-semibold tracking-tight text-slate-200/95'
+        ? 'flex items-center justify-between gap-1 text-[9px] font-semibold tracking-tight text-slate-200/95 sm:text-[10px]'
         : 'flex items-center justify-between gap-2 text-[11px] font-semibold tracking-tight text-slate-200/95';
 
     const barTrackClass = isCompact
-        ? 'relative h-4 w-full overflow-hidden rounded-full border border-slate-700/50 shadow-[inset_0_2px_8px_rgba(0,0,0,0.55)]'
+        ? 'relative h-3.5 w-full overflow-hidden rounded-full border border-slate-700/50 shadow-[inset_0_2px_6px_rgba(0,0,0,0.55)] sm:h-4'
         : 'relative h-5 w-full overflow-hidden rounded-full border border-slate-700/50 shadow-[inset_0_2px_10px_rgba(0,0,0,0.55)]';
 
-    const rewardRowClass = isCompact ? 'relative h-8 w-full' : 'relative h-9 w-full';
+    const rewardRowClass = isCompact ? 'relative h-7 w-full sm:h-8' : 'relative h-9 w-full';
     const rewardBtnClass = isCompact
-        ? 'relative h-6 w-6 rounded-md border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-0.5 shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed'
+        ? 'relative h-5 w-5 rounded border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-px shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed sm:h-6 sm:w-6 sm:rounded-md sm:p-0.5'
         : 'relative h-7 w-7 rounded-md border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-0.5 shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed';
 
     return (
@@ -134,7 +134,7 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
                 </span>
             </div>
             <div className="flex flex-col gap-0">
-                <div className="relative w-full rounded-full bg-gradient-to-r from-emerald-500/25 via-amber-500/20 to-teal-500/25 p-[2px] shadow-[0_0_16px_-8px_rgba(52,211,153,0.35)] sm:p-[3px]">
+                <div className="relative w-full rounded-full bg-gradient-to-r from-emerald-500/25 via-amber-500/20 to-teal-500/25 p-[1.5px] shadow-[0_0_12px_-8px_rgba(52,211,153,0.3)] sm:p-[2px] md:p-[3px]">
                     <div className={barTrackClass}>
                         <div className="pointer-events-none absolute inset-0 z-0 flex">
                             <div className="h-full w-1/2 border-r border-white/25 bg-slate-950/80" />
@@ -176,7 +176,7 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
                     </div>
                 </div>
                 <div
-                    className={`flex justify-between px-0.5 leading-none text-slate-500 ${isCompact ? 'pt-0 text-[8px] font-bold tabular-nums' : 'pt-0 text-[9px] font-bold tabular-nums'}`}
+                    className={`flex justify-between px-0.5 leading-none text-slate-500 ${isCompact ? 'pt-0 text-[7px] font-bold tabular-nums sm:text-[8px]' : 'pt-0 text-[9px] font-bold tabular-nums'}`}
                 >
                     <span className="w-4 text-left text-slate-400">0</span>
                     <span className="flex-1 text-center text-slate-400">10</span>
@@ -211,7 +211,7 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
                                     >
                                         {apBadge ? (
                                             <span
-                                                className={`flex h-full w-full items-center justify-center leading-none drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)] ${isCompact ? 'text-[1.1rem]' : 'text-[1.35rem]'}`}
+                                                className={`flex h-full w-full items-center justify-center leading-none drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)] ${isCompact ? 'text-base sm:text-[1.1rem]' : 'text-[1.35rem]'}`}
                                                 aria-hidden
                                             >
                                                 ⚡
@@ -236,7 +236,7 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
                                 <span
                                     className={`mt-0 font-bold tabular-nums leading-none ${
                                         progressMet ? 'text-amber-200' : 'text-slate-500'
-                                    } ${isCompact ? 'text-[9px]' : 'text-[10px]'}`}
+                                    } ${isCompact ? 'text-[8px] sm:text-[9px]' : 'text-[10px]'}`}
                                 >
                                     {milestone}
                                 </span>
