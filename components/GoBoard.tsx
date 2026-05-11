@@ -683,6 +683,9 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         isPairBasePlacementHost = false,
         canPlaceMoreBaseStones,
     } = props;
+    /** 미사일 완료 타이머: 부모가 자주 리렌더되어도 setTimeout이 매번 취소되지 않도록 onAction은 ref로만 읽는다. */
+    const onActionRef = useRef(onAction);
+    onActionRef.current = onAction;
     /** playing 중에 세션에 남은 stale newlyRevealed로 스파클·가시성이 매 수 재생되는 것 방지 */
     const isHiddenRevealStatus =
         gameStatus === 'hidden_reveal_animating' || gameStatus === 'hidden_final_reveal';
@@ -1145,7 +1148,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             return `${gameId}:${animation.type}:${animation.startTime}`;
         };
         const sendMissileCompletionOnce = (singlePlayer: boolean) => {
-            if (!onAction || !gameId) return;
+            const dispatch = onActionRef.current;
+            if (!dispatch || !gameId) return;
             const signalKey = makeMissileCompletionSignalKey();
             if (!signalKey) return;
             if (lastMissileCompletionSignalKeyRef.current === signalKey) {
@@ -1153,12 +1157,12 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             }
             lastMissileCompletionSignalKeyRef.current = signalKey;
             if (singlePlayer) {
-                onAction({
+                dispatch({
                     type: 'SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE',
                     payload: { gameId }
                 } as any);
             } else {
-                onAction({
+                dispatch({
                     type: 'MISSILE_ANIMATION_COMPLETE',
                     payload: { gameId }
                 });
@@ -1249,7 +1253,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 missileAnimationTimeoutRef.current = null;
             }
         };
-    }, [animation, gameStatus, onAction, gameId, isSinglePlayer]);
+    }, [animation, gameStatus, gameId, isSinglePlayer]);
 
     const isLastMoveMarkerEnabled = useMemo(() => {
         const strategicModes = SPECIAL_GAME_MODES.map(m => m.mode);

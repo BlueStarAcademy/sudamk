@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
 import ClassNavigationPanel from './singleplayer/ClassNavigationPanel.js';
 import StageGrid from './singleplayer/StageGrid.js';
+import SinglePlayerClassBarRewardsPanel from './singleplayer/SinglePlayerClassBarRewardsPanel.js';
 import TrainingQuestPanel from './singleplayer/TrainingQuestPanel.js';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
 import { SinglePlayerLevel, UserWithStatus } from '../types.js';
@@ -120,6 +121,13 @@ const SinglePlayerLobby: React.FC = () => {
                                 screenTitle: SINGLE_PLAYER_LOBBY_TITLE,
                                 compactTitleBar: true,
                             }}
+                        />
+                    </div>
+                    <div className="shrink-0 px-0.5 pb-0.5">
+                        <SinglePlayerClassBarRewardsPanel
+                            selectedClass={selectedClass}
+                            currentUser={currentUserWithStatus}
+                            density="compact"
                         />
                     </div>
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-emerald-500/20 bg-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
