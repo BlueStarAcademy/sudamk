@@ -8,7 +8,7 @@ export const processMove = (
     move: { x: number, y: number, player: PlayerType },
     koInfo: LiveGameSession['koInfo'],
     moveHistoryLength: number,
-    options?: { ignoreSuicide?: boolean, isSinglePlayer?: boolean, opponentPlayer?: PlayerType }
+    options?: { ignoreSuicide?: boolean, isSinglePlayer?: boolean, opponentPlayer?: PlayerType, suppressOccupiedLog?: boolean }
 ): {
     isValid: boolean;
     newBoardState: BoardState;
@@ -28,21 +28,27 @@ export const processMove = (
     // 치명적 버그 방지: 자신의 돌 위에 착점하는 것을 최우선으로 차단
     const stoneAtPosition = boardState[y][x];
     if (stoneAtPosition === player) {
-        console.error(`[processMove] CRITICAL BUG PREVENTION: Attempted to place stone on own stone at (${x}, ${y}), player=${player}, boardState[${y}][${x}]=${stoneAtPosition}`);
+        if (!options?.suppressOccupiedLog) {
+            console.error(`[processMove] CRITICAL BUG PREVENTION: Attempted to place stone on own stone at (${x}, ${y}), player=${player}, boardState[${y}][${x}]=${stoneAtPosition}`);
+        }
         return { isValid: false, reason: 'occupied', newBoardState: boardState, capturedStones: [], newKoInfo: koInfo };
     }
     
     // 싱글플레이 모드에서 상대방(AI) 돌 위에 놓는 것을 차단
     if (options?.isSinglePlayer && options?.opponentPlayer) {
         if (stoneAtPosition === options.opponentPlayer) {
-            console.error(`[processMove] CRITICAL BUG PREVENTION: Attempted to place stone on opponent (AI) stone in single player mode at (${x}, ${y}), player=${player}, opponent=${options.opponentPlayer}, boardState[${y}][${x}]=${stoneAtPosition}`);
+            if (!options?.suppressOccupiedLog) {
+                console.error(`[processMove] CRITICAL BUG PREVENTION: Attempted to place stone on opponent (AI) stone in single player mode at (${x}, ${y}), player=${player}, opponent=${options.opponentPlayer}, boardState[${y}][${x}]=${stoneAtPosition}`);
+            }
             return { isValid: false, reason: 'occupied', newBoardState: boardState, capturedStones: [], newKoInfo: koInfo };
         }
     }
     
     // PVP 모드에서도 상대방 돌 위에 착점하는 것을 명시적으로 차단
     if (!options?.isSinglePlayer && stoneAtPosition === opponent) {
-        console.error(`[processMove] CRITICAL BUG PREVENTION: Attempted to place stone on opponent stone in PVP mode at (${x}, ${y}), player=${player}, opponent=${opponent}, boardState[${y}][${x}]=${stoneAtPosition}`);
+        if (!options?.suppressOccupiedLog) {
+            console.error(`[processMove] CRITICAL BUG PREVENTION: Attempted to place stone on opponent stone in PVP mode at (${x}, ${y}), player=${player}, opponent=${opponent}, boardState[${y}][${x}]=${stoneAtPosition}`);
+        }
         return { isValid: false, reason: 'occupied', newBoardState: boardState, capturedStones: [], newKoInfo: koInfo };
     }
 

@@ -71,6 +71,8 @@ import {
 } from './utils/arenaTurnPolicy.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 
+const AI_EVALUATION_MOVE_OPTIONS = { ignoreSuicide: true, suppressOccupiedLog: true } as const;
+
 /** 싱글·탑·로비 AI 등: 마지막 AI 수가 판에 보이고 착수음이 난 뒤 계가 — 클라 렌더·오디오 여유 */
 const PVE_DEFERRED_AUTO_SCORING_AFTER_LAST_AI_MS = 1200;
 const pveDeferredAutoScoringTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -1581,7 +1583,7 @@ function getMaxOpponentWeightedCaptureReply(
             { ...m, player: opponentPlayer },
             koInfo,
             moveHistoryLen,
-            { ignoreSuicide: true }
+            AI_EVALUATION_MOVE_OPTIONS
         );
         if (!r.isValid || r.capturedStones.length === 0) continue;
         const w = weightedStonesCaptured(game, aiPlayer, r.capturedStones);
@@ -1594,7 +1596,7 @@ function isLegalAiMoveOnCurrentBoard(game: types.LiveGameSession, move: Point | 
     if (!move || move.x < 0 || move.y < 0) return false;
     const boardSize = game.settings.boardSize || game.boardState.length;
     if (move.x >= boardSize || move.y >= boardSize) return false;
-    return processMove(game.boardState, { ...move, player }, game.koInfo, game.moveHistory.length).isValid;
+    return processMove(game.boardState, { ...move, player }, game.koInfo, game.moveHistory.length, { suppressOccupiedLog: true }).isValid;
 }
 
 function pickServerScoredLegalMove(
@@ -2368,7 +2370,8 @@ export async function makeGoAiBotMove(
                 game.boardState,
                 { ...preferredPlacement, player: aiPlayerEnum },
                 game.koInfo,
-                game.moveHistory.length
+                game.moveHistory.length,
+                { suppressOccupiedLog: true }
             ).isValid
         ) {
             selectedMove = { x: preferredPlacement.x, y: preferredPlacement.y };
@@ -2595,7 +2598,7 @@ export async function makeGoAiBotMove(
             !!p && p.x >= 0 && p.y >= 0 && p.x < boardSize && p.y < boardSize;
         const isLegalForcedMove = (p: Point) =>
             isInsideBoard(p) &&
-            processMove(game.boardState, { ...p, player: aiPlayerEnum }, game.koInfo, game.moveHistory.length).isValid;
+            processMove(game.boardState, { ...p, player: aiPlayerEnum }, game.koInfo, game.moveHistory.length, { suppressOccupiedLog: true }).isValid;
 
         for (const rule of forcedAiResponses) {
             const cond = rule.whenOpponentStoneAt;
@@ -3288,7 +3291,8 @@ function findAllValidMoves(
                     game.boardState,
                     { x, y, player: aiPlayer },
                     game.koInfo,
-                    game.moveHistory.length
+                    game.moveHistory.length,
+                    { suppressOccupiedLog: true }
                 );
                 if (result.isValid) {
                     validMoves.push({ x, y });
@@ -3335,7 +3339,8 @@ function findAllValidMovesFast(
                         game.boardState,
                         { x: neighbor.x, y: neighbor.y, player: aiPlayer },
                         game.koInfo,
-                        game.moveHistory.length
+                        game.moveHistory.length,
+                        { suppressOccupiedLog: true }
                     );
                     if (result.isValid) {
                         validMoves.push({ x: neighbor.x, y: neighbor.y });
@@ -3354,7 +3359,8 @@ function findAllValidMovesFast(
                         game.boardState,
                         { x, y, player: aiPlayer },
                         game.koInfo,
-                        game.moveHistory.length
+                        game.moveHistory.length,
+                        { suppressOccupiedLog: true }
                     );
                     if (result.isValid) {
                         validMoves.push({ x, y });
@@ -3400,7 +3406,7 @@ function scoreMovesByProfile(
             { ...point, player: aiPlayer },
             game.koInfo,
             game.moveHistory.length,
-            { ignoreSuicide: true }
+            AI_EVALUATION_MOVE_OPTIONS
         );
         
         let saveScore = 0;
@@ -3562,7 +3568,7 @@ function scoreMovesByProfile(
             { ...point, player: aiPlayer },
             game.koInfo,
             game.moveHistory.length,
-            { ignoreSuicide: true }
+            AI_EVALUATION_MOVE_OPTIONS
         );
         let isSavingOwnAtariGroup = false;
         if (testResultForSelfAtari.isValid) {
@@ -3798,7 +3804,7 @@ function evaluateCaptureOpportunity(
         { ...point, player: aiPlayer },
         game.koInfo,
         game.moveHistory.length,
-        { ignoreSuicide: true }
+        AI_EVALUATION_MOVE_OPTIONS
     );
 
     if (testResult.isValid && testResult.capturedStones.length > 0) {
@@ -4309,7 +4315,7 @@ function evaluateAtariOpportunity(
         { ...point, player: aiPlayer },
         game.koInfo,
         game.moveHistory.length,
-        { ignoreSuicide: true }
+        AI_EVALUATION_MOVE_OPTIONS
     );
 
     if (!testResult.isValid) return 0;
@@ -4409,7 +4415,7 @@ function evaluateLifeDeath(
         { ...point, player: aiPlayer },
         game.koInfo,
         game.moveHistory.length,
-        { ignoreSuicide: true }
+        AI_EVALUATION_MOVE_OPTIONS
     );
 
     if (!testResult.isValid) return -2; // 자살수는 매우 낮은 점수
@@ -4497,7 +4503,7 @@ function evaluateWinFocus(
         { ...point, player: aiPlayer },
         game.koInfo,
         game.moveHistory.length,
-        { ignoreSuicide: true }
+        AI_EVALUATION_MOVE_OPTIONS
     );
 
     if (testResult.isValid && testResult.capturedStones.length > 0) {
@@ -4536,6 +4542,9 @@ function scoreMovesFast(
     const scoredMoves: Array<{ move: Point; score: number }> = [];
 
     for (const move of moves) {
+        if (game.boardState[move.y]?.[move.x] !== Player.None) {
+            continue;
+        }
         let score = 0;
         const point: Point = { x: move.x, y: move.y };
 
@@ -4544,7 +4553,7 @@ function scoreMovesFast(
             { ...point, player: aiPlayer },
             game.koInfo,
             game.moveHistory.length,
-            { ignoreSuicide: true }
+            AI_EVALUATION_MOVE_OPTIONS
         );
         const captureScore = evaluateCaptureOpportunity(game, logic, point, aiPlayer, opponentPlayer);
         const pveCaptureFirst = isSinglePlayerOrTowerPve(game);
@@ -4672,6 +4681,9 @@ function scoreMovesForAggressiveCapture(
     const scoredMoves: Array<{ move: Point; score: number }> = [];
 
     for (const move of moves) {
+        if (game.boardState[move.y]?.[move.x] !== Player.None) {
+            continue;
+        }
         let score = 0;
         const point: Point = { x: move.x, y: move.y };
 
@@ -4684,7 +4696,7 @@ function scoreMovesForAggressiveCapture(
             { ...point, player: aiPlayer },
             game.koInfo,
             game.moveHistory.length,
-            { ignoreSuicide: true }
+            AI_EVALUATION_MOVE_OPTIONS
         );
         if (testResult.isValid) {
             const myGroupsBefore = logic.getAllGroups(aiPlayer, game.boardState);
@@ -4773,7 +4785,7 @@ function evaluateAttackOpportunity(
         { ...point, player: aiPlayer },
         game.koInfo,
         game.moveHistory.length,
-        { ignoreSuicide: true }
+        AI_EVALUATION_MOVE_OPTIONS
     );
 
     if (!testResult.isValid) return 0;
@@ -4863,7 +4875,7 @@ function evaluateSurroundOpportunity(
         { ...point, player: aiPlayer },
         game.koInfo,
         game.moveHistory.length,
-        { ignoreSuicide: true }
+        AI_EVALUATION_MOVE_OPTIONS
     );
 
     if (!testResult.isValid) return 0;
@@ -4922,7 +4934,7 @@ function evaluateSafety(
         { ...point, player: aiPlayer },
         game.koInfo,
         game.moveHistory.length,
-        { ignoreSuicide: true }
+        AI_EVALUATION_MOVE_OPTIONS
     );
 
     if (!testResult.isValid) return -1.0; // 자살수는 매우 위험
@@ -4957,7 +4969,7 @@ function evaluateEscapeFromSurround(
         { ...point, player: aiPlayer },
         game.koInfo,
         game.moveHistory.length,
-        { ignoreSuicide: true }
+        AI_EVALUATION_MOVE_OPTIONS
     );
 
     if (!testResult.isValid) return 0;
@@ -5099,7 +5111,7 @@ function evaluateLibertyGain(
         { ...point, player: aiPlayer },
         game.koInfo,
         game.moveHistory.length,
-        { ignoreSuicide: true }
+        AI_EVALUATION_MOVE_OPTIONS
     );
 
     if (!testResult.isValid) return 0;
@@ -5182,7 +5194,7 @@ function evaluateSelfAtari(
         { ...point, player: aiPlayer },
         game.koInfo,
         game.moveHistory.length,
-        { ignoreSuicide: true }
+        AI_EVALUATION_MOVE_OPTIONS
     );
 
     if (!testResult.isValid) return 1.0; // 자충수는 1.0 반환 (패널티)
@@ -5220,7 +5232,7 @@ function evaluateSacrificeAndCounter(
         { ...point, player: aiPlayer },
         game.koInfo,
         game.moveHistory.length,
-        { ignoreSuicide: true }
+        AI_EVALUATION_MOVE_OPTIONS
     );
 
     if (!testResult.isValid) return 0;
@@ -5269,7 +5281,7 @@ function evaluateAtariJudgment(
         { ...point, player: aiPlayer },
         game.koInfo,
         game.moveHistory.length,
-        { ignoreSuicide: true }
+        AI_EVALUATION_MOVE_OPTIONS
     );
 
     if (!testResult.isValid) return 0;
@@ -5522,7 +5534,7 @@ function evaluateAdvancedTechniques(
         { ...point, player: aiPlayer },
         game.koInfo,
         game.moveHistory.length,
-        { ignoreSuicide: true }
+        AI_EVALUATION_MOVE_OPTIONS
     );
 
     if (!testResult.isValid) return 0;
@@ -5539,7 +5551,7 @@ function evaluateAdvancedTechniques(
                 { x: lx, y: ly, player: aiPlayer },
                 null,
                 game.moveHistory.length + 1,
-                { ignoreSuicide: true }
+                AI_EVALUATION_MOVE_OPTIONS
             );
             if (nextMoveResult.isValid) {
                 const nextOppGroups = logic.getAllGroups(opponentPlayer, nextMoveResult.newBoardState);
@@ -5600,7 +5612,7 @@ function evaluateConnectionAndCut(
         { ...point, player: aiPlayer },
         game.koInfo,
         game.moveHistory.length,
-        { ignoreSuicide: true }
+        AI_EVALUATION_MOVE_OPTIONS
     );
 
     if (!testResult.isValid) return 0;
@@ -5643,7 +5655,7 @@ function evaluateLifeDeathAdvanced(
         { ...point, player: aiPlayer },
         game.koInfo,
         game.moveHistory.length,
-        { ignoreSuicide: true }
+        AI_EVALUATION_MOVE_OPTIONS
     );
 
     if (!testResult.isValid) return 0;
@@ -5711,7 +5723,7 @@ function evaluateMovementAdvanced(
         { ...point, player: aiPlayer },
         game.koInfo,
         game.moveHistory.length,
-        { ignoreSuicide: true }
+        AI_EVALUATION_MOVE_OPTIONS
     );
 
     if (testResult.isValid) {
@@ -5773,7 +5785,7 @@ function evaluateEndgame(
         { ...point, player: aiPlayer },
         game.koInfo,
         game.moveHistory.length,
-        { ignoreSuicide: true }
+        AI_EVALUATION_MOVE_OPTIONS
     );
 
     if (!testResult.isValid) return 0;
@@ -5883,7 +5895,7 @@ function evaluateLookAhead(
             { ...move, player: currentPlayer },
             koInfo,
             game.moveHistory.length + 1,
-            { ignoreSuicide: true }
+            AI_EVALUATION_MOVE_OPTIONS
         );
 
         if (!moveResult.isValid) continue;
@@ -5976,7 +5988,7 @@ function canGroupBeSaved(
             { x, y, player: opponentPlayer },
             koInfo,
             game.moveHistory.length + 1,
-            { ignoreSuicide: true }
+            AI_EVALUATION_MOVE_OPTIONS
         );
         
         if (opponentMoveResult.isValid) {
@@ -6012,7 +6024,7 @@ function canGroupBeSaved(
                     { ...move, player: aiPlayer },
                     koInfo,
                     game.moveHistory.length + 1,
-                    { ignoreSuicide: true }
+                    AI_EVALUATION_MOVE_OPTIONS
                 );
                 
                 if (!aiMoveResult.isValid) continue;

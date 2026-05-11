@@ -614,7 +614,17 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 game = await db.getLiveGame(gameId);
             }
             
-            if (!game || !game.isSinglePlayer || !game.stageId) {
+            if (!game) {
+                console.warn(`[handleSinglePlayerAction] CONFIRM_SINGLE_PLAYER_GAME_START - Stale game confirmation ignored:`, { gameId, userId: user.id });
+                return {
+                    clientResponse: {
+                        success: false,
+                        gameId,
+                        staleGame: true,
+                    },
+                };
+            }
+            if (!game.isSinglePlayer || !game.stageId) {
                 console.error(`[handleSinglePlayerAction] CONFIRM_SINGLE_PLAYER_GAME_START - Invalid game:`, { gameId, hasGame: !!game, isSinglePlayer: game?.isSinglePlayer, stageId: game?.stageId });
                 return { error: 'Invalid single player game.' };
             }

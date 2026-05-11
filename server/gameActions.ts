@@ -483,6 +483,13 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
     // 도전의 탑은 클라이언트에서만 실행되므로 서버에서 착수 액션을 처리하지 않음
     // BUY_TOWER_ITEM은 payload에 gameId가 있어도 상점(handleShopAction)에서만 처리 (여기서 PVE 분기에 들어가면 빈 {}로 종료되어 구매가 실행되지 않음)
     if (gameId && type !== 'LEAVE_AI_GAME' && type !== 'BUY_TOWER_ITEM') {
+        // 싱글플레이 시작 확인은 게임 캐시/DB 조회 전 전용 핸들러로 보낸다.
+        // 서버 재시작 직후 오래된 클라이언트 확인 요청이 일반 게임 라우팅에서 noisy 400으로 반복되는 것을 막는다.
+        if (type === 'CONFIRM_SINGLE_PLAYER_GAME_START') {
+            const { handleSinglePlayerAction } = await import('./actions/singlePlayerActions.js');
+            return handleSinglePlayerAction(volatileState, action, userData);
+        }
+
         // 싱글플레이·도전의 탑 미사일 액션 처리 (게임이 캐시에 없을 수 있음)
         if (type === 'START_MISSILE_SELECTION' || type === 'LAUNCH_MISSILE' || type === 'CANCEL_MISSILE_SELECTION' || type === 'MISSILE_INVALID_SELECTION' || type === 'MISSILE_ANIMATION_COMPLETE') {
             if (gameId.startsWith('sp-game-')) {

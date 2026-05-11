@@ -250,6 +250,9 @@ export const useTournamentSimulation = (
     // realGame.currentPly가 아직 0이어서 if (ply === 0) 블록이 또 들어가 멘트가 중복된다.
     // 같은 매치 키에 대해 이미 푸시했다면 건너뛴다.
     const announcedStartMatchKeyRef = useRef<string | null>(null);
+    /** 챔피언십 실대국: 마지막 수까지 재생한 뒤 서버 완료 전까지 동일 매치 재시작 방지 */
+    const championshipRealPlaybackTerminalLockRef = useRef<string | null>(null);
+    const realMatchScoringTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Track current match to detect changes
     const currentMatchKeyRef = useRef<string | null>(getMatchKey(localTournament));
@@ -278,6 +281,12 @@ export const useTournamentSimulation = (
                 clearInterval(simulationIntervalRef.current);
                 simulationIntervalRef.current = null;
             }
+            if (realMatchScoringTimeoutRef.current) {
+                clearTimeout(realMatchScoringTimeoutRef.current);
+                realMatchScoringTimeoutRef.current = null;
+            }
+            championshipRealPlaybackTerminalLockRef.current = null;
+            announcedStartMatchKeyRef.current = null;
 
             isSimulatingRef.current = false;
             timeElapsedRef.current = 0;
@@ -345,6 +354,10 @@ export const useTournamentSimulation = (
                 clearInterval(simulationIntervalRef.current);
                 simulationIntervalRef.current = null;
             }
+            if (realMatchScoringTimeoutRef.current) {
+                clearTimeout(realMatchScoringTimeoutRef.current);
+                realMatchScoringTimeoutRef.current = null;
+            }
             isSimulatingRef.current = false;
             return;
         }
@@ -380,6 +393,11 @@ export const useTournamentSimulation = (
 
         const realGame = match.championshipRealGame;
         if (realGame?.moves?.length) {
+            const playbackMatchKey = getMatchKey(localTournament);
+            if (playbackMatchKey && championshipRealPlaybackTerminalLockRef.current === playbackMatchKey) {
+                return;
+            }
+
             isSimulatingRef.current = true;
             let ply = Math.max(0, realGame.currentPly || 0);
             const commentary = [...(localTournament.currentMatchCommentary || [])];
@@ -484,6 +502,10 @@ export const useTournamentSimulation = (
                         simulationIntervalRef.current = null;
                     }
 
+                    if (playbackMatchKey) {
+                        championshipRealPlaybackTerminalLockRef.current = playbackMatchKey;
+                    }
+
                     commentary.push({ text: `${realGame.maxPly}수 진행이 완료되어 계가 중입니다...`, phase: 'end', isRandomEvent: false });
                     setLocalTournament(prev => {
                         if (!prev?.currentSimulatingMatch) return prev;
@@ -506,7 +528,11 @@ export const useTournamentSimulation = (
                         return updated;
                     });
 
-                    setTimeout(() => {
+                    if (realMatchScoringTimeoutRef.current) {
+                        clearTimeout(realMatchScoringTimeoutRef.current);
+                    }
+                    realMatchScoringTimeoutRef.current = setTimeout(() => {
+                        realMatchScoringTimeoutRef.current = null;
                         const winner = localTournament.players.find(p => p.id === realGame.winnerId);
                         const blackPlayer = localTournament.players.find(p => p.id === realGame.blackPlayerId);
                         const whitePlayer = localTournament.players.find(p => p.id === realGame.whitePlayerId);
@@ -550,6 +576,9 @@ export const useTournamentSimulation = (
                     clearTimeout(simulationIntervalRef.current);
                     simulationIntervalRef.current = null;
                 }
+                // 실대국 계가 지연 타이머는 여기서 지우지 않는다. effect deps가 바뀌며 cleanup이 돌 때
+                // COMPLETE_TOURNAMENT_SIMULATION이 스케줄에서 사라져 무한 재생만 고치고 전송이 누락된다.
+                // 타이머는 매치 키가 바뀔 때(위 useEffect)만 정리한다.
                 isSimulatingRef.current = false;
             };
         }
