@@ -668,7 +668,13 @@ export const instantSkipChampionshipDungeonMatch = async (
         roundIndex = state.currentSimulatingMatch.roundIndex;
         matchIndex = state.currentSimulatingMatch.matchIndex;
         match = state.rounds[roundIndex]?.matches[matchIndex] ?? null;
-    } else if (state.status === 'bracket_ready' || state.status === 'round_complete') {
+    } else if (
+        state.status === 'bracket_ready' ||
+        state.status === 'round_complete' ||
+        (state.status === 'round_in_progress' && !state.currentSimulatingMatch)
+    ) {
+        // bracket_ready / round_complete: 아직 시합 미시작
+        // round_in_progress + sim 없음: WS/저장 경로에서 currentSimulatingMatch만 빠진 경우 — 동일하게 다음 유저 매치를 찾는다
         if (state.type === 'neighborhood') {
             const currentRound = state.currentRoundRobinRound || 1;
             const currentRoundObj = state.rounds.find(r => r.name === `${currentRound}회차`);

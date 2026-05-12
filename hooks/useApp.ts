@@ -5351,16 +5351,18 @@ export const useApp = () => {
                     return;
                 }
                 
-                console.debug('[handleAction] Action response received', {
-                    actionType: action.type,
-                    hasUpdatedUser: !!result.updatedUser || !!result.clientResponse?.updatedUser,
-                    moveHistoryLength: Array.isArray((result as any).game?.moveHistory)
-                        ? (result as any).game.moveHistory.length
-                        : Array.isArray(result.clientResponse?.game?.moveHistory)
-                          ? result.clientResponse.game.moveHistory.length
-                          : undefined,
-                    raw: result,
-                });
+                if (import.meta.env.DEV && action.type !== 'SAVE_TOURNAMENT_PROGRESS') {
+                    console.debug('[handleAction] Action response received', {
+                        actionType: action.type,
+                        hasUpdatedUser: !!result.updatedUser || !!result.clientResponse?.updatedUser,
+                        moveHistoryLength: Array.isArray((result as any).game?.moveHistory)
+                            ? (result as any).game.moveHistory.length
+                            : Array.isArray(result.clientResponse?.game?.moveHistory)
+                              ? result.clientResponse.game.moveHistory.length
+                              : undefined,
+                        raw: result,
+                    });
+                }
 
                 // /api/action 성공 본문은 `{ success, ...clientResponse }` 평탄화 → `game`은 최상위 `result.game`
                 if (action.type === 'REQUEST_SERVER_AI_MOVE') {
@@ -5515,23 +5517,30 @@ export const useApp = () => {
                     }
                 }
                 
-                console.log(`[handleAction] ${action.type} - Response received:`, {
-                    hasUpdatedUser: !!result.updatedUser,
-                    hasClientResponse: !!result.clientResponse,
-                    hasClientResponseUpdatedUser: !!result.clientResponse?.updatedUser,
-                    hasRedirectToTournament: !!result.clientResponse?.redirectToTournament,
-                    redirectToTournament: result.clientResponse?.redirectToTournament || result.redirectToTournament,
-                    hasObtainedItemsBulk: !!result.obtainedItemsBulk,
-                    hasClientResponseObtainedItemsBulk: !!result.clientResponse?.obtainedItemsBulk,
-                    hasRewardSummary: !!result.rewardSummary,
-                    hasDisassemblyResult: !!result.disassemblyResult,
-                    hasCombinationResult: !!result.combinationResult,
-                    hasEnhancementOutcome: !!result.enhancementOutcome,
-                    hasCraftResult: !!result.craftResult,
-                    resultKeys: Object.keys(result),
-                    clientResponseKeys: result.clientResponse ? Object.keys(result.clientResponse) : [],
-                    fullResult: result
-                });
+                const quietActionLogs = new Set([
+                    'SAVE_TOURNAMENT_PROGRESS',
+                    'ENTER_TOURNAMENT_VIEW',
+                    'LEAVE_TOURNAMENT_VIEW',
+                ]);
+                if (import.meta.env.DEV && !quietActionLogs.has(action.type)) {
+                    console.log(`[handleAction] ${action.type} - Response received:`, {
+                        hasUpdatedUser: !!result.updatedUser,
+                        hasClientResponse: !!result.clientResponse,
+                        hasClientResponseUpdatedUser: !!result.clientResponse?.updatedUser,
+                        hasRedirectToTournament: !!result.clientResponse?.redirectToTournament,
+                        redirectToTournament: result.clientResponse?.redirectToTournament || result.redirectToTournament,
+                        hasObtainedItemsBulk: !!result.obtainedItemsBulk,
+                        hasClientResponseObtainedItemsBulk: !!result.clientResponse?.obtainedItemsBulk,
+                        hasRewardSummary: !!result.rewardSummary,
+                        hasDisassemblyResult: !!result.disassemblyResult,
+                        hasCombinationResult: !!result.combinationResult,
+                        hasEnhancementOutcome: !!result.enhancementOutcome,
+                        hasCraftResult: !!result.craftResult,
+                        resultKeys: Object.keys(result),
+                        clientResponseKeys: result.clientResponse ? Object.keys(result.clientResponse) : [],
+                        fullResult: result
+                    });
+                }
                 
                 // 서버 응답 구조: { success: true, ...result.clientResponse }
                 // 따라서 result.updatedUser 또는 result.clientResponse?.updatedUser 확인

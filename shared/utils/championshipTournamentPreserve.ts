@@ -5,12 +5,22 @@ export function isSameActiveSimulatingMatchSlot(prev: TournamentState, resolved:
     const a = prev.currentSimulatingMatch;
     const b = resolved.currentSimulatingMatch;
     if (!a || !b) return false;
-    return (
-        prev.status === 'round_in_progress' &&
-        resolved.status === 'round_in_progress' &&
-        a.roundIndex === b.roundIndex &&
-        a.matchIndex === b.matchIndex
-    );
+    if (
+        prev.status !== 'round_in_progress' ||
+        resolved.status !== 'round_in_progress' ||
+        a.roundIndex !== b.roundIndex ||
+        a.matchIndex !== b.matchIndex
+    ) {
+        return false;
+    }
+    const prevMatch = prev.rounds[a.roundIndex]?.matches[a.matchIndex];
+    const resolvedMatch = resolved.rounds[b.roundIndex]?.matches[b.matchIndex];
+    const prevId = prevMatch?.id;
+    const resolvedId = resolvedMatch?.id;
+    if (prevId != null && resolvedId != null && prevId !== resolvedId) {
+        return false;
+    }
+    return true;
 }
 
 /**

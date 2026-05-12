@@ -4650,6 +4650,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const [dungeonStageRewardRequested, setDungeonStageRewardRequested] = useState(false);
     const [mobileRewardClaimBusy, setMobileRewardClaimBusy] = useState(false);
     const prevStatusRef = useRef(tournament?.status || 'bracket_ready');
+    /** handlers.handleAction 참조가 바뀔 때마다 ENTER effect cleanup이 돌면 SAVE가 무한 반복된다 → ref로 고정 */
+    const onActionRef = useRef(onAction);
+    onActionRef.current = onAction;
     const initialMatchPlayersSetRef = useRef(false);
     const [nextRoundTrigger, setNextRoundTrigger] = useState(0);
     const p1ProfileRef = useRef<HTMLDivElement>(null);
@@ -5002,52 +5005,54 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         return { visible: false, canAttempt: false };
     }, [tournament, safeRounds]);
     
-    // 토너먼트 상태 로깅
+    // 토너먼트 상태 로깅 (개발 시에만)
     useEffect(() => {
-        if (tournament) {
+        if (import.meta.env.DEV && tournament) {
             console.log('[TournamentBracket] 토너먼트 상태:', tournament.status, '타입:', tournament.type, '현재 회차:', tournament.currentRoundRobinRound);
         }
     }, [tournament?.status, tournament?.type, tournament?.currentRoundRobinRound]);
 
     useEffect(() => {
-        if (currentUser?.id) {
+        if (!currentUser?.id) return;
+        if (import.meta.env.DEV) {
             console.log('[TournamentBracket] ENTER_TOURNAMENT_VIEW 호출');
-            onAction({ type: 'ENTER_TOURNAMENT_VIEW' });
-            return () => {
-                const t = displayTournamentRef.current;
-                if (t?.status === 'round_in_progress') {
-                    void onAction({
-                        type: 'SAVE_TOURNAMENT_PROGRESS',
-                        payload: { type: t.type, tournamentSnapshot: t },
-                    });
-                }
-                console.log('[TournamentBracket] LEAVE_TOURNAMENT_VIEW 호출');
-                onAction({ type: 'LEAVE_TOURNAMENT_VIEW' });
-            };
         }
-    }, [onAction, currentUser?.id]);
+        onActionRef.current({ type: 'ENTER_TOURNAMENT_VIEW' });
+        return () => {
+            const t = displayTournamentRef.current;
+            if (t?.status === 'round_in_progress') {
+                void onActionRef.current({
+                    type: 'SAVE_TOURNAMENT_PROGRESS',
+                    payload: { type: t.type, tournamentSnapshot: t },
+                });
+            }
+            if (import.meta.env.DEV) {
+                console.log('[TournamentBracket] LEAVE_TOURNAMENT_VIEW 호출');
+            }
+            onActionRef.current({ type: 'LEAVE_TOURNAMENT_VIEW' });
+        };
+    }, [currentUser?.id]);
 
     // 자동 다음 경기 진행 로직
     useEffect(() => {
         // 안전성 검사: 필수 props와 데이터 확인
         if (!tournament || !onAction || !onStartNextRound || !Array.isArray(safeRounds)) {
-            console.log('[TournamentBracket] useEffect 스킵 - 필수 데이터 없음:', {
-                tournament: !!tournament,
-                onAction: !!onAction,
-                onStartNextRound: !!onStartNextRound,
-                safeRounds: Array.isArray(safeRounds)
-            });
+            if (import.meta.env.DEV) {
+                console.log('[TournamentBracket] useEffect 스킵 - 필수 데이터 없음:', {
+                    tournament: !!tournament,
+                    onAction: !!onAction,
+                    onStartNextRound: !!onStartNextRound,
+                    safeRounds: Array.isArray(safeRounds)
+                });
+            }
             return;
         }
         
         const status = tournament.status;
         const prevStatus = prevStatusRef.current;
         
-        // 상태 변경 로깅
-        if (status !== prevStatus) {
+        if (import.meta.env.DEV && status !== prevStatus) {
             console.log('[TournamentBracket] 상태 변경:', prevStatus, '->', status, 'tournament.type:', tournament.type);
-        } else {
-            console.log('[TournamentBracket] 현재 상태:', status, '이전 상태:', prevStatus);
         }
         
         // 서버에서 자동으로 다음 경기를 시작하므로 클라이언트는 단순히 상태 변경을 감지
@@ -5071,23 +5076,18 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         prevStatusRef.current = status;
         
         // cleanup에서 타이머를 건드리지 않음 (카운트다운은 nextRoundStartTime effect에서만 관리)
+        // deps에 onAction/onStartNextRound/safeRounds를 넣지 않음 — handlers 참조 변경 시 effect·로그 폭주 방지
         return () => {};
-    }, [tournament?.status, tournament?.type, tournament?.currentRoundRobinRound, safeRounds, onStartNextRound, onAction, currentUser?.id]);
+    }, [tournament?.status, tournament?.type, tournament?.currentRoundRobinRound]);
     
     // tournament ref 업데이트 - 항상 최신 상태 유지
     useEffect(() => {
         tournamentRef.current = tournament;
         // nextRoundStartTime이 변경되었을 때 로그 출력
-        if (tournament?.nextRoundStartTime) {
+        if (import.meta.env.DEV && tournament?.nextRoundStartTime) {
             console.log(`[TournamentBracket] Tournament ref updated, nextRoundStartTime: ${tournament.nextRoundStartTime}, status: ${tournament.status}, currentRound: ${tournament.currentRoundRobinRound}`);
         }
     }, [tournament]);
-
-    // onAction ref로 저장 (클로저 문제 방지)
-    const onActionRef = useRef(onAction);
-    useEffect(() => {
-        onActionRef.current = onAction;
-    }, [onAction]);
 
     // nextRoundStartTime 체크: 5초 카운트다운 후 자동으로 경기 시작
     useEffect(() => {

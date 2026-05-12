@@ -91,6 +91,7 @@ import {
 } from '../shared/constants/userRankedStats.js';
 import { readStrategicRankedBlock, readPairRankedBlock, readPairArenaAiMatchRecord } from '../shared/utils/unifiedRankedStatsMigration.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+import { resolveLiveArenaPhaseGoldXpMultiplier } from '../shared/utils/liveArenaPhaseGoldXpMultiplier.js';
 import { effectivePvpEntryApCostForUser } from '../shared/utils/pairPetArenaApDiscount.js';
 
 function resetPairRoomAfterGame(room: any): void {
@@ -1567,6 +1568,10 @@ const processPlayerSummary = async (
     const isAdventureGame = game.gameCategory === 'adventure';
     const adventureBoardSize = game.adventureBoardSize ?? game.settings.boardSize;
     const isStrategicLobbyAi = !isNoContest && isWaitingRoomAiGame(game) && isStrategic;
+    const liveArenaPhaseMul =
+        !isNoContest && !isAdventureGame && !isGuildWarMatch
+            ? resolveLiveArenaPhaseGoldXpMultiplier(game)
+            : null;
     /** 휴먼 vs 휴먼 PVP에서 기권으로 끝난 경우: 골드·아이템·경험치·VIP 슬롯 등 대국 보상 없음(랭킹 레이팅·전적은 유지) */
     const isPvpHumanResign =
         !isNoContest &&
@@ -1618,12 +1623,14 @@ const processPlayerSummary = async (
     if (isAdventureGame) {
         rewardMultiplier = 1.0;
     } else if (isStrategic && !isNoContest && !isStrategicLobbyAi) {
-        // Base move count for 100% reward, scaled by board size. 19x19 is 100 moves.
-        const baseMoveCount = Math.round(100 * Math.pow(game.settings.boardSize / 19, 2));
-        const actualMoveCount = game.moveHistory.length;
-        
-        // Calculate the reward multiplier, capped at 100%
-        rewardMultiplier = Math.min(1, actualMoveCount / baseMoveCount);
+        if (liveArenaPhaseMul != null) {
+            rewardMultiplier = liveArenaPhaseMul;
+        } else {
+            // 놀이 채널 등: 수순 비율로만 상한 (기존)
+            const baseMoveCount = Math.round(100 * Math.pow(game.settings.boardSize / 19, 2));
+            const actualMoveCount = game.moveHistory.length;
+            rewardMultiplier = Math.min(1, actualMoveCount / baseMoveCount);
+        }
     } else if (isPlayful && !isNoContest) {
         // 시간 기반 보상 제거: 라운드 수/점수차/승패로 보상 배율 결정
         rewardMultiplier = getPlayfulRewardMultiplier(game, player.id, opponent.id, isWinner, isDraw);
@@ -1632,6 +1639,8 @@ const processPlayerSummary = async (
     // Apply the multiplier to XP (전략 대기실 AI는 모험 기본 EXP 고정)
     if (!isStrategicLobbyAi) {
         xpGain = Math.round(xpGain * rewardMultiplier);
+    } else if (liveArenaPhaseMul != null && isWinner && !isAdventureGame) {
+        xpGain = Math.round(xpGain * liveArenaPhaseMul);
     }
     // 랭킹전이 아닌 PVP(전략바둑·놀이바둑 친선전)에서는 경험치도 25%로 감소
     if (!isNoContest && !game.isRankedGame && !isAiGame && (isStrategic || isPlayful)) {
@@ -1975,10 +1984,13 @@ const processPlayerSummary = async (
         (isStrategic || isPlayful);
     if (isPvpRewardTarget && !isDraw) {
         if (isStrategic) {
-            rewards.gold += isWinner ? rewardConfig.pvpStrategicWinGoldBonus : rewardConfig.pvpStrategicLossGoldBonus;
+            const pm = liveArenaPhaseMul ?? 1;
+            rewards.gold += isWinner
+                ? Math.round(rewardConfig.pvpStrategicWinGoldBonus * pm)
+                : Math.round(rewardConfig.pvpStrategicLossGoldBonus * pm);
             rewards.diamonds += isWinner
-                ? rewardConfig.pvpStrategicWinDiamondBonus
-                : rewardConfig.pvpStrategicLossDiamondBonus;
+                ? Math.round(rewardConfig.pvpStrategicWinDiamondBonus * pm)
+                : Math.round(rewardConfig.pvpStrategicLossDiamondBonus * pm);
         } else if (isPlayful) {
             rewards.gold += isWinner ? rewardConfig.pvpPlayfulWinGoldBonus : rewardConfig.pvpPlayfulLossGoldBonus;
             rewards.diamonds += isWinner
@@ -2341,6 +2353,11 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         let goldGain = Math.floor(rolledGold * pairAiDifficultyMul * multiplier);
         let strategyXpGain = Math.floor(rolledStrategyXp * pairAiDifficultyMul * multiplier);
         let petXpGain = Math.floor(rolledPetXp * pairAiDifficultyMul * multiplier);
+        const pairArenaPhaseMul = resolveLiveArenaPhaseGoldXpMultiplier(game);
+        if (pairArenaPhaseMul != null && multiplier > 0) {
+            goldGain = Math.round(goldGain * pairArenaPhaseMul);
+            strategyXpGain = Math.round(strategyXpGain * pairArenaPhaseMul);
+        }
         if (isWinner && !isNoContest && !isDraw && isRewardVipActive(user)) {
             goldGain = Math.round(goldGain * 2);
             strategyXpGain = Math.round(strategyXpGain * 2);

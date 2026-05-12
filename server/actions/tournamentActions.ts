@@ -1128,8 +1128,17 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 default: return { error: 'Invalid tournament type.' };
             }
 
-            const tournamentState = (freshUser as any)[stateKey] as types.TournamentState | null;
+            // SAVE_TOURNAMENT_PROGRESS 등으로 volatile에만 최신 판이 있을 수 있음 — DB 스냅샷만 보면 스킵이 항상 실패할 수 있다.
+            let tournamentState: types.TournamentState | null | undefined =
+                volatileState.activeTournaments?.[freshUser.id];
+            if (!tournamentState || tournamentState.type !== type) {
+                tournamentState = (freshUser as any)[stateKey] as types.TournamentState | null;
+            }
             if (!tournamentState) return { error: '토너먼트 정보를 찾을 수 없습니다.' };
+            if (tournamentState.type !== type) {
+                return { error: '토너먼트 종류가 일치하지 않습니다.' };
+            }
+            (freshUser as any)[stateKey] = tournamentState;
 
             const skipRes = await tournamentService.instantSkipAllRemainingChampionshipDungeonMatches(tournamentState, freshUser);
             if (skipRes.error) return { error: skipRes.error };

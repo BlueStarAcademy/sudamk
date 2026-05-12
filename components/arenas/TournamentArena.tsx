@@ -110,6 +110,11 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
         latestTournamentStateRef.current = tournamentState ?? null;
     }, [tournamentState]);
 
+    const handlersRef = React.useRef(handlers);
+    useEffect(() => {
+        handlersRef.current = handlers;
+    }, [handlers]);
+
     // 컨텍스트에 반영되면 sessionStorage의 pending 던전 상태 제거 (다음 입장 시 혼선 방지)
     React.useEffect(() => {
         if (tournamentStateFromContext) {
@@ -119,12 +124,14 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
         }
     }, [type, tournamentStateFromContext]);
 
+    // handlers 객체가 매 렌더마다 바뀌면 cleanup이 반복 실행되어 SAVE가 폭주한다 → ref만 사용하고 type에만 의존
     React.useEffect(() => {
         return () => {
             const latestState = latestTournamentStateRef.current;
             if (!latestState) return;
+            const h = handlersRef.current;
             if (latestState.status === 'round_in_progress') {
-                void handlers.handleAction({
+                void h.handleAction({
                     type: 'SAVE_TOURNAMENT_PROGRESS',
                     payload: { type, tournamentSnapshot: latestState },
                 }).catch((error) => console.error('[TournamentArena] Failed to save tournament on unmount:', error));
@@ -133,16 +140,11 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
             // bracket_ready에서 unmount 시 CLEAR 하지 않음 (Strict Mode/이중 마운트 시 방금 입장한 세션이 지워지는 버그 방지).
             // 사용자가 로비에서 '나가기' 등으로 초기화하려면 CLEAR는 로비/별도 액션에서만 호출.
             if (latestState.status === 'bracket_ready') return;
-            handlers.handleAction({ type: 'SAVE_TOURNAMENT_PROGRESS', payload: { type } })
+            h.handleAction({ type: 'SAVE_TOURNAMENT_PROGRESS', payload: { type } })
                 .catch(error => console.error('[TournamentArena] Failed to save tournament progress on unmount:', error));
         };
-    }, [handlers, type]);
+    }, [type]);
     const tournamentDefinition = TOURNAMENT_DEFINITIONS[type];
-
-    const handlersRef = React.useRef(handlers);
-    useEffect(() => {
-        handlersRef.current = handlers;
-    }, [handlers]);
 
     // 챔피언십 던전: 토너먼트 상태가 있을 때만 bracket_ready 처리 (컨디션 부여). START_TOURNAMENT_SESSION은 호출하지 않음.
     useEffect(() => {

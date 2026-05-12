@@ -1,0 +1,132 @@
+import { describe, expect, it } from 'vitest';
+import type { Match, Round, TournamentState } from '../../../shared/types/entities.js';
+import {
+    isSameActiveSimulatingMatchSlot,
+    mergeChampionshipTournamentPreserveLostRealGame,
+    mergeResolvedRoundsPreserveChampionshipPlayback,
+} from '../../../shared/utils/championshipTournamentPreserve.js';
+
+const mkMatch = (id: string, extra: Partial<Match> = {}): Match => ({
+    id,
+    players: [null, null],
+    winner: null,
+    isFinished: false,
+    commentary: [],
+    isUserMatch: true,
+    finalScore: null,
+    ...extra,
+});
+
+const mkState = (rounds: Round[], sim: TournamentState['currentSimulatingMatch'], timeElapsed = 0): TournamentState =>
+    ({
+        type: 'national',
+        status: 'round_in_progress',
+        title: 't',
+        players: [],
+        rounds,
+        currentSimulatingMatch: sim,
+        currentMatchCommentary: [],
+        lastPlayedDate: 0,
+        nextRoundStartTime: null,
+        timeElapsed,
+    }) as TournamentState;
+
+describe('championshipTournamentPreserve', () => {
+    it('isSameActiveSimulatingMatchSlot is false when match id differs at same indices', () => {
+        const rounds: Round[] = [{ id: 1, name: '8강', matches: [mkMatch('m-new'), mkMatch('m2')] }];
+        const prev = mkState(rounds, { roundIndex: 0, matchIndex: 0 });
+        prev.rounds[0]!.matches[0] = mkMatch('m-old', { isFinished: false });
+
+        const resolved = mkState(
+            [{ id: 1, name: '8강', matches: [mkMatch('m-new', { isFinished: false }), mkMatch('m2')] }],
+            { roundIndex: 0, matchIndex: 0 },
+        );
+
+        expect(isSameActiveSimulatingMatchSlot(prev, resolved)).toBe(false);
+    });
+
+    it('mergeResolvedRoundsPreserveChampionshipPlayback does not graft old moves onto a new match id', () => {
+        const oldMoves = Array.from({ length: 10 }, (_, i) => ({
+            x: i % 9,
+            y: Math.floor(i / 9),
+            player: 1 as const,
+            actorId: 'a',
+        }));
+        const prevMatch = mkMatch('m-old', {
+            championshipRealGame: {
+                boardSize: 9,
+                maxPly: 50,
+                blackPlayerId: 'a',
+                whitePlayerId: 'b',
+                boardState: [],
+                moves: oldMoves as any,
+                lastMove: null,
+                currentPly: 10,
+                status: 'playing',
+                finalScore: null,
+                winnerId: null,
+                events: [],
+                phaseStatsByPlayerId: {},
+            } as any,
+        });
+        const prev = mkState([{ id: 1, name: '8강', matches: [prevMatch, mkMatch('x')] }], { roundIndex: 0, matchIndex: 0 }, 10);
+
+        const newMatch = mkMatch('m-new', {
+            championshipRealGame: {
+                boardSize: 9,
+                maxPly: 50,
+                blackPlayerId: 'a',
+                whitePlayerId: 'b',
+                boardState: [],
+                moves: [],
+                lastMove: null,
+                currentPly: 0,
+                status: 'ready',
+                finalScore: null,
+                winnerId: null,
+                events: [],
+                phaseStatsByPlayerId: {},
+            } as any,
+        });
+        const resolved = mkState(
+            [{ id: 1, name: '8강', matches: [newMatch, mkMatch('x')] }],
+            { roundIndex: 0, matchIndex: 0 },
+            0,
+        );
+
+        const merged = mergeResolvedRoundsPreserveChampionshipPlayback(prev, resolved);
+        expect(merged[0]!.matches[0]!.id).toBe('m-new');
+        expect((merged[0]!.matches[0]!.championshipRealGame?.moves ?? []).length).toBe(0);
+    });
+
+    it('mergeChampionshipTournamentPreserveLostRealGame does not restore base game onto different match id', () => {
+        const baseGame = {
+            boardSize: 9 as const,
+            maxPly: 50,
+            blackPlayerId: 'a',
+            whitePlayerId: 'b',
+            boardState: [],
+            moves: [{ x: 3, y: 3, player: 1 as const, actorId: 'a' }],
+            lastMove: { x: 3, y: 3 },
+            currentPly: 1,
+            status: 'playing' as const,
+            finalScore: null,
+            winnerId: null,
+            events: [],
+            phaseStatsByPlayerId: {},
+        };
+        const base = mkState(
+            [{ id: 1, name: '8강', matches: [mkMatch('m-old', { championshipRealGame: baseGame as any }), mkMatch('x')] }],
+            { roundIndex: 0, matchIndex: 0 },
+        );
+
+        const patch = mkState(
+            [{ id: 1, name: '8강', matches: [mkMatch('m-new', { championshipRealGame: { ...baseGame, moves: [] } as any }), mkMatch('x')] }],
+            { roundIndex: 0, matchIndex: 0 },
+        );
+
+        const out = mergeChampionshipTournamentPreserveLostRealGame(base, patch);
+        expect(out?.rounds[0]?.matches[0]?.id).toBe('m-new');
+        expect((out?.rounds[0]?.matches[0]?.championshipRealGame?.moves ?? []).length).toBe(0);
+    });
+});
