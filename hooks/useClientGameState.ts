@@ -23,6 +23,10 @@ export interface ClientMovePayload {
     newBoardState: any[][];
     capturedStones: Point[];
     newKoInfo: any;
+    /** 클릭 당시 클라이언트가 실제로 보고 있던 수순. 서버 hidden_placing 응답이 더 짧은 수순으로 끼어들어 히든 인덱스가 0으로 붙는 것을 막는다. */
+    moveHistoryBeforeMove?: LiveGameSession['moveHistory'];
+    /** moveHistoryBeforeMove와 같은 스냅샷의 히든 맵. */
+    hiddenMovesBeforeMove?: LiveGameSession['hiddenMoves'];
     /** 착수자 명시(턴 레이스 시 currentPlayer 의존 오판 방지) */
     movePlayer?: Player;
     /** 도전의 탑 21층+ 히든 아이템 착수 시 true (gameStatus → playing, hiddenMoves 기록, hidden_stones_p1 감소) */
@@ -187,8 +191,21 @@ export function updateGameStateAfterMove(
             ? payloadMovePlayer
             : game.currentPlayer;
     const opponentPlayer = movePlayer === Player.Black ? Player.White : Player.Black;
-    const newMoveHistory = [...(game.moveHistory || []), { x, y, player: movePlayer }];
-    const updatedHiddenMoves = { ...(game.hiddenMoves || {}) };
+    const currentMoveHistory = game.moveHistory || [];
+    const payloadBaseMoveHistory = Array.isArray(payload.moveHistoryBeforeMove)
+        ? payload.moveHistoryBeforeMove
+        : undefined;
+    const usePayloadMoveHistoryBase =
+        !!payloadBaseMoveHistory &&
+        (payloadBaseMoveHistory.length > currentMoveHistory.length ||
+            (isHidden && payloadBaseMoveHistory.length === currentMoveHistory.length));
+    const baseMoveHistory = usePayloadMoveHistoryBase ? payloadBaseMoveHistory : currentMoveHistory;
+    const baseHiddenMoves =
+        usePayloadMoveHistoryBase && payload.hiddenMovesBeforeMove
+            ? payload.hiddenMovesBeforeMove
+            : game.hiddenMoves;
+    const newMoveHistory = [...baseMoveHistory, { x, y, player: movePlayer }];
+    const updatedHiddenMoves = { ...(baseHiddenMoves || {}) };
 
     if (isHidden) {
         updatedHiddenMoves[newMoveHistory.length - 1] = true;
@@ -299,8 +316,8 @@ export function updateGameStateAfterMove(
     const capturedHiddenStones: { point: Point; player: Player }[] = [];
     if (revealModeActive && capturedStones.length > 0) {
         for (const stone of capturedStones) {
-            const moveIndex = findMoveIndexAt(game.moveHistory, stone.x, stone.y, opponentPlayer);
-            const wasHiddenMove = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
+            const moveIndex = findMoveIndexAt(baseMoveHistory, stone.x, stone.y, opponentPlayer);
+            const wasHiddenMove = moveIndex !== -1 && !!baseHiddenMoves?.[moveIndex];
             const wasAiInitialHidden =
                 (gameType === 'singleplayer' || gameType === 'tower') &&
                 !!(game as any).aiInitialHiddenStone &&
@@ -357,8 +374,8 @@ export function updateGameStateAfterMove(
             const isPatternStone = opponentPlayer === Player.Black
                 ? !!updatedBlackPatternStones?.some(p => isSamePoint(p, stone))
                 : !!updatedWhitePatternStones?.some(p => isSamePoint(p, stone));
-            const moveIndex = findMoveIndexAt(game.moveHistory, stone.x, stone.y, opponentPlayer);
-            const wasHiddenMove = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
+            const moveIndex = findMoveIndexAt(baseMoveHistory, stone.x, stone.y, opponentPlayer);
+            const wasHiddenMove = moveIndex !== -1 && !!baseHiddenMoves?.[moveIndex];
             const wasAiInitialHidden =
                 (gameType === 'singleplayer' || gameType === 'tower') &&
                 !!(game as any).aiInitialHiddenStone &&

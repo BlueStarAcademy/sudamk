@@ -25,6 +25,7 @@ import {
     formatTowerNextFooterLabel,
 } from './arenaPostGameButtonStyles.js';
 import {
+    arenaGameRoomControlsDividerClass,
     arenaGameRoomIngameBottomBarShellClass,
     arenaGameRoomIngameInnerItemSurfaceClass,
     arenaGameRoomIngameInnerNeutralSurfaceClass,
@@ -587,7 +588,22 @@ const TowerControls: React.FC<TowerControlsProps> = ({
         </div>
     );
 
-	const coreZone = (
+    const dockMoveConfirmTower = showMoveConfirmFooter && onConfirmMove && onMobileConfirmToggle && settingsProp;
+    const moveConfirmCenterTower = dockMoveConfirmTower ? (
+        <MoveConfirmFooterSlot
+            layout="pve"
+            compact={isMobile}
+            withCenterPanel
+            pendingMove={pendingMove ?? null}
+            mobileConfirm={settingsProp.features.mobileConfirm}
+            onConfirmMove={onConfirmMove}
+            onMobileConfirmToggle={onMobileConfirmToggle}
+        />
+    ) : null;
+
+    const hasFooterItemColumn = showTurnAdd || showMissileAndHiddenForHook;
+
+	const coreActionsTower = (
 		<>
 			<div className={colClass}>
 				<ImageButton
@@ -626,16 +642,12 @@ const TowerControls: React.FC<TowerControlsProps> = ({
 				/>
 				<span className={`${lbl} font-semibold whitespace-nowrap ${refreshButtonDisabled ? 'text-gray-500' : 'text-amber-100'}`}>배치변경</span>
 			</div>
-            {showMoveConfirmFooter && onConfirmMove && onMobileConfirmToggle && settingsProp && (
-                <MoveConfirmFooterSlot
-                    layout="pve"
-                    compact={isMobile}
-                    pendingMove={pendingMove}
-                    mobileConfirm={settingsProp.features.mobileConfirm}
-                    onConfirmMove={onConfirmMove}
-                    onMobileConfirmToggle={onMobileConfirmToggle}
-                />
-            )}
+		</>
+	);
+
+	const coreZone = (
+		<>
+			{coreActionsTower}
             {petHintSlot}
 		</>
 	);
@@ -745,14 +757,36 @@ const TowerControls: React.FC<TowerControlsProps> = ({
 				<>
 					<div className={`flex min-w-0 flex-1 flex-col justify-center px-0.5 py-1 ${arenaGameRoomIngameInnerNeutralSurfaceClass}`}>
 						<div className="flex min-h-0 w-full flex-1 items-center justify-center">
-							<ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
-								{coreZone}
-							</ArenaControlStrip>
+							{moveConfirmCenterTower && !hasFooterItemColumn ? (
+								<div className="grid w-full min-w-0 grid-cols-[1fr_auto_1fr] items-center gap-x-1">
+									<div className="flex min-w-0 justify-end">
+										<ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
+											{coreActionsTower}
+										</ArenaControlStrip>
+									</div>
+									<div className="flex shrink-0 justify-center px-0.5">{moveConfirmCenterTower}</div>
+									<div className="flex min-w-0 justify-start">
+										<ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
+											{petHintSlot}
+										</ArenaControlStrip>
+									</div>
+								</div>
+							) : (
+								<ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
+									{coreZone}
+								</ArenaControlStrip>
+							)}
 						</div>
 					</div>
-					{(showTurnAdd || showMissileAndHiddenForHook) && (
+					{hasFooterItemColumn && (
 						<>
-							<div className="w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-600/20 via-stone-500/50 to-stone-600/20" aria-hidden />
+							<div className={`${arenaGameRoomControlsDividerClass} w-0.5 shrink-0 self-stretch`} aria-hidden />
+							{moveConfirmCenterTower ? (
+								<>
+									<div className="flex shrink-0 flex-col justify-center px-0.5 py-0.5">{moveConfirmCenterTower}</div>
+									<div className={`${arenaGameRoomControlsDividerClass} w-0.5 shrink-0 self-stretch`} aria-hidden />
+								</>
+							) : null}
 							<div className={`flex min-w-0 flex-1 flex-col justify-center px-0.5 py-1 ${arenaGameRoomIngameInnerItemSurfaceClass}`}>
 								<div className="flex min-h-0 w-full flex-1 items-center justify-center">
 									<ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-1.5">
@@ -763,7 +797,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
 						</>
 					)}
 				</>
-			) : (showTurnAdd || showMissileAndHiddenForHook) ? (
+			) : hasFooterItemColumn ? (
 				<>
 					<div
 						className={`flex min-w-0 flex-1 items-center justify-center px-1.5 py-1 min-[1025px]:px-2 min-[1025px]:py-1 ${arenaGameRoomIngameInnerNeutralSurfaceClass}`}
@@ -772,7 +806,15 @@ const TowerControls: React.FC<TowerControlsProps> = ({
 							{coreZone}
 						</ArenaControlStrip>
 					</div>
-					<div className="w-px shrink-0 self-stretch bg-stone-600/50" />
+					{moveConfirmCenterTower ? (
+						<>
+							<div className="w-px shrink-0 self-stretch bg-stone-600/50" aria-hidden />
+							<div className="flex shrink-0 flex-col items-center justify-center px-1.5 py-1 min-[1025px]:px-2 min-[1025px]:py-1">
+								{moveConfirmCenterTower}
+							</div>
+						</>
+					) : null}
+					<div className="w-px shrink-0 self-stretch bg-stone-600/50" aria-hidden />
 					<div
 						className={`flex min-w-0 flex-1 items-center justify-center px-1.5 py-1 min-[1025px]:px-2 min-[1025px]:py-1 ${arenaGameRoomIngameInnerItemSurfaceClass}`}
 					>
@@ -785,9 +827,25 @@ const TowerControls: React.FC<TowerControlsProps> = ({
 				<div
 					className={`flex w-full min-w-0 items-center justify-center px-1.5 py-2 min-[1025px]:px-3 min-[1025px]:py-1.5 ${arenaGameRoomIngameInnerNeutralSurfaceClass}`}
 				>
-					<ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-7 min-[1025px]:gap-8">
-						{coreZone}
-					</ArenaControlStrip>
+					{moveConfirmCenterTower ? (
+						<div className="grid w-full max-w-3xl grid-cols-[1fr_auto_1fr] items-center gap-x-3 min-[1025px]:gap-x-6">
+							<div className="flex min-w-0 justify-end">
+								<ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-7 min-[1025px]:gap-8">
+									{coreActionsTower}
+								</ArenaControlStrip>
+							</div>
+							<div className="flex shrink-0 justify-center">{moveConfirmCenterTower}</div>
+							<div className="flex min-w-0 justify-start">
+								<ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-7 min-[1025px]:gap-8">
+									{petHintSlot}
+								</ArenaControlStrip>
+							</div>
+						</div>
+					) : (
+						<ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-7 min-[1025px]:gap-8">
+							{coreZone}
+						</ArenaControlStrip>
+					)}
 				</div>
 			)}
         </footer>

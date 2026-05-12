@@ -155,6 +155,13 @@ export const arenaGameRoomControlsInnerPanelClass = `${INGAME_INNER_NEUTRAL} p-1
 
 export const arenaGameRoomControlsInnerPanelAccentClass = `${INGAME_INNER_ITEM} p-1.5`;
 
+/** 하단 바 중앙 전용 — 착수 확정·버튼 모드 토글 (대국/특수 패널 사이 고정 슬롯) */
+export const arenaGameRoomMoveConfirmCenterPanelClass =
+    'rounded-xl border border-emerald-500/40 ' +
+    'bg-gradient-to-b from-emerald-950/75 via-[#131a22] to-[#080c10] ' +
+    'shadow-[inset_0_1px_0_rgba(167,243,208,0.1),0_12px_40px_-14px_rgba(16,185,129,0.38)] ' +
+    'ring-1 ring-inset ring-emerald-400/22';
+
 export const arenaGameRoomControlsSectionTitleClass =
     'text-center text-[10px] font-bold tracking-wide text-slate-400/95';
 

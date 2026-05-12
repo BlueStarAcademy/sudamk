@@ -82,6 +82,11 @@ function isPveDeferredAutoScoringGame(game: types.LiveGameSession): boolean {
     return resolveArenaSessionPolicy(game as any).deferAutoScoringAfterAi;
 }
 
+function shouldAiResignWhenNoLegalBoardMove(game: types.LiveGameSession): boolean {
+    const policy = resolveArenaSessionPolicy(game as any);
+    return !policy.isPairGame;
+}
+
 /**
  * 실제 진행 턴수(유효 착수 수).
  * - 히든 마스킹/카타 정렬용 synthetic PASS는 `game.moveHistory`에 저장되지 않아야 하며,
@@ -2347,6 +2352,15 @@ export async function makeGoAiBotMove(
     let selectedMove: Point | null = null;
     type PendingPairPetKataGameChat = { text: string; participantId: string; nickname: string };
     let pendingPairPetKataGameChat: PendingPairPetKataGameChat | null = null;
+    if (shouldAiResignWhenNoLegalBoardMove(game)) {
+        if (!hasAnyValidBoardMove(game, aiPlayerEnum)) {
+            console.warn(
+                `[makeGoAiBotMove] no legal board move for AI → resign, game=${game.id}`,
+            );
+            await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+            return;
+        }
+    }
     const configuredAiHiddenPlacementsRaw = (game.settings as any)?.singlePlayerAiHiddenItemPlacements;
     const configuredAiHiddenPlacements: Point[] = Array.isArray(configuredAiHiddenPlacementsRaw)
         ? configuredAiHiddenPlacementsRaw
@@ -2510,13 +2524,9 @@ export async function makeGoAiBotMove(
                 } else {
                     const totalTurns = getProgressTurnCount(game);
                     console.warn(
-                        `[makeGoAiBotMove] Kata-only exhausted and no legal move; scoring instead of resign, game=${game.id}, turns=${totalTurns}`,
+                        `[makeGoAiBotMove] Kata-only exhausted and no legal move; AI resigns, game=${game.id}, turns=${totalTurns}`,
                     );
-                    game.totalTurns = totalTurns;
-                    game.gameStatus = 'scoring';
-                    await db.saveGame(game);
-                    const { getGameResult } = await import('./gameModes.js');
-                    await getGameResult(game);
+                    await summaryService.endGame(game, opponentPlayerEnum, 'resign');
                     return;
                 }
             } else {
@@ -3265,6 +3275,26 @@ export async function makeGoAiBotMove(
             game.foulInfo = null;
         }
     }
+}
+
+function hasAnyValidBoardMove(game: types.LiveGameSession, aiPlayer: Player): boolean {
+    const boardSize = game.settings.boardSize;
+
+    for (let y = 0; y < boardSize; y++) {
+        for (let x = 0; x < boardSize; x++) {
+            if (game.boardState[y][x] !== Player.None) continue;
+            const result = processMove(
+                game.boardState,
+                { x, y, player: aiPlayer },
+                game.koInfo,
+                game.moveHistory.length,
+                { suppressOccupiedLog: true },
+            );
+            if (result.isValid) return true;
+        }
+    }
+
+    return false;
 }
 
 /**

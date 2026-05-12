@@ -2255,6 +2255,8 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
 
     const isAdventureGame = session.gameCategory === 'adventure';
 
+    const dockMoveConfirmFooter = !isGameEnded && showMoveConfirmFooter && !isSpectator && !!onMobileConfirmToggle;
+
     const primaryControlsInner = (
         <>
             {isGameEnded ? (
@@ -2408,17 +2410,6 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 )
             ) : (
                 <>
-                    {showMoveConfirmFooter && !isSpectator && onMobileConfirmToggle && (
-                        <MoveConfirmFooterSlot
-                            key="move-confirm-footer"
-                            layout="online"
-                            compact={isMobile}
-                            pendingMove={pendingMove}
-                            mobileConfirm={settings.features.mobileConfirm}
-                            onConfirmMove={onConfirmMove}
-                            onMobileConfirmToggle={onMobileConfirmToggle}
-                        />
-                    )}
                     {isStrategic &&
                         !hasCaptureRule &&
                         (!isAiLobbyGame || isPairGame) &&
@@ -2451,6 +2442,20 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             )}
         </>
     );
+
+    const moveConfirmCenterSlot =
+        dockMoveConfirmFooter && onMobileConfirmToggle ? (
+            <MoveConfirmFooterSlot
+                key="move-confirm-footer"
+                layout="online"
+                compact={!!isMobile}
+                withCenterPanel
+                pendingMove={pendingMove}
+                mobileConfirm={settings.features.mobileConfirm}
+                onConfirmMove={onConfirmMove}
+                onMobileConfirmToggle={onMobileConfirmToggle}
+            />
+        ) : null;
 
     const specialControlsInner = isGameEnded
         ? null
@@ -2546,6 +2551,14 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 </ArenaControlStrip>
                             </div>
                         </div>
+                        {moveConfirmCenterSlot ? (
+                            <>
+                                <div className={`${arenaGameRoomControlsDividerClass} w-0.5 shrink-0`} aria-hidden />
+                                <div className="flex shrink-0 flex-col justify-center self-stretch overflow-visible px-0.5">
+                                    {moveConfirmCenterSlot}
+                                </div>
+                            </>
+                        ) : null}
                         <div className={`${arenaGameRoomControlsDividerClass} w-0.5 shrink-0`} aria-hidden />
                         <div className={`flex ${isMobilePairGame ? 'min-h-[2.35rem] !p-0.5' : 'min-h-[3.5rem]'} min-w-0 flex-1 flex-col justify-center overflow-visible ${arenaGameRoomControlsInnerPanelAccentClass}`}>
                             <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-visible">
@@ -2573,6 +2586,22 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             </ArenaControlStrip>
                         </div>
                     </div>
+                    {moveConfirmCenterSlot ? (
+                        <>
+                            <div className={`${arenaGameRoomControlsDividerClass} w-0.5 shrink-0 self-stretch`} aria-hidden />
+                            <div className="flex min-w-0 shrink-0 flex-col items-stretch justify-center gap-0.5 self-stretch min-[1025px]:px-0.5">
+                                <h3
+                                    className={`${arenaGameRoomControlsSectionTitleClass} min-[1025px]:text-[9px] leading-none text-emerald-200/90`}
+                                >
+                                    착수
+                                </h3>
+                                <div className="flex min-h-[2.65rem] flex-1 items-center justify-center min-[1025px]:min-h-[2.1rem]">
+                                    {moveConfirmCenterSlot}
+                                </div>
+                            </div>
+                            <div className={`${arenaGameRoomControlsDividerClass} w-0.5 shrink-0 self-stretch`} aria-hidden />
+                        </>
+                    ) : null}
                     <div className={`flex min-w-0 flex-1 flex-col gap-0.5 min-[1025px]:gap-0 ${arenaGameRoomControlsInnerPanelAccentClass} min-[1025px]:!p-1`}>
                         <h3 className={`${arenaGameRoomControlsSectionTitleClass} min-[1025px]:text-[9px] leading-none`}>{isStrategic ? '특수 기능' : '놀이 기능'}</h3>
                         <div className="flex min-h-[2.65rem] w-full min-w-0 flex-1 items-center justify-center min-[1025px]:min-h-[2.1rem]">

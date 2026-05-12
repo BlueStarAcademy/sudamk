@@ -2651,6 +2651,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             capturedStones: moveResult.capturedStones,
                             newKoInfo: moveResult.newKoInfo,
                             movePlayer: myPlayerEnum,
+                            moveHistoryBeforeMove: session.moveHistory || [],
+                            hiddenMovesBeforeMove: session.hiddenMoves || {},
                             isHidden: true,
                         }
                     } as any);
@@ -2780,6 +2782,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             capturedStones: moveResult.capturedStones,
                             newKoInfo: moveResult.newKoInfo,
                             movePlayer: myPlayerEnum,
+                            moveHistoryBeforeMove: session.moveHistory || [],
+                            hiddenMovesBeforeMove: session.hiddenMoves || {},
                             isHidden: true,
                         }
                     } as any);
@@ -2922,6 +2926,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         capturedStones: moveResult.capturedStones,
                         newKoInfo: moveResult.newKoInfo,
                         movePlayer: myPlayerEnum,
+                        moveHistoryBeforeMove: session.moveHistory || [],
+                        hiddenMovesBeforeMove: session.hiddenMoves || {},
                         ...(gameStatus === 'hidden_placing' ? { isHidden: true } : {}),
                     }
                 } as any);
@@ -3186,6 +3192,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     capturedStones: moveResult.capturedStones,
                     newKoInfo: moveResult.newKoInfo,
                     movePlayer: myPlayerEnum,
+                    moveHistoryBeforeMove: session.moveHistory || [],
+                    hiddenMovesBeforeMove: session.hiddenMoves || {},
                     // 히든 배치 상태에서는 히든 착수로 처리(타워 21층+ 등)
                     ...(gameStatus === 'hidden_placing' ? { isHidden: true } : {}),
                 };

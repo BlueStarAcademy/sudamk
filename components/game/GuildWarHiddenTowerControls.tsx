@@ -15,6 +15,7 @@ import {
     arenaPostGamePanelShellClass,
 } from './arenaPostGameButtonStyles.js';
 import {
+    arenaGameRoomControlsDividerClass,
     arenaGameRoomIngameBottomBarShellClass,
     arenaGameRoomIngameInnerItemSurfaceClass,
     arenaGameRoomIngameInnerNeutralSurfaceClass,
@@ -232,6 +233,19 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
     const colClass = isMobile ? 'flex flex-col items-center gap-1 shrink-0' : 'flex flex-col items-center gap-1.5';
     const lbl = isMobile ? 'text-[10px]' : 'text-[12px]';
 
+    const guildMoveConfirmCenter =
+        showMoveConfirmFooter && onConfirmMove && onMobileConfirmToggle && settingsProp ? (
+            <MoveConfirmFooterSlot
+                layout="online"
+                compact={isMobile}
+                withCenterPanel
+                pendingMove={pendingMove ?? null}
+                mobileConfirm={settingsProp.features.mobileConfirm}
+                onConfirmMove={onConfirmMove}
+                onMobileConfirmToggle={onMobileConfirmToggle}
+            />
+        ) : null;
+
     return (
 		<footer
 			className={`responsive-controls flex-shrink-0 w-full ${arenaGameRoomIngameBottomBarShellClass} ${
@@ -242,7 +256,7 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
 		>
             {isMobile ? (
                 <>
-                    <div className="flex min-h-0 min-w-0 flex-1 flex-row items-stretch gap-3">
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-row items-stretch gap-1.5">
 					<div className={`flex min-w-0 flex-1 flex-col justify-center px-1 py-2 ${arenaGameRoomIngameInnerNeutralSurfaceClass}`}>
                         <div className="flex min-h-0 w-full flex-1 items-center justify-center">
                             <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-3">
@@ -250,20 +264,16 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                                     <ImageButton src="/images/button/giveup.png" alt="기권" onClick={handleForfeit} disabled={gameStatus === 'scoring'} title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'} compact={isMobile} />
                                     <span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>기권</span>
                                 </div>
-                                {showMoveConfirmFooter && onConfirmMove && onMobileConfirmToggle && settingsProp && (
-                                    <MoveConfirmFooterSlot
-                                        layout="online"
-                                        compact={isMobile}
-                                        pendingMove={pendingMove}
-                                        mobileConfirm={settingsProp.features.mobileConfirm}
-                                        onConfirmMove={onConfirmMove}
-                                        onMobileConfirmToggle={onMobileConfirmToggle}
-                                    />
-                                )}
                             </ArenaControlStrip>
                         </div>
                     </div>
-                    <div className="w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-600/20 via-stone-500/50 to-stone-600/20" aria-hidden />
+                    {guildMoveConfirmCenter ? (
+                        <>
+                            <div className={`${arenaGameRoomControlsDividerClass} w-0.5 shrink-0 self-stretch`} aria-hidden />
+                            <div className="flex shrink-0 flex-col justify-center px-0.5 py-1">{guildMoveConfirmCenter}</div>
+                        </>
+                    ) : null}
+                    <div className={`${arenaGameRoomControlsDividerClass} w-0.5 shrink-0 self-stretch`} aria-hidden />
 							<div className={`flex min-w-0 flex-1 flex-col justify-center px-1 py-2 ${arenaGameRoomIngameInnerItemSurfaceClass}`}>
                         <div className="flex min-h-0 w-full flex-1 items-center justify-center">
                             <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-3">
@@ -307,19 +317,17 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                                 <ImageButton src="/images/button/giveup.png" alt="기권" onClick={handleForfeit} disabled={gameStatus === 'scoring'} title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'} compact={isMobile} />
                                 <span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>기권</span>
                             </div>
-                            {showMoveConfirmFooter && onConfirmMove && onMobileConfirmToggle && settingsProp && (
-                                <MoveConfirmFooterSlot
-                                    layout="online"
-                                    compact={isMobile}
-                                    pendingMove={pendingMove}
-                                    mobileConfirm={settingsProp.features.mobileConfirm}
-                                    onConfirmMove={onConfirmMove}
-                                    onMobileConfirmToggle={onMobileConfirmToggle}
-                                />
-                            )}
                         </ArenaControlStrip>
                     </div>
-                    <div className="w-px shrink-0 self-stretch bg-stone-600/50" />
+                    {guildMoveConfirmCenter ? (
+                        <>
+                            <div className="w-px shrink-0 self-stretch bg-stone-600/50" aria-hidden />
+                            <div className="flex shrink-0 flex-col items-center justify-center px-1.5 py-1 min-[1025px]:px-2 min-[1025px]:py-1">
+                                {guildMoveConfirmCenter}
+                            </div>
+                        </>
+                    ) : null}
+                    <div className="w-px shrink-0 self-stretch bg-stone-600/50" aria-hidden />
 					<div
 						className={`flex min-w-0 flex-1 items-center justify-center px-1.5 py-1 min-[1025px]:px-2 min-[1025px]:py-1 ${arenaGameRoomIngameInnerItemSurfaceClass}`}
 					>
