@@ -24,6 +24,7 @@ import {
     formatAiRematchFooterLabel,
     formatSinglePlayerNextFooterLabel,
 } from './arenaPostGameButtonStyles.js';
+import { MoveConfirmFooterSlot } from './MoveConfirmFooterSlot.js';
 import {
     arenaGameRoomControlsAdminBarClass,
     arenaGameRoomControlsDividerClass,
@@ -278,6 +279,9 @@ interface GameControlsProps {
     onDismissGameSummary?: () => void;
     /** 전략 펫 힌트: 바둑판이 아닌 푸터 버튼 위 말풍선 */
     strategicPetHintFooterBubble?: { message: string; visible: boolean } | null;
+    /** 옵션「착수 버튼」ON일 때 하단 대국 기능 열에 착수 확정 UI 표시 */
+    showMoveConfirmFooter?: boolean;
+    onMobileConfirmToggle?: (checked: boolean) => void;
 }
 
 const formatCooldown = (ms: number) => {
@@ -1316,6 +1320,8 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         allowPostGameFooterActions = true,
         onDismissGameSummary,
         strategicPetHintFooterBubble = null,
+        showMoveConfirmFooter = false,
+        onMobileConfirmToggle,
     } = props;
     const { negotiations } = useAppContext();
     const { id: gameId, mode, gameStatus, blackPlayerId, whitePlayerId, player1, player2 } = session;
@@ -2402,6 +2408,17 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 )
             ) : (
                 <>
+                    {showMoveConfirmFooter && !isSpectator && onMobileConfirmToggle && (
+                        <MoveConfirmFooterSlot
+                            key="move-confirm-footer"
+                            layout="online"
+                            compact={isMobile}
+                            pendingMove={pendingMove}
+                            mobileConfirm={settings.features.mobileConfirm}
+                            onConfirmMove={onConfirmMove}
+                            onMobileConfirmToggle={onMobileConfirmToggle}
+                        />
+                    )}
                     {isStrategic &&
                         !hasCaptureRule &&
                         (!isAiLobbyGame || isPairGame) &&

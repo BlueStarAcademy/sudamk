@@ -638,9 +638,9 @@ const applyAiCaptureOutcome = (
                 type: 'hidden_reveal',
                 stones: uniqueStonesToReveal,
                 startTime: now,
-                duration: 1500
+                duration: AI_HIDDEN_CAPTURE_REVEAL_MS
             };
-            game.revealAnimationEndTime = now + 1500;
+            game.revealAnimationEndTime = now + AI_HIDDEN_CAPTURE_REVEAL_MS;
             game.pendingCapture = {
                 stones: result.capturedStones,
                 move: { player: aiPlayerEnum, x: move.x, y: move.y },
@@ -1355,6 +1355,8 @@ function revealAllUnrevealedHiddensForPlayerEnum(game: types.LiveGameSession, pl
 }
 
 const USER_HIDDEN_FULL_REVEAL_MS = 1500;
+/** PVE AI 포획으로 히든 공개 시 클라 `useClientGameState` 스톤리빌(2s)과 동기 */
+const AI_HIDDEN_CAPTURE_REVEAL_MS = 2000;
 
 /**
  * AI가 마스킹된 유저 히든을 찍어 전체 공개가 필요할 때: 영구 공개 + 전체공개 연출 후,

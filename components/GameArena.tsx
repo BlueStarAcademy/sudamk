@@ -11,12 +11,6 @@ import DiceGoArena from './arenas/DiceGoArena.js';
 import ThiefGoArena from './arenas/ThiefGoArena.js';
 import SinglePlayerArena from './arenas/SinglePlayerArena.js';
 
-export type DiceGoPlaceUiProps = {
-    mobileConfirm: boolean;
-    onToggleMobileConfirm: (checked: boolean) => void;
-    onConfirmMove: () => void;
-};
-
 interface GameArenaProps extends GameProps {
     isMyTurn: boolean;
     myPlayerEnum: Player;
@@ -36,8 +30,6 @@ interface GameArenaProps extends GameProps {
     // 온라인 전략바둑 AI 대국용: 서버 응답 전 낙관적 표시용 임시 돌
     pendingMove?: { x: number; y: number; player: Player } | null;
     captureScoreFloatMinPoints?: number;
-    /** 주사위 바둑: 주사위 박스 옆 착수 버튼(전략바둑과 동일 패턴) */
-    diceGoPlaceUi?: DiceGoPlaceUiProps;
     onboardingDemoAnchorPoint?: Point | null;
     onboardingForcedFirstMovePoint?: Point | null;
     intro1TutorialHighlight?: Point | null;
@@ -57,7 +49,6 @@ const GameArena: React.FC<GameArenaProps> = (props) => {
         onToggleBoardRotation,
         pendingMove,
         captureScoreFloatMinPoints = 2,
-        diceGoPlaceUi,
         onboardingDemoAnchorPoint = null,
         onboardingForcedFirstMovePoint = null,
         intro1TutorialHighlight = null,
@@ -71,7 +62,6 @@ const GameArena: React.FC<GameArenaProps> = (props) => {
         pendingMove,
         showBoardGlow,
         captureScoreFloatMinPoints,
-        diceGoPlaceUi,
         onboardingDemoAnchorPoint,
         onboardingForcedFirstMovePoint,
         intro1TutorialHighlight,

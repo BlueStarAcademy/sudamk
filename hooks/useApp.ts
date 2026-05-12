@@ -8434,7 +8434,21 @@ export const useApp = () => {
                                             }
                                         } else {
                                             // hidden_placing, scanning, hidden_reveal_animating 등에서는 boardState·permanentlyRevealedStones 보존/병합
-                                            const isItemMode = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating', 'hidden_reveal_animating'].includes(game.gameStatus);
+                                            const incomingItemPhase = [
+                                                'hidden_placing',
+                                                'scanning',
+                                                'missile_selecting',
+                                                'missile_animating',
+                                                'scanning_animating',
+                                                'hidden_reveal_animating',
+                                            ].includes(game.gameStatus);
+                                            // 서버가 연출 종료 전 `playing`으로 먼저 오면(슬림 WS 등) 기존 공개 타이머가 살아 있는 동안은
+                                            // 동일 병합 경로를 타서 애니·pendingCapture·reveal 종료 시각이 중간에 끊기지 않게 한다.
+                                            const localRevealClockLive =
+                                                existingGame?.gameStatus === 'hidden_reveal_animating' &&
+                                                typeof existingGame.revealAnimationEndTime === 'number' &&
+                                                existingGame.revealAnimationEndTime > Date.now();
+                                            const isItemMode = incomingItemPhase || localRevealClockLive;
                                             // 미사일 애니메이션 중에는 서버가 따낸 돌을 반영한 boardState를 적용해야 함
                                             const isMissileAnimating = game.gameStatus === 'missile_animating';
                                             
@@ -8544,7 +8558,22 @@ export const useApp = () => {
                                                     mergedAnimation = existingGame.animation ?? mergedAnimation;
                                                     mergedRevealAnimationEndTime =
                                                         existingGame.revealAnimationEndTime ?? mergedRevealAnimationEndTime;
+                                                } else if (
+                                                    localRevealClockLive &&
+                                                    !incomingItemPhase &&
+                                                    existingGame?.gameStatus === 'hidden_reveal_animating'
+                                                ) {
+                                                    // 서버가 이미 `playing` 등으로 전진했어도 로컬 공개 타이머가 남아 있으면 연출·정산 대기 상태 유지
+                                                    mergedAnimation = existingGame.animation ?? mergedAnimation;
+                                                    mergedRevealAnimationEndTime =
+                                                        existingGame.revealAnimationEndTime ?? mergedRevealAnimationEndTime;
                                                 }
+                                                const mergedGameStatus =
+                                                    localRevealClockLive &&
+                                                    !incomingItemPhase &&
+                                                    existingGame?.gameStatus === 'hidden_reveal_animating'
+                                                        ? ('hidden_reveal_animating' as const)
+                                                        : game.gameStatus;
                                                 const mergedHiddenMoves = mergeHiddenMovesByStableHistory(game, existingGame);
                                                 const mergedAiInitialHiddenStone =
                                                     (game as any).aiInitialHiddenStone ?? (existingGame as any)?.aiInitialHiddenStone;
@@ -8552,6 +8581,7 @@ export const useApp = () => {
                                                     (game as any).aiInitialHiddenStoneIsPrePlaced ?? (existingGame as any)?.aiInitialHiddenStoneIsPrePlaced;
                                                 updatedGames[gameId] = {
                                                     ...game,
+                                                    gameStatus: mergedGameStatus,
                                                     boardState: finalBoardState,
                                                     moveHistory: finalMoveHistory,
                                                     hiddenMoves: mergedHiddenMoves,
@@ -8984,11 +9014,18 @@ export const useApp = () => {
                                             const serverRevision = game.serverRevision || 0;
                                             
                                             // 서버가 계가/히든 공개로 전환한 경우는 항상 반영 (공개할 히든 없이 바로 계가 시 멈춤 방지)
-                                            const isServerScoringOrReveal = game.gameStatus === 'scoring' || game.gameStatus === 'hidden_final_reveal';
+                                            const isServerScoringOrReveal =
+                                                game.gameStatus === 'scoring' ||
+                                                game.gameStatus === 'hidden_final_reveal' ||
+                                                game.gameStatus === 'hidden_reveal_animating';
                                             // 종료 패킷은 analysisResult·summary·winner를 실어 오므로 반드시 반영 (무시 시 모달·영토 표시가 비는 버그)
                                             const isServerEndedOrNoContest = game.gameStatus === 'ended' || game.gameStatus === 'no_contest';
                                             // 서버가 아이템 사용 모드로 전환한 경우도 항상 반영 (히든/미사일/스캔 버튼 클릭 후 화면 전환)
-                                            const isServerItemMode = game.gameStatus === 'hidden_placing' || game.gameStatus === 'missile_selecting' || game.gameStatus === 'scanning';
+                                            const isServerItemMode =
+                                                game.gameStatus === 'hidden_placing' ||
+                                                game.gameStatus === 'hidden_reveal_animating' ||
+                                                game.gameStatus === 'missile_selecting' ||
+                                                game.gameStatus === 'scanning';
                                             // 서버가 미사일 애니메이션 중인 상태를 보낸 경우 반영 (LAUNCH_MISSILE 직후 애니메이션 재생·완료 신호 전송을 위해)
                                             const isServerMissileAnimating = game.gameStatus === 'missile_animating';
                                             // 서버가 미사일/스캔 애니메이션 종료 후 playing으로 복귀한 경우 항상 반영 (애니메이션 멈춤·게임 재개)

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GameProps, Player, GameMode } from '../../types.js';
+import { GameProps, Player, GameMode, Point, AppSettings } from '../../types.js';
 import Button from '../Button.js';
 import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js';
 import { resolveLiveSessionSinglePlayerStageRow } from '../../shared/utils/liveSessionSinglePlayerStage.js';
@@ -8,6 +8,7 @@ import ConfirmModal from '../ConfirmModal.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import { buildPveItemActionClientSync } from '../../utils/pveItemClientSync.js';
 import { ArenaControlStrip } from './ArenaControlStrip.js';
+import { MoveConfirmFooterSlot } from './MoveConfirmFooterSlot.js';
 import {
     arenaPostGameButtonClass,
     arenaPostGameButtonInRowModifier,
@@ -41,6 +42,11 @@ interface SinglePlayerControlsProps extends Pick<GameProps, 'session' | 'onActio
     onLeaveOrResign?: () => void;
     /** Game.tsx gameControlsProps 일괄 전달 시 무시 */
     strategicPetHintFooterBubble?: { message: string; visible: boolean } | null;
+    showMoveConfirmFooter?: boolean;
+    pendingMove?: Point | null;
+    onConfirmMove?: () => void;
+    onMobileConfirmToggle?: (checked: boolean) => void;
+    settings?: AppSettings;
 }
 
 interface ImageButtonProps {
@@ -143,6 +149,11 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     isBoardLocked = false,
     isMobile = false,
     strategicPetHintFooterBubble = null,
+    showMoveConfirmFooter = false,
+    pendingMove = null,
+    onConfirmMove,
+    onMobileConfirmToggle,
+    settings: settingsProp,
 }) => {
     const myUserId = currentUser?.id;
     const [alertModal, setAlertModal] = useState<{ title?: string; message: string } | null>(null);
@@ -630,6 +641,16 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
                     </span>
                 )}
             </div>
+            {showMoveConfirmFooter && onConfirmMove && onMobileConfirmToggle && settingsProp && (
+                <MoveConfirmFooterSlot
+                    layout="pve"
+                    compact={isMobile}
+                    pendingMove={pendingMove}
+                    mobileConfirm={settingsProp.features.mobileConfirm}
+                    onConfirmMove={onConfirmMove}
+                    onMobileConfirmToggle={onMobileConfirmToggle}
+                />
+            )}
             {petHintSlot}
         </>
     );

@@ -139,6 +139,13 @@ const isHumanPveHiddenMove = (game: LiveGameSession, movePlayer: Player): boolea
     if (policy.matchAxis !== 'pve') return false;
     const playerId = getPlayerIdForEnum(game, movePlayer);
     if (playerId) return !isAiControlledPlayerId(playerId);
+
+    const opponent = movePlayer === Player.Black ? Player.White : Player.Black;
+    const opponentId = getPlayerIdForEnum(game, opponent);
+    // 한쪽 좌석 id만 슬림 패킷/스토리지에 남는 경우: 상대가 AI면 이 착수는 인간 PVE 히든으로 본다.
+    if (opponentId && isAiControlledPlayerId(opponentId)) return true;
+    if (opponentId && !isAiControlledPlayerId(opponentId)) return false;
+
     // 구 세션 폴백: 싱글/탑은 기존처럼 유저 흑을 기본값으로 둔다.
     return movePlayer === Player.Black;
 };

@@ -264,10 +264,18 @@ function mergeHiddenMovesFromClientSync(
             // Default: never trust client snapshots to relabel existing normal stones as hidden.
             // Exception: while actually placing a hidden stone, accept hidden labels only for
             // newly appended move indices in a client-advanced snapshot.
+            //
+            // 도전의 탑 등: 클라가 수순만 앞서고 hiddenMoves 맵은 stale(예: {0:true})인 패킷이 오면
+            // `idx >= serverMoveHistoryLength`만으로는 serverMoveHistoryLength===0일 때 전 구간이 통과되어
+            // 첫 수가 히든으로 재라벨링된다. 서버에 이미 수가 있으면 "append 구간"만 신뢰한다.
+            const appendedOnlyIdx = idx >= serverMoveHistoryLength;
+            const safeTailWhenCatchUpFromEmpty =
+                serverMoveHistoryLength === 0 ? idx === game.moveHistory.length - 1 : true;
             const canIntroduceFromClient =
                 allowClientIntroduceHiddenOnAppendedMoves &&
                 syncAdvancesServerMoves &&
-                idx >= serverMoveHistoryLength;
+                appendedOnlyIdx &&
+                safeTailWhenCatchUpFromEmpty;
             if (!canIntroduceFromClient) continue;
         }
         next[idx] = true;

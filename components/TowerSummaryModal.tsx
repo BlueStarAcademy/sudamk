@@ -29,6 +29,7 @@ import {
 } from './game/ResultModalRewardSlot.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
 import PairPetLevelUpCoreDelta from './pair/PairPetLevelUpCoreDelta.js';
+import { getPairPetDefinition, getPairPetDisplayName } from '../shared/constants/petLobby.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { effectivePairPetGradeFromRow, pairPetShowsGradeUpgradeNeededInsteadOfXp } from '../shared/constants/pairPetGrade.js';
 import {
@@ -37,6 +38,7 @@ import {
     GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH,
 } from './game/gameResultModalViewport.js';
 import { RESULT_MODAL_SCORE_MOBILE_PX } from './game/resultModalScoreTypography.js';
+import SpResultRecordPetIdentityRow from './game/SpResultRecordPetIdentityRow.js';
 
 interface TowerSummaryModalProps {
     session: LiveGameSession;
@@ -170,6 +172,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     const isCompactViewport = useIsHandheldDevice(1025);
     const { isNativeMobile } = useNativeMobileShell();
     const isMobile = isCompactViewport || isNativeMobile;
+    const mobileTextScale = 1;
     const useBodyScrollSizing = modalLayerUsesDesignPixels || isMobile;
     const isScoring = session.gameStatus === 'scoring';
     const isEnded = session.gameStatus === 'ended';
@@ -355,7 +358,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     const borderUrl = useMemo(() => BORDER_POOL.find((b: BorderInfo) => b.id === currentUser.borderId)?.url, [currentUser.borderId]);
     const xpRequirement = getXpRequirementForLevel(Math.max(1, currentUser.userLevel));
     const clampedXp = Math.min(currentUser.userXp, xpRequirement);
-    const xpChange = displaySummary?.xp?.change ?? summary?.xp?.change ?? 0;
+    const xpChange = displaySummary?.xp?.change ?? 0;
     const previousXp = Math.max(0, clampedXp - xpChange);
     const previousXpPercent = Math.min(100, (previousXp / (xpRequirement || 1)) * 100);
     const xpPercent = Math.min(100, (clampedXp / (xpRequirement || 1)) * 100);
@@ -385,6 +388,20 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
         });
     }, [currentUser, displaySummary?.pairPetLevel?.final, displaySummary?.pairPetXp?.change]);
 
+    const petRecordRowIdentity = useMemo(() => {
+        const row = getEquippedPairPetInventoryRow(currentUser);
+        if (!row) return null;
+        const def = row.templateId ? getPairPetDefinition(row.templateId) : undefined;
+        const raw = (typeof row.image === 'string' && row.image.length > 0 ? row.image : null) ?? def?.image ?? null;
+        const imageSrc =
+            raw && typeof raw === 'string'
+                ? raw.startsWith('/') || raw.startsWith('http')
+                    ? raw
+                    : `/${raw.replace(/^\//, '')}`
+                : null;
+        return { imageSrc, displayName: getPairPetDisplayName(row) };
+    }, [currentUser]);
+
     const hasRewardSlots = useMemo(
         () =>
             !!displaySummary &&
@@ -396,62 +413,85 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
         [displaySummary, showPetGradeUpgradeInsteadOfXp],
     );
 
-    /** 싱글/일반 결과 모달과 동일: EXP 바 + 현재/필요 XP + 변동 (summary 유무와 관계없이 표시) */
-    const renderTowerStrategyXpPanel = (compact: boolean) => (
-        <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 ${compact ? 'p-1' : 'p-1.5'}`}>
-            <div
-                className={`text-center font-bold uppercase tracking-[0.12em] text-amber-200/75 ${compact ? 'text-[8px]' : 'text-[10px] sm:text-xs'}`}
-            >
-                경험치
+    /** 싱글플레이 기록 탭과 동일: 요약에 `xp`가 있을 때만 표시 */
+    const renderTowerStrategyXpPanel = (compact: boolean) => {
+        if (!displaySummary?.xp) return null;
+        return (
+            <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 ${compact ? 'p-1.5' : 'p-2'}`}>
+                <StrategyXpResultBar previousXpPercent={previousXpPercent} finalXpPercent={xpPercent} xpGain={xpChange} />
+                <div
+                    className="flex min-w-0 flex-nowrap items-center justify-between gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
+                    style={{
+                        fontSize: compact
+                            ? `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px`
+                            : '13px',
+                    }}
+                >
+                    <span className="min-w-0 shrink font-mono whitespace-nowrap text-zinc-300/95">
+                        {clampedXp.toLocaleString()} / {xpRequirement.toLocaleString()} XP
+                    </span>
+                    {xpChange > 0 ? (
+                        <span className="shrink-0 whitespace-nowrap font-semibold text-green-400">
+                            +{xpChange.toLocaleString()} XP
+                        </span>
+                    ) : null}
+                </div>
             </div>
-            <StrategyXpResultBar
-                previousXpPercent={previousXpPercent}
-                finalXpPercent={xpPercent}
-                xpGain={xpChange}
-                className={compact ? 'h-2' : 'h-2.5'}
-            />
-            <div
-                className={`flex min-w-0 flex-nowrap items-center justify-between gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] ${compact ? '' : 'text-sm'}`}
-                style={{ fontSize: compact ? `${9 * mobileTextScale}px` : undefined }}
-            >
-                <span className="min-w-0 shrink font-mono whitespace-nowrap text-zinc-300/95">
-                    {clampedXp.toLocaleString()} / {xpRequirement.toLocaleString()} XP
-                </span>
-                {xpChange > 0 ? (
-                    <span className="shrink-0 whitespace-nowrap font-semibold text-green-400">+{xpChange.toLocaleString()} XP</span>
-                ) : xpChange < 0 ? (
-                    <span className="shrink-0 whitespace-nowrap font-semibold text-rose-400">{xpChange.toLocaleString()} XP</span>
-                ) : (
-                    <span className="shrink-0 whitespace-nowrap font-semibold text-zinc-500">변동 없음</span>
-                )}
-            </div>
-        </div>
-    );
+        );
+    };
 
     const renderTowerPetXpPanel = (compact: boolean) => {
         if (showPetGradeUpgradeInsteadOfXp && displaySummary?.pairPetLevel && displaySummary?.pairPetXp) {
             return (
-                <div className={`space-y-1 ${SP_SUMMARY_INSET_CLASS} mt-1.5 flex-shrink-0 ${compact ? 'p-1' : 'p-1.5'}`}>
-                    <div
-                        className={`text-center font-bold uppercase tracking-[0.12em] text-fuchsia-200/90 ${compact ? 'text-[8px]' : 'text-[10px] sm:text-xs'}`}
-                    >
-                        펫 등급강화 필요
-                    </div>
+                <div className={`space-y-1 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 ${compact ? 'p-1.5' : 'p-2'}`}>
+                    {petRecordRowIdentity ? (
+                        <SpResultRecordPetIdentityRow
+                            imageSrc={petRecordRowIdentity.imageSrc}
+                            displayName={petRecordRowIdentity.displayName}
+                            level={displaySummary.pairPetLevel.final}
+                            isMobile={compact}
+                            mobileTextScale={mobileTextScale}
+                        />
+                    ) : null}
+                    {compact ? (
+                        <p
+                            className="text-center font-bold uppercase tracking-[0.12em] text-fuchsia-200/90"
+                            style={{ fontSize: `${9 * mobileTextScale}px` }}
+                        >
+                            펫 등급강화 필요
+                        </p>
+                    ) : (
+                        <div className="text-center text-[10px] font-bold uppercase tracking-[0.12em] text-fuchsia-200/90 sm:text-xs">
+                            펫 등급강화 필요
+                        </div>
+                    )}
                 </div>
             );
         }
         if (!petXpBarPercents || !displaySummary?.pairPetLevel) return null;
         return (
-            <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} mt-1.5 flex-shrink-0 ${compact ? 'p-1' : 'p-1.5'}`}>
+            <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 ${compact ? 'p-1.5' : 'p-2'}`}>
+                {petRecordRowIdentity ? (
+                    <SpResultRecordPetIdentityRow
+                        imageSrc={petRecordRowIdentity.imageSrc}
+                        displayName={petRecordRowIdentity.displayName}
+                        level={displaySummary.pairPetLevel.final}
+                        isMobile={compact}
+                        mobileTextScale={mobileTextScale}
+                    />
+                ) : null}
                 <StrategyXpResultBar
                     previousXpPercent={petXpBarPercents.previous}
                     finalXpPercent={petXpBarPercents.final}
                     xpGain={petXpBarPercents.gain}
-                    className={compact ? 'h-2' : 'h-2.5'}
                 />
                 <div
-                    className={`flex min-w-0 flex-nowrap items-center justify-between gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] ${compact ? '' : 'text-sm'}`}
-                    style={{ fontSize: compact ? `${9 * mobileTextScale}px` : undefined }}
+                    className="flex min-w-0 flex-nowrap items-center justify-between gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
+                    style={{
+                        fontSize: compact
+                            ? `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px`
+                            : '13px',
+                    }}
                 >
                     <span className="min-w-0 shrink font-mono whitespace-nowrap text-zinc-300/95">
                         {petXpBarPercents.petFinal.toLocaleString()} / {petXpBarPercents.petMax.toLocaleString()} 펫 XP
@@ -478,8 +518,6 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
         : (analysisResult) 
             ? (isWinner ? "층 클리어" : "층 실패")
             : "게임 결과";
-
-    const mobileTextScale = 1;
 
     useEffect(() => {
         setMobileResultTab('match');

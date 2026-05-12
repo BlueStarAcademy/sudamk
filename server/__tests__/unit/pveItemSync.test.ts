@@ -330,6 +330,49 @@ describe('PVE item client sync', () => {
         expect(game.hiddenMoves).toEqual({ '0': true });
     });
 
+    it('tower-like catch-up: rejects stale hiddenMoves[0] when server already had moves', () => {
+        const board = emptyBoard(5);
+        board[0][0] = Player.Black;
+        board[1][1] = Player.White;
+        board[2][2] = Player.Black;
+        board[3][3] = Player.White;
+        board[4][4] = Player.Black;
+        const game: any = {
+            id: 'pve-tower-stale-hidden-zero',
+            gameCategory: 'tower',
+            blackPlayerId: 'human-1',
+            whitePlayerId: 'ai-player-01',
+            boardState: board.map((row) => [...row]),
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 1, y: 1, player: Player.White },
+            ],
+            currentPlayer: Player.Black,
+            gameStatus: 'hidden_placing',
+            mode: 'mix',
+            settings: { mixedModes: ['hidden'] },
+            hiddenMoves: {},
+        };
+
+        applyPveItemActionClientSync(game, {
+            clientSync: {
+                boardState: board.map((row) => [...row]),
+                moveHistory: [
+                    { x: 0, y: 0, player: Player.Black },
+                    { x: 1, y: 1, player: Player.White },
+                    { x: 2, y: 2, player: Player.Black },
+                    { x: 3, y: 3, player: Player.White },
+                    { x: 4, y: 4, player: Player.Black },
+                ],
+                hiddenMoves: { '0': true, '4': true },
+                currentPlayer: Player.White,
+                gameStatus: 'hidden_placing',
+            },
+        });
+
+        expect(game.hiddenMoves).toEqual({ '4': true });
+    });
+
     it('does not accept hidden relabel when only client reports hidden_placing', () => {
         const board = emptyBoard(5);
         board[0][0] = Player.Black;

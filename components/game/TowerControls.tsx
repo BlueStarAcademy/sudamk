@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { GameProps, Player } from '../../types.js';
+import { GameProps, Player, Point, AppSettings } from '../../types.js';
 import Button from '../Button.js';
 import ConfirmModal from '../ConfirmModal.js';
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
@@ -16,6 +16,7 @@ import {
 import { buildPveItemActionClientSync } from '../../utils/pveItemClientSync.js';
 import { getTowerSessionFloor, isTowerHumanWinnerFromSession } from '../../utils/towerPreGameDisplay.js';
 import { ArenaControlStrip } from './ArenaControlStrip.js';
+import { MoveConfirmFooterSlot } from './MoveConfirmFooterSlot.js';
 import {
     arenaPostGameButtonClass,
     arenaPostGameButtonGridClass,
@@ -46,6 +47,11 @@ interface TowerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'c
     onLeaveOrResign?: () => void;
     /** Game.tsx gameControlsProps 일괄 전달 시 무시 */
     strategicPetHintFooterBubble?: { message: string; visible: boolean } | null;
+    showMoveConfirmFooter?: boolean;
+    pendingMove?: Point | null;
+    onConfirmMove?: () => void;
+    onMobileConfirmToggle?: (checked: boolean) => void;
+    settings?: AppSettings;
 }
 
 interface ImageButtonProps {
@@ -106,6 +112,11 @@ const TowerControls: React.FC<TowerControlsProps> = ({
     isBoardLocked = false,
     isMobile = false,
     strategicPetHintFooterBubble = null,
+    showMoveConfirmFooter = false,
+    pendingMove = null,
+    onConfirmMove,
+    onMobileConfirmToggle,
+    settings: settingsProp,
 }) => {
     const [refreshConfirmModal, setRefreshConfirmModal] = useState(false);
     const [passConfirmModal, setPassConfirmModal] = useState(false);
@@ -615,6 +626,16 @@ const TowerControls: React.FC<TowerControlsProps> = ({
 				/>
 				<span className={`${lbl} font-semibold whitespace-nowrap ${refreshButtonDisabled ? 'text-gray-500' : 'text-amber-100'}`}>배치변경</span>
 			</div>
+            {showMoveConfirmFooter && onConfirmMove && onMobileConfirmToggle && settingsProp && (
+                <MoveConfirmFooterSlot
+                    layout="pve"
+                    compact={isMobile}
+                    pendingMove={pendingMove}
+                    mobileConfirm={settingsProp.features.mobileConfirm}
+                    onConfirmMove={onConfirmMove}
+                    onMobileConfirmToggle={onMobileConfirmToggle}
+                />
+            )}
             {petHintSlot}
 		</>
 	);

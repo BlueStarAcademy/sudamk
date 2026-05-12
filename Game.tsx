@@ -8,7 +8,6 @@ import {
     GameProps,
     LiveGameSession,
     ServerAction,
-    FeatureSettings,
 } from './types/index.js';
 import type { ChatMessage } from './types/api.js';
 import GameArena from './components/GameArena.js';
@@ -49,9 +48,6 @@ import { useIsHandheldDevice } from './hooks/useIsMobileLayout.js';
 import { calculateSimpleAiMove } from './client/goAiBotClient.js';
 import { processMoveClient } from './client/goLogicClient.js';
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from './client/logic/goLogic.js';
-import Button from './components/Button.js';
-import ToggleSwitch from './components/ui/ToggleSwitch.js';
-import { DraggableMoveConfirmPanel } from './components/game/DraggableMoveConfirmPanel.js';
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
 import { consumeSkipGameHashLeaveInterceptOnce, replaceAppHash } from './utils/appUtils.js';
 import { getAdventureMapWebpPath } from './constants/adventureConstants.js';
@@ -140,47 +136,6 @@ const HIDDEN_PLACEMENT_DELAY_MS = 2000;
 const HIDDEN_PLACEMENT_DELAY_MESSAGE = '화면에 상대에게 안보이는 한 수를 두세요';
 const MISSILE_DIRECTION_DELAY_MESSAGE = '바둑돌을 원하는 방향으로 날려보내세요';
 const SCAN_TARGET_DELAY_MESSAGE = '상대방의 히든 돌이 있을만한 지점을 찍어보세요';
-
-interface MoveConfirmDraggableProps {
-    layoutMode: 'mobile' | 'desktop';
-    pendingMove: Point | null;
-    handleConfirmMove: () => void;
-    mobileConfirm: boolean;
-    updateFeatureSetting: <K extends keyof FeatureSettings>(key: K, value: FeatureSettings[K]) => void;
-    setPendingMove: (p: Point | null) => void;
-}
-
-const MoveConfirmDraggable: React.FC<MoveConfirmDraggableProps> = ({
-    layoutMode,
-    pendingMove,
-    handleConfirmMove,
-    mobileConfirm,
-    updateFeatureSetting,
-    setPendingMove,
-}) => (
-    <DraggableMoveConfirmPanel layoutMode={layoutMode}>
-        <Button
-            onClick={pendingMove ? handleConfirmMove : undefined}
-            disabled={!pendingMove || !mobileConfirm}
-            colorScheme="none"
-            className={`w-full !py-2.5 rounded-xl border border-emerald-400/45 bg-gradient-to-b from-emerald-400/95 via-emerald-600/90 to-emerald-950/95 text-slate-950 font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_10px_28px_-12px_rgba(16,185,129,0.45)] ring-1 ring-inset ring-white/10 ${!pendingMove || !mobileConfirm ? 'opacity-40 cursor-not-allowed' : 'hover:brightness-[1.05] active:scale-[0.99]'}`}
-            title={!mobileConfirm ? '착수 버튼 모드가 OFF입니다.' : pendingMove ? '착수 확정' : '바둑판을 클릭해 착점을 선택하세요'}
-        >
-            착수
-        </Button>
-        <div className="h-px w-full bg-gradient-to-r from-transparent via-slate-600/50 to-transparent" />
-        <div className="flex w-full items-center justify-between gap-2">
-            <span className="whitespace-nowrap text-[10px] text-gray-300">착수 버튼</span>
-            <ToggleSwitch
-                checked={mobileConfirm}
-                onChange={(checked) => {
-                    updateFeatureSetting('mobileConfirm', checked);
-                    if (!checked) setPendingMove(null);
-                }}
-            />
-        </div>
-    </DraggableMoveConfirmPanel>
-);
 
 type PairSeat = NonNullable<NonNullable<LiveGameSession['settings']['pairGame']>['turnOrder']>[number];
 type PairClientTimes = { black: number; white: number };
@@ -2695,6 +2650,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             newBoardState: moveResult.newBoardState,
                             capturedStones: moveResult.capturedStones,
                             newKoInfo: moveResult.newKoInfo,
+                            movePlayer: myPlayerEnum,
                             isHidden: true,
                         }
                     } as any);
@@ -2966,6 +2922,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         capturedStones: moveResult.capturedStones,
                         newKoInfo: moveResult.newKoInfo,
                         movePlayer: myPlayerEnum,
+                        ...(gameStatus === 'hidden_placing' ? { isHidden: true } : {}),
                     }
                 } as any);
                 claimStrategicPetHintBonusIfMatched(x, y, (session.moveHistory?.length || 0) + 1);
@@ -3228,6 +3185,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     newBoardState: moveResult.newBoardState,
                     capturedStones: moveResult.capturedStones,
                     newKoInfo: moveResult.newKoInfo,
+                    movePlayer: myPlayerEnum,
                     // 히든 배치 상태에서는 히든 착수로 처리(타워 21층+ 등)
                     ...(gameStatus === 'hidden_placing' ? { isHidden: true } : {}),
                 };
@@ -4493,6 +4451,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             strategicPetHintBoardOverlay?.showBubble && strategicPetHintBoardOverlay.message
                 ? { message: strategicPetHintBoardOverlay.message, visible: true }
                 : null,
+        showMoveConfirmFooter: showMoveConfirmPanel && !isSpectator,
+        onMobileConfirmToggle: (checked: boolean) => {
+            updateFeatureSetting('mobileConfirm', checked);
+            if (!checked) setPendingMove(null);
+        },
     };
 
     if (isSinglePlayer) {
@@ -4565,17 +4528,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         boardRuleFlashMessage={boardRuleFlashMessage}
                                     />
                                     {boardHydrationOverlayEl}
-                                    {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
-                                    {showMoveConfirmPanel && (
-                                        <MoveConfirmDraggable
-                                            layoutMode={isMobile ? 'mobile' : 'desktop'}
-                                            pendingMove={pendingMove}
-                                            handleConfirmMove={handleConfirmMove}
-                                            mobileConfirm={settings.features.mobileConfirm}
-                                            updateFeatureSetting={updateFeatureSetting}
-                                            setPendingMove={setPendingMove}
-                                        />
-                                    )}
                                 </div>
                             </div>
                             <div className="flex-shrink-0 w-full flex flex-col gap-1">
@@ -4747,17 +4699,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         boardRuleFlashMessage={boardRuleFlashMessage}
                                     />
                                     {boardHydrationOverlayEl}
-                                {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
-                                {showMoveConfirmPanel && (
-                                        <MoveConfirmDraggable
-                                            layoutMode={isMobile ? 'mobile' : 'desktop'}
-                                            pendingMove={pendingMove}
-                                            handleConfirmMove={handleConfirmMove}
-                                            mobileConfirm={settings.features.mobileConfirm}
-                                            updateFeatureSetting={updateFeatureSetting}
-                                            setPendingMove={setPendingMove}
-                                        />
-                                    )}
                                 </div>
                             </div>
                             <div className="flex-shrink-0 w-full flex flex-col gap-1">
@@ -4984,18 +4925,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                         isBoardRotated={isBoardRotated}
                                                         onToggleBoardRotation={() => setIsBoardRotated((prev: boolean) => !prev)}
                                                         showBoardGlow={boardGlowForHiddenScanItem}
-                                                        diceGoPlaceUi={
-                                                            settings.features.moveConfirmButtonBox
-                                                                ? {
-                                                                      mobileConfirm: settings.features.mobileConfirm,
-                                                                      onToggleMobileConfirm: (checked) => {
-                                                                          updateFeatureSetting('mobileConfirm', checked);
-                                                                          if (!checked) setPendingMove(null);
-                                                                      },
-                                                                      onConfirmMove: handleConfirmMove,
-                                                                  }
-                                                                : undefined
-                                                        }
                                                         onboardingDemoAnchorPoint={intro1OnboardingDemoPoint}
                                                         onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
                                                         intro1TutorialHighlight={intro1OnboardingDemoPoint}
@@ -5024,18 +4953,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                 isBoardRotated={isBoardRotated}
                                                 onToggleBoardRotation={() => setIsBoardRotated((prev: boolean) => !prev)}
                                                 showBoardGlow={boardGlowForHiddenScanItem}
-                                                diceGoPlaceUi={
-                                                    settings.features.moveConfirmButtonBox
-                                                        ? {
-                                                              mobileConfirm: settings.features.mobileConfirm,
-                                                              onToggleMobileConfirm: (checked) => {
-                                                                  updateFeatureSetting('mobileConfirm', checked);
-                                                                  if (!checked) setPendingMove(null);
-                                                              },
-                                                              onConfirmMove: handleConfirmMove,
-                                                          }
-                                                        : undefined
-                                                }
                                                 onboardingDemoAnchorPoint={intro1OnboardingDemoPoint}
                                                 onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
                                                 intro1TutorialHighlight={intro1OnboardingDemoPoint}
@@ -5044,17 +4961,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         )}
                                         {boardHydrationOverlayEl}
                                     </div>
-                                    {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
-                                    {showMoveConfirmPanel && (
-                                        <MoveConfirmDraggable
-                                            layoutMode={isMobile ? 'mobile' : 'desktop'}
-                                            pendingMove={pendingMove}
-                                            handleConfirmMove={handleConfirmMove}
-                                            mobileConfirm={settings.features.mobileConfirm}
-                                            updateFeatureSetting={updateFeatureSetting}
-                                            setPendingMove={setPendingMove}
-                                        />
-                                    )}
                                     {effectivePaused && (
                                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none text-white drop-shadow-lg">
                                             <h2 className="text-3xl font-bold tracking-wide">일시 정지</h2>
@@ -5090,6 +4996,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     isMoveInFlight={isMoveInFlight}
                                     isBoardLocked={isBoardLocked}
                                     isMobile={isMobile}
+                                    showMoveConfirmFooter={gameControlsProps.showMoveConfirmFooter}
+                                    pendingMove={gameControlsProps.pendingMove}
+                                    onConfirmMove={gameControlsProps.onConfirmMove}
+                                    onMobileConfirmToggle={gameControlsProps.onMobileConfirmToggle}
+                                    settings={gameControlsProps.settings}
                                 />
                             ) : isGuildWarTowerStyleUi && mode === GameMode.Hidden ? (
                                 <GuildWarHiddenTowerControls
@@ -5103,6 +5014,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     isMoveInFlight={isMoveInFlight}
                                     isBoardLocked={isBoardLocked}
                                     isMobile={isMobile}
+                                    showMoveConfirmFooter={gameControlsProps.showMoveConfirmFooter}
+                                    pendingMove={gameControlsProps.pendingMove}
+                                    onConfirmMove={gameControlsProps.onConfirmMove}
+                                    onMobileConfirmToggle={gameControlsProps.onMobileConfirmToggle}
+                                    settings={gameControlsProps.settings}
                                 />
                             ) : (
                                 <GameControls {...gameControlsProps} />

@@ -3,11 +3,12 @@
  * 도전의 탑 21층+ 히든·스캔 UI와 동일한 형태이며, 탑 전용 파일과 분리됨.
  */
 import React, { useMemo } from 'react';
-import { GameProps, Player } from '../../types.js';
+import { GameProps, Player, Point, AppSettings } from '../../types.js';
 import Button from '../Button.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import { buildPveItemActionClientSync } from '../../utils/pveItemClientSync.js';
 import { ArenaControlStrip } from './ArenaControlStrip.js';
+import { MoveConfirmFooterSlot } from './MoveConfirmFooterSlot.js';
 import {
     arenaPostGameButtonClass,
     arenaPostGameButtonGridClass,
@@ -29,6 +30,11 @@ interface GuildWarHiddenTowerControlsProps extends Pick<GameProps, 'session' | '
     isMoveInFlight?: boolean;
     isBoardLocked?: boolean;
     isMobile?: boolean;
+    showMoveConfirmFooter?: boolean;
+    pendingMove?: Point | null;
+    onConfirmMove?: () => void;
+    onMobileConfirmToggle?: (checked: boolean) => void;
+    settings?: AppSettings;
 }
 
 interface ImageButtonProps {
@@ -78,6 +84,11 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
     isMoveInFlight = false,
     isBoardLocked = false,
     isMobile = false,
+    showMoveConfirmFooter = false,
+    pendingMove = null,
+    onConfirmMove,
+    onMobileConfirmToggle,
+    settings: settingsProp,
 }) => {
     const gameStatus = session.gameStatus;
     const isMyTurn = session.currentPlayer === Player.Black;
@@ -239,6 +250,16 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                                     <ImageButton src="/images/button/giveup.png" alt="기권" onClick={handleForfeit} disabled={gameStatus === 'scoring'} title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'} compact={isMobile} />
                                     <span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>기권</span>
                                 </div>
+                                {showMoveConfirmFooter && onConfirmMove && onMobileConfirmToggle && settingsProp && (
+                                    <MoveConfirmFooterSlot
+                                        layout="online"
+                                        compact={isMobile}
+                                        pendingMove={pendingMove}
+                                        mobileConfirm={settingsProp.features.mobileConfirm}
+                                        onConfirmMove={onConfirmMove}
+                                        onMobileConfirmToggle={onMobileConfirmToggle}
+                                    />
+                                )}
                             </ArenaControlStrip>
                         </div>
                     </div>
@@ -286,6 +307,16 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                                 <ImageButton src="/images/button/giveup.png" alt="기권" onClick={handleForfeit} disabled={gameStatus === 'scoring'} title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'} compact={isMobile} />
                                 <span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>기권</span>
                             </div>
+                            {showMoveConfirmFooter && onConfirmMove && onMobileConfirmToggle && settingsProp && (
+                                <MoveConfirmFooterSlot
+                                    layout="online"
+                                    compact={isMobile}
+                                    pendingMove={pendingMove}
+                                    mobileConfirm={settingsProp.features.mobileConfirm}
+                                    onConfirmMove={onConfirmMove}
+                                    onMobileConfirmToggle={onMobileConfirmToggle}
+                                />
+                            )}
                         </ArenaControlStrip>
                     </div>
                     <div className="w-px shrink-0 self-stretch bg-stone-600/50" />

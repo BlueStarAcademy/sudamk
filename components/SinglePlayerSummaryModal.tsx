@@ -34,6 +34,7 @@ import {
     GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH,
 } from './game/gameResultModalViewport.js';
 import { RESULT_MODAL_SCORE_MOBILE_PX } from './game/resultModalScoreTypography.js';
+import SpResultRecordPetIdentityRow from './game/SpResultRecordPetIdentityRow.js';
 /** 게임 설명 모달과 동일한 패널 박스 */
 const SP_SUMMARY_PANEL_CLASS =
     'relative overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12';
@@ -64,48 +65,6 @@ const handleClose = (session: LiveGameSession, onClose: () => void) => {
     // 확인 버튼: 모달만 닫기 (로비로 이동하지 않음)
     onClose();
 };
-
-/** 기록 탭: 펫 경험치/등급강화 구간 상단 — 프로필·이름·레벨 */
-const SpResultRecordPetIdentityRow: React.FC<{
-    imageSrc: string | null;
-    displayName: string;
-    level: number;
-    isMobile: boolean;
-    mobileTextScale: number;
-}> = ({ imageSrc, displayName, level, isMobile, mobileTextScale }) => (
-    <div className={`mb-1 flex flex-shrink-0 items-center gap-1.5 ${isMobile ? '' : 'mb-1.5'}`}>
-        <div
-            className={`relative shrink-0 overflow-hidden rounded-lg border border-fuchsia-500/30 bg-black/40 ring-1 ring-inset ring-fuchsia-400/12 ${
-                isMobile ? 'h-7 w-7' : 'h-10 w-10 min-[1024px]:h-11 min-[1024px]:w-11'
-            }`}
-        >
-            {imageSrc ? (
-                <img src={imageSrc} alt={displayName} className="h-full w-full object-cover" />
-            ) : (
-                <div className="flex h-full w-full items-center justify-center text-[10px] text-fuchsia-200/50">펫</div>
-            )}
-        </div>
-        <div className="min-w-0 flex-1">
-            <p
-                className="truncate font-bold text-fuchsia-100"
-                style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '15px' }}
-                title={displayName}
-            >
-                {displayName}
-            </p>
-            <p
-                className="text-fuchsia-200/70"
-                style={{
-                    fontSize: isMobile
-                        ? `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px`
-                        : '13px',
-                }}
-            >
-                Lv.{level}
-            </p>
-        </div>
-    </div>
-);
 
 const RewardItemDisplay: React.FC<{ item: any; isMobile: boolean }> = ({ item, isMobile }) => (
     <div
