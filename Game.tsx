@@ -919,6 +919,17 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const hiddenPlacementDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const itemAimIntroBlockUntilRef = useRef<number>(0);
     const itemAimIntroModeRef = useRef<'hidden_placing' | 'scanning' | 'missile_selecting' | null>(null);
+    const flashBoardRuleMessage = useCallback((message: string, durationMs = 3500) => {
+        if (boardRuleFlashClearRef.current) clearTimeout(boardRuleFlashClearRef.current);
+        setBoardRuleFlashMessage(message);
+        boardRuleFlashClearRef.current = setTimeout(() => {
+            setBoardRuleFlashMessage(null);
+            boardRuleFlashClearRef.current = null;
+        }, durationMs);
+    }, []);
+    const showKoRuleFlash = useCallback(() => {
+        flashBoardRuleMessage(KO_RULE_FLASH_MESSAGE, 5000);
+    }, [flashBoardRuleMessage]);
     const isPausableAiGameForTimer =
         session.isAiGame &&
         !session.isSinglePlayer &&
@@ -2397,19 +2408,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (!isMyTurn && !isGameOver) return;
         strategicAiStoneLockRef.current = false;
     }, [isMyTurn, gameStatus, session.id]);
-
-    const flashBoardRuleMessage = useCallback((message: string, durationMs = 3500) => {
-        if (boardRuleFlashClearRef.current) clearTimeout(boardRuleFlashClearRef.current);
-        setBoardRuleFlashMessage(message);
-        boardRuleFlashClearRef.current = setTimeout(() => {
-            setBoardRuleFlashMessage(null);
-            boardRuleFlashClearRef.current = null;
-        }, durationMs);
-    }, []);
-
-    const showKoRuleFlash = useCallback(() => {
-        flashBoardRuleMessage(KO_RULE_FLASH_MESSAGE, 5000);
-    }, [flashBoardRuleMessage]);
 
     const runHiddenPlacementWithDelay = useCallback((execute: () => void): void => {
         // Hidden item delay is now handled at item-mode entry (hidden_placing intro gate).
