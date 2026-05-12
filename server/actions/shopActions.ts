@@ -42,6 +42,7 @@ import { applyVipDurationExtensionToUser } from '../../shared/utils/vipDurationG
 import * as guildService from '../guildService.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
 import { ItemGrade } from '../../shared/types/enums.js';
+import { CONDITION_POTION_SHOP_GOLD_BY_TYPE } from '../../shared/constants/conditionPotionShop.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -447,9 +448,9 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
             const { potionType, quantity } = payload as { potionType: 'small' | 'medium' | 'large'; quantity: number };
             
             const potionInfo = {
-                small: { name: '컨디션회복제(소)', price: 180 },
-                medium: { name: '컨디션회복제(중)', price: 270 },
-                large: { name: '컨디션회복제(대)', price: 360 }
+                small: { name: '컨디션회복제(소)', price: CONDITION_POTION_SHOP_GOLD_BY_TYPE.small },
+                medium: { name: '컨디션회복제(중)', price: CONDITION_POTION_SHOP_GOLD_BY_TYPE.medium },
+                large: { name: '컨디션회복제(대)', price: CONDITION_POTION_SHOP_GOLD_BY_TYPE.large },
             }[potionType];
 
             if (!potionInfo) {
@@ -753,9 +754,8 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 }
             }
 
-            if (!user.isAdmin) {
-                user.dailyShopPurchases[purchaseKey] = { quantity: claimsToday + 1, date: now };
-            }
+            /** 일일 한도는 비관리자만 적용하되, 수령 횟수는 UI·감사용으로 항상 기록(관리자도 3/3→2/3 표시) */
+            user.dailyShopPurchases[purchaseKey] = { quantity: claimsToday + 1, date: now };
 
             const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_SHOP_AD_REWARD', { includeAll: true });
             db.updateUser(user).catch((err) => {

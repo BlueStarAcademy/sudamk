@@ -4,10 +4,12 @@ import DraggableWindow from '../DraggableWindow.js';
 import PairPetGradeUpgradeModal from './PairPetGradeUpgradeModal.js';
 import PairPetDetailEmbedPanel from './PairPetDetailEmbedPanel.js';
 import type { InventoryItem, ServerAction, User } from '../../types.js';
+import PairPetGradeUpgradeResultModal from './PairPetGradeUpgradeResultModal.js';
 import { ItemGrade } from '../../types/enums.js';
 import { resolvePairPetMetaFromInventoryRow } from '../../shared/utils/pairPetRoll.js';
 import {
     isPairPetUpgradeableGrade,
+    nextPairPetGrade,
     PAIR_PET_MAX_LEVEL,
     pairPetGradeUpgradeSoulStoneCount,
     pairPetGradeUpgradeSoulStoneMaterialName,
@@ -15,6 +17,30 @@ import {
     pairPetMinLevelForNextGrade,
 } from '../../shared/constants/pairPetGrade.js';
 import { isPairSoulStoneItem } from '../../shared/constants/petLobby.js';
+
+function mergeUserForPetGradeResult(base: User, patch?: Partial<User> | null): User {
+    if (!patch) return base;
+    return {
+        ...base,
+        ...patch,
+        inventory: Array.isArray(patch.inventory) ? patch.inventory : base.inventory,
+        equippedPairPetTemplateId:
+            patch.equippedPairPetTemplateId !== undefined
+                ? patch.equippedPairPetTemplateId
+                : base.equippedPairPetTemplateId,
+        equippedPairPetInventoryItemId:
+            patch.equippedPairPetInventoryItemId !== undefined
+                ? patch.equippedPairPetInventoryItemId
+                : base.equippedPairPetInventoryItemId,
+    } as User;
+}
+
+type PairPetGradeSuccessState = {
+    fromGrade: ItemGrade;
+    toGrade: ItemGrade;
+    itemAfter: InventoryItem;
+    userForStats: User;
+};
 
 export interface PairPetLobbyInfoPetViewerProps {
     currentUser: User;
@@ -53,6 +79,7 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
     );
     const [gradeModalOpen, setGradeModalOpen] = useState(false);
     const [gradeBlockHint, setGradeBlockHint] = useState<string | null>(null);
+    const [gradeSuccess, setGradeSuccess] = useState<PairPetGradeSuccessState | null>(null);
 
     const meta = useMemo(() => resolvePairPetMetaFromInventoryRow(item), [item]);
     const levelSafe = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(meta.level) || 1));
@@ -103,6 +130,8 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
     };
 
     const onGradeConfirm = async () => {
+        const fromG = item.grade ?? ItemGrade.Normal;
+        const toG = nextPairPetGrade(fromG);
         const res = await applyPetAction({
             type: 'PAIR_PET_UPGRADE_GRADE',
             payload: { mainItemId: item.id },
@@ -113,6 +142,15 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
             return;
         }
         setGradeModalOpen(false);
+        if (!toG) return;
+        const updated =
+            (res as { clientResponse?: { updatedUser?: User } })?.clientResponse?.updatedUser ??
+            (res as { updatedUser?: User })?.updatedUser;
+        const inv = updated?.inventory ?? currentUser.inventory;
+        const rowAfter = Array.isArray(inv) ? inv.find((i) => i.id === item.id) : undefined;
+        const itemAfter = rowAfter ?? { ...item, grade: toG };
+        const userForStats = mergeUserForPetGradeResult(currentUser, updated ?? null);
+        setGradeSuccess({ fromGrade: fromG, toGrade: toG, itemAfter, userForStats });
     };
 
     return (
@@ -224,6 +262,17 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                         {gradeBlockHint}
                     </p>
                 </DraggableWindow>
+            ) : null}
+            {gradeSuccess ? (
+                <PairPetGradeUpgradeResultModal
+                    isOpen
+                    onClose={() => setGradeSuccess(null)}
+                    currentUser={gradeSuccess.userForStats}
+                    itemAfter={gradeSuccess.itemAfter}
+                    fromGrade={gradeSuccess.fromGrade}
+                    toGrade={gradeSuccess.toGrade}
+                    isTopmost
+                />
             ) : null}
         </div>
     );

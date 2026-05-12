@@ -16,7 +16,7 @@ import {
     PRE_GAME_MODAL_LAYER_CLASS,
 } from './game/PreGameDescriptionLayout.js';
 import { StrategyXpResultBar } from './game/StrategyXpResultBar.js';
-import { ResultModalXpRewardBadge } from './game/ResultModalXpRewardBadge.js';
+import { ResultModalXpRewardBadge, ResultModalPetGradeUpgradeNeededSlot } from './game/ResultModalXpRewardBadge.js';
 import {
     ResultModalGoldCurrencySlot,
     ResultModalItemRewardSlot,
@@ -25,6 +25,8 @@ import {
 } from './game/ResultModalRewardSlot.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
 import PairPetLevelUpCoreDelta from './pair/PairPetLevelUpCoreDelta.js';
+import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
+import { effectivePairPetGradeFromRow, pairPetShowsGradeUpgradeNeededInsteadOfXp } from '../shared/constants/pairPetGrade.js';
 import {
     GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX,
     GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS,
@@ -386,13 +388,6 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === currentUser.borderId)?.url, [currentUser.borderId]);
     // calculatedSummary를 사용하여 보상 표시 (summary가 없을 때도 계산된 보상 사용)
     const displaySummary: GameSummary | SinglePlayerFallbackSummary | undefined = calculatedSummary || summary;
-    const hasRewardSlots =
-        !!displaySummary &&
-        ((displaySummary.gold ?? 0) > 0 ||
-            (displaySummary.xp?.change ?? 0) > 0 ||
-            (displaySummary.pairPetXp?.change ?? 0) > 0 ||
-            (Array.isArray(displaySummary.items) && displaySummary.items.length > 0));
-
     const xpRequirement = getXpRequirementForLevel(Math.max(1, currentUser.userLevel));
     const clampedXp = Math.min(currentUser.userXp, xpRequirement);
     const xpChange = displaySummary?.xp?.change ?? 0;
@@ -416,6 +411,26 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             petInitial,
         };
     }, [displaySummary]);
+
+    const showPetGradeUpgradeInsteadOfXp = useMemo(() => {
+        const row = getEquippedPairPetInventoryRow(currentUser);
+        return pairPetShowsGradeUpgradeNeededInsteadOfXp({
+            grade: row ? effectivePairPetGradeFromRow(row) : undefined,
+            petFinalLevel: displaySummary?.pairPetLevel?.final,
+            xpChange: displaySummary?.pairPetXp?.change,
+        });
+    }, [currentUser, displaySummary?.pairPetLevel?.final, displaySummary?.pairPetXp?.change]);
+
+    const hasRewardSlots = useMemo(
+        () =>
+            !!displaySummary &&
+            ((displaySummary.gold ?? 0) > 0 ||
+                (displaySummary.xp?.change ?? 0) > 0 ||
+                (displaySummary.pairPetXp?.change ?? 0) > 0 ||
+                (showPetGradeUpgradeInsteadOfXp && displaySummary.pairPetXp != null) ||
+                (Array.isArray(displaySummary.items) && displaySummary.items.length > 0)),
+        [displaySummary, showPetGradeUpgradeInsteadOfXp],
+    );
 
     // 계가 결과가 없으면 "계가 중..." 표시, 있으면 승리/실패 판단
     const modalTitle = (!analysisResult && isScoring)
@@ -503,6 +518,14 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                 />
                             </div>
                         )}
+                        {displaySummary.pairPetXp &&
+                            showPetGradeUpgradeInsteadOfXp && (
+                                <div className={`flex flex-col items-center justify-center ${!summary ? 'opacity-80' : ''}`}>
+                                    <ResultModalPetGradeUpgradeNeededSlot
+                                        density={desktopCompactRewards || isMobile ? 'compact' : 'comfortable'}
+                                    />
+                                </div>
+                            )}
                         {displaySummary.items &&
                             displaySummary.items.length > 0 &&
                             displaySummary.items.slice(0, 2).map((item, idx) => (
@@ -706,7 +729,16 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                             </div>
                                         </div>
                                     )}
-                                    {petXpBarPercents && displaySummary?.pairPetLevel && (
+                                    {showPetGradeUpgradeInsteadOfXp && displaySummary?.pairPetLevel && displaySummary?.pairPetXp ? (
+                                        <div className={`space-y-1 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-1.5`}>
+                                            <p
+                                                className="text-center font-bold uppercase tracking-[0.12em] text-fuchsia-200/90"
+                                                style={{ fontSize: `${9 * mobileTextScale}px` }}
+                                            >
+                                                펫 등급강화 필요
+                                            </p>
+                                        </div>
+                                    ) : petXpBarPercents && displaySummary?.pairPetLevel ? (
                                         <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-1.5`}>
                                             <div
                                                 className="text-center font-bold uppercase tracking-[0.12em] text-fuchsia-200/80"
@@ -739,7 +771,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                                 />
                                             ) : null}
                                         </div>
-                                    )}
+                                    ) : null}
                                 </div>
                                 }
                             />
@@ -837,9 +869,15 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                         </div>
                                     </div>
                                 )}
-                                {petXpBarPercents && displaySummary?.pairPetLevel && (
+                                {showPetGradeUpgradeInsteadOfXp && displaySummary?.pairPetLevel && displaySummary?.pairPetXp ? (
+                                    <div className={`space-y-1 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-2`}>
+                                        <div className="text-center text-[10px] font-bold uppercase tracking-[0.12em] text-fuchsia-200/90 sm:text-xs">
+                                            펫 등급강화 필요
+                                        </div>
+                                    </div>
+                                ) : petXpBarPercents && displaySummary?.pairPetLevel ? (
                                     <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-2`}>
-                                        <div className="text-center text-[10px] font-bold uppercase tracking-[0.12em] text-fuchsia-200/80">
+                                        <div className="text-center text-[10px] font-bold uppercase tracking-[0.12em] text-fuchsia-200/80 sm:text-xs">
                                             펫 경험치
                                         </div>
                                         <StrategyXpResultBar
@@ -867,7 +905,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                             />
                                         ) : null}
                                     </div>
-                                )}
+                                ) : null}
                             </div>
                             {spRewardsSection}
                         </div>

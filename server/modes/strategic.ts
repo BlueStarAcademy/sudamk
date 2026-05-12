@@ -861,16 +861,21 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
             
             if (isHidden) {
-                // 히든 아이템 개수 확인 및 감소 (스캔 아이템처럼)
-                const hiddenKey = user.id === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
+                // 히든 아이템 개수 확인 및 감소 — p1/p2는 흑/백 인벤 (handleHiddenAction·standard.ts와 동일, player1 좌석과 무관)
+                const myIsBlack = myPlayerEnum === types.Player.Black;
+                const hiddenKey = myIsBlack ? 'hidden_stones_p1' : 'hidden_stones_p2';
+                if ((game as any).gameCategory === 'tower' && hiddenKey === 'hidden_stones_p1' && game.player1?.id === user.id) {
+                    const { syncTowerP1ConsumableSessionFromInventory } = await import('./towerPlayerHidden.js');
+                    syncTowerP1ConsumableSessionFromInventory(game, user, 'hidden');
+                }
                 const currentHidden = game[hiddenKey] ?? game.settings.hiddenStoneCount ?? 0;
                 if (currentHidden <= 0) {
                     return { error: "No hidden stones left." };
                 }
                 game[hiddenKey] = currentHidden - 1;
-                
+
                 // 사용 횟수도 추적 (통계용)
-                const usedKey = user.id === game.player1.id ? 'hidden_stones_used_p1' : 'hidden_stones_used_p2';
+                const usedKey = myIsBlack ? 'hidden_stones_used_p1' : 'hidden_stones_used_p2';
                 game[usedKey] = (game[usedKey] || 0) + 1;
             }
 

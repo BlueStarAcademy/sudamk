@@ -7,12 +7,13 @@ import {
     ResultModalItemRewardSlot,
     RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS,
 } from '../game/ResultModalRewardSlot.js';
-import { ResultModalXpRewardBadge } from '../game/ResultModalXpRewardBadge.js';
+import { ResultModalXpRewardBadge, ResultModalPetGradeUpgradeNeededSlot } from '../game/ResultModalXpRewardBadge.js';
 import { MATERIAL_ITEMS } from '../../shared/constants/items.js';
 import { ItemGrade } from '../../types/enums.js';
 import type { InventoryItem, ServerAction } from '../../types.js';
 import type { PairTrainingClaimClientSummary } from '../../shared/types/pairTrainingClaim.js';
 import PairPetLevelUpCoreDelta from './PairPetLevelUpCoreDelta.js';
+import { effectivePairPetGradeFromRow, pairPetShowsGradeUpgradeNeededInsteadOfXp } from '../../shared/constants/pairPetGrade.js';
 
 const XP_BAR_BASE_MS = 700;
 const XP_BAR_GAIN_MS = 600;
@@ -352,6 +353,15 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
             ? { base: xpRollBase, spec: Math.max(0, totalPetXpGain - xpRollBase) }
             : undefined;
 
+    const showPetGradeUpgradeInsteadOfXp = Boolean(
+        summary &&
+            pairPetShowsGradeUpgradeNeededInsteadOfXp({
+                grade: effectivePairPetGradeFromRow(petItem),
+                petFinalLevel: summary.pairPetLevel?.final,
+                xpChange: summary.pairPetXp?.change,
+            }),
+    );
+
     return (
         <DraggableWindow
             title={phase === 'ready' ? '수련 보상' : '수련 완료'}
@@ -441,20 +451,24 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                                 ) : null}
                                 {summary.pairPetXp != null ? (
                                     <div className="flex shrink-0 flex-col items-center justify-center">
-                                        <ResultModalXpRewardBadge
-                                            variant="pet"
-                                            amount={summary.pairPetXp.change}
-                                            petXpSpecSplit={petXpSpecSplitForUi}
-                                            density={compactRewards ? 'compact' : 'comfortable'}
-                                            title={
-                                                summary.pairPetXp.change > 0
-                                                    ? petXpSpecSplitForUi && petXpSpecSplitForUi.spec > 0
-                                                        ? `펫 경험치 기본 +${petXpSpecSplitForUi.base.toLocaleString()} (특화 +${petXpSpecSplitForUi.spec.toLocaleString()})`
-                                                        : `펫 경험치 +${summary.pairPetXp.change.toLocaleString()}`
-                                                    : '펫 경험치 변동 없음'
-                                            }
-                                            allowZeroDisplay
-                                        />
+                                        {showPetGradeUpgradeInsteadOfXp ? (
+                                            <ResultModalPetGradeUpgradeNeededSlot density={compactRewards ? 'compact' : 'comfortable'} />
+                                        ) : (
+                                            <ResultModalXpRewardBadge
+                                                variant="pet"
+                                                amount={summary.pairPetXp.change}
+                                                petXpSpecSplit={petXpSpecSplitForUi}
+                                                density={compactRewards ? 'compact' : 'comfortable'}
+                                                title={
+                                                    summary.pairPetXp.change > 0
+                                                        ? petXpSpecSplitForUi && petXpSpecSplitForUi.spec > 0
+                                                            ? `펫 경험치 기본 +${petXpSpecSplitForUi.base.toLocaleString()} (특화 +${petXpSpecSplitForUi.spec.toLocaleString()})`
+                                                            : `펫 경험치 +${summary.pairPetXp.change.toLocaleString()}`
+                                                        : '펫 경험치 변동 없음'
+                                                }
+                                                allowZeroDisplay
+                                            />
+                                        )}
                                     </div>
                                 ) : null}
                                 {summary.soulDrop && soulMat ? (
@@ -470,28 +484,38 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                             </div>
 
                             {summary.pairPetLevel && summary.pairPetXp ? (
-                                <div className="mx-auto mt-3 w-full max-w-md space-y-2 sm:mt-4">
-                                    <div className="rounded-xl border border-fuchsia-400/20 bg-gradient-to-b from-fuchsia-950/40 via-zinc-950/30 to-black/40 px-2.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:px-3 sm:py-2.5">
-                                        <p className="mb-1.5 text-center text-[0.6rem] font-bold uppercase tracking-[0.14em] text-fuchsia-200/90 sm:mb-2 sm:text-xs sm:font-black sm:tracking-tight sm:normal-case">
-                                            펫 성장
-                                        </p>
-                                        <TrainingClaimXpBar
-                                            initial={summary.pairPetLevel.progress.initial}
-                                            final={summary.pairPetLevel.progress.final}
-                                            max={Math.max(1, summary.pairPetLevel.progress.max)}
-                                            levelUp={summary.pairPetLevel.initial < summary.pairPetLevel.final}
-                                            xpGain={summary.pairPetXp.change}
-                                            finalLevel={summary.pairPetLevel.final}
-                                            isMobile={isMobile}
+                                showPetGradeUpgradeInsteadOfXp ? (
+                                    <div className="mx-auto mt-3 w-full max-w-md space-y-2 sm:mt-4">
+                                        <div className="rounded-xl border border-fuchsia-400/20 bg-gradient-to-b from-fuchsia-950/40 via-zinc-950/30 to-black/40 px-2.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:px-3 sm:py-2.5">
+                                            <p className="text-center text-[0.65rem] font-bold uppercase tracking-[0.12em] text-fuchsia-200/90 sm:text-xs">
+                                                펫 등급강화 필요
+                                            </p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="mx-auto mt-3 w-full max-w-md space-y-2 sm:mt-4">
+                                        <div className="rounded-xl border border-fuchsia-400/20 bg-gradient-to-b from-fuchsia-950/40 via-zinc-950/30 to-black/40 px-2.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:px-3 sm:py-2.5">
+                                            <p className="mb-1.5 text-center text-[0.6rem] font-bold uppercase tracking-[0.14em] text-fuchsia-200/90 sm:mb-2 sm:text-xs sm:font-black sm:tracking-tight sm:normal-case">
+                                                펫 성장
+                                            </p>
+                                            <TrainingClaimXpBar
+                                                initial={summary.pairPetLevel.progress.initial}
+                                                final={summary.pairPetLevel.progress.final}
+                                                max={Math.max(1, summary.pairPetLevel.progress.max)}
+                                                levelUp={summary.pairPetLevel.initial < summary.pairPetLevel.final}
+                                                xpGain={summary.pairPetXp.change}
+                                                finalLevel={summary.pairPetLevel.final}
+                                                isMobile={isMobile}
+                                            />
+                                        </div>
+                                        <PairPetLevelUpCoreDelta
+                                            delta={summary.pairPetLevelUpCoreBonuses}
+                                            title="추가된 능력치"
+                                            compact={compactRewards}
+                                            className="mx-auto w-full max-w-md"
                                         />
                                     </div>
-                                    <PairPetLevelUpCoreDelta
-                                        delta={summary.pairPetLevelUpCoreBonuses}
-                                        title="추가된 능력치"
-                                        compact={compactRewards}
-                                        className="mx-auto w-full max-w-md"
-                                    />
-                                </div>
+                                )
                             ) : null}
 
                             <Button

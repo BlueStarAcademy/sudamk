@@ -55,6 +55,29 @@ export function computePairPetBadukTotalPower(
     return sum;
 }
 
+/** {@link PairPetCoreStatsGrid} 셀과 동일: 표시 기본값 + 성향 플랫 보너스(등급 배율이 `petGrade`에 반영됨) */
+export function computePairPetCoreGridShownBonusPerStat(
+    currentUser: User,
+    disposition: PairPetMeta['disposition'],
+    petGrade: ItemGrade,
+    levelUpCoreBonuses?: Partial<Record<CoreStat, number>>,
+    birthCoreBases?: PairPetMeta['birthCoreBases'],
+): Record<CoreStat, { shown: number; bonus: number }> {
+    const userTotals = calculateTotalStats(currentUser);
+    const rawBaseForStat = (s: CoreStat) => pairPetRawBaseCoreNoLevel(birthCoreBases, petGrade, s);
+    const out = {} as Record<CoreStat, { shown: number; bonus: number }>;
+    for (const stat of CORE_LIST) {
+        const lvlAdd = levelUpCoreBonuses?.[stat] ?? 0;
+        const rawBaseNoLvl = rawBaseForStat(stat);
+        const rawBase = rawBaseNoLvl + lvlAdd;
+        const cap = userTotals[stat] ?? rawBase;
+        const shown = pairPetShownCoreValue(rawBase, rawBaseNoLvl, cap);
+        const bonus = dispositionFlatBonus(disposition, stat, rawBaseForStat);
+        out[stat] = { shown, bonus };
+    }
+    return out;
+}
+
 export interface PairPetCoreStatsGridProps {
     currentUser: User;
     disposition: PairPetMeta['disposition'];

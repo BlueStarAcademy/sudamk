@@ -32,9 +32,13 @@ const CHAMPIONSHIP_PANEL_GLASS =
 const CHAMPIONSHIP_ENTRY_GRID_DESKTOP_HOME_MATCH =
     'grid h-full min-h-0 w-full content-center grid-cols-2 grid-rows-[repeat(3,minmax(0,15rem))] gap-2.5 overflow-hidden lg:grid-rows-[repeat(3,minmax(0,17.5rem))] lg:gap-3 [&>*]:min-h-0 [&>*]:min-w-0';
 
-/** 탭·네이티브: 남는 세로 공간을 3등분해 카드 높이 통일 */
+/** 탭·좁은 뷰포트(브라우저): 남는 세로 공간을 3등분해 카드 높이 통일 */
 const CHAMPIONSHIP_ENTRY_GRID_TAB_EQUAL_ROWS =
     'grid min-h-0 h-full w-full min-w-0 flex-1 grid-cols-1 [grid-template-rows:repeat(3,minmax(0,1fr))] gap-[clamp(0.3rem,1.2dvh,0.55rem)] pb-1';
+
+/** 네이티브 모바일 챔피언십: 입장 카드 16:9 유지, 영역 안에서 세로 스크롤 */
+const CHAMPIONSHIP_ENTRY_STACK_NATIVE_SCROLL =
+    'flex w-full min-w-0 flex-col gap-[clamp(0.35rem,1.4dvh,0.65rem)] pb-1';
 const CORE_STAT_CAP = 1500;
 
 const stringToSeed = (str: string): number => {
@@ -363,7 +367,7 @@ const PetChampionshipComingSoonCard: React.FC<{
                     mergedInfoPanelStretch
                         ? fillLobbyGridCell
                             ? 'h-full min-h-0 w-full min-w-0 shrink-0'
-                            : 'aspect-[2.06/1] max-h-full min-h-0 w-full shrink-0'
+                            : 'aspect-video max-h-full min-h-0 w-full shrink-0'
                         : 'h-full min-h-[5rem] max-h-[7.85rem]'
                 }`}
             >
@@ -426,7 +430,7 @@ const PetPairChampionshipComingSoonCard: React.FC<{
                     mergedInfoPanelStretch
                         ? fillLobbyGridCell
                             ? 'h-full min-h-0 w-full min-w-0 shrink-0'
-                            : 'aspect-[2.06/1] max-h-full min-h-0 w-full shrink-0'
+                            : 'aspect-video max-h-full min-h-0 w-full shrink-0'
                         : 'h-full min-h-[5rem] max-h-[7.85rem]'
                 }`}
             >
@@ -489,7 +493,7 @@ const PvpChampionshipComingSoonCard: React.FC<{
                     mergedInfoPanelStretch
                         ? fillLobbyGridCell
                             ? 'h-full min-h-0 w-full min-w-0 shrink-0'
-                            : 'aspect-[2.06/1] max-h-full min-h-0 w-full shrink-0'
+                            : 'aspect-video max-h-full min-h-0 w-full shrink-0'
                         : 'h-full min-h-[5rem] max-h-[7.85rem]'
                 }`}
             >
@@ -679,7 +683,7 @@ const TournamentCard: React.FC<{
                                 mergedInfoPanelStretch
                                     ? fillLobbyGridCell
                                         ? 'h-full min-h-0 w-full min-w-0 shrink-0'
-                                        : 'aspect-[2.06/1] max-h-full min-h-0 w-full shrink-0'
+                                        : 'aspect-video max-h-full min-h-0 w-full shrink-0'
                                     : 'h-full min-h-[5rem] max-h-[7.85rem]'
                             }`}
                         >
@@ -1086,12 +1090,12 @@ const TournamentLobby: React.FC = () => {
                             </button>
                         </div>
                         <div
-                            className={`flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden overflow-x-hidden overscroll-y-contain rounded-lg border border-stone-600/40 p-[clamp(0.2rem,0.85dvh,0.45rem)] shadow-inner [-webkit-overflow-scrolling:touch] ${CHAMPIONSHIP_PANEL_GLASS} bg-stone-950/45`}
+                            className={`flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-lg border border-stone-600/40 p-[clamp(0.2rem,0.85dvh,0.45rem)] shadow-inner [-webkit-overflow-scrolling:touch] ${CHAMPIONSHIP_PANEL_GLASS} bg-stone-950/45`}
                             role="tabpanel"
                         >
                             {championshipLobbyEntryTab === 'pve' ? (
-                                <div className={CHAMPIONSHIP_ENTRY_GRID_TAB_EQUAL_ROWS}>
-                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                <div className={CHAMPIONSHIP_ENTRY_STACK_NATIVE_SCROLL}>
+                                    <div className="flex w-full min-w-0 shrink-0 flex-col">
                                         <TournamentCard
                                             type="neighborhood"
                                             onClick={(stage) => handleEnterArena('neighborhood', stage)}
@@ -1101,11 +1105,10 @@ const TournamentLobby: React.FC = () => {
                                             mergedInfoPanel
                                             mergedInfoPanelCompact
                                             mergedInfoPanelStretch
-                                            fillLobbyGridCell
                                             userDungeonCoreStatAverage={userDungeonCoreStatAverage}
                                         />
                                     </div>
-                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                    <div className="flex w-full min-w-0 shrink-0 flex-col">
                                         <TournamentCard
                                             type="national"
                                             onClick={(stage) => handleEnterArena('national', stage)}
@@ -1115,11 +1118,10 @@ const TournamentLobby: React.FC = () => {
                                             mergedInfoPanel
                                             mergedInfoPanelCompact
                                             mergedInfoPanelStretch
-                                            fillLobbyGridCell
                                             userDungeonCoreStatAverage={userDungeonCoreStatAverage}
                                         />
                                     </div>
-                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
+                                    <div className="flex w-full min-w-0 shrink-0 flex-col">
                                         <TournamentCard
                                             type="world"
                                             onClick={(stage) => handleEnterArena('world', stage)}
@@ -1129,21 +1131,20 @@ const TournamentLobby: React.FC = () => {
                                             mergedInfoPanel
                                             mergedInfoPanelCompact
                                             mergedInfoPanelStretch
-                                            fillLobbyGridCell
                                             userDungeonCoreStatAverage={userDungeonCoreStatAverage}
                                         />
                                     </div>
                                 </div>
                             ) : (
-                                <div className={CHAMPIONSHIP_ENTRY_GRID_TAB_EQUAL_ROWS}>
-                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
-                                        <PvpChampionshipComingSoonCard compactMerged mergedInfoPanelStretch fillLobbyGridCell />
+                                <div className={CHAMPIONSHIP_ENTRY_STACK_NATIVE_SCROLL}>
+                                    <div className="flex w-full min-w-0 shrink-0 flex-col">
+                                        <PvpChampionshipComingSoonCard compactMerged mergedInfoPanelStretch />
                                     </div>
-                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
-                                        <PetChampionshipComingSoonCard compactMerged mergedInfoPanelStretch fillLobbyGridCell />
+                                    <div className="flex w-full min-w-0 shrink-0 flex-col">
+                                        <PetChampionshipComingSoonCard compactMerged mergedInfoPanelStretch />
                                     </div>
-                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
-                                        <PetPairChampionshipComingSoonCard compactMerged mergedInfoPanelStretch fillLobbyGridCell />
+                                    <div className="flex w-full min-w-0 shrink-0 flex-col">
+                                        <PetPairChampionshipComingSoonCard compactMerged mergedInfoPanelStretch />
                                     </div>
                                 </div>
                             )}

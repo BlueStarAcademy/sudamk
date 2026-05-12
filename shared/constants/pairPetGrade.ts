@@ -81,6 +81,29 @@ export function pairPetXpGainBlockedByGrade(grade: ItemGrade, level: number): bo
     return lv >= capLevel;
 }
 
+/**
+ * 다음 등급 강화가 가능할 때만: 현재 레벨이 그 등급의 XP 상한 구간에 도달해,
+ * 등급 강화 전에는 경험치를 더 받을 수 없는 상태인지 (만렙·신화 등한은 false).
+ */
+export function pairPetRequiresGradeUpgradeForXp(grade: ItemGrade, level: number): boolean {
+    if (nextPairPetGrade(grade) == null) return false;
+    const lv = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(level) || 1));
+    if (lv >= PAIR_PET_MAX_LEVEL) return false;
+    return lv >= pairPetMinLevelForNextGrade(grade);
+}
+
+/** 경기 결과 모달 등: 이번 판에 펫 XP가 0이고, 등급 강화가 필요한 경우 */
+export function pairPetShowsGradeUpgradeNeededInsteadOfXp(opts: {
+    grade: ItemGrade | undefined;
+    petFinalLevel: number | undefined;
+    xpChange: number | null | undefined;
+}): boolean {
+    const { grade, petFinalLevel, xpChange } = opts;
+    if (grade == null || petFinalLevel == null) return false;
+    if ((xpChange ?? 0) !== 0) return false;
+    return pairPetRequiresGradeUpgradeForXp(grade, petFinalLevel);
+}
+
 /** 표시·등급 배율·경험치 구간 — 저장 등급과 동일 (등급 강화 전까지 Lv10에서도 일반 유지) */
 export function effectivePairPetGradeFromRow(row: { grade?: ItemGrade }): ItemGrade {
     return row.grade ?? ItemGrade.Normal;

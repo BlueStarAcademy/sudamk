@@ -147,3 +147,28 @@ export const ResultModalXpRewardBadge: React.FC<{
         </div>
     );
 };
+
+/** 펫 XP 대신 등급 강화 안내(보상 줄 슬롯 크기 맞춤) */
+export const ResultModalPetGradeUpgradeNeededSlot: React.FC<{
+    density?: keyof typeof DENSITY_BOX;
+    className?: string;
+}> = ({ density = 'compact', className = '' }) => {
+    const v = VARIANT.pet;
+    const isCompact = density === 'compact' || density === 'preGameInline';
+    const lineClass = isCompact
+        ? 'max-w-[4.75rem] text-center text-[0.58rem] font-extrabold leading-tight tracking-tight text-pink-100 min-[360px]:text-[0.62rem]'
+        : 'max-w-[5.25rem] text-center text-[0.68rem] font-extrabold leading-tight text-pink-100 min-[1024px]:text-[0.76rem]';
+    return (
+        <div
+            className={`flex flex-col items-center gap-0.5 ${isCompact ? 'shrink-0' : ''} ${className}`.trim()}
+            title="펫 등급강화 필요"
+        >
+            <div
+                className={`flex ${DENSITY_BOX[density]} shrink-0 flex-col items-center justify-center rounded-lg border px-0.5 ring-1 ring-inset ${v.box}`}
+                role="status"
+            >
+                <span className={lineClass}>펫 등급강화 필요</span>
+            </div>
+        </div>
+    );
+};

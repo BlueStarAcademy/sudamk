@@ -841,29 +841,34 @@ function mergeHiddenMovesByStableHistory(
         return Object.keys(out).length > 0 ? out : undefined;
     };
 
-    const incomingHidden = sanitizeAgainst(incoming.hiddenMoves, incoming.moveHistory);
-    if (incomingHidden && Object.keys(incomingHidden).length > 0) return incomingHidden;
+    const incomingSanitized = sanitizeAgainst(incoming.hiddenMoves, incoming.moveHistory);
 
-    const existingHidden = sanitizeAgainst(existing?.hiddenMoves, existing?.moveHistory);
-    if (!existingHidden || !incoming.moveHistory || !existing?.moveHistory) return incoming.hiddenMoves ?? existingHidden;
-
-    const out: NonNullable<LiveGameSession['hiddenMoves']> = {};
-    for (const [key, value] of Object.entries(existingHidden)) {
-        if (!value) continue;
-        const index = Number.parseInt(key, 10);
-        const incomingMove = Number.isInteger(index) ? incoming.moveHistory[index] : undefined;
-        const existingMove = existing.moveHistory[index];
-        if (
-            incomingMove &&
-            existingMove &&
-            incomingMove.x === existingMove.x &&
-            incomingMove.y === existingMove.y &&
-            incomingMove.player === existingMove.player
-        ) {
-            out[index] = true;
+    const alignedFromExisting = (): LiveGameSession['hiddenMoves'] | undefined => {
+        const existingHidden = sanitizeAgainst(existing?.hiddenMoves, existing?.moveHistory);
+        if (!existingHidden || !incoming.moveHistory || !existing?.moveHistory) return undefined;
+        const out: NonNullable<LiveGameSession['hiddenMoves']> = {};
+        for (const [key, value] of Object.entries(existingHidden)) {
+            if (!value) continue;
+            const index = Number.parseInt(key, 10);
+            const incomingMove = Number.isInteger(index) ? incoming.moveHistory[index] : undefined;
+            const existingMove = existing.moveHistory[index];
+            if (
+                incomingMove &&
+                existingMove &&
+                incomingMove.x === existingMove.x &&
+                incomingMove.y === existingMove.y &&
+                incomingMove.player === existingMove.player
+            ) {
+                out[index] = true;
+            }
         }
-    }
-    return Object.keys(out).length > 0 ? out : undefined;
+        return Object.keys(out).length > 0 ? out : undefined;
+    };
+
+    const stable = alignedFromExisting();
+    // 서버 분만 쓰면 슬림 패킷 등으로 이전 수순과의 정렬(hidden)이 빠져 인덱스가 밀려 "일반돌이 히든"처럼 보일 수 있음 → 정렬 병합 후 서버 플래그로 덮어씀
+    const merged: NonNullable<LiveGameSession['hiddenMoves']> = { ...(stable ?? {}), ...(incomingSanitized ?? {}) };
+    return sanitizeAgainst(merged, incoming.moveHistory);
 }
 
 const OVERLAY_PRESERVE_GAME_STATUSES = new Set([
@@ -1445,6 +1450,11 @@ export const useApp = () => {
                     : base.singlePlayerClassBarClaims,
             // singlePlayerMissions는 객체이므로 병합
             singlePlayerMissions: patch.singlePlayerMissions !== undefined ? { ...base.singlePlayerMissions, ...patch.singlePlayerMissions } : base.singlePlayerMissions,
+            // 상점 일일 구매·광고 보상 등: 부분 USER_UPDATE에서 키만 오면 나머지 탭 기록이 사라지지 않게 병합
+            dailyShopPurchases:
+                patch.dailyShopPurchases !== undefined
+                    ? { ...(base.dailyShopPurchases ?? {}), ...patch.dailyShopPurchases }
+                    : base.dailyShopPurchases,
             // 챔피언십 토너먼트 상태(누적 보상 등)는 서버 응답으로 완전히 교체
             lastNeighborhoodTournament: patch.lastNeighborhoodTournament !== undefined ? patch.lastNeighborhoodTournament : base.lastNeighborhoodTournament,
             lastNationalTournament: patch.lastNationalTournament !== undefined ? patch.lastNationalTournament : base.lastNationalTournament,
@@ -7683,7 +7693,50 @@ export const useApp = () => {
                                 }
                                 // 닉네임/모험 도감 프로필 변경은 디바운스 없이 항상 즉시 반영
 
-                                const mergedUser = applyUserUpdate(updatedCurrentUser, 'USER_UPDATE-websocket');
+                                /** BUY_CONDITION_POTION HTTP 직후 지연 WS가 구매 전 인벤을 실어 오면 merge가 덮어써 '구매했는데 0개'로 보일 수 있음 */
+                                let userUpdatePatch: Partial<User> = updatedCurrentUser;
+                                if (
+                                    lastHttpActionType.current === 'BUY_CONDITION_POTION' &&
+                                    lastHttpHadUpdatedUser.current &&
+                                    timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS * 2 &&
+                                    Array.isArray((updatedCurrentUser as { inventory?: InventoryItem[] }).inventory)
+                                ) {
+                                    const countConditionPotions = (inv: InventoryItem[] | undefined): number => {
+                                        if (!Array.isArray(inv)) return 0;
+                                        let c = 0;
+                                        for (const row of inv) {
+                                            if (
+                                                row?.type === 'consumable' &&
+                                                typeof row.name === 'string' &&
+                                                row.name.startsWith('컨디션회복제')
+                                            ) {
+                                                const q = row.quantity;
+                                                c +=
+                                                    typeof q === 'number' && Number.isFinite(q) && q > 0
+                                                        ? Math.floor(q)
+                                                        : 1;
+                                            }
+                                        }
+                                        return c;
+                                    };
+                                    const prevP = countConditionPotions(currentUserRef.current?.inventory);
+                                    const incomingP = countConditionPotions(
+                                        (updatedCurrentUser as { inventory?: InventoryItem[] }).inventory,
+                                    );
+                                    if (prevP > 0 && incomingP < prevP) {
+                                        const { inventory: _staleInv, ...rest } = updatedCurrentUser as Record<
+                                            string,
+                                            unknown
+                                        >;
+                                        userUpdatePatch = rest as Partial<User>;
+                                        console.log(
+                                            '[WebSocket] Dropped stale inventory from USER_UPDATE after BUY_CONDITION_POTION',
+                                            { prevPotionQty: prevP, incomingPotionQty: incomingP },
+                                        );
+                                    }
+                                }
+
+                                const mergedUser = applyUserUpdate(userUpdatePatch, 'USER_UPDATE-websocket');
                                 console.log('[WebSocket] Applied USER_UPDATE for currentUser:', {
                                     inventoryLength: mergedUser.inventory?.length,
                                     gold: mergedUser.gold,

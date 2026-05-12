@@ -201,7 +201,7 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
             titleContent={titleContent}
             headerShowTitle
             initialWidth={isNativeMobile ? 360 : 640}
-            initialHeight={isNativeMobile ? 540 : 680}
+            initialHeight={isNativeMobile ? 500 : 680}
             onClose={onClose}
             isTopmost={isTopmost}
             windowId="condition-potion-modal"
@@ -223,20 +223,30 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                 <div
                     className={`flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain ${isNativeMobile ? 'gap-3 px-3 pb-2' : 'gap-4 px-5 pb-3'}`}
                 >
-                    <div className={isNativeMobile ? 'flex flex-col gap-2.5' : 'grid grid-cols-3 gap-4'}>
+                    <div
+                        className={
+                            isNativeMobile
+                                ? 'grid min-w-0 grid-cols-3 gap-1.5'
+                                : 'grid grid-cols-3 gap-4'
+                        }
+                    >
                         {(Object.keys(POTION_TYPES) as PotionType[]).map((type) => {
                             const potion = POTION_TYPES[type];
                             const count = potionCounts[type];
                             const isSelected = selectedPotionType === type;
                             const gradeClass = GRADE_RING[potion.grade];
+                            const shortPotionLabel = potion.name.replace(/^컨디션회복제/, '').trim();
 
                             return (
                                 <button
                                     type="button"
                                     key={type}
+                                    title={`${potion.name} · 회복 ${potion.minRecovery}~${potion.maxRecovery} · 보유 ${count}`}
                                     onClick={() => setSelectedPotionType(type)}
-                                    className={`group relative w-full overflow-hidden rounded-2xl border text-left transition-all duration-200 ${
-                                        isNativeMobile ? 'p-3 active:scale-[0.99]' : 'p-4'
+                                    className={`group relative min-w-0 w-full overflow-hidden rounded-2xl border transition-all duration-200 ${
+                                        isNativeMobile
+                                            ? 'flex flex-col items-center px-1.5 py-2 text-center active:scale-[0.99]'
+                                            : 'p-4 text-left'
                                     } ${
                                         isSelected
                                             ? 'border-amber-400/70 bg-gradient-to-br from-amber-950/50 via-slate-900/95 to-slate-950 shadow-[0_0_32px_-10px_rgba(251,191,36,0.45),inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-amber-300/35'
@@ -247,32 +257,51 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                                         className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r opacity-90 ${isSelected ? 'from-amber-300/90 via-amber-500/80 to-amber-300/90' : 'from-transparent via-amber-500/25 to-transparent opacity-0 group-hover:opacity-100'}`}
                                         aria-hidden
                                     />
-                                    <div className="flex items-start justify-between gap-2">
-                                        <span
-                                            className={`rounded-md border bg-gradient-to-b px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${gradeClass}`}
-                                        >
-                                            {GRADE_LABEL[potion.grade]}
-                                        </span>
-                                        {isSelected ? (
-                                            <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[9px] font-black text-amber-200">선택</span>
-                                        ) : null}
-                                    </div>
+                                    {!isNativeMobile ? (
+                                        <div className="flex items-start justify-between gap-2">
+                                            <span
+                                                className={`rounded-md border bg-gradient-to-b px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${gradeClass}`}
+                                            >
+                                                {GRADE_LABEL[potion.grade]}
+                                            </span>
+                                            {isSelected ? (
+                                                <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[9px] font-black text-amber-200">
+                                                    선택
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                    ) : (
+                                        <div className="flex w-full items-center justify-center gap-0.5">
+                                            <span
+                                                className={`rounded border bg-gradient-to-b px-1 py-0.5 text-[8px] font-black leading-none ${gradeClass}`}
+                                            >
+                                                {GRADE_LABEL[potion.grade]}
+                                            </span>
+                                            {isSelected ? (
+                                                <span className="rounded bg-amber-400/25 px-1 py-0.5 text-[8px] font-black leading-none text-amber-100">
+                                                    선택
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                    )}
                                     {isNativeMobile ? (
-                                        <div className="mt-2 flex items-center gap-3">
-                                            <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-amber-500/20 bg-black/35 shadow-inner">
-                                                <img src={potion.image} alt="" className="h-11 w-11 object-contain drop-shadow-md" />
+                                        <div className="mt-1.5 flex w-full min-w-0 flex-col items-center gap-1">
+                                            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-amber-500/20 bg-black/35 shadow-inner">
+                                                <img src={potion.image} alt="" className="h-9 w-9 object-contain drop-shadow-md" />
                                             </div>
-                                            <div className="min-w-0 flex-1">
-                                                <h3 className="font-black leading-tight text-amber-50 text-[13px]">{potion.name}</h3>
-                                                <p className="mt-0.5 text-[11px] text-slate-400">
-                                                    회복 <span className="font-bold text-slate-200">{potion.minRecovery}~{potion.maxRecovery}</span>
-                                                </p>
-                                                <p
-                                                    className={`mt-1.5 text-[11px] font-bold tabular-nums ${count > 0 ? 'text-sky-300' : 'text-rose-300/90'}`}
-                                                >
-                                                    보유 {count}
-                                                </p>
-                                            </div>
+                                            <h3 className="w-full truncate px-0.5 text-[10px] font-black leading-tight text-amber-50">
+                                                {shortPotionLabel}
+                                            </h3>
+                                            <p className="text-[9px] leading-none text-slate-400">
+                                                <span className="font-bold text-slate-200">
+                                                    {potion.minRecovery}~{potion.maxRecovery}
+                                                </span>
+                                            </p>
+                                            <p
+                                                className={`text-[9px] font-bold leading-none tabular-nums ${count > 0 ? 'text-sky-300' : 'text-rose-300/90'}`}
+                                            >
+                                                보유 {count}
+                                            </p>
                                         </div>
                                     ) : (
                                         <div className="mt-3 flex flex-col items-center gap-2.5">

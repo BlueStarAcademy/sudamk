@@ -87,12 +87,26 @@ const StageDescriptionScroll: React.FC<{
                 }
             } : undefined}
             aria-expanded={canCollapse ? !collapsed : undefined}
-            title={canCollapse ? (collapsed ? '두루마리 펼치기' : '두루마리 말기') : undefined}
+            title={canCollapse ? (collapsed ? '두루마리 펼치기' : '두루마리 접기') : undefined}
         >
             <div className={`pointer-events-none absolute left-0 right-0 top-0 bg-gradient-to-b from-amber-900/30 to-transparent transition-all duration-500 ${collapsed ? 'h-full rounded-full' : 'h-3'}`} />
             <div className={`pointer-events-none absolute bottom-0 left-0 right-0 bg-gradient-to-t from-amber-900/25 to-transparent transition-all duration-500 ${collapsed ? 'h-full rounded-full' : 'h-3'}`} />
             {!collapsed && (
                 <div className="pointer-events-none absolute left-3 right-3 top-2 h-2 rounded-full bg-gradient-to-b from-amber-900/30 via-amber-700/20 to-transparent shadow-inner" />
+            )}
+            {mobileOverlay && !collapsed && onToggleCollapsed && (
+                <div className="relative z-[1] mb-2 flex shrink-0 justify-center">
+                    <button
+                        type="button"
+                        className="pointer-events-auto rounded-full border border-amber-900/40 bg-amber-900/15 px-3 py-1 text-xs font-black tracking-wide text-amber-950 shadow-sm hover:bg-amber-900/25 active:scale-[0.98]"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onToggleCollapsed();
+                        }}
+                    >
+                        접기
+                    </button>
+                </div>
             )}
             <div className={`${collapsed ? 'mb-0 border-transparent pb-0' : 'mb-3 border-amber-900/30 pb-2'} relative border-b transition-all duration-500`}>
                 <div className={`${collapsed ? 'items-center' : 'items-start'} flex justify-between gap-2`}>
@@ -394,6 +408,8 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
             gameStatus === 'scoring' ||
             gameStatus === 'ended' ||
             gameStatus === 'no_contest');
+    const mobileStageScrollExpanded =
+        shouldShowMobileStageDescription && !stageDescriptionCollapsed;
     const isMissileAnimating = gameStatus === 'missile_animating';
 
     return (
@@ -457,7 +473,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                         <StageDescriptionScroll
                             stage={singlePlayerStage}
                             collapsed={stageDescriptionCollapsed}
-                            onToggleCollapsed={() => setStageDescriptionCollapsed((prev) => !prev)}
+                            onToggleCollapsed={() => setStageDescriptionCollapsed(true)}
                             mobileOverlay
                         />
                     </div>
@@ -497,8 +513,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                         (isBoardLocked && gameStatus !== 'missile_selecting') ||
                         isBoardDisabledDueToTurnLimit ||
                         isMissileAnimating ||
-                        // 경기 시작 초반: 두루마리(설명) 펼친 상태에서는 뒤쪽 레이어(베이스 배치) 보이거나 배치되면 안 됨
-                        (isMobile && !stageDescriptionCollapsed && gameStatus === 'base_placement')
+                        mobileStageScrollExpanded
                     }
                     stoneColor={myPlayerEnum}
                     winningLine={winningLine}
@@ -548,6 +563,12 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     strategicPetHintOverlay={strategicPetHintDotOverlay}
                     strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                 />
+                {mobileStageScrollExpanded && (
+                    <div
+                        className="absolute inset-0 z-[20] bg-transparent touch-none"
+                        aria-hidden
+                    />
+                )}
                 {showBoardGlow && (
                     <div
                         className="pointer-events-none absolute inset-0 z-[8] rounded-lg ring-[6px] ring-amber-300/95 shadow-[0_0_38px_rgba(251,191,36,0.8),0_0_74px_rgba(244,114,182,0.52),inset_0_0_24px_rgba(251,191,36,0.18)] animate-[pulse_1.05s_cubic-bezier(0.4,0,0.2,1)_infinite]"

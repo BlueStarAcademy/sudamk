@@ -15,6 +15,7 @@ import {
     sellGoldTenPercentOfShopDiamonds,
     sellGoldTenPercentOfShopGold,
 } from './shopSellGoldReference.js';
+import { CONDITION_POTION_SHOP_GOLD_BY_TYPE } from './conditionPotionShop.js';
 
 export const emptySlotImages: Record<EquipmentSlot, string> = {
     fan: 'images/equipments/EmptyFanSlot.png',
@@ -563,10 +564,10 @@ export const CONSUMABLE_SELL_PRICES: Record<string, number> = {
     '히든': sellGoldTenPercentOfShopGold(500),
     '스캔': sellGoldTenPercentOfShopGold(400),
     '배치변경': sellGoldTenPercentOfShopGold(100),
-    /** `server/actions/shopActions.ts` BUY_CONDITION_POTION 골드가의 10% */
-    '컨디션회복제(소)': sellGoldTenPercentOfShopGold(180),
-    '컨디션회복제(중)': sellGoldTenPercentOfShopGold(270),
-    '컨디션회복제(대)': sellGoldTenPercentOfShopGold(360),
+    /** `CONDITION_POTION_SHOP_GOLD_BY_TYPE` 구매가의 10% */
+    '컨디션회복제(소)': sellGoldTenPercentOfShopGold(CONDITION_POTION_SHOP_GOLD_BY_TYPE.small),
+    '컨디션회복제(중)': sellGoldTenPercentOfShopGold(CONDITION_POTION_SHOP_GOLD_BY_TYPE.medium),
+    '컨디션회복제(대)': sellGoldTenPercentOfShopGold(CONDITION_POTION_SHOP_GOLD_BY_TYPE.large),
     /** 레거시 `type: consumable` 인벤 호환 — 재료 판매가와 동일 */
     '옵션 종류 변경권': sellGoldTenPercentOfShopGold(2000),
     '옵션 수치 변경권': sellGoldTenPercentOfShopGold(500),

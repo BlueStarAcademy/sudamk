@@ -20,7 +20,7 @@ import {
 } from '../shared/constants/guildConstants.js';
 import { computeGuildWarAttemptMetrics } from '../shared/utils/guildWarAttemptMetrics.js';
 import { arenaPostGameButtonClass, arenaPostGameButtonGridClass } from './game/arenaPostGameButtonStyles.js';
-import { ResultModalXpRewardBadge } from './game/ResultModalXpRewardBadge.js';
+import { ResultModalXpRewardBadge, ResultModalPetGradeUpgradeNeededSlot } from './game/ResultModalXpRewardBadge.js';
 import {
     ResultModalGoldCurrencySlot,
     ResultModalItemRewardSlot,
@@ -49,6 +49,7 @@ import {
     resolvePairAiOpponentPetSyntheticDisplayLevel,
 } from '../shared/utils/strategicAiDifficulty.js';
 import PairPetLevelUpCoreDelta from './pair/PairPetLevelUpCoreDelta.js';
+import { effectivePairPetGradeFromRow, pairPetShowsGradeUpgradeNeededInsteadOfXp } from '../shared/constants/pairPetGrade.js';
 
 interface GameSummaryModalProps {
     session: LiveGameSession;
@@ -1594,6 +1595,21 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             ? { level: mySummary.pairPetLevel, xp: mySummary.pairPetXp }
             : null;
     const showPetXpAside = Boolean(pairPetXpAside);
+    const equippedPetGrade = useMemo(
+        () => (equippedPairPetRow ? effectivePairPetGradeFromRow(equippedPairPetRow) : undefined),
+        [equippedPairPetRow],
+    );
+    const showPetGradeUpgradeInsteadOfXp = useMemo(
+        () =>
+            pairPetShowsGradeUpgradeNeededInsteadOfXp({
+                grade: equippedPetGrade,
+                petFinalLevel: mySummary?.pairPetLevel?.final,
+                xpChange: mySummary?.pairPetXp?.change,
+            }),
+        [equippedPetGrade, mySummary?.pairPetLevel?.final, mySummary?.pairPetXp?.change],
+    );
+    /** 등급 강화 필요 시 결과 모달에서 펫 XP 바·배지 대신 안내 */
+    const showPetXpBarAside = showPetXpAside && !showPetGradeUpgradeInsteadOfXp;
     const isAdventureGame = session.gameCategory === 'adventure';
     const sessionShowsVipPlayRewardSlot = useMemo(() => {
         if (isSpectator) return false;
@@ -2118,6 +2134,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                     compact={useCompactRewardSlots}
                                     vipPlayRewardSlot={vipSlotForRender}
                                     onVipLockedClick={() => handlers.openShop('vip')}
+                                    pairPetGradeUpgradeNeeded={showPetGradeUpgradeInsteadOfXp && !isPlayful}
                                 />
                             </div>
                         ) : (
@@ -2140,17 +2157,23 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                         )}
                         {mySummary.pairPetXp != null && (
                             <div className="flex shrink-0 flex-col items-center justify-center">
-                                <ResultModalXpRewardBadge
-                                    variant="pet"
-                                    amount={mySummary.pairPetXp.change}
-                                    density={useCompactRewardSlots ? 'compact' : 'comfortable'}
-                                    title={
-                                        mySummary.pairPetXp.change > 0
-                                            ? `펫 경험치 +${mySummary.pairPetXp.change.toLocaleString()}`
-                                            : '펫 경험치 변동 없음'
-                                    }
-                                    allowZeroDisplay={isPairGoSession}
-                                />
+                                {showPetGradeUpgradeInsteadOfXp ? (
+                                    <ResultModalPetGradeUpgradeNeededSlot
+                                        density={useCompactRewardSlots ? 'compact' : 'comfortable'}
+                                    />
+                                ) : (
+                                    <ResultModalXpRewardBadge
+                                        variant="pet"
+                                        amount={mySummary.pairPetXp.change}
+                                        density={useCompactRewardSlots ? 'compact' : 'comfortable'}
+                                        title={
+                                            mySummary.pairPetXp.change > 0
+                                                ? `펫 경험치 +${mySummary.pairPetXp.change.toLocaleString()}`
+                                                : '펫 경험치 변동 없음'
+                                        }
+                                        allowZeroDisplay={isPairGoSession}
+                                    />
+                                )}
                             </div>
                         )}
                         {mySummary.items &&
@@ -2425,7 +2448,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                             )}
                                                         </div>
                                                         <div className="min-w-0 flex-1 shrink text-left">
-                                                            {!showPetXpAside ? (
+                                                            {!showPetXpBarAside ? (
                                                                 <>
                                                                     <p
                                                                         className="font-bold leading-snug text-white tabular-nums"
@@ -2463,21 +2486,32 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                             )}
                                                         </div>
                                                         {pairPetXpAside ? (
-                                                            <div className="min-w-0 w-[min(52%,11.5rem)] shrink-0">
-                                                                <XpBar
-                                                                    initial={pairPetXpAside.level.progress.initial}
-                                                                    final={pairPetXpAside.level.progress.final}
-                                                                    max={Math.max(1, pairPetXpAside.level.progress.max)}
-                                                                    levelUp={pairPetXpAside.level.initial < pairPetXpAside.level.final}
-                                                                    xpGain={pairPetXpAside.xp.change}
-                                                                    finalLevel={pairPetXpAside.level.final}
-                                                                    isMobile={isMobile}
-                                                                    mobileTextScale={mobileTextScale}
-                                                                />
-                                                            </div>
+                                                            showPetGradeUpgradeInsteadOfXp ? (
+                                                                <div className="flex min-h-[2rem] min-w-0 w-[min(52%,11.5rem)] shrink-0 items-center justify-center rounded-md border border-fuchsia-400/40 bg-fuchsia-950/35 px-1 py-1">
+                                                                    <span
+                                                                        className="text-center text-[8px] font-extrabold leading-tight text-fuchsia-100 sm:text-[9px]"
+                                                                        title="펫 등급강화 필요"
+                                                                    >
+                                                                        펫 등급강화 필요
+                                                                    </span>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="min-w-0 w-[min(52%,11.5rem)] shrink-0">
+                                                                    <XpBar
+                                                                        initial={pairPetXpAside.level.progress.initial}
+                                                                        final={pairPetXpAside.level.progress.final}
+                                                                        max={Math.max(1, pairPetXpAside.level.progress.max)}
+                                                                        levelUp={pairPetXpAside.level.initial < pairPetXpAside.level.final}
+                                                                        xpGain={pairPetXpAside.xp.change}
+                                                                        finalLevel={pairPetXpAside.level.final}
+                                                                        isMobile={isMobile}
+                                                                        mobileTextScale={mobileTextScale}
+                                                                    />
+                                                                </div>
+                                                            )
                                                         ) : null}
                                                     </div>
-                                                    {showPetXpAside && mySummary ? (
+                                                    {showPetXpBarAside && mySummary ? (
                                                         <PairPetLevelUpCoreDelta
                                                             delta={mySummary.pairPetLevelUpCoreBonuses}
                                                             title="추가된 능력치"
@@ -2718,7 +2752,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                     )}
                                                 </div>
                                                 <div className="min-w-0 shrink">
-                                                    {!showPetXpAside ? (
+                                                    {!showPetXpBarAside ? (
                                                         <>
                                                             <p className="min-w-0 text-sm font-bold leading-tight tabular-nums text-white min-[1024px]:text-[0.9rem]">
                                                                 Lv.
@@ -2743,22 +2777,33 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                     )}
                                                 </div>
                                                 {pairPetXpAside ? (
-                                                    <div className="min-w-0 flex-1 self-center">
-                                                        <XpBar
-                                                            initial={pairPetXpAside.level.progress.initial}
-                                                            final={pairPetXpAside.level.progress.final}
-                                                            max={Math.max(1, pairPetXpAside.level.progress.max)}
-                                                            levelUp={pairPetXpAside.level.initial < pairPetXpAside.level.final}
-                                                            xpGain={pairPetXpAside.xp.change}
-                                                            finalLevel={pairPetXpAside.level.final}
-                                                            isMobile={false}
-                                                            mobileTextScale={mobileTextScale}
-                                                            compact
-                                                        />
-                                                    </div>
+                                                    showPetGradeUpgradeInsteadOfXp ? (
+                                                        <div className="flex min-h-[2.25rem] min-w-0 flex-1 items-center justify-center self-center rounded-md border border-fuchsia-400/40 bg-fuchsia-950/35 px-2 py-1.5">
+                                                            <span
+                                                                className="text-center text-[0.65rem] font-extrabold leading-tight text-fuchsia-100 min-[1024px]:text-xs"
+                                                                title="펫 등급강화 필요"
+                                                            >
+                                                                펫 등급강화 필요
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="min-w-0 flex-1 self-center">
+                                                            <XpBar
+                                                                initial={pairPetXpAside.level.progress.initial}
+                                                                final={pairPetXpAside.level.progress.final}
+                                                                max={Math.max(1, pairPetXpAside.level.progress.max)}
+                                                                levelUp={pairPetXpAside.level.initial < pairPetXpAside.level.final}
+                                                                xpGain={pairPetXpAside.xp.change}
+                                                                finalLevel={pairPetXpAside.level.final}
+                                                                isMobile={false}
+                                                                mobileTextScale={mobileTextScale}
+                                                                compact
+                                                            />
+                                                        </div>
+                                                    )
                                                 ) : null}
                                             </div>
-                                            {showPetXpAside && mySummary ? (
+                                            {showPetXpBarAside && mySummary ? (
                                                 <PairPetLevelUpCoreDelta
                                                     delta={mySummary.pairPetLevelUpCoreBonuses}
                                                     title="추가된 능력치"

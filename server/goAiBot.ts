@@ -1062,9 +1062,8 @@ function getMoveHistoryForKataServer(
     if (!isHiddenMode || !shouldMaskUserHiddenFromAi(game) || !game.moveHistory?.length) {
         return (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
     }
-    if (getUserUnrevealedHiddenPoints(game, aiPlayerEnum).length === 0) {
-        return (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
-    }
+    // getUserUnrevealedHiddenPoints만으로는 부족함: isCurrentUnrevealedHiddenMoveEntry가 false인
+    // 잔여 hiddenMoves 플래그가 있어도 목록이 비면 여기서 마스킹을 끄면 Kata가 유저 히든 좌표를 그대로 본다.
     return getMoveHistoryForAi(game, aiPlayerEnum);
 }
 
@@ -1504,11 +1503,20 @@ function getBoardStateForAi(
     // 보드 상태 복사
     const aiBoardState: types.BoardState = game.boardState.map(row => [...row]);
     
-    // 유저의 히든 돌은 AI에게 비공개: 보드에서 빈 칸으로 보이게 함 (유저가 둔 히든 위치를 AI가 알 수 없음)
+    // 유저의 히든 돌은 AI에게 비공개: 보드에서 빈 칸으로 보이게 함.
+    // getMoveHistoryForAi와 동일한 "미공개 히든" 정의 + 같은 좌표 재착수 시 최신 수만 마스킹(isCurrentUnrevealedHiddenMoveEntry와 동치).
     if (game.hiddenMoves && game.moveHistory) {
         for (let moveIndex = 0; moveIndex < game.moveHistory.length; moveIndex++) {
-            if (!isCurrentUnrevealedHiddenMoveEntry(game, moveIndex, userPlayerEnum)) continue;
-            const move = game.moveHistory[moveIndex]!;
+            const move = game.moveHistory[moveIndex];
+            if (!move || move.x < 0 || move.y < 0) continue;
+            const isHidden = game.hiddenMoves[moveIndex];
+            const isUserHidden = isHidden && move.player === userPlayerEnum;
+            const isRevealed =
+                isUserHidden &&
+                !!game.permanentlyRevealedStones?.some((p) => p.x === move.x && p.y === move.y);
+            if (!isUserHidden || isRevealed) continue;
+            const latest = getLatestMoveIndexAt(game, move.x, move.y, userPlayerEnum);
+            if (latest !== moveIndex) continue;
             const { x, y } = move;
             if (aiBoardState[y]?.[x] === userPlayerEnum) {
                 aiBoardState[y][x] = Player.None;
@@ -1713,6 +1721,11 @@ function buildKataMoveHistoryBoardOnlyFromAiVisibleBoard(
             encodeBoardStateAsKataSetupMovesFromEmpty(board),
             game.currentPlayer,
         );
+    }
+    // 유저 히든을 AI가 모르게 해야 할 때는 원본 boardState로 Kata 입력을 만들면 안 됨(미공개 좌표 유출).
+    if (shouldMaskUserHiddenFromAi(game)) {
+        const raw = getMoveHistoryForKataServer(game, aiPlayerEnum);
+        return buildKataMoveHistory(game, raw, aiPlayerEnum);
     }
     if (
         game.boardState?.length === bs &&

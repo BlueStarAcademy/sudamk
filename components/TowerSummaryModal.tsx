@@ -19,7 +19,7 @@ import {
 } from './game/PreGameDescriptionLayout.js';
 import { StrategyXpResultBar } from './game/StrategyXpResultBar.js';
 import { getTowerSessionFloor, isTowerHumanWinnerFromSession } from '../utils/towerPreGameDisplay.js';
-import { ResultModalXpRewardBadge } from './game/ResultModalXpRewardBadge.js';
+import { ResultModalXpRewardBadge, ResultModalPetGradeUpgradeNeededSlot } from './game/ResultModalXpRewardBadge.js';
 import {
     ResultModalGoldCurrencySlot,
     ResultModalItemRewardSlot,
@@ -29,6 +29,8 @@ import {
 } from './game/ResultModalRewardSlot.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
 import PairPetLevelUpCoreDelta from './pair/PairPetLevelUpCoreDelta.js';
+import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
+import { effectivePairPetGradeFromRow, pairPetShowsGradeUpgradeNeededInsteadOfXp } from '../shared/constants/pairPetGrade.js';
 import {
     GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX,
     GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS,
@@ -193,13 +195,6 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     const isCleared = currentFloor <= effectiveClearedFloor;
     // 결과창은 서버가 확정한 실제 지급 내역(summary)만 표시한다.
     const displaySummary = summary;
-    const hasRewardSlots =
-        !!displaySummary &&
-        ((displaySummary.gold ?? 0) > 0 ||
-            (displaySummary.xp?.change ?? 0) > 0 ||
-            (displaySummary.pairPetXp?.change ?? 0) > 0 ||
-            (Array.isArray(displaySummary.items) && displaySummary.items.length > 0));
-    
     // 다음 층으로 갈 수 있는지 확인: 이번 게임에서 승리했거나, 이미 이 층을 한 번이라도 클리어한 적이 있으면 다음 층 가능
     // (재도전에서 실패해도 한 번 클리어한 층이면 다음 층으로 진행 가능)
     const canTryNext = !!nextStage && (isWinner || isCleared);
@@ -381,6 +376,26 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
         };
     }, [displaySummary]);
 
+    const showPetGradeUpgradeInsteadOfXp = useMemo(() => {
+        const row = getEquippedPairPetInventoryRow(currentUser);
+        return pairPetShowsGradeUpgradeNeededInsteadOfXp({
+            grade: row ? effectivePairPetGradeFromRow(row) : undefined,
+            petFinalLevel: displaySummary?.pairPetLevel?.final,
+            xpChange: displaySummary?.pairPetXp?.change,
+        });
+    }, [currentUser, displaySummary?.pairPetLevel?.final, displaySummary?.pairPetXp?.change]);
+
+    const hasRewardSlots = useMemo(
+        () =>
+            !!displaySummary &&
+            ((displaySummary.gold ?? 0) > 0 ||
+                (displaySummary.xp?.change ?? 0) > 0 ||
+                (displaySummary.pairPetXp?.change ?? 0) > 0 ||
+                (showPetGradeUpgradeInsteadOfXp && displaySummary.pairPetXp != null) ||
+                (Array.isArray(displaySummary.items) && displaySummary.items.length > 0)),
+        [displaySummary, showPetGradeUpgradeInsteadOfXp],
+    );
+
     /** 싱글/일반 결과 모달과 동일: EXP 바 + 현재/필요 XP + 변동 (summary 유무와 관계없이 표시) */
     const renderTowerStrategyXpPanel = (compact: boolean) => (
         <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 ${compact ? 'p-1' : 'p-1.5'}`}>
@@ -414,6 +429,17 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     );
 
     const renderTowerPetXpPanel = (compact: boolean) => {
+        if (showPetGradeUpgradeInsteadOfXp && displaySummary?.pairPetLevel && displaySummary?.pairPetXp) {
+            return (
+                <div className={`space-y-1 ${SP_SUMMARY_INSET_CLASS} mt-1.5 flex-shrink-0 ${compact ? 'p-1' : 'p-1.5'}`}>
+                    <div
+                        className={`text-center font-bold uppercase tracking-[0.12em] text-fuchsia-200/90 ${compact ? 'text-[8px]' : 'text-[10px] sm:text-xs'}`}
+                    >
+                        펫 등급강화 필요
+                    </div>
+                </div>
+            );
+        }
         if (!petXpBarPercents || !displaySummary?.pairPetLevel) return null;
         return (
             <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} mt-1.5 flex-shrink-0 ${compact ? 'p-1' : 'p-1.5'}`}>
@@ -518,6 +544,11 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                     amount={displaySummary.pairPetXp.change}
                                     density={isMobile ? 'compact' : 'comfortable'}
                                 />
+                            </div>
+                        )}
+                        {displaySummary?.pairPetXp && showPetGradeUpgradeInsteadOfXp && (
+                            <div className={`flex flex-col items-center justify-center ${!summary ? 'opacity-80' : ''}`}>
+                                <ResultModalPetGradeUpgradeNeededSlot density={isMobile ? 'compact' : 'comfortable'} />
                             </div>
                         )}
                         {displaySummary?.items &&

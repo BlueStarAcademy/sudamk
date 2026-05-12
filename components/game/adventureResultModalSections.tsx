@@ -15,7 +15,7 @@ import {
     getCodexComprehensionItemGrade,
 } from '../../utils/adventureCodexComprehension.js';
 import { useResilientImgSrc } from '../../hooks/useResilientImgSrc.js';
-import { ResultModalXpRewardBadge } from './ResultModalXpRewardBadge.js';
+import { ResultModalXpRewardBadge, ResultModalPetGradeUpgradeNeededSlot } from './ResultModalXpRewardBadge.js';
 import {
     ResultModalGoldCurrencySlot,
     ResultModalItemRewardSlot,
@@ -461,6 +461,7 @@ export function AdventureBattleFixedRewardRow({
     compact,
     vipPlayRewardSlot,
     onVipLockedClick,
+    pairPetGradeUpgradeNeeded = false,
 }: {
     slots: NonNullable<GameSummary['adventureRewardSlots']>;
     xpChange: number;
@@ -469,6 +470,8 @@ export function AdventureBattleFixedRewardRow({
     compact: boolean;
     vipPlayRewardSlot?: GameSummary['vipPlayRewardSlot'];
     onVipLockedClick?: () => void;
+    /** 펫 XP는 0이지만 등급 강화가 필요한 경우 — 펫 XP 배지 대신 안내 슬롯 */
+    pairPetGradeUpgradeNeeded?: boolean;
 }) {
     const keyFragmentObtained = !!slots.keyFragment?.obtained;
     const keyFragmentAmount = Math.max(1, Math.floor(slots.keyFragment?.amount ?? 1));
@@ -494,6 +497,10 @@ export function AdventureBattleFixedRewardRow({
                         density={compact ? 'compact' : 'comfortable'}
                         title={`펫 경험치 +${pairPetXpChange.toLocaleString()}`}
                     />
+                </div>
+            ) : !petXpOk && pairPetGradeUpgradeNeeded ? (
+                <div className="shrink-0">
+                    <ResultModalPetGradeUpgradeNeededSlot density={compact ? 'compact' : 'comfortable'} />
                 </div>
             ) : null}
             {slots.gold.obtained ? (
@@ -561,6 +568,7 @@ export function AdventureBattleRewardRowWithReveal({
     compact,
     vipPlayRewardSlot,
     onVipLockedClick,
+    pairPetGradeUpgradeNeeded = false,
 }: {
     slots: NonNullable<GameSummary['adventureRewardSlots']>;
     xpChange: number;
@@ -569,6 +577,7 @@ export function AdventureBattleRewardRowWithReveal({
     compact: boolean;
     vipPlayRewardSlot?: GameSummary['vipPlayRewardSlot'];
     onVipLockedClick?: () => void;
+    pairPetGradeUpgradeNeeded?: boolean;
 }) {
     const keyFragmentObtained = !!slots.keyFragment?.obtained;
     const keyFragmentAmount = Math.max(1, Math.floor(slots.keyFragment?.amount ?? 1));
@@ -588,6 +597,7 @@ export function AdventureBattleRewardRowWithReveal({
                 compact={compact}
                 vipPlayRewardSlot={vipPlayRewardSlot}
                 onVipLockedClick={onVipLockedClick}
+                pairPetGradeUpgradeNeeded={pairPetGradeUpgradeNeeded}
             />
         );
     }
@@ -618,6 +628,10 @@ export function AdventureBattleRewardRowWithReveal({
                         density={compact ? 'compact' : 'comfortable'}
                         title={`펫 경험치 +${pairPetXpChange.toLocaleString()}`}
                     />
+                </div>
+            ) : !petXpOk && pairPetGradeUpgradeNeeded ? (
+                <div className="shrink-0">
+                    <ResultModalPetGradeUpgradeNeededSlot density={compact ? 'compact' : 'comfortable'} />
                 </div>
             ) : null}
             {slots.gold.obtained ? (
