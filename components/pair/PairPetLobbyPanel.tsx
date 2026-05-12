@@ -1368,8 +1368,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             'whitespace-nowrap text-xs font-extrabold leading-none tracking-wide sm:text-sm';
         const trAmt = 'text-center text-xs font-bold tabular-nums leading-tight sm:text-sm';
         const trLblDense =
-            'whitespace-nowrap text-[0.58rem] font-extrabold leading-none tracking-wide sm:text-sm';
-        const trAmtDense = 'text-center text-[0.58rem] font-bold tabular-nums leading-tight sm:text-sm';
+            'whitespace-nowrap text-[0.55rem] font-extrabold leading-none tracking-wide sm:text-sm';
+        const trAmtDense = 'text-center text-[0.62rem] font-bold tabular-nums leading-tight sm:text-sm';
         const trSlotTitle = 'text-xs font-extrabold leading-snug text-violet-100 sm:text-sm';
         const trSlotTitleDense = 'text-[0.62rem] font-extrabold leading-snug text-violet-100 sm:text-sm';
         const trMono = 'text-xs font-bold tabular-nums font-mono leading-none sm:text-sm';
@@ -1417,7 +1417,9 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 : `${formatGoldAmountKoG(def.goldMin)}~${formatGoldAmountKoG(def.goldMax)}`;
                         const rewardPanel = (
                             <div
-                                className={`flex min-h-0 min-w-0 flex-1 flex-row flex-nowrap items-center justify-center gap-1 self-stretch overflow-x-auto border-l pl-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+                                className={`flex min-h-0 min-w-0 flex-1 flex-row flex-nowrap items-center justify-center self-stretch overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+                                    useTapTrainingFlow ? 'gap-0.5 border-l pl-1' : 'gap-1 border-l pl-1.5'
+                                } ${
                                     isVipTrainingSlot ? 'border-amber-500/25' : 'border-white/10'
                                 }`}
                             >
@@ -1425,20 +1427,20 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                     <span className={`${rwLbl} text-amber-100/95`}>확정보상</span>
                                     <div
                                         className={`rounded-lg border border-amber-400/30 bg-gradient-to-br from-amber-950/35 via-black/30 to-zinc-950/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
-                                            useTapTrainingFlow ? 'px-1 py-1' : 'px-2 py-1.5'
+                                            useTapTrainingFlow ? 'px-0.5 py-0.5' : 'px-2 py-1.5'
                                         }`}
                                     >
-                                        <div className={`${rewardScrollRow} ${useTapTrainingFlow ? 'gap-1' : 'gap-2'}`}>
+                                        <div className={`${rewardScrollRow} ${useTapTrainingFlow ? 'gap-0.5' : 'gap-2'}`}>
                                             <div className={`flex shrink-0 flex-col items-center ${useTapTrainingFlow ? 'gap-0.5' : 'gap-1'}`}>
                                                 <div
                                                     className={`flex items-center justify-center rounded-md border border-amber-400/35 bg-black/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
-                                                        useTapTrainingFlow ? 'h-8 w-8' : 'h-10 w-10'
+                                                        useTapTrainingFlow ? 'h-7 w-7' : 'h-10 w-10'
                                                     }`}
                                                 >
                                                     <img
                                                         src="/images/icon/Gold.png"
                                                         alt=""
-                                                        className={`object-contain ${useTapTrainingFlow ? 'h-6 w-6' : 'h-8 w-8'}`}
+                                                        className={`object-contain ${useTapTrainingFlow ? 'h-5 w-5' : 'h-8 w-8'}`}
                                                         loading="lazy"
                                                     />
                                                 </div>
@@ -1447,7 +1449,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             <div className={`flex shrink-0 flex-col items-center ${useTapTrainingFlow ? 'gap-0.5' : 'gap-1'}`}>
                                                 <div
                                                     className={`flex flex-col items-center justify-center rounded-md border border-violet-400/45 bg-violet-950/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${
-                                                        useTapTrainingFlow ? 'h-8 w-8 px-px' : 'h-10 w-10 px-0.5'
+                                                        useTapTrainingFlow ? 'h-7 w-7 px-px' : 'h-10 w-10 px-0.5'
                                                     }`}
                                                     title="펫 경험치"
                                                 >
@@ -1480,10 +1482,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                         </span>
                                         <div
                                             className={`rounded-lg border border-cyan-500/25 bg-black/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${
-                                                useTapTrainingFlow ? 'px-1 py-1' : 'px-2 py-1.5'
+                                                useTapTrainingFlow ? 'px-0.5 py-0.5' : 'px-2 py-1.5'
                                             }`}
                                         >
-                                            <div className={`${rewardScrollRow} ${useTapTrainingFlow ? 'gap-1' : 'gap-1.5'}`}>
+                                            <div className={`${rewardScrollRow} ${useTapTrainingFlow ? 'gap-0.5' : 'gap-1.5'}`}>
                                                 {def.soulTable.map((row, si) => {
                                                     const mat = MATERIAL_ITEMS[row.materialName as keyof typeof MATERIAL_ITEMS];
                                                     const src = mat?.image ?? '/images/pets/soulstone1.webp';
@@ -1493,12 +1495,12 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                     return (
                                                         <div
                                                             key={`train-soul-${i}-${si}`}
-                                                            className={`flex shrink-0 flex-col items-center ${useTapTrainingFlow ? 'w-[2.65rem] gap-0.5' : 'w-[3rem] gap-1'}`}
+                                                            className={`flex shrink-0 flex-col items-center ${useTapTrainingFlow ? 'w-[2.35rem] gap-0.5' : 'w-[3rem] gap-1'}`}
                                                             title={row.materialName}
                                                         >
                                                             <div
                                                                 className={`relative flex items-center justify-center overflow-hidden rounded-md border ${
-                                                                    useTapTrainingFlow ? 'h-8 w-8' : 'h-10 w-10'
+                                                                    useTapTrainingFlow ? 'h-7 w-7' : 'h-10 w-10'
                                                                 } ${
                                                                     isTranscendent
                                                                         ? 'transcendent-grade-slot border-white/25'
