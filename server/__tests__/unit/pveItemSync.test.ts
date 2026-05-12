@@ -330,6 +330,38 @@ describe('PVE item client sync', () => {
         expect(game.hiddenMoves).toEqual({ '0': true });
     });
 
+    it('does not accept hidden relabel when only client reports hidden_placing', () => {
+        const board = emptyBoard(5);
+        board[0][0] = Player.Black;
+        const game: any = {
+            id: 'pve-hidden-placement-client-only-state',
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            blackPlayerId: 'human-1',
+            whitePlayerId: 'ai-player-01',
+            boardState: emptyBoard(5),
+            moveHistory: [],
+            currentPlayer: Player.Black,
+            gameStatus: 'playing',
+            mode: 'mix',
+            settings: { mixedModes: ['base', 'hidden', 'speed'] },
+            hiddenMoves: {},
+        };
+
+        applyPveItemActionClientSync(game, {
+            clientSync: {
+                boardState: board,
+                moveHistory: [{ x: 0, y: 0, player: Player.Black }],
+                hiddenMoves: { '0': true },
+                currentPlayer: Player.White,
+                gameStatus: 'hidden_placing',
+            },
+        });
+
+        expect(game.moveHistory).toEqual([{ x: 0, y: 0, player: Player.Black }]);
+        expect(game.hiddenMoves).toEqual({});
+    });
+
     it('does not let client sync drop server permanently revealed hidden stones', () => {
         const board = emptyBoard(5);
         board[1][1] = Player.Black;

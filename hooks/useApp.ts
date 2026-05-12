@@ -193,6 +193,60 @@ function mergeMonotonicCountRecord<T extends LiveGameSession['captures'] | LiveG
     return out as T;
 }
 
+function mergeSpeedTimePressureSettingsMonotonic(
+    prevSettings: LiveGameSession['settings'] | undefined,
+    nextSettings: LiveGameSession['settings']
+): LiveGameSession['settings'] {
+    if (!prevSettings) return nextSettings;
+
+    const merged: any = { ...prevSettings, ...nextSettings };
+    const prevConsumed = (prevSettings as any).__speedBonusConsumedSec as { black?: number; white?: number } | undefined;
+    const nextConsumed = (nextSettings as any).__speedBonusConsumedSec as { black?: number; white?: number } | undefined;
+    if (prevConsumed || nextConsumed) {
+        merged.__speedBonusConsumedSec = {
+            black: Math.max(0, Number(prevConsumed?.black ?? 0), Number(nextConsumed?.black ?? 0)),
+            white: Math.max(0, Number(prevConsumed?.white ?? 0), Number(nextConsumed?.white ?? 0)),
+        };
+    }
+
+    const prevGranted = (prevSettings as any).__speedTimePressureGranted as { black?: number; white?: number } | undefined;
+    const nextGranted = (nextSettings as any).__speedTimePressureGranted as { black?: number; white?: number } | undefined;
+    if (prevGranted || nextGranted) {
+        merged.__speedTimePressureGranted = {
+            black: Math.max(0, Number(prevGranted?.black ?? 0), Number(nextGranted?.black ?? 0)),
+            white: Math.max(0, Number(prevGranted?.white ?? 0), Number(nextGranted?.white ?? 0)),
+        };
+    }
+
+    return merged;
+}
+
+function mergeGameWithMonotonicCounters(
+    prev: LiveGameSession | undefined,
+    next: LiveGameSession,
+    id?: string
+): LiveGameSession {
+    const merged = { ...(prev || {}), ...next } as LiveGameSession;
+    if (id) merged.id = id;
+    merged.captures = mergeMonotonicCountRecord(
+        prev?.captures as LiveGameSession['captures'],
+        merged.captures as LiveGameSession['captures']
+    );
+    merged.baseStoneCaptures = mergeMonotonicCountRecord(
+        prev?.baseStoneCaptures as LiveGameSession['baseStoneCaptures'],
+        merged.baseStoneCaptures as LiveGameSession['baseStoneCaptures']
+    );
+    merged.hiddenStoneCaptures = mergeMonotonicCountRecord(
+        prev?.hiddenStoneCaptures as LiveGameSession['hiddenStoneCaptures'],
+        merged.hiddenStoneCaptures as LiveGameSession['hiddenStoneCaptures']
+    );
+    merged.settings = mergeSpeedTimePressureSettingsMonotonic(
+        prev?.settings,
+        merged.settings as LiveGameSession['settings']
+    );
+    return merged;
+}
+
 /**
  * 도전의 탑: 수순 길이가 같을 때 서버 패킷의 따내기 점수만 늦게 오면 UI가 줄어드는 문제 보정.
  * (동일 수순인데 serverRevision만 큰 GAME_UPDATE가 전체 세션을 덮을 때)
@@ -6138,9 +6192,11 @@ export const useApp = () => {
                                     !currentGames[effectiveGameId];
                                 if (shouldUpdate) {
                                     const isRefresh = action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT';
-                                    const nextGame = isRefresh && game.boardState
+                                    const rawNextGame = isRefresh && game.boardState
                                         ? { ...game, boardState: (game.boardState as any[][]).map(row => [...row]), blackPatternStones: Array.isArray(game.blackPatternStones) ? [...game.blackPatternStones] : game.blackPatternStones, whitePatternStones: Array.isArray(game.whitePatternStones) ? [...game.whitePatternStones] : game.whitePatternStones }
                                         : game;
+                                    const prevSingle = currentGames[effectiveGameId];
+                                    const nextGame = mergeGameWithMonotonicCounters(prevSingle, rawNextGame as LiveGameSession, effectiveGameId);
                                     if (action.type === 'START_SINGLE_PLAYER_GAME') {
                                         for (const id of Object.keys(currentGames)) {
                                             if (id !== effectiveGameId) {
@@ -6180,9 +6236,10 @@ export const useApp = () => {
                                 ) {
                                     console.log('[handleAction] Updating tower game:', effectiveGameId, 'gameStatus:', game.gameStatus, 'action type:', action.type, 'existing game status:', currentGames[effectiveGameId]?.gameStatus);
                                     const isRefresh = action.type === 'TOWER_REFRESH_PLACEMENT';
-                                    let nextGame = isRefresh && game.boardState
+                                    const rawNextGame = isRefresh && game.boardState
                                         ? { ...game, boardState: (game.boardState as any[][]).map(row => [...row]), blackPatternStones: Array.isArray(game.blackPatternStones) ? [...game.blackPatternStones] : game.blackPatternStones, whitePatternStones: Array.isArray(game.whitePatternStones) ? [...game.whitePatternStones] : game.whitePatternStones }
                                         : game;
+                                    let nextGame = mergeGameWithMonotonicCounters(currentGames[effectiveGameId], rawNextGame as LiveGameSession, effectiveGameId);
                                     const existingTower = currentGames[effectiveGameId];
                                     if (
                                         existingTower &&
@@ -6219,7 +6276,7 @@ export const useApp = () => {
                                 if (!mergeId || !game) return currentGames;
                                 const prev = currentGames[mergeId];
                                 // WS가 먼저 슬롯을 채운 경우에도 HTTP 응답으로 병합 (이전: 키 존재 시 무시 → 재대결 등에서 상태 정지)
-                                const mergedForSlot = { ...(prev || {}), ...game, id: mergeId } as LiveGameSession;
+                                const mergedForSlot = mergeGameWithMonotonicCounters(prev, game as LiveGameSession, mergeId);
                                 return {
                                     ...currentGames,
                                     [mergeId]: coerceAdventureLiveGameScoringTurnLimit(mergedForSlot),

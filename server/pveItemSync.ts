@@ -392,7 +392,10 @@ export function applyPveItemActionClientSync(
     if (!preserveHiddenMeta) {
         const serverHiddenPlacing = String(game.gameStatus ?? '') === 'hidden_placing';
         const clientHiddenPlacing = String(sync.gameStatus ?? '') === 'hidden_placing';
-        const allowClientIntroduceHiddenOnAppendedMoves = serverHiddenPlacing || clientHiddenPlacing;
+        // 히든 라벨 신규 도입은 "서버·클라 모두 hidden_placing"에서만 허용한다.
+        // 한쪽만 hidden_placing인 스냅샷(REQUEST_SERVER_AI_MOVE 경합 등)은 stale 가능성이 높아
+        // 기존 일반돌을 히든으로 재라벨링하는 원인이 된다.
+        const allowClientIntroduceHiddenOnAppendedMoves = serverHiddenPlacing && clientHiddenPlacing;
         mergeHiddenMovesFromClientSync(
             game,
             sync.hiddenMoves,
