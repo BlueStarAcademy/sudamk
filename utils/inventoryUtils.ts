@@ -93,12 +93,13 @@ export const addItemsToInventory = (
     // Then, check space and process stackable items (consumables and materials)
     // Stack by name+source so tower-purchased items don't merge with general (도전의 탑 전용 분리)
     const getStackKey = (item: InventoryItem) => `${item.name}|${(item as InventoryItem & { source?: string }).source ?? ''}`;
-    const parseStackKey = (key: string): { name: string; source?: 'tower' } => {
+    const parseStackKey = (key: string): { name: string; source?: string } => {
         const idx = key.indexOf('|');
         if (idx === -1) return { name: key, source: undefined };
         const name = key.slice(0, idx);
         const sourcePart = key.slice(idx + 1);
-        return { name, source: sourcePart === 'tower' ? 'tower' : undefined };
+        // `getStackKey`와 동일: 빈 문자열은 출처 없음, 그 외( tower·future-pet-system 등 )는 그대로 보존
+        return { name, source: sourcePart === '' ? undefined : sourcePart };
     };
 
     for (const category of ['consumable', 'material'] as const) {
@@ -134,13 +135,12 @@ export const addItemsToInventory = (
         for (const key in stackableToAdd) {
             const { name, source } = parseStackKey(key);
             let quantityToPlace = stackableToAdd[key];
-            const existingSource = source ?? (undefined as 'tower' | undefined);
             const maxStackSize = resolveMaxStackSizeForKey(key);
 
             for (const existingItem of currentCategoryItems) {
                 if (quantityToPlace <= 0) break;
                 const exSource = (existingItem as InventoryItem & { source?: string }).source;
-                if (existingItem.name === name && (exSource ?? '') === (existingSource ?? '') && (existingItem.quantity || 0) < maxStackSize) {
+                if (existingItem.name === name && (exSource ?? '') === (source ?? '') && (existingItem.quantity || 0) < maxStackSize) {
                     const space = maxStackSize - (existingItem.quantity || 0);
                     const toAdd = Math.min(quantityToPlace, space);
                     existingItem.quantity = (existingItem.quantity || 0) + toAdd;
@@ -170,13 +170,12 @@ export const addItemsToInventory = (
         for (const key in stackableToAdd) {
             const { name, source } = parseStackKey(key);
             let quantityLeft = stackableToAdd[key];
-            const existingSource = source ?? (undefined as 'tower' | undefined);
             const maxStackSize = resolveMaxStackSizeForKey(key);
 
             for (const existingItem of currentCategoryItems) {
                 if (quantityLeft <= 0) break;
                 const exSource = (existingItem as InventoryItem & { source?: string }).source;
-                if (existingItem.name === name && (exSource ?? '') === (existingSource ?? '')) {
+                if (existingItem.name === name && (exSource ?? '') === (source ?? '')) {
                     const originalQuantity = (currentInventory.find(i => i.id === existingItem.id)?.quantity || 0);
                     const addedQuantity = (existingItem.quantity || 0) - originalQuantity;
                     quantityLeft -= addedQuantity;
@@ -187,7 +186,7 @@ export const addItemsToInventory = (
                 for (const finalItem of finalItemsToAdd) {
                     if (quantityLeft <= 0) break;
                     const fSource = (finalItem as InventoryItem & { source?: string }).source;
-                    if (finalItem.name === name && (fSource ?? '') === (existingSource ?? '') && (finalItem.quantity || 0) < maxStackSize) {
+                    if (finalItem.name === name && (fSource ?? '') === (source ?? '') && (finalItem.quantity || 0) < maxStackSize) {
                         const space = maxStackSize - (finalItem.quantity || 0);
                         const toAdd = Math.min(quantityLeft, space);
                         finalItem.quantity = (finalItem.quantity || 0) + toAdd;
@@ -198,7 +197,7 @@ export const addItemsToInventory = (
                 while (quantityLeft > 0) {
                     const toAdd = Math.min(quantityLeft, maxStackSize);
                     const template = getItemTemplateByName(name);
-                    const newItemSource = source === 'tower' ? { source: 'tower' as const } : {};
+                    const newItemSource = source ? { source } : {};
                     if (template) {
                         const soulTid = isPairSoulStoneMaterialName(name)
                             ? pairSoulTemplateIdFromTier(pairSoulTierFromMaterialName(name))
@@ -222,8 +221,8 @@ export const addItemsToInventory = (
                             row.quantity = toAdd;
                             row.createdAt = Date.now();
                             row.isEquipped = false;
-                            if (source === 'tower') {
-                                (row as InventoryItem & { source?: string }).source = 'tower';
+                            if (source) {
+                                (row as InventoryItem & { source?: string }).source = source;
                             }
                             finalItemsToAdd.push(row);
                         } else {

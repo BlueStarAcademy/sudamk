@@ -104,8 +104,8 @@ export type InventoryItem = {
   enhancementFails?: number;
   /** 관리자 우편 첨부: 서버에서 부/특 옵션까지 강화 반영 완료. 수령 시 재시뮬레이션하지 않음 */
   mailPreEnhanced?: boolean;
-  /** 도전의 탑 상점에서 구매한 소모품만 'tower'. 해당 아이템은 도전의 탑에서만 사용·합산됨 */
-  source?: 'tower';
+  /** 아이템 출처(가방 합치기·사용 제한 구분). 예: 도전의 탑 `tower`, 페어 로비 `future-pet-system` 등 */
+  source?: string;
   /** 장비 템플릿·우편 지급 등 서버 내부 참조용 */
   templateId?: string;
   /** 장비 세련(제련) 누적 횟수 등 */
