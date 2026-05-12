@@ -235,8 +235,9 @@ function mergeMonotonicCountRecord<T extends LiveGameSession['captures'] | LiveG
 function mergeHiddenMovesFromClientSync(
     game: LiveGameSession,
     incomingHiddenMoves: unknown,
-    _syncAdvancesServerMoves: boolean,
-    _serverMoveHistoryLength: number
+    syncAdvancesServerMoves: boolean,
+    serverMoveHistoryLength: number,
+    allowClientIntroduceHiddenOnAppendedMoves: boolean
 ): void {
     if (incomingHiddenMoves == null || typeof incomingHiddenMoves !== 'object') return;
     const incoming = incomingHiddenMoves as Record<string, unknown>;
@@ -259,9 +260,16 @@ function mergeHiddenMovesFromClientSync(
         if (!Array.isArray(game.moveHistory) || !game.moveHistory[idx]) continue;
 
         const alreadyServerHidden = !!current[idxRaw] || !!current[String(idx)];
-        // PVE item sync never trusts client snapshots to introduce new hidden labels.
-        // Hidden metadata is server-authoritative and must come from server move handling only.
-        if (!alreadyServerHidden) continue;
+        if (!alreadyServerHidden) {
+            // Default: never trust client snapshots to relabel existing normal stones as hidden.
+            // Exception: while actually placing a hidden stone, accept hidden labels only for
+            // newly appended move indices in a client-advanced snapshot.
+            const canIntroduceFromClient =
+                allowClientIntroduceHiddenOnAppendedMoves &&
+                syncAdvancesServerMoves &&
+                idx >= serverMoveHistoryLength;
+            if (!canIntroduceFromClient) continue;
+        }
         next[idx] = true;
     }
 
@@ -353,7 +361,16 @@ export function applyPveItemActionClientSync(
     applyClientBaseStoneSnapshotIfAuthoritative(game, sync, serverBaseStonesSnapshot, syncAdvancesServerMoves);
     applyClientOverlaySnapshotsIfPresent(game, sync);
     if (!preserveHiddenMeta) {
-        mergeHiddenMovesFromClientSync(game, sync.hiddenMoves, syncAdvancesServerMoves, serverMoveHistoryLength);
+        const serverHiddenPlacing = String(game.gameStatus ?? '') === 'hidden_placing';
+        const clientHiddenPlacing = String(sync.gameStatus ?? '') === 'hidden_placing';
+        const allowClientIntroduceHiddenOnAppendedMoves = serverHiddenPlacing || clientHiddenPlacing;
+        mergeHiddenMovesFromClientSync(
+            game,
+            sync.hiddenMoves,
+            syncAdvancesServerMoves,
+            serverMoveHistoryLength,
+            allowClientIntroduceHiddenOnAppendedMoves
+        );
     }
     if (Array.isArray(sync.permanentlyRevealedStones)) {
         game.permanentlyRevealedStones = sync.permanentlyRevealedStones.map((p) => ({ ...p }));

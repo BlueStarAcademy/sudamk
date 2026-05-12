@@ -1933,20 +1933,18 @@ export async function makeGoAiBotMove(
             (game.mode === types.GameMode.Mix &&
                 !!game.settings.mixedModes?.includes(types.GameMode.Hidden)),
     );
-    /** 페어 AI전(`pairMode === 'ai'`)에서만: 인간 팀(teamA) 동료 펫은 히든 미사용. 상대(teamB) 펫·AI는 기존 히든 로직 유지 */
-    const pairAllyPetSeatBlocksAiHidden =
+    /** 페어 바둑: 펫/AI 좌석은 히든 아이템을 사용하지 않는다(아이템은 유저 전용). */
+    const pairAiSeatBlocksAiHiddenItem =
         isHiddenMode &&
         pairClassicGame &&
         pairCurrentSeat != null &&
-        pairCurrentSeat.kind === 'pet' &&
-        game.settings?.pairGame?.pairMode === 'ai' &&
-        pairCurrentSeat.teamId === 'teamA';
+        isPairAiSeat(pairCurrentSeat);
     /** 페어에서 서버가 둘 AI/펫 좌석: `isAiGame`이 false여도 히든 연출·재고 카운트 경로가 타도록 함 */
     const pairServerAiSeatMayUseHiddenItem =
         pairClassicGame &&
         pairCurrentSeat != null &&
         isPairAiSeat(pairCurrentSeat) &&
-        !pairAllyPetSeatBlocksAiHidden;
+        !pairAiSeatBlocksAiHiddenItem;
     const disableAiHiddenItemsByStageSetting =
         game.isSinglePlayer &&
         isHiddenMode &&
@@ -2000,7 +1998,7 @@ export async function makeGoAiBotMove(
         (game as any).aiHiddenPlacementArmed = false;
     }
 
-    if (pairAllyPetSeatBlocksAiHidden) {
+    if (pairAiSeatBlocksAiHiddenItem) {
         shouldApplyHiddenOnThisMove = false;
         (game as any).pendingAiHiddenPlacement = false;
         (game as any).aiHiddenPlacementArmed = false;
@@ -2037,7 +2035,7 @@ export async function makeGoAiBotMove(
         shouldApplyHiddenOnThisMove = !!(game as any).pendingAiHiddenPlacement;
     }
 
-    if (pairAllyPetSeatBlocksAiHidden) {
+    if (pairAiSeatBlocksAiHiddenItem) {
         shouldApplyHiddenOnThisMove = false;
         (game as any).pendingAiHiddenPlacement = false;
         (game as any).aiHiddenPlacementArmed = false;
@@ -2241,7 +2239,7 @@ export async function makeGoAiBotMove(
     // 공유 상수 길이의 연출만 시작하고 Kata는 호출하지 않는다. 만료 후 다음 makeGoAiBotMove 틱에서 Kata로 수를 정해 히든으로 둔다.
     if (
         isHiddenMode &&
-        !pairAllyPetSeatBlocksAiHidden &&
+        !pairAiSeatBlocksAiHiddenItem &&
         !disableAiHiddenItemsByStageSetting &&
         !shouldApplyHiddenOnThisMove &&
         (shouldUseStrategicAiHiddenItem || shouldUseSinglePlayerAiHiddenItem || shouldUseTowerAiHiddenItem) &&
@@ -2913,7 +2911,7 @@ export async function makeGoAiBotMove(
     const recordedHiddenBeforePush = countRecordedAiHiddenMoves(game, aiPlayerEnum);
     const treatAsAiHiddenStone =
         shouldApplyHiddenOnThisMove &&
-        !pairAllyPetSeatBlocksAiHidden &&
+        !pairAiSeatBlocksAiHiddenItem &&
         (aiHiddenLeft > 0 || recordedHiddenBeforePush < usedHiddenCounterForMark);
 
     // 5. 최종 수 적용

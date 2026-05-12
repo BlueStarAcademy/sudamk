@@ -298,6 +298,38 @@ describe('PVE item client sync', () => {
         expect(game.hiddenMoves).toEqual({});
     });
 
+    it('accepts hidden label only for appended moves during hidden placement sync', () => {
+        const board = emptyBoard(5);
+        board[0][0] = Player.Black;
+        const game: any = {
+            id: 'pve-hidden-placement-append-allow',
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            blackPlayerId: 'human-1',
+            whitePlayerId: 'ai-player-01',
+            boardState: emptyBoard(5),
+            moveHistory: [],
+            currentPlayer: Player.Black,
+            gameStatus: 'hidden_placing',
+            mode: 'mix',
+            settings: { mixedModes: ['base', 'hidden', 'speed'] },
+            hiddenMoves: {},
+        };
+
+        applyPveItemActionClientSync(game, {
+            clientSync: {
+                boardState: board,
+                moveHistory: [{ x: 0, y: 0, player: Player.Black }],
+                hiddenMoves: { '0': true },
+                currentPlayer: Player.White,
+                gameStatus: 'hidden_placing',
+            },
+        });
+
+        expect(game.moveHistory).toEqual([{ x: 0, y: 0, player: Player.Black }]);
+        expect(game.hiddenMoves).toEqual({ '0': true });
+    });
+
     it('carries PVE overlay metadata from the client before a server AI hidden move', () => {
         const board = emptyBoard(5);
         board[1][1] = Player.Black;

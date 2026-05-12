@@ -136,6 +136,10 @@ const mobileGameSidebarDrawerStyle: React.CSSProperties = {
 };
 
 const KO_RULE_FLASH_MESSAGE = '패 모양(단순 코)입니다. 바로 다시 따낼 수 없습니다.';
+const HIDDEN_PLACEMENT_DELAY_MS = 2000;
+const HIDDEN_PLACEMENT_DELAY_MESSAGE = '화면에 상대에게 안보이는 한 수를 두세요';
+const MISSILE_DIRECTION_DELAY_MESSAGE = '바둑돌을 원하는 방향으로 날려보내세요';
+const SCAN_TARGET_DELAY_MESSAGE = '상대방의 히든 돌이 있을만한 지점을 찍어보세요';
 
 interface MoveConfirmDraggableProps {
     layoutMode: 'mobile' | 'desktop';
@@ -832,6 +836,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     const ingameHandleAction = useCallback(
         async (action: ServerAction) => {
+            if (
+                (action.type === 'LAUNCH_MISSILE' ||
+                    action.type === 'SCAN_BOARD' ||
+                    (action.type === 'PLACE_STONE' && !!(action as any)?.payload?.isHidden)) &&
+                itemAimIntroBlockUntilRef.current > Date.now()
+            ) {
+                return { error: '아이템 연출 중입니다. 잠시 후 시도해주세요.' } as StrategicPetHintActionResult;
+            }
             const moveLenBefore =
                 action.type === 'REQUEST_STRATEGIC_PET_HINT' ? session.moveHistory?.length ?? 0 : null;
             const r = (await handlers.handleAction(action)) as
@@ -904,6 +916,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     const [boardRuleFlashMessage, setBoardRuleFlashMessage] = useState<string | null>(null);
     const boardRuleFlashClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const hiddenPlacementDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const itemAimIntroBlockUntilRef = useRef<number>(0);
+    const itemAimIntroModeRef = useRef<'hidden_placing' | 'scanning' | 'missile_selecting' | null>(null);
     const isPausableAiGameForTimer =
         session.isAiGame &&
         !session.isSinglePlayer &&
@@ -1960,6 +1975,31 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [gameStatus, prevGameStatus]);
 
     useEffect(() => {
+        if (gameStatus === 'hidden_placing' && prevGameStatus !== 'hidden_placing') {
+            itemAimIntroModeRef.current = 'hidden_placing';
+            itemAimIntroBlockUntilRef.current = Date.now() + HIDDEN_PLACEMENT_DELAY_MS;
+            flashBoardRuleMessage(HIDDEN_PLACEMENT_DELAY_MESSAGE, HIDDEN_PLACEMENT_DELAY_MS - 250);
+            return;
+        }
+        if (gameStatus === 'scanning' && prevGameStatus !== 'scanning') {
+            itemAimIntroModeRef.current = 'scanning';
+            itemAimIntroBlockUntilRef.current = Date.now() + HIDDEN_PLACEMENT_DELAY_MS;
+            flashBoardRuleMessage(SCAN_TARGET_DELAY_MESSAGE, HIDDEN_PLACEMENT_DELAY_MS - 250);
+            return;
+        }
+        if (gameStatus === 'missile_selecting' && prevGameStatus !== 'missile_selecting') {
+            itemAimIntroModeRef.current = 'missile_selecting';
+            itemAimIntroBlockUntilRef.current = Date.now() + HIDDEN_PLACEMENT_DELAY_MS;
+            flashBoardRuleMessage(MISSILE_DIRECTION_DELAY_MESSAGE, HIDDEN_PLACEMENT_DELAY_MS - 250);
+            return;
+        }
+        if (gameStatus !== 'hidden_placing' && gameStatus !== 'scanning' && gameStatus !== 'missile_selecting') {
+            itemAimIntroModeRef.current = null;
+            itemAimIntroBlockUntilRef.current = 0;
+        }
+    }, [gameStatus, prevGameStatus, flashBoardRuleMessage]);
+
+    useEffect(() => {
         const anim = session.animation;
         const skipSound = ['scoring', 'ended', 'no_contest'].includes(session.gameStatus ?? '');
         if (anim && anim.type !== prevAnimationType) { 
@@ -2371,6 +2411,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         flashBoardRuleMessage(KO_RULE_FLASH_MESSAGE, 5000);
     }, [flashBoardRuleMessage]);
 
+    const runHiddenPlacementWithDelay = useCallback((execute: () => void): void => {
+        // Hidden item delay is now handled at item-mode entry (hidden_placing intro gate).
+        // Keep this shim to avoid broad call-site churn.
+        execute();
+    }, []);
+
     const applyOptimisticAiUserMove = useCallback((x: number, y: number): boolean => {
         // sessionStorage 복원판은 수순이 느릴 때 서버보다 뒤처져 빈 칸으로 보이는 경우가 있어, 낙관적 착수는 서버 판 우선
         const boardStateToUse =
@@ -2459,6 +2505,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     useEffect(() => () => {
         if (boardRuleFlashClearRef.current) clearTimeout(boardRuleFlashClearRef.current);
+        if (hiddenPlacementDelayTimerRef.current) clearTimeout(hiddenPlacementDelayTimerRef.current);
     }, []);
 
     const isItemModeActive = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating'].includes(gameStatus);
@@ -2469,6 +2516,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (isSpectator || gameStatus === 'missile_animating') return;
         if (gameStatus === 'ended' || gameStatus === 'no_contest' || gameStatus === 'scoring') {
             setPendingMove(null);
+            return;
+        }
+        if (
+            itemAimIntroBlockUntilRef.current > Date.now() &&
+            ((gameStatus === 'hidden_placing' && itemAimIntroModeRef.current === 'hidden_placing') ||
+                (gameStatus === 'scanning' && itemAimIntroModeRef.current === 'scanning') ||
+                (gameStatus === 'missile_selecting' && itemAimIntroModeRef.current === 'missile_selecting'))
+        ) {
             return;
         }
         const isPausableAiGame =
@@ -2593,18 +2648,25 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     !(session.permanentlyRevealedStones || []).some(point => point.x === x && point.y === y);
                 if (stoneAtTarget === opponentPlayerEnum && !isHiddenTarget) return;
                 if (stoneAtTarget === opponentPlayerEnum && isHiddenTarget) {
-                    void Promise.resolve(handlers.handleAction({
-                        type: 'PLACE_STONE',
-                        payload: {
-                            gameId,
-                            x,
-                            y,
-                            isHidden: true,
-                            boardState: boardStateToUse,
-                            moveHistory: session.moveHistory || [],
-                        }
-                    } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
-                    if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
+                    const submitHiddenRevealMove = () => {
+                        void Promise.resolve(handlers.handleAction({
+                            type: 'PLACE_STONE',
+                            payload: {
+                                gameId,
+                                x,
+                                y,
+                                isHidden: true,
+                                boardState: boardStateToUse,
+                                moveHistory: session.moveHistory || [],
+                            }
+                        } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
+                        if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
+                    };
+                    if (gameStatus === 'hidden_placing') {
+                        runHiddenPlacementWithDelay(submitHiddenRevealMove);
+                    } else {
+                        submitHiddenRevealMove();
+                    }
                     return;
                 }
                 let moveResult;
@@ -2624,33 +2686,40 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     if (moveResult.reason === 'ko') showKoRuleFlash();
                     return;
                 }
-                // 로컬 즉시 반영 (히든 표시 및 playing 전환)
-                handlers.handleAction({
-                    type: 'TOWER_CLIENT_MOVE',
-                    payload: {
-                        gameId,
-                        x,
-                        y,
-                        newBoardState: moveResult.newBoardState,
-                        capturedStones: moveResult.capturedStones,
-                        newKoInfo: moveResult.newKoInfo,
-                        isHidden: true,
-                    }
-                } as any);
-                claimStrategicPetHintBonusIfMatched(x, y, (session.moveHistory?.length || 0) + 1);
-                // 서버에 히든 착수 전송 (서버가 hiddenMoves 기록·AI에 비공개)
-                void Promise.resolve(handlers.handleAction({
-                    type: 'PLACE_STONE',
-                    payload: {
-                        gameId,
-                        x,
-                        y,
-                        isHidden: true,
-                        boardState: boardStateToUse,
-                        moveHistory: session.moveHistory || [],
-                    }
-                } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
-                if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
+                const submitTowerHiddenPlacement = () => {
+                    // 로컬 즉시 반영 (히든 표시 및 playing 전환)
+                    handlers.handleAction({
+                        type: 'TOWER_CLIENT_MOVE',
+                        payload: {
+                            gameId,
+                            x,
+                            y,
+                            newBoardState: moveResult.newBoardState,
+                            capturedStones: moveResult.capturedStones,
+                            newKoInfo: moveResult.newKoInfo,
+                            isHidden: true,
+                        }
+                    } as any);
+                    claimStrategicPetHintBonusIfMatched(x, y, (session.moveHistory?.length || 0) + 1);
+                    // 서버에 히든 착수 전송 (서버가 hiddenMoves 기록·AI에 비공개)
+                    void Promise.resolve(handlers.handleAction({
+                        type: 'PLACE_STONE',
+                        payload: {
+                            gameId,
+                            x,
+                            y,
+                            isHidden: true,
+                            boardState: boardStateToUse,
+                            moveHistory: session.moveHistory || [],
+                        }
+                    } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
+                    if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
+                };
+                if (gameStatus === 'hidden_placing') {
+                    runHiddenPlacementWithDelay(submitTowerHiddenPlacement);
+                } else {
+                    submitTowerHiddenPlacement();
+                }
                 return;
             }
             // 온라인 전략바둑(대기실·PVP·AI 로비): 상대 히든 칸은 탑과 같이 PLACE_STONE(isHidden)로 공개 요청 (itemUseDeadline만으로 isHidden을 켜면 공개 클릭이 일반 착수로 감)
@@ -2670,18 +2739,25 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     !(session.permanentlyRevealedStones || []).some(point => point.x === x && point.y === y);
                 if (stoneAtTarget === opponentPlayerEnum && !isHiddenTarget) return;
                 if (stoneAtTarget === opponentPlayerEnum && isHiddenTarget) {
-                    void Promise.resolve(handlers.handleAction({
-                        type: 'PLACE_STONE',
-                        payload: {
-                            gameId,
-                            x,
-                            y,
-                            isHidden: true,
-                            boardState: boardStateToUse,
-                            moveHistory: session.moveHistory || [],
-                        },
-                    } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
-                    if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
+                    const submitOnlineHiddenRevealMove = () => {
+                        void Promise.resolve(handlers.handleAction({
+                            type: 'PLACE_STONE',
+                            payload: {
+                                gameId,
+                                x,
+                                y,
+                                isHidden: true,
+                                boardState: boardStateToUse,
+                                moveHistory: session.moveHistory || [],
+                            },
+                        } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
+                        if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
+                    };
+                    if (gameStatus === 'hidden_placing') {
+                        runHiddenPlacementWithDelay(submitOnlineHiddenRevealMove);
+                    } else {
+                        submitOnlineHiddenRevealMove();
+                    }
                     return;
                 }
             }
@@ -2701,18 +2777,25 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     !(session.permanentlyRevealedStones || []).some(point => point.x === x && point.y === y);
                 if (stoneAtTarget === opponentPlayerEnum && !isHiddenTarget) return;
                 if (stoneAtTarget === opponentPlayerEnum && isHiddenTarget) {
-                    void Promise.resolve(handlers.handleAction({
-                        type: 'PLACE_STONE',
-                        payload: {
-                            gameId,
-                            x,
-                            y,
-                            isHidden: true,
-                            boardState: boardStateToUse,
-                            moveHistory: session.moveHistory || [],
-                        }
-                    } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
-                    if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
+                    const submitSingleHiddenRevealMove = () => {
+                        void Promise.resolve(handlers.handleAction({
+                            type: 'PLACE_STONE',
+                            payload: {
+                                gameId,
+                                x,
+                                y,
+                                isHidden: true,
+                                boardState: boardStateToUse,
+                                moveHistory: session.moveHistory || [],
+                            }
+                        } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
+                        if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
+                    };
+                    if (gameStatus === 'hidden_placing') {
+                        runHiddenPlacementWithDelay(submitSingleHiddenRevealMove);
+                    } else {
+                        submitSingleHiddenRevealMove();
+                    }
                     return;
                 }
                 let moveResult;
@@ -2732,32 +2815,39 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     if (moveResult.reason === 'ko') showKoRuleFlash();
                     return;
                 }
-                handlers.handleAction({
-                    type: 'SINGLE_PLAYER_CLIENT_MOVE',
-                    payload: {
-                        gameId,
-                        x,
-                        y,
-                        newBoardState: moveResult.newBoardState,
-                        capturedStones: moveResult.capturedStones,
-                        newKoInfo: moveResult.newKoInfo,
-                        movePlayer: myPlayerEnum,
-                        isHidden: true,
-                    }
-                } as any);
-                claimStrategicPetHintBonusIfMatched(x, y, (session.moveHistory?.length || 0) + 1);
-                void Promise.resolve(handlers.handleAction({
-                    type: 'PLACE_STONE',
-                    payload: {
-                        gameId,
-                        x,
-                        y,
-                        isHidden: true,
-                        boardState: moveResult.newBoardState,
-                        moveHistory: [...(session.moveHistory || []), { x, y, player: myPlayerEnum }],
-                    }
-                } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
-                if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
+                const submitSingleHiddenPlacement = () => {
+                    handlers.handleAction({
+                        type: 'SINGLE_PLAYER_CLIENT_MOVE',
+                        payload: {
+                            gameId,
+                            x,
+                            y,
+                            newBoardState: moveResult.newBoardState,
+                            capturedStones: moveResult.capturedStones,
+                            newKoInfo: moveResult.newKoInfo,
+                            movePlayer: myPlayerEnum,
+                            isHidden: true,
+                        }
+                    } as any);
+                    claimStrategicPetHintBonusIfMatched(x, y, (session.moveHistory?.length || 0) + 1);
+                    void Promise.resolve(handlers.handleAction({
+                        type: 'PLACE_STONE',
+                        payload: {
+                            gameId,
+                            x,
+                            y,
+                            isHidden: true,
+                            boardState: moveResult.newBoardState,
+                            moveHistory: [...(session.moveHistory || []), { x, y, player: myPlayerEnum }],
+                        }
+                    } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
+                    if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
+                };
+                if (gameStatus === 'hidden_placing') {
+                    runHiddenPlacementWithDelay(submitSingleHiddenPlacement);
+                } else {
+                    submitSingleHiddenPlacement();
+                }
                 return;
             }
             // 도전의 탑·싱글플레이 일반 착수: 클라이언트에서만 처리 (서버로 전송하지 않음)
@@ -3021,6 +3111,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         applyOptimisticPairUserMove,
         restrictIntro1OnboardingMove,
         flashBoardRuleMessage,
+        runHiddenPlacementWithDelay,
         session.stageId,
         session.hiddenMoves,
         session.permanentlyRevealedStones,
@@ -3168,6 +3259,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
 
         if (actionType) {
+            const shouldDelayHiddenPlacement =
+                gameStatus === 'hidden_placing' &&
+                (
+                    (actionType === 'PLACE_STONE' && !!payload?.isHidden) ||
+                    ((actionType === 'TOWER_CLIENT_MOVE' || actionType === 'SINGLE_PLAYER_CLIENT_MOVE') && !!payload?.isHidden)
+                );
+            const submitConfirmedMove = () => {
             const isPairClassicOnlineConfirm = isPairClassicGame(session.settings, mode);
             const optimisticAiStonePlaceConfirm =
                 actionType === 'PLACE_STONE' &&
@@ -3226,6 +3324,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 .finally(() => {
                     // 성공 경로에서는 AI 응답 후 내 턴이 돌아올 때 effect에서 해제한다.
                 });
+            };
+            if (shouldDelayHiddenPlacement) {
+                runHiddenPlacementWithDelay(submitConfirmedMove);
+            } else {
+                submitConfirmedMove();
+            }
         }
         setPendingMove(null);
     }, [
@@ -3253,6 +3357,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         applyOptimisticPairUserMove,
         restrictIntro1OnboardingMove,
         flashBoardRuleMessage,
+        runHiddenPlacementWithDelay,
         session.stageId,
         session.hiddenMoves,
         session.permanentlyRevealedStones,
