@@ -275,11 +275,24 @@ export const useTournamentSimulation = (
         }
 
         const matchKey = getMatchKey(resolvedTournament);
+        const prevStableMatchKey = currentMatchKeyRef.current;
+        // WS/USER_UPDATE가 잠깐 currentSimulatingMatch를 빼면 getMatchKey가 null이 되어
+        // 여기서 전부 리셋되면 실대국 중계가 처음부터 무한 반복처럼 보인다.
+        // (계가 지연 타이머·COMPLETE 전송도 끊길 수 있음)
+        const pendingRealMatchCompletion = realMatchScoringTimeoutRef.current != null;
+        const skipResetForFlakyRealMatchKey =
+            matchKey == null &&
+            typeof prevStableMatchKey === 'string' &&
+            prevStableMatchKey.startsWith('real:') &&
+            (resolvedTournament.status === 'round_in_progress' ||
+                (pendingRealMatchCompletion &&
+                    (resolvedTournament.status === 'bracket_ready' ||
+                        resolvedTournament.status === 'round_complete')));
 
         // If match changed, reset simulation state
-        if (matchKey !== currentMatchKeyRef.current) {
+        if (matchKey !== prevStableMatchKey && !skipResetForFlakyRealMatchKey) {
             console.log('[useTournamentSimulation] Match changed, resetting simulation state', {
-                prevKey: currentMatchKeyRef.current,
+                prevKey: prevStableMatchKey,
                 newKey: matchKey,
                 status: resolvedTournament.status,
                 hasSeed: !!resolvedTournament.simulationSeed
@@ -310,6 +323,32 @@ export const useTournamentSimulation = (
 
         setLocalTournament(prev => {
             if (!prev) return resolvedTournament;
+
+            const prevK = getMatchKey(prev);
+            const resK = getMatchKey(resolvedTournament);
+            if (
+                resK == null &&
+                typeof prevK === 'string' &&
+                prevK.startsWith('real:') &&
+                resolvedTournament.status === 'round_in_progress' &&
+                prev.status === 'round_in_progress' &&
+                prev.currentSimulatingMatch
+            ) {
+                const patchedResolved = {
+                    ...resolvedTournament,
+                    currentSimulatingMatch: prev.currentSimulatingMatch,
+                };
+                const mergedRounds = mergeResolvedRoundsPreserveChampionshipPlayback(prev, patchedResolved);
+                return {
+                    ...patchedResolved,
+                    rounds: mergedRounds,
+                    timeElapsed: prev.timeElapsed,
+                    currentMatchScores: prev.currentMatchScores,
+                    currentMatchCommentary: prev.currentMatchCommentary,
+                    lastScoreIncrement: prev.lastScoreIncrement,
+                    players: resolvedTournament.players,
+                };
+            }
 
             if (prev.status === 'round_in_progress' &&
                 resolvedTournament.status === 'round_in_progress' &&
