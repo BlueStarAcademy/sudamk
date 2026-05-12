@@ -19,6 +19,10 @@ vi.mock('../../summaryService.js', () => ({
 vi.mock('../../socket.js', () => ({
     broadcastToGameParticipants: vi.fn(),
 }));
+vi.mock('../../kataServerService.js', () => ({
+    isKataServerAvailable: vi.fn(() => false),
+    generateKataServerMoveCandidateDetails: vi.fn(async () => null),
+}));
 
 function emptyBoard(size: number): number[][] {
     return Array(size).fill(0).map(() => Array(size).fill(Player.None));
@@ -298,6 +302,101 @@ describe('PVP Strategic mode', () => {
             expect(game.boardState[y][x]).toBe(opponent);
         });
 
+    });
+
+    describe('hidden reveal AI resume', () => {
+        it('pair AI seat resumes after full hidden reveal animation without pending capture', async () => {
+            const game = makePvpStrategicGame({
+                isAiGame: false,
+                gameStatus: 'hidden_reveal_animating',
+                revealAnimationEndTime: Date.now() - 10,
+                pendingCapture: null,
+                currentPlayer: Player.White,
+                pausedTurnTimeLeft: 12,
+                turnDeadline: undefined,
+                turnStartTime: undefined,
+            } as Partial<LiveGameSession>);
+
+            (game as any).pendingAiMoveAfterUserHiddenFullReveal = true;
+            (game.settings as any).pairGame = {
+                roomId: 'pair-room-1',
+                pairMode: 'ai',
+                currentTurnIndex: 1,
+                teamA: {
+                    members: [
+                        { id: 'p1-id', name: 'P1', kind: 'user', slot: 'A1' },
+                        { id: 'ally-user', name: 'ALLY', kind: 'user', slot: 'A2' },
+                    ],
+                },
+                teamB: {
+                    members: [
+                        { id: 'pair-opponent-1', name: 'AI-1', kind: 'ai', slot: 'B1' },
+                        { id: 'pet-ai-1', name: 'PET-1', kind: 'pet', slot: 'B2' },
+                    ],
+                },
+                turnOrder: [
+                    { seatId: 'black1', player: Player.Black, order: 1, participantId: 'p1-id', name: 'P1', kind: 'user', teamId: 'teamA', slot: 'A1' },
+                    { seatId: 'white1', player: Player.White, order: 1, participantId: 'pair-opponent-1', name: 'AI-1', kind: 'ai', teamId: 'teamB', slot: 'B1' },
+                    { seatId: 'black2', player: Player.Black, order: 2, participantId: 'ally-user', name: 'ALLY', kind: 'user', teamId: 'teamA', slot: 'A2' },
+                    { seatId: 'white2', player: Player.White, order: 2, participantId: 'pet-ai-1', name: 'PET-1', kind: 'pet', teamId: 'teamB', slot: 'B2' },
+                ],
+            };
+
+            const { updateHiddenState } = await import('../../modes/hidden.js');
+            await updateHiddenState(game, Date.now());
+
+            expect(game.gameStatus).toBe('playing');
+            expect(game.aiTurnStartTime).toBeDefined();
+            expect((game as any).pendingAiMoveAfterUserHiddenFullReveal).toBeUndefined();
+        });
+    });
+
+    describe('pair pet hidden item guard', () => {
+        it('does not trigger hidden animation or consume hidden stones on pet turn', async () => {
+            const game = makePvpStrategicGame({
+                isAiGame: true,
+                gameStatus: 'playing',
+                currentPlayer: Player.White,
+                whitePlayerId: 'pet-ai-1',
+            } as Partial<LiveGameSession>);
+
+            (game as any).hidden_stones_p2 = 1;
+            (game as any).aiHiddenItemsUsedCount = 0;
+            (game as any).aiHiddenItemUsed = false;
+            (game as any).aiHiddenItemTurns = [1];
+            (game.settings as any).pairGame = {
+                roomId: 'pair-room-hidden-guard',
+                pairMode: 'ai',
+                currentTurnIndex: 1,
+                teamA: {
+                    members: [
+                        { id: 'p1-id', name: 'P1', kind: 'user', slot: 'A1' },
+                        { id: 'ally-user', name: 'ALLY', kind: 'user', slot: 'A2' },
+                    ],
+                },
+                teamB: {
+                    members: [
+                        { id: 'pair-opponent-1', name: 'AI-1', kind: 'ai', slot: 'B1' },
+                        { id: 'pet-ai-1', name: 'PET-1', kind: 'pet', slot: 'B2' },
+                    ],
+                },
+                turnOrder: [
+                    { seatId: 'black1', player: Player.Black, order: 1, participantId: 'p1-id', name: 'P1', kind: 'user', teamId: 'teamA', slot: 'A1' },
+                    { seatId: 'white1', player: Player.White, order: 1, participantId: 'pet-ai-1', name: 'PET-1', kind: 'pet', teamId: 'teamB', slot: 'B2' },
+                    { seatId: 'black2', player: Player.Black, order: 2, participantId: 'ally-user', name: 'ALLY', kind: 'user', teamId: 'teamA', slot: 'A2' },
+                    { seatId: 'white2', player: Player.White, order: 2, participantId: 'pair-opponent-1', name: 'AI-1', kind: 'ai', teamId: 'teamB', slot: 'B1' },
+                ],
+            };
+
+            const { makeGoAiBotMove } = await import('../../goAiBot.js');
+            await makeGoAiBotMove(game, 5);
+
+            expect(game.aiHiddenItemAnimationEndTime).toBeUndefined();
+            expect(game.animation?.type).not.toBe('ai_thinking');
+            expect((game as any).hidden_stones_p2).toBe(1);
+            expect((game as any).aiHiddenItemsUsedCount).toBe(0);
+            expect((game as any).pendingAiHiddenPlacement).not.toBe(true);
+        });
     });
 
     describe('scan item', () => {

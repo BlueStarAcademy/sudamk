@@ -23,7 +23,7 @@ import {
     recordSoftHiddenScanDiscovery,
 } from './hiddenScanShared.js';
 import { isStrategicAiGoSession } from '../../shared/utils/strategicBoardItemTurn.js';
-import { getCurrentPairTurnSeat, isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
+import { getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
 import { applyPairTurnAfterHiddenRevealCaptureResolved } from '../utils/pairTurnAfterHiddenRevealAnim.js';
 
 type HandleActionResult = types.HandleActionResult;
@@ -197,7 +197,11 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                         game.turnStartTime = undefined;
                     }
                     game.pausedTurnTimeLeft = undefined;
-                    if (pendingAiAfterUserHiddenReveal && game.isAiGame) {
+                    const pairSeatAfterReveal = isPairClassicGame(game.settings, game.mode)
+                        ? getCurrentPairTurnSeat(game.settings)
+                        : null;
+                    const isPairAiTurnAfterReveal = !!(pairSeatAfterReveal && isPairAiSeat(pairSeatAfterReveal));
+                    if (pendingAiAfterUserHiddenReveal && (game.isAiGame || isPairAiTurnAfterReveal)) {
                         // 즉시 makeAiMove를 강제 호출하면 AI 락 경합으로 스킵되는 케이스가 있어
                         // 메인 루프가 안정적으로 처리하도록 AI 턴 시작 시각만 설정한다.
                         game.aiTurnStartTime = now;
