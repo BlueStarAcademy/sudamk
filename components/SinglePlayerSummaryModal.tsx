@@ -26,6 +26,7 @@ import {
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
 import PairPetLevelUpCoreDelta from './pair/PairPetLevelUpCoreDelta.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
+import { getPairPetDefinition, getPairPetDisplayName } from '../shared/constants/petLobby.js';
 import { effectivePairPetGradeFromRow, pairPetShowsGradeUpgradeNeededInsteadOfXp } from '../shared/constants/pairPetGrade.js';
 import {
     GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX,
@@ -63,6 +64,48 @@ const handleClose = (session: LiveGameSession, onClose: () => void) => {
     // 확인 버튼: 모달만 닫기 (로비로 이동하지 않음)
     onClose();
 };
+
+/** 기록 탭: 펫 경험치/등급강화 구간 상단 — 프로필·이름·레벨 */
+const SpResultRecordPetIdentityRow: React.FC<{
+    imageSrc: string | null;
+    displayName: string;
+    level: number;
+    isMobile: boolean;
+    mobileTextScale: number;
+}> = ({ imageSrc, displayName, level, isMobile, mobileTextScale }) => (
+    <div className={`mb-1 flex flex-shrink-0 items-center gap-1.5 ${isMobile ? '' : 'mb-1.5'}`}>
+        <div
+            className={`relative shrink-0 overflow-hidden rounded-lg border border-fuchsia-500/30 bg-black/40 ring-1 ring-inset ring-fuchsia-400/12 ${
+                isMobile ? 'h-7 w-7' : 'h-10 w-10 min-[1024px]:h-11 min-[1024px]:w-11'
+            }`}
+        >
+            {imageSrc ? (
+                <img src={imageSrc} alt={displayName} className="h-full w-full object-cover" />
+            ) : (
+                <div className="flex h-full w-full items-center justify-center text-[10px] text-fuchsia-200/50">펫</div>
+            )}
+        </div>
+        <div className="min-w-0 flex-1">
+            <p
+                className="truncate font-bold text-fuchsia-100"
+                style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '15px' }}
+                title={displayName}
+            >
+                {displayName}
+            </p>
+            <p
+                className="text-fuchsia-200/70"
+                style={{
+                    fontSize: isMobile
+                        ? `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px`
+                        : '13px',
+                }}
+            >
+                Lv.{level}
+            </p>
+        </div>
+    </div>
+);
 
 const RewardItemDisplay: React.FC<{ item: any; isMobile: boolean }> = ({ item, isMobile }) => (
     <div
@@ -421,6 +464,21 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
         });
     }, [currentUser, displaySummary?.pairPetLevel?.final, displaySummary?.pairPetXp?.change]);
 
+    /** 기록 탭 펫 구간: 장착 펫 프로필·이름(요약의 레벨은 `pairPetLevel`과 함께 표시) */
+    const petRecordRowIdentity = useMemo(() => {
+        const row = getEquippedPairPetInventoryRow(currentUser);
+        if (!row) return null;
+        const def = row.templateId ? getPairPetDefinition(row.templateId) : undefined;
+        const raw = (typeof row.image === 'string' && row.image.length > 0 ? row.image : null) ?? def?.image ?? null;
+        const imageSrc =
+            raw && typeof raw === 'string'
+                ? raw.startsWith('/') || raw.startsWith('http')
+                    ? raw
+                    : `/${raw.replace(/^\//, '')}`
+                : null;
+        return { imageSrc, displayName: getPairPetDisplayName(row) };
+    }, [currentUser]);
+
     const hasRewardSlots = useMemo(
         () =>
             !!displaySummary &&
@@ -731,6 +789,15 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                     )}
                                     {showPetGradeUpgradeInsteadOfXp && displaySummary?.pairPetLevel && displaySummary?.pairPetXp ? (
                                         <div className={`space-y-1 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-1.5`}>
+                                            {petRecordRowIdentity ? (
+                                                <SpResultRecordPetIdentityRow
+                                                    imageSrc={petRecordRowIdentity.imageSrc}
+                                                    displayName={petRecordRowIdentity.displayName}
+                                                    level={displaySummary.pairPetLevel.final}
+                                                    isMobile={isMobile}
+                                                    mobileTextScale={mobileTextScale}
+                                                />
+                                            ) : null}
                                             <p
                                                 className="text-center font-bold uppercase tracking-[0.12em] text-fuchsia-200/90"
                                                 style={{ fontSize: `${9 * mobileTextScale}px` }}
@@ -740,6 +807,15 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                         </div>
                                     ) : petXpBarPercents && displaySummary?.pairPetLevel ? (
                                         <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-1.5`}>
+                                            {petRecordRowIdentity ? (
+                                                <SpResultRecordPetIdentityRow
+                                                    imageSrc={petRecordRowIdentity.imageSrc}
+                                                    displayName={petRecordRowIdentity.displayName}
+                                                    level={displaySummary.pairPetLevel.final}
+                                                    isMobile={isMobile}
+                                                    mobileTextScale={mobileTextScale}
+                                                />
+                                            ) : null}
                                             <div
                                                 className="text-center font-bold uppercase tracking-[0.12em] text-fuchsia-200/80"
                                                 style={{ fontSize: `${9 * mobileTextScale}px` }}
@@ -871,12 +947,30 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                 )}
                                 {showPetGradeUpgradeInsteadOfXp && displaySummary?.pairPetLevel && displaySummary?.pairPetXp ? (
                                     <div className={`space-y-1 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-2`}>
+                                        {petRecordRowIdentity ? (
+                                            <SpResultRecordPetIdentityRow
+                                                imageSrc={petRecordRowIdentity.imageSrc}
+                                                displayName={petRecordRowIdentity.displayName}
+                                                level={displaySummary.pairPetLevel.final}
+                                                isMobile={isMobile}
+                                                mobileTextScale={mobileTextScale}
+                                            />
+                                        ) : null}
                                         <div className="text-center text-[10px] font-bold uppercase tracking-[0.12em] text-fuchsia-200/90 sm:text-xs">
                                             펫 등급강화 필요
                                         </div>
                                     </div>
                                 ) : petXpBarPercents && displaySummary?.pairPetLevel ? (
                                     <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-2`}>
+                                        {petRecordRowIdentity ? (
+                                            <SpResultRecordPetIdentityRow
+                                                imageSrc={petRecordRowIdentity.imageSrc}
+                                                displayName={petRecordRowIdentity.displayName}
+                                                level={displaySummary.pairPetLevel.final}
+                                                isMobile={isMobile}
+                                                mobileTextScale={mobileTextScale}
+                                            />
+                                        ) : null}
                                         <div className="text-center text-[10px] font-bold uppercase tracking-[0.12em] text-fuchsia-200/80 sm:text-xs">
                                             펫 경험치
                                         </div>

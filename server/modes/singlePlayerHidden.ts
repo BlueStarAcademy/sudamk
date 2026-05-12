@@ -11,6 +11,7 @@ import {
 import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
 import { resolveSinglePlayerAutoScoringTurnCap } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 import { aiUserId } from '../aiPlayer.js';
+import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -27,6 +28,12 @@ const isAiSeatTurn = (game: types.LiveGameSession): boolean => {
     if (!id) return false;
     return id === aiUserId || String(id).startsWith('dungeon-bot-');
 };
+
+const hiddenInventoryKeyForPlayer = (player: types.Player): 'hidden_stones_p1' | 'hidden_stones_p2' =>
+    player === types.Player.White ? 'hidden_stones_p2' : 'hidden_stones_p1';
+
+const hiddenUsedKeyForPlayer = (player: types.Player): 'hidden_stones_used_p1' | 'hidden_stones_used_p2' =>
+    player === types.Player.White ? 'hidden_stones_used_p2' : 'hidden_stones_used_p1';
 
 export const initializeSinglePlayerHidden = (game: types.LiveGameSession) => {
     const isHiddenMode = game.mode === types.GameMode.Hidden || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
@@ -130,7 +137,7 @@ export const initializeSinglePlayerHidden = (game: types.LiveGameSession) => {
 
 export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession, now: number) => {
     // 싱글플레이 게임이 아니면 처리하지 않음
-    if (!game.isSinglePlayer) {
+    if (resolveArenaSessionPolicy(game as any).kind !== 'singleplayer') {
         return;
     }
 
@@ -165,11 +172,11 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
         // 아이템 소멸 처리
         if (currentItemMode === 'hidden_placing') {
             // 히든 아이템 소멸 (스캔 아이템처럼 개수 감소)
-            const hiddenKey = timedOutPlayerId === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
+            const hiddenKey = hiddenInventoryKeyForPlayer(timedOutPlayerEnum);
             const currentHidden = game[hiddenKey] ?? 0;
             if (currentHidden > 0) {
                 game[hiddenKey] = currentHidden - 1;
-                const usedKey = timedOutPlayerId === game.player1.id ? 'hidden_stones_used_p1' : 'hidden_stones_used_p2';
+                const usedKey = hiddenUsedKeyForPlayer(timedOutPlayerEnum);
                 game[usedKey] = (game[usedKey] || 0) + 1;
                 console.log(`[updateSinglePlayerHiddenState] Hidden item consumed: ${hiddenKey} ${currentHidden} -> ${game[hiddenKey]}, gameId=${game.id}`);
             }
@@ -269,7 +276,7 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
 
 export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileState, game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): HandleActionResult | null => {
     // 싱글플레이 게임이 아니면 처리하지 않음
-    if (!game.isSinglePlayer) {
+    if (resolveArenaSessionPolicy(game as any).kind !== 'singleplayer') {
         return null;
     }
 
@@ -294,7 +301,7 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
             }
             
             // 히든 아이템 개수 확인
-            const hiddenKey = user.id === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
+            const hiddenKey = hiddenInventoryKeyForPlayer(myPlayerEnum);
             const currentHidden = game[hiddenKey] ?? 0;
             if (currentHidden <= 0) {
                 console.log(`[handleSinglePlayerHiddenAction] START_HIDDEN_PLACEMENT rejected: No hidden stones left - ${hiddenKey}=${currentHidden}`);

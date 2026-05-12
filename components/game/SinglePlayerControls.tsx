@@ -205,8 +205,9 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     const refreshDisabled = !canRefresh || !canAfford || usedMissileBeforeFirstMove;
     const gameStatus = session.gameStatus;
     
-    // 히든 아이템 (스캔 아이템처럼 개수 기반)
-    const hiddenLeft = resolvePveItemCount(session.hidden_stones_p1, hiddenCountSetting);
+    // 히든 재고는 본대국 색상 기준(p1=흑, p2=백)이다. 베이스바둑 후 유저가 백이면 p2를 보여줘야 한다.
+    const myHiddenRaw = myPlayerEnum === Player.White ? session.hidden_stones_p2 : session.hidden_stones_p1;
+    const hiddenLeft = resolvePveItemCount(myHiddenRaw, hiddenCountSetting);
     const hiddenDisabled = isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing' || hiddenLeft <= 0;
     
     const handleUseHidden = React.useCallback(() => {

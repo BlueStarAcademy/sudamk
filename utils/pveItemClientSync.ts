@@ -1,5 +1,17 @@
 import type { LiveGameSession } from '../types/entities.js';
 import type { PveItemActionClientSync } from '../types/api.js';
+import { Player } from '../types/enums.js';
+import { aiUserId } from '../shared/constants/auth.js';
+
+const isAiControlledPlayerId = (id: string | undefined | null): boolean =>
+    id === aiUserId || Boolean(id && (id.startsWith('dungeon-bot-') || id.startsWith('pair-') || id.startsWith('pet-ai-')));
+
+const getOwnerIdAt = (session: LiveGameSession, x: number, y: number): string | null | undefined => {
+    const owner = session.boardState?.[y]?.[x];
+    if (owner === Player.Black) return session.blackPlayerId;
+    if (owner === Player.White) return session.whitePlayerId;
+    return undefined;
+};
 
 /** 탑/싱글 PVE: 서버 히든·스캔 검증용 스냅샷 (TOWER_CLIENT_MOVE 등으로 서버가 뒤처진 경우) */
 export function buildPveItemActionClientSync(session: LiveGameSession): PveItemActionClientSync | undefined {
@@ -29,7 +41,10 @@ export function buildPveItemActionClientSync(session: LiveGameSession): PveItemA
     };
     const ai = (session as { aiInitialHiddenStone?: { x: number; y: number } | null }).aiInitialHiddenStone;
     if (ai != null && typeof ai === 'object' && typeof ai.x === 'number' && typeof ai.y === 'number') {
-        sync.aiInitialHiddenStone = { x: ai.x, y: ai.y };
+        const ownerId = getOwnerIdAt(session, ai.x, ai.y);
+        if (isAiControlledPlayerId(ownerId)) {
+            sync.aiInitialHiddenStone = { x: ai.x, y: ai.y };
+        }
     } else if (ai === null) {
         sync.aiInitialHiddenStone = null;
     }

@@ -326,11 +326,9 @@ export async function computeStrategicPetKataHintMove(
     return legalFb[0] ?? null;
 }
 
-/** 전략 AI 대국: 히든 개수는 player1/player2 좌석 기준(hidden_stones_p1/p2). AI가 항상 p2라는 가정은 길드전·색 배정에 깨질 수 있음 */
-function getStrategicAiHiddenStonesKey(game: types.LiveGameSession, aiPlayerEnum: types.Player): 'hidden_stones_p1' | 'hidden_stones_p2' {
-    const aiPlayerId = aiPlayerEnum === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-    if (!aiPlayerId || !game.player1?.id) return 'hidden_stones_p2';
-    return aiPlayerId === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
+/** 히든 재고 p1/p2는 좌석이 아니라 흑/백 색상 기준이다. 베이스/덤으로 AI가 흑이 될 수 있어 색상에서만 파생한다. */
+function getStrategicAiHiddenStonesKey(aiPlayerEnum: types.Player): 'hidden_stones_p1' | 'hidden_stones_p2' {
+    return aiPlayerEnum === types.Player.Black ? 'hidden_stones_p1' : 'hidden_stones_p2';
 }
 
 /**
@@ -1001,24 +999,7 @@ export function getGoAiBotProfile(level: number): GoAiBotProfile {
  */
 /** AI 대국에서 유저 히든을 AI에게 숨길지 여부 */
 function shouldMaskUserHiddenFromAi(game: types.LiveGameSession): boolean {
-    const isHiddenMode =
-        game.mode === types.GameMode.Hidden ||
-        (game.mode === types.GameMode.Mix && !!game.settings.mixedModes?.includes(types.GameMode.Hidden));
-    if (!isHiddenMode) return false;
-
-    const category = (game as any).gameCategory;
-    const isSingleOrTower = game.isSinglePlayer || category === 'tower';
-    /** 길드전 히든: 싱글/탑과 동일하게 유저 미공개 히든은 통과·빈칸으로만 인식 */
-    const isGuildWarHiddenAi = category === 'guildwar' && !!game.isAiGame;
-    // 전략바둑 AI 대국: 유저 히든을 AI가 모르게 처리 (유저가 통과한 것처럼 인식)
-    const isStrategicAiGame =
-        !!game.isAiGame &&
-        !game.isSinglePlayer &&
-        category !== 'tower' &&
-        category !== 'singleplayer' &&
-        category !== 'guildwar';
-
-    return isSingleOrTower || isGuildWarHiddenAi || isStrategicAiGame;
+    return resolveArenaSessionPolicy(game as any).masksHumanHiddenFromAi;
 }
 
 /**
@@ -1072,10 +1053,10 @@ function isMissileStrategicPve(game: types.LiveGameSession): boolean {
         game.mode === types.GameMode.Missile ||
         (game.mode === types.GameMode.Mix && !!game.settings.mixedModes?.includes(types.GameMode.Missile));
     if (!missileMode) return false;
-    const cat = String((game as any).gameCategory ?? '');
     // 길드전(온라인)은 미사일 이동 후에도 moveHistory 좌표가 보드와 함께 갱신되므로
     // "판 스냅샷만 Kata에 넣는" PVE 경로를 쓰면 차례·합법수가 어긋져 패스/무수 처리로 이어질 수 있다.
-    return game.isSinglePlayer || cat === 'tower' || cat === 'adventure';
+    const policy = resolveArenaSessionPolicy(game as any);
+    return policy.kind === 'singleplayer' || policy.kind === 'tower' || policy.kind === 'adventure';
 }
 
 /**
@@ -1156,12 +1137,12 @@ function buildKataMoveHistory(
 
     // 따내기·고정 포석 등: 선배치가 moveHistory에 없어 Kata가 빈 판으로만 재생하는 문제 방지
     // (도전의 탑·싱글·길드전·모험 등 moveHistory 없이 board만 깔리는 형태)
-    const cat = (game as any).gameCategory;
+    const policy = resolveArenaSessionPolicy(game as any);
     const needsKataBoardSetupPrefix =
-        game.isSinglePlayer ||
-        cat === 'tower' ||
-        cat === 'guildwar' ||
-        cat === 'adventure';
+        policy.kind === 'singleplayer' ||
+        policy.kind === 'tower' ||
+        policy.kind === 'guildwar' ||
+        policy.kind === 'adventure';
     if (!needsKataBoardSetupPrefix) return moveHistory;
 
     const bs = game.settings?.boardSize ?? 19;
@@ -1462,7 +1443,7 @@ function isOnOrAdjacentToUserUnrevealedHidden(
 }
 
 function isAdventureAiHiddenGame(game: types.LiveGameSession): boolean {
-    return (game as any).gameCategory === 'adventure';
+    return resolveArenaSessionPolicy(game as any).kind === 'adventure';
 }
 
 /**
@@ -1976,7 +1957,7 @@ export async function makeGoAiBotMove(
         !game.isSinglePlayer &&
         (game as any).gameCategory !== 'tower' &&
         (game as any).gameCategory !== 'singleplayer';
-    const aiHiddenKey = getStrategicAiHiddenStonesKey(game, aiPlayerEnum);
+    const aiHiddenKey = getStrategicAiHiddenStonesKey(aiPlayerEnum);
     if (isHiddenMode && isStrategicAiGame && (game as any)[aiHiddenKey] === undefined) {
         const cap = (game.settings as any)?.hiddenStoneCount ?? 0;
         if (cap > 0) {

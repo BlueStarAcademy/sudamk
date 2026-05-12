@@ -6,6 +6,8 @@
 import { Player, LiveGameSession, Point, GameMode } from '../types/index.js';
 import { getFischerIncrementSeconds } from '../shared/utils/gameTimeControl.js';
 import { recordPatternStoneConsumed, stripPatternStonesAtConsumedIntersections } from '../shared/utils/patternStoneConsume.js';
+import { aiUserId } from '../shared/constants/auth.js';
+import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import {
     isIntersectionRecordedAsBaseStone,
     removeCapturedBaseStoneMarkersFromSession,
@@ -122,6 +124,24 @@ const isHiddenModeActive = (game: LiveGameSession, hiddenMoves: { [moveIndex: nu
     ((game.settings as any)?.hiddenStoneCount ?? 0) > 0 ||
     Object.keys(hiddenMoves).length > 0 ||
     !!(game as any).aiInitialHiddenStone;
+
+const isAiControlledPlayerId = (id: string | undefined | null): boolean =>
+    id === aiUserId || Boolean(id && (id.startsWith('dungeon-bot-') || id.startsWith('pair-') || id.startsWith('pet-ai-')));
+
+const getPlayerIdForEnum = (game: LiveGameSession, player: Player): string | null | undefined =>
+    player === Player.Black ? game.blackPlayerId : player === Player.White ? game.whitePlayerId : undefined;
+
+const getHiddenInventoryKeyForPlayer = (player: Player): 'hidden_stones_p1' | 'hidden_stones_p2' =>
+    player === Player.Black ? 'hidden_stones_p1' : 'hidden_stones_p2';
+
+const isHumanPveHiddenMove = (game: LiveGameSession, movePlayer: Player): boolean => {
+    const policy = resolveArenaSessionPolicy(game as any);
+    if (policy.matchAxis !== 'pve') return false;
+    const playerId = getPlayerIdForEnum(game, movePlayer);
+    if (playerId) return !isAiControlledPlayerId(playerId);
+    // 구 세션 폴백: 싱글/탑은 기존처럼 유저 흑을 기본값으로 둔다.
+    return movePlayer === Player.Black;
+};
 
 /**
  * 클라이언트 이동 처리 후 게임 상태 업데이트
@@ -448,19 +468,20 @@ export function updateGameStateAfterMove(
         ...(updatedTotalTurns !== undefined ? { totalTurns: updatedTotalTurns } as any : {}),
     };
 
-    if ((gameType === 'tower' || gameType === 'singleplayer') && isHidden && movePlayer === Player.Black) {
+    if ((gameType === 'tower' || gameType === 'singleplayer') && isHidden && isHumanPveHiddenMove(game, movePlayer)) {
         (updatedGame as any).gameStatus = 'playing';
-        const hiddenKey = 'hidden_stones_p1';
+        const hiddenKey = getHiddenInventoryKeyForPlayer(movePlayer);
         const current = (game as any)[hiddenKey] ?? (game.settings as any)?.hiddenStoneCount ?? 0;
         (updatedGame as any)[hiddenKey] = Math.max(0, current - 1);
     }
 
-    if ((gameType === 'singleplayer' || gameType === 'tower') && isHidden && movePlayer === Player.White) {
+    if ((gameType === 'singleplayer' || gameType === 'tower') && isHidden && !isHumanPveHiddenMove(game, movePlayer)) {
         (updatedGame as any).gameStatus = 'playing';
         (updatedGame as any).aiInitialHiddenStone = { x, y };
         (updatedGame as any).aiInitialHiddenStoneIsPrePlaced = false;
-        const p2Hidden = (game as any).hidden_stones_p2 ?? (game.settings as any)?.hiddenStoneCount ?? 0;
-        (updatedGame as any).hidden_stones_p2 = Math.max(0, p2Hidden - 1);
+        const aiHiddenKey = getHiddenInventoryKeyForPlayer(movePlayer);
+        const aiHidden = (game as any)[aiHiddenKey] ?? (game.settings as any)?.hiddenStoneCount ?? 0;
+        (updatedGame as any)[aiHiddenKey] = Math.max(0, aiHidden - 1);
         const plannedTurns = Array.isArray((game as any).aiHiddenItemTurns) ? (game as any).aiHiddenItemTurns as number[] : [];
         const usedCount = Math.max(0, Number((game as any).aiHiddenItemsUsedCount ?? 0));
         const nextUsedCount = usedCount + 1;

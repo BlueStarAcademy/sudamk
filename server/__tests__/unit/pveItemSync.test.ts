@@ -195,6 +195,42 @@ describe('PVE item client sync', () => {
         expect(game.aiInitialHiddenStone).toEqual({ x: 2, y: 2 });
     });
 
+    it('ignores client aiInitialHiddenStone when the coordinate belongs to the human', () => {
+        const board = emptyBoard(5);
+        board[1][1] = Player.Black;
+        board[2][2] = Player.White;
+        const game: any = {
+            id: 'pve-human-hidden-not-ai-initial',
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            blackPlayerId: 'ai-player-01',
+            whitePlayerId: 'human-1',
+            boardState: board,
+            moveHistory: [
+                { x: 1, y: 1, player: Player.Black },
+                { x: 2, y: 2, player: Player.White },
+            ],
+            currentPlayer: Player.Black,
+            gameStatus: 'playing',
+            mode: 'mix',
+            settings: { mixedModes: ['base', 'hidden'] },
+            hiddenMoves: { '1': true },
+        };
+
+        applyPveItemActionClientSync(game, {
+            clientSync: {
+                boardState: board.map((row) => [...row]),
+                moveHistory: game.moveHistory.map((move: any) => ({ ...move })),
+                hiddenMoves: { '1': true },
+                aiInitialHiddenStone: { x: 2, y: 2 },
+                currentPlayer: Player.Black,
+                gameStatus: 'playing',
+            },
+        });
+
+        expect(game.aiInitialHiddenStone).toBeUndefined();
+    });
+
     it('carries PVE overlay metadata from the client before a server AI hidden move', () => {
         const board = emptyBoard(5);
         board[1][1] = Player.Black;

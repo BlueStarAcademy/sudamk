@@ -1274,7 +1274,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 : Math.max(0, Number(session.whiteTimeLeft ?? 0));
         const current = Math.max(0, Number(currentMainTimeLeft) || 0);
         const liveTurnUsedSecRaw = getLiveTurnUsedSecRawForSpeedBonusUi(playerEnum, storedAtTurnStart, current);
-        const liveTurnUsedSec = applyPveSpeedTimePressureGraceToLiveUsedSec(session, playerEnum, liveTurnUsedSecRaw, aiUserId);
+        const liveTurnUsedSec = applyPveSpeedTimePressureGraceToLiveUsedSec(session as any, playerEnum, liveTurnUsedSecRaw, aiUserId);
         const usedSec = committedUsedSec + liveTurnUsedSec;
         return Math.floor(usedSec / 10);
     };
@@ -1333,7 +1333,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 : Math.max(0, Number(session.whiteTimeLeft ?? 0));
         const current = Math.max(0, Number(currentMainTimeLeft) || 0);
         const liveTurnUsedSecRaw = getLiveTurnUsedSecRawForSpeedBonusUi(playerEnum, storedAtTurnStart, current);
-        const liveTurnUsedSec = applyPveSpeedTimePressureGraceToLiveUsedSec(session, playerEnum, liveTurnUsedSecRaw, aiUserId);
+        const liveTurnUsedSec = applyPveSpeedTimePressureGraceToLiveUsedSec(session as any, playerEnum, liveTurnUsedSecRaw, aiUserId);
         const usedSec = committedUsedSec + liveTurnUsedSec;
         const withinChunk = ((usedSec % 10) + 10) % 10;
         const secToNextDropRaw = 10 - withinChunk;
@@ -1467,7 +1467,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 : Math.max(0, Number(session.whiteTimeLeft ?? 0));
         const current = Math.max(0, Number(liveMainTime) || 0);
         const liveTurnUsedSecRaw = getLiveTurnUsedSecRawForSpeedBonusUi(playerEnum, storedAtTurnStart, current);
-        const liveTurnUsedSec = applyPveSpeedTimePressureGraceToLiveUsedSec(session, playerEnum, liveTurnUsedSecRaw, aiUserId);
+        const liveTurnUsedSec = applyPveSpeedTimePressureGraceToLiveUsedSec(session as any, playerEnum, liveTurnUsedSecRaw, aiUserId);
         return committedUsedSec + liveTurnUsedSec;
     };
     const humanCumulativeUsedSecForAiSpeed =

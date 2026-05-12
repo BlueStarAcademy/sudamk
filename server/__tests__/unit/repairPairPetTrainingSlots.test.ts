@@ -23,7 +23,7 @@ describe('repairInProgressGhostPairPetTrainingSessions', () => {
             ]),
         });
         expect(repairInProgressGhostPairPetTrainingSessions(user)).toBe(true);
-        expect(user.pairPetTrainingSlots[0]).toBeNull();
+        expect(user.pairPetTrainingSlots![0]).toBeNull();
     });
 
     it('keeps completed session when pet is missing (claim path)', () => {
@@ -36,6 +36,6 @@ describe('repairInProgressGhostPairPetTrainingSessions', () => {
             ]),
         });
         expect(repairInProgressGhostPairPetTrainingSessions(user)).toBe(false);
-        expect(user.pairPetTrainingSlots[0]?.itemId).toBe('gone-pet');
+        expect(user.pairPetTrainingSlots![0]?.itemId).toBe('gone-pet');
     });
 });

@@ -50,8 +50,8 @@ export function getSpeedTimePressureConsumptionSnapshot(
         if (session.blackPlayerId === aiUserId) liveBlackTurnUsed = 0;
         if (session.whitePlayerId === aiUserId) liveWhiteTurnUsed = 0;
     }
-    liveBlackTurnUsed = applyPveSpeedTimePressureGraceToLiveUsedSec(session, Player.Black, liveBlackTurnUsed, aiUserId);
-    liveWhiteTurnUsed = applyPveSpeedTimePressureGraceToLiveUsedSec(session, Player.White, liveWhiteTurnUsed, aiUserId);
+    liveBlackTurnUsed = applyPveSpeedTimePressureGraceToLiveUsedSec(session as any, Player.Black, liveBlackTurnUsed, aiUserId);
+    liveWhiteTurnUsed = applyPveSpeedTimePressureGraceToLiveUsedSec(session as any, Player.White, liveWhiteTurnUsed, aiUserId);
     return {
         blackConsumed: committedBlackConsumed + liveBlackTurnUsed,
         whiteConsumed: committedWhiteConsumed + liveWhiteTurnUsed,

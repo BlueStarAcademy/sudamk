@@ -1,5 +1,6 @@
 import type { LiveGameSession, PveItemActionClientSync } from '../shared/types/index.js';
 import { GameMode, Player } from '../types/index.js';
+import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 
 /** 히든/스캔 모드 진입 등: 클라 `hiddenMoves`·`aiInitialHiddenStone` 병합으로 잘못된 돌이 히든으로 보이는 것을 막음 */
 export type ApplyPveItemActionClientSyncOptions = {
@@ -11,6 +12,11 @@ const DEFAULT_AI_USER_ID = 'ai-player-01';
 function isAiControlledPlayer(game: LiveGameSession, player: Player): boolean {
     const playerId = player === Player.Black ? game.blackPlayerId : player === Player.White ? game.whitePlayerId : undefined;
     return playerId === DEFAULT_AI_USER_ID || String(playerId ?? '').startsWith('dungeon-bot-');
+}
+
+function getBoardOwnerAt(game: LiveGameSession, x: number, y: number): Player | undefined {
+    const owner = game.boardState?.[y]?.[x];
+    return owner === Player.Black || owner === Player.White ? owner : undefined;
 }
 
 function isPlayablePoint(move: { x?: number; y?: number } | undefined): move is { x: number; y: number } {
@@ -334,10 +340,12 @@ export function applyPveItemActionClientSync(
             typeof (sync.aiInitialHiddenStone as { x?: number }).x === 'number' &&
             typeof (sync.aiInitialHiddenStone as { y?: number }).y === 'number'
         ) {
-            (game as { aiInitialHiddenStone?: { x: number; y: number } }).aiInitialHiddenStone = {
-                x: sync.aiInitialHiddenStone.x,
-                y: sync.aiInitialHiddenStone.y,
-            };
+            const x = sync.aiInitialHiddenStone.x;
+            const y = sync.aiInitialHiddenStone.y;
+            const owner = getBoardOwnerAt(game, x, y);
+            if (owner !== undefined && isAiControlledPlayer(game, owner)) {
+                (game as { aiInitialHiddenStone?: { x: number; y: number } }).aiInitialHiddenStone = { x, y };
+            }
         }
     }
     if (sync.currentPlayer !== undefined && sync.currentPlayer !== null) {
@@ -390,10 +398,8 @@ export function applyPveItemActionClientSync(
 
     enforcePlayingSeatLockOnPveItemSync(game);
 
-    const gc = String((game as any).gameCategory ?? '');
-    const pveLike =
-        game.isSinglePlayer || gc === 'tower' || gc === 'singleplayer' || gc === 'guildwar' || gc === 'adventure';
-    if (pveLike) {
+    const policy = resolveArenaSessionPolicy(game as any);
+    if (policy.matchAxis === 'pve') {
         // clientSync 이후에도 남은 오프닝 스냅샷 + 수순 조합이 Kata 재생과 어긋나 Illegal move가 날 수 있음 → 다음 AI에서 재검증
         (game as any).kataPveKataMovesFromBoardStateOnly = false;
     }

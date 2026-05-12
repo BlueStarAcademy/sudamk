@@ -34,6 +34,8 @@ export type ArenaSessionPolicy = {
     usesAdventureScoringCap: boolean;
     isClientAuthoritativeForScoringSnapshot: boolean;
     deferAutoScoringAfterAi: boolean;
+    usesHiddenRule: boolean;
+    masksHumanHiddenFromAi: boolean;
 };
 
 const hasNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
@@ -44,6 +46,10 @@ export function modeIncludesCaptureRule(mode: unknown, settings: Pick<GameSettin
 
 export function modeIncludesBaseRule(mode: unknown, settings: Pick<GameSettings, 'mixedModes'> | null | undefined): boolean {
     return mode === GameMode.Base || (mode === GameMode.Mix && Boolean(settings?.mixedModes?.includes?.(GameMode.Base)));
+}
+
+export function modeIncludesHiddenRule(mode: unknown, settings: Pick<GameSettings, 'mixedModes'> | null | undefined): boolean {
+    return mode === GameMode.Hidden || (mode === GameMode.Mix && Boolean(settings?.mixedModes?.includes?.(GameMode.Hidden)));
 }
 
 export function modeIncludesBaseCaptureMix(mode: unknown, settings: Pick<GameSettings, 'mixedModes'> | null | undefined): boolean {
@@ -177,6 +183,7 @@ export function resolveArenaSessionPolicy(session: SessionLike | null | undefine
     const pairTeamComposition = resolvePairTeamComposition(settings);
     const matchAxis = resolveArenaMatchAxis(session);
     const captureRule = modeIncludesCaptureRule(session?.mode, settings);
+    const hiddenRule = modeIncludesHiddenRule(session?.mode, settings);
 
     const usesAdventureScoringCap = kind === GameCategory.Adventure && !captureRule;
     const countPassAsTurn =
@@ -215,5 +222,7 @@ export function resolveArenaSessionPolicy(session: SessionLike | null | undefine
         usesAdventureScoringCap,
         isClientAuthoritativeForScoringSnapshot: kind === GameCategory.SinglePlayer || kind === GameCategory.Tower,
         deferAutoScoringAfterAi: kind === GameCategory.SinglePlayer || kind === GameCategory.Tower || isStrategicAiLike,
+        usesHiddenRule: hiddenRule,
+        masksHumanHiddenFromAi: hiddenRule && matchAxis === 'pve',
     };
 }

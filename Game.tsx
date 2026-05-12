@@ -981,6 +981,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     /** 수순이 짧아지는 재동기화(히든 공개 후 턴 유지 등)에서 꼬리만 바뀌며 착점 소리가 나는 오탐 방지 */
     const strategicPlaceSoundGameIdRef = useRef<string>('');
     const strategicPlaceHistoryLenRef = useRef<number | undefined>(undefined);
+    /** 같은 히든 공개 WS/복구 패킷이 반복되어도 공개음은 한 번만 재생 */
+    const hiddenRevealSoundKeyRef = useRef<string>('');
     const prevMoveCount = usePrevious(session.moveHistory?.length);
     const myBaseStoneCountForUnlock = useMemo(() => {
         if (gameStatus !== 'base_placement') return undefined;
@@ -1963,7 +1965,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (anim && anim.type !== prevAnimationType) { 
             switch(anim.type) {
                 case 'missile': case 'hidden_missile': if (!skipSound) audioService.launchMissile(); break;
-                case 'hidden_reveal': if (!justScanned) audioService.revealHiddenStone(); break;
+                case 'hidden_reveal': {
+                    const stonesSig = (anim.stones || [])
+                        .map((s: { point?: { x?: number; y?: number } }) => `${s.point?.x ?? ''},${s.point?.y ?? ''}`)
+                        .sort()
+                        .join('|');
+                    const key = `${session.id}:${session.moveHistory?.length ?? 0}:${stonesSig}`;
+                    if (!justScanned && key && hiddenRevealSoundKeyRef.current !== key) {
+                        hiddenRevealSoundKeyRef.current = key;
+                        audioService.revealHiddenStone();
+                    }
+                    break;
+                }
                 case 'scan':
                     setJustScanned(true); setTimeout(() => setJustScanned(false), 1000);
                     if (anim.success) audioService.scanSuccess(); else audioService.scanFail();
@@ -2011,6 +2024,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     useEffect(() => {
         if (!(isSinglePlayer || isTower || isGuildWarHiddenClientEffects)) return;
+        if ((session as any).pendingAiMoveAfterUserHiddenFullReveal) return;
         const revealEndTime = session.revealAnimationEndTime;
         const hasRevealToFinalize =
             typeof revealEndTime === 'number' &&
@@ -2030,7 +2044,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }, remaining + 50);
 
         return () => window.clearTimeout(id);
-    }, [session.gameStatus, session.revealAnimationEndTime, session.pendingCapture, session.id, isSinglePlayer, isTower, isGuildWarHiddenClientEffects, handlers.handleAction]);
+    }, [session.gameStatus, session.revealAnimationEndTime, session.pendingCapture, session.id, (session as any).pendingAiMoveAfterUserHiddenFullReveal, isSinglePlayer, isTower, isGuildWarHiddenClientEffects, handlers.handleAction]);
 
     // 스캔 결과 애니메이션 종료 시 본경기(playing) 복귀 — 서버 updateGameStates/WS가 늦어도 착수 가능 (PVE + 온라인 히든)
     useEffect(() => {

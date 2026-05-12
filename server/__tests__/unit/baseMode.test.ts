@@ -261,6 +261,102 @@ describe('base mode', () => {
         expect(updatedGame.baseStones).toEqual([{ x: 2, y: 2, player: Player.Black }]);
     });
 
+    it('treats a white human hidden placement as user inventory, not AI hidden metadata', () => {
+        const game = {
+            id: 'sp-base-hidden-white-human',
+            mode: GameMode.Mix,
+            gameCategory: GameCategory.SinglePlayer,
+            isSinglePlayer: true,
+            isAiGame: true,
+            player1: makeUser('human-1'),
+            player2: makeUser(aiUserId),
+            blackPlayerId: aiUserId,
+            whitePlayerId: 'human-1',
+            gameStatus: 'hidden_placing' as GameStatus,
+            currentPlayer: Player.White,
+            settings: { boardSize: 5, mixedModes: [GameMode.Base, GameMode.Hidden], hiddenStoneCount: 2 } as any,
+            boardState: Array.from({ length: 5 }, () => Array(5).fill(Player.None)),
+            moveHistory: [],
+            captures: { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
+            baseStoneCaptures: { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
+            hiddenStoneCaptures: { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
+            hiddenMoves: {},
+            permanentlyRevealedStones: [],
+            hidden_stones_p1: 2,
+            hidden_stones_p2: 2,
+        } as unknown as LiveGameSession;
+        const newBoardState = Array.from({ length: 5 }, () => Array(5).fill(Player.None));
+        newBoardState[3][3] = Player.White;
+
+        const { updatedGame } = updateGameStateAfterMove(
+            game,
+            {
+                gameId: game.id,
+                x: 3,
+                y: 3,
+                newBoardState,
+                capturedStones: [],
+                newKoInfo: null,
+                movePlayer: Player.White,
+                isHidden: true,
+            },
+            'singleplayer'
+        );
+
+        expect(updatedGame.hiddenMoves?.[0]).toBe(true);
+        expect((updatedGame as any).hidden_stones_p1).toBe(2);
+        expect((updatedGame as any).hidden_stones_p2).toBe(1);
+        expect((updatedGame as any).aiInitialHiddenStone).toBeUndefined();
+    });
+
+    it('uses black inventory when the single-player AI is black and places a hidden stone', () => {
+        const game = {
+            id: 'sp-base-hidden-black-ai',
+            mode: GameMode.Mix,
+            gameCategory: GameCategory.SinglePlayer,
+            isSinglePlayer: true,
+            isAiGame: true,
+            player1: makeUser('human-1'),
+            player2: makeUser(aiUserId),
+            blackPlayerId: aiUserId,
+            whitePlayerId: 'human-1',
+            gameStatus: 'playing' as GameStatus,
+            currentPlayer: Player.Black,
+            settings: { boardSize: 5, mixedModes: [GameMode.Base, GameMode.Hidden], hiddenStoneCount: 2 } as any,
+            boardState: Array.from({ length: 5 }, () => Array(5).fill(Player.None)),
+            moveHistory: [],
+            captures: { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
+            baseStoneCaptures: { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
+            hiddenStoneCaptures: { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
+            hiddenMoves: {},
+            permanentlyRevealedStones: [],
+            hidden_stones_p1: 2,
+            hidden_stones_p2: 2,
+        } as unknown as LiveGameSession;
+        const newBoardState = Array.from({ length: 5 }, () => Array(5).fill(Player.None));
+        newBoardState[1][1] = Player.Black;
+
+        const { updatedGame } = updateGameStateAfterMove(
+            game,
+            {
+                gameId: game.id,
+                x: 1,
+                y: 1,
+                newBoardState,
+                capturedStones: [],
+                newKoInfo: null,
+                movePlayer: Player.Black,
+                isHidden: true,
+            },
+            'singleplayer'
+        );
+
+        expect(updatedGame.hiddenMoves?.[0]).toBe(true);
+        expect((updatedGame as any).hidden_stones_p1).toBe(1);
+        expect((updatedGame as any).hidden_stones_p2).toBe(2);
+        expect((updatedGame as any).aiInitialHiddenStone).toEqual({ x: 1, y: 1 });
+    });
+
     it('reverts drifted black/white ids to playing-locked seat ids during play', () => {
         const game = makeBaseGame({
             id: 'base-seat-lock-drift-test',
