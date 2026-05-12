@@ -443,11 +443,6 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
         if (!petXpBarPercents || !displaySummary?.pairPetLevel) return null;
         return (
             <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} mt-1.5 flex-shrink-0 ${compact ? 'p-1' : 'p-1.5'}`}>
-                <div
-                    className={`text-center font-bold uppercase tracking-[0.12em] text-fuchsia-200/80 ${compact ? 'text-[8px]' : 'text-[10px] sm:text-xs'}`}
-                >
-                    펫 경험치
-                </div>
                 <StrategyXpResultBar
                     previousXpPercent={petXpBarPercents.previous}
                     finalXpPercent={petXpBarPercents.final}

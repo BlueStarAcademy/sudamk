@@ -2168,8 +2168,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                         density={useCompactRewardSlots ? 'compact' : 'comfortable'}
                                         title={
                                             mySummary.pairPetXp.change > 0
-                                                ? `펫 경험치 +${mySummary.pairPetXp.change.toLocaleString()}`
-                                                : '펫 경험치 변동 없음'
+                                                ? `EXP +${mySummary.pairPetXp.change.toLocaleString()}`
+                                                : '변동 없음'
                                         }
                                         allowZeroDisplay={isPairGoSession}
                                     />

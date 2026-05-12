@@ -53,6 +53,16 @@ function cleanupScoringPrecompute(nowMs: number): void {
     }
 }
 
+function shouldDeferScoringForHiddenRevealAnimation(game: types.LiveGameSession, now: number): boolean {
+    if (game.gameStatus !== 'hidden_final_reveal' && game.gameStatus !== 'hidden_reveal_animating') {
+        return false;
+    }
+    if (!game.animation || game.animation.type !== 'hidden_reveal') {
+        return false;
+    }
+    return typeof game.revealAnimationEndTime === 'number' && now < game.revealAnimationEndTime;
+}
+
 /**
  * 계가(Kata) 직전: 미공개 히든 착점을 최종 국면에 맞게 보드에 반영하고, 공개 목록·메타를 정리한다.
  * - analyzeGame은 boardState의 실돌만 전달하므로, 히든 플래그만 남고 칸이 비면 영토에서 빠질 수 있음
@@ -84,7 +94,6 @@ function finalizeHiddenStonesForScoring(game: types.LiveGameSession): void {
                 if (!game.permanentlyRevealedStones.some((p) => p.x === x && p.y === y)) {
                     game.permanentlyRevealedStones.push({ x, y });
                 }
-                delete game.hiddenMoves[i];
             } else if (cell === types.Player.None) {
                 // 계가 직전에는 boardState를 절대 수정하지 않는다.
                 // hiddenMoves 메타만으로 빈 칸을 복원하면, 이미 따낸 히든돌이 부활해
@@ -236,6 +245,11 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     const hasUsedMissile = isMissileMode && (p1MissilesUsed > 0 || p2MissilesUsed > 0);
 
     const isHiddenMode = game.mode === types.GameMode.Hidden || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
+    if (isHiddenMode && shouldDeferScoringForHiddenRevealAnimation(game, Date.now())) {
+        console.log(`[getGameResult] Hidden reveal animation still running for game ${game.id}, deferring scoring`);
+        return game;
+    }
+
     const p1ScansUsed = (game.settings.scanCount ?? 0) - (game.scans_p1 ?? game.settings.scanCount ?? 0);
     const p2ScansUsed = (game.settings.scanCount ?? 0) - (game.scans_p2 ?? game.settings.scanCount ?? 0);
     const hasUsedScan = isHiddenMode && (p1ScansUsed > 0 || p2ScansUsed > 0);

@@ -816,12 +816,6 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                                     mobileTextScale={mobileTextScale}
                                                 />
                                             ) : null}
-                                            <div
-                                                className="text-center font-bold uppercase tracking-[0.12em] text-fuchsia-200/80"
-                                                style={{ fontSize: `${9 * mobileTextScale}px` }}
-                                            >
-                                                펫 경험치
-                                            </div>
                                             <StrategyXpResultBar
                                                 previousXpPercent={petXpBarPercents.previous}
                                                 finalXpPercent={petXpBarPercents.final}
@@ -971,9 +965,6 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                                 mobileTextScale={mobileTextScale}
                                             />
                                         ) : null}
-                                        <div className="text-center text-[10px] font-bold uppercase tracking-[0.12em] text-fuchsia-200/80 sm:text-xs">
-                                            펫 경험치
-                                        </div>
                                         <StrategyXpResultBar
                                             previousXpPercent={petXpBarPercents.previous}
                                             finalXpPercent={petXpBarPercents.final}

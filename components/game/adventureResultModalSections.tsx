@@ -495,7 +495,7 @@ export function AdventureBattleFixedRewardRow({
                         variant="pet"
                         amount={pairPetXpChange}
                         density={compact ? 'compact' : 'comfortable'}
-                        title={`펫 경험치 +${pairPetXpChange.toLocaleString()}`}
+                        title={`EXP +${pairPetXpChange.toLocaleString()}`}
                     />
                 </div>
             ) : !petXpOk && pairPetGradeUpgradeNeeded ? (
@@ -626,7 +626,7 @@ export function AdventureBattleRewardRowWithReveal({
                         variant="pet"
                         amount={pairPetXpChange}
                         density={compact ? 'compact' : 'comfortable'}
-                        title={`펫 경험치 +${pairPetXpChange.toLocaleString()}`}
+                        title={`EXP +${pairPetXpChange.toLocaleString()}`}
                     />
                 </div>
             ) : !petXpOk && pairPetGradeUpgradeNeeded ? (

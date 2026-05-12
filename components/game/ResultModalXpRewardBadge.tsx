@@ -87,12 +87,14 @@ export const ResultModalXpRewardBadge: React.FC<{
     const modeLabel = variant === 'strategy' ? '' : variant === 'playful' ? '놀이' : '펫';
     const defaultTitle =
         showPetZero
-            ? '펫 경험치 변동 없음'
+            ? '변동 없음'
             : variant === 'pet' && petXpSpecSplit && petXpSpecSplit.spec > 0
-              ? `펫 경험치 기본 +${petXpSpecSplit.base.toLocaleString()} (특화 +${petXpSpecSplit.spec.toLocaleString()})`
+              ? `기본 +${petXpSpecSplit.base.toLocaleString()} (특화 +${petXpSpecSplit.spec.toLocaleString()})`
               : variant === 'strategy'
                 ? `EXP +${amount.toLocaleString()}`
-                : `${modeLabel} 경험치 +${amount.toLocaleString()}`;
+                : variant === 'pet'
+                  ? `EXP +${amount.toLocaleString()}`
+                  : `${modeLabel} 경험치 +${amount.toLocaleString()}`;
 
     const isPreGameInline = density === 'preGameInline';
     const isCompact = density === 'compact' || isPreGameInline;
