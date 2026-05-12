@@ -1252,7 +1252,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 // 착수금지 이유에 따른 명확한 에러 메시지
                 let errorMessage = '착수할 수 없는 위치입니다.';
                 if (result.reason === 'ko') {
-                    errorMessage = '패 모양(단순 코)입니다. 바로 다시 따낼 수 없습니다.';
+                    errorMessage = '패 모양입니다. 바로 다시 따낼 수 없습니다.';
                 } else if (result.reason === 'suicide') {
                     errorMessage = '자충수입니다. 자신의 돌이 죽는 수는 둘 수 없습니다.';
                 } else if (result.reason === 'occupied') {

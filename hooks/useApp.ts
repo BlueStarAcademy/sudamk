@@ -308,6 +308,33 @@ function shouldSkipDelayedAiSnapshotApply(
     delayedSnapshot: LiveGameSession
 ): boolean {
     if (!latestGame) return false;
+    const latestStatus = String(latestGame.gameStatus || '');
+    const delayedStatus = String(delayedSnapshot.gameStatus || '');
+    const terminalOrRevealStatuses = new Set([
+        'hidden_reveal_animating',
+        'hidden_final_reveal',
+        'scoring',
+        'ended',
+        'no_contest',
+    ]);
+    // 히든 공개/계가/종료로 이미 진행된 최신 상태를 1초 지연 스냅샷(대부분 playing)이 되돌리지 않게 차단.
+    if (terminalOrRevealStatuses.has(latestStatus) && !terminalOrRevealStatuses.has(delayedStatus)) {
+        return true;
+    }
+    if (latestStatus === 'hidden_reveal_animating' && delayedStatus !== 'hidden_reveal_animating') {
+        return true;
+    }
+    const latestAnimType = (latestGame.animation as { type?: string } | null | undefined)?.type;
+    const delayedAnimType = (delayedSnapshot.animation as { type?: string } | null | undefined)?.type;
+    if (latestAnimType === 'hidden_reveal' && delayedAnimType !== 'hidden_reveal') {
+        return true;
+    }
+    const latestRevealEnd = latestGame.revealAnimationEndTime ?? 0;
+    const delayedRevealEnd = delayedSnapshot.revealAnimationEndTime ?? 0;
+    if (latestRevealEnd > delayedRevealEnd) {
+        return true;
+    }
+
     const latestRevision = latestGame.serverRevision ?? 0;
     const delayedRevision = delayedSnapshot.serverRevision ?? 0;
     if (latestRevision > delayedRevision) return true;
@@ -826,6 +853,7 @@ function mergeHiddenMovesByStableHistory(
     incoming: LiveGameSession,
     existing: LiveGameSession | undefined
 ): LiveGameSession['hiddenMoves'] {
+    const moveKey = (m: { x: number; y: number; player: number }) => `${m.player}:${m.x}:${m.y}`;
     const sanitizeAgainst = (
         source: LiveGameSession['hiddenMoves'] | undefined,
         history: LiveGameSession['moveHistory'] | undefined
@@ -847,26 +875,36 @@ function mergeHiddenMovesByStableHistory(
         const existingHidden = sanitizeAgainst(existing?.hiddenMoves, existing?.moveHistory);
         if (!existingHidden || !incoming.moveHistory || !existing?.moveHistory) return undefined;
         const out: NonNullable<LiveGameSession['hiddenMoves']> = {};
+        const incomingIndexesByKey = new Map<string, number[]>();
+        for (let i = 0; i < incoming.moveHistory.length; i++) {
+            const m = incoming.moveHistory[i];
+            if (!m || m.x < 0 || m.y < 0) continue;
+            const key = moveKey(m as { x: number; y: number; player: number });
+            const arr = incomingIndexesByKey.get(key);
+            if (arr) arr.push(i);
+            else incomingIndexesByKey.set(key, [i]);
+        }
+
+        const existingOccurrencesByKey = new Map<string, number>();
         for (const [key, value] of Object.entries(existingHidden)) {
             if (!value) continue;
             const index = Number.parseInt(key, 10);
-            const incomingMove = Number.isInteger(index) ? incoming.moveHistory[index] : undefined;
             const existingMove = existing.moveHistory[index];
-            if (
-                incomingMove &&
-                existingMove &&
-                incomingMove.x === existingMove.x &&
-                incomingMove.y === existingMove.y &&
-                incomingMove.player === existingMove.player
-            ) {
-                out[index] = true;
-            }
+            if (!existingMove || existingMove.x < 0 || existingMove.y < 0) continue;
+
+            const k = moveKey(existingMove as { x: number; y: number; player: number });
+            const rank = (existingOccurrencesByKey.get(k) ?? 0) + 1;
+            existingOccurrencesByKey.set(k, rank);
+            const incomingIndices = incomingIndexesByKey.get(k);
+            if (!incomingIndices || incomingIndices.length < rank) continue;
+            const mappedIncomingIndex = incomingIndices[rank - 1]!;
+            out[mappedIncomingIndex] = true;
         }
         return Object.keys(out).length > 0 ? out : undefined;
     };
 
     const stable = alignedFromExisting();
-    // 서버 분만 쓰면 슬림 패킷 등으로 이전 수순과의 정렬(hidden)이 빠져 인덱스가 밀려 "일반돌이 히든"처럼 보일 수 있음 → 정렬 병합 후 서버 플래그로 덮어씀
+    // 인덱스가 밀릴 때는 기존 정렬(stable)로 인덱스를 맞추되, 중복 인덱스 충돌은 서버(incoming) 값을 우선한다.
     const merged: NonNullable<LiveGameSession['hiddenMoves']> = { ...(stable ?? {}), ...(incomingSanitized ?? {}) };
     return sanitizeAgainst(merged, incoming.moveHistory);
 }

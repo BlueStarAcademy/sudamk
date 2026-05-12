@@ -135,7 +135,7 @@ const mobileGameSidebarDrawerStyle: React.CSSProperties = {
     paddingBottom: 'env(safe-area-inset-bottom, 0px)',
 };
 
-const KO_RULE_FLASH_MESSAGE = '패 모양(단순 코)입니다. 바로 다시 따낼 수 없습니다.';
+const KO_RULE_FLASH_MESSAGE = '패 모양입니다. 바로 다시 따낼 수 없습니다.';
 const HIDDEN_PLACEMENT_DELAY_MS = 2000;
 const HIDDEN_PLACEMENT_DELAY_MESSAGE = '화면에 상대에게 안보이는 한 수를 두세요';
 const MISSILE_DIRECTION_DELAY_MESSAGE = '바둑돌을 원하는 방향으로 날려보내세요';

@@ -276,6 +276,35 @@ function mergeHiddenMovesFromClientSync(
     game.hiddenMoves = next;
 }
 
+function mergePermanentlyRevealedPoints(
+    current: LiveGameSession['permanentlyRevealedStones'],
+    incoming: PveItemActionClientSync['permanentlyRevealedStones']
+): LiveGameSession['permanentlyRevealedStones'] {
+    const out: Array<{ x: number; y: number }> = [];
+    const seen = new Set<string>();
+    const pushUnique = (x: number, y: number) => {
+        const key = `${x},${y}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push({ x, y });
+    };
+
+    if (Array.isArray(current)) {
+        for (const p of current) {
+            if (!p || typeof p.x !== 'number' || typeof p.y !== 'number') continue;
+            pushUnique(p.x, p.y);
+        }
+    }
+    if (Array.isArray(incoming)) {
+        for (const p of incoming) {
+            if (!p || typeof p.x !== 'number' || typeof p.y !== 'number') continue;
+            pushUnique(p.x, p.y);
+        }
+    }
+
+    return out.length > 0 ? out : undefined;
+}
+
 function applyClientBaseStoneSnapshotIfAuthoritative(
     game: LiveGameSession,
     sync: PveItemActionClientSync,
@@ -372,9 +401,10 @@ export function applyPveItemActionClientSync(
             allowClientIntroduceHiddenOnAppendedMoves
         );
     }
-    if (Array.isArray(sync.permanentlyRevealedStones)) {
-        game.permanentlyRevealedStones = sync.permanentlyRevealedStones.map((p) => ({ ...p }));
-    }
+    game.permanentlyRevealedStones = mergePermanentlyRevealedPoints(
+        game.permanentlyRevealedStones,
+        sync.permanentlyRevealedStones
+    );
     if (!preserveHiddenMeta) {
         if (sync.aiInitialHiddenStone === null) {
             if (!syncAdvancesServerMoves && (game as { aiInitialHiddenStone?: unknown }).aiInitialHiddenStone) {

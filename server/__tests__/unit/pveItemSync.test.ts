@@ -330,6 +330,45 @@ describe('PVE item client sync', () => {
         expect(game.hiddenMoves).toEqual({ '0': true });
     });
 
+    it('does not let client sync drop server permanently revealed hidden stones', () => {
+        const board = emptyBoard(5);
+        board[1][1] = Player.Black;
+        board[3][3] = Player.White;
+        const game: any = {
+            id: 'pve-revealed-stones-monotonic',
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            blackPlayerId: 'human-1',
+            whitePlayerId: 'ai-player-01',
+            boardState: board.map((row) => [...row]),
+            moveHistory: [
+                { x: 1, y: 1, player: Player.Black },
+                { x: 3, y: 3, player: Player.White },
+            ],
+            currentPlayer: Player.Black,
+            gameStatus: 'playing',
+            mode: 'mix',
+            settings: { mixedModes: ['hidden'] },
+            hiddenMoves: { '1': true },
+            permanentlyRevealedStones: [{ x: 1, y: 1 }],
+        };
+
+        applyPveItemActionClientSync(game, {
+            clientSync: {
+                boardState: board.map((row) => [...row]),
+                moveHistory: game.moveHistory.map((m: any) => ({ ...m })),
+                currentPlayer: Player.Black,
+                gameStatus: 'playing',
+                permanentlyRevealedStones: [{ x: 3, y: 3 }],
+            },
+        });
+
+        expect(game.permanentlyRevealedStones).toEqual([
+            { x: 1, y: 1 },
+            { x: 3, y: 3 },
+        ]);
+    });
+
     it('carries PVE overlay metadata from the client before a server AI hidden move', () => {
         const board = emptyBoard(5);
         board[1][1] = Player.Black;
