@@ -44,6 +44,7 @@ import {
     countPairLobbyPetEntriesInInventory,
     isPairLobbyPetInventoryFull,
     normalizePairPetLobbyInventorySort,
+    pairPetLobbyInventoryKindOrderIndex,
 } from '../../shared/constants/petLobby.js';
 import {
     PAIR_TRAINING_SLOT_DEFS,
@@ -585,6 +586,12 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     if (gd !== 0) return gd;
                     const ld = petLevel(b) - petLevel(a);
                     if (ld !== 0) return ld;
+                    return byRecent(a, b);
+                });
+            case 'petNumber':
+                return arr.sort((a, b) => {
+                    const kd = pairPetLobbyInventoryKindOrderIndex(a) - pairPetLobbyInventoryKindOrderIndex(b);
+                    if (kd !== 0) return kd;
                     return byRecent(a, b);
                 });
             case 'recent':
@@ -2015,6 +2022,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             <option value="name">이름순</option>
                                             <option value="petLevel">펫 레벨순</option>
                                             <option value="gradeHigh">높은 등급순</option>
+                                            <option value="petNumber">종류순(펫 번호)</option>
                                         </select>
                                     </label>
                                     <div

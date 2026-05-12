@@ -14,7 +14,25 @@ const PAIR_PET_LOBBY_INVENTORY_SORT_SET = new Set<string>([
     'name',
     'petLevel',
     'gradeHigh',
+    'petNumber',
 ]);
+
+/**
+ * 로비 인벤 «종류(번호)» 정렬: 펫 `pair-pet-N`, 영혼석 `pair-soul-N`의 N 오름차순.
+ * 파싱 불가·미부여 templateId는 맨 뒤(9999).
+ */
+export function pairPetLobbyInventoryKindOrderIndex(item: Pick<InventoryItem, 'templateId'>): number {
+    const tid = typeof item.templateId === 'string' ? item.templateId : '';
+    if (tid.startsWith('pair-pet-')) {
+        const n = Number.parseInt(tid.slice('pair-pet-'.length), 10);
+        return Number.isFinite(n) ? n : 9999;
+    }
+    if (tid.startsWith('pair-soul-')) {
+        const n = Number.parseInt(tid.slice('pair-soul-'.length), 10);
+        return Number.isFinite(n) ? n : 9999;
+    }
+    return 9999;
+}
 
 /** 서버·클라 공통: 저장된 정렬 값 검증 */
 export function normalizePairPetLobbyInventorySort(raw: unknown): PairPetLobbyInventorySortMode | undefined {

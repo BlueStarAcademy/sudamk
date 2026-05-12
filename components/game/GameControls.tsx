@@ -54,7 +54,7 @@ import {
 } from '../../shared/utils/pairPetArenaApDiscount.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 import { pairPetKataPhaseFromTotalPly, pairPetKataPliesRemainingInCurrentPhase } from '../../shared/constants/pairArena.js';
-import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
+import { isPairHumanHumanPvpForTeamResign, modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
 import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
 import { getPairPetDefinition } from '../../shared/constants/petLobby.js';
 
@@ -1915,8 +1915,16 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 }
                 return;
             }
-            if (window.confirm('경기를 포기하시겠습니까?')) {
-                onAction({ type: 'RESIGN_GAME', payload: { gameId } } as ServerAction);
+            const pairHumanResign = isPairHumanHumanPvpForTeamResign(session);
+            const confirmMsg = pairHumanResign
+                ? '팀 동료에게 기권 요청을 보냅니다. 동료가 동의해야 기권패가 됩니다. 이번 턴에는 한 번만 요청할 수 있습니다. 진행하시겠습니까?'
+                : '경기를 포기하시겠습니까?';
+            if (window.confirm(confirmMsg)) {
+                onAction(
+                    pairHumanResign
+                        ? ({ type: 'REQUEST_PAIR_TEAM_RESIGN', payload: { gameId } } as ServerAction)
+                        : ({ type: 'RESIGN_GAME', payload: { gameId } } as ServerAction),
+                );
             }
         };
 

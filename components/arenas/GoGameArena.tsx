@@ -357,6 +357,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 mode={session.mode}
                 mixedModes={session.settings.mixedModes}
                 hiddenMoves={session.hiddenMoves}
+                humanHiddenStonePoints={(session as { humanHiddenStonePoints?: Array<Point & { player?: Player }> }).humanHiddenStonePoints}
                 moveHistory={session.moveHistory}
                 baseStones={session.baseStones}
                 blackPatternStones={session.blackPatternStones}

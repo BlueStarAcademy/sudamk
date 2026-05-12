@@ -8,7 +8,14 @@ describe('resolveLiveArenaPhaseGoldXpMultiplier', () => {
             mode: GameMode.Standard,
             gameCategory: GameCategory.Normal,
             isSinglePlayer: false,
-            settings: { boardSize: 19, pairGame: { lobbyChannel: 'strategic' as const } },
+            settings: {
+                boardSize: 19 as const,
+                komi: 0.5,
+                timeLimit: 10,
+                byoyomiTime: 0,
+                byoyomiCount: 0,
+                pairGame: { lobbyChannel: 'strategic' as const } as any,
+            },
         };
         expect(resolveLiveArenaPhaseGoldXpMultiplier({ ...base, moveHistory: Array(30) as any })).toBe(0.3);
         expect(resolveLiveArenaPhaseGoldXpMultiplier({ ...base, moveHistory: Array(90) as any })).toBe(0.6);
@@ -21,7 +28,14 @@ describe('resolveLiveArenaPhaseGoldXpMultiplier', () => {
                 mode: GameMode.Standard,
                 gameCategory: GameCategory.Normal,
                 isSinglePlayer: false,
-                settings: { boardSize: 19, pairGame: { lobbyChannel: 'playful' as const } },
+                settings: {
+                    boardSize: 19 as const,
+                    komi: 0.5,
+                    timeLimit: 10,
+                    byoyomiTime: 0,
+                    byoyomiCount: 0,
+                    pairGame: { lobbyChannel: 'playful' as const } as any,
+                },
                 moveHistory: Array(200) as any,
             }),
         ).toBeNull();
@@ -33,7 +47,7 @@ describe('resolveLiveArenaPhaseGoldXpMultiplier', () => {
                 mode: GameMode.Standard,
                 gameCategory: 'adventure' as any,
                 isSinglePlayer: false,
-                settings: { boardSize: 19 },
+                settings: { boardSize: 19 as const, komi: 0.5, timeLimit: 10, byoyomiTime: 0, byoyomiCount: 0 },
                 moveHistory: Array(200) as any,
             }),
         ).toBeNull();

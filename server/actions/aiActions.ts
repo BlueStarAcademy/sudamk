@@ -150,6 +150,11 @@ export async function handleAiAction(
       postInit.gameStartTime = now;
     }
 
+    const { seedStrategicPetHintBonusPresetsForGame } = await import('../strategicPetHintAction.js');
+    if (postInit.gameStatus === 'playing') {
+      await seedStrategicPetHintBonusPresetsForGame(postInit as any);
+    }
+
     await db.saveGame(game);
     updateGameCache(game);
 

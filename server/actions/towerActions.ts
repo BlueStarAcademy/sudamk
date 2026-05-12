@@ -23,11 +23,15 @@ import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { applyPassiveActionPointRegenToUser } from '../effectService.js';
 import { updateQuestProgress } from '../questService.js';
 import { reconcileStrategicAiBoardSizeWithGroundTruth } from '../utils/effectiveBoardSize.js';
+import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
     error?: string;
 };
+
+const isTowerSession = (game: LiveGameSession | null | undefined): game is LiveGameSession =>
+    Boolean(game && resolveArenaSessionPolicy(game).kind === GameCategory.Tower);
 
 /** 대기실·클라이언트 `countTowerLobbyInventoryQty`와 동일 */
 const TOWER_TURN_ADD_ITEM_NAMES = ['턴 추가', '턴증가', 'turn_add', 'turn_add_item', 'addturn'] as const;
@@ -41,7 +45,7 @@ const TOWER_REFRESH_PLACEMENT_ITEM_NAMES = ['배치 새로고침', '배치변경
  * 시작 전(pending + startTime 없음)과 구분하기 위해 startTime 유무로만 보정한다.
  */
 const normalizeTowerPlayingIfStarted = (game: LiveGameSession): void => {
-    if (game.gameCategory !== 'tower') return;
+    if (!isTowerSession(game)) return;
     if (game.gameStatus !== 'pending') return;
     if (game.startTime == null) return;
     (game as any).gameStatus = 'playing';
@@ -321,8 +325,8 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 return { error: 'Game not found.' };
             }
             
-            if (game.gameCategory !== 'tower') {
-                console.error('[CONFIRM_TOWER_GAME_START] Not a tower game:', { gameId, gameCategory: game.gameCategory, userId: user.id });
+            if (!isTowerSession(game)) {
+                console.error('[CONFIRM_TOWER_GAME_START] Not a tower game:', { gameId, userId: user.id });
                 return { error: 'Not a tower game.' };
             }
             
@@ -393,6 +397,9 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             game.whiteByoyomiPeriodsLeft = 0;
             game.turnStartTime = now;
             
+            const { seedStrategicPetHintBonusPresetsForGame } = await import('../strategicPetHintAction.js');
+            await seedStrategicPetHintBonusPresetsForGame(game);
+
             // 게임 캐시 업데이트 (다음 요청에서 빠른 응답)
             updateGameCache(game);
             
@@ -431,7 +438,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 return { error: 'Game not found.' };
             }
 
-            if (game.gameCategory !== 'tower') {
+            if (!isTowerSession(game)) {
                 return { error: 'Not a tower game.' };
             }
 
@@ -544,7 +551,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 return { error: 'Game not found.' };
             }
             
-            if (game.gameCategory !== 'tower') {
+            if (!isTowerSession(game)) {
                 return { error: 'Not a tower game.' };
             }
 
@@ -620,7 +627,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 return { error: 'Game not found.' };
             }
             
-            if (game.gameCategory !== 'tower') {
+            if (!isTowerSession(game)) {
                 return { error: 'Not a tower game.' };
             }
             

@@ -8,6 +8,7 @@ export * from './navigation';
 export * from './settings';
 export * from './singlePlayer';
 export * from './types';
+export * from './resultContract';
 export type { Theme, SoundCategory, GraphicsSettings, SoundSettings, FeatureSettings, AppSettings, PanelEdgeStyle } from './settings.js';
 // Re-export type-only exports explicitly
 export type { EquipmentSlot, InventoryItemType, ItemOptionType, TournamentType, TournamentSimulationStatus, Point, Move, BoardState } from './enums.js';

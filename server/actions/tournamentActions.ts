@@ -22,6 +22,7 @@ import {
     DEFAULT_CHAMPIONSHIP_REAL_MATCH_RULES,
     resolveChampionshipDungeonRulesFromStage,
 } from '../../shared/constants/championshipRealMatch.js';
+import { buildChampionshipResultContract } from '../utils/resultContract.js';
 
 
 type HandleActionResult = { 
@@ -1429,6 +1430,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                         scoringCompletedAt: Date.now(),
                     },
                 };
+                match.championshipRealGame.resultContract = buildChampionshipResultContract(match.id, match.championshipRealGame);
             } else
             // simulationSeed가 있으면 서버 검증 시뮬레이션 실행
             if (tournamentState.simulationSeed) {
@@ -2153,7 +2155,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 const nextStage = stage + 1;
                 if (!dungeonProgress.unlockedStages.includes(nextStage)) {
                     dungeonProgress.unlockedStages.push(nextStage);
-                    dungeonProgress.unlockedStages.sort((a, b) => a - b);
+                    dungeonProgress.unlockedStages.sort((a: number, b: number) => a - b);
                     console.log(`[COMPLETE_DUNGEON_STAGE] ✓ Unlocked stage ${nextStage} for ${dungeonType} (userRank: ${userRank}, stage: ${stage})`);
                 } else {
                     console.log(`[COMPLETE_DUNGEON_STAGE] Stage ${nextStage} already unlocked for ${dungeonType} (userRank: ${userRank})`);
@@ -2246,7 +2248,10 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             if (!Array.isArray(dungeonProgress.unlockedStages) || dungeonProgress.unlockedStages.length === 0) {
                 dungeonProgress.unlockedStages = [1];
             }
-            dungeonProgress.unlockedStages = [...new Set(dungeonProgress.unlockedStages)].filter((s: number) => s >= 1 && s <= 10).sort((a: number, b: number) => a - b);
+            const normalizedUnlockedStages = Array.from(new Set<number>((dungeonProgress.unlockedStages ?? []) as number[]))
+                .filter((s) => s >= 1 && s <= 10)
+                .sort((a, b) => a - b);
+            dungeonProgress.unlockedStages = normalizedUnlockedStages;
             
             freshUser.dungeonProgress[dungeonType] = dungeonProgress;
             (freshUser as any)[stateKey] = dungeonState;

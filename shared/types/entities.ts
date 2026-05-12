@@ -1,6 +1,7 @@
 import { Player, GameMode, LeagueTier, UserStatus, WinReason, RPSChoice, DiceGoVariant, AlkkagiPlacementType, AlkkagiLayoutType, Point, Move, BoardState, EquipmentSlot, InventoryItemType, ItemGrade, CoreStat, ItemOptionType, TournamentType, TournamentSimulationStatus, GameStatus, SinglePlayerLevel, GameCategory, GuildMemberRole, GuildResearchId } from './enums.js';
 // FIX: ChatMessage is now defined in api.ts to break circular dependency.
 import { UserStatusInfo, ChatMessage } from './api.js';
+import type { UnifiedResultContract } from './resultContract.js';
 
 // --- Item & Equipment ---
 
@@ -60,7 +61,14 @@ export type PairPetHatcherySession = {
 };
 
 /** 페어 펫 로비 인벤(펫·영혼석) 목록 정렬 */
-export type PairPetLobbyInventorySortMode = 'recent' | 'oldest' | 'name' | 'petLevel' | 'gradeHigh';
+export type PairPetLobbyInventorySortMode =
+    | 'recent'
+    | 'oldest'
+    | 'name'
+    | 'petLevel'
+    | 'gradeHigh'
+    /** `pair-pet-N` / 영혼석 탭에서는 `pair-soul-N` 도감 번호 오름차순 */
+    | 'petNumber';
 
 export type Equipment = Partial<Record<EquipmentSlot, string>>;
 
@@ -300,6 +308,7 @@ export type ChampionshipRealGameState = {
         scoringStartedAt?: number;
         scoringCompletedAt?: number;
     };
+    resultContract?: UnifiedResultContract;
 };
 
 export type Round = {
@@ -1260,6 +1269,7 @@ export type LiveGameSession = {
   winningLine?: Point[] | null;
   statsUpdated?: boolean;
   summary?: { [playerId: string]: GameSummary };
+  resultContract?: UnifiedResultContract;
   animation?: AnimationData | null;
   blackTimeLeft: number;
   whiteTimeLeft: number;
@@ -1321,6 +1331,8 @@ export type LiveGameSession = {
   /** 베이스 덤: 확정 직전 입찰(색·추가 덤 집). komiBids 정리 후에도 결과 모달에서 표시 */
   baseKomiBidsSnapshot?: { [userId: string]: KomiBid };
   hiddenMoves?: { [moveIndex: number]: boolean };
+  /** PVE 클라 전용 진행에서 hiddenMoves 인덱스가 밀려도 유저 히든 좌표를 안정적으로 보존 */
+  humanHiddenStonePoints?: Array<Point & { player?: Player }>;
   scans_p1?: number;
   scans_p2?: number;
   hidden_stones_p1?: number;
@@ -1470,6 +1482,15 @@ export type LiveGameSession = {
   /** 이번 대국 입장 시 차감된 행동력(재도전 라벨·클라 stale 보정용). 0이면 재도전도 무료로 표시 */
   singlePlayerStartActionPointCost?: number;
   totalTurns?: number; // 총 턴 수 (유저 + AI 합산), 자동 계가 트리거용
+  /** 페어 휴먼 PVP: 팀원 기권 동의 대기(요청자·응답자·턴 키) */
+  pairTeamResignRequest?: {
+      requesterUserId: string;
+      partnerUserId: string;
+      resigningTeamId: 'teamA' | 'teamB';
+      turnKey: string;
+  };
+  /** 페어 휴먼 PVP: 해당 턴 키에서 팀원이 기권 요청을 거절한 팀 — 같은 턴에 재요청 불가 */
+  pairTeamResignCooldownByTeam?: Partial<Record<'teamA' | 'teamB', string>>;
 };
 
 export type Negotiation = {

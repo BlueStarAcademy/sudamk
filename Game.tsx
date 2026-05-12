@@ -49,6 +49,7 @@ import { calculateSimpleAiMove } from './client/goAiBotClient.js';
 import { processMoveClient } from './client/goLogicClient.js';
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from './client/logic/goLogic.js';
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
+import { shouldOpenResultModalByPolicy } from './utils/resultDisplayPolicy.js';
 import { consumeSkipGameHashLeaveInterceptOnce, replaceAppHash } from './utils/appUtils.js';
 import { getAdventureMapWebpPath } from './constants/adventureConstants.js';
 import { InGameModalLayoutProvider } from './contexts/InGameModalLayoutContext.js';
@@ -59,6 +60,7 @@ import {
     pairSeatMatchesViewerUser,
     PAIR_TURN_SEAT_IDS,
 } from './shared/utils/pairGameTurn.js';
+import { resolveArenaSessionPolicy } from './shared/utils/liveSessionArenaKind.js';
 import { getPairPetDefinition } from './shared/constants/petLobby.js';
 import { getEquippedPairPetInventoryRow } from './shared/utils/pairEquippedPet.js';
 import { resolvePairPetMetaFromInventoryRow } from './shared/utils/pairPetRoll.js';
@@ -885,18 +887,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const showKoRuleFlash = useCallback(() => {
         flashBoardRuleMessage(KO_RULE_FLASH_MESSAGE, 5000);
     }, [flashBoardRuleMessage]);
+    const timerArenaPolicy = resolveArenaSessionPolicy(session);
     const isPausableAiGameForTimer =
         session.isAiGame &&
-        !session.isSinglePlayer &&
-        session.gameCategory !== 'tower' &&
-        session.gameCategory !== 'singleplayer' &&
-        session.gameCategory !== 'guildwar' &&
-        session.gameCategory !== 'adventure';
+        timerArenaPolicy.kind !== 'singleplayer' &&
+        timerArenaPolicy.kind !== 'tower' &&
+        timerArenaPolicy.kind !== 'guildwar' &&
+        timerArenaPolicy.kind !== 'adventure';
     const clientTimes = useClientTimer(
         session,
-        session.isSinglePlayer ||
-            session.gameCategory === 'tower' ||
-            session.gameCategory === 'adventure' ||
+        timerArenaPolicy.kind === 'singleplayer' ||
+            timerArenaPolicy.kind === 'tower' ||
+            timerArenaPolicy.kind === 'adventure' ||
             isPausableAiGameForTimer
             ? { isPaused }
             : {}
@@ -978,7 +980,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [gameStatus, currentUser.id, player1.id, player2.id, session.baseStones_p1, session.baseStones_p2]);
     const prevMyBaseStoneCountForUnlock = usePrevious(myBaseStoneCountForUnlock);
     const prevAnalysisResult = usePrevious(session.analysisResult?.['system']);
-    const isSinglePlayer = session.isSinglePlayer;
+    const sessionPolicy = useMemo(() => resolveArenaSessionPolicy(session), [session]);
+    const isSinglePlayer = sessionPolicy.kind === 'singleplayer';
     const onboardingUserPhase = currentUserWithStatus.onboardingTutorialPhase ?? -1;
     const isIntro1SpOnboardingUi =
         isSinglePlayer &&
@@ -989,7 +992,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     /** 오버레이 이벤트 순서/USER_UPDATE 지연 시에도 스텝 0이 잡히도록 data-onboarding-target 동기화 */
     useEffect(() => {
-        if (!session.isSinglePlayer || session.stageId !== '입문-1' || gameStatus !== 'playing') {
+        if (!isSinglePlayer || session.stageId !== '입문-1' || gameStatus !== 'playing') {
             setSpIngameOnboardingStep(-1);
             return;
         }
@@ -997,7 +1000,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (onboardingUserPhase !== 6) return;
         setSpIngameOnboardingStep((s) => (s < 0 ? 0 : s));
     }, [
-        session.isSinglePlayer,
+        isSinglePlayer,
         session.stageId,
         gameStatus,
         currentUserWithStatus,
@@ -1019,9 +1022,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
               ? ('scores-bar' as const)
               : null;
     const intro1OnboardingDemoPoint = restrictIntro1OnboardingMove ? ONBOARDING_INTRO1_FORCED_CAPTURE_POINT : null;
-    const isTower = session.gameCategory === 'tower';
-    const isAdventureGame = session.gameCategory === 'adventure';
-    const isGuildWarGame = session.gameCategory === 'guildwar';
+    const isTower = sessionPolicy.kind === 'tower';
+    const isAdventureGame = sessionPolicy.kind === 'adventure';
+    const isGuildWarGame = sessionPolicy.kind === 'guildwar';
     const adventureBackgroundImage =
         isAdventureGame && session.adventureStageId ? getAdventureMapWebpPath(session.adventureStageId) : null;
     const isGuildWarTowerStyleUi =
@@ -1327,6 +1330,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     baseStoneCaptures: session.baseStoneCaptures,
                     hiddenStoneCaptures: session.hiddenStoneCaptures,
                     permanentlyRevealedStones: session.permanentlyRevealedStones || [],
+                    humanHiddenStonePoints: (session as any).humanHiddenStonePoints || [],
                     blackPatternStones: session.blackPatternStones,
                     whitePatternStones: session.whitePatternStones,
                     consumedPatternIntersections: (session as any).consumedPatternIntersections,
@@ -1341,7 +1345,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     whiteTimeLeft: session.whiteTimeLeft,
                     adventureEncounterDeadlineMs: (session as any).adventureEncounterDeadlineMs,
                     adventureEncounterFrozenHumanMsRemaining: (session as any).adventureEncounterFrozenHumanMsRemaining,
-                    ...(session.gameCategory === 'tower' && (session as any).blackTurnLimitBonus != null
+                    ...(isTower && (session as any).blackTurnLimitBonus != null
                         ? { blackTurnLimitBonus: Number((session as any).blackTurnLimitBonus) || 0 }
                         : {}),
                     ...(!session.isAiGame &&
@@ -1391,7 +1395,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 }
             }
         }
-    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, (session as any).aiHiddenItemAnimationEndTime, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, session.totalTurns, session.round, gameId, gameStatus, isSinglePlayer, session.gameCategory, useRefreshSessionStorageMerge, session.gameStartTime, session.blackTimeLeft, session.whiteTimeLeft, (session as any).adventureEncounterDeadlineMs, (session as any).adventureEncounterFrozenHumanMsRemaining, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced, (session as any).blackTurnLimitBonus, isBoardRotated, session.isAiGame, session.settings?.pairGame?.roomId, session.settings?.pairGame?.lobbyChannel]);
+    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, (session as any).aiHiddenItemAnimationEndTime, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, (session as any).humanHiddenStonePoints, session.totalTurns, session.round, gameId, gameStatus, isSinglePlayer, session.gameCategory, useRefreshSessionStorageMerge, session.gameStartTime, session.blackTimeLeft, session.whiteTimeLeft, (session as any).adventureEncounterDeadlineMs, (session as any).adventureEncounterFrozenHumanMsRemaining, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced, (session as any).blackTurnLimitBonus, isBoardRotated, session.isAiGame, session.settings?.pairGame?.roomId, session.settings?.pairGame?.lobbyChannel]);
     
     // 도전의 탑/싱글/전략바둑 수순 제한: 새로고침 후 서버 페이로드에 문양돌·totalTurns·moveHistory가 없을 수 있으므로 sessionStorage에서 복원해 표시
     const sessionWithRestoredPatternStones = useMemo(() => {
@@ -1517,6 +1521,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         (!hasServerHiddenMoves || canPreferStoredVisualState)
                     ) {
                         next = { ...next, hiddenMoves: parsed.hiddenMoves };
+                    }
+                    if (
+                        Array.isArray(parsed.humanHiddenStonePoints) &&
+                        parsed.humanHiddenStonePoints.length > 0 &&
+                        (!Array.isArray((next as any).humanHiddenStonePoints) ||
+                            (next as any).humanHiddenStonePoints.length === 0 ||
+                            canPreferStoredVisualState)
+                    ) {
+                        next = { ...next, humanHiddenStonePoints: parsed.humanHiddenStonePoints } as any;
                     }
                     if ((canPreferStoredVisualState || !next.revealedHiddenMoves) && parsed.revealedHiddenMoves && typeof parsed.revealedHiddenMoves === 'object') {
                         next = { ...next, revealedHiddenMoves: parsed.revealedHiddenMoves };
@@ -1647,21 +1660,19 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         // 기권/접속 끊김 등 즉시 종료되는 경우에는 analysisResult 없이도 모달 표시
         const currentAnalysisResult = session.analysisResult?.['system'];
         const analysisResultJustArrived = currentAnalysisResult && !prevAnalysisResult;
-        const isImmediateEnd = gameHasJustEnded && (session.winReason === 'resign' || session.winReason === 'disconnect' || session.winReason === 'timeout');
         // 싱글: ended 직후 결과 모달(입문 등 analysisResult 지연 시 빈 화면 방지).
         // scoring 진입 시에는 모달을 절대 열지 않음 — ScoringOverlay 연출을 완료한 뒤 ended에서 모달 표시.
         // 도전의 탑: 따내기 승·패 등 analysisResult 없이 ended 되는 경우가 많아 종료 직후 바로 결과 모달을 연다.
-        const pveAutoResultModal =
-            isImmediateEnd ||
-            (isTower && gameHasJustEnded) ||
-            (isSinglePlayer && gameHasJustEnded) ||
-            (gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended');
-        const basePvpShouldShowModal =
-            (gameHasJustEnded &&
-                !(playfulResultModalWaitSummary && gameStatus === 'ended' && !hasMyGameSummary)) ||
-            (gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended') ||
-            playfulGameSummaryJustArrived;
-        const shouldShowModal = (isSinglePlayer || isTower) ? pveAutoResultModal : basePvpShouldShowModal;
+        const shouldShowModal = shouldOpenResultModalByPolicy({
+            session,
+            showResultModal,
+            gameHasJustEnded,
+            prevGameStatus,
+            hasAnalysisResult: Boolean(currentAnalysisResult),
+            playfulResultModalWaitSummary,
+            hasMyGameSummary,
+            playfulGameSummaryJustArrived,
+        });
 
         /** 따내기 승: 계가 연출 직후 ended인 경우(prev scoring)에도 착수·포획 연출 대기 후 모달을 연다 */
         const shouldDelayCaptureResultModal =
@@ -2023,7 +2034,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [aiHiddenItemEffectEndTime, session.animation?.type, (session as any).aiHiddenItemAnimationEndTime]);
 
     const isGuildWarHiddenClientEffects =
-        session.gameCategory === 'guildwar' && mode === GameMode.Hidden;
+        isGuildWarGame && mode === GameMode.Hidden;
 
     const useScanAnimationFallback =
         isSinglePlayer || isTower || isGuildWarHiddenClientEffects || isOnlineHiddenStrategic;
@@ -2106,11 +2117,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         lastAiMoveRef.current = null;
 
         const isPveLikeGame =
-            session.gameCategory === 'tower' ||
-            session.gameCategory === 'singleplayer' ||
-            session.gameCategory === 'guildwar' ||
-            session.gameCategory === 'adventure' ||
-            session.isSinglePlayer;
+            isTower ||
+            isSinglePlayer ||
+            isGuildWarGame ||
+            isAdventureGame;
         if (!isPveLikeGame) return;
         if (currentPlayer !== Player.White && currentPlayer !== Player.Black) return;
         const aiSeatId = currentPlayer === Player.Black ? session.blackPlayerId : session.whitePlayerId;
@@ -2140,7 +2150,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         currentPlayer,
         session.id,
         session.gameCategory,
-        session.isSinglePlayer,
+        isSinglePlayer,
         session.isAiGame,
         session.blackPlayerId,
         session.whitePlayerId,
@@ -2247,7 +2257,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     // 도전의 탑·싱글: 서버 생각 연출 종료 직후 Kata 착수를 위해 REQUEST_SERVER_AI_MOVE 1회
     useEffect(() => {
-        if (!isTower && !session.isSinglePlayer) return;
+        if (!isTower && !isSinglePlayer) return;
         if (session.gameStatus !== 'playing') return;
         const anim = session.animation as { type?: string; startTime?: number } | undefined;
         if (anim?.type !== 'ai_thinking') return;
@@ -2295,7 +2305,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         return () => window.clearTimeout(tid);
     }, [
         isTower,
-        session.isSinglePlayer,
+        isSinglePlayer,
         session.id,
         session.gameStatus,
         session.animation?.type,
@@ -2481,11 +2491,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
         const isPausableAiGame =
             session.isAiGame &&
-            !session.isSinglePlayer &&
-            session.gameCategory !== 'tower' &&
-            session.gameCategory !== 'singleplayer';
-        if ((session.isSinglePlayer || isTower || isPausableAiGame) && isPaused) return;
-        if ((session.isSinglePlayer || isTower) && isBoardLocked) {
+            !isSinglePlayer &&
+            !isTower;
+        if ((isSinglePlayer || isTower || isPausableAiGame) && isPaused) return;
+        if ((isSinglePlayer || isTower) && isBoardLocked) {
             console.log('[Game] Board is locked, ignoring click', { isBoardLocked, serverRevision: session.serverRevision });
             return;
         }
@@ -2667,6 +2676,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             isHidden: true,
                             boardState: boardStateToUse,
                             moveHistory: session.moveHistory || [],
+                            hiddenMoves: session.hiddenMoves || {},
+                            humanHiddenStonePoints: (session as any).humanHiddenStonePoints || [],
                         }
                     } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
                     if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
@@ -2970,16 +2981,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 actionType === 'PLACE_STONE' &&
                 !isPairClassicOnline &&
                 session.isAiGame &&
-                !session.isSinglePlayer &&
-                session.gameCategory !== 'tower' &&
+                !isSinglePlayer &&
+                !isTower &&
                 gameStatus === 'playing' &&
                 x >= 0 &&
                 y >= 0;
             const optimisticPairStonePlace =
                 isPairClassicOnline &&
                 actionType === 'PLACE_STONE' &&
-                !session.isSinglePlayer &&
-                session.gameCategory !== 'tower' &&
+                !isSinglePlayer &&
+                !isTower &&
                 gameStatus === 'playing' &&
                 x >= 0 &&
                 y >= 0;
@@ -3050,7 +3061,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         settings.features.mobileConfirm,
         pendingMove,
         isItemModeActive,
-        session.isSinglePlayer,
+        isSinglePlayer,
         session.isAiGame,
         session.gameCategory,
         isPaused,
@@ -3096,8 +3107,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return;
         }
 
-        const isTower = session.gameCategory === 'tower';
-        const isPVEGame = session.isSinglePlayer || isTower || session.gameCategory === 'singleplayer';
+        const isTower = sessionPolicy.kind === 'tower';
+        const isPVEGame = isSinglePlayer || isTower;
 
         let actionType: ServerAction['type'] | null = null;
         let payload: any = { gameId, x, y };
@@ -3142,7 +3153,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
 
-                if (restrictIntro1OnboardingMove && session.isSinglePlayer) {
+                if (restrictIntro1OnboardingMove && isSinglePlayer) {
                     if (x !== ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.x || y !== ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.y) {
                         flashBoardRuleMessage('튜토리얼: 표시된 자리에 두세요.');
                         pveLocalStonePlacementLockRef.current = false;
@@ -3175,7 +3186,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
                 if (
                     restrictIntro1OnboardingMove &&
-                    session.isSinglePlayer &&
+                    isSinglePlayer &&
                     x === ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.x &&
                     y === ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.y
                 ) {
@@ -3235,16 +3246,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 actionType === 'PLACE_STONE' &&
                 !isPairClassicOnlineConfirm &&
                 session.isAiGame &&
-                !session.isSinglePlayer &&
-                session.gameCategory !== 'tower' &&
+                !isSinglePlayer &&
+                sessionPolicy.kind !== 'tower' &&
                 gameStatus === 'playing' &&
                 x >= 0 &&
                 y >= 0;
             const optimisticPairStonePlaceConfirm =
                 isPairClassicOnlineConfirm &&
                 actionType === 'PLACE_STONE' &&
-                !session.isSinglePlayer &&
-                session.gameCategory !== 'tower' &&
+                !isSinglePlayer &&
+                sessionPolicy.kind !== 'tower' &&
                 gameStatus === 'playing' &&
                 x >= 0 &&
                 y >= 0;
@@ -3305,8 +3316,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         mode,
         restoredBoardState,
         isMoveInFlight,
-        session.gameCategory,
-        session.isSinglePlayer,
+        sessionPolicy.kind,
+        isSinglePlayer,
         session.boardState,
         session.settings.boardSize,
         session.koInfo,
@@ -3347,8 +3358,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         setPauseButtonCooldown(5);
         // 싱글플레이/도전의 탑은 클라이언트가 타이머를 직접 조정(로컬 실행)
         // 일반 AI 대국은 서버가 타이머를 관리하므로 여기서 deadline을 조정하지 않음
-        const isTower = session.gameCategory === 'tower';
-        const shouldAdjustDeadlinesLocally = session.isSinglePlayer || isTower;
+        const isTower = sessionPolicy.kind === 'tower';
+        const shouldAdjustDeadlinesLocally = isSinglePlayer || isTower;
 
         if (shouldAdjustDeadlinesLocally && pauseStartedAtRef.current) {
             const pausedDuration = Date.now() - pauseStartedAtRef.current;
@@ -3384,13 +3395,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [isPaused, pauseButtonCooldown, clearPauseCountdown]);
 
     const handlePauseToggle = useCallback(() => {
-        const isTower = session.gameCategory === 'tower';
+        const isTower = sessionPolicy.kind === 'tower';
         const isPausableAiGame =
             session.isAiGame &&
-            !session.isSinglePlayer &&
-            session.gameCategory !== 'tower' &&
-            session.gameCategory !== 'singleplayer';
-        if (!(session.isSinglePlayer || isTower || isPausableAiGame)) return;
+            !isSinglePlayer &&
+            sessionPolicy.kind !== 'tower' &&
+            sessionPolicy.kind !== 'singleplayer';
+        if (!(isSinglePlayer || isTower || isPausableAiGame)) return;
         if (!isPaused) {
             initiatePause();
             if (isPausableAiGame) {
@@ -3402,7 +3413,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 handlers.handleAction({ type: 'RESUME_AI_GAME', payload: { gameId: session.id } } as any);
             }
         }
-    }, [isPaused, initiatePause, resumeFromPause, session.isSinglePlayer, session.gameCategory, session.isAiGame, session.id, handlers.handleAction]);
+    }, [isPaused, initiatePause, resumeFromPause, isSinglePlayer, sessionPolicy.kind, session.isAiGame, session.id, handlers.handleAction]);
 
     useEffect(() => {
         if (pauseButtonCooldown <= 0) return;
@@ -3433,11 +3444,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (['ended', 'no_contest', 'rematch_pending'].includes(gameStatus)) {
             const actionType = session.isAiGame ? 'LEAVE_AI_GAME' : 'LEAVE_GAME_ROOM';
             // AI/일반 게임 종료 후 나가기 시 해당 종류의 대기실로 이동 (전략/놀이 대기실 AI를 먼저 판별해 싱글·탑으로 잘못 나가는 버그 방지)
-            if (session.gameCategory === 'guildwar') {
+            if (sessionPolicy.kind === 'guildwar') {
                 sessionStorage.setItem('postGameRedirect', '#/guildwar');
-            } else if (session.gameCategory === 'tower') {
+            } else if (sessionPolicy.kind === 'tower') {
                 sessionStorage.setItem('postGameRedirect', '#/tower');
-            } else if (session.gameCategory === 'adventure') {
+            } else if (sessionPolicy.kind === 'adventure') {
                 const stageId = session.adventureStageId;
                 sessionStorage.setItem('postGameRedirect', stageId ? `#/adventure/${stageId}` : '#/adventure');
             } else if (session.settings?.pairGame) {
@@ -3461,7 +3472,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             } else if (session.isAiGame && (SPECIAL_GAME_MODES.some(m => m.mode === session.mode) || PLAYFUL_GAME_MODES.some(m => m.mode === session.mode))) {
                 const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const : 'playful' as const;
                 sessionStorage.setItem('postGameRedirect', `#/waiting/${waitingRoomMode}`);
-            } else if (session.gameCategory === 'singleplayer' || session.isSinglePlayer) {
+            } else if (isSinglePlayer) {
                 sessionStorage.setItem('postGameRedirect', '#/singleplayer');
             } else {
                 // 일반 게임(전략/놀이바둑): 전략이면 전략 대기실, 그 외는 놀이바둑 대기실로 이동
@@ -3486,8 +3497,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         isSpectator,
         handlers.handleAction,
         session.isAiGame,
-        session.isSinglePlayer,
-        session.gameCategory,
+        isSinglePlayer,
+        sessionPolicy.kind,
         session.adventureStageId,
         session.mode,
         session.settings?.pairGame,
@@ -3531,13 +3542,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [clearPauseCountdown]);
 
     useEffect(() => {
-        const isTower = session.gameCategory === 'tower';
-        const isAdventure = session.gameCategory === 'adventure';
-        if (!(session.isSinglePlayer || isTower || isAdventure)) return;
+        const isTower = sessionPolicy.kind === 'tower';
+        const isAdventure = sessionPolicy.kind === 'adventure';
+        if (!(isSinglePlayer || isTower || isAdventure)) return;
         if (isPaused && ['ended', 'no_contest'].includes(gameStatus)) {
             resumeFromPause();
         }
-    }, [session.isSinglePlayer, isPaused, gameStatus, resumeFromPause, session.gameCategory]);
+    }, [isSinglePlayer, isPaused, gameStatus, resumeFromPause, sessionPolicy.kind]);
 
     // 게임 ID가 바뀔 때만 일시정지/재개 상태 초기화 (다른 게임으로 이동)
     useEffect(() => {
@@ -3562,7 +3573,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     // currentPlayer 변경 감지: AI가 돌을 둔 경우 보드 잠금 (싱글플레이만 — 타워는 클라 수라 serverRevision이 안 올라 잠금이 풀리지 않을 수 있음)
     useEffect(() => {
-        if (!session.isSinglePlayer || prevCurrentPlayer === undefined) return;
+        if (!isSinglePlayer || prevCurrentPlayer === undefined) return;
         const myPl = blackPlayerId === currentUser.id ? Player.Black : whitePlayerId === currentUser.id ? Player.White : Player.None;
         const wasMyTurn = prevCurrentPlayer === myPl;
         const isNowMyTurn = currentPlayer === myPl;
@@ -3577,11 +3588,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             });
             setIsBoardLocked(true);
         }
-    }, [currentPlayer, prevCurrentPlayer, session.isSinglePlayer, currentUser.id, blackPlayerId, whitePlayerId]);
+    }, [currentPlayer, prevCurrentPlayer, isSinglePlayer, currentUser.id, blackPlayerId, whitePlayerId]);
 
     // serverRevision 변경 감지: 최신 상태를 받은 경우 보드 잠금 해제
     useEffect(() => {
-        if (session.isSinglePlayer && session.serverRevision !== undefined) {
+        if (isSinglePlayer && session.serverRevision !== undefined) {
             const newRevision = session.serverRevision;
             if (newRevision > lastReceivedServerRevision) {
                 setLastReceivedServerRevision(newRevision);
@@ -3592,7 +3603,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 }
             }
         }
-    }, [session.serverRevision, session.isSinglePlayer, lastReceivedServerRevision, isBoardLocked]);
+    }, [session.serverRevision, isSinglePlayer, lastReceivedServerRevision, isBoardLocked]);
 
     const aiStuckGameStateSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const aiStuckPostSyncFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -3699,7 +3710,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const kataServerAiCategories = new Set(['tower', 'singleplayer', 'guildwar', 'adventure']);
         const isKataServerAiContext =
             !!session.isAiGame &&
-            (session.isSinglePlayer || kataServerAiCategories.has(String(session.gameCategory ?? '')));
+            (isSinglePlayer || kataServerAiCategories.has(String(sessionPolicy.kind ?? '')));
         const eligibleKataContext =
             session.isAiGame &&
             KATA_STYLE_AI_GO_MODES.has(mode) &&
@@ -3709,7 +3720,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
         const manuallyPausedAi =
             session.isAiGame &&
-            !session.isSinglePlayer &&
+            !isSinglePlayer &&
             session.gameCategory !== 'tower' &&
             session.gameCategory !== 'singleplayer' &&
             session.pausedTurnTimeLeft !== undefined &&
@@ -3813,7 +3824,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [
         session.id,
         session.isAiGame,
-        session.isSinglePlayer,
+        isSinglePlayer,
         session.gameCategory,
         session.pausedTurnTimeLeft,
         session.turnDeadline,
@@ -3864,14 +3875,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             aiMoveTimeoutRef.current = null;
         }
         
-        const isTower = session.gameCategory === 'tower';
-        const isGuildWarGame = session.gameCategory === 'guildwar';
-        const isAdventureGame = session.gameCategory === 'adventure';
+        const isTower = sessionPolicy.kind === 'tower';
+        const isGuildWarGame = sessionPolicy.kind === 'guildwar';
+        const isAdventureGame = sessionPolicy.kind === 'adventure';
         const isPlayfulAiGame = session.isAiGame && PLAYFUL_GAME_MODES.some(m => m.mode === mode);
         // 게임이 종료되었거나 일시정지되었거나 플레이 중이 아니면 AI 수를 보내지 않음
         // 놀이바둑 AI 게임도 클라이언트에서 처리
         // 모험: 서버 큐만 기대하면 AI 턴이 영구 정지할 수 있어 타워·길드전과 같이 REQUEST_SERVER_AI_MOVE 복구 경로에 포함
-        if (!(session.isSinglePlayer || isTower || isGuildWarGame || isPlayfulAiGame || isAdventureGame) || isPaused || gameStatus !== 'playing') {
+        if (!(isSinglePlayer || isTower || isGuildWarGame || isPlayfulAiGame || isAdventureGame) || isPaused || gameStatus !== 'playing') {
             lastAiMoveRef.current = null;
             return;
         }
@@ -3921,13 +3932,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         // 디버깅: AI 차례 판단 (베이스 선호/동색 덤 이후 흑백 좌석은 바뀔 수 있음 — 흑=유저·백=AI 가정은 하지 않음)
         if (
             import.meta.env.DEV &&
-            (isTower || session.isSinglePlayer || isGuildWarGame) &&
+            (isTower || isSinglePlayer || isGuildWarGame) &&
             (currentPlayer === Player.Black || currentPlayer === Player.White)
         ) {
             const currentSeatId = currentPlayer === Player.Black ? session.blackPlayerId : session.whitePlayerId;
             console.log(`[Game] ${isTower ? 'Tower' : isGuildWarGame ? 'Guild war' : 'Single player'} AI turn check:`, {
                 gameId: session.id,
-                gameCategory: session.gameCategory,
+                gameCategory: sessionPolicy.kind,
                 currentPlayer,
                 currentSeatId,
                 aiPlayerId,
@@ -4056,12 +4067,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
             // 도전의 탑·싱글플레이·길드전·모험: 서버 Kata(goAiBot) — 클라 전용 수만 반영되므로 clientSync 후 REQUEST_SERVER_AI_MOVE
             if (
-                session.gameCategory === 'tower' ||
-                session.gameCategory === 'guildwar' ||
-                session.gameCategory === 'singleplayer' ||
-                session.gameCategory === 'adventure' ||
+                isTower ||
+                isGuildWarGame ||
+                isSinglePlayer ||
+                isAdventureGame ||
                 isPairAiTurnForAiEffect ||
-                session.isSinglePlayer
+                isSinglePlayer
             ) {
                 const currentGameId = session.id;
                 const currentGameStatus = session.gameStatus;
@@ -4107,8 +4118,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         if (process.env.NODE_ENV === 'development') {
                             console.log('[Game] PVE server AI: REQUEST_SERVER_AI_MOVE', {
                                 gameId: currentGameId,
-                                gameCategory: session.gameCategory,
-                                isSinglePlayer: session.isSinglePlayer,
+                                gameCategory: sessionPolicy.kind,
+                                isSinglePlayer,
                                 moveHistoryLength: moveHistoryLengthAtCalculation,
                             });
                         }
@@ -4203,8 +4214,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
         };
     }, [
-        session.isSinglePlayer,
-        session.gameCategory,
+        isSinglePlayer,
+        sessionPolicy.kind,
         isPaused,
         gameStatus,
         currentPlayer,
@@ -4252,7 +4263,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             handlers.handleAction({ type: 'LEAVE_SPECTATING' });
             return;
         }
-        if (session.isSinglePlayer || session.gameCategory === 'tower' || session.gameCategory === 'singleplayer') {
+        if (isSinglePlayer || isTower) {
             return;
         }
         // PVP 등: 결과 모달「확인」은 모달만 닫고 인게임을 유지한다. 대기실·로비 복귀는 사이드바/푸터 「나가기」로만 처리한다.
@@ -4260,8 +4271,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.analysisResult,
         gameStatus,
         isSpectator,
-        session.isSinglePlayer,
-        session.gameCategory,
+        isSinglePlayer,
+        isTower,
         handlers.handleAction,
     ]);
 
@@ -4405,13 +4416,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             ...sessionWithRestoredBoard,
             foulInfo: {
                 message:
-                    session.gameCategory === 'adventure' || session.adventureMonsterCodexId
+                    isAdventureGame || session.adventureMonsterCodexId
                         ? '몬스터가 히든 아이템을 사용했습니다!'
                         : 'AI봇이 히든 아이템을 사용했습니다!',
                 expiry: aiHiddenItemEffectEndTime,
             },
         };
-    }, [isClientAiHiddenPresentationActive, sessionWithRestoredBoard, aiHiddenItemEffectEndTime]);
+    }, [isClientAiHiddenPresentationActive, sessionWithRestoredBoard, aiHiddenItemEffectEndTime, isAdventureGame, session.adventureMonsterCodexId]);
 
     const boardGlowForHiddenScanItem =
         gameStatus === 'hidden_placing' ||
@@ -4429,9 +4440,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     // AI 게임 일시 정지 관련 변수 (gameControlsProps보다 먼저 정의)
     const isPausableAiGame =
         session.isAiGame &&
-        !session.isSinglePlayer &&
-        session.gameCategory !== 'tower' &&
-        session.gameCategory !== 'singleplayer';
+        !isSinglePlayer &&
+        !isTower;
 
     const allowPostGameFooterActions =
         (gameStatus !== 'ended' && gameStatus !== 'no_contest') || postGameSummaryAcknowledged;
@@ -4450,7 +4460,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         resumeCountdown: isPausableAiGame ? resumeCountdown : undefined,
         pauseButtonCooldown: isPausableAiGame ? pauseButtonCooldown : undefined,
         onPauseToggle: isPausableAiGame ? handlePauseToggle : undefined,
-        onOpenRematchSettings: (session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer' && session.gameCategory !== 'guildwar' && session.gameCategory !== 'adventure')
+        onOpenRematchSettings: (session.isAiGame && !isSinglePlayer && !isTower && !isGuildWarGame && !isAdventureGame)
             ? () => setIsAiRematchModalOpen(true)
             : undefined,
         onOpenGameRecordList: handlers.openGameRecordList,
@@ -4821,7 +4831,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     // AI 게임도 클라이언트 일시 정지 상태 사용 (싱글플레이어와 동일한 방식)
     // isPausableAiGame은 위에서 이미 정의됨
-    const effectivePaused = (session.isSinglePlayer || isTower || isPausableAiGame) ? isPaused : false;
+    const effectivePaused = (isSinglePlayer || isTower || isPausableAiGame) ? isPaused : false;
 
     return (
         <InGameModalLayoutProvider>

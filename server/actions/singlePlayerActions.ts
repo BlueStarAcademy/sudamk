@@ -35,11 +35,15 @@ import {
     isSinglePlayerStageUnlocked,
     reconcileSinglePlayerProgress,
 } from '../../shared/utils/singlePlayerProgress.js';
+import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
     error?: string;
 };
+
+const isSinglePlayerSession = (game: LiveGameSession | null | undefined): game is LiveGameSession =>
+    Boolean(game && resolveArenaSessionPolicy(game).kind === 'singleplayer');
 
 const getRewardConfig = async () => {
     const stored = await db.getKV<unknown>('rewardConfig');
@@ -624,7 +628,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                     },
                 };
             }
-            if (!game.isSinglePlayer || !game.stageId) {
+            if (!isSinglePlayerSession(game) || !game.stageId) {
                 console.error(`[handleSinglePlayerAction] CONFIRM_SINGLE_PLAYER_GAME_START - Invalid game:`, { gameId, hasGame: !!game, isSinglePlayer: game?.isSinglePlayer, stageId: game?.stageId });
                 return { error: 'Invalid single player game.' };
             }
@@ -721,6 +725,10 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             game.blackByoyomiPeriodsLeft = 0;
             game.whiteByoyomiPeriodsLeft = 0;
 
+            // playing 진입 시 펫 힌트 보너스 3페이즈 프리롤(저장 전에 반영)
+            const { seedStrategicPetHintBonusPresetsForGame } = await import('../strategicPetHintAction.js');
+            await seedStrategicPetHintBonusPresetsForGame(game);
+
             // playing 전환 직후 한 번 강제 저장 — 이후 수순은 기존처럼 메모리 위주
             await db.saveGame(game, true);
             updateGameCache(game);
@@ -760,7 +768,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             if (!game) {
                 game = await db.getLiveGame(gameId);
             }
-            if (!game || !game.isSinglePlayer || !game.stageId) {
+            if (!isSinglePlayerSession(game) || !game.stageId) {
                 console.log(`[handleSinglePlayerAction] SINGLE_PLAYER_REFRESH_PLACEMENT: Invalid game`);
                 return { error: 'Invalid single player game.' };
             }
@@ -830,7 +838,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             const { getCachedGame, updateGameCache } = await import('../gameCache.js');
             let game = await getCachedGame(gameId);
             if (!game) game = await db.getLiveGame(gameId);
-            if (!game || !game.isSinglePlayer || !game.stageId) {
+            if (!isSinglePlayerSession(game) || !game.stageId) {
                 return { error: 'Invalid single player game.' };
             }
             if (game.blackPlayerId !== user.id) {
@@ -865,7 +873,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             const { getCachedGame, updateGameCache } = await import('../gameCache.js');
             let game = await getCachedGame(gameId);
             if (!game) game = await db.getLiveGame(gameId);
-            if (!game || !game.isSinglePlayer || !game.stageId) {
+            if (!isSinglePlayerSession(game) || !game.stageId) {
                 return { error: 'Invalid single player game.' };
             }
             if (game.blackPlayerId !== user.id) {
@@ -1416,7 +1424,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             if (!game) {
                 game = await db.getLiveGame(gameId);
             }
-            if (!game || !game.isSinglePlayer) {
+            if (!isSinglePlayerSession(game)) {
                 return { error: 'Invalid single player game.' };
             }
             const { applyPveItemActionClientSync } = await import('../pveItemSync.js');
@@ -1467,8 +1475,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 console.error(`[handleSinglePlayerAction] ${type}: Game not found in cache or DB, gameId=${gameId}`);
                 return { error: 'Game not found.' };
             }
-            if (!game.isSinglePlayer) {
-                console.error(`[handleSinglePlayerAction] ${type}: Game is not single player, gameId=${gameId}, isSinglePlayer=${game.isSinglePlayer}`);
+            if (!isSinglePlayerSession(game)) {
+                console.error(`[handleSinglePlayerAction] ${type}: Game is not single player, gameId=${gameId}`);
                 return { error: 'Invalid single player game.' };
             }
             console.log(`[handleSinglePlayerAction] ${type}: Game found, gameStatus=${game.gameStatus}, currentPlayer=${game.currentPlayer}`);

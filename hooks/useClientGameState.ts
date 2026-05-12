@@ -138,6 +138,9 @@ const getPlayerIdForEnum = (game: LiveGameSession, player: Player): string | nul
 const getHiddenInventoryKeyForPlayer = (player: Player): 'hidden_stones_p1' | 'hidden_stones_p2' =>
     player === Player.Black ? 'hidden_stones_p1' : 'hidden_stones_p2';
 
+const hiddenPointMatches = (stone: Point & { player?: Player }, target: Point, player: Player): boolean =>
+    stone.x === target.x && stone.y === target.y && (stone.player === undefined || stone.player === player);
+
 const isHumanPveHiddenMove = (game: LiveGameSession, movePlayer: Player): boolean => {
     const policy = resolveArenaSessionPolicy(game as any);
     if (policy.matchAxis !== 'pve') return false;
@@ -153,6 +156,41 @@ const isHumanPveHiddenMove = (game: LiveGameSession, movePlayer: Player): boolea
     // 구 세션 폴백: 싱글/탑은 기존처럼 유저 흑을 기본값으로 둔다.
     return movePlayer === Player.Black;
 };
+
+function upsertHumanHiddenStonePoint(
+    points: Array<Point & { player?: Player }> | undefined,
+    target: Point,
+    player: Player
+): Array<Point & { player?: Player }> {
+    const next = (points || []).filter(point => !(point.x === target.x && point.y === target.y && point.player === player));
+    next.push({ x: target.x, y: target.y, player });
+    return next;
+}
+
+function sanitizeHumanHiddenMoveIndexes(
+    hiddenMoves: { [moveIndex: number]: boolean },
+    moveHistory: LiveGameSession['moveHistory'],
+    game: LiveGameSession,
+    humanHiddenStonePoints: Array<Point & { player?: Player }> | undefined
+): { [moveIndex: number]: boolean } {
+    if (!Array.isArray(moveHistory) || !humanHiddenStonePoints?.length) return hiddenMoves;
+    const next: { [moveIndex: number]: boolean } = {};
+    for (const [rawIndex, isHidden] of Object.entries(hiddenMoves)) {
+        if (!isHidden) continue;
+        const index = Number(rawIndex);
+        if (!Number.isInteger(index) || index < 0) continue;
+        const move = moveHistory[index];
+        if (!move || move.x < 0 || move.y < 0) continue;
+        if (isHumanPveHiddenMove(game, move.player)) {
+            if (humanHiddenStonePoints.some(point => hiddenPointMatches(point, move, move.player))) {
+                next[index] = true;
+            }
+            continue;
+        }
+        next[index] = true;
+    }
+    return next;
+}
 
 /**
  * 클라이언트 이동 처리 후 게임 상태 업데이트
@@ -494,6 +532,17 @@ export function updateGameStateAfterMove(
 
     if ((gameType === 'tower' || gameType === 'singleplayer') && isHidden && isHumanPveHiddenMove(game, movePlayer)) {
         (updatedGame as any).gameStatus = 'playing';
+        updatedGame.humanHiddenStonePoints = upsertHumanHiddenStonePoint(
+            game.humanHiddenStonePoints,
+            { x, y },
+            movePlayer
+        );
+        updatedGame.hiddenMoves = sanitizeHumanHiddenMoveIndexes(
+            updatedGame.hiddenMoves || {},
+            updatedGame.moveHistory,
+            updatedGame,
+            updatedGame.humanHiddenStonePoints
+        );
         const hiddenKey = getHiddenInventoryKeyForPlayer(movePlayer);
         const current = (game as any)[hiddenKey] ?? (game.settings as any)?.hiddenStoneCount ?? 0;
         (updatedGame as any)[hiddenKey] = Math.max(0, current - 1);

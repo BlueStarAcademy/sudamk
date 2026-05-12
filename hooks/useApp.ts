@@ -74,8 +74,24 @@ import {
     pairPetQuickMenuNeedsSecondTick,
 } from '../shared/utils/pairPetQuickClaimNotification.js';
 import { advancePairTurn, getCurrentPairTurnSeat, isPairAiSeat, resetPairPasses } from '../shared/utils/pairGameTurn.js';
+import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 
 const HOME_BOARD_READ_STORAGE_PREFIX = 'sudamr-home-board-read-posts';
+
+function getSessionArenaKind(g: Partial<LiveGameSession> | undefined): string {
+    if (!g) return 'normal';
+    return resolveArenaSessionPolicy(g as any).kind;
+}
+
+function isSessionSingleOrTower(g: Partial<LiveGameSession> | undefined): boolean {
+    const kind = getSessionArenaKind(g);
+    return kind === 'singleplayer' || kind === 'tower';
+}
+
+function isSessionStrategicAiLike(g: Partial<LiveGameSession> | undefined): boolean {
+    if (!g) return false;
+    return resolveArenaSessionPolicy(g as any).isStrategicAiLike;
+}
 
 function isPairHatcheryPetInventoryFullError(action: ServerAction, errorMessage: string): boolean {
     return (
@@ -320,6 +336,8 @@ function mergeTowerServerGameWithClientBoardIfStale(
         captures: mergeMonotonicCountRecord(serverGame.captures, clientGame.captures),
         koInfo: clientGame.koInfo ?? serverGame.koInfo,
         hiddenMoves: clientGame.hiddenMoves ?? serverGame.hiddenMoves,
+        humanHiddenStonePoints: (clientGame as any).humanHiddenStonePoints ?? (serverGame as any).humanHiddenStonePoints,
+        resultContract: serverGame.resultContract ?? clientGame.resultContract,
         ...(bonusMerged > 0 || serverBonusDefined ? { blackTurnLimitBonus: bonusMerged } : {}),
         ...((clientGame as { aiInitialHiddenStone?: { x: number; y: number } | null }).aiInitialHiddenStone !== undefined
             ? {
@@ -779,9 +797,9 @@ function coerceClassicPveHumanBlackSeatsIfSwapped(session: LiveGameSession): Liv
     return session;
 }
 
-/** 싱글 베이스(배치·선호·덤): 수순이 없어도 WS가 빠르게 연속으로 오므로 GAME_UPDATE 쓰로틀에서 제외 */
-function isSinglePlayerBaseFlowUpdateThrottleBypass(g: LiveGameSession | undefined): boolean {
-    if (!g?.isSinglePlayer || !liveSessionIncludesBaseMode(g)) return false;
+/** 솔로 베이스(배치·선호·덤): 수순이 없어도 WS가 빠르게 연속으로 오므로 GAME_UPDATE 쓰로틀에서 제외 */
+function isSoloBaseFlowUpdateThrottleBypass(g: LiveGameSession | undefined): boolean {
+    if (!g || getSessionArenaKind(g) !== 'singleplayer' || !liveSessionIncludesBaseMode(g)) return false;
     const st = String(g.gameStatus);
     if (st.startsWith('base_')) return true;
     if (st === 'capture_bidding' || st === 'capture_reveal' || st === 'capture_tiebreaker') return true;
@@ -812,7 +830,7 @@ function shouldDropStaleStrategicGameUpdate(
         incoming.mode === GameMode.Curling ||
         incoming.mode === GameMode.Omok ||
         incoming.mode === GameMode.Ttamok;
-    const isStrategicAi = (incoming.isAiGame || incoming.gameCategory === 'guildwar') && !isPlayful;
+    const isStrategicAi = (isSessionStrategicAiLike(incoming) || getSessionArenaKind(incoming) === 'guildwar') && !isPlayful;
     if (!isStrategicAi) return false;
 
     // State transitions must win even if the payload is slim.
@@ -832,13 +850,13 @@ function shouldDropStaleStrategicGameUpdate(
     const incomingMoves = Array.isArray(incoming.moveHistory) ? incoming.moveHistory.length : 0;
     const existingMoves = Array.isArray(existing.moveHistory) ? existing.moveHistory.length : 0;
 
-    /** WS 페이로드에 isSinglePlayer가 빠지는 경우에도 sp-game- 등으로 싱글 본경기 전환을 살림 */
+    /** WS 페이로드 누락 시에도 sp-game- 등으로 솔로 본경기 전환을 살린다. */
     const singlePlayerLikeSession =
-        Boolean(incoming.isSinglePlayer || existing.isSinglePlayer) ||
+        getSessionArenaKind(incoming) === 'singleplayer' ||
+        getSessionArenaKind(existing) === 'singleplayer' ||
         String(incoming.id || '').startsWith('sp-game-') ||
         String(existing.id || '').startsWith('sp-game-') ||
-        incoming.gameCategory === 'singleplayer' ||
-        (existing.gameCategory as string | undefined) === 'singleplayer';
+        false;
 
     const existingIsBaseOrKomiPreplay =
         String(existing.gameStatus).startsWith('base_') ||
@@ -1177,9 +1195,7 @@ function mergePveRejoinResponseWithExistingBoard(
 ): LiveGameSession {
     if (!existing) return incoming;
     const isPve =
-        incoming.gameCategory === 'singleplayer' ||
-        incoming.isSinglePlayer ||
-        incoming.gameCategory === 'tower';
+        isSessionSingleOrTower(incoming);
     if (!isPve) return incoming;
     const terminal = incoming.gameStatus === 'ended' || incoming.gameStatus === 'no_contest';
     if (!terminal) return incoming;
@@ -1700,7 +1716,7 @@ export const useApp = () => {
                 const blockCelebration =
                     !!uid &&
                     Object.values(liveGamesRef.current).some((g) => {
-                        if (!g || g.isSinglePlayer || g.gameCategory === 'tower') return false;
+                        if (!g || isSessionSingleOrTower(g)) return false;
                         if (g.gameStatus !== 'ended') return false;
                         if (g.player1?.id !== uid && g.player2?.id !== uid) return false;
                         return true;
@@ -1741,7 +1757,7 @@ export const useApp = () => {
                 const blockManner =
                     !!uid &&
                     Object.values(liveGamesRef.current).some((g) => {
-                        if (!g || g.isSinglePlayer || g.gameCategory === 'tower') return false;
+                        if (!g || isSessionSingleOrTower(g)) return false;
                         if (g.gameStatus !== 'ended') return false;
                         if (g.player1?.id !== uid && g.player2?.id !== uid) return false;
                         return true;
@@ -2482,7 +2498,7 @@ export const useApp = () => {
         const uid = currentUserRef.current?.id;
         if (!uid) return;
         const block = Object.values(liveGamesRef.current).some((g) => {
-            if (!g || g.isSinglePlayer || g.gameCategory === 'tower') return false;
+            if (!g || isSessionSingleOrTower(g)) return false;
             if (g.gameStatus !== 'ended') return false;
             if (g.player1?.id !== uid && g.player2?.id !== uid) return false;
             return true;
@@ -3240,7 +3256,7 @@ export const useApp = () => {
                                 { x: animationTo.x, y: animationTo.y, player: playerWhoMoved },
                                 ko,
                                 moveHistLen,
-                                g.isSinglePlayer
+                                getSessionArenaKind(g) === 'singleplayer'
                                     ? { isSinglePlayer: true, opponentPlayer: opponentEnum }
                                     : { opponentPlayer: opponentEnum }
                             );
@@ -3934,8 +3950,7 @@ export const useApp = () => {
                 if (!isItemMode) {
                     const skipLobbyCaptureTurnScoring =
                         updateResult.updatedGame.mode === GameMode.Capture &&
-                        !updateResult.updatedGame.isSinglePlayer &&
-                        (updateResult.updatedGame as any).gameCategory !== 'tower';
+                        !isSessionSingleOrTower(updateResult.updatedGame);
                     let autoScoringTurns: number | undefined =
                         gameType === 'singleplayer'
                             ? resolveSinglePlayerAutoScoringCapForClientSession(updateResult.updatedGame as any)
@@ -4489,7 +4504,7 @@ export const useApp = () => {
                     g &&
                     g.gameStatus !== 'ended' &&
                     g.gameStatus !== 'no_contest' &&
-                    (g.isSinglePlayer || (g as { gameCategory?: string }).gameCategory === 'tower')
+                    isSessionSingleOrTower(g)
                 ) {
                     const myEnum =
                         g.blackPlayerId === uid
@@ -4572,13 +4587,13 @@ export const useApp = () => {
                 const gid = (action.payload as { gameId?: string })?.gameId;
                 if (gid) {
                     const gSnap = towerGamesRef.current[gid];
-                    if (gSnap && (gSnap as any).gameCategory === 'tower') {
+                    if (gSnap && getSessionArenaKind(gSnap) === 'tower') {
                         towerAddTurnOptimisticPendingByGameRef.current[gid] =
                             (towerAddTurnOptimisticPendingByGameRef.current[gid] || 0) + 3;
                         flushSync(() => {
                             setTowerGames((current) => {
                                 const g = current[gid];
-                                if (!g || (g as any).gameCategory !== 'tower') return current;
+                                if (!g || getSessionArenaKind(g) !== 'tower') return current;
                                 const prev = Number((g as any).blackTurnLimitBonus) || 0;
                                 return { ...current, [gid]: { ...g, blackTurnLimitBonus: prev + 3 } };
                             });
@@ -4630,7 +4645,7 @@ export const useApp = () => {
                 const beforePlaceGame = liveGamesRef.current[gid];
                 const isAiDiceBatchMode = !!(
                     beforePlaceGame &&
-                    beforePlaceGame.isAiGame &&
+                    isSessionStrategicAiLike(beforePlaceGame) &&
                     beforePlaceGame.mode === GameMode.Dice &&
                     beforePlaceGame.gameStatus === 'dice_placing' &&
                     !((action as { payload?: { __forceSingle?: boolean } }).payload?.__forceSingle)
@@ -4640,7 +4655,7 @@ export const useApp = () => {
                 flushSync(() => {
                     setLiveGames((currentGames) => {
                         const g = currentGames[gid];
-                        if (!g || g.isSinglePlayer || g.gameCategory === 'tower' || g.gameStatus !== 'dice_placing') {
+                        if (!g || isSessionSingleOrTower(g) || g.gameStatus !== 'dice_placing') {
                             return currentGames;
                         }
                         if ((g.stonesToPlace ?? 0) <= 0) return currentGames;
@@ -4751,7 +4766,7 @@ export const useApp = () => {
                 flushSync(() => {
                     setLiveGames((currentGames) => {
                         const g = currentGames[gid];
-                        if (!g || g.isSinglePlayer || g.gameCategory === 'tower' || g.gameStatus !== 'thief_placing') {
+                        if (!g || isSessionSingleOrTower(g) || g.gameStatus !== 'thief_placing') {
                             return currentGames;
                         }
                         if ((g.stonesToPlace ?? 0) <= 0) return currentGames;
@@ -5162,8 +5177,8 @@ export const useApp = () => {
                         const g = liveGamesRef.current[gameId];
                         const retainEndedPvpRoom =
                             g &&
-                            !g.isAiGame &&
-                            !g.isSinglePlayer &&
+                            !isSessionStrategicAiLike(g) &&
+                            getSessionArenaKind(g) !== 'singleplayer' &&
                             (g.gameStatus === 'ended' || g.gameStatus === 'no_contest') &&
                             !(g.settings as { pairGame?: unknown } | undefined)?.pairGame;
 
@@ -5245,7 +5260,7 @@ export const useApp = () => {
                 if (action.type === 'SPECTATE_GAME') {
                     const spectateGame = result.clientResponse?.game || (result as any).game;
                     if (spectateGame?.id) {
-                        const category = spectateGame.gameCategory || (spectateGame.isSinglePlayer ? 'singleplayer' : 'normal');
+                        const category = getSessionArenaKind(spectateGame);
                         if (category === 'tower') {
                             setTowerGames(prev => ({ ...prev, [spectateGame.id]: spectateGame }));
                         } else {
@@ -5285,7 +5300,7 @@ export const useApp = () => {
                     // AI 게임도 PVE로 처리하므로 singlePlayerGames에 저장
                     // 게임을 찾아서 카테고리를 확인
                     const game = towerGames[gameId] || singlePlayerGames[gameId] || liveGames[gameId];
-                    const isTower = game?.gameCategory === 'tower';
+                    const isTower = getSessionArenaKind(game) === 'tower';
                     const updateGameState = isTower ? setTowerGames : setSinglePlayerGames;
                     
                     // 게임 상태를 scoring으로 변경하고 분석 결과 저장
@@ -5457,7 +5472,7 @@ export const useApp = () => {
                                 const next = ensureAiHttpRevisionAdvances(prevG, merged);
                                 return { ...prev, [gid]: { ...(prevG || ({} as LiveGameSession)), ...next } };
                             });
-                        } else if (cat === 'singleplayer' || g.isSinglePlayer) {
+                        } else if (cat === 'singleplayer' || getSessionArenaKind(g) === 'singleplayer') {
                             setSinglePlayerGames((prev) => {
                                 const prevG = prev[gid];
                                 const next = ensureAiHttpRevisionAdvances(prevG, merged);
@@ -6071,7 +6086,7 @@ export const useApp = () => {
                             return merged;
                         };
 
-                        if (endGame.gameCategory === 'tower') {
+                        if (getSessionArenaKind(endGame) === 'tower') {
                             setTowerGames(currentGames => {
                                 const existingGame = currentGames[endGameId];
                                 if (endGame.winner !== null && endGame.winner !== undefined) {
@@ -6079,7 +6094,7 @@ export const useApp = () => {
                                 }
                                 return currentGames;
                             });
-                        } else if (endGame.isSinglePlayer) {
+                        } else if (getSessionArenaKind(endGame) === 'singleplayer') {
                             setSinglePlayerGames(currentGames => {
                                 const existingGame = currentGames[endGameId];
                                 if (endGame.winner !== null && endGame.winner !== undefined) {
@@ -6093,7 +6108,7 @@ export const useApp = () => {
                 
                 // 주사위/도둑 착수: 한 개 놓을 때마다 화면에 바로 반영 (HTTP 응답 game으로 liveGames 갱신)
                 const placementGameId = (action.type === 'DICE_PLACE_STONE' || action.type === 'THIEF_PLACE_STONE') ? ((action.payload as any)?.gameId || game?.id) : null;
-                if (game && placementGameId && (action.type === 'DICE_PLACE_STONE' || action.type === 'THIEF_PLACE_STONE') && !game.isSinglePlayer && game.gameCategory !== 'tower') {
+                if (game && placementGameId && (action.type === 'DICE_PLACE_STONE' || action.type === 'THIEF_PLACE_STONE') && !isSessionSingleOrTower(game)) {
                     const cloneBoard = (g: typeof game) =>
                         g.boardState && Array.isArray(g.boardState) ? g.boardState.map((row: number[]) => [...row]) : g.boardState;
                     if (action.type === 'DICE_PLACE_STONE') {
@@ -6151,7 +6166,7 @@ export const useApp = () => {
                 }
                 // 주사위 굴리기: HTTP 응답에 game 있으면 즉시 반영 (두 번째 턴부터 굴리기 애니가 안 나오는 버그 방지)
                 const rollGameId = (action.type === 'DICE_ROLL') ? ((action.payload as any)?.gameId || game?.id) : null;
-                if (game && rollGameId && action.type === 'DICE_ROLL' && !game.isSinglePlayer && game.gameCategory !== 'tower') {
+                if (game && rollGameId && action.type === 'DICE_ROLL' && !isSessionSingleOrTower(game)) {
                     setLiveGames(currentGames => {
                         const existing = currentGames[rollGameId];
                         if (shouldIgnoreOutdatedPlayfulUpdate(game, existing, { source: 'http_dice_roll' })) {
@@ -6187,12 +6202,13 @@ export const useApp = () => {
                     
                     // 응답에 게임 데이터가 있으면 즉시 상태에 추가 (WebSocket 업데이트를 기다리지 않음)
                     if (game) {
-                        console.log(`[handleAction] ${action.type} - Game object found in response:`, { gameId: game.id, gameStatus: game.gameStatus, gameCategory: game.gameCategory, isSinglePlayer: game.isSinglePlayer });
-                        const isTowerGame = game.gameCategory === 'tower';
-                        console.log('[handleAction] Adding game to state immediately:', effectiveGameId, 'isSinglePlayer:', game.isSinglePlayer, 'gameCategory:', game.gameCategory, 'isTower:', isTowerGame);
+                        const arenaKind = getSessionArenaKind(game);
+                        console.log(`[handleAction] ${action.type} - Game object found in response:`, { gameId: game.id, gameStatus: game.gameStatus, arenaKind });
+                        const isTowerGame = arenaKind === 'tower';
+                        console.log('[handleAction] Adding game to state immediately:', effectiveGameId, 'arenaKind:', arenaKind, 'isTower:', isTowerGame);
                         
                         // 게임 카테고리 확인
-                        if (game.isSinglePlayer) {
+                        if (arenaKind === 'singleplayer') {
                             // 배치변경 시 sessionStorage의 이전 보드를 제거해 Game.tsx가 서버의 새 boardState를 사용하도록 함
                             if (
                                 action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' ||
@@ -6910,9 +6926,9 @@ export const useApp = () => {
                             if (!g) continue;
                             const limit = (g.settings as any)?.scoringTurnLimit ?? (g.settings as any)?.autoScoringTurns;
                             const isTurnLimitGame = (limit != null && limit > 0);
-                            const isAiGame = !!(g as any).isAiGame;
-                            const needsRestore = (isTurnLimitGame || isAiGame) && (g.totalTurns == null || g.totalTurns === 0);
-                            const needsCurrentPlayerRestore = isTurnLimitGame || isAiGame;
+                            const strategicAiLike = isSessionStrategicAiLike(g);
+                            const needsRestore = (isTurnLimitGame || strategicAiLike) && (g.totalTurns == null || g.totalTurns === 0);
+                            const needsCurrentPlayerRestore = isTurnLimitGame || strategicAiLike;
                             if (needsRestore || needsCurrentPlayerRestore) {
                                 try {
                                     const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(`gameState_${id}`) : null;
@@ -6951,7 +6967,7 @@ export const useApp = () => {
                                 } catch { /* ignore */ }
                             }
                             // 온라인 AI 대국: INITIAL_STATE는 boardState를 보내지 않음. rejoin 전 빈 판·턴 표시를 막기 위해 sessionStorage 판·시간 정보 병합
-                            if (isAiGame) {
+                            if (strategicAiLike) {
                                 const cur = next[id];
                                 if (!cur) continue;
                                 const b = cur.boardState;
@@ -7014,7 +7030,7 @@ export const useApp = () => {
                                                         const pa = (parsed as any).adventureEncounterDeadlineMs;
                                                         const ca = (cur as any).adventureEncounterDeadlineMs;
                                                         if (
-                                                            cur.gameCategory === 'adventure' &&
+                                                            getSessionArenaKind(cur) === 'adventure' &&
                                                             typeof pa === 'number' &&
                                                             pa > Date.now() &&
                                                             (typeof ca !== 'number' || ca < Date.now())
@@ -7027,7 +7043,7 @@ export const useApp = () => {
                                                         const pf = (parsed as any).adventureEncounterFrozenHumanMsRemaining;
                                                         const cf = (cur as any).adventureEncounterFrozenHumanMsRemaining;
                                                         if (
-                                                            cur.gameCategory === 'adventure' &&
+                                                            getSessionArenaKind(cur) === 'adventure' &&
                                                             typeof pf === 'number' &&
                                                             pf > 0 &&
                                                             (cf == null || cf <= 0)
@@ -7044,12 +7060,12 @@ export const useApp = () => {
                                     }
                                 }
                                 const curMerged = next[id];
-                                if (curMerged && curMerged.isAiGame) {
+                                if (curMerged && isSessionStrategicAiLike(curMerged)) {
                                     const lim =
                                         (curMerged.settings as any)?.scoringTurnLimit ??
                                         (curMerged.settings as any)?.autoScoringTurns;
                                     const tl = lim != null && Number(lim) > 0;
-                                    if (tl || curMerged.gameCategory === 'adventure') {
+                                    if (tl || getSessionArenaKind(curMerged) === 'adventure') {
                                         try {
                                             const st2 =
                                                 typeof sessionStorage !== 'undefined'
@@ -7076,7 +7092,7 @@ export const useApp = () => {
                                                     ) {
                                                         m = { ...m, gameStartTime: p2.gameStartTime } as any;
                                                     }
-                                                    if (m.gameCategory === 'adventure') {
+                                                    if (getSessionArenaKind(m) === 'adventure') {
                                                         const pa2 = (p2 as any).adventureEncounterDeadlineMs;
                                                         if (typeof pa2 === 'number' && pa2 > Date.now()) {
                                                             const ca2 = (m as any).adventureEncounterDeadlineMs;
@@ -7125,7 +7141,7 @@ export const useApp = () => {
                                 fromPayload = next[id];
                             }
                             const isSpStage =
-                                fromPayload.isSinglePlayer &&
+                                getSessionArenaKind(fromPayload) === 'singleplayer' &&
                                 !!(fromPayload.stageId || (fromPayload.settings as any)?.autoScoringTurns);
                             const needsRestore = isSpStage && (fromPayload.totalTurns == null || fromPayload.totalTurns === 0);
                             const needsCurrentPlayerRestore = isSpStage;
@@ -7218,7 +7234,7 @@ export const useApp = () => {
                                 fromPayload = next[id];
                             }
                             const isTowerStage =
-                                fromPayload.gameCategory === 'tower' &&
+                                getSessionArenaKind(fromPayload) === 'tower' &&
                                 !!(fromPayload.stageId || (fromPayload.settings as any)?.autoScoringTurns);
                             const needsRestore = isTowerStage && (fromPayload.totalTurns == null || fromPayload.totalTurns === 0);
                             const needsCurrentPlayerRestore = isTowerStage;
@@ -7682,7 +7698,7 @@ export const useApp = () => {
                                 const uid = currentUserRef.current?.id;
                                 if (!uid) return;
                                 for (const g of Object.values(singlePlayerGamesRef.current)) {
-                                    if (g?.isSinglePlayer && g.gameStatus === 'pending' && g.blackPlayerId === uid) {
+                                    if (getSessionArenaKind(g) === 'singleplayer' && g.gameStatus === 'pending' && g.blackPlayerId === uid) {
                                         void handleActionRef
                                             .current({
                                                 type: 'SINGLE_PLAYER_SYNC_PENDING_STAGE',
@@ -8066,7 +8082,7 @@ export const useApp = () => {
                                                         // 게임 페이지에서 나온 경우, 게임 모드를 확인
                                                         const gameIdFromHash = currentHash.replace('#/game/', '');
                                                         const currentGame = liveGames[gameIdFromHash] || singlePlayerGames[gameIdFromHash] || towerGames[gameIdFromHash];
-                                                        if (currentGame && !currentGame.isSinglePlayer && currentGame.mode) {
+                                                        if (currentGame && getSessionArenaKind(currentGame) !== 'singleplayer' && currentGame.mode) {
                                                             if ((currentGame.settings as { pairGame?: unknown } | undefined)?.pairGame) {
                                                                 console.log('[WebSocket] Pair game session → 페어 경기장');
                                                                 setTimeout(() => {
@@ -8202,9 +8218,9 @@ export const useApp = () => {
                                     (!!existingForThrottle &&
                                         PLAYFUL_GAME_MODES.some((m) => m.mode === existingForThrottle.mode));
                                 const singlePlayerBaseFlowThrottleBypass =
-                                    (game.gameCategory === 'singleplayer' || game.isSinglePlayer) &&
-                                    (isSinglePlayerBaseFlowUpdateThrottleBypass(game) ||
-                                        isSinglePlayerBaseFlowUpdateThrottleBypass(existingForThrottle));
+                                    getSessionArenaKind(game) === 'singleplayer' &&
+                                    (isSoloBaseFlowUpdateThrottleBypass(game) ||
+                                        isSoloBaseFlowUpdateThrottleBypass(existingForThrottle));
                                 // 흑선 가져오기(capture bidding/reveal/tiebreaker) 종료 후 playing 전환은
                                 // 이동 수(moveHistory)가 없더라도 반드시 모달을 닫고 다음 화면으로 넘어가야 함.
                                 const isCaptureBidExitToPlaying =
@@ -8261,7 +8277,7 @@ export const useApp = () => {
                                 lastGameUpdateMoveCountRef.current[gameId] = incomingMoveCount;
                                 
                                 const gameBucket = getClientArenaStateBucket(game as LiveGameSession);
-                                const gameCategory =
+                                const arenaKind =
                                     gameBucket === 'singlePlayerGames'
                                         ? 'singleplayer'
                                         : gameBucket === 'towerGames'
@@ -8270,10 +8286,10 @@ export const useApp = () => {
                                 
                                 // 성능 최적화: 불필요한 로깅 제거 (프로덕션)
                                 if (process.env.NODE_ENV === 'development') {
-                                    console.log('[WebSocket] GAME_UPDATE received:', { gameId, gameCategory, gameStatus: game.gameStatus, isSinglePlayer: game.isSinglePlayer });
+                                    console.log('[WebSocket] GAME_UPDATE received:', { gameId, arenaKind, gameStatus: game.gameStatus, resolvedArenaKind: getSessionArenaKind(game) });
                                 }
 
-                                if (gameCategory === 'singleplayer') {
+                                if (arenaKind === 'singleplayer') {
                                     setSinglePlayerGames(currentGames => {
                                         // 성능 최적화: 게임 상태가 변경되지 않았으면 early return
                                         const existingGame = currentGames[gameId];
@@ -8604,7 +8620,7 @@ export const useApp = () => {
                                                         ? game.whiteTimeLeft 
                                                         : (existingGame?.whiteTimeLeft !== undefined && existingGame?.whiteTimeLeft !== null ? existingGame.whiteTimeLeft : game.whiteTimeLeft),
                                                 };
-                                            } else if (game.gameStatus === 'hidden_final_reveal' && game.isSinglePlayer && existingGame) {
+                                            } else if (game.gameStatus === 'hidden_final_reveal' && getSessionArenaKind(game) === 'singleplayer' && existingGame) {
                                                 // 싱글플레이: 서버는 boardState를 보내지 않으므로 기존 보드/수순/공개목록 반드시 보존 (투명해짐·색상 뒤바뀜·계가 안 됨 방지)
                                                 const serverBoardValid = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0;
                                                 const serverMoveHistoryValid = game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0;
@@ -8636,14 +8652,13 @@ export const useApp = () => {
                                                 game.gameStatus === 'playing' &&
                                                 !(
                                                     game.mode === GameMode.Capture &&
-                                                    !game.isSinglePlayer &&
-                                                    game.gameCategory !== 'tower'
+                                                    !isSessionSingleOrTower(game)
                                                 ) &&
                                                 (game.stageId || (game.settings as any)?.autoScoringTurns)
                                             ) {
                                                 // GAME_UPDATE를 받았을 때 자동계가 체크 (AI 수를 둔 경우 등)
                                                 try {
-                                                    const autoScoringTurns = game.isSinglePlayer
+                                                    const autoScoringTurns = getSessionArenaKind(game) === 'singleplayer'
                                                         ? resolveSinglePlayerAutoScoringCapForClientSession(game as any)
                                                         : (game.settings as any)?.autoScoringTurns;
                                                     
@@ -8669,7 +8684,7 @@ export const useApp = () => {
                                                             // 마지막 수가 AI 차례라면 AI가 실제로 착수한 뒤 계가를 진행해야 함.
                                                             // (싱글은 `Game.tsx`에서 Kata 수 요청 후 GAME_UPDATE로 반영될 때까지 대기)
                                                             const isAiTurnForSinglePlayer =
-                                                                game.isSinglePlayer &&
+                                                                getSessionArenaKind(game) === 'singleplayer' &&
                                                                 ((game.currentPlayer === Player.White && game.whitePlayerId === aiUserId) ||
                                                                  (game.currentPlayer === Player.Black && game.blackPlayerId === aiUserId));
                                                             if (isAiTurnForSinglePlayer) {
@@ -8862,7 +8877,7 @@ export const useApp = () => {
                                         const isNewSinglePlayerAiMove =
                                             !!existingGame &&
                                             !!updatedSinglePlayerGame &&
-                                            game.isSinglePlayer &&
+                                            getSessionArenaKind(game) === 'singleplayer' &&
                                             hasNewMoves &&
                                             game.moveHistory?.length > 0 &&
                                             lastSinglePlayerMove?.player === singleAiPlayerEnum &&
@@ -8937,7 +8952,7 @@ export const useApp = () => {
                                         }
                                         return updatedGames;
                                     });
-                                } else if (gameCategory === 'tower') {
+                                } else if (arenaKind === 'tower') {
                                     setTowerGames(currentGames => {
                                         const existingGame = currentGames[gameId];
                                         if (shouldDropStaleStrategicGameUpdate(game, existingGame)) {
@@ -9546,7 +9561,7 @@ export const useApp = () => {
                                         // 주사위/도둑: 착수 기록의 player는 항상 흑(따내는 돌)이라 moveHistory만으로 "다음 턴 색"을 추론하면 항상 백이 됨.
                                         // AI가 백일 때 오버샷 후 서버가 currentPlayer를 흑(유저)으로내도 stale로 오판해 AI 턴으로 되돌리는 버그가 난다.
                                         if (
-                                            (game.isAiGame || game.gameCategory === 'guildwar') &&
+                                            (isSessionStrategicAiLike(game) || getSessionArenaKind(game) === 'guildwar') &&
                                             !playfulPlacingStaleMerge &&
                                             game.mode !== GameMode.Dice &&
                                             game.mode !== GameMode.Thief &&
@@ -9676,7 +9691,7 @@ export const useApp = () => {
                                         const isDiceOrThiefPlayful =
                                             game.mode === GameMode.Dice || game.mode === GameMode.Thief;
                                         const isStrategicAiGame =
-                                            game.isAiGame && game.moveHistory?.length > 0 && !isDiceOrThiefPlayful;
+                                            isSessionStrategicAiLike(game) && game.moveHistory?.length > 0 && !isDiceOrThiefPlayful;
                                         const lastMove = (game.moveHistory as any[])?.[game.moveHistory.length - 1];
                                         const aiPlayerEnum = game.whitePlayerId === aiUserId ? Player.White : Player.Black;
                                         const isNewAiMoveLive = isStrategicAiGame && hasNewMoves && lastMove?.player === aiPlayerEnum;
@@ -9876,7 +9891,7 @@ export const useApp = () => {
                                         const data = await res.json().catch(() => ({}));
                                         if (res.ok && data?.game) {
                                             const g = data.game as LiveGameSession;
-                                            const category = g.gameCategory || (g.isSinglePlayer ? 'singleplayer' : 'normal');
+                                            const category = getSessionArenaKind(g);
                                             if (category === 'singleplayer') {
                                                 setSinglePlayerGames(prev => ({ ...prev, [g.id]: g }));
                                             } else if (category === 'tower') {
@@ -10286,15 +10301,15 @@ export const useApp = () => {
             // AI 게임 진입 직후: state 반영 전 레이스 컨디션으로 리다이렉트하지 않음 (3초 유예)
             const pending = pendingAiGameEntryRef.current;
             const isPendingAiEntry = pending?.gameId === urlGameId && Date.now() < pending.until;
-            const isAiGame = liveGames[urlGameId]?.isAiGame;
+            const strategicAiLike = isSessionStrategicAiLike(liveGames[urlGameId]);
             // gameInStore는 위에서 이미 선언됨
             // 게임이 이미 스토어에 있으면 activeGame 폴백이 처리하므로 리다이렉트 불필요
             // 스토어에 없으면 재입장 effect가 시도할 때까지 리다이렉트하지 않음
-            if (!gameInStore && !isAiGame && !isPendingAiEntry) {
+            if (!gameInStore && !strategicAiLike && !isPendingAiEntry) {
                 // 재입장 대기 중: 리다이렉트하지 않음
                 return;
             }
-            if (!isAiGame && !isPendingAiEntry && gameInStore) {
+            if (!strategicAiLike && !isPendingAiEntry && gameInStore) {
                 // 게임이 스토어에 있으면 URL 기반 activeGame 폴백으로 표시됨
                 return;
             }
@@ -10327,9 +10342,7 @@ export const useApp = () => {
         // 싱글/타워 종료 후: recovery rejoin이 캐시·DB의 슬림 스냅샷으로 덮어 «초기화·턴 알림»이 나는 회귀 방지 (F5용 effect와 동일한 취지)
         const isPveEndedNoRecoveryRejoin =
             !!currentGame &&
-            (currentGame.gameCategory === 'singleplayer' ||
-                currentGame.isSinglePlayer ||
-                currentGame.gameCategory === 'tower') &&
+            isSessionSingleOrTower(currentGame) &&
             (currentGame.gameStatus === 'ended' || currentGame.gameStatus === 'no_contest');
         if (isCurrentlyViewingSameGame && isPveEndedNoRecoveryRejoin) {
             return;
@@ -10355,13 +10368,7 @@ export const useApp = () => {
                     liveGamesRef.current[gid] ||
                     singlePlayerGamesRef.current[gid] ||
                     towerGamesRef.current[gid];
-                if (
-                    inStore &&
-                    (inStore.gameCategory === 'singleplayer' ||
-                        inStore.isSinglePlayer ||
-                        inStore.gameCategory === 'tower') &&
-                    (inStore.gameStatus === 'ended' || inStore.gameStatus === 'no_contest')
-                ) {
+                if (inStore && isSessionSingleOrTower(inStore) && (inStore.gameStatus === 'ended' || inStore.gameStatus === 'no_contest')) {
                     return;
                 }
                 if (inStore && hasHydratedBoardGridForRejoin(inStore)) return;
@@ -10375,7 +10382,7 @@ export const useApp = () => {
                 const data = await res.json().catch(() => ({}));
                 if (res.ok && data.game) {
                     const g = data.game as LiveGameSession;
-                    const category = g.gameCategory || (g.isSinglePlayer ? 'singleplayer' : 'normal');
+                    const category = getSessionArenaKind(g);
                     if (category === 'singleplayer') {
                         setSinglePlayerGames(prev => ({
                             ...prev,
@@ -10413,7 +10420,7 @@ export const useApp = () => {
             return;
         }
         const gameInStore = liveGames[gameId] || singlePlayerGames[gameId] || towerGames[gameId];
-        const gameCategoryInStore = gameInStore?.gameCategory || (gameInStore?.isSinglePlayer ? 'singleplayer' : 'normal');
+        const gameCategoryInStore = getSessionArenaKind(gameInStore);
         const isPveGameInStore = gameCategoryInStore === 'singleplayer' || gameCategoryInStore === 'tower';
         const isLiveMatchNow =
             !!gameInStore &&
@@ -10452,7 +10459,7 @@ export const useApp = () => {
                 const data = await res.json().catch(() => ({}));
                 if (res.ok && data.game) {
                     const g = data.game as LiveGameSession;
-                    const category = g.gameCategory || (g.isSinglePlayer ? 'singleplayer' : 'normal');
+                    const category = getSessionArenaKind(g);
                     if (category === 'singleplayer') {
                         setSinglePlayerGames(prev => ({
                             ...prev,
@@ -10524,7 +10531,7 @@ export const useApp = () => {
                 if (!res.ok || !data.game) return;
                 const g = data.game as LiveGameSession;
                 if (g.gameStatus !== 'scoring' && g.gameStatus !== 'hidden_final_reveal') {
-                    const category = g.gameCategory || (g.isSinglePlayer ? 'singleplayer' : 'normal');
+                    const category = getSessionArenaKind(g);
                     if (category === 'singleplayer') {
                         setSinglePlayerGames(prev => ({
                             ...prev,
@@ -10653,7 +10660,7 @@ export const useApp = () => {
         if (options?.activeGame) {
             const g = options.activeGame;
             setActiveGameFromLogin(g);
-            const category = g.gameCategory || (g.isSinglePlayer ? 'singleplayer' : 'normal');
+            const category = getSessionArenaKind(g);
             if (category === 'singleplayer') {
                 setSinglePlayerGames(prev => ({ ...prev, [g.id]: g }));
             } else if (category === 'tower') {

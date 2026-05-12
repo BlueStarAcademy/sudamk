@@ -33,6 +33,8 @@ import {
     pairOrderRevealNeedsConfirmation,
     resetPairPasses,
 } from '../../shared/utils/pairGameTurn.js';
+import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
+import { updateStrategicPveItemState } from './strategicItemAdapters.js';
 import {
     consumeOpponentPatternStoneIfAny,
     recordPatternStoneConsumed,
@@ -195,6 +197,8 @@ function schedulePairAiTurnIfNeeded(game: types.LiveGameSession, now: number): v
 
 function advancePairTurnAfterAction(game: types.LiveGameSession, now: number): void {
     if (!isPairClassicGame(game.settings, game.mode)) return;
+    if (game.pairTeamResignRequest) delete game.pairTeamResignRequest;
+    if (game.pairTeamResignCooldownByTeam) delete game.pairTeamResignCooldownByTeam;
     const nextSeat = advancePairTurn(game.settings);
     if (nextSeat) {
         game.currentPlayer = nextSeat.player;
@@ -600,12 +604,11 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
     /** 본경기 단계로 진입한 베이스 세션은 어떤 업데이트 단계 이후에도 흑/백 좌석이 잠금에서 벗어나선 안 된다. */
     enforceBaseSeatLockIfDriftedDuringPlay(game);
     
-    // 싱글플레이 게임인 경우 싱글플레이용 업데이트 함수 사용
-    if (game.isSinglePlayer) {
-        const { updateSinglePlayerHiddenState } = await import('./singlePlayerHidden.js');
-        const { updateSinglePlayerMissileState } = await import('./singlePlayerMissile.js');
-        await updateSinglePlayerHiddenState(game, now);
-        const missileStateChanged = await updateSinglePlayerMissileState(game, now);
+    const sessionPolicy = resolveArenaSessionPolicy(game);
+    // PVE 계열(singleplayer/tower) 아이템 상태 갱신은 공통 어댑터를 통해 수행한다.
+    if (sessionPolicy.kind === GameCategory.SinglePlayer) {
+        await updateStrategicPveItemState(game, now);
+        const missileStateChanged = Boolean((game as any)._missileStateChanged);
         const itemTimeoutStateChanged = (game as any)._itemTimeoutStateChanged;
         if (missileStateChanged || itemTimeoutStateChanged) {
             if (itemTimeoutStateChanged) {
@@ -623,10 +626,8 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
             await db.saveGame(game);
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
         }
-    } else if (game.gameCategory === GameCategory.Tower) {
-        // 도전의 탑 PVE: 싱글플레이와 동일하게 towerPlayerHidden 전용 업데이트 사용
-        const { updateTowerPlayerHiddenState } = await import('./towerPlayerHidden.js');
-        await updateTowerPlayerHiddenState(game, now);
+    } else if (sessionPolicy.kind === GameCategory.Tower) {
+        await updateStrategicPveItemState(game, now);
         const missileStateChanged = updateMissileState(game, now);
         const itemTimeoutStateChanged = (game as any)._itemTimeoutStateChanged;
         if (missileStateChanged) (game as any)._missileStateChanged = true;
@@ -935,7 +936,15 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 return { error: '내 차례가 아닙니다.' };
             }
 
-            const { x, y, isHidden, boardState: clientBoardState, moveHistory: clientMoveHistory } = payload;
+            const {
+                x,
+                y,
+                isHidden,
+                boardState: clientBoardState,
+                moveHistory: clientMoveHistory,
+                hiddenMoves: clientHiddenMoves,
+                humanHiddenStonePoints: clientHumanHiddenStonePoints,
+            } = payload;
             // START_HIDDEN_PLACEMENT으로 들어온 착수는 반드시 히든 1회 소모·히든 수로 기록한다.
             // (아이템 타이머 만료 직후 레이스, 클라 isHidden 불일치 시 재고가 줄지 않고 무한 사용되던 버그 수정)
             const effectiveIsHidden = game.gameStatus === 'hidden_placing';
@@ -962,6 +971,22 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             let serverMoveHistory = game.moveHistory;
             
             if (
+                game.gameCategory === GameCategory.Tower &&
+                Array.isArray(clientBoardState) &&
+                clientBoardState.length > 0 &&
+                Array.isArray(clientMoveHistory)
+            ) {
+                // 탑은 일반 수가 클라이언트에서 먼저 진행된다. 히든 착수 PLACE_STONE은
+                // 방금 둔 뒤 스냅샷을 우선 사용해야 서버가 오래된 0수/짧은 수순 기준으로 히든 인덱스를 다시 붙이지 않는다.
+                serverBoardState = clientBoardState;
+                serverMoveHistory = clientMoveHistory;
+                if (clientHiddenMoves && typeof clientHiddenMoves === 'object') {
+                    game.hiddenMoves = { ...clientHiddenMoves };
+                }
+                if (Array.isArray(clientHumanHiddenStonePoints)) {
+                    (game as any).humanHiddenStonePoints = clientHumanHiddenStonePoints.map((point: types.Point & { player?: types.Player }) => ({ ...point }));
+                }
+            } else if (
                 game.isSinglePlayer ||
                 game.gameCategory === GameCategory.Tower ||
                 game.isAiGame ||
@@ -1360,6 +1385,11 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 if (effectiveIsHidden) {
                     if (!game.hiddenMoves) game.hiddenMoves = {};
                     game.hiddenMoves[game.moveHistory.length - 1] = true;
+                    const humanHiddenStonePoints = ((game as any).humanHiddenStonePoints ?? []) as Array<types.Point & { player?: types.Player }>;
+                    (game as any).humanHiddenStonePoints = [
+                        ...humanHiddenStonePoints.filter((point) => !(point.x === x && point.y === y && point.player === myPlayerEnum)),
+                        { x, y, player: myPlayerEnum },
+                    ];
                 }
                 const petHintBonusResult = await (async () => {
                     const { handleStrategicPetHintBonusClaim } = await import('../strategicPetHintAction.js');
@@ -1406,6 +1436,11 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             if (effectiveIsHidden) {
                 if (!game.hiddenMoves) game.hiddenMoves = {};
                 game.hiddenMoves[game.moveHistory.length - 1] = true;
+                const humanHiddenStonePoints = ((game as any).humanHiddenStonePoints ?? []) as Array<types.Point & { player?: types.Player }>;
+                (game as any).humanHiddenStonePoints = [
+                    ...humanHiddenStonePoints.filter((point) => !(point.x === x && point.y === y && point.player === myPlayerEnum)),
+                    { x, y, player: myPlayerEnum },
+                ];
             }
 
             const petHintBonusResult = await (async () => {

@@ -1,5 +1,43 @@
 import { GameMode, Player, type GameSettings } from '../types/index.js';
 
+/** 페어 PVP 휴먼 팀에서 같은 팀 유저(본인 제외) id — 팀당 유저 2명일 때만 */
+export function getPairPvpHumanTeammateUserId(
+    settings: Pick<GameSettings, 'pairGame'> | undefined,
+    userId: string,
+): string | null {
+    const pg = settings?.pairGame;
+    if (!pg || pg.pairMode !== 'pvp') return null;
+    for (const team of [pg.teamA, pg.teamB] as const) {
+        const userMembers = (team.members ?? []).filter((m) => m.kind === 'user' && m.id);
+        if (userMembers.length !== 2) continue;
+        if (!userMembers.some((m) => m.id === userId)) continue;
+        const other = userMembers.find((m) => m.id !== userId);
+        return other?.id ?? null;
+    }
+    return null;
+}
+
+export function pairTeamIdForUserId(
+    settings: Pick<GameSettings, 'pairGame'> | undefined,
+    userId: string,
+): 'teamA' | 'teamB' | null {
+    const pg = settings?.pairGame;
+    if (!pg) return null;
+    if (pg.teamA.members.some((m) => m.id === userId)) return 'teamA';
+    if (pg.teamB.members.some((m) => m.id === userId)) return 'teamB';
+    return null;
+}
+
+/** 팀 전체 기권 시 승리 색(팀 단위 색 고정 수순에서 상대 팀 색) */
+export function pairWinningPlayerWhenTeamResigns(
+    settings: Pick<GameSettings, 'pairGame'> | undefined,
+    resigningTeamId: 'teamA' | 'teamB',
+): Player.Black | Player.White {
+    const seat = settings?.pairGame?.turnOrder?.find((s) => s.teamId !== resigningTeamId);
+    if (seat?.player === Player.Black || seat?.player === Player.White) return seat.player;
+    return resigningTeamId === 'teamA' ? Player.White : Player.Black;
+}
+
 export type PairGameTurnSeatId = 'black1' | 'white1' | 'black2' | 'white2';
 export type PairGameSeatKind = 'user' | 'ai' | 'pet';
 

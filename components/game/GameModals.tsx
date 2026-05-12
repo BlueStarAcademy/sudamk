@@ -29,7 +29,7 @@ import TowerSummaryModal from '../TowerSummaryModal.js';
 import AiGameDescriptionModal from '../AiGameDescriptionModal.js';
 import ColorStartConfirmationModal from '../ColorStartConfirmationModal.js';
 import PairTurnOrderModal from '../PairTurnOrderModal.js';
-import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
+import { modeIncludesBaseCaptureMix, resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 interface GameModalsProps extends GameProps {
     confirmModalType: 'resign' | null;
     onHideConfirmModal: () => void;
@@ -57,6 +57,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         onAdventureLeaveToMap,
     } = props;
     const { gameStatus, mode, id: gameId } = session;
+    const arenaPolicy = resolveArenaSessionPolicy(session);
 
     const baseUsesBottomStrip =
         mode === GameMode.Base || (mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Base)));
@@ -93,13 +94,13 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
             showResultModal &&
             (gameStatus === 'ended' || gameStatus === 'scoring' || gameStatus === 'no_contest');
 
-        if (session.isSinglePlayer && showPveResultShell) {
+        if (arenaPolicy.kind === 'singleplayer' && showPveResultShell) {
             return <SinglePlayerSummaryModal session={session} currentUser={currentUser} onAction={onAction} onClose={onCloseResults} />;
         }
 
         // 도전의 탑: `showResultModal`만으로 게이트하면 종료 직후 WS/병합으로 `gameStatus`가 선행(예: base_game_start_confirmation)으로
         // 잠깐 바뀌는 레이스에서 결과 대신 경기 시작 확인 모달이 덮이는 경우가 있다. 플래그가 켜진 동안은 항상 결과를 우선한다.
-        if (session.gameCategory === 'tower' && showResultModal) {
+        if (arenaPolicy.kind === 'tower' && showResultModal) {
             return <TowerSummaryModal session={session} currentUser={currentUser} onAction={onAction} onClose={onCloseResults} />;
         }
         
@@ -183,8 +184,8 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         if (
             showResultModal &&
             (gameStatus === 'ended' || gameStatus === 'no_contest') &&
-            !session.isSinglePlayer &&
-            session.gameCategory !== 'tower'
+            arenaPolicy.kind !== 'singleplayer' &&
+            arenaPolicy.kind !== 'tower'
         ) {
             if (gameStatus === 'ended') return (
                 <GameSummaryModal

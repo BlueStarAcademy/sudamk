@@ -13,6 +13,7 @@ import { getChampionshipAbilityKataLadder } from './championshipAbilityKataStore
 import { processMove } from './goLogic.js';
 import { calculateScoreManually } from '../shared/utils/manualScoring.js';
 import { generateKataServerMoveCandidateDetails, isKataServerAvailable } from './kataServerService.js';
+import { buildChampionshipResultContract } from './utils/resultContract.js';
 
 type KoInfo = { point: Point; turn: number } | null;
 
@@ -376,6 +377,7 @@ export async function generateChampionshipRealMatch(
             generationMs: Date.now() - startedAt,
         },
     };
+    game.resultContract = buildChampionshipResultContract(match.id, game);
 
     return {
         game,

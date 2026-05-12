@@ -17,6 +17,7 @@ export type PveItemActionClientSync = {
     boardState: BoardState;
     moveHistory: Move[];
     hiddenMoves?: Record<string, boolean>;
+    humanHiddenStonePoints?: Array<Point & { player?: Player }>;
     permanentlyRevealedStones?: Point[];
     aiInitialHiddenStone?: Point | null;
     baseStones?: LiveGameSession['baseStones'];
@@ -404,6 +405,8 @@ export type ServerAction =
     | { type: 'PLACE_STONE', payload: { gameId: string; x: number; y: number, isHidden?: boolean, isClientAiMove?: boolean, clientSideAiMove?: boolean } }
     | { type: 'PASS_TURN', payload: { gameId: string } }
     | { type: 'RESIGN_GAME', payload: { gameId: string, andLeave?: boolean } }
+    | { type: 'REQUEST_PAIR_TEAM_RESIGN', payload: { gameId: string } }
+    | { type: 'RESPOND_PAIR_TEAM_RESIGN', payload: { gameId: string; accept: boolean } }
     | { type: 'LEAVE_AI_GAME', payload: { gameId: string } }
     | { type: 'REQUEST_NO_CONTEST_LEAVE', payload: { gameId: string } }
     | { type: 'REQUEST_SERVER_AI_MOVE', payload: { gameId: string; clientSync?: PveItemActionClientSync } }

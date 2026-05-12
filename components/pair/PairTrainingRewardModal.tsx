@@ -269,6 +269,16 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
         setPhase('done');
     };
 
+    /** 수령 직후 슬롯은 비었으므로 같은 슬롯·같은 인벤 행으로 수련 재시작 */
+    const handleTrainAgain = async () => {
+        const res = (await applyPetActionRef.current({
+            type: 'PAIR_PET_START_TRAINING',
+            payload: { slotIndex, itemId: petItem.id },
+        })) as { error?: string } | null;
+        if (res?.error) return;
+        onCloseRef.current();
+    };
+
     useLayoutEffect(() => {
         setPhase('ready');
         setSummary(null);
@@ -518,14 +528,25 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                                 )
                             ) : null}
 
-                            <Button
-                                type="button"
-                                colorScheme="none"
-                                className="mx-auto mt-4 !w-full max-w-sm !rounded-xl !border !border-fuchsia-400/40 !bg-gradient-to-b !from-fuchsia-600/85 !via-fuchsia-800/50 !to-zinc-950/90 !py-2 !text-xs !font-bold !tracking-wide !text-fuchsia-50/95 !shadow-[0_10px_28px_rgba(0,0,0,0.35)] hover:!from-fuchsia-500 hover:!via-fuchsia-700/45 hover:!to-zinc-950 sm:mt-5 sm:!py-2.5 sm:!text-sm sm:!font-black sm:!tracking-normal"
-                                onClick={onClose}
-                            >
-                                확인
-                            </Button>
+                            <div className="mx-auto mt-4 flex w-full max-w-sm flex-row items-stretch justify-center gap-2 sm:mt-5 sm:gap-3">
+                                <button
+                                    type="button"
+                                    disabled={isBusy}
+                                    onClick={() => void handleTrainAgain()}
+                                    className="min-w-0 flex-1 rounded-xl border border-violet-400/45 bg-violet-950/35 px-2 py-2 text-[0.65rem] font-bold leading-snug text-violet-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-violet-300/55 hover:bg-violet-900/40 disabled:cursor-not-allowed disabled:opacity-45 sm:px-3 sm:py-2.5 sm:text-sm sm:font-black"
+                                >
+                                    한번 더 수련
+                                </button>
+                                <Button
+                                    type="button"
+                                    colorScheme="none"
+                                    disabled={isBusy}
+                                    className="min-w-0 flex-1 !rounded-xl !border !border-fuchsia-400/40 !bg-gradient-to-b !from-fuchsia-600/85 !via-fuchsia-800/50 !to-zinc-950/90 !py-2 !text-xs !font-bold !tracking-wide !text-fuchsia-50/95 !shadow-[0_10px_28px_rgba(0,0,0,0.35)] hover:!from-fuchsia-500 hover:!via-fuchsia-700/45 hover:!to-zinc-950 disabled:!opacity-45 sm:!py-2.5 sm:!text-sm sm:!font-black sm:!tracking-normal"
+                                    onClick={onClose}
+                                >
+                                    확인
+                                </Button>
+                            </div>
                         </>
                     ) : null}
                 </div>

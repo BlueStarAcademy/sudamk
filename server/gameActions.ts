@@ -39,6 +39,7 @@ import { broadcast } from './socket.js';
 import { applyPveItemActionClientSync } from './pveItemSync.js';
 import { updateQuestProgress } from './questService.js';
 import { getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame } from '../shared/utils/pairGameTurn.js';
+import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 
 export { updateQuestProgress } from './questService.js';
 
@@ -492,14 +493,24 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
 
         // 싱글플레이·도전의 탑 미사일 액션 처리 (게임이 캐시에 없을 수 있음)
         if (type === 'START_MISSILE_SELECTION' || type === 'LAUNCH_MISSILE' || type === 'CANCEL_MISSILE_SELECTION' || type === 'MISSILE_INVALID_SELECTION' || type === 'MISSILE_ANIMATION_COMPLETE') {
-            if (gameId.startsWith('sp-game-')) {
+            const { getCachedGame, updateGameCache } = await import('./gameCache.js');
+            let preloadedGame = await getCachedGame(gameId);
+            if (!preloadedGame) {
+                const cache = volatileState.gameCache;
+                if (cache) {
+                    const cached = cache.get(gameId);
+                    if (cached?.game) preloadedGame = cached.game as types.LiveGameSession;
+                }
+            }
+            if (!preloadedGame) preloadedGame = await db.getLiveGame(gameId);
+            const preloadedPolicy = preloadedGame ? resolveArenaSessionPolicy(preloadedGame) : null;
+            if (preloadedPolicy?.kind === 'singleplayer') {
                 const { handleSinglePlayerAction } = await import('./actions/singlePlayerActions.js');
                 const result = await handleSinglePlayerAction(volatileState, action, userData);
                 if (result && (result as any).error) return result;
                 return result || { error: 'Failed to process single player missile action.' };
             }
-            if (gameId.startsWith('tower-game-')) {
-                const { getCachedGame, updateGameCache } = await import('./gameCache.js');
+            if (preloadedPolicy?.kind === 'tower') {
                 // 탑: 메모리 캐시에 항목이 있으면 우선 사용 (CONFIRM 직후 DB가 pending일 수 있음)
                 let game: types.LiveGameSession | null = null;
                 const cache = volatileState.gameCache;
@@ -514,7 +525,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 }
                 if (!game) game = await db.getLiveGame(gameId);
                 if (!game) return { error: 'Game not found.' };
-                if (game.gameCategory !== 'tower') return { error: 'Not a tower game.' };
+                if (resolveArenaSessionPolicy(game).kind !== 'tower') return { error: 'Not a tower game.' };
                 // 탑: pending인데 아직 수가 없고 흑 차례면 CONFIRM 직후 상태로 간주 → playing으로 정규화
                 if ((game as any).gameStatus === 'pending' && (!game.moveHistory || game.moveHistory.length === 0) && game.currentPlayer === types.Player.Black) {
                     (game as any).gameStatus = 'playing';
@@ -569,7 +580,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         }
         
         // 싱글플레이 자동 계가 트리거 (PLACE_STONE with triggerAutoScoring) 처리
-        if (type === 'PLACE_STONE' && (payload as any)?.triggerAutoScoring && gameId.startsWith('sp-game-')) {
+        if (type === 'PLACE_STONE' && (payload as any)?.triggerAutoScoring) {
             // 싱글플레이 게임은 메모리 캐시에서 먼저 찾기 (PVE는 종료 전까지 DB에 저장되지 않으므로 캐시/메모리만 사용)
             const { getCachedGame, updateGameCache } = await import('./gameCache.js');
             let game = await getCachedGame(gameId);
@@ -588,7 +599,10 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             if (!game) {
                 game = await db.getLiveGame(gameId);
             }
-            if (!game || !game.isSinglePlayer) {
+            if (!game) {
+                return { error: 'Game not found.' };
+            }
+            if (resolveArenaSessionPolicy(game).kind !== 'singleplayer') {
                 return { error: 'Invalid single player game.' };
             }
             // handleStrategicGameAction을 통해 처리 (싱글플레이 게임도 전략 액션 핸들러 사용)
@@ -616,12 +630,12 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             // 탑: 메모리 캐시에 항목이 있으면 우선 사용 (CONFIRM 직후 DB가 pending일 수 있음)
             let game: types.LiveGameSession | null = null;
             const cacheForTower = volatileState.gameCache;
-            if (gameId.startsWith('tower-game-') && cacheForTower) {
+            if (cacheForTower) {
                 const cached = cacheForTower.get(gameId);
                 if (cached?.game) game = cached.game as types.LiveGameSession;
             }
             if (!game) game = await getCachedGame(gameId);
-            if (!game && (gameId.startsWith('sp-game-') || gameId.startsWith('tower-game-')) && cacheForTower) {
+            if (!game && cacheForTower) {
                 const cached = cacheForTower.get(gameId);
                 if (cached) {
                     game = cached.game;
@@ -633,8 +647,9 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 console.error(`[handleAction] Game not found: gameId=${gameId}, type=${type}`);
                 return { error: 'Game not found.' };
             }
+            const preItemPolicy = resolveArenaSessionPolicy(game);
             // 도전의 탑 1~20층: 미사일/히든/스캔 사용 불가
-            if (game.gameCategory === 'tower') {
+            if (preItemPolicy.kind === 'tower') {
                 // 탑: pending인데 아직 수가 없고 흑 차례면 CONFIRM 직후 상태로 간주 → playing으로 정규화
                 if ((game as any).gameStatus === 'pending' && (!game.moveHistory || game.moveHistory.length === 0) && game.currentPlayer === types.Player.Black) {
                     (game as any).gameStatus = 'playing';
@@ -667,19 +682,19 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 (actionTypeStr === 'START_SCANNING' ||
                     actionTypeStr === 'START_HIDDEN_PLACEMENT' ||
                     actionTypeStr === 'SCAN_BOARD') &&
-                (game.gameCategory === 'tower' || game.isSinglePlayer)
+                preItemPolicy.matchAxis !== 'pvp'
             ) {
                 // HTTP 액션은 타이머 루프 없이 들어올 수 있어 scanning_animating이 남으면 playing이 아니라 400이 난다.
                 const nowSync = Date.now();
-                if (game.gameCategory === 'tower') {
+                if (preItemPolicy.kind === 'tower') {
                     const { updateTowerPlayerHiddenState } = await import('./modes/towerPlayerHidden.js');
                     await updateTowerPlayerHiddenState(game, nowSync);
-                } else if (game.isSinglePlayer) {
+                } else if (preItemPolicy.kind === 'singleplayer') {
                     const { updateSinglePlayerHiddenState } = await import('./modes/singlePlayerHidden.js');
                     await updateSinglePlayerHiddenState(game, nowSync);
                 }
                 applyPveItemActionClientSync(game, payload, { preserveServerHiddenPlacementMeta: true });
-                if (game.gameCategory === 'tower' && actionTypeStr === 'SCAN_BOARD' && game.gameStatus === 'scanning') {
+                if (preItemPolicy.kind === 'tower' && actionTypeStr === 'SCAN_BOARD' && game.gameStatus === 'scanning') {
                     towerScanBoardRevert = {
                         scans_p1: game.scans_p1,
                         scans_p2: game.scans_p2,
@@ -701,7 +716,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 }
             }
             // 도전의 탑: PVE 히든/스캔은 towerPlayerHidden으로 처리 (싱글플레이와 동일 규칙)
-            if (game.gameCategory === 'tower' && SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
+            if (preItemPolicy.kind === 'tower' && SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
                 const isTowerHiddenAction = actionTypeStr === 'START_HIDDEN_PLACEMENT' || actionTypeStr === 'START_SCANNING' || actionTypeStr === 'SCAN_BOARD';
                 if (isTowerHiddenAction) {
                     const { handleTowerPlayerHiddenAction } = await import('./modes/towerPlayerHidden.js');
@@ -766,7 +781,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 }
                 return result || {};
             }
-            if (game.isSinglePlayer) {
+            if (preItemPolicy.kind === 'singleplayer') {
                 // PLACE_STONE은 히든 아이템 사용 시 서버에서 처리해야 함
                 const actionType = type as string;
                 if (actionType === 'PLACE_STONE' && (game.gameStatus === 'hidden_placing' || (payload as any)?.isHidden)) {
@@ -793,7 +808,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         }
         
         // PLACE_STONE (히든 아이템 사용) 도전의 탑 처리
-        if (type === 'PLACE_STONE' && (payload as any)?.isHidden && gameId.startsWith('tower-game-')) {
+        if (type === 'PLACE_STONE' && (payload as any)?.isHidden) {
             const { getCachedGame, updateGameCache } = await import('./gameCache.js');
             let game = await getCachedGame(gameId);
             if (!game) {
@@ -801,7 +816,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 if (cache) { const c = cache.get(gameId); if (c) game = c.game; }
             }
             if (!game) game = await db.getLiveGame(gameId);
-            if (game && game.gameCategory === 'tower' && (game.gameStatus === 'hidden_placing' || (payload as any)?.isHidden)) {
+            if (!game) return { error: 'Game not found.' };
+            if (resolveArenaSessionPolicy(game).kind === 'tower' && (game.gameStatus === 'hidden_placing' || (payload as any)?.isHidden)) {
                 if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
                     const { handleStrategicGameAction } = await import('./modes/standard.js');
                     const result = await handleStrategicGameAction(volatileState, game, action, userData);
@@ -837,8 +853,9 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             return { error: 'Game not found.' };
         }
         
+        const initialPolicy = resolveArenaSessionPolicy(game);
         // 도전의 탑 21층+: 세션 필드가 비어 있으면 대기실 인벤 기준으로만 채움 (무료 기본 개수 없음)
-        if (game.gameCategory === 'tower' && (game as any).towerFloor >= 21 && game.settings) {
+        if (initialPolicy.kind === 'tower' && (game as any).towerFloor >= 21 && game.settings) {
             const s = game.settings as any;
             const inv = userData.inventory || [];
             if ((game as any).missiles_p1 == null && s.missileCount != null) {
@@ -862,10 +879,10 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         }
         
         if (process.env.NODE_ENV === 'development') {
-            const gcat = (game as any).gameCategory ?? 'n/a';
+            const gcat = resolveArenaSessionPolicy(game).kind;
             const tf = (game as any).towerFloor;
             const tfPart = tf != null && tf !== '' ? `, towerFloor=${tf}` : '';
-            console.log(`[handleAction] Game found: gameId=${gameId}, type=${type}, gameCategory=${gcat}, isSinglePlayer=${!!game.isSinglePlayer}, gameStatus=${game.gameStatus}${tfPart}`);
+            console.log(`[handleAction] Game found: gameId=${gameId}, type=${type}, arenaKind=${gcat}, gameStatus=${game.gameStatus}${tfPart}`);
         }
 
         // 전략바둑 AI 대국: 클라이언트 복구/타임아웃 시 서버에서 makeAiMove(goAiBot → Kata)로 해당 국면 수 계산
@@ -886,14 +903,14 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             const pairClassicForServerAi = isPairClassicGame(game.settings, game.mode as GameMode);
             const pairSeatForServerAi = pairClassicForServerAi ? getCurrentPairTurnSeat(game.settings) : null;
             const isPairServerAiSeat = Boolean(pairSeatForServerAi && isPairAiSeat(pairSeatForServerAi));
-            const pveLikeForServerAiGate =
-                game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'adventure';
-            if (!game.isAiGame && !isPairServerAiSeat && !pveLikeForServerAiGate) {
+            const aiMovePolicy = resolveArenaSessionPolicy(game);
+            const pveLikeForServerAiGate = aiMovePolicy.matchAxis !== 'pvp';
+            if (!aiMovePolicy.isStrategicAiLike && !isPairServerAiSeat && !pveLikeForServerAiGate) {
                 return { error: 'Not an AI game.' };
             }
             // 도전의 탑·싱글플레이·모험: 클라 판이 서버보다 앞설 수 있음 → Kata 호출 전 클라 스냅샷으로 맞춤
             if (
-                (game.gameCategory === 'tower' || game.isSinglePlayer || game.gameCategory === 'adventure') &&
+                aiMovePolicy.requiresClientSyncBeforeAction &&
                 (payload as any)?.clientSync
             ) {
                 const cs = (payload as any).clientSync as Record<string, unknown> | undefined;
@@ -935,8 +952,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     (currentActorIdForServerAi === aiUserId ||
                         (currentActorIdForServerAi &&
                             String(currentActorIdForServerAi).startsWith('dungeon-bot-'))));
-            const isPveLikeAiGame =
-                game.gameCategory === 'tower' || game.isSinglePlayer || game.gameCategory === 'adventure';
+            const isPveLikeAiGame = aiMovePolicy.matchAxis !== 'pvp';
             /** 전략바둑 본대국 전 단계 — Kata 착수 금지(복구 요청은 noop). 수순이 이미 있으면 아래에서 playing으로 정합성 보정 */
             const pveStrategicPrePlayStatuses = new Set([
                 'negotiating',
@@ -1160,11 +1176,11 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 GameMode.Missile,
                 GameMode.Mix,
             ];
-            if (!game.isAiGame || game.isSinglePlayer || !goModes.includes(game.mode)) {
+            const requestSyncPolicy = resolveArenaSessionPolicy(game);
+            if (!requestSyncPolicy.isStrategicAiLike || !goModes.includes(game.mode)) {
                 return { error: '이 경기 유형에서는 동기화를 지원하지 않습니다.' };
             }
-            const gc = (game as any).gameCategory;
-            if (gc === 'tower' || gc === 'singleplayer') {
+            if (requestSyncPolicy.kind === 'tower' || requestSyncPolicy.kind === 'singleplayer') {
                 return { error: '이 경기 유형에서는 동기화를 지원하지 않습니다.' };
             }
             const { waitUntilAiProcessingReleased, syncAiSession } = await import('./aiSessionManager.js');
@@ -1264,7 +1280,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         }
 
         // 일반 AI 대국의 수동 일시정지 중에는 착수/통과 등 주요 게임 액션을 차단
-        const isManuallyPausedAi = game.isAiGame && !game.isSinglePlayer && game.gameCategory !== 'tower' && game.gameCategory !== 'singleplayer'
+        const arenaPolicy = resolveArenaSessionPolicy(game);
+        const isManuallyPausedAi = arenaPolicy.isStrategicAiLike && arenaPolicy.kind !== 'singleplayer' && arenaPolicy.kind !== 'tower'
             && game.pausedTurnTimeLeft !== undefined && !game.turnDeadline && !game.itemUseDeadline;
         if (isManuallyPausedAi) {
             const allowedWhilePaused = new Set([
@@ -1283,7 +1300,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         
         // AI 게임은 서버에서 진행/검증/AI 수 처리까지 담당해야 하므로 PVE로 분류하지 않음
         // (싱글플레이/도전의 탑만 클라이언트 전용 처리)
-        const isPVEGame = game.gameCategory === 'tower' || game.gameCategory === 'singleplayer' || game.isSinglePlayer;
+        const isPVEGame = arenaPolicy.matchAxis !== 'pvp';
 
         // AI 게임 시작 확인은 게임 분류와 상관없이 서버에서 처리 (대국실 입장 후 시작 버튼)
         if (type === 'CONFIRM_AI_GAME_START') {
@@ -1337,7 +1354,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     maxTimeSec: lim.maxTimeSec,
                 });
                 // 싱글플레이어: 계가 완료 시 서버에서 endGame 호출하여 클리어/보상 저장 (다음 스테이지 잠금 해제, 골드/경험치 지급)
-                if (game.isSinglePlayer && game.stageId) {
+                if (arenaPolicy.kind === 'singleplayer' && game.stageId) {
                     const blackTotal = analysis?.scoreDetails?.black?.total ?? 0;
                     const whiteTotal = analysis?.scoreDetails?.white?.total ?? 0;
                     const winner = blackTotal > whiteTotal ? types.Player.Black : types.Player.White; // 인간 = Black
@@ -1362,7 +1379,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 return handleSinglePlayerAction(volatileState, action, userData);
             }
             // 싱글플레이 게임 종료 (클라이언트가 승리 조건 감지 후 전송 - 따내기 바둑 등)
-            if (type === 'END_SINGLE_PLAYER_GAME' && game.isSinglePlayer && game.stageId) {
+            if (type === 'END_SINGLE_PLAYER_GAME' && arenaPolicy.kind === 'singleplayer' && game.stageId) {
                 const { winner, winReason } = payload;
                 if (winner !== types.Player.Black && winner !== types.Player.White) {
                     return { error: 'Invalid winner in payload.' };
@@ -1384,7 +1401,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             // 미사일 액션은 서버에서 처리해야 함 (게임 상태 변경)
             if (type === 'START_MISSILE_SELECTION' || type === 'LAUNCH_MISSILE' || type === 'CANCEL_MISSILE_SELECTION' || type === 'MISSILE_INVALID_SELECTION' || type === 'MISSILE_ANIMATION_COMPLETE') {
                 // 싱글플레이 게임의 경우 싱글플레이 핸들러로 라우팅 (이미 위에서 처리했지만 중복 방지)
-                if (game.isSinglePlayer) {
+                if (arenaPolicy.kind === 'singleplayer') {
                     const { handleSinglePlayerAction } = await import('./actions/singlePlayerActions.js');
                     const result = await handleSinglePlayerAction(volatileState, action, userData);
                     // singlePlayerActions에서 이미 저장 및 브로드캐스트를 처리하므로 여기서는 결과만 반환
@@ -1406,17 +1423,10 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     if (type === 'MISSILE_ANIMATION_COMPLETE') {
                         console.log(`[GameActions] MISSILE_ANIMATION_COMPLETE: gameStatus=${game.gameStatus}, always broadcasting update for game ${game.id}`);
                         updateGameCache(game);
-                        // 싱글플레이어 게임의 경우 게임 저장을 기다려서 게임을 찾지 못하는 문제 방지
-                        if (game.isSinglePlayer) {
-                            try {
-                                await db.saveGame(game);
-                            } catch (err) {
-                                console.error(`[GameActions] Failed to save game ${game.id}:`, err);
-                            }
-                        } else {
-                            db.saveGame(game).catch(err => {
-                                console.error(`[GameActions] Failed to save game ${game.id}:`, err);
-                            });
+                        try {
+                            await db.saveGame(game);
+                        } catch (err) {
+                            console.error(`[GameActions] Failed to save game ${game.id}:`, err);
                         }
                         const { broadcastToGameParticipants } = await import('./socket.js');
                         broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
@@ -1455,7 +1465,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 }
             }
             // 놀이바둑 AI 게임의 PLACE_STONE은 서버에서 AI 처리
-            if (type === 'PLACE_STONE' && game.isAiGame && PLAYFUL_GAME_MODES.some(m => m.mode === game.mode)) {
+            if (type === 'PLACE_STONE' && arenaPolicy.matchAxis !== 'pvp' && PLAYFUL_GAME_MODES.some(m => m.mode === game.mode)) {
                 // AI 차례인지 확인
                 const aiPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                 const { aiUserId } = await import('./aiPlayer.js');
@@ -1474,7 +1484,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 (type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' ||
                     type === 'SINGLE_PLAYER_SYNC_PENDING_STAGE' ||
                     type === 'SINGLE_PLAYER_ADMIN_JUMP_PENDING_STAGE') &&
-                game.isSinglePlayer
+                arenaPolicy.kind === 'singleplayer'
             ) {
                 const { handleSinglePlayerAction } = await import('./actions/singlePlayerActions.js');
                 return handleSinglePlayerAction(volatileState, action, userData);
@@ -1485,7 +1495,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             const isStrategicPVE = SPECIAL_GAME_MODES.some(m => m.mode === game.mode);
             const pvePlace = payload as any;
             const towerScoringOrSyncPlaceStone =
-                game.gameCategory === 'tower' &&
+                arenaPolicy.kind === 'tower' &&
                 type === 'PLACE_STONE' &&
                 (pvePlace?.triggerAutoScoring === true || pvePlace?.syncTimeAndStateForScoring === true);
             const shouldHandlePlaceStoneOnServer =
@@ -1496,7 +1506,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 []) as GameMode[];
             const pveStrategicBaseFlow =
                 isStrategicPVE &&
-                game.isSinglePlayer &&
+                arenaPolicy.kind === 'singleplayer' &&
                 (game.mode === GameMode.Base ||
                     (game.mode === GameMode.Mix && mixModesForBasePve.includes(GameMode.Base)));
             const baseFlowServerActionTypes = new Set<string>([
@@ -1516,6 +1526,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             // 펫 힌트/힌트 보너스는 아래 `handleStrategicGameAction`으로 넘긴다.
             if (
                 type !== 'RESIGN_GAME' &&
+                type !== 'REQUEST_PAIR_TEAM_RESIGN' &&
+                type !== 'RESPOND_PAIR_TEAM_RESIGN' &&
                 type !== 'REQUEST_STRATEGIC_PET_HINT' &&
                 type !== 'CLAIM_STRATEGIC_PET_HINT_BONUS' &&
                 !shouldHandlePlaceStoneOnServer &&
@@ -1553,7 +1565,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             const placePayload = payload as any;
             const towerPlaceStoneScoringOrSync =
                 type === 'PLACE_STONE' &&
-                game.gameCategory === 'tower' &&
+                arenaPolicy.kind === 'tower' &&
                 (placePayload?.triggerAutoScoring === true || placePayload?.syncTimeAndStateForScoring === true);
             if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode) || towerPlaceStoneScoringOrSync) {
                 result = await handleStrategicGameAction(volatileState, game, action, userData);
@@ -1597,12 +1609,12 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             strategicBasePrePlayStatuses.has(game.gameStatus) &&
             (game.mode === GameMode.Capture || (game.mode === GameMode.Mix && mixForBaseTick.includes(GameMode.Capture)));
         const needsSinglePlayerBaseStrategicTick =
-            game.isSinglePlayer &&
+            arenaPolicy.kind === 'singleplayer' &&
             isStrategicBaseOrMixWithBase &&
             strategicBasePrePlayStatuses.has(game.gameStatus);
         const needsPvpHumanBaseStrategicTick =
-            !game.isSinglePlayer &&
-            !game.isAiGame &&
+            arenaPolicy.kind !== 'singleplayer' &&
+            arenaPolicy.matchAxis === 'pvp' &&
             isStrategicBaseOrMixWithBase &&
             strategicBasePrePlayStatuses.has(game.gameStatus);
         if (
@@ -1613,9 +1625,9 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             (needsSinglePlayerBaseStrategicTick ||
                 needsPvpHumanBaseStrategicTick ||
                 needsStrategicCapturePrePlayTick ||
-                (game.isAiGame &&
-                    !game.isSinglePlayer &&
-                    ((game as any).gameCategory === 'adventure' || (game as any).gameCategory === 'guildwar')))
+                (arenaPolicy.matchAxis !== 'pvp' &&
+                    arenaPolicy.kind !== 'singleplayer' &&
+                    (arenaPolicy.kind === 'adventure' || arenaPolicy.kind === 'guildwar')))
         ) {
             const { updateStrategicGameState } = await import('./modes/standard.js');
             try {
@@ -1655,13 +1667,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
 
             // PVE 전략국 서버 AI: 메인 루프의 setImmediate(makeAiMove)가 startAiProcessing 잠금과 겹치면 봇이 스킵되는 간헐 이슈 방지
             // (모험·길드전 + 싱글/도전의 탑 공통 인라인 fallback)
-            const pveServerGoAiCategory =
-                game.isAiGame &&
-                (((game as any).gameCategory === 'adventure' ||
-                    (game as any).gameCategory === 'guildwar' ||
-                    (game as any).gameCategory === 'tower' ||
-                    (game as any).gameCategory === 'singleplayer') ||
-                    game.isSinglePlayer);
+            const pveServerGoAiCategory = arenaPolicy.matchAxis !== 'pvp';
             if (pveServerGoAiCategory) {
                 const isGoMode =
                     game.mode === GameMode.Standard ||
@@ -1680,10 +1686,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     game.gameStatus === 'hidden_placing';
                 /** 따내기 확인 직후 인라인 AI(Kata 등)가 HTTP를 수 초 막으면 모달·버튼이 멈춘 것처럼 보임 → 비동기로 넘김 */
                 const deferInlineAiAfterCaptureRevealConfirm =
-                    type === 'CONFIRM_CAPTURE_REVEAL' &&
-                    game.isAiGame &&
-                    (game.isSinglePlayer ||
-                        ['singleplayer', 'tower', 'adventure', 'guildwar'].includes(String((game as any).gameCategory ?? '')));
+                    type === 'CONFIRM_CAPTURE_REVEAL' && pveServerGoAiCategory;
                 if (
                     isGoMode &&
                     isPlayableForInlineAi &&
@@ -1756,7 +1759,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             const { aiUserId } = await import('./aiPlayer.js');
             const isAlkkagiPlacementAiTurn =
                 game.mode === GameMode.Alkkagi &&
-                game.isAiGame &&
+                arenaPolicy.matchAxis !== 'pvp' &&
                 game.gameStatus === 'alkkagi_simultaneous_placement' &&
                 game.currentPlayer !== types.Player.None &&
                 currentPlayerId === aiUserId;
@@ -1786,7 +1789,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             }
 
             // 알까기 동시 배치: 유저가 돌을 둔 요청에서 AI도 5개까지 채우고, 둘 다 5개면 전환 후 AI 공격 (메인 루프 타임아웃 없이 처리)
-            if (type === 'ALKKAGI_PLACE_STONE' && game.mode === GameMode.Alkkagi && game.isAiGame && game.gameStatus === 'alkkagi_simultaneous_placement') {
+            if (type === 'ALKKAGI_PLACE_STONE' && game.mode === GameMode.Alkkagi && arenaPolicy.matchAxis !== 'pvp' && game.gameStatus === 'alkkagi_simultaneous_placement') {
                 const { updatePlayfulGameState } = await import('./modes/playful.js');
                 const { makeAiMove, aiUserId } = await import('./aiPlayer.js');
                 const targetStones = game.settings?.alkkagiStoneCount || 5;
@@ -1817,7 +1820,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             const isAlkkagiHumanFlick =
                 type === 'ALKKAGI_FLICK_STONE' &&
                 game.mode === GameMode.Alkkagi &&
-                game.isAiGame &&
+                arenaPolicy.matchAxis !== 'pvp' &&
                 game.gameStatus === 'alkkagi_animating' &&
                 game.animation?.type === 'alkkagi_flick';
             if (isAlkkagiHumanFlick) {

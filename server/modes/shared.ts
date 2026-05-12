@@ -11,11 +11,17 @@ import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js
 import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
 import {
     getCurrentPairTurnSeat,
+    getPairHumanParticipantIds,
+    getPairPvpHumanTeammateUserId,
     isPairAiSeat,
     isPairClassicGame,
     isPairCooperativeTwoHumansVsAi,
+    normalizePairTurnIndex,
+    pairTeamIdForUserId,
+    pairWinningPlayerWhenTeamResigns,
     syncPairTurnOrderWithAssignedColors,
 } from '../../shared/utils/pairGameTurn.js';
+import { isPairHumanHumanPvpForTeamResign } from '../../shared/utils/liveSessionArenaKind.js';
 
 // AI 대국 일시정지/재개 쿨다운 (서버 메모리 기반)
 // - "일시정지" 후 5초가 지나야 "대국 재개" 허용
@@ -198,6 +204,12 @@ export const transitionToPlaying = (game: types.LiveGameSession, now: number) =>
         const durMult = Math.max(0.5, Math.min(3, Number((game as any).adventureEncounterDurationMultiplier) || 1));
         (game as any).adventureEncounterDeadlineMs = now + mins * 60 * 1000 * durMult;
     }
+
+    void import('../strategicPetHintAction.js')
+        .then((m) => m.seedStrategicPetHintBonusPresetsForGame(game))
+        .catch((e: unknown) =>
+            console.warn('[seedStrategicPetHintBonusPresetsForGame]', e instanceof Error ? e.message : e),
+        );
 };
 
 export const assignRandomColors = (game: types.LiveGameSession) => {
@@ -488,6 +500,12 @@ export const updateSharedGameState = (game: LiveGameSession, now: number): boole
     return false;
 };
 
+function pairHumanTeamResignTurnKey(game: LiveGameSession): string {
+    const len = game.moveHistory?.length ?? 0;
+    const pg = game.settings?.pairGame;
+    if (!pg?.turnOrder?.length) return String(len);
+    return `${len}-${normalizePairTurnIndex(pg)}`;
+}
 
 export const handleSharedAction = async (volatileState: VolatileState, game: LiveGameSession, action: ServerAction, user: User): Promise<HandleActionResult | null> => {
     const { type, payload } = action as any;
@@ -693,9 +711,90 @@ export const handleSharedAction = async (volatileState: VolatileState, game: Liv
             return {};
         }
 
+        case 'REQUEST_PAIR_TEAM_RESIGN': {
+            if (!isPairHumanHumanPvpForTeamResign(game)) {
+                return { error: '이 대국에서는 팀 기권 요청을 사용할 수 없습니다.' };
+            }
+            if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') {
+                return { error: 'Game has already ended.' };
+            }
+            if (game.gameStatus !== 'playing') {
+                return { error: '대국 중에만 기권을 요청할 수 있습니다.' };
+            }
+            const pg = game.settings.pairGame;
+            if (!pg) return { error: '페어 설정이 없습니다.' };
+            const participantIds = getPairHumanParticipantIds(pg);
+            if (!participantIds.includes(user.id)) {
+                return { error: '기권 요청은 참가자만 할 수 있습니다.' };
+            }
+            const teammateId = getPairPvpHumanTeammateUserId(game.settings, user.id);
+            if (!teammateId) {
+                return { error: '팀 동료를 찾을 수 없습니다.' };
+            }
+            const resigningTeamId = pairTeamIdForUserId(game.settings, user.id);
+            if (!resigningTeamId) {
+                return { error: '팀 정보를 확인할 수 없습니다.' };
+            }
+            const turnKey = pairHumanTeamResignTurnKey(game);
+            const cooldownKey = game.pairTeamResignCooldownByTeam?.[resigningTeamId];
+            if (cooldownKey === turnKey) {
+                return { error: '이번 턴에는 이미 기권 요청이 거절되었거나 사용할 수 없습니다.' };
+            }
+            if (game.pairTeamResignRequest) {
+                if (game.pairTeamResignRequest.turnKey === turnKey && game.pairTeamResignRequest.requesterUserId === user.id) {
+                    return { error: '이번 턴에 이미 기권을 요청했습니다.' };
+                }
+                return { error: '이미 진행 중인 기권 요청이 있습니다.' };
+            }
+            game.pairTeamResignRequest = {
+                requesterUserId: user.id,
+                partnerUserId: teammateId,
+                resigningTeamId,
+                turnKey,
+            };
+            return {};
+        }
+
+        case 'RESPOND_PAIR_TEAM_RESIGN': {
+            if (!isPairHumanHumanPvpForTeamResign(game)) {
+                return { error: '이 대국에서는 팀 기권 응답을 사용할 수 없습니다.' };
+            }
+            if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') {
+                return { error: 'Game has already ended.' };
+            }
+            const pending = game.pairTeamResignRequest;
+            if (!pending) {
+                return { error: '응답할 기권 요청이 없습니다.' };
+            }
+            if (pending.partnerUserId !== user.id) {
+                return { error: '기권 요청에 응답할 권한이 없습니다.' };
+            }
+            const { accept } = payload as { accept?: boolean };
+            if (accept !== true && accept !== false) {
+                return { error: '응답 형식이 올바르지 않습니다.' };
+            }
+            if (!accept) {
+                const teamId = pending.resigningTeamId;
+                const turnKey = pending.turnKey;
+                delete game.pairTeamResignRequest;
+                if (!game.pairTeamResignCooldownByTeam) game.pairTeamResignCooldownByTeam = {};
+                game.pairTeamResignCooldownByTeam[teamId] = turnKey;
+                return {};
+            }
+            const winner = pairWinningPlayerWhenTeamResigns(game.settings, pending.resigningTeamId);
+            delete game.pairTeamResignRequest;
+            delete game.pairTeamResignCooldownByTeam;
+            await summaryService.endGame(game, winner, 'resign');
+            return {};
+        }
+
         case 'RESIGN_GAME': {
             if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') {
                 return { error: 'Game has already ended.' };
+            }
+
+            if (isPairHumanHumanPvpForTeamResign(game)) {
+                return { error: '페어 휴먼 대전에서는 팀원 동의 후 기권됩니다. 기권 요청을 사용해 주세요.' };
             }
             
             // 싱글플레이 게임 또는 도전의 탑 게임인 경우 특별 처리

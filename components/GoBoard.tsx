@@ -586,6 +586,8 @@ interface GoBoardProps {
   mode: GameMode;
   mixedModes?: GameMode[];
   hiddenMoves?: { [moveIndex: number]: boolean };
+  /** PVE 탑/싱글에서 유저 히든 좌표를 인덱스와 별도로 고정 */
+  humanHiddenStonePoints?: Array<Point & { player?: Player }>;
   baseStones?: { x: number, y: number, player: Player }[];
   baseStones_p1?: Point[];
   baseStones_p2?: Point[];
@@ -660,7 +662,7 @@ interface GoBoardProps {
 const GoBoard: React.FC<GoBoardProps> = (props) => {
     const { 
         boardState, boardSize, onBoardClick, onMissileLaunch, lastMove, lastTurnStones, isBoardDisabled, 
-        stoneColor, winningLine, hiddenMoves, moveHistory, baseStones, baseStones_p1, baseStones_p2,
+        stoneColor, winningLine, hiddenMoves, humanHiddenStonePoints, moveHistory, baseStones, baseStones_p1, baseStones_p2,
         baseStonesP1Player = Player.Black,
         baseStonesP2Player = Player.White,
         myPlayerEnum,
@@ -1916,12 +1918,22 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     
                     const moveIndex = moveHistory ? lastMoveIndexAtForHiddenClassify(moveHistory, x, y, actualPlayer) : -1;
                     const histMove = moveIndex >= 0 && moveHistory ? moveHistory[moveIndex] : undefined;
+                    const hasHumanHiddenPointMarkers = Array.isArray(humanHiddenStonePoints) && humanHiddenStonePoints.length > 0;
+                    const isHumanHiddenPointMarker =
+                        hasHumanHiddenPointMarkers &&
+                        humanHiddenStonePoints!.some((point) =>
+                            point.x === x &&
+                            point.y === y &&
+                            (point.player === undefined || point.player === actualPlayer)
+                        );
                     const isHiddenMove =
                         !isPlainStoneReuseIntersection &&
-                        hiddenMoves &&
-                        moveIndex !== -1 &&
-                        !!hiddenMoves[moveIndex] &&
-                        !!histMove;
+                        !!histMove &&
+                        (
+                            actualPlayer === myPlayerEnum && hasHumanHiddenPointMarkers
+                                ? !!isHumanHiddenPointMarker
+                                : !!hiddenMoves && moveIndex !== -1 && !!hiddenMoves[moveIndex]
+                        );
                     const isInRevealAnimation =
                         isHiddenRevealStatus &&
                         animation?.type === 'hidden_reveal' &&

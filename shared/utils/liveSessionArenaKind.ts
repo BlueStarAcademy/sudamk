@@ -12,6 +12,10 @@ export type PairTeamComposition =
     | 'human_human_vs_human_human'
     | 'unknown';
 export type ArenaTurnLimitMode = 'none' | 'scoringTurnLimit' | 'autoScoringTurns' | 'stageAutoScoring';
+export type ArenaActionPipelineKind = 'liveSession' | 'championshipSim';
+export type ArenaItemConsumptionModel = 'inventory' | 'sessionCounter' | 'none';
+export type ArenaResultDisplayModel = 'instantEnd' | 'waitSummary' | 'waitScoringOverlay';
+export type ArenaResultRewardModel = 'pvpSummary' | 'pveSummary' | 'pairSummary' | 'championshipSummary';
 
 type SessionLike = Partial<LiveGameSession> & {
     id?: string;
@@ -23,6 +27,7 @@ type SessionLike = Partial<LiveGameSession> & {
 
 export type ArenaSessionPolicy = {
     kind: ArenaKind;
+    actionPipelineKind: ArenaActionPipelineKind;
     matchAxis: ArenaMatchAxis;
     stateBucket: ArenaStateBucket;
     isPairGame: boolean;
@@ -36,6 +41,10 @@ export type ArenaSessionPolicy = {
     deferAutoScoringAfterAi: boolean;
     usesHiddenRule: boolean;
     masksHumanHiddenFromAi: boolean;
+    requiresClientSyncBeforeAction: boolean;
+    itemConsumptionModel: ArenaItemConsumptionModel;
+    resultDisplayModel: ArenaResultDisplayModel;
+    resultRewardModel: ArenaResultRewardModel;
 };
 
 const hasNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
@@ -176,6 +185,16 @@ export function resolveArenaMatchAxis(session: SessionLike | null | undefined): 
     return 'pvp';
 }
 
+/**
+ * 페어 휴먼 vs 휴먼(PVP)에서만 팀원 동의 기권 흐름을 적용한다.
+ * (페어 AI전·싱글·탑 등은 제외)
+ */
+export function isPairHumanHumanPvpForTeamResign(session: SessionLike | null | undefined): boolean {
+    if (!session?.settings?.pairGame || session.settings.pairGame.pairMode !== 'pvp') return false;
+    if (Boolean(session.isSinglePlayer) || Boolean(session.isAiGame)) return false;
+    return resolvePairTeamComposition(session.settings) === 'human_human_vs_human_human';
+}
+
 export function resolveArenaSessionPolicy(session: SessionLike | null | undefined): ArenaSessionPolicy {
     const kind = resolveArenaKind(session);
     const settings = session?.settings ?? undefined;
@@ -209,8 +228,22 @@ export function resolveArenaSessionPolicy(session: SessionLike | null | undefine
 
     const isStrategicAiLike = Boolean(session?.isAiGame) && kind !== GameCategory.SinglePlayer && kind !== GameCategory.Tower;
 
+    const isPveLike = matchAxis === 'pve' || matchAxis === 'mixed_pair';
+    const resultDisplayModel: ArenaResultDisplayModel =
+        kind === GameCategory.SinglePlayer || kind === GameCategory.Tower
+            ? 'waitScoringOverlay'
+            : kind === GameCategory.Adventure || kind === GameCategory.GuildWar
+              ? 'waitSummary'
+              : 'instantEnd';
+    const resultRewardModel: ArenaResultRewardModel = isPairGame
+        ? 'pairSummary'
+        : isPveLike
+          ? 'pveSummary'
+          : 'pvpSummary';
+
     return {
         kind,
+        actionPipelineKind: 'liveSession',
         matchAxis,
         stateBucket: getArenaStateBucket(kind),
         isPairGame,
@@ -224,5 +257,9 @@ export function resolveArenaSessionPolicy(session: SessionLike | null | undefine
         deferAutoScoringAfterAi: kind === GameCategory.SinglePlayer || kind === GameCategory.Tower || isStrategicAiLike,
         usesHiddenRule: hiddenRule,
         masksHumanHiddenFromAi: hiddenRule && matchAxis === 'pve',
+        requiresClientSyncBeforeAction: isPveLike,
+        itemConsumptionModel: kind === GameCategory.Normal && !isPairGame ? 'inventory' : isPveLike ? 'sessionCounter' : 'inventory',
+        resultDisplayModel,
+        resultRewardModel,
     };
 }

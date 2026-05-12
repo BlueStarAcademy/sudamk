@@ -331,6 +331,9 @@ function applyClientBaseStoneSnapshotIfAuthoritative(
 }
 
 function applyClientOverlaySnapshotsIfPresent(game: LiveGameSession, sync: PveItemActionClientSync): void {
+    if (Array.isArray(sync.humanHiddenStonePoints)) {
+        (game as any).humanHiddenStonePoints = sync.humanHiddenStonePoints.map((p) => ({ ...p }));
+    }
     if (Array.isArray(sync.blackPatternStones)) {
         game.blackPatternStones = sync.blackPatternStones.map((p) => ({ ...p }));
     }

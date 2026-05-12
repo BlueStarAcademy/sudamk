@@ -32,6 +32,7 @@ import { aiUserId, getAiUser } from './aiPlayer.js';
 import { getGuildWarAiBotDisplayName } from '../shared/constants/guildConstants.js';
 import { computeGuildWarAttemptMetrics, getGuildWarMatchGoldReward } from '../shared/utils/guildWarAttemptMetrics.js';
 import { isGuildWarLiveSession } from '../shared/constants/guildConstants.js';
+import { buildLiveSessionResultContract } from './utils/resultContract.js';
 import {
   aiLobbyRewardMultiplierFromProfileStep,
   isWaitingRoomAiGame,
@@ -693,6 +694,9 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
     game.winner = winner;
     game.winReason = winReason;
     game.gameStatus = 'ended';
+
+    if (game.pairTeamResignRequest) delete game.pairTeamResignRequest;
+    if (game.pairTeamResignCooldownByTeam) delete game.pairTeamResignCooldownByTeam;
     
     // 게임 종료 시 disconnectionState 제거 (재접속중 화면 방지)
     game.disconnectionState = null;
@@ -739,6 +743,7 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
             `humanIds=${JSON.stringify(humanParticipantIds)}, summaryKeys=${JSON.stringify(Object.keys(game.summary || {}))}`
         );
     }
+    game.resultContract = buildLiveSessionResultContract(game);
 
     try {
         const { applyGuildWarBoardAfterGame } = await import('./guildWarBoardResult.js');

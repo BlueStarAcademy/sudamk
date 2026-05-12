@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { GameCategory, GameMode, Player } from '../../../shared/types/enums.js';
 import type { GameSettings, LiveGameSession } from '../../../shared/types/index.js';
 import {
+    isPairHumanHumanPvpForTeamResign,
     resolveArenaKind,
     resolveArenaMatchAxis,
     resolveArenaSessionPolicy,
@@ -111,6 +112,65 @@ describe('arena policy', () => {
                 }),
             ),
         ).toBe(2);
+    });
+
+    it('exposes unified action and result policies per arena kind', () => {
+        const pve = resolveArenaSessionPolicy(session({ gameCategory: GameCategory.SinglePlayer, isSinglePlayer: true }));
+        expect(pve.requiresClientSyncBeforeAction).toBe(true);
+        expect(pve.resultDisplayModel).toBe('waitScoringOverlay');
+        expect(pve.resultRewardModel).toBe('pveSummary');
+
+        const pvp = resolveArenaSessionPolicy(session({ gameCategory: GameCategory.Normal, isAiGame: false }));
+        expect(pvp.requiresClientSyncBeforeAction).toBe(false);
+        expect(pvp.resultDisplayModel).toBe('instantEnd');
+        expect(pvp.resultRewardModel).toBe('pvpSummary');
+
+        const pair = resolveArenaSessionPolicy(
+            session({
+                settings: settings(
+                    pairSettings(
+                        [
+                            { id: 'h1', kind: 'user' },
+                            { id: 'h2', kind: 'user' },
+                        ],
+                        [
+                            { id: 'h3', kind: 'user' },
+                            { id: 'h4', kind: 'user' },
+                        ],
+                    ),
+                ),
+            }),
+        );
+        expect(pair.isPairGame).toBe(true);
+        expect(pair.resultRewardModel).toBe('pairSummary');
+    });
+
+    it('allows team-resign only for pair human-vs-human pvp', () => {
+        const pairPvp = session({
+            gameCategory: GameCategory.Normal,
+            settings: settings({
+                pairGame: {
+                    roomId: 'pair-pvp',
+                    pairMode: 'pvp',
+                    teamA: {
+                        name: 'A',
+                        members: [
+                            { id: 'h1', name: 'h1', kind: 'user', slot: 'a0' },
+                            { id: 'h2', name: 'h2', kind: 'user', slot: 'a1' },
+                        ],
+                    },
+                    teamB: {
+                        name: 'B',
+                        members: [
+                            { id: 'h3', name: 'h3', kind: 'user', slot: 'b0' },
+                            { id: 'h4', name: 'h4', kind: 'user', slot: 'b1' },
+                        ],
+                    },
+                },
+            } as any),
+        });
+        expect(isPairHumanHumanPvpForTeamResign(pairPvp)).toBe(true);
+        expect(isPairHumanHumanPvpForTeamResign(session({ gameCategory: GameCategory.SinglePlayer, isSinglePlayer: true }))).toBe(false);
     });
 });
 

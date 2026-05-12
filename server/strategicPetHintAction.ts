@@ -13,20 +13,24 @@ import { computeStrategicPetKataHintMove } from './goAiBot.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import { addItemsToInventory, createItemInstancesFromReward } from '../utils/inventoryUtils.js';
+import { aiUserId } from './aiPlayer.js';
 
 type HintPhaseState = { opening?: boolean; midgame?: boolean; endgame?: boolean };
+type BonusReward =
+    | { kind: 'gold'; amount: number; label: string }
+    | { kind: 'material'; itemName: string; quantity: number; label: string }
+    | { kind: 'actionPoints'; amount: number; label: string }
+    | { kind: 'diamonds'; amount: number; label: string };
+type StrategicPetHintPhaseBonusPresets = Partial<Record<PairPetKataPhase, BonusReward>>;
 type PendingHint = {
     x: number;
     y: number;
     phase: PairPetKataPhase;
     moveHistoryLength: number;
     claimed?: boolean;
+    /** 힌트 요청 시(또는 경기 시작 시 시드된 프리셋) 미리 정해 둔 보너스 — 클레임에서 재굴림하지 않음 */
+    bonusReward?: BonusReward;
 };
-type BonusReward =
-    | { kind: 'gold'; amount: number; label: string }
-    | { kind: 'material'; itemName: string; quantity: number; label: string }
-    | { kind: 'actionPoints'; amount: number; label: string }
-    | { kind: 'diamonds'; amount: number; label: string };
 
 function readHintUsage(game: types.LiveGameSession, userId: string): HintPhaseState {
     const bag = (game.settings as any)?.strategicPetHintByUserId as Record<string, HintPhaseState> | undefined;
@@ -56,6 +60,71 @@ function readPendingHint(game: types.LiveGameSession, userId: string): PendingHi
 function clearPendingHint(game: types.LiveGameSession, userId: string): void {
     const bag = (game.settings as any)?.strategicPetHintPendingByUserId as Record<string, PendingHint> | undefined;
     if (bag) delete bag[userId];
+}
+
+const PET_HINT_BONUS_PRESET_KEY = 'strategicPetHintBonusPresetByUserId' as const;
+
+function readBonusPresetsBag(game: types.LiveGameSession): Record<string, StrategicPetHintPhaseBonusPresets> {
+    const s = game.settings as any;
+    if (!s[PET_HINT_BONUS_PRESET_KEY] || typeof s[PET_HINT_BONUS_PRESET_KEY] !== 'object') {
+        s[PET_HINT_BONUS_PRESET_KEY] = {};
+    }
+    return s[PET_HINT_BONUS_PRESET_KEY] as Record<string, StrategicPetHintPhaseBonusPresets>;
+}
+
+/**
+ * 본대국 `playing` 진입 직후 비동기로 호출: 유저별 초반/중반/종반 보너스를 미리 굴려 둔다.
+ * 착수 후 클레임 경로에서 `rollStrategicPetHintBonus`를 생략해 응답을 빠르게 한다.
+ */
+export async function seedStrategicPetHintBonusPresetsForGame(game: types.LiveGameSession): Promise<void> {
+    if (!isStrategicPetHintContext(game) || !isStrategicPetHintBonusEligible(game)) return;
+    if (game.gameStatus !== 'playing') return;
+
+    const phases: PairPetKataPhase[] = ['opening', 'midgame', 'endgame'];
+    const bag = readBonusPresetsBag(game);
+    const candidateIds = new Set<string>();
+    if (game.player1?.id && game.player1.id !== aiUserId) candidateIds.add(game.player1.id);
+    if (game.player2?.id && game.player2.id !== aiUserId) candidateIds.add(game.player2.id);
+
+    for (const userId of candidateIds) {
+        let row = bag[userId];
+        if (row && phases.every((p) => row![p] != null)) continue;
+
+        const freshUser = await db.getUser(userId);
+        if (!freshUser) continue;
+        const petRow = getEquippedPairPetInventoryRow(freshUser);
+        const petLevel = Math.max(1, Math.floor(Number(petRow?.level ?? 1) || 1));
+
+        row = { ...(row ?? {}) };
+        for (const ph of phases) {
+            if (row[ph] == null) row[ph] = rollStrategicPetHintBonus(petLevel);
+        }
+        bag[userId] = row;
+    }
+}
+
+/** 경기 시작 시 시드된 해당 페이즈 보상을 꺼내 쓰고, 없으면 즉시 굴림 */
+function takePresetBonusOrRoll(
+    game: types.LiveGameSession,
+    userId: string,
+    phase: PairPetKataPhase,
+    petLevel: number,
+): BonusReward {
+    const s = game.settings as any;
+    const bag = s[PET_HINT_BONUS_PRESET_KEY];
+    if (!bag || typeof bag !== 'object') {
+        return rollStrategicPetHintBonus(petLevel);
+    }
+    const row = bag[userId] as StrategicPetHintPhaseBonusPresets | undefined;
+    const preset = row?.[phase];
+    if (preset) {
+        const next: StrategicPetHintPhaseBonusPresets = { ...row };
+        delete next[phase];
+        if (Object.keys(next).length === 0) delete bag[userId];
+        else bag[userId] = next;
+        return preset;
+    }
+    return rollStrategicPetHintBonus(petLevel);
 }
 
 function isStrategicPetHintContext(game: types.LiveGameSession): boolean {
@@ -222,11 +291,14 @@ export async function handleStrategicPetHintRequest(
     }
 
     markHintPhaseUsed(game, user.id, phase);
+    const petLevel = Math.max(1, Math.floor(Number(petRow.level ?? 1) || 1));
+    const bonusReward = takePresetBonusOrRoll(game, user.id, phase, petLevel);
     setPendingHint(game, user.id, {
         x: pt.x,
         y: pt.y,
         phase,
         moveHistoryLength: game.moveHistory?.length ?? 0,
+        bonusReward,
     });
     const message = pickStrategicPetHintLine({
         phase,
@@ -265,9 +337,9 @@ export async function handleStrategicPetHintBonusClaim(
     const petRow = getEquippedPairPetInventoryRow(freshUser);
     if (!petRow) return null;
 
-    clearPendingHint(game, user.id);
     const petLevel = Math.max(1, Math.floor(Number(petRow.level ?? 1) || 1));
-    const reward = rollStrategicPetHintBonus(petLevel);
+    const reward = pending.bonusReward ?? rollStrategicPetHintBonus(petLevel);
+    clearPendingHint(game, user.id);
     await grantStrategicPetHintBonus(freshUser, reward);
 
     return {
