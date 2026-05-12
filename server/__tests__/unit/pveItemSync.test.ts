@@ -231,6 +231,73 @@ describe('PVE item client sync', () => {
         expect(game.aiInitialHiddenStone).toBeUndefined();
     });
 
+    it('does not let same-length client sync relabel a normal stone as hidden', () => {
+        const board = emptyBoard(5);
+        board[1][1] = Player.Black;
+        board[2][2] = Player.White;
+        const game: any = {
+            id: 'pve-hidden-relabel-guard',
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            blackPlayerId: 'human-1',
+            whitePlayerId: 'ai-player-01',
+            boardState: board.map((row) => [...row]),
+            moveHistory: [
+                { x: 1, y: 1, player: Player.Black },
+                { x: 2, y: 2, player: Player.White },
+            ],
+            currentPlayer: Player.Black,
+            gameStatus: 'playing',
+            mode: 'mix',
+            settings: { mixedModes: ['base', 'hidden', 'speed'] },
+            hiddenMoves: { '1': true },
+        };
+
+        applyPveItemActionClientSync(game, {
+            clientSync: {
+                boardState: board.map((row) => [...row]),
+                moveHistory: game.moveHistory.map((move: any) => ({ ...move })),
+                hiddenMoves: { '0': true, '1': true },
+                currentPlayer: Player.Black,
+                gameStatus: 'playing',
+            },
+        });
+
+        expect(game.hiddenMoves).toEqual({ '1': true });
+    });
+
+    it('does not accept first-move hidden labeling from client-advanced snapshot', () => {
+        const board = emptyBoard(5);
+        board[0][0] = Player.Black;
+        const game: any = {
+            id: 'pve-first-move-hidden-relabel-guard',
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            blackPlayerId: 'human-1',
+            whitePlayerId: 'ai-player-01',
+            boardState: emptyBoard(5),
+            moveHistory: [],
+            currentPlayer: Player.White,
+            gameStatus: 'playing',
+            mode: 'mix',
+            settings: { mixedModes: ['base', 'hidden', 'speed'] },
+            hiddenMoves: {},
+        };
+
+        applyPveItemActionClientSync(game, {
+            clientSync: {
+                boardState: board,
+                moveHistory: [{ x: 0, y: 0, player: Player.Black }],
+                hiddenMoves: { '0': true },
+                currentPlayer: Player.White,
+                gameStatus: 'playing',
+            },
+        });
+
+        expect(game.moveHistory).toEqual([{ x: 0, y: 0, player: Player.Black }]);
+        expect(game.hiddenMoves).toEqual({});
+    });
+
     it('carries PVE overlay metadata from the client before a server AI hidden move', () => {
         const board = emptyBoard(5);
         board[1][1] = Player.Black;

@@ -232,6 +232,42 @@ function mergeMonotonicCountRecord<T extends LiveGameSession['captures'] | LiveG
     return out as T;
 }
 
+function mergeHiddenMovesFromClientSync(
+    game: LiveGameSession,
+    incomingHiddenMoves: unknown,
+    _syncAdvancesServerMoves: boolean,
+    _serverMoveHistoryLength: number
+): void {
+    if (incomingHiddenMoves == null || typeof incomingHiddenMoves !== 'object') return;
+    const incoming = incomingHiddenMoves as Record<string, unknown>;
+    const current = (game.hiddenMoves ?? {}) as Record<string, boolean>;
+    const next: Record<number, boolean> = {};
+
+    // Keep only valid server-confirmed entries for the current move history.
+    for (const [idxRaw, isHidden] of Object.entries(current)) {
+        if (!isHidden) continue;
+        const idx = Number(idxRaw);
+        if (!Number.isInteger(idx) || idx < 0) continue;
+        if (!Array.isArray(game.moveHistory) || !game.moveHistory[idx]) continue;
+        next[idx] = true;
+    }
+
+    for (const [idxRaw, isHidden] of Object.entries(incoming)) {
+        if (!isHidden) continue;
+        const idx = Number(idxRaw);
+        if (!Number.isInteger(idx) || idx < 0) continue;
+        if (!Array.isArray(game.moveHistory) || !game.moveHistory[idx]) continue;
+
+        const alreadyServerHidden = !!current[idxRaw] || !!current[String(idx)];
+        // PVE item sync never trusts client snapshots to introduce new hidden labels.
+        // Hidden metadata is server-authoritative and must come from server move handling only.
+        if (!alreadyServerHidden) continue;
+        next[idx] = true;
+    }
+
+    game.hiddenMoves = next;
+}
+
 function applyClientBaseStoneSnapshotIfAuthoritative(
     game: LiveGameSession,
     sync: PveItemActionClientSync,
@@ -316,14 +352,8 @@ export function applyPveItemActionClientSync(
     preserveBaseStonesAfterClientSync(game, serverBaseStonesSnapshot, syncAdvancesServerMoves);
     applyClientBaseStoneSnapshotIfAuthoritative(game, sync, serverBaseStonesSnapshot, syncAdvancesServerMoves);
     applyClientOverlaySnapshotsIfPresent(game, sync);
-    if (!preserveHiddenMeta && sync.hiddenMoves != null && typeof sync.hiddenMoves === 'object') {
-        // Stale clientSync must never erase server-confirmed hidden metadata.
-        // In particular, AI hidden item flow records hiddenMoves on the server after the thinking animation.
-        // A client snapshot from before that move can arrive with an empty hiddenMoves object.
-        game.hiddenMoves = {
-            ...(game.hiddenMoves ?? {}),
-            ...sync.hiddenMoves,
-        };
+    if (!preserveHiddenMeta) {
+        mergeHiddenMovesFromClientSync(game, sync.hiddenMoves, syncAdvancesServerMoves, serverMoveHistoryLength);
     }
     if (Array.isArray(sync.permanentlyRevealedStones)) {
         game.permanentlyRevealedStones = sync.permanentlyRevealedStones.map((p) => ({ ...p }));
