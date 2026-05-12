@@ -4562,6 +4562,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
+                                        boardRuleFlashMessage={boardRuleFlashMessage}
                                     />
                                     {boardHydrationOverlayEl}
                                     {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
@@ -4743,6 +4744,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
+                                        boardRuleFlashMessage={boardRuleFlashMessage}
                                     />
                                     {boardHydrationOverlayEl}
                                 {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
@@ -4999,6 +5001,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                         intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
+                                                        boardRuleFlashMessage={boardRuleFlashMessage}
                                                     />
                                                     {boardHydrationOverlayEl}
                                                 </div>
@@ -5036,6 +5039,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                 onboardingDemoAnchorPoint={intro1OnboardingDemoPoint}
                                                 onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
                                                 intro1TutorialHighlight={intro1OnboardingDemoPoint}
+                                                boardRuleFlashMessage={boardRuleFlashMessage}
                                             />
                                         )}
                                         {boardHydrationOverlayEl}

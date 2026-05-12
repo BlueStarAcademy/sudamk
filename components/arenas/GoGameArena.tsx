@@ -28,6 +28,7 @@ interface GoGameArenaProps extends GameProps {
     captureScoreFloatMinPoints?: number;
     strategicPetHintBoardOverlay?: { x: number; y: number; message: string; showBubble: boolean } | null;
     strategicPetHintRewardAnimation?: { id: string; x: number; y: number; iconSrc: string; quantityLabel: string } | null;
+    boardRuleFlashMessage?: string | null;
 }
 
 function modeIncludesCaptureRule(mode: GameMode, settings: { mixedModes?: GameMode[] }): boolean {
@@ -54,6 +55,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         singlePlayerStagesListRevision = 0,
         strategicPetHintBoardOverlay = null,
         strategicPetHintRewardAnimation = null,
+        boardRuleFlashMessage = null,
     } = props;
 
     const { blackPlayerId, whitePlayerId, player1, player2, settings, lastMove, gameStatus, mode, moveHistory, hiddenMoves } = session;
@@ -394,6 +396,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 onBoardRuleFlash={props.onBoardRuleFlash}
                 strategicPetHintOverlay={strategicPetHintDotOverlay}
                 strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
+                boardRuleFlashMessage={boardRuleFlashMessage}
                 isPairBasePlacementHost={isPairBasePlacementHost}
                 canPlaceMoreBaseStones={canPlaceMoreBaseStones}
                 />

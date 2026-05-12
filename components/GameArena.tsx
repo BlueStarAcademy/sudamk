@@ -43,6 +43,7 @@ interface GameArenaProps extends GameProps {
     intro1TutorialHighlight?: Point | null;
     strategicPetHintBoardOverlay?: { x: number; y: number; message: string; showBubble: boolean } | null;
     strategicPetHintRewardAnimation?: { id: string; x: number; y: number; iconSrc: string; quantityLabel: string } | null;
+    boardRuleFlashMessage?: string | null;
 }
 
 const GameArena: React.FC<GameArenaProps> = (props) => {

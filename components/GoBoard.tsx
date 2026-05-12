@@ -653,6 +653,8 @@ interface GoBoardProps {
   baseStonesP2Player?: Player;
   /** `base_placement`에서 아직 놓을 베이스돌이 있을 때만 교차점 호버 미리보기. 미전달이면 기존과 동일 */
   canPlaceMoreBaseStones?: boolean;
+  /** 아이템 안내 등 바둑판 중앙 오버레이 문구 */
+  boardRuleFlashMessage?: string | null;
 }
 
 const GoBoard: React.FC<GoBoardProps> = (props) => {
@@ -685,6 +687,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         strategicPetHintRewardAnimation = null,
         isPairBasePlacementHost = false,
         canPlaceMoreBaseStones,
+        boardRuleFlashMessage = null,
     } = props;
     /** 미사일 완료 타이머: 부모가 자주 리렌더되어도 setTimeout이 매번 취소되지 않도록 onAction은 ref로만 읽는다. */
     const onActionRef = useRef(onAction);
@@ -2364,6 +2367,13 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     })()}
                 </g>
             </svg>
+            {boardRuleFlashMessage && (
+                <div className="pointer-events-none absolute inset-0 z-[35] flex items-center justify-center px-4">
+                    <div className="max-w-[92%] rounded-xl border border-amber-300/60 bg-black/65 px-4 py-2 text-center text-sm font-bold leading-snug text-amber-100 shadow-[0_0_16px_rgba(0,0,0,0.45)] backdrop-blur-[2px]">
+                        {boardRuleFlashMessage}
+                    </div>
+                </div>
+            )}
             </div>
         </div>
     );

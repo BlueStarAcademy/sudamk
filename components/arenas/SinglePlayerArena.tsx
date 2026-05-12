@@ -32,6 +32,7 @@ interface SinglePlayerArenaProps extends GameProps {
     onboardingDemoAnchorPoint?: Point | null;
     onboardingForcedFirstMovePoint?: Point | null;
     intro1TutorialHighlight?: Point | null;
+    boardRuleFlashMessage?: string | null;
 }
 
 const getStageModeLabel = (stage: SinglePlayerStageInfo): string => {
@@ -151,6 +152,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         onboardingDemoAnchorPoint = null,
         onboardingForcedFirstMovePoint = null,
         intro1TutorialHighlight = null,
+        boardRuleFlashMessage = null,
         singlePlayerStagesListRevision = 0,
         strategicPetHintBoardOverlay = null,
         strategicPetHintRewardAnimation = null,
@@ -562,6 +564,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     canPlaceMoreBaseStones={canPlaceMoreBaseStones}
                     strategicPetHintOverlay={strategicPetHintDotOverlay}
                     strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
+                    boardRuleFlashMessage={boardRuleFlashMessage}
                 />
                 {mobileStageScrollExpanded && (
                     <div
