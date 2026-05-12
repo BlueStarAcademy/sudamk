@@ -40,6 +40,7 @@ import { applyPveItemActionClientSync } from './pveItemSync.js';
 import { updateQuestProgress } from './questService.js';
 import { getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame } from '../shared/utils/pairGameTurn.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+import { isAiLobbyManualClockPause } from './modes/shared.js';
 
 export { updateQuestProgress } from './questService.js';
 
@@ -1281,8 +1282,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
 
         // 일반 AI 대국의 수동 일시정지 중에는 착수/통과 등 주요 게임 액션을 차단
         const arenaPolicy = resolveArenaSessionPolicy(game);
-        const isManuallyPausedAi = arenaPolicy.isStrategicAiLike && arenaPolicy.kind !== 'singleplayer' && arenaPolicy.kind !== 'tower'
-            && game.pausedTurnTimeLeft !== undefined && !game.turnDeadline && !game.itemUseDeadline;
+        const isManuallyPausedAi = isAiLobbyManualClockPause(game);
         if (isManuallyPausedAi) {
             const allowedWhilePaused = new Set([
                 'RESUME_AI_GAME',

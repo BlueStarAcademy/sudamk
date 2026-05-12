@@ -15,7 +15,7 @@ import { getCaptureTarget, NO_CAPTURE_TARGET, tryEndGameWhenCaptureTargetReached
 import * as db from './db.js';
 import { volatileState } from './state.js';
 import { broadcastToGameParticipants } from './socket.js';
-import { hasTimeControl, shouldEnforceTimeControl } from './modes/shared.js';
+import { hasTimeControl, isAiLobbyManualClockPause, shouldEnforceTimeControl } from './modes/shared.js';
 import { shouldRunGoClockAccountingForSession } from './utils/speedTimePressureLiveCaptures.js';
 import { isFischerStyleTimeControl } from '../shared/utils/gameTimeControl.js';
 import { generateKataServerMoveCandidateDetails, isKataServerAvailable } from './kataServerService.js';
@@ -1895,8 +1895,7 @@ export async function makeGoAiBotMove(
     }
     
     // 일시정지 상태일 때는 AI 수를 두지 않음
-    const isManuallyPaused = game.isAiGame && game.pausedTurnTimeLeft !== undefined && !game.turnDeadline && !game.itemUseDeadline;
-    if (isManuallyPaused) {
+    if (isAiLobbyManualClockPause(game)) {
         console.log(`[makeGoAiBotMove] Game ${game.id} is manually paused, skipping AI move`);
         return;
     }

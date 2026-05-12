@@ -667,6 +667,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         setIntro1DemoMoveDone(false);
     }, [session.id]);
     const [resumeCountdown, setResumeCountdown] = useState(0);
+    const resumeCountdownRef = useRef(0);
+    resumeCountdownRef.current = resumeCountdown;
     const pauseStartedAtRef = useRef<number | null>(null);
     const pauseCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const [pauseButtonCooldown, setPauseButtonCooldown] = useState(0);
@@ -897,7 +899,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         timerArenaPolicy.kind !== 'adventure';
     const clientTimes = useClientTimer(
         session,
-        timerArenaPolicy.kind === 'singleplayer' ||
+        isPaused ||
+            timerArenaPolicy.kind === 'singleplayer' ||
             timerArenaPolicy.kind === 'tower' ||
             timerArenaPolicy.kind === 'adventure' ||
             isPausableAiGameForTimer
@@ -3352,7 +3355,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     const resumeFromPause = useCallback(() => {
         if (!isPaused) return;
-        if (resumeCountdown > 0) return;
+        if (resumeCountdownRef.current > 0) return;
 
         setIsPaused(false);
         setResumeCountdown(0);
@@ -3375,7 +3378,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
         }
         clearPauseCountdown();
-    }, [isPaused, resumeCountdown, clearPauseCountdown, session]);
+    }, [isPaused, clearPauseCountdown, session]);
 
     const initiatePause = useCallback(() => {
         if (isPaused || pauseButtonCooldown > 0) return;
@@ -3409,6 +3412,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 handlers.handleAction({ type: 'PAUSE_AI_GAME', payload: { gameId: session.id } } as any);
             }
         } else {
+            if (resumeCountdownRef.current > 0) return;
             resumeFromPause();
             if (isPausableAiGame) {
                 handlers.handleAction({ type: 'RESUME_AI_GAME', payload: { gameId: session.id } } as any);

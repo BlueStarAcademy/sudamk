@@ -35,6 +35,7 @@ import {
     SPEED_TIME_PRESSURE_SECONDS_PER_POINT,
 } from './utils/speedTimePressureLiveCaptures.js';
 import { modeIncludesCaptureRule } from '../shared/utils/liveSessionArenaKind.js';
+import { isAiLobbyManualClockPause } from './modes/shared.js';
 
 // 정확한 계가 결과는 1회만 표시한다는 전제 하에,
 // (특히 히든돌 최종 공개 애니메이션 동안) KataGo 분석을 백그라운드로 미리 시작해
@@ -1561,15 +1562,9 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 }
             }
 
-            // 수동 일시정지는 현재 전략바둑 AI 대국에만 적용한다.
-            // 놀이바둑(주사위/도둑 등)에서 pausedTurnTimeLeft 잔존값이 남아 AI 턴이 영구 정지하는 것을 방지.
-            const isStrategicMode = SPECIAL_GAME_MODES.some((m) => m.mode === game.mode);
-            const isManuallyPaused =
-                isStrategicMode &&
-                game.isAiGame &&
-                game.pausedTurnTimeLeft !== undefined &&
-                !game.turnDeadline &&
-                !game.itemUseDeadline;
+            // 수동 일시정지: 싱글/탑 제외 온라인 AI 대국 — processGame 루프가 AI 턴을 진행시키지 않도록 막는다.
+            // (전략바둑만이 아니라 동일 PAUSE 규칙을 쓰는 모든 AI 로비 대국에 일치)
+            const isManuallyPaused = isAiLobbyManualClockPause(game);
 
             // 게임 상태 업데이트를 먼저 실행하여 애니메이션 완료 후 턴 전환을 처리
             // 중요: 게임 상태 업데이트를 먼저 실행해야 애니메이션 완료 후 턴 전환이 제대로 처리됨

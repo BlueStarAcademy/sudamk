@@ -75,14 +75,20 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
         }
 
         if (options.isPaused) {
-            // 수동 일시정지(싱글/탑/모험 UI 플래그)에서는 클라이언트 타이머를 완전히 멈춘다.
-            if (
-                session.pausedTurnTimeLeft !== undefined &&
-                (session.currentPlayer === Player.Black || session.currentPlayer === Player.White)
-            ) {
-                setClientTimes(prev => session.currentPlayer === Player.Black
-                    ? { black: session.pausedTurnTimeLeft!, white: prev.white }
-                    : { black: prev.black, white: session.pausedTurnTimeLeft! });
+            // 수동 일시정지(싱글/탑/모험·로비 AI 등 UI 플래그)에서는 클라이언트 타이머를 완전히 멈춘다.
+            const cp = session.currentPlayer;
+            if (cp === Player.Black || cp === Player.White) {
+                const fromServerPause =
+                    session.pausedTurnTimeLeft !== undefined ? coerce(session.pausedTurnTimeLeft) : undefined;
+                const frozen =
+                    fromServerPause !== undefined
+                        ? fromServerPause
+                        : cp === Player.Black
+                          ? coerce(session.blackTimeLeft)
+                          : coerce(session.whiteTimeLeft);
+                setClientTimes((prev) =>
+                    cp === Player.Black ? { black: frozen, white: prev.white } : { black: prev.black, white: frozen },
+                );
             }
             return;
         }

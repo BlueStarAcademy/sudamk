@@ -2022,7 +2022,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             <option value="name">이름순</option>
                                             <option value="petLevel">펫 레벨순</option>
                                             <option value="gradeHigh">높은 등급순</option>
-                                            <option value="petNumber">종류순(펫 번호)</option>
+                                            <option value="petNumber">종류순</option>
                                         </select>
                                     </label>
                                     <div

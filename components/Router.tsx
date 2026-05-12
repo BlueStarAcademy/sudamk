@@ -3,7 +3,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { mergeArenaEntranceAvailability } from '../constants/arenaEntrance.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
-import { LiveGameSession } from '../types.js';
 import Login from './Login.js';
 import Register from './Register.js';
 import KakaoCallback from './KakaoCallback.js';
@@ -32,6 +31,16 @@ import {
     stashPairArenaRoomRestoreForLobbyNavigation,
 } from '../shared/utils/pairArenaSessionRestore.js';
 import { userMeetsGuildFeatureLevelRequirement } from '../shared/constants/guildConstants.js';
+import EntryImagePreloadGate from './EntryImagePreloadGate.js';
+import {
+    ENTRY_PROFILE_ROUTE_IMAGE_URLS,
+    ENTRY_ARENA_FLOW_IMAGE_URLS,
+    ENTRY_ADVENTURE_ROUTE_IMAGE_URLS,
+    ENTRY_GUILD_ROUTE_IMAGE_URLS,
+    ENTRY_MINIMAL_IMAGE_URLS,
+} from '../services/assetService.js';
+
+const routeShellClass = 'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden';
 
 // 게임 라우트 로더 컴포넌트 (게임이 로드될 때까지 대기, 새로고침 시 재입장 대기)
 const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
@@ -161,9 +170,11 @@ const Router: React.FC = () => {
     // 닉네임이 없거나 임시 닉네임인 경우 닉네임 설정 화면으로 이동
     if (currentUser && (!currentUser.nickname || currentUser.nickname.startsWith('user_'))) {
         const setNicknameShell = (
-            <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
-                <SetNickname />
-            </div>
+            <EntryImagePreloadGate urls={ENTRY_MINIMAL_IMAGE_URLS} label="화면 준비 중...">
+                <div className={routeShellClass}>
+                    <SetNickname />
+                </div>
+            </EntryImagePreloadGate>
         );
         if (currentRoute.view === 'set-nickname') {
             return setNicknameShell;
@@ -205,7 +216,11 @@ const Router: React.FC = () => {
             // scoring 상태이면 게임 화면 유지 (activeGame이 null이어도)
             if (!activeGame || activeGame.id !== gameId) {
                 // activeGame이 없어도 scoring 상태이면 게임 화면 표시
-                return <Game session={currentGame} />;
+                return (
+                    <EntryImagePreloadGate urls={ENTRY_MINIMAL_IMAGE_URLS} label="경기장 불러오는 중...">
+                        <Game session={currentGame} />
+                    </EntryImagePreloadGate>
+                );
             }
         }
     }
@@ -213,24 +228,40 @@ const Router: React.FC = () => {
     switch (currentRoute.view) {
         case 'set-nickname':
             return (
-                <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
-                    <SetNickname />
-                </div>
+                <EntryImagePreloadGate urls={ENTRY_MINIMAL_IMAGE_URLS} label="화면 준비 중...">
+                    <div className={routeShellClass}>
+                        <SetNickname />
+                    </div>
+                </EntryImagePreloadGate>
             );
         case 'profile':
             return (
-                <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
-                    <Profile />
-                </div>
+                <EntryImagePreloadGate urls={ENTRY_PROFILE_ROUTE_IMAGE_URLS} label="프로필 화면을 준비하는 중...">
+                    <div className={routeShellClass}>
+                        <Profile />
+                    </div>
+                </EntryImagePreloadGate>
             );
         case 'lobby':
             const lobbyType = currentRoute.params.type === 'playful' ? 'playful' : 'strategic';
-            return <Lobby lobbyType={lobbyType} />;
+            return (
+                <EntryImagePreloadGate urls={ENTRY_ARENA_FLOW_IMAGE_URLS} label="로비 화면을 준비하는 중...">
+                    <div className={routeShellClass}>
+                        <Lobby lobbyType={lobbyType} />
+                    </div>
+                </EntryImagePreloadGate>
+            );
         case 'waiting':
             if (currentRoute.params.mode) {
                 const mode = currentRoute.params.mode;
                 if (mode === 'strategic' || mode === 'playful') {
-                    return mode === 'strategic' ? <StrategicWaitingArena /> : <PlayfulWaitingArena />;
+                    return (
+                        <EntryImagePreloadGate urls={ENTRY_ARENA_FLOW_IMAGE_URLS} label="대기실에 들어가는 중...">
+                            <div className={routeShellClass}>
+                                {mode === 'strategic' ? <StrategicWaitingArena /> : <PlayfulWaitingArena />}
+                            </div>
+                        </EntryImagePreloadGate>
+                    );
                 }
                 console.warn('Router: Individual game mode waiting room access denied, redirecting to profile:', mode);
                 window.location.hash = '#/profile';
@@ -239,19 +270,33 @@ const Router: React.FC = () => {
             window.location.hash = '#/profile';
             return null;
         case 'pair':
-            return <PairWaitingArena />;
+            return (
+                <EntryImagePreloadGate urls={ENTRY_ARENA_FLOW_IMAGE_URLS} label="페어 대기실을 준비하는 중...">
+                    <div className={routeShellClass}>
+                        <PairWaitingArena />
+                    </div>
+                </EntryImagePreloadGate>
+            );
         case 'game':
             if (currentRoute.params.id) {
                 const gameId = currentRoute.params.id;
                 
                 // activeGame이 있고 ID가 일치하면 즉시 렌더링
                 if (activeGame && activeGame.id === gameId) {
-                    return <Game session={activeGame} />;
+                    return (
+                        <EntryImagePreloadGate urls={ENTRY_MINIMAL_IMAGE_URLS} label="경기장 불러오는 중...">
+                            <Game session={activeGame} />
+                        </EntryImagePreloadGate>
+                    );
                 }
                 
                 // activeGame이 없으면 GameRouteLoader에서 대기
                 // handleAction에서 게임을 즉시 상태에 추가하므로, 상태 업데이트를 기다림
-                return <GameRouteLoader key={gameId} gameId={gameId} />;
+                return (
+                    <EntryImagePreloadGate urls={ENTRY_MINIMAL_IMAGE_URLS} label="경기장 불러오는 중...">
+                        <GameRouteLoader key={gameId} gameId={gameId} />
+                    </EntryImagePreloadGate>
+                );
             }
             console.warn("Router: No game ID in route. Redirecting to profile.");
             setTimeout(() => {
@@ -261,29 +306,89 @@ const Router: React.FC = () => {
             }, 100);
             return <div className="flex items-center justify-center h-full">게임 정보 동기화 중...</div>;
         case 'admin':
-            return <Admin />;
+            return (
+                <EntryImagePreloadGate urls={ENTRY_MINIMAL_IMAGE_URLS} label="관리 화면을 준비하는 중...">
+                    <div className={routeShellClass}>
+                        <Admin />
+                    </div>
+                </EntryImagePreloadGate>
+            );
         case 'tournament':
             if (currentRoute.params.type) {
-                return <TournamentArena type={currentRoute.params.type as any} />;
+                return (
+                    <EntryImagePreloadGate urls={ENTRY_ARENA_FLOW_IMAGE_URLS} label="챔피언십 경기장을 준비하는 중...">
+                        <div className={routeShellClass}>
+                            <TournamentArena type={currentRoute.params.type as any} />
+                        </div>
+                    </EntryImagePreloadGate>
+                );
             }
-            return <TournamentLobby />;
+            return (
+                <EntryImagePreloadGate urls={ENTRY_ARENA_FLOW_IMAGE_URLS} label="챔피언십 로비를 준비하는 중...">
+                    <div className={routeShellClass}>
+                        <TournamentLobby />
+                    </div>
+                </EntryImagePreloadGate>
+            );
         case 'singleplayer':
-             return <SinglePlayerLobby />;
+            return (
+                <EntryImagePreloadGate urls={ENTRY_ARENA_FLOW_IMAGE_URLS} label="싱글플레이를 준비하는 중...">
+                    <div className={routeShellClass}>
+                        <SinglePlayerLobby />
+                    </div>
+                </EntryImagePreloadGate>
+            );
         case 'tower':
-            return <TowerLobby />;
+            return (
+                <EntryImagePreloadGate urls={ENTRY_ARENA_FLOW_IMAGE_URLS} label="도전의 탑을 준비하는 중...">
+                    <div className={routeShellClass}>
+                        <TowerLobby />
+                    </div>
+                </EntryImagePreloadGate>
+            );
         case 'adventure': {
             const sid = currentRoute.params?.stageId;
             if (sid) {
-                return <AdventureStageMap stageId={String(sid)} />;
+                return (
+                    <EntryImagePreloadGate urls={ENTRY_ADVENTURE_ROUTE_IMAGE_URLS} label="모험 지도를 불러오는 중...">
+                        <div className={routeShellClass}>
+                            <AdventureStageMap stageId={String(sid)} />
+                        </div>
+                    </EntryImagePreloadGate>
+                );
             }
-            return <AdventureLobby />;
+            return (
+                <EntryImagePreloadGate urls={ENTRY_ADVENTURE_ROUTE_IMAGE_URLS} label="모험을 준비하는 중...">
+                    <div className={routeShellClass}>
+                        <AdventureLobby />
+                    </div>
+                </EntryImagePreloadGate>
+            );
         }
         case 'guild':
-            return <GuildHome />;
+            return (
+                <EntryImagePreloadGate urls={ENTRY_GUILD_ROUTE_IMAGE_URLS} label="길드를 불러오는 중...">
+                    <div className={routeShellClass}>
+                        <GuildHome />
+                    </div>
+                </EntryImagePreloadGate>
+            );
         case 'guildboss':
-            return <GuildBoss />;
+            return (
+                <EntryImagePreloadGate urls={ENTRY_GUILD_ROUTE_IMAGE_URLS} label="길드 보스를 준비하는 중...">
+                    <div className={routeShellClass}>
+                        <GuildBoss />
+                    </div>
+                </EntryImagePreloadGate>
+            );
         case 'guildwar':
-            return <GuildWar />;
+            return (
+                <EntryImagePreloadGate urls={ENTRY_GUILD_ROUTE_IMAGE_URLS} label="길드전 화면을 준비하는 중...">
+                    <div className={routeShellClass}>
+                        <GuildWar />
+                    </div>
+                </EntryImagePreloadGate>
+            );
         default:
             window.location.hash = '#/profile';
             return null;

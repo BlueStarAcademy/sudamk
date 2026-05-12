@@ -41,6 +41,7 @@ const ChapterLockGlyph: React.FC<{ className?: string }> = ({ className }) => (
 const AdventureLobby: React.FC = () => {
     const { currentUserWithStatus } = useAppContext();
     const { isNativeMobile, isNarrowViewport, pcLikeMobileLayout } = useNativeMobileShell();
+
     /** 네이티브 앱 또는 모바일 웹(좁은 화면·PC동일 레이아웃 Off) — 챕터 5행 한 화면 */
     const mobileAdventureShell = isNativeMobile || (isNarrowViewport && !pcLikeMobileLayout);
     const [monsterCodexOpen, setMonsterCodexOpen] = useState(false);

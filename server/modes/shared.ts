@@ -28,6 +28,31 @@ import { isPairHumanHumanPvpForTeamResign } from '../../shared/utils/liveSession
 // - 서버 재시작 시 맵은 초기화되며, 그 경우 재개를 즉시 허용(UX 우선)
 const aiManualPauseResumeAvailableAt = new Map<string, number>();
 
+/** `PAUSE_AI_GAME` / 시계 정지가 허용되는 온라인 AI 대국(싱글·탑 제외) */
+export function isAiLobbyPausableSession(
+    game: Pick<LiveGameSession, 'isAiGame' | 'isSinglePlayer' | 'gameCategory'>,
+): boolean {
+    const cat = (game as any).gameCategory as string | undefined;
+    return (
+        !!game.isAiGame &&
+        !game.isSinglePlayer &&
+        cat !== 'tower' &&
+        cat !== 'singleplayer'
+    );
+}
+
+/** 유저가 `RESUME_AI_GAME`으로 재개하기 전 수동 시계 정지 상태 */
+export function isAiLobbyManualClockPause(
+    game: Pick<LiveGameSession, 'isAiGame' | 'isSinglePlayer' | 'gameCategory' | 'pausedTurnTimeLeft' | 'turnDeadline' | 'itemUseDeadline'>,
+): boolean {
+    return (
+        isAiLobbyPausableSession(game) &&
+        game.pausedTurnTimeLeft !== undefined &&
+        !game.turnDeadline &&
+        !game.itemUseDeadline
+    );
+}
+
 /** 초읽기 횟수 최소값 (0회 불가) */
 const MIN_BYOYOMI_COUNT = 1;
 
@@ -515,16 +540,14 @@ export const handleSharedAction = async (volatileState: VolatileState, game: Liv
     switch (type) {
         case 'PAUSE_AI_GAME': {
             // "AI와 대결하기"로 들어간 일반 AI 대국에서만 허용
-            const isPausableAiGame = game.isAiGame && !game.isSinglePlayer && game.gameCategory !== 'tower' && game.gameCategory !== 'singleplayer';
-            if (!isPausableAiGame) return { error: '이 게임에서는 일시정지를 사용할 수 없습니다.' };
+            if (!isAiLobbyPausableSession(game)) return { error: '이 게임에서는 일시정지를 사용할 수 없습니다.' };
             if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') {
                 return { error: '게임이 종료된 상태에서는 일시정지할 수 없습니다.' };
             }
             // 아이템 사용/애니메이션 등으로 이미 타이머가 정지된 상태에서는 수동 일시정지 불가
             if (game.itemUseDeadline) return { error: '특수 기능 처리 중에는 일시정지할 수 없습니다.' };
 
-            const isAlreadyManuallyPaused = game.pausedTurnTimeLeft !== undefined && !game.turnDeadline && !game.itemUseDeadline;
-            if (isAlreadyManuallyPaused) return { error: '이미 일시정지 상태입니다.' };
+            if (isAiLobbyManualClockPause(game)) return { error: '이미 일시정지 상태입니다.' };
 
             // 참가자만 허용 (관전자는 불가)
             const isParticipant = user.id === game.player1?.id || user.id === game.player2?.id;
@@ -547,14 +570,12 @@ export const handleSharedAction = async (volatileState: VolatileState, game: Liv
         }
 
         case 'RESUME_AI_GAME': {
-            const isPausableAiGame = game.isAiGame && !game.isSinglePlayer && game.gameCategory !== 'tower' && game.gameCategory !== 'singleplayer';
-            if (!isPausableAiGame) return { error: '이 게임에서는 대국 재개를 사용할 수 없습니다.' };
+            if (!isAiLobbyPausableSession(game)) return { error: '이 게임에서는 대국 재개를 사용할 수 없습니다.' };
             if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') {
                 return { error: '게임이 종료된 상태에서는 재개할 수 없습니다.' };
             }
 
-            const isManuallyPaused = game.pausedTurnTimeLeft !== undefined && !game.turnDeadline && !game.itemUseDeadline;
-            if (!isManuallyPaused) return { error: '일시정지 상태가 아닙니다.' };
+            if (!isAiLobbyManualClockPause(game)) return { error: '일시정지 상태가 아닙니다.' };
 
             const availableAt = aiManualPauseResumeAvailableAt.get(game.id);
             if (typeof availableAt === 'number' && now < availableAt) {

@@ -1,9 +1,29 @@
 import {
-    emptySlotImages, TOURNAMENT_DEFINITIONS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, LEAGUE_DATA, AVATAR_POOL, BORDER_POOL, RANKING_TIERS, EQUIPMENT_POOL, CONSUMABLE_ITEMS, MATERIAL_ITEMS
+    emptySlotImages,
+    TOURNAMENT_DEFINITIONS,
+    SPECIAL_GAME_MODES,
+    PLAYFUL_GAME_MODES,
+    LEAGUE_DATA,
+    AVATAR_POOL,
+    BORDER_POOL,
+    RANKING_TIERS,
+    EQUIPMENT_POOL,
+    CONSUMABLE_ITEMS,
+    MATERIAL_ITEMS,
 } from '../constants.js';
 import { ADVENTURE_STAGES } from '../constants/adventureConstants.js';
 import { getMainBackgroundUrl } from '../utils/publicAssetUrl.js';
-import { WHITE_BASE_STONE_IMG, BLACK_BASE_STONE_IMG, WHITE_HIDDEN_STONE_IMG, BLACK_HIDDEN_STONE_IMG, STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, TOURNAMENT_LOBBY_IMG, SINGLE_PLAYER_LOBBY_IMG, TOWER_CHALLENGE_LOBBY_IMG } from '../assets.js';
+import {
+    WHITE_BASE_STONE_IMG,
+    BLACK_BASE_STONE_IMG,
+    WHITE_HIDDEN_STONE_IMG,
+    BLACK_HIDDEN_STONE_IMG,
+    STRATEGIC_GO_LOBBY_IMG,
+    PLAYFUL_GO_LOBBY_IMG,
+    TOURNAMENT_LOBBY_IMG,
+    SINGLE_PLAYER_LOBBY_IMG,
+    TOWER_CHALLENGE_LOBBY_IMG,
+} from '../assets.js';
 import { ItemGrade } from '../types.js';
 
 const gradeBackgrounds: Record<ItemGrade, string> = {
@@ -30,97 +50,141 @@ const uiImages = [
     '/images/gibo.png',
     '/images/mail.png',
     '/images/store.png',
-    '/images/bag.png'
+    '/images/bag.png',
 ];
 
-const allUrls = new Set<string>();
+const dedupePaths = (paths: readonly string[]): string[] =>
+    Array.from(new Set(paths.filter((p) => typeof p === 'string' && p.startsWith('/'))));
 
-const addUrls = (urls: (string | undefined | null)[]) => {
-    for (const url of urls) {
-        if (url && typeof url === 'string' && url.startsWith('/')) {
-            allUrls.add(url);
+/** 공통 셸: 메인 배경, 상단/퀵 아이콘, 바둑돌 */
+export const ENTRY_BOOT_IMAGE_URLS = dedupePaths([
+    getMainBackgroundUrl(),
+    ...uiImages,
+    WHITE_BASE_STONE_IMG,
+    BLACK_BASE_STONE_IMG,
+    WHITE_HIDDEN_STONE_IMG,
+    BLACK_HIDDEN_STONE_IMG,
+]);
+
+const ENTRY_PROFILE_DECORATION_URLS = dedupePaths([
+    ...AVATAR_POOL.map((a) => a.url),
+    ...BORDER_POOL.map((b) => b.url),
+    ...RANKING_TIERS.map((t) => t.icon),
+]);
+
+const ENTRY_INVENTORY_ITEM_URLS = dedupePaths([
+    ...Object.values(emptySlotImages),
+    ...Object.values(gradeBackgrounds),
+    ...starImages,
+    ...EQUIPMENT_POOL.map((e) => e.image),
+    ...CONSUMABLE_ITEMS.map((c) => c.image),
+    ...Object.values(MATERIAL_ITEMS).map((m) => m.image),
+]);
+
+/** 프로필(홈): 꾸미기 + 인벤/상점 타일에 쓰이는 장비·재료 썸네일 */
+export const ENTRY_PROFILE_ROUTE_IMAGE_URLS = dedupePaths([
+    ...ENTRY_BOOT_IMAGE_URLS,
+    ...ENTRY_PROFILE_DECORATION_URLS,
+    ...ENTRY_INVENTORY_ITEM_URLS,
+]);
+
+const ENTRY_ARENA_LOBBY_URLS = dedupePaths([
+    ...(TOURNAMENT_DEFINITIONS.neighborhood.image
+        ? [TOURNAMENT_DEFINITIONS.neighborhood.image, TOURNAMENT_DEFINITIONS.national.image, TOURNAMENT_DEFINITIONS.world.image]
+        : []),
+    ...SPECIAL_GAME_MODES.map((m) => m.image),
+    ...PLAYFUL_GAME_MODES.map((m) => m.image),
+    ...LEAGUE_DATA.map((l) => l.icon),
+    STRATEGIC_GO_LOBBY_IMG,
+    PLAYFUL_GO_LOBBY_IMG,
+    TOURNAMENT_LOBBY_IMG,
+    SINGLE_PLAYER_LOBBY_IMG,
+    TOWER_CHALLENGE_LOBBY_IMG,
+]);
+
+/** 전략/교류 로비, 대기실, 싱글/탑/페어 로비 타일 */
+export const ENTRY_ARENA_FLOW_IMAGE_URLS = dedupePaths([...ENTRY_BOOT_IMAGE_URLS, ...ENTRY_ARENA_LOBBY_URLS]);
+
+const adventureImageSet = new Set<string>();
+for (const stage of ADVENTURE_STAGES) {
+    if (stage.mapWebp && stage.mapWebp.startsWith('/')) {
+        adventureImageSet.add(stage.mapWebp);
+    }
+    for (const monster of stage.monsters) {
+        if (monster.imageWebp && monster.imageWebp.startsWith('/')) {
+            adventureImageSet.add(monster.imageWebp);
         }
     }
+}
+
+export const ADVENTURE_STAGE_IMAGE_URLS = Array.from(adventureImageSet);
+
+export const ENTRY_ADVENTURE_ROUTE_IMAGE_URLS = dedupePaths([...ENTRY_BOOT_IMAGE_URLS, ...ADVENTURE_STAGE_IMAGE_URLS]);
+
+/** 길드 홈·보스·전쟁 첫 화면에서 자주 쓰는 정적 에셋 */
+export const ENTRY_GUILD_SURFACE_IMAGE_URLS = dedupePaths([
+    '/images/guild/guildbg.webp',
+    '/images/guild/tokken.png',
+    '/images/guild/button/guildmission.png',
+    '/images/guild/button/guildlab.png',
+    '/images/guild/guildwar/clearstar.png',
+    '/images/icon/Diamond.png',
+]);
+
+export const ENTRY_GUILD_ROUTE_IMAGE_URLS = dedupePaths([...ENTRY_BOOT_IMAGE_URLS, ...ENTRY_GUILD_SURFACE_IMAGE_URLS]);
+
+/** 게임/관리 등 — 인게임 전용 에셋은 판마다 다르므로 셸만 선로드 */
+export const ENTRY_MINIMAL_IMAGE_URLS = ENTRY_BOOT_IMAGE_URLS;
+
+const allCatalog = dedupePaths([
+    ...ENTRY_PROFILE_ROUTE_IMAGE_URLS,
+    ...ENTRY_ARENA_LOBBY_URLS,
+    ...ADVENTURE_STAGE_IMAGE_URLS,
+    ...ENTRY_GUILD_SURFACE_IMAGE_URLS,
+]);
+
+/** 디버그·도구용 전체 목록 */
+export const ALL_IMAGE_URLS = allCatalog;
+
+/** @deprecated `ENTRY_PROFILE_ROUTE_IMAGE_URLS` 등으로 분리됨 */
+export const LOGIN_PRELOAD_IMAGE_URLS = ENTRY_PROFILE_ROUTE_IMAGE_URLS;
+
+export type PreloadImagesOptions = {
+    priority?: 'high' | 'low';
+    maxConcurrent?: number;
+    isCancelled?: () => boolean;
+    /** @deprecated `maxConcurrent` 우선 */
+    batchSize?: number;
 };
 
-addUrls(Object.values(emptySlotImages));
-addUrls(TOURNAMENT_DEFINITIONS.neighborhood.image ? [TOURNAMENT_DEFINITIONS.neighborhood.image, TOURNAMENT_DEFINITIONS.national.image, TOURNAMENT_DEFINITIONS.world.image] : []);
-addUrls(SPECIAL_GAME_MODES.map(m => m.image));
-addUrls(PLAYFUL_GAME_MODES.map(m => m.image));
-addUrls(LEAGUE_DATA.map(l => l.icon));
-addUrls(AVATAR_POOL.map(a => a.url));
-addUrls(BORDER_POOL.map(b => b.url));
-addUrls(RANKING_TIERS.map(t => t.icon));
-addUrls(EQUIPMENT_POOL.map(e => e.image));
-addUrls(CONSUMABLE_ITEMS.map(c => c.image));
-addUrls(Object.values(MATERIAL_ITEMS).map(m => m.image));
-addUrls([WHITE_BASE_STONE_IMG, BLACK_BASE_STONE_IMG, WHITE_HIDDEN_STONE_IMG, BLACK_HIDDEN_STONE_IMG, STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, TOURNAMENT_LOBBY_IMG, SINGLE_PLAYER_LOBBY_IMG, TOWER_CHALLENGE_LOBBY_IMG]);
-addUrls(Object.values(gradeBackgrounds));
-addUrls(starImages);
-addUrls(uiImages);
-addUrls([getMainBackgroundUrl()]);
-addUrls(ADVENTURE_STAGES.flatMap((s) => s.monsters.map((m) => m.imageWebp)));
-addUrls(ADVENTURE_STAGES.map((s) => s.mapWebp));
-
-export const ALL_IMAGE_URLS = Array.from(allUrls);
-
-// 우선순위에 따라 이미지를 점진적으로 로드
-export const preloadImages = (urls: string[], options?: { priority?: 'high' | 'low', batchSize?: number }): Promise<(Event | string)[]> => {
-    const { priority = 'low', batchSize = 10 } = options || {};
-    
-    // 우선순위가 높으면 즉시 로드, 낮으면 배치로 나눠서 로드
-    if (priority === 'high') {
-        const promises = urls.map(url => {
-            return new Promise<Event | string>((resolve) => {
-                const img = new Image();
-                img.src = url;
-                img.onload = resolve;
-                img.onerror = (err) => resolve(`Failed to load ${url}: ${err.toString()}`); 
-            });
-        });
-        return Promise.all(promises);
-    }
-    
-    // 낮은 우선순위: 배치로 나눠서 점진적 로드
-    const batches: string[][] = [];
-    for (let i = 0; i < urls.length; i += batchSize) {
-        batches.push(urls.slice(i, i + batchSize));
-    }
-    
-    // 첫 번째 배치는 즉시 로드
-    const firstBatch = batches[0] || [];
-    const firstBatchPromises = firstBatch.map(url => {
-        return new Promise<Event | string>((resolve) => {
-            const img = new Image();
-            img.src = url;
-            img.onload = resolve;
-            img.onerror = (err) => resolve(`Failed to load ${url}: ${err.toString()}`); 
-        });
+const loadOneImage = (url: string): Promise<Event | string> =>
+    new Promise((resolve) => {
+        const img = new Image();
+        img.onload = resolve;
+        img.onerror = (err) => resolve(`Failed to load ${url}: ${String(err)}`);
+        img.src = url;
     });
-    
-    // 나머지 배치는 requestIdleCallback을 사용하여 백그라운드에서 로드
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-        const remainingBatches = batches.slice(1);
-        remainingBatches.forEach((batch, index) => {
-            requestIdleCallback(() => {
-                batch.forEach(url => {
-                    const img = new Image();
-                    img.src = url;
-                });
-            }, { timeout: (index + 1) * 1000 }); // 각 배치마다 1초씩 지연
-        });
-    } else {
-        // requestIdleCallback을 지원하지 않는 브라우저는 setTimeout 사용
-        const remainingBatches = batches.slice(1);
-        remainingBatches.forEach((batch, index) => {
-            setTimeout(() => {
-                batch.forEach(url => {
-                    const img = new Image();
-                    img.src = url;
-                });
-            }, (index + 1) * 1000);
-        });
-    }
-    
-    return Promise.all(firstBatchPromises);
+
+export const preloadImages = (urls: string[], options?: PreloadImagesOptions): Promise<(Event | string)[]> => {
+    const priority = options?.priority ?? 'low';
+    const defaultConcurrent = priority === 'high' ? 12 : 4;
+    const maxConcurrent =
+        options?.maxConcurrent ??
+        (typeof options?.batchSize === 'number' ? Math.min(options.batchSize, defaultConcurrent) : defaultConcurrent);
+
+    const isCancelled = options?.isCancelled;
+    const results: (Event | string)[] = new Array(urls.length);
+    let cursor = 0;
+
+    const worker = async (): Promise<void> => {
+        while (true) {
+            if (isCancelled?.()) return;
+            const i = cursor++;
+            if (i >= urls.length) return;
+            results[i] = await loadOneImage(urls[i]);
+        }
+    };
+
+    const pool = Math.min(Math.max(1, maxConcurrent), Math.max(1, urls.length));
+    return Promise.all(Array.from({ length: pool }, () => worker())).then(() => results);
 };

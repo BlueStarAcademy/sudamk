@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import Header from './components/Header.js';
 import { AppProvider, useAppContext } from './contexts/AppContext.js';
 import Router from './components/Router.js';
-import { preloadImages, ALL_IMAGE_URLS } from './services/assetService.js';
 import { audioService } from './services/audioService.js';
 import InstallPrompt from './components/InstallPrompt.js';
 import AppModalLayer from './components/AppModalLayer.js';
@@ -75,8 +74,6 @@ const AppContent: React.FC = () => {
         isNarrowViewport,
     } = useAppContext();
     
-    // 에셋 프리로딩은 UX를 위해 백그라운드로 돌리고, 화면을 막지 않도록 함
-    const [isPreloading, setIsPreloading] = useState(false);
     const [showQuestToast, setShowQuestToast] = useState(false);
     
     const prevHasClaimableQuest = usePrevious(hasClaimableQuest);
@@ -149,36 +146,6 @@ const AppContent: React.FC = () => {
         else el.classList.remove(cls);
         return () => el.classList.remove(cls);
     }, [isNativeMobile, isNarrowViewport]);
-
-    useEffect(() => {
-        if (currentUser) {
-            // 우선순위가 높은 이미지들만 먼저 로드 (UI에 즉시 필요한 것들)
-            // 나머지는 백그라운드에서 점진적으로 로드
-            let cancelled = false;
-
-            // 프리로딩이 오래 걸릴 때만 표시 (짧은 로드는 표시하지 않음)
-            const showTimer = setTimeout(() => {
-                if (!cancelled) setIsPreloading(true);
-            }, 500);
-
-            preloadImages(ALL_IMAGE_URLS, { priority: 'low', batchSize: 15 })
-                .catch(() => {
-                    // 프리로딩 실패는 치명적이지 않음 (이미지는 필요 시 로드됨)
-                })
-                .finally(() => {
-                    if (cancelled) return;
-                    clearTimeout(showTimer);
-                    setIsPreloading(false);
-                });
-
-            return () => {
-                cancelled = true;
-                clearTimeout(showTimer);
-            };
-        } else {
-            setIsPreloading(false);
-        }
-    }, [currentUser]);
 
     /**
      * 터치 폰만: 물리 가로일 때 OS가 뷰포트를 돌리면 모바일 셸이 풀리고 PC 레이아웃으로 바뀌는 문제가 있다.
@@ -409,12 +376,6 @@ const AppContent: React.FC = () => {
             overflow: 'hidden',
                                     paddingBottom: isNarrowViewport ? 'env(safe-area-inset-bottom, 0px)' : '0px'
         }}>
-            {isPreloading && (
-                <div className="fixed bottom-4 right-4 z-[100] bg-panel border border-color text-on-panel rounded-lg shadow-xl px-3 py-2 flex items-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                    <span className="text-sm">에셋 로딩 중...</span>
-                </div>
-            )}
             {showExitToast && (
                 <div
                     className="fixed inset-0 z-[200] flex items-center justify-center px-4 py-6 pointer-events-none"
