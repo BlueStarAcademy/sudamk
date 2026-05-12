@@ -1,0 +1,117 @@
+import type { Match, TournamentState } from '../types/index.js';
+
+/** 같은 슬롯의 진행 중 매치인지 (실대국 기보 유실 복구 판별용) */
+export function isSameActiveSimulatingMatchSlot(prev: TournamentState, resolved: TournamentState): boolean {
+    const a = prev.currentSimulatingMatch;
+    const b = resolved.currentSimulatingMatch;
+    if (!a || !b) return false;
+    return (
+        prev.status === 'round_in_progress' &&
+        resolved.status === 'round_in_progress' &&
+        a.roundIndex === b.roundIndex &&
+        a.matchIndex === b.matchIndex
+    );
+}
+
+/**
+ * 서버/WS 스냅샷에 `championshipRealGame.moves`가 빠지거나 줄어든 경우,
+ * 클라이언트에 남아 있는 완전한 기보를 유지한다. (실대국 → 50초 시뮬 추락 방지)
+ */
+export function mergeResolvedRoundsPreserveChampionshipPlayback(
+    prev: TournamentState,
+    resolved: TournamentState,
+): TournamentState['rounds'] {
+    if (!isSameActiveSimulatingMatchSlot(prev, resolved)) {
+        return resolved.rounds;
+    }
+    const sim = prev.currentSimulatingMatch!;
+    const { roundIndex: ri, matchIndex: mi } = sim;
+    const prevMatch = prev.rounds[ri]?.matches[mi];
+    const resolvedMatch = resolved.rounds[ri]?.matches[mi];
+    const prevGame = prevMatch?.championshipRealGame;
+    const resolvedGame = resolvedMatch?.championshipRealGame;
+
+    if (prevGame?.moves?.length && (!resolvedGame?.moves?.length || resolvedGame.moves.length < prevGame.moves.length)) {
+        return resolved.rounds.map((round, rIdx) =>
+            rIdx !== ri
+                ? round
+                : {
+                      ...round,
+                      matches: round.matches.map((m: Match, mIdx) =>
+                          mIdx !== mi || !m ? m : { ...m, championshipRealGame: prevGame },
+                      ),
+                  },
+        );
+    }
+
+    if (
+        !prevGame?.moves?.length ||
+        !resolvedGame?.moves?.length ||
+        prevGame.moves.length !== resolvedGame.moves.length
+    ) {
+        return resolved.rounds;
+    }
+
+    const prevPly = prevGame.currentPly || 0;
+    const resPly = resolvedGame.currentPly || 0;
+    const prevT = prev.timeElapsed || 0;
+    const resT = resolved.timeElapsed || 0;
+    if (!(prevPly > resPly || (prevT > resT && prevPly >= resPly))) {
+        return resolved.rounds;
+    }
+
+    return resolved.rounds.map((round, rIdx) => ({
+        ...round,
+        matches: round.matches.map((match: Match, mIdx) => {
+            if (rIdx !== ri || mIdx !== mi || !match) return match;
+            return {
+                ...match,
+                championshipRealGame: {
+                    ...resolvedGame,
+                    boardState: prevGame.boardState,
+                    currentPly: prevGame.currentPly,
+                    lastMove: prevGame.lastMove,
+                    status: prevGame.status,
+                    timeMetrics: prevGame.timeMetrics ?? resolvedGame.timeMetrics,
+                },
+            };
+        }),
+    }));
+}
+
+/**
+ * applyUserUpdate 병합: 패치가 진행 중인 동일 슬롯에서 기보를 잃었으면 베이스 기보를 복구한다.
+ */
+export function mergeChampionshipTournamentPreserveLostRealGame(
+    base: TournamentState | null | undefined,
+    patch: TournamentState | null | undefined,
+): TournamentState | null {
+    if (patch === undefined) return base ?? null;
+    if (patch === null) return null;
+    if (!base) return patch;
+    if (!isSameActiveSimulatingMatchSlot(base, patch)) {
+        return patch;
+    }
+    const sim = patch.currentSimulatingMatch!;
+    const { roundIndex: ri, matchIndex: mi } = sim;
+    const baseMatch = base.rounds[ri]?.matches[mi];
+    const patchMatch = patch.rounds[ri]?.matches[mi];
+    const baseGame = baseMatch?.championshipRealGame;
+    const patchGame = patchMatch?.championshipRealGame;
+    if (baseGame?.moves?.length && (!patchGame?.moves?.length || patchGame.moves.length < baseGame.moves.length)) {
+        return {
+            ...patch,
+            rounds: patch.rounds.map((round, rIdx) =>
+                rIdx !== ri
+                    ? round
+                    : {
+                          ...round,
+                          matches: round.matches.map((m: Match, mIdx) =>
+                              mIdx !== mi || !m ? m : { ...m, championshipRealGame: baseGame },
+                          ),
+                      },
+            ),
+        };
+    }
+    return patch;
+}

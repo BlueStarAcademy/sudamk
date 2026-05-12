@@ -4,6 +4,7 @@ import { flushSync } from 'react-dom';
 import { User, LiveGameSession, UserWithStatus, ServerAction, GameMode, Negotiation, ChatMessage, UserStatus, UserStatusInfo, AdminLog, Announcement, OverrideAnnouncement, InventoryItem, AppState, InventoryItemType, AppRoute, QuestReward, DailyQuestData, WeeklyQuestData, MonthlyQuestData, SoundSettings, FeatureSettings, AppSettings, PanelEdgeStyle, CoreStat, SpecialStat, MythicStat, EquipmentSlot, EquipmentPreset, Player, HomeBoardPost, GameRecord, Guild } from '../types.js';
 import type { KataServerRuntimeSnapshot } from '../shared/types/kataServerRuntime.js';
 import { mergeKataServerRuntimeSnapshot } from '../shared/utils/kataServerRuntimeMerge.js';
+import { mergeChampionshipTournamentPreserveLostRealGame } from '../shared/utils/championshipTournamentPreserve.js';
 import { CHAMPIONSHIP_ABILITY_KATA_LADDER, type ChampionshipAbilityKataLadderRow } from '../shared/constants/championshipRealMatch.js';
 import { HandleActionResult, type PairRoomChatLine } from '../types/api.js';
 import { Point } from '../types/enums.js';
@@ -1547,10 +1548,26 @@ export const useApp = () => {
                 patch.dailyShopPurchases !== undefined
                     ? { ...(base.dailyShopPurchases ?? {}), ...patch.dailyShopPurchases }
                     : base.dailyShopPurchases,
-            // 챔피언십 토너먼트 상태(누적 보상 등)는 서버 응답으로 완전히 교체
-            lastNeighborhoodTournament: patch.lastNeighborhoodTournament !== undefined ? patch.lastNeighborhoodTournament : base.lastNeighborhoodTournament,
-            lastNationalTournament: patch.lastNationalTournament !== undefined ? patch.lastNationalTournament : base.lastNationalTournament,
-            lastWorldTournament: patch.lastWorldTournament !== undefined ? patch.lastWorldTournament : base.lastWorldTournament,
+            // 챔피언십: WS/HTTP 패치에 기보가 빠지면 클라 실대국이 50초 시뮬로 추락하므로 동일 슬롯에서는 베이스 기보를 보존
+            lastNeighborhoodTournament:
+                patch.lastNeighborhoodTournament !== undefined
+                    ? mergeChampionshipTournamentPreserveLostRealGame(
+                          base.lastNeighborhoodTournament,
+                          patch.lastNeighborhoodTournament,
+                      ) ?? patch.lastNeighborhoodTournament
+                    : base.lastNeighborhoodTournament,
+            lastNationalTournament:
+                patch.lastNationalTournament !== undefined
+                    ? mergeChampionshipTournamentPreserveLostRealGame(
+                          base.lastNationalTournament,
+                          patch.lastNationalTournament,
+                      ) ?? patch.lastNationalTournament
+                    : base.lastNationalTournament,
+            lastWorldTournament:
+                patch.lastWorldTournament !== undefined
+                    ? mergeChampionshipTournamentPreserveLostRealGame(base.lastWorldTournament, patch.lastWorldTournament) ??
+                      patch.lastWorldTournament
+                    : base.lastWorldTournament,
         };
 
         const coercedLv = coerceUserLevelXpFromPayload(merged as unknown as Record<string, unknown>);

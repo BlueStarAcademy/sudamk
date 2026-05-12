@@ -52,12 +52,10 @@ RUN NODE_ENV=production npm run build:client
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Install serve for static file serving
-RUN npm install -g serve
-
 # Copy built frontend files
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
+COPY scripts/frontendSpaStaticServer.mjs ./scripts/frontendSpaStaticServer.mjs
 
 # Google Cloud Run은 PORT 환경 변수를 자동으로 설정합니다
 # 기본값은 8080이지만 Cloud Run이 설정한 PORT를 사용합니다
@@ -66,8 +64,5 @@ ENV PORT=8080
 # Expose port (Cloud Run이 PORT 환경 변수로 설정)
 EXPOSE $PORT
 
-# Start static file server using Cloud Run's PORT environment variable
-# serve는 PORT 환경 변수를 자동으로 인식하지만, 명시적으로 전달
-# -s 옵션: SPA 모드 (모든 경로를 index.html로 리다이렉트)
-# -l 옵션: 리스닝 포트
-CMD sh -c "echo 'Starting frontend server on port ${PORT:-8080}' && serve -s dist -l ${PORT:-8080}"
+# serve -s 는 없는 /assets/*.js 에도 index.html 을 내리므로 동적 import MIME 오류가 난다.
+CMD sh -c "echo 'Starting frontend server on port ${PORT:-8080}' && node scripts/frontendSpaStaticServer.mjs"

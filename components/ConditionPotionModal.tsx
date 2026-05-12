@@ -331,17 +331,6 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                         })}
                     </div>
 
-                    {selectedPotionType && !hasPotion && (
-                        <div
-                            className={`rounded-xl border border-rose-500/35 bg-gradient-to-r from-rose-950/50 to-slate-950/60 px-3 py-2.5 text-center ${isNativeMobile ? 'text-[11px]' : 'text-sm'}`}
-                        >
-                            <p className="font-semibold text-rose-100/95">
-                                {POTION_TYPES[selectedPotionType].name}이(가) 없습니다.
-                            </p>
-                            <p className="mt-0.5 text-[11px] text-rose-200/70">하단의 고급 버튼으로 상점에서 구매할 수 있습니다.</p>
-                        </div>
-                    )}
-
                 </div>
 
                 <div

@@ -1171,6 +1171,12 @@ export const advanceSimulation = async (state: TournamentState, user: User): Pro
     
     const match = round.matches[matchIndex];
 
+    // Kata 실대국(기보 사전 생성): 서버 측 50초 추상 시뮬 틱으로 덮어쓰면 안 됨
+    if (match?.championshipRealGame?.moves?.length) {
+        delete (state as any).__clientTimestamp;
+        return false;
+    }
+
     if (!match.players[0] || !match.players[1]) {
         match.winner = match.players[0] || null;
         match.isFinished = true;
@@ -1263,32 +1269,8 @@ export const advanceSimulation = async (state: TournamentState, user: User): Pro
             }
         }
     }
-    
-    // Fluctuate stats every second
-    const playersToUpdate = [p1, p2];
-    for (const player of playersToUpdate) {
-        if (!player) continue;
-        
-        // Select one random stat to fluctuate
-        const allStats = Object.values(CoreStat);
-        const statToFluctuate = allStats[Math.floor(Math.random() * allStats.length)];
 
-        const condition = player.condition || 100;
-        // 양수값이 나올 기본확률 -30% + 컨디션%
-        // 예: 컨디션 50 = -30% + 50% = 20% 양수 확률
-        // 예: 컨디션 100 = -30% + 100% = 70% 양수 확률
-        const positiveChangeProbability = (condition - 30) / 100;
-        
-        let fluctuation: number;
-        if (Math.random() < positiveChangeProbability) {
-            // Positive fluctuation: 1, 2, or 3
-            fluctuation = Math.floor(Math.random() * 3) + 1;
-        } else {
-            // Negative fluctuation: -1, -2, or -3
-            fluctuation = Math.floor(Math.random() * 3) - 3;
-        }
-        player.stats[statToFluctuate] = (player.stats[statToFluctuate] || 0) + fluctuation;
-    }
+    // 시뮬레이션 경기 중에는 능력치 수치를 바꾸지 않음(컨디션은 실시간 대국 등에서 수 품질 확률에만 반영)
 
     // 현재 시간에 맞는 단계 결정 (초반: 1-15초, 중반: 16-35초, 종반: 36-50초)
     const phase = getPhase(state.timeElapsed);
@@ -1367,14 +1349,14 @@ export const advanceSimulation = async (state: TournamentState, user: User): Pro
     // Commentary: 단계 시작 등은 기존 타이밍, 기본 풀 멘트는 BASIC_COMMENTARY_INTERVAL_SECONDS마다
     if (state.timeElapsed === 1) {
         // 초반전 시작 메시지
-        state.currentMatchCommentary.push({ text: `초반전이 시작되었습니다. (필요능력치: 전투력, 사고속도, 집중력)`, phase: 'early', isRandomEvent: false });
+        state.currentMatchCommentary.push({ text: '초반전이 시작되었습니다. 포석과 첫 전투 흐름을 살펴봅니다.', phase: 'early', isRandomEvent: false });
         state.currentMatchCommentary.push({ text: COMMENTARY_POOLS.start.replace('{p1}', p1.nickname).replace('{p2}', p2.nickname), phase: 'early', isRandomEvent: false });
     } else if (state.timeElapsed === EARLY_GAME_DURATION + 1) {
         // 중반전 시작 메시지
-        state.currentMatchCommentary.push({ text: `중반전이 시작되었습니다. (필요능력치: 전투력, 판단력, 집중력, 안정감)`, phase: 'mid', isRandomEvent: false });
+        state.currentMatchCommentary.push({ text: '중반전이 시작되었습니다. 중앙 싸움과 형세 다툼이 거세집니다.', phase: 'mid', isRandomEvent: false });
     } else if (state.timeElapsed === EARLY_GAME_DURATION + MID_GAME_DURATION + 1) {
         // 종반전 시작 메시지
-        state.currentMatchCommentary.push({ text: `종반전이 시작되었습니다. (필요능력치: 계산력, 안정감, 집중력)`, phase: 'end', isRandomEvent: false });
+        state.currentMatchCommentary.push({ text: '종반전이 시작되었습니다. 집 계산과 세세한 손익이 중요해집니다.', phase: 'end', isRandomEvent: false });
     } else if (state.timeElapsed % 10 === 0 && state.timeElapsed > 0 && state.timeElapsed < TOTAL_GAME_DURATION) {
         // Intermediate score every 10 seconds
         const leadPercent = Math.abs(p1ScorePercent - 50) * 2;

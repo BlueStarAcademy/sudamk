@@ -3,6 +3,7 @@ import { BoardState, Player, TournamentState, User } from '../types';
 import { useAppContext } from './useAppContext';
 import { runClientSimulationStep, SeededRandom } from '../utils/tournamentSimulation';
 import { processMoveClient } from '../client/goLogicClient';
+import { mergeResolvedRoundsPreserveChampionshipPlayback } from '../shared/utils/championshipTournamentPreserve.js';
 
 const TOTAL_GAME_DURATION = 50;
 // 챔피언십 실대국 중계 배속별 수당 간격(ms).
@@ -60,7 +61,14 @@ const getEffectiveSimulationSeed = (tournament: TournamentState): string => {
 
 const getMatchKey = (tournament: TournamentState | null | undefined): string | null => {
     if (!tournament?.currentSimulatingMatch) return null;
-    return `${tournament.currentSimulatingMatch.roundIndex}-${tournament.currentSimulatingMatch.matchIndex}-${getEffectiveSimulationSeed(tournament)}`;
+    const sim = tournament.currentSimulatingMatch;
+    const match = tournament.rounds[sim.roundIndex]?.matches[sim.matchIndex];
+    const realGame = match?.championshipRealGame;
+    // 실대국: 시드(simulationSeed) 유무로 키가 바뀌면 매치 리셋·재생 타이머가 끊겨 빈 판에 멈출 수 있음 → 라운드·매치·id만으로 고정
+    if (realGame?.moves?.length) {
+        return `real:${tournament.type}:${sim.roundIndex}:${sim.matchIndex}:${match?.id ?? 'm'}`;
+    }
+    return `${sim.roundIndex}-${sim.matchIndex}-${getEffectiveSimulationSeed(tournament)}`;
 };
 
 /**
@@ -84,61 +92,6 @@ function mergeResolvedPlayersKeepPrevSimStats(
             originalStats: prevP.originalStats,
         };
     });
-}
-
-/**
- * 상점·인벤 동기화 등으로 서버에서 온 토너먼트 스냅샷은 timeElapsed/currentPly를 갱신하지 않는 경우가 많다.
- * 이때 `rounds`만 서버 것으로 통째로 바꾸면 실대국 재생이 처음(0수)으로 되돌아가 무한 반복처럼 보인다.
- * 클라이언트가 더 앞서 재생 중이면 활성 매치의 championshipRealGame 재생 필드만 이전 값을 유지한다.
- */
-function mergeResolvedRoundsPreserveChampionshipPlayback(
-    prev: TournamentState,
-    resolved: TournamentState,
-): TournamentState['rounds'] {
-    const sim = prev.currentSimulatingMatch;
-    if (
-        !sim ||
-        prev.status !== 'round_in_progress' ||
-        resolved.status !== 'round_in_progress' ||
-        getMatchKey(prev) !== getMatchKey(resolved)
-    ) {
-        return resolved.rounds;
-    }
-    const prevMatch = prev.rounds[sim.roundIndex]?.matches[sim.matchIndex];
-    const prevGame = prevMatch?.championshipRealGame;
-    const resolvedMatch = resolved.rounds[sim.roundIndex]?.matches[sim.matchIndex];
-    const resolvedGame = resolvedMatch?.championshipRealGame;
-    if (
-        !prevGame?.moves?.length ||
-        !resolvedGame?.moves?.length ||
-        prevGame.moves.length !== resolvedGame.moves.length
-    ) {
-        return resolved.rounds;
-    }
-    const prevPly = prevGame.currentPly || 0;
-    const resPly = resolvedGame.currentPly || 0;
-    const prevT = prev.timeElapsed || 0;
-    const resT = resolved.timeElapsed || 0;
-    if (!(prevPly > resPly || (prevT > resT && prevPly >= resPly))) {
-        return resolved.rounds;
-    }
-    return resolved.rounds.map((round, ri) => ({
-        ...round,
-        matches: round.matches.map((match, mi) => {
-            if (ri !== sim.roundIndex || mi !== sim.matchIndex) return match;
-            return {
-                ...match,
-                championshipRealGame: {
-                    ...resolvedGame,
-                    boardState: prevGame.boardState,
-                    currentPly: prevGame.currentPly,
-                    lastMove: prevGame.lastMove,
-                    status: prevGame.status,
-                    timeMetrics: prevGame.timeMetrics ?? resolvedGame.timeMetrics,
-                },
-            };
-        }),
-    }));
 }
 
 const getStorageKey = (userId: string, type: TournamentState['type']) => `tournamentSimulation_${userId}_${type}`;
@@ -195,10 +148,10 @@ const phaseStartMessageForPly = (ply: number, maxPly: number): { phase: Commenta
         return { phase: 'early', text: '초반전이 시작되었습니다. 포석과 첫 전투 흐름을 살펴봅니다.' };
     }
     if (ply === midStart) {
-        return { phase: 'mid', text: '중반전이 시작되었습니다. 전투력 비중이 커지며 여섯 능력치가 함께 묶입니다.' };
+        return { phase: 'mid', text: '중반전이 시작되었습니다. 중앙 싸움과 형세 다툼이 거세집니다.' };
     }
     if (ply === endStart) {
-        return { phase: 'end', text: '종반전이 시작되었습니다. 계산력과 집중·사고속도가 승부를 가릅니다.' };
+        return { phase: 'end', text: '종반전이 시작되었습니다. 집 계산과 세세한 손익이 중요해집니다.' };
     }
     return null;
 };
@@ -381,6 +334,9 @@ export const useTournamentSimulation = (
                     const rounds = playbackClientAhead
                         ? mergeResolvedRoundsPreserveChampionshipPlayback(prev, resolvedTournament)
                         : resolvedTournament.rounds;
+                    const prevMatch =
+                        sim && prev.rounds[sim.roundIndex]?.matches[sim.matchIndex];
+                    const useServerPlayers = !!prevMatch?.championshipRealGame?.moves?.length;
                     return {
                         ...resolvedTournament,
                         rounds,
@@ -388,7 +344,9 @@ export const useTournamentSimulation = (
                         currentMatchScores: prev.currentMatchScores,
                         currentMatchCommentary: prev.currentMatchCommentary,
                         lastScoreIncrement: prev.lastScoreIncrement,
-                        players: mergeResolvedPlayersKeepPrevSimStats(prev.players, resolvedTournament.players),
+                        players: useServerPlayers
+                            ? resolvedTournament.players
+                            : mergeResolvedPlayersKeepPrevSimStats(prev.players, resolvedTournament.players),
                     };
                 }
             }
@@ -895,13 +853,7 @@ export const useTournamentSimulation = (
             }
             isSimulatingRef.current = false;
         };
-    }, [
-        localTournament?.status,
-        localTournament?.simulationSeed,
-        localTournament?.currentSimulatingMatch?.roundIndex,
-        localTournament?.currentSimulatingMatch?.matchIndex,
-        currentUser?.id,
-    ]);
+    }, [getMatchKey(localTournament), localTournament?.status, currentUser?.id]);
 
     return localTournament;
 };

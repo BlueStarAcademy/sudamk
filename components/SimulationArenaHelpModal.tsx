@@ -110,7 +110,7 @@ const SimulationArenaHelpModal: React.FC<SimulationArenaHelpModalProps> = ({ onC
                             <h3 className="font-bold text-lg text-yellow-300 mb-2">컨디션</h3>
                             <ul className="list-disc list-inside space-y-2 text-sm">
                                 <li>각 경기 전에 40~100 사이의 랜덤 컨디션 부여</li>
-                                <li>컨디션이 낮을수록 능력치가 불안정하게 변동</li>
+                                <li>시뮬레이션 진행 중에는 능력치 수치가 바뀌지 않습니다</li>
                                 <li>컨디션 회복제로 회복 가능 (경기 시작 전에만 사용)</li>
                             </ul>
                         </div>

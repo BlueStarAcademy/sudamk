@@ -1178,7 +1178,15 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
 
             const tournamentState = (freshUser as any)[stateKey] as types.TournamentState | null;
             if (!tournamentState) return { error: '토너먼트 정보를 찾을 수 없습니다.' };
-            
+
+            const sim = tournamentState.currentSimulatingMatch;
+            if (sim) {
+                const m = tournamentState.rounds[sim.roundIndex]?.matches[sim.matchIndex];
+                if (m?.championshipRealGame?.moves?.length) {
+                    return { clientResponse: { updatedUser: freshUser } };
+                }
+            }
+
             // 클라이언트에서 시뮬레이션 진행
             const { advanceSimulation } = await import('../tournamentService.js');
             

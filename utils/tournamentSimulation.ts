@@ -124,39 +124,10 @@ export const runClientSimulationStep = (
     commentary: CommentaryLine[]
 ): { player1Score: number; player2Score: number; commentary: CommentaryLine[]; p1IsCritical: boolean; p2IsCritical: boolean } => {
     const phase = getPhase(time);
-    
-    // 능력치 변동 (매초마다)
-    const playersToUpdate = [player1, player2];
-    for (const player of playersToUpdate) {
-        const allStats = Object.values(CoreStat);
-        const statToFluctuate = allStats[rng.randomInt(0, allStats.length - 1)];
-        
-        const condition = player.condition || 100;
-        const positiveChangeProbability = (condition - 30) / 100;
-        
-        const beforeStat = player.stats[statToFluctuate] || 0;
-        let fluctuation: number;
-        if (rng.random() < positiveChangeProbability) {
-            fluctuation = rng.randomInt(1, 3);
-        } else {
-            fluctuation = rng.randomInt(-3, -1);
-        }
-        player.stats[statToFluctuate] = beforeStat + fluctuation;
-        
-        // 디버깅: 능력치 변동 로그 (매 5초마다)
-        if (time % 5 === 0) {
-            console.log(`[runClientSimulationStep] Time ${time}: ${player.nickname} ${statToFluctuate} ${beforeStat} → ${player.stats[statToFluctuate]} (${fluctuation > 0 ? '+' : ''}${fluctuation}), condition=${condition}`);
-        }
-    }
-    
-    // 점수 계산 (변동된 능력치 사용)
+
+    // 점수 계산 (경기 중 능력치 고정 — 컨디션은 실시간 대국 등에서만 수 품질 확률에 반영)
     const p1BasePower = calculatePower(player1, phase);
     const p2BasePower = calculatePower(player2, phase);
-    
-    // 디버깅: 점수 계산 로그 (매 5초마다)
-    if (time % 5 === 0) {
-        console.log(`[runClientSimulationStep] Time ${time}: p1BasePower=${p1BasePower.toFixed(2)}, p2BasePower=${p2BasePower.toFixed(2)}, phase=${phase}`);
-    }
     
     // ±10% 랜덤 변동
     const p1RandomFactor = 1 + (rng.random() * 0.2 - 0.1);
@@ -204,12 +175,12 @@ export const runClientSimulationStep = (
     
     // 중계 메시지
     if (time === 1) {
-        commentary.push({ text: `초반전이 시작되었습니다. (필요능력치: 전투력, 사고속도, 집중력)`, phase: 'early', isRandomEvent: false });
+        commentary.push({ text: '초반전이 시작되었습니다. 포석과 첫 전투 흐름을 살펴봅니다.', phase: 'early', isRandomEvent: false });
         commentary.push({ text: COMMENTARY_POOLS.start.replace('{p1}', player1.nickname).replace('{p2}', player2.nickname), phase: 'early', isRandomEvent: false });
     } else if (time === EARLY_GAME_DURATION + 1) {
-        commentary.push({ text: `중반전이 시작되었습니다. (필요능력치: 전투력, 판단력, 집중력, 안정감)`, phase: 'mid', isRandomEvent: false });
+        commentary.push({ text: '중반전이 시작되었습니다. 중앙 싸움과 형세 다툼이 거세집니다.', phase: 'mid', isRandomEvent: false });
     } else if (time === EARLY_GAME_DURATION + MID_GAME_DURATION + 1) {
-        commentary.push({ text: `종반전이 시작되었습니다. (필요능력치: 계산력, 안정감, 집중력)`, phase: 'end', isRandomEvent: false });
+        commentary.push({ text: '종반전이 시작되었습니다. 집 계산과 세세한 손익이 중요해집니다.', phase: 'end', isRandomEvent: false });
     } else if (time % 10 === 0 && time > 0 && time < TOTAL_GAME_DURATION) {
         const totalScore = newPlayer1Score + newPlayer2Score;
         const p1Percent = totalScore > 0 ? (newPlayer1Score / totalScore) * 100 : 50;
@@ -379,26 +350,8 @@ export const runClientSimulation = (
     // 50초 시뮬레이션 실행
     for (let t = 1; t <= TOTAL_GAME_DURATION; t++) {
         const phase = getPhase(t);
-        
-        // 능력치 변동 (매초마다)
-        const playersToUpdate = [player1, player2];
-        for (const player of playersToUpdate) {
-            const allStats = Object.values(CoreStat);
-            const statToFluctuate = allStats[rng.randomInt(0, allStats.length - 1)];
-            
-            const condition = player.condition || 100;
-            const positiveChangeProbability = (condition - 30) / 100;
-            
-            let fluctuation: number;
-            if (rng.random() < positiveChangeProbability) {
-                fluctuation = rng.randomInt(1, 3);
-            } else {
-                fluctuation = rng.randomInt(-3, -1);
-            }
-            player.stats[statToFluctuate] = (player.stats[statToFluctuate] || 0) + fluctuation;
-        }
-        
-        // 점수 계산
+
+        // 점수 계산 (경기 중 능력치 고정)
         const p1BasePower = calculatePower(player1, phase);
         const p2BasePower = calculatePower(player2, phase);
         
@@ -448,12 +401,12 @@ export const runClientSimulation = (
         
         // 중계 메시지
         if (t === 1) {
-            commentary.push({ text: `초반전이 시작되었습니다. (필요능력치: 전투력, 사고속도, 집중력)`, phase: 'early', isRandomEvent: false });
+            commentary.push({ text: '초반전이 시작되었습니다. 포석과 첫 전투 흐름을 살펴봅니다.', phase: 'early', isRandomEvent: false });
             commentary.push({ text: COMMENTARY_POOLS.start.replace('{p1}', player1.nickname).replace('{p2}', player2.nickname), phase: 'early', isRandomEvent: false });
         } else if (t === EARLY_GAME_DURATION + 1) {
-            commentary.push({ text: `중반전이 시작되었습니다. (필요능력치: 전투력, 판단력, 집중력, 안정감)`, phase: 'mid', isRandomEvent: false });
+            commentary.push({ text: '중반전이 시작되었습니다. 중앙 싸움과 형세 다툼이 거세집니다.', phase: 'mid', isRandomEvent: false });
         } else if (t === EARLY_GAME_DURATION + MID_GAME_DURATION + 1) {
-            commentary.push({ text: `종반전이 시작되었습니다. (필요능력치: 계산력, 안정감, 집중력)`, phase: 'end', isRandomEvent: false });
+            commentary.push({ text: '종반전이 시작되었습니다. 집 계산과 세세한 손익이 중요해집니다.', phase: 'end', isRandomEvent: false });
         } else if (t % 10 === 0 && t > 0 && t < TOTAL_GAME_DURATION) {
             const totalScore = player1Score + player2Score;
             const p1Percent = totalScore > 0 ? (player1Score / totalScore) * 100 : 50;

@@ -88,7 +88,8 @@ const ChampionshipHelpModal: React.FC<ChampionshipHelpModalProps> = ({ onClose, 
                                     <h4 className="font-semibold text-yellow-200 mb-1">컨디션</h4>
                                     <ul className="list-disc list-inside space-y-1 ml-2">
                                         <li>각 경기/라운드 전에 40~100 사이의 랜덤 컨디션 부여</li>
-                                        <li>컨디션이 낮을수록 능력치가 불안정하게 변동</li>
+                                        <li>실시간 바둑 경기에서는 컨디션에 따라 묘수·실수 경향이 달라집니다</li>
+                                        <li>시뮬레이션(50초) 진행 중에는 능력치 수치가 바뀌지 않습니다</li>
                                         <li>컨디션 회복제로 회복 가능 (상점 구매 또는 퀘스트 보상)</li>
                                     </ul>
                                 </div>
