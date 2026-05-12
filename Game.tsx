@@ -4915,9 +4915,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             <div className="absolute inset-0 flex min-h-0 flex-col">
                                 <div className="relative flex h-full w-full min-h-0 min-w-0 flex-col overflow-hidden">
                                     <div
-                                        className={`flex min-h-0 w-full flex-1 items-center justify-center ${
-                                            isAdventureGame ? 'overflow-hidden' : 'overflow-auto'
-                                        } ${effectivePaused ? 'opacity-0 pointer-events-none' : 'opacity-100'} transition-opacity duration-500`}
+                                        className={`flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden ${
+                                            effectivePaused ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                                        } transition-opacity duration-500`}
                                     >
                                         {usePairArenaIngameChrome ? (
                                             <div className="flex h-full w-full min-w-0 flex-col overflow-hidden px-1 py-1">
@@ -4927,7 +4927,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                     mobile={isMobile}
                                                     pairMobileViewerUserId={!isSpectator ? currentUser.id : undefined}
                                                 />
-                                                <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto">
+                                                <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden">
                                                     <GameArena
                                                         {...gameProps}
                                                         isMyTurn={isMyTurn}

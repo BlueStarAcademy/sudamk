@@ -24,7 +24,7 @@ import {
     formatAiRematchFooterLabel,
     formatSinglePlayerNextFooterLabel,
 } from './arenaPostGameButtonStyles.js';
-import { MoveConfirmFooterSlot } from './MoveConfirmFooterSlot.js';
+import { MoveConfirmFooterReservePlaceholder, MoveConfirmFooterSlot } from './MoveConfirmFooterSlot.js';
 import {
     arenaGameRoomControlsAdminBarClass,
     arenaGameRoomControlsDividerClass,
@@ -2264,6 +2264,15 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const isAdventureGame = session.gameCategory === 'adventure';
 
     const dockMoveConfirmFooter = !isGameEnded && showMoveConfirmFooter && !isSpectator && !!onMobileConfirmToggle;
+    /** 계가·대기 등에서 슬롯 UI는 숨기되, 진행 중과 동일한 중앙 폭을 유지해 바둑판 가로 배분이 변하지 않게 함 */
+    const isPlayfulModeFooter = PLAYFUL_GAME_MODES.some((m) => m.mode === mode);
+    const footerStatusesHideMoveReserve: GameStatus[] = ['ended', 'no_contest', 'rematch_pending', 'disconnected'];
+    const reserveMoveConfirmFooterColumn =
+        settings.features.moveConfirmButtonBox &&
+        !!onMobileConfirmToggle &&
+        !isSpectator &&
+        !isPlayfulModeFooter &&
+        !footerStatusesHideMoveReserve.includes(gameStatus);
 
     const primaryControlsInner = (
         <>
@@ -2451,18 +2460,27 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         </>
     );
 
-    const moveConfirmCenterSlot =
-        dockMoveConfirmFooter && onMobileConfirmToggle ? (
-            <MoveConfirmFooterSlot
-                key="move-confirm-footer"
-                layout="online"
-                compact={!!isMobile}
-                withCenterPanel
-                pendingMove={pendingMove}
-                mobileConfirm={settings.features.mobileConfirm}
-                onConfirmMove={onConfirmMove}
-                onMobileConfirmToggle={onMobileConfirmToggle}
-            />
+    const moveConfirmCenterBody =
+        reserveMoveConfirmFooterColumn && onMobileConfirmToggle ? (
+            dockMoveConfirmFooter ? (
+                <MoveConfirmFooterSlot
+                    key="move-confirm-footer"
+                    layout="online"
+                    compact={!!isMobile}
+                    withCenterPanel
+                    pendingMove={pendingMove}
+                    mobileConfirm={settings.features.mobileConfirm}
+                    onConfirmMove={onConfirmMove}
+                    onMobileConfirmToggle={onMobileConfirmToggle}
+                />
+            ) : (
+                <MoveConfirmFooterReservePlaceholder
+                    key="move-confirm-reserve"
+                    layout="online"
+                    compact={!!isMobile}
+                    withCenterPanel
+                />
+            )
         ) : null;
 
     const specialControlsInner = isGameEnded
@@ -2559,11 +2577,11 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 </ArenaControlStrip>
                             </div>
                         </div>
-                        {moveConfirmCenterSlot ? (
+                        {moveConfirmCenterBody ? (
                             <>
                                 <div className={`${arenaGameRoomControlsDividerClass} w-0.5 shrink-0`} aria-hidden />
                                 <div className="flex shrink-0 flex-col justify-center self-stretch overflow-visible px-0.5">
-                                    {moveConfirmCenterSlot}
+                                    {moveConfirmCenterBody}
                                 </div>
                             </>
                         ) : null}
@@ -2594,17 +2612,19 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             </ArenaControlStrip>
                         </div>
                     </div>
-                    {moveConfirmCenterSlot ? (
+                    {moveConfirmCenterBody ? (
                         <>
                             <div className={`${arenaGameRoomControlsDividerClass} w-0.5 shrink-0 self-stretch`} aria-hidden />
                             <div className="flex min-w-0 shrink-0 flex-col items-stretch justify-center gap-0.5 self-stretch min-[1025px]:px-0.5">
                                 <h3
-                                    className={`${arenaGameRoomControlsSectionTitleClass} min-[1025px]:text-[9px] leading-none text-emerald-200/90`}
+                                    className={`${arenaGameRoomControlsSectionTitleClass} min-[1025px]:text-[9px] leading-none text-emerald-200/90 ${
+                                        dockMoveConfirmFooter ? '' : 'invisible'
+                                    }`}
                                 >
                                     착수
                                 </h3>
                                 <div className="flex min-h-[2.65rem] flex-1 items-center justify-center min-[1025px]:min-h-[2.1rem]">
-                                    {moveConfirmCenterSlot}
+                                    {moveConfirmCenterBody}
                                 </div>
                             </div>
                             <div className={`${arenaGameRoomControlsDividerClass} w-0.5 shrink-0 self-stretch`} aria-hidden />

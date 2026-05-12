@@ -324,9 +324,9 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 </button>
             )}
             {/* 바둑판은 항상 정사각형으로, 주어진 공간 안에 맞춰 축소/확대 */}
-            <div className="relative w-full h-full max-w-full max-h-full flex items-center justify-center min-w-0 min-h-0">
+            <div className="relative flex h-full max-h-full w-full max-w-full min-h-0 min-w-0 items-center justify-center overflow-hidden">
                 <div
-                    className={`w-full h-full max-w-full max-h-full aspect-square min-w-0 min-h-0 ${
+                    className={`aspect-square h-full max-h-full w-full max-w-full min-h-0 min-w-0 overflow-hidden ${
                         isAdventureBoardLayout ? 'shrink-0' : ''
                     }`}
                 >
