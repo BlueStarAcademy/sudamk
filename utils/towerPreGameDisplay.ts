@@ -19,6 +19,17 @@ export function getTowerSessionFloor(session: Pick<LiveGameSession, 'towerFloor'
     return 1;
 }
 
+/** 인게임 도전의 탑 전면 배경 WebP (`public/images/bg/intower*.webp`) */
+export function getTowerInGameBackgroundUrl(floor: number): string {
+    const f = Math.floor(floor);
+    if (!Number.isFinite(f) || f < 1) return '/images/bg/intower1.webp';
+    if (f <= 20) return '/images/bg/intower1.webp';
+    if (f <= 50) return '/images/bg/intower2.webp';
+    if (f <= 80) return '/images/bg/intower3.webp';
+    if (f <= 99) return '/images/bg/intower4.webp';
+    return '/images/bg/intower5.webp';
+}
+
 /** 결과 모달·인게임 종료 푸터 공통: 유저(player1) 진영 승리 여부 (`TowerSummaryModal`·`TowerControls`와 동일). 베이스 등으로 백이 될 수 있음. */
 export function isTowerHumanWinnerFromSession(
     session: Pick<

@@ -51,6 +51,7 @@ import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from './client/logi
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
 import { shouldOpenResultModalByPolicy } from './utils/resultDisplayPolicy.js';
 import { consumeSkipGameHashLeaveInterceptOnce, replaceAppHash } from './utils/appUtils.js';
+import { getTowerInGameBackgroundUrl, getTowerSessionFloor } from './utils/towerPreGameDisplay.js';
 import { getAdventureMapWebpPath } from './constants/adventureConstants.js';
 import { InGameModalLayoutProvider } from './contexts/InGameModalLayoutContext.js';
 import {
@@ -4333,10 +4334,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         </div>
     ) : null;
 
-    // 도전의 탑 배경 이미지 설정
-    const towerBackgroundImage = isTower && session.towerFloor 
-        ? (session.towerFloor === 100 ? '/images/tower/Tower100.png' : '/images/tower/InTower.png')
-        : null;
+    // 도전의 탑 배경 이미지 설정 (층 구간별 WebP)
+    const towerBackgroundImage = isTower ? getTowerInGameBackgroundUrl(getTowerSessionFloor(session)) : null;
     
     // 디버깅: 게임 상태 확인
     useEffect(() => {
