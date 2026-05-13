@@ -17,15 +17,13 @@ import {
     TOURNAMENT_DEFINITIONS,
     getDungeonRankRewardWorld,
     ACHIEVEMENT_TRACK_MAP,
-    isChampionshipDungeonStageFirstMet,
 } from '../../constants/index.js';
 import { calculateRanks } from '../tournamentService.js';
 import { addItemsToInventory, createItemInstancesFromReward } from '../../utils/inventoryUtils.js';
 import { createItemInstancesFromMailAttachments } from '../mailClaimEquipment.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 import { clampQuestProgressToTarget } from '../../utils/questProgressCap.js';
-import { getAdventureUnderstandingTierFromXp } from '../../constants/adventureConstants.js';
-import { getAdventureCodexCompletionBreakdown } from '../../utils/adventureCodexCompletion.js';
+import { isAchievementRequirementMet } from '../../shared/utils/achievementProgress.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig, type RewardConfig } from '../../shared/constants/rewardConfig.js';
 import { isRewardVipActive } from '../../shared/utils/rewardVip.js';
 import { isMailRewardsClaimExpired } from '../../shared/utils/mailRewardsExpiry.js';
@@ -43,65 +41,6 @@ import * as guildService from '../guildService.js';
 
 const getRandomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
-};
-
-const TIER_SCORE_REQUIREMENTS: Record<string, number> = {
-    루키: 1300,
-    브론즈: 1400,
-    실버: 1500,
-    골드: 1700,
-    플래티넘: 2000,
-    다이아: 2400,
-    마스터: 3000,
-    챌린저: 3500,
-};
-
-const GRADE_ORDER: ItemGrade[] = [
-    ItemGrade.Normal,
-    ItemGrade.Uncommon,
-    ItemGrade.Rare,
-    ItemGrade.Epic,
-    ItemGrade.Legendary,
-    ItemGrade.Mythic,
-    ItemGrade.Transcendent,
-];
-
-const GRADE_KEY_TO_ITEM_GRADE: Record<string, ItemGrade> = {
-    normal: ItemGrade.Normal,
-    uncommon: ItemGrade.Uncommon,
-    rare: ItemGrade.Rare,
-    epic: ItemGrade.Epic,
-    legendary: ItemGrade.Legendary,
-    mythic: ItemGrade.Mythic,
-    transcendent: ItemGrade.Transcendent,
-};
-
-const ADVENTURE_UNDERSTANDING_TIER_INDEX_BY_LABEL: Record<string, number> = {
-    편함: 1,
-    익숙함: 2,
-    친숙함: 3,
-    정복: 4,
-};
-
-const isAllEquipmentAtLeastGrade = (user: User, gradeKey: string): boolean => {
-    const requiredGrade = GRADE_KEY_TO_ITEM_GRADE[gradeKey];
-    if (!requiredGrade) return false;
-    const requiredIndex = GRADE_ORDER.indexOf(requiredGrade);
-    const slots: Array<keyof NonNullable<User['equipment']>> = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
-    for (const slot of slots) {
-        const equippedId = user.equipment?.[slot];
-        if (!equippedId) return false;
-        const item = user.inventory.find((it) => it.id === equippedId);
-        if (!item) return false;
-        const itemIndex = GRADE_ORDER.indexOf(item.grade);
-        if (itemIndex < requiredIndex) return false;
-    }
-    return true;
-};
-
-const getStrategySeasonScoreForAchievements = (user: User): number => {
-    const diff = user.cumulativeRankingScore?.['standard'] ?? 0;
-    return 1200 + diff;
 };
 
 /** 우편 첨부 캐시 패키지: 다이아 패키지는 즉시 반영, 장비 패키지는 인벤에 넣을 아이템 목록으로 반환 */
@@ -501,36 +440,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             }
 
             const stage = track.stages[stageIndex]!;
-            let requirementMet = false;
-            if (stage.requirement.type === 'singleplayer_stage_clear') {
-                const clearedStages = Array.isArray(user.clearedSinglePlayerStages) ? user.clearedSinglePlayerStages : [];
-                requirementMet = clearedStages.includes(stage.requirement.stageId);
-            } else if (stage.requirement.type === 'strategy_level') {
-                requirementMet = (user.userLevel ?? 0) >= stage.requirement.level;
-            } else if (stage.requirement.type === 'championship_cumulative_score') {
-                requirementMet = (user.cumulativeTournamentScore ?? 0) >= stage.requirement.score;
-            } else if (stage.requirement.type === 'all_equipment_min_grade') {
-                requirementMet = isAllEquipmentAtLeastGrade(user, stage.requirement.grade);
-            } else if (stage.requirement.type === 'strategy_tier') {
-                const score = getStrategySeasonScoreForAchievements(user);
-                requirementMet = score >= (TIER_SCORE_REQUIREMENTS[stage.requirement.tier] ?? Number.MAX_SAFE_INTEGER);
-            } else if (stage.requirement.type === 'adventure_understanding_tier') {
-                const xp = Math.max(0, Math.floor(user.adventureProfile?.understandingXpByStage?.[stage.requirement.stageId] ?? 0));
-                const currentTier = getAdventureUnderstandingTierFromXp(xp);
-                const requiredTier = ADVENTURE_UNDERSTANDING_TIER_INDEX_BY_LABEL[stage.requirement.tier] ?? Number.MAX_SAFE_INTEGER;
-                requirementMet = currentTier >= requiredTier;
-            } else if (stage.requirement.type === 'adventure_codex_score') {
-                const { totalSum } = getAdventureCodexCompletionBreakdown(user.adventureProfile);
-                requirementMet = totalSum >= stage.requirement.score;
-            } else if (stage.requirement.type === 'blacksmith_level') {
-                requirementMet = (user.blacksmithLevel ?? 1) >= stage.requirement.level;
-            } else if (stage.requirement.type === 'equipment_box_opens') {
-                requirementMet = (user.quests?.achievements?.totalEquipmentBoxOpens ?? 0) >= stage.requirement.opens;
-            } else if (stage.requirement.type === 'material_box_opens') {
-                requirementMet = (user.quests?.achievements?.totalMaterialBoxOpens ?? 0) >= stage.requirement.opens;
-            } else if (stage.requirement.type === 'championship_dungeon_stage_first') {
-                requirementMet = isChampionshipDungeonStageFirstMet(user, stage.requirement.tournamentType, stage.requirement.stage);
-            }
+            const requirementMet = isAchievementRequirementMet(stage, user);
             if (!requirementMet) {
                 return { error: '아직 업적 조건을 달성하지 않았습니다.' };
             }

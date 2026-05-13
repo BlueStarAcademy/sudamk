@@ -2461,8 +2461,13 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
             user.cumulativeRankingScore['pair'] = pairRankingScore - RANKED_ELO_BASE_SCORE;
         }
 
-        updateQuestProgress(user, 'participate', game.mode, 1, { gameCategory: 'pair' });
-        if (isWinner) updateQuestProgress(user, 'win', game.mode, 1, { gameCategory: 'pair' });
+        const pairCtx = { gameCategory: 'pair' as const, pairMode: game.settings?.pairGame?.pairMode as 'ai' | 'pvp' | undefined };
+        updateQuestProgress(user, 'participate', game.mode, 1, pairCtx);
+        if (isWinner) updateQuestProgress(user, 'win', game.mode, 1, pairCtx);
+        if (!isNoContest && game.settings?.pairGame?.pairMode === 'pvp') {
+            updateQuestProgress(user, 'pair_pvp_participate', game.mode, 1, pairCtx);
+            if (isWinner) updateQuestProgress(user, 'pair_pvp_win', game.mode, 1, pairCtx);
+        }
 
         const xpSummary: StatChange = { initial: initialStrategyXp, change: strategyXpGain, final: currentXp };
         const pairLeveledUp = currentLevel > initialStrategyLevel;

@@ -1,14 +1,14 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect, useId } from 'react';
 import { UserWithStatus, Quest, ServerAction, QuestLog, QuestReward } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
-import { DAILY_MILESTONE_THRESHOLDS, WEEKLY_MILESTONE_THRESHOLDS, MONTHLY_MILESTONE_THRESHOLDS, DAILY_MILESTONE_REWARDS, WEEKLY_MILESTONE_REWARDS, MONTHLY_MILESTONE_REWARDS, CONSUMABLE_ITEMS, ACHIEVEMENT_TRACKS, isChampionshipDungeonStageFirstMet } from '../constants';
+import { DAILY_MILESTONE_THRESHOLDS, WEEKLY_MILESTONE_THRESHOLDS, MONTHLY_MILESTONE_THRESHOLDS, DAILY_MILESTONE_REWARDS, WEEKLY_MILESTONE_REWARDS, MONTHLY_MILESTONE_REWARDS, CONSUMABLE_ITEMS, ACHIEVEMENT_TRACKS } from '../constants';
 import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, isInsideSudamrAdUi } from '../constants/ads.js';
 import { clampQuestProgressToTarget } from '../utils/questProgressCap.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
-import { getAdventureUnderstandingTierFromXp } from '../constants/adventureConstants.js';
-import { getAdventureCodexCompletionBreakdown } from '../utils/adventureCodexCompletion.js';
 import { formatGoldAmountKoG } from '../shared/utils/walletAmountDisplay.js';
+import type { User } from '../types.js';
+import { getAchievementProgressDisplay, isAchievementRequirementMet } from '../shared/utils/achievementProgress.js';
 
 interface QuestsModalProps {
     currentUser: UserWithStatus;
@@ -105,71 +105,9 @@ const AchievementTrackPanel: React.FC<{
 }> = ({ currentUser, onAction, isMobile }) => {
     const [viewIndices, setViewIndices] = useState<Record<string, number>>({});
     const [detailOpenMap, setDetailOpenMap] = useState<Record<string, boolean>>({});
-    const adventureTierIndexByLabel: Record<string, number> = { 편함: 1, 익숙함: 2, 친숙함: 3, 정복: 4 };
 
-    const isRequirementMet = (stage: (typeof ACHIEVEMENT_TRACKS)[number]['stages'][number]) => {
-        if (stage.requirement.type === 'singleplayer_stage_clear') {
-            return (currentUser.clearedSinglePlayerStages ?? []).includes(stage.requirement.stageId);
-        }
-        if (stage.requirement.type === 'strategy_level') {
-            return (currentUser.userLevel ?? 0) >= stage.requirement.level;
-        }
-        if (stage.requirement.type === 'championship_cumulative_score') {
-            return (currentUser.cumulativeTournamentScore ?? 0) >= stage.requirement.score;
-        }
-        if (stage.requirement.type === 'all_equipment_min_grade') {
-            const gradeOrder = ['normal', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'transcendent'];
-            const requiredIndex = gradeOrder.indexOf(stage.requirement.grade);
-            const slots: Array<'fan' | 'board' | 'top' | 'bottom' | 'bowl' | 'stones'> = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
-            return slots.every((slot) => {
-                const equippedId = currentUser.equipment?.[slot];
-                if (!equippedId) return false;
-                const item = currentUser.inventory.find((it) => it.id === equippedId);
-                if (!item) return false;
-                const normalizedGrade = String(item.grade).toLowerCase();
-                const idx = gradeOrder.indexOf(normalizedGrade);
-                return idx >= requiredIndex;
-            });
-        }
-        if (stage.requirement.type === 'strategy_tier') {
-            const tierScoreMap: Record<string, number> = {
-                루키: 1300,
-                브론즈: 1400,
-                실버: 1500,
-                골드: 1700,
-                플래티넘: 2000,
-                다이아: 2400,
-                마스터: 3000,
-                챌린저: 3500,
-            };
-            const scoreDiff = currentUser.cumulativeRankingScore?.standard ?? 0;
-            const seasonScore = 1200 + scoreDiff;
-            return seasonScore >= (tierScoreMap[stage.requirement.tier] ?? Number.MAX_SAFE_INTEGER);
-        }
-        if (stage.requirement.type === 'adventure_understanding_tier') {
-            const xp = Math.max(0, Math.floor(currentUser.adventureProfile?.understandingXpByStage?.[stage.requirement.stageId] ?? 0));
-            const currentTier = getAdventureUnderstandingTierFromXp(xp);
-            const requiredTier = adventureTierIndexByLabel[stage.requirement.tier] ?? Number.MAX_SAFE_INTEGER;
-            return currentTier >= requiredTier;
-        }
-        if (stage.requirement.type === 'adventure_codex_score') {
-            const { totalSum } = getAdventureCodexCompletionBreakdown(currentUser.adventureProfile);
-            return totalSum >= stage.requirement.score;
-        }
-        if (stage.requirement.type === 'blacksmith_level') {
-            return (currentUser.blacksmithLevel ?? 1) >= stage.requirement.level;
-        }
-        if (stage.requirement.type === 'equipment_box_opens') {
-            return (currentUser.quests?.achievements?.totalEquipmentBoxOpens ?? 0) >= stage.requirement.opens;
-        }
-        if (stage.requirement.type === 'material_box_opens') {
-            return (currentUser.quests?.achievements?.totalMaterialBoxOpens ?? 0) >= stage.requirement.opens;
-        }
-        if (stage.requirement.type === 'championship_dungeon_stage_first') {
-            return isChampionshipDungeonStageFirstMet(currentUser, stage.requirement.tournamentType, stage.requirement.stage);
-        }
-        return false;
-    };
+    const isRequirementMet = (stage: (typeof ACHIEVEMENT_TRACKS)[number]['stages'][number]) =>
+        isAchievementRequirementMet(stage, currentUser as User);
 
     const totalStages = ACHIEVEMENT_TRACKS.reduce((sum, track) => sum + track.stages.length, 0);
     const totalClaimed = ACHIEVEMENT_TRACKS.reduce((sum, track) => {
@@ -200,6 +138,7 @@ const AchievementTrackPanel: React.FC<{
                     const isCurrentStage = viewIndex === currentIndex;
                     const canClaim = isCurrentStage && isCleared && !isClaimed;
                     const isDetailOpen = !!detailOpenMap[track.id];
+                    const achProgress = getAchievementProgressDisplay(stage, currentUser as User);
 
                     return (
                         <li key={track.id} className="rounded-2xl border border-slate-500/25 bg-gradient-to-br from-slate-900/95 via-[#0f1118]/98 to-[#080a0f] p-2.5 shadow-[0_12px_40px_-18px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-amber-500/[0.07] sm:p-3">
@@ -223,6 +162,11 @@ const AchievementTrackPanel: React.FC<{
                                         <span className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${isCleared ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-700/50 text-slate-300'}`}>
                                             {isCleared ? '조건 달성' : '미달성'}
                                         </span>
+                                        {achProgress ? (
+                                            <span className="text-[10px] font-medium tabular-nums text-slate-400 sm:text-[11px]">
+                                                ({achProgress.current}/{achProgress.target})
+                                            </span>
+                                        ) : null}
                                     </div>
                                     {isDetailOpen ? (
                                         <div
@@ -806,48 +750,7 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
             const currentIndex = Math.max(0, Math.min(track.stages.length - 1, trackState.currentIndex ?? 0));
             const stage = track.stages[currentIndex];
             if (!stage || claimedIndices.includes(currentIndex)) continue;
-
-            const requirement = stage.requirement;
-            let met = false;
-            if (requirement.type === 'singleplayer_stage_clear') {
-                met = (currentUser.clearedSinglePlayerStages ?? []).includes(requirement.stageId);
-            } else if (requirement.type === 'strategy_level') {
-                met = (currentUser.userLevel ?? 0) >= requirement.level;
-            } else if (requirement.type === 'championship_cumulative_score') {
-                met = (currentUser.cumulativeTournamentScore ?? 0) >= requirement.score;
-            } else if (requirement.type === 'all_equipment_min_grade') {
-                const gradeOrder = ['normal', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'transcendent'];
-                const requiredIdx = gradeOrder.indexOf(requirement.grade);
-                const slots: Array<'fan' | 'board' | 'top' | 'bottom' | 'bowl' | 'stones'> = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
-                met = slots.every((slot) => {
-                    const equippedId = currentUser.equipment?.[slot];
-                    if (!equippedId) return false;
-                    const item = currentUser.inventory.find((it) => it.id === equippedId);
-                    if (!item) return false;
-                    const idx = gradeOrder.indexOf(String(item.grade).toLowerCase());
-                    return idx >= requiredIdx;
-                });
-            } else if (requirement.type === 'strategy_tier') {
-                const tierScoreMap: Record<string, number> = { 루키: 1300, 브론즈: 1400, 실버: 1500, 골드: 1700, 플래티넘: 2000, 다이아: 2400, 마스터: 3000, 챌린저: 3500 };
-                const scoreDiff = currentUser.cumulativeRankingScore?.standard ?? 0;
-                met = 1200 + scoreDiff >= (tierScoreMap[requirement.tier] ?? Number.MAX_SAFE_INTEGER);
-            } else if (requirement.type === 'adventure_understanding_tier') {
-                const tierMap: Record<string, number> = { 편함: 1, 익숙함: 2, 친숙함: 3, 정복: 4 };
-                const xp = Math.max(0, Math.floor(currentUser.adventureProfile?.understandingXpByStage?.[requirement.stageId] ?? 0));
-                met = getAdventureUnderstandingTierFromXp(xp) >= (tierMap[requirement.tier] ?? Number.MAX_SAFE_INTEGER);
-            } else if (requirement.type === 'adventure_codex_score') {
-                met = getAdventureCodexCompletionBreakdown(currentUser.adventureProfile).totalSum >= requirement.score;
-            } else if (requirement.type === 'blacksmith_level') {
-                met = (currentUser.blacksmithLevel ?? 1) >= requirement.level;
-            } else if (requirement.type === 'equipment_box_opens') {
-                met = (currentUser.quests?.achievements?.totalEquipmentBoxOpens ?? 0) >= requirement.opens;
-            } else if (requirement.type === 'material_box_opens') {
-                met = (currentUser.quests?.achievements?.totalMaterialBoxOpens ?? 0) >= requirement.opens;
-            } else if (requirement.type === 'championship_dungeon_stage_first') {
-                met = isChampionshipDungeonStageFirstMet(currentUser, requirement.tournamentType, requirement.stage);
-            }
-
-            if (met) return true;
+            if (isAchievementRequirementMet(stage, currentUser as User)) return true;
         }
         return false;
     }, [quests.achievements, currentUser]);

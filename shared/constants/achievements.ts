@@ -1,3 +1,5 @@
+import { ItemGrade } from '../types/enums.js';
+
 export type AchievementStageDefinition = {
     id: string;
     title: string;
@@ -5,7 +7,6 @@ export type AchievementStageDefinition = {
     requirement:
         | { type: 'singleplayer_stage_clear'; stageId: string }
         | { type: 'strategy_level'; level: number }
-        | { type: 'championship_cumulative_score'; score: number }
         | { type: 'all_equipment_min_grade'; grade: 'normal' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic' | 'transcendent' }
         | { type: 'strategy_tier'; tier: '루키' | '브론즈' | '실버' | '골드' | '플래티넘' | '다이아' | '마스터' | '챌린저' }
         | { type: 'adventure_understanding_tier'; stageId: 'neighborhood_hill' | 'lake_park' | 'aquarium' | 'zoo' | 'amusement_park'; tier: '편함' | '익숙함' | '친숙함' | '정복' }
@@ -13,7 +14,11 @@ export type AchievementStageDefinition = {
         | { type: 'blacksmith_level'; level: number }
         | { type: 'equipment_box_opens'; opens: number }
         | { type: 'material_box_opens'; opens: number }
-        | { type: 'championship_dungeon_stage_first'; tournamentType: 'neighborhood' | 'national' | 'world'; stage: number };
+        | { type: 'championship_dungeon_stage_first'; tournamentType: 'neighborhood' | 'national' | 'world'; stage: number }
+        | { type: 'pair_pet_max_level'; level: number }
+        | { type: 'pair_pet_min_grade'; grade: ItemGrade }
+        | { type: 'pair_pet_training_claims'; count: number }
+        | { type: 'pair_pet_soul_converts'; count: number };
     rewardDiamonds: number;
 };
 
@@ -25,7 +30,6 @@ export type AchievementTrackDefinition = {
 
 export const BADUK_ACADEMY_TRACK_ID = 'baduk_academy_20_clear';
 export const STRATEGY_LEVEL_TRACK_ID = 'strategy_level_milestones';
-export const CHAMPIONSHIP_SCORE_TRACK_ID = 'championship_score_milestones';
 export const ALL_EQUIPMENT_GRADE_TRACK_ID = 'all_equipment_grade_milestones';
 export const STRATEGY_TIER_TRACK_ID = 'strategy_tier_milestones';
 export const NEIGHBORHOOD_HILL_EXPLORATION_TRACK_ID = 'adventure_neighborhood_hill_conquest';
@@ -37,6 +41,10 @@ export const MONSTER_CODEX_HUNTER_TRACK_ID = 'adventure_monster_codex_hunter';
 export const BLACKSMITH_LEVEL_TRACK_ID = 'blacksmith_level_milestones';
 export const EQUIPMENT_BOX_OPENS_TRACK_ID = 'equipment_box_opens_milestones';
 export const MATERIAL_BOX_OPENS_TRACK_ID = 'material_box_opens_milestones';
+export const PAIR_PET_TRAINER_TRACK_ID = 'pair_pet_trainer_levels';
+export const PAIR_PET_EVOLUTION_TRACK_ID = 'pair_pet_grade_milestones';
+export const PAIR_PET_LOVES_GO_TRACK_ID = 'pair_pet_training_loves_go';
+export const PAIR_PET_FOREVER_TOGETHER_TRACK_ID = 'pair_pet_soul_convert_forever';
 export const NEIGHBORHOOD_LEAGUE_FIRST_PLACE_TRACK_ID = 'neighborhood_league_stage_first_place';
 export const NATIONAL_TOURNAMENT_FIRST_PLACE_TRACK_ID = 'national_tournament_stage_first_place';
 export const WORLD_CHAMPIONSHIP_FIRST_PLACE_TRACK_ID = 'world_championship_stage_first_place';
@@ -82,7 +90,7 @@ export function isChampionshipDungeonStageFirstMet(
 export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
     {
         id: BADUK_ACADEMY_TRACK_ID,
-        title: '바둑학원 돌파 업적',
+        title: '바둑을 배우자',
         stages: [
             {
                 id: 'academy-beginner-20',
@@ -123,29 +131,18 @@ export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
     },
     {
         id: STRATEGY_LEVEL_TRACK_ID,
-        title: '전략바둑 레벨 업적',
+        title: '게임 숙련자',
         stages: [
-            { id: 'strategy-level-5', title: '전략바둑 5레벨 달성', description: '전략바둑 레벨 5를 달성하세요.', requirement: { type: 'strategy_level', level: 5 }, rewardDiamonds: 50 },
-            { id: 'strategy-level-10', title: '전략바둑 10레벨 달성', description: '전략바둑 레벨 10을 달성하세요.', requirement: { type: 'strategy_level', level: 10 }, rewardDiamonds: 100 },
-            { id: 'strategy-level-15', title: '전략바둑 15레벨 달성', description: '전략바둑 레벨 15를 달성하세요.', requirement: { type: 'strategy_level', level: 15 }, rewardDiamonds: 100 },
-            { id: 'strategy-level-20', title: '전략바둑 20레벨 달성', description: '전략바둑 레벨 20을 달성하세요.', requirement: { type: 'strategy_level', level: 20 }, rewardDiamonds: 100 },
-            { id: 'strategy-level-25', title: '전략바둑 25레벨 달성', description: '전략바둑 레벨 25를 달성하세요.', requirement: { type: 'strategy_level', level: 25 }, rewardDiamonds: 100 },
-            { id: 'strategy-level-30', title: '전략바둑 30레벨 달성', description: '전략바둑 레벨 30을 달성하세요.', requirement: { type: 'strategy_level', level: 30 }, rewardDiamonds: 100 },
-            { id: 'strategy-level-35', title: '전략바둑 35레벨 달성', description: '전략바둑 레벨 35를 달성하세요.', requirement: { type: 'strategy_level', level: 35 }, rewardDiamonds: 100 },
-            { id: 'strategy-level-40', title: '전략바둑 40레벨 달성', description: '전략바둑 레벨 40을 달성하세요.', requirement: { type: 'strategy_level', level: 40 }, rewardDiamonds: 100 },
-            { id: 'strategy-level-45', title: '전략바둑 45레벨 달성', description: '전략바둑 레벨 45를 달성하세요.', requirement: { type: 'strategy_level', level: 45 }, rewardDiamonds: 100 },
-            { id: 'strategy-level-50', title: '전략바둑 50레벨 달성', description: '전략바둑 레벨 50을 달성하세요.', requirement: { type: 'strategy_level', level: 50 }, rewardDiamonds: 100 },
-        ],
-    },
-    {
-        id: CHAMPIONSHIP_SCORE_TRACK_ID,
-        title: '챔피언십 점령 업적',
-        stages: [
-            { id: 'champ-score-200', title: '챔피언십 점수 누적 200점', description: '챔피언십 누적 점수 200점을 달성하세요.', requirement: { type: 'championship_cumulative_score', score: 200 }, rewardDiamonds: 10 },
-            { id: 'champ-score-500', title: '챔피언십 점수 누적 500점', description: '챔피언십 누적 점수 500점을 달성하세요.', requirement: { type: 'championship_cumulative_score', score: 500 }, rewardDiamonds: 20 },
-            { id: 'champ-score-1000', title: '챔피언십 점수 누적 1000점', description: '챔피언십 누적 점수 1000점을 달성하세요.', requirement: { type: 'championship_cumulative_score', score: 1000 }, rewardDiamonds: 50 },
-            { id: 'champ-score-2000', title: '챔피언십 점수 누적 2000점', description: '챔피언십 누적 점수 2000점을 달성하세요.', requirement: { type: 'championship_cumulative_score', score: 2000 }, rewardDiamonds: 100 },
-            { id: 'champ-score-3000', title: '챔피언십 점수 누적 3000점', description: '챔피언십 누적 점수 3000점을 달성하세요.', requirement: { type: 'championship_cumulative_score', score: 3000 }, rewardDiamonds: 150 },
+            { id: 'strategy-level-5', title: '유저 5레벨 달성', description: '유저 레벨 5를 달성하세요.', requirement: { type: 'strategy_level', level: 5 }, rewardDiamonds: 50 },
+            { id: 'strategy-level-10', title: '유저 10레벨 달성', description: '유저 레벨 10을 달성하세요.', requirement: { type: 'strategy_level', level: 10 }, rewardDiamonds: 100 },
+            { id: 'strategy-level-15', title: '유저 15레벨 달성', description: '유저 레벨 15를 달성하세요.', requirement: { type: 'strategy_level', level: 15 }, rewardDiamonds: 100 },
+            { id: 'strategy-level-20', title: '유저 20레벨 달성', description: '유저 레벨 20을 달성하세요.', requirement: { type: 'strategy_level', level: 20 }, rewardDiamonds: 100 },
+            { id: 'strategy-level-25', title: '유저 25레벨 달성', description: '유저 레벨 25를 달성하세요.', requirement: { type: 'strategy_level', level: 25 }, rewardDiamonds: 100 },
+            { id: 'strategy-level-30', title: '유저 30레벨 달성', description: '유저 레벨 30을 달성하세요.', requirement: { type: 'strategy_level', level: 30 }, rewardDiamonds: 100 },
+            { id: 'strategy-level-35', title: '유저 35레벨 달성', description: '유저 레벨 35를 달성하세요.', requirement: { type: 'strategy_level', level: 35 }, rewardDiamonds: 100 },
+            { id: 'strategy-level-40', title: '유저 40레벨 달성', description: '유저 레벨 40을 달성하세요.', requirement: { type: 'strategy_level', level: 40 }, rewardDiamonds: 100 },
+            { id: 'strategy-level-45', title: '유저 45레벨 달성', description: '유저 레벨 45를 달성하세요.', requirement: { type: 'strategy_level', level: 45 }, rewardDiamonds: 100 },
+            { id: 'strategy-level-50', title: '유저 50레벨 달성', description: '유저 레벨 50을 달성하세요.', requirement: { type: 'strategy_level', level: 50 }, rewardDiamonds: 100 },
         ],
     },
     {
@@ -165,7 +162,7 @@ export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
     },
     {
         id: ALL_EQUIPMENT_GRADE_TRACK_ID,
-        title: '장비장착 업적',
+        title: '목수는 연장탓 안해',
         stages: [
             { id: 'equip-grade-normal', title: '모든 장비 일반등급 이상 장착', description: '모든 장비 슬롯에 일반등급 이상을 장착하세요.', requirement: { type: 'all_equipment_min_grade', grade: 'normal' }, rewardDiamonds: 10 },
             { id: 'equip-grade-uncommon', title: '모든 장비 고급등급 이상 장착', description: '모든 장비 슬롯에 고급등급 이상을 장착하세요.', requirement: { type: 'all_equipment_min_grade', grade: 'uncommon' }, rewardDiamonds: 30 },
@@ -178,7 +175,7 @@ export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
     },
     {
         id: STRATEGY_TIER_TRACK_ID,
-        title: '전략바둑 랭커 업적',
+        title: '전략바둑 랭커',
         stages: [
             { id: 'strategy-tier-rookie', title: '시즌 최고 티어 [루키]', description: '전략바둑 시즌 티어 루키를 달성하세요.', requirement: { type: 'strategy_tier', tier: '루키' }, rewardDiamonds: 25 },
             { id: 'strategy-tier-bronze', title: '시즌 최고 티어 [브론즈]', description: '전략바둑 시즌 티어 브론즈를 달성하세요.', requirement: { type: 'strategy_tier', tier: '브론즈' }, rewardDiamonds: 50 },
@@ -192,7 +189,7 @@ export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
     },
     {
         id: NEIGHBORHOOD_HILL_EXPLORATION_TRACK_ID,
-        title: '동네뒷산 모험의 정복 업적',
+        title: '우리 동네 뒷산',
         stages: [
             { id: 'neighborhood-hill-exploration-comfort', title: '동네뒷산 지역 탐험도 [편함] 달성', description: '동네뒷산 지역 탐험도를 [편함] 이상으로 달성하세요.', requirement: { type: 'adventure_understanding_tier', stageId: 'neighborhood_hill', tier: '편함' }, rewardDiamonds: 10 },
             { id: 'neighborhood-hill-exploration-familiar', title: '동네뒷산 지역 탐험도 [익숙함] 달성', description: '동네뒷산 지역 탐험도를 [익숙함] 이상으로 달성하세요.', requirement: { type: 'adventure_understanding_tier', stageId: 'neighborhood_hill', tier: '익숙함' }, rewardDiamonds: 20 },
@@ -202,7 +199,7 @@ export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
     },
     {
         id: LAKE_PARK_EXPLORATION_TRACK_ID,
-        title: '호수공원 모험의 정복 업적',
+        title: '호수공원의 아침',
         stages: [
             { id: 'lake-park-exploration-comfort', title: '호수공원 지역 탐험도 [편함] 달성', description: '호수공원 지역 탐험도를 [편함] 이상으로 달성하세요.', requirement: { type: 'adventure_understanding_tier', stageId: 'lake_park', tier: '편함' }, rewardDiamonds: 10 },
             { id: 'lake-park-exploration-familiar', title: '호수공원 지역 탐험도 [익숙함] 달성', description: '호수공원 지역 탐험도를 [익숙함] 이상으로 달성하세요.', requirement: { type: 'adventure_understanding_tier', stageId: 'lake_park', tier: '익숙함' }, rewardDiamonds: 20 },
@@ -212,7 +209,7 @@ export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
     },
     {
         id: AQUARIUM_EXPLORATION_TRACK_ID,
-        title: '아쿠아리움 모험의 정복 업적',
+        title: '신비로운 바다생물',
         stages: [
             { id: 'aquarium-exploration-comfort', title: '아쿠아리움 지역 탐험도 [편함] 달성', description: '아쿠아리움 지역 탐험도를 [편함] 이상으로 달성하세요.', requirement: { type: 'adventure_understanding_tier', stageId: 'aquarium', tier: '편함' }, rewardDiamonds: 10 },
             { id: 'aquarium-exploration-familiar', title: '아쿠아리움 지역 탐험도 [익숙함] 달성', description: '아쿠아리움 지역 탐험도를 [익숙함] 이상으로 달성하세요.', requirement: { type: 'adventure_understanding_tier', stageId: 'aquarium', tier: '익숙함' }, rewardDiamonds: 20 },
@@ -222,7 +219,7 @@ export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
     },
     {
         id: ZOO_EXPLORATION_TRACK_ID,
-        title: '동물원 모험의 정복 업적',
+        title: '동물원에 가면 바둑판도 있고',
         stages: [
             { id: 'zoo-exploration-comfort', title: '동물원 지역 탐험도 [편함] 달성', description: '동물원 지역 탐험도를 [편함] 이상으로 달성하세요.', requirement: { type: 'adventure_understanding_tier', stageId: 'zoo', tier: '편함' }, rewardDiamonds: 10 },
             { id: 'zoo-exploration-familiar', title: '동물원 지역 탐험도 [익숙함] 달성', description: '동물원 지역 탐험도를 [익숙함] 이상으로 달성하세요.', requirement: { type: 'adventure_understanding_tier', stageId: 'zoo', tier: '익숙함' }, rewardDiamonds: 20 },
@@ -232,7 +229,7 @@ export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
     },
     {
         id: AMUSEMENT_PARK_EXPLORATION_TRACK_ID,
-        title: '놀이동산 모험의 정복 업적',
+        title: '놀이기구 타러왔는데요',
         stages: [
             { id: 'amusement-park-exploration-comfort', title: '놀이동산 지역 탐험도 [편함] 달성', description: '놀이동산 지역 탐험도를 [편함] 이상으로 달성하세요.', requirement: { type: 'adventure_understanding_tier', stageId: 'amusement_park', tier: '편함' }, rewardDiamonds: 10 },
             { id: 'amusement-park-exploration-familiar', title: '놀이동산 지역 탐험도 [익숙함] 달성', description: '놀이동산 지역 탐험도를 [익숙함] 이상으로 달성하세요.', requirement: { type: 'adventure_understanding_tier', stageId: 'amusement_park', tier: '익숙함' }, rewardDiamonds: 20 },
@@ -242,7 +239,7 @@ export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
     },
     {
         id: MONSTER_CODEX_HUNTER_TRACK_ID,
-        title: '몬스터 사냥꾼 업적',
+        title: '몬스터 사냥꾼',
         stages: [
             { id: 'monster-codex-score-50', title: '몬스터 도감 50점', description: '몬스터 도감 점수 50점을 달성하세요.', requirement: { type: 'adventure_codex_score', score: 50 }, rewardDiamonds: 10 },
             { id: 'monster-codex-score-100', title: '몬스터 도감 100점', description: '몬스터 도감 점수 100점을 달성하세요.', requirement: { type: 'adventure_codex_score', score: 100 }, rewardDiamonds: 20 },
@@ -253,7 +250,7 @@ export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
     },
     {
         id: BLACKSMITH_LEVEL_TRACK_ID,
-        title: '대장장이 업적',
+        title: '장인의 숨결',
         stages: [
             { id: 'blacksmith-level-2', title: '대장간 레벨 2 달성', description: '대장간 레벨 2에 도달하세요.', requirement: { type: 'blacksmith_level', level: 2 }, rewardDiamonds: 10 },
             { id: 'blacksmith-level-5', title: '대장간 레벨 5 달성', description: '대장간 레벨 5에 도달하세요.', requirement: { type: 'blacksmith_level', level: 5 }, rewardDiamonds: 50 },
@@ -264,7 +261,7 @@ export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
     },
     {
         id: EQUIPMENT_BOX_OPENS_TRACK_ID,
-        title: '장비좀 주세요 업적',
+        title: '이번엔 장비좀 나오겠지',
         stages: [
             { id: 'equip-box-10', title: '장비 상자 10회 사용', description: '장비 상자를 누적 10회 사용하세요.', requirement: { type: 'equipment_box_opens', opens: 10 }, rewardDiamonds: 10 },
             { id: 'equip-box-50', title: '장비 상자 50회 사용', description: '장비 상자를 누적 50회 사용하세요.', requirement: { type: 'equipment_box_opens', opens: 50 }, rewardDiamonds: 20 },
@@ -280,7 +277,7 @@ export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
     },
     {
         id: MATERIAL_BOX_OPENS_TRACK_ID,
-        title: '강화재료가 부족해 업적',
+        title: '강화재료가 부족해',
         stages: [
             { id: 'mat-box-10', title: '재료 상자 10회 사용', description: '재료 상자를 누적 10회 사용하세요.', requirement: { type: 'material_box_opens', opens: 10 }, rewardDiamonds: 10 },
             { id: 'mat-box-50', title: '재료 상자 50회 사용', description: '재료 상자를 누적 50회 사용하세요.', requirement: { type: 'material_box_opens', opens: 50 }, rewardDiamonds: 20 },
@@ -292,6 +289,50 @@ export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
             { id: 'mat-box-600', title: '재료 상자 600회 사용', description: '재료 상자를 누적 600회 사용하세요.', requirement: { type: 'material_box_opens', opens: 600 }, rewardDiamonds: 100 },
             { id: 'mat-box-800', title: '재료 상자 800회 사용', description: '재료 상자를 누적 800회 사용하세요.', requirement: { type: 'material_box_opens', opens: 800 }, rewardDiamonds: 100 },
             { id: 'mat-box-1000', title: '재료 상자 1000회 사용', description: '재료 상자를 누적 1000회 사용하세요.', requirement: { type: 'material_box_opens', opens: 1000 }, rewardDiamonds: 100 },
+        ],
+    },
+    {
+        id: PAIR_PET_TRAINER_TRACK_ID,
+        title: '펫 조련사',
+        stages: [
+            { id: 'pair-pet-lv-10', title: '펫 레벨 10 달성', description: '보유 펫 중 최고 레벨이 10 이상이 되세요.', requirement: { type: 'pair_pet_max_level', level: 10 }, rewardDiamonds: 10 },
+            { id: 'pair-pet-lv-20', title: '펫 레벨 20 달성', description: '보유 펫 중 최고 레벨이 20 이상이 되세요.', requirement: { type: 'pair_pet_max_level', level: 20 }, rewardDiamonds: 30 },
+            { id: 'pair-pet-lv-30', title: '펫 레벨 30 달성', description: '보유 펫 중 최고 레벨이 30 이상이 되세요.', requirement: { type: 'pair_pet_max_level', level: 30 }, rewardDiamonds: 50 },
+            { id: 'pair-pet-lv-40', title: '펫 레벨 40 달성', description: '보유 펫 중 최고 레벨이 40 이상이 되세요.', requirement: { type: 'pair_pet_max_level', level: 40 }, rewardDiamonds: 100 },
+            { id: 'pair-pet-lv-50', title: '펫 레벨 50 달성', description: '보유 펫 중 최고 레벨이 50 이상이 되세요.', requirement: { type: 'pair_pet_max_level', level: 50 }, rewardDiamonds: 100 },
+        ],
+    },
+    {
+        id: PAIR_PET_EVOLUTION_TRACK_ID,
+        title: '펫의 진화',
+        stages: [
+            { id: 'pair-grade-uncommon', title: '펫 등급 고급 달성', description: '보유 펫 중 하나 이상을 고급 등급 이상으로 올리세요.', requirement: { type: 'pair_pet_min_grade', grade: ItemGrade.Uncommon }, rewardDiamonds: 10 },
+            { id: 'pair-grade-rare', title: '펫 등급 희귀 달성', description: '보유 펫 중 하나 이상을 희귀 등급 이상으로 올리세요.', requirement: { type: 'pair_pet_min_grade', grade: ItemGrade.Rare }, rewardDiamonds: 30 },
+            { id: 'pair-grade-epic', title: '펫 등급 에픽 달성', description: '보유 펫 중 하나 이상을 에픽 등급 이상으로 올리세요.', requirement: { type: 'pair_pet_min_grade', grade: ItemGrade.Epic }, rewardDiamonds: 50 },
+            { id: 'pair-grade-legendary', title: '펫 등급 전설 달성', description: '보유 펫 중 하나 이상을 전설 등급 이상으로 올리세요.', requirement: { type: 'pair_pet_min_grade', grade: ItemGrade.Legendary }, rewardDiamonds: 100 },
+            { id: 'pair-grade-mythic', title: '펫 등급 신화 달성', description: '보유 펫 중 하나 이상을 신화 등급으로 올리세요.', requirement: { type: 'pair_pet_min_grade', grade: ItemGrade.Mythic }, rewardDiamonds: 100 },
+        ],
+    },
+    {
+        id: PAIR_PET_LOVES_GO_TRACK_ID,
+        title: '내 펫은 바둑을 좋아해',
+        stages: [
+            { id: 'pair-train-10', title: '펫 수련 완료 10회', description: '펫 수련 보상을 누적 10회 수령하세요.', requirement: { type: 'pair_pet_training_claims', count: 10 }, rewardDiamonds: 10 },
+            { id: 'pair-train-50', title: '펫 수련 완료 50회', description: '펫 수련 보상을 누적 50회 수령하세요.', requirement: { type: 'pair_pet_training_claims', count: 50 }, rewardDiamonds: 30 },
+            { id: 'pair-train-100', title: '펫 수련 완료 100회', description: '펫 수련 보상을 누적 100회 수령하세요.', requirement: { type: 'pair_pet_training_claims', count: 100 }, rewardDiamonds: 50 },
+            { id: 'pair-train-200', title: '펫 수련 완료 200회', description: '펫 수련 보상을 누적 200회 수령하세요.', requirement: { type: 'pair_pet_training_claims', count: 200 }, rewardDiamonds: 100 },
+            { id: 'pair-train-300', title: '펫 수련 완료 300회', description: '펫 수련 보상을 누적 300회 수령하세요.', requirement: { type: 'pair_pet_training_claims', count: 300 }, rewardDiamonds: 100 },
+        ],
+    },
+    {
+        id: PAIR_PET_FOREVER_TOGETHER_TRACK_ID,
+        title: '영원히 함께',
+        stages: [
+            { id: 'pair-soul-10', title: '펫 영혼변환 10회', description: '펫 영혼변환을 누적 10회 진행하세요.', requirement: { type: 'pair_pet_soul_converts', count: 10 }, rewardDiamonds: 10 },
+            { id: 'pair-soul-50', title: '펫 영혼변환 50회', description: '펫 영혼변환을 누적 50회 진행하세요.', requirement: { type: 'pair_pet_soul_converts', count: 50 }, rewardDiamonds: 30 },
+            { id: 'pair-soul-100', title: '펫 영혼변환 100회', description: '펫 영혼변환을 누적 100회 진행하세요.', requirement: { type: 'pair_pet_soul_converts', count: 100 }, rewardDiamonds: 50 },
+            { id: 'pair-soul-200', title: '펫 영혼변환 200회', description: '펫 영혼변환을 누적 200회 진행하세요.', requirement: { type: 'pair_pet_soul_converts', count: 200 }, rewardDiamonds: 100 },
+            { id: 'pair-soul-300', title: '펫 영혼변환 300회', description: '펫 영혼변환을 누적 300회 진행하세요.', requirement: { type: 'pair_pet_soul_converts', count: 300 }, rewardDiamonds: 100 },
         ],
     },
 ];

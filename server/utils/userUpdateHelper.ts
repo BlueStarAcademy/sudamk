@@ -170,7 +170,7 @@ export function getSelectiveUserUpdate(
         'LOGOUT': [], // 로그아웃은 사용자 데이터 반환 불필요
         'PAIR_PET_START_TRAINING': ['pairPetTrainingSlots'],
         'PAIR_PET_CANCEL_TRAINING': ['pairPetTrainingSlots'],
-        'PAIR_PET_CLAIM_TRAINING': ['inventory', 'gold', 'pairPetTrainingSlots'],
+        'PAIR_PET_CLAIM_TRAINING': ['inventory', 'gold', 'pairPetTrainingSlots', 'quests'],
         /** 수련 슬롯 서버 진실값 동기화 + 진행 중 고아 세션 정리 */
         'PAIR_PET_RESYNC_TRAINING_SLOTS': ['pairPetTrainingSlots'],
         'PAIR_PET_HATCHERY_UNLOCK': ['pairPetHatcherySlotUnlocked', 'gold'],

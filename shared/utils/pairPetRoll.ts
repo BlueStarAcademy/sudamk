@@ -91,6 +91,17 @@ function rollConvertDisposition(rng: () => number): PairPetDisposition {
     return { kind: 'convert', fromStat, toStat, pct };
 }
 
+/** 펫 등급 강화 1회당 성향 %: 단일·전환 +2, 모든 능력치 +1 */
+export function bumpPairPetDispositionPctOnGradeUpgrade(d: PairPetDisposition): PairPetDisposition {
+    if (d.kind === 'all') {
+        return { kind: 'all', pct: d.pct + 1 };
+    }
+    if (d.kind === 'single') {
+        return { ...d, pct: d.pct + 2 };
+    }
+    return { ...d, pct: d.pct + 2 };
+}
+
 /** 0~5: 단일 코어 +10~20%, 6: 전체 +5%, 7: 전환 성향 */
 function rollPairPetDispositionForHatch(rng: () => number): PairPetDisposition {
     const disBucket = Math.floor(rng() * 8);

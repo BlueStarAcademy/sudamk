@@ -7,12 +7,16 @@ import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 export type QuestProgressContext = {
     /** `adventure`이면 「전략바둑 승리하기」는 카운트하지 않음(「모험에서 승리하기」 전용) */
     gameCategory?: string;
+    /** 페어 세션: `pvp`일 때 일반 전략/놀이 승리 퀘스트와 분리(페어 PVP 전용 퀘스트만 진행) */
+    pairMode?: 'ai' | 'pvp';
 };
 
 export type QuestProgressEvent =
     | 'win'
     | 'participate'
     | 'pvp_participate'
+    | 'pair_pvp_participate'
+    | 'pair_pvp_win'
     | 'action_button'
     | 'tournament_participate'
     | 'enhancement_attempt'
@@ -66,16 +70,27 @@ export const updateQuestProgress = (
             case '놀이바둑 경기하기':
                 if (type === 'pvp_participate' && isPlayful) shouldUpdate = true;
                 break;
+            case '페어바둑 경기하기(PVP)':
+                if (type === 'pair_pvp_participate') shouldUpdate = true;
+                break;
             case '전략바둑 승리하기':
                 if (
                     type === 'win' &&
                     isStrategic &&
-                    questContext?.gameCategory !== 'adventure'
+                    questContext?.gameCategory !== 'adventure' &&
+                    !(questContext?.gameCategory === 'pair' && questContext?.pairMode === 'pvp')
                 ) {
                     shouldUpdate = true;
                 }
                 break;
-            case '놀이바둑 승리하기': if (type === 'win' && isPlayful) shouldUpdate = true; break;
+            case '놀이바둑 승리하기':
+                if (type === 'win' && isPlayful && !(questContext?.gameCategory === 'pair' && questContext?.pairMode === 'pvp')) {
+                    shouldUpdate = true;
+                }
+                break;
+            case '페어바둑 승리하기':
+                if (type === 'pair_pvp_win') shouldUpdate = true;
+                break;
             case '모험에서 승리하기': if (type === 'adventure_win') shouldUpdate = true; break;
             case '액션버튼 사용하기':
             case '매너액션 버튼 사용하기':

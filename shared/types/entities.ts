@@ -8,7 +8,7 @@ import type { UnifiedResultContract } from './resultContract.js';
 /** 페어 AI 펫 인스턴스 메타(인벤 `pair-pet-*` 행에 부착) */
 export type PairPetDisposition =
     | { kind: 'single'; stat: CoreStat; pct: number }
-    | { kind: 'all'; pct: 5 }
+    | { kind: 'all'; pct: number }
     /** 한 코어의 pct%(등급 기준 기본치 기준)만큼 감소, 그 절대값의 2배를 다른 코어에 가산 */
     | { kind: 'convert'; fromStat: CoreStat; toStat: CoreStat; pct: number };
 
@@ -205,6 +205,10 @@ export type AchievementData = {
   totalEquipmentBoxOpens?: number;
   /** 누적 재료 상자 사용 */
   totalMaterialBoxOpens?: number;
+  /** 페어 펫 수련 보상 수령 완료 누적 */
+  totalPairPetTrainingClaims?: number;
+  /** 페어 펫 영혼변환 누적 */
+  totalPairPetSoulConverts?: number;
 };
 
 

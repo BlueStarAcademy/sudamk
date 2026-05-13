@@ -153,14 +153,18 @@ export function pairPetKataAbilityScore(
     return Math.round(raw);
 }
 
-/** 능력치 점수 → KATA 오프셋 구간표(`score >= minAbilityScore`이면 해당 오프셋, 높은 min부터 매칭). */
+/**
+ * 가중 능력치 점수(`pairPetKataAbilityScore`) → KataServer `level`.
+ * `score >= minAbilityScore`이면 해당 `kataLevelOffset`(실제 절대 레벨), 높은 min부터 매칭.
+ * 상위 구간: 190→6, 195→7, 200→8, 205→9.
+ */
 export type PairPetAbilityKataLadderRow = { minAbilityScore: number; kataLevelOffset: number };
 
 export const DEFAULT_PAIR_PET_ABILITY_KATA_LADDER: readonly PairPetAbilityKataLadderRow[] = [
-    { minAbilityScore: 194, kataLevelOffset: 9 },
-    { minAbilityScore: 191, kataLevelOffset: 8 },
-    { minAbilityScore: 188, kataLevelOffset: 7 },
-    { minAbilityScore: 185, kataLevelOffset: 6 },
+    { minAbilityScore: 205, kataLevelOffset: 9 },
+    { minAbilityScore: 200, kataLevelOffset: 8 },
+    { minAbilityScore: 195, kataLevelOffset: 7 },
+    { minAbilityScore: 190, kataLevelOffset: 6 },
     { minAbilityScore: 182, kataLevelOffset: 5 },
     { minAbilityScore: 179, kataLevelOffset: 4 },
     { minAbilityScore: 176, kataLevelOffset: 3 },
@@ -210,7 +214,7 @@ function normalizeAbilityKataLadder(ladder: readonly PairPetAbilityKataLadderRow
 }
 
 /**
- * 능력치 점수 → KATA 레벨 오프셋.
+ * 가중 능력치 점수 → KataServer 레벨(`ladder`의 `kataLevelOffset` 값 그대로).
  * `ladder`는 `minAbilityScore` 내림차순이면 그대로 쓰고, 아니면 정렬합니다. 매칭 없으면 마지막 행(가장 약함).
  */
 export function pairPetKataLevelFromAbilityScoreWithLadder(score: number, ladder: readonly PairPetAbilityKataLadderRow[]): number {
@@ -223,7 +227,7 @@ export function pairPetKataLevelFromAbilityScoreWithLadder(score: number, ladder
 }
 
 /**
- * 능력치 점수 → KATA 레벨 오프셋(표준 스펙).
+ * 가중 능력치 점수 → KataServer 레벨(표준 스펙).
  * 90 미만은 표의 최저 구간(kataLevelOffset -30)과 동일하게 처리(매칭 실패 시 마지막 행).
  */
 export function pairPetKataLevelFromAbilityScore(score: number): number {
@@ -275,8 +279,8 @@ export function pairPetKataPhaseFromTotalPlyWithTables(
 }
 
 /**
- * 한 수순에서 쓸 KATA 레벨(오프셋).
- * 보드·총 수순으로 **현재 페이즈**를 정한 뒤, 그 페이즈의 가중 6스탯 점수를 `abilityKataLadder`에 넣어 오프셋을 구합니다(구간별 영향).
+ * 한 수순에서 쓸 KataServer 레벨.
+ * 보드·총 수순으로 **현재 페이즈**를 정한 뒤, 그 페이즈의 가중 6스탯 점수를 `abilityKataLadder`에 넣어 레벨을 구합니다(구간별 영향).
  * 가중치·착수 구간 표는 챔피언십과 동일한 코드 상수만 사용.
  */
 export function pairPetKataLevelForTotalPly(

@@ -34,6 +34,7 @@ import { clearAiSession } from '../aiSessionManager.js';
 import { isLingerEndedPvpRoomCandidate, maybeDeleteDetachedEndedPvpGame } from '../maybeDeleteDetachedEndedPvpGame.js';
 import { aiUserId, getAiUser } from '../aiPlayer.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
+import { recordPairPetSoulConvertForAchievements, recordPairPetTrainingClaimForAchievements } from '../pairPetAchievementCounters.js';
 import { repairInProgressGhostPairPetTrainingSessions } from '../utils/repairPairPetTrainingSlots.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
@@ -88,6 +89,7 @@ import {
     pairSoulTemplateIdFromTier,
 } from '../../shared/constants/petLobby.js';
 import {
+    bumpPairPetDispositionPctOnGradeUpgrade,
     resolvePairPetMetaFromInventoryRow,
     rollPairPetMetaForHatch,
     rollPairPetMetaForHatchAtLevel,
@@ -5033,7 +5035,12 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             const mainNewIdx = invAfterSoul.findIndex((it) => it.id === mainItemId);
             if (mainNewIdx < 0) return { error: '대상 펫을 찾을 수 없습니다.' };
             const mainAfter = invAfterSoul[mainNewIdx]!;
-            invAfterSoul[mainNewIdx] = { ...mainAfter, grade: nextG };
+            const metaResolved = readPairPetMetaFromRow(mainAfter);
+            const pairPetMeta = {
+                ...metaResolved,
+                disposition: bumpPairPetDispositionPctOnGradeUpgrade(metaResolved.disposition),
+            };
+            invAfterSoul[mainNewIdx] = { ...mainAfter, grade: nextG, pairPetMeta };
 
             user.inventory = invAfterSoul;
             const eqTid = user.equippedPairPetTemplateId;
@@ -5104,10 +5111,11 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
 
             reconcileEquippedPairPetInventoryItem(user);
 
+            recordPairPetSoulConvertForAchievements(user);
             const updatedUser = getSelectiveUserUpdate(user, 'PAIR_PET_CONVERT_PET', { includeAll: true });
             await db.updateUser(user);
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory', 'equippedPairPetTemplateId', 'equippedPairPetInventoryItemId']);
+            broadcastUserUpdate(user, ['inventory', 'equippedPairPetTemplateId', 'equippedPairPetInventoryItemId', 'quests']);
             // 획득 모달(AppModalLayer ItemObtainedModal) — 이번 변환으로 지급된 영혼석
             return {
                 clientResponse: {
@@ -5327,12 +5335,13 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
 
             user.pairPetTrainingSlots[slotIndex] = null;
             user.inventory = JSON.parse(JSON.stringify(user.inventory));
+            recordPairPetTrainingClaimForAchievements(user);
 
             /** `fieldMap`의 inventory·gold·pairPetTrainingSlots만 반환 — `includeAll`은 전체 User 깊은 복제·대용량 HTTP 응답·클라이언트 mergeUserState 비용을 불필요하게 키움 */
             const updatedUser = getSelectiveUserUpdate(user, 'PAIR_PET_CLAIM_TRAINING');
             await db.updateUser(user);
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory', 'gold', 'pairPetTrainingSlots']);
+            broadcastUserUpdate(user, ['inventory', 'gold', 'pairPetTrainingSlots', 'quests']);
             return { clientResponse: { updatedUser, pairTrainingClaimSummary } };
         }
 
