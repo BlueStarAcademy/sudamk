@@ -81,7 +81,14 @@ const ENTRY_INVENTORY_ITEM_URLS = dedupePaths([
     ...Object.values(MATERIAL_ITEMS).map((m) => m.image),
 ]);
 
-/** 프로필(홈): 꾸미기 + 인벤/상점 타일에 쓰이는 장비·재료 썸네일 */
+/**
+ * 프로필 라우트 게이트: 공통 셸만(배경·퀵 아이콘·바둑돌).
+ * 아바타/테두리/티어/장비 풀을 진입 시 선로드하면 URL이 수백 개가 되어 모바일에서 수 분 단위 지연·버벅임을 유발하므로 넣지 않는다.
+ * 실제 아바타·장비 썸네일은 화면의 img가 지연 로드한다.
+ */
+export const ENTRY_PROFILE_ROUTE_GATE_IMAGE_URLS = ENTRY_BOOT_IMAGE_URLS;
+
+/** 프로필·가방·상점에 쓰이는 정적 타일 URL 전체(디버그·도구용; 라우트 게이트에는 사용하지 않음) */
 export const ENTRY_PROFILE_ROUTE_IMAGE_URLS = dedupePaths([
     ...ENTRY_BOOT_IMAGE_URLS,
     ...ENTRY_PROFILE_DECORATION_URLS,

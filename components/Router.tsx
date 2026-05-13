@@ -33,7 +33,7 @@ import {
 import { userMeetsGuildFeatureLevelRequirement } from '../shared/constants/guildConstants.js';
 import EntryImagePreloadGate from './EntryImagePreloadGate.js';
 import {
-    ENTRY_PROFILE_ROUTE_IMAGE_URLS,
+    ENTRY_PROFILE_ROUTE_GATE_IMAGE_URLS,
     ENTRY_ARENA_FLOW_IMAGE_URLS,
     ENTRY_ADVENTURE_ROUTE_IMAGE_URLS,
     ENTRY_GUILD_ROUTE_IMAGE_URLS,
@@ -236,7 +236,7 @@ const Router: React.FC = () => {
             );
         case 'profile':
             return (
-                <EntryImagePreloadGate urls={ENTRY_PROFILE_ROUTE_IMAGE_URLS} label="프로필 화면을 준비하는 중...">
+                <EntryImagePreloadGate urls={ENTRY_PROFILE_ROUTE_GATE_IMAGE_URLS} label="프로필 화면을 준비하는 중...">
                     <div className={routeShellClass}>
                         <Profile />
                     </div>
