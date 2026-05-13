@@ -33,6 +33,7 @@ function contentTypeFor(filePath) {
         '.map': 'application/json; charset=utf-8',
         '.webmanifest': 'application/manifest+json',
         '.wasm': 'application/wasm',
+        '.txt': 'text/plain; charset=utf-8',
     };
     return map[ext] || 'application/octet-stream';
 }
@@ -70,7 +71,7 @@ function sendFile(fileAbs, pathname, req, res) {
 
     /** @type {http.OutgoingHttpHeaders} */
     const headers = { 'Content-Type': contentTypeFor(fileAbs) };
-    if (path.basename(fileAbs) === 'index.html') {
+    if (path.basename(fileAbs) === 'index.html' || path.basename(fileAbs) === 'build-version.txt') {
         headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
     } else if (pathname.startsWith('/assets/')) {
         headers['Cache-Control'] = 'public, max-age=31536000, immutable';

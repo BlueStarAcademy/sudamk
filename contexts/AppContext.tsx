@@ -1,6 +1,7 @@
 import React, { useContext, ReactNode, Component, ErrorInfo, ReactNode as ReactNodeType } from 'react';
 import { useApp } from '../hooks/useApp.js';
 import { AppContext } from './AppContextInstance.js';
+import { clearStaleChunkReloadFlag, tryReloadOnceForStaleBuild } from '../utils/chunkReloadRecovery.js';
 
 // Infer the type of the context from the hook's return value
 type AppContextType = ReturnType<typeof useApp>;
@@ -40,6 +41,10 @@ class AppErrorBoundary extends Component<{ children: ReactNodeType }, { hasError
         if (import.meta.env.DEV && errorInfo && typeof errorInfo === 'object') {
             console.error('[AppProvider] ErrorInfo (dev):', { ...errorInfo });
         }
+        // 배포 직후 이전 번들의 lazy 청크 URL이 404일 때 1회 자동 새로고침
+        if (tryReloadOnceForStaleBuild(error)) {
+            return;
+        }
     }
 
     render() {
@@ -49,8 +54,11 @@ class AppErrorBoundary extends Component<{ children: ReactNodeType }, { hasError
                     <div className="text-center p-8">
                         <h1 className="text-2xl font-bold mb-4">초기화 오류</h1>
                         <p className="text-red-400 mb-4">{this.state.error?.message || '알 수 없는 오류가 발생했습니다.'}</p>
-                        <button 
-                            onClick={() => window.location.reload()} 
+                        <button
+                            onClick={() => {
+                                clearStaleChunkReloadFlag();
+                                window.location.reload();
+                            }}
                             className="px-4 py-2 bg-primary text-tertiary rounded-lg hover:bg-opacity-80"
                         >
                             페이지 새로고침

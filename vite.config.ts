@@ -1,6 +1,33 @@
+import { randomUUID } from 'node:crypto';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import type { Plugin } from 'vite';
+
+/** 프로덕션 빌드 단위 ID — 오래된 탭이 /build-version.txt 와 비교해 새 배포 시 전체 새로고침 */
+function resolveShippedBuildId(): string {
+  return (
+    process.env.RAILWAY_GIT_COMMIT_SHA ||
+    process.env.VITE_SHIPPED_BUILD_ID ||
+    process.env.CI_COMMIT_SHA ||
+    process.env.GITHUB_SHA ||
+    randomUUID()
+  );
+}
+
+function emitShippedBuildVersionPlugin(buildId: string, mode: string): Plugin {
+  return {
+    name: 'emit-shipped-build-version',
+    apply: 'build',
+    generateBundle() {
+      if (mode !== 'production') return;
+      this.emitFile({
+        type: 'asset',
+        fileName: 'build-version.txt',
+        source: buildId,
+      });
+    },
+  };
+}
 
 // 프록시 오류를 필터링하는 플러그인
 const filterProxyErrorsPlugin = (): Plugin => {
@@ -61,10 +88,14 @@ const filterProxyErrorsPlugin = (): Plugin => {
 };
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const shippedBuildId = mode === 'production' ? resolveShippedBuildId() : 'dev';
+
+  return {
   plugins: [
     react(),
     filterProxyErrorsPlugin(),
+    emitShippedBuildVersionPlugin(shippedBuildId, mode),
   ],
   resolve: {
     // Context가 undefined로 나오는 이중 React 번들 방지
@@ -84,6 +115,7 @@ export default defineConfig({
     // require를 정의하지 않음 (브라우저 환경)
     // 'require': undefined, // React와 충돌할 수 있으므로 주석 처리
     'global': 'globalThis',
+    __SHIPPED_BUILD_ID__: JSON.stringify(shippedBuildId),
   },
   optimizeDeps: {
     // Node.js 전용 모듈들을 최적화에서 제외
@@ -229,4 +261,5 @@ export default defineConfig({
     // esbuild는 기본적으로 타입 체크를 하지 않지만, 명시적으로 설정
     target: 'esnext',
   },
-})
+};
+});

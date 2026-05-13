@@ -20,6 +20,7 @@ import {
     NATIVE_MOBILE_MODAL_MAX_WIDTH_VW,
 } from './constants/ads.js';
 import { syncDocumentViewportHeightVar } from './utils/layoutViewportCss.js';
+import { staleChunkReloadFlagResetEffect } from './utils/chunkReloadRecovery.js';
 
 function usePrevious<T>(value: T): T | undefined {
     const ref = useRef<T | undefined>(undefined);
@@ -75,6 +76,9 @@ const AppContent: React.FC = () => {
     } = useAppContext();
     
     const [showQuestToast, setShowQuestToast] = useState(false);
+
+    /** 배포 후 stale lazy 청크 404 복구용 플래그를 잠시 뒤 초기화 */
+    useEffect(() => staleChunkReloadFlagResetEffect(), []);
     
     const prevHasClaimableQuest = usePrevious(hasClaimableQuest);
     const connectionBannerMessage = serverReconnectNotice || connectionStatus.message;

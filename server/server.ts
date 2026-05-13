@@ -1159,6 +1159,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 lastModified: true,
                 index: false, // Don't serve index.html for directory requests
                 setHeaders: (res, filePath) => {
+                    if (filePath.endsWith(`${path.sep}build-version.txt`) || filePath.endsWith('/build-version.txt')) {
+                        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+                    }
                     // Set proper MIME types for JS modules
                     if (filePath.endsWith('.js')) {
                         res.setHeader('Content-Type', 'application/javascript; charset=utf-8');

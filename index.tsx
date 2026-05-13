@@ -3,6 +3,28 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.js';
 import './index.css';
+import { tryReloadOnceForStaleBuild } from './utils/chunkReloadRecovery.js';
+import { startShippedBuildVersionWatcher } from './utils/shippedBuildVersionWatcher.js';
+
+// 배포 직후 오래된 탭: 서버 build-version 과 불일치 시 전체 새로고침(근본) + 청크 실패 시 1회 복구(보조)
+if (typeof window !== 'undefined') {
+    startShippedBuildVersionWatcher();
+    window.addEventListener(
+        'vite:preloadError',
+        (event: Event) => {
+            const detail = (event as CustomEvent<unknown>).detail;
+            if (tryReloadOnceForStaleBuild(detail)) {
+                event.preventDefault();
+            }
+        },
+        { passive: false },
+    );
+    window.addEventListener('unhandledrejection', (ev: PromiseRejectionEvent) => {
+        if (tryReloadOnceForStaleBuild(ev.reason)) {
+            ev.preventDefault();
+        }
+    });
+}
 
 // OAuth 콜백 경로를 해시 라우트로 변환 (카카오/구글 등 소셜 로그인)
 // 카카오가 /auth/kakao/callback?code=xxx 로 리다이렉트하지만 앱은 해시 라우팅 사용
