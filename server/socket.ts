@@ -50,6 +50,36 @@ let wss: WebSocketServer;
 const wsUserIdMap = new Map<WebSocket, string>();
 // userId → 해당 유저의 WebSocket 연결들 (한 유저 다중 탭/기기 지원). 1000명 규모에서 broadcastToGameParticipants O(참가자수)로 최적화
 const userIdToClients = new Map<string, Set<WebSocket>>();
+/**
+ * 새로고침(F5)처럼 짧게 WS가 끊겼다가 다시 붙는 경우,
+ * 페어 대기방에서 즉시 강제 이탈시키면 방장 승계가 오작동할 수 있다.
+ * 마지막 소켓 종료 후 짧은 유예를 두고, 재인증이 없을 때만 대기방 이탈을 수행한다.
+ */
+const PAIR_WAITING_ROOM_LEAVE_GRACE_MS = 12_000;
+const pendingPairWaitingRoomLeaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function clearPendingPairWaitingRoomLeave(userId: string): void {
+    const timer = pendingPairWaitingRoomLeaveTimers.get(userId);
+    if (timer) {
+        clearTimeout(timer);
+        pendingPairWaitingRoomLeaveTimers.delete(userId);
+    }
+}
+
+function schedulePairWaitingRoomLeaveWithGrace(userId: string): void {
+    clearPendingPairWaitingRoomLeave(userId);
+    const timer = setTimeout(() => {
+        pendingPairWaitingRoomLeaveTimers.delete(userId);
+        const stillOnline = (userIdToClients.get(userId)?.size ?? 0) > 0;
+        if (stillOnline) return;
+        void import('./actions/socialActions.js')
+            .then(({ leavePairWaitingRoomIfPresent }) => {
+                leavePairWaitingRoomIfPresent(volatileState, userId);
+            })
+            .catch(() => {});
+    }, PAIR_WAITING_ROOM_LEAVE_GRACE_MS);
+    pendingPairWaitingRoomLeaveTimers.set(userId, timer);
+}
 
 /** 관리자 모니터링·헬스용: 열린 WS 수, 인증된 유저 수(고유), 인증된 소켓 수(다중 탭 포함). */
 export function getWebSocketConnectionStats(): {
@@ -156,10 +186,18 @@ export const createWebSocketServer = (server: Server) => {
                         void import('./actions/socialActions.js')
                             .then(({ applyPvpInGameDisconnect, leavePairWaitingRoomIfPresent }) =>
                                 applyPvpInGameDisconnect(volatileState, userId).then((touched) => {
+                                    const currentStatus = volatileState.userStatuses[userId];
+                                    const isInGameStatus =
+                                        currentStatus?.status === 'in-game' && Boolean(currentStatus.gameId);
                                     if (!touched) {
-                                        leavePairWaitingRoomIfPresent(volatileState, userId);
+                                        // AI/싱글 인게임은 applyPvpInGameDisconnect가 false를 반환할 수 있다.
+                                        // 이 경우 대기방 이탈을 예약하면 in_game shell이 삭제되어 재접속 복구가 꼬일 수 있으므로 스킵.
+                                        if (!isInGameStatus) {
+                                            schedulePairWaitingRoomLeaveWithGrace(userId);
+                                        }
                                     }
                                     if (touched) {
+                                        clearPendingPairWaitingRoomLeave(userId);
                                         releaseIpBindingForUser(volatileState, userId);
                                         delete volatileState.userConnections[userId];
                                     }
@@ -179,6 +217,7 @@ export const createWebSocketServer = (server: Server) => {
                 const message = JSON.parse(data.toString());
                 if (message.type === 'AUTH' && message.userId) {
                     const uid = message.userId as string;
+                    clearPendingPairWaitingRoomLeave(uid);
                     wsUserIdMap.set(ws, uid);
                     let set = userIdToClients.get(uid);
                     if (!set) {

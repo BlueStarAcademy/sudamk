@@ -1855,9 +1855,13 @@ export async function makeGoAiBotMove(
         return;
     }
     
+    const pairClassicGameForGuard = isPairClassicGame(game.settings, game.mode);
+    const pairCurrentSeatForGuard = pairClassicGameForGuard ? getCurrentPairTurnSeat(game.settings) : null;
     const currentPlayerIdForGuard =
         game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+    const isPairServerAiTurnForGuard = Boolean(pairCurrentSeatForGuard && isPairAiSeat(pairCurrentSeatForGuard));
     const isServerAiTurnForGuard =
+        isPairServerAiTurnForGuard ||
         currentPlayerIdForGuard === 'ai-player-01' ||
         (currentPlayerIdForGuard != null && String(currentPlayerIdForGuard).startsWith('dungeon-bot-'));
 
@@ -1899,9 +1903,9 @@ export async function makeGoAiBotMove(
         return;
     }
 
-    const pairClassicGame = isPairClassicGame(game.settings, game.mode);
+    const pairClassicGame = pairClassicGameForGuard;
     const captureRuleGame = modeIncludesCaptureRule(game);
-    const pairCurrentSeat = pairClassicGame ? getCurrentPairTurnSeat(game.settings) : null;
+    const pairCurrentSeat = pairCurrentSeatForGuard;
     const aiPlayerEnum = pairCurrentSeat?.player ?? game.currentPlayer;
     const opponentPlayerEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
     const now = Date.now();
