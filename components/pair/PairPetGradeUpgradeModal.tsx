@@ -19,7 +19,11 @@ import {
     pairPetMinLevelForNextGrade,
 } from '../../shared/constants/pairPetGrade.js';
 import { getPairPetDisplayName, isPairSoulStoneItem } from '../../shared/constants/petLobby.js';
-import { resolvePairPetMetaFromInventoryRow } from '../../shared/utils/pairPetRoll.js';
+import {
+    PAIR_PET_GRADE_UPGRADE_DISPOSITION_DELTA_ALL_PCT,
+    PAIR_PET_GRADE_UPGRADE_DISPOSITION_DELTA_SINGLE_OR_CONVERT_PCT,
+    resolvePairPetMetaFromInventoryRow,
+} from '../../shared/utils/pairPetRoll.js';
 
 export interface PairPetGradeUpgradeModalProps {
     isOpen: boolean;
@@ -215,6 +219,22 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                                         <dd className="shrink-0 tabular-nums font-mono text-right font-black text-violet-200">+{budgetNext}</dd>
                                     </div>
                                 </dl>
+                                <div className="mt-2.5 border-t border-white/[0.06] pt-2.5">
+                                    <p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-fuchsia-300/90">성향 강화</p>
+                                    <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-slate-300">
+                                        등급 강화를 할 때마다 부화 시 받은{' '}
+                                        <span className="font-semibold text-fuchsia-200/95">성향</span>의 퍼센트가 함께
+                                        오릅니다. 한 코어에 집중하거나 능력치 전환형은{' '}
+                                        <span className="font-black text-amber-200">
+                                            +{PAIR_PET_GRADE_UPGRADE_DISPOSITION_DELTA_SINGLE_OR_CONVERT_PCT}%p
+                                        </span>
+                                        씩, 모든 능력치형은{' '}
+                                        <span className="font-black text-amber-200">
+                                            +{PAIR_PET_GRADE_UPGRADE_DISPOSITION_DELTA_ALL_PCT}%p
+                                        </span>
+                                        씩 증가합니다.
+                                    </p>
+                                </div>
                             </div>
                         ) : null}
                     </div>
