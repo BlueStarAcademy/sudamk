@@ -34,8 +34,6 @@ const DiceGoStartConfirmationModal: React.FC<DiceGoStartConfirmationModalProps> 
     const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
     const whitePlayer = player1.id === whitePlayerId ? player1 : player2;
     
-    const myRole = currentUser.id === blackPlayerId ? '선공 (흑)' : '후공 (백)';
-    
     const p1Roll = turnOrderRolls?.[player1.id] ?? null;
     const p2Roll = turnOrderRolls?.[player2.id] ?? null;
 
@@ -54,6 +52,12 @@ const DiceGoStartConfirmationModal: React.FC<DiceGoStartConfirmationModalProps> 
             windowId="dice-go-start-confirm"
             transparentModalBackdrop
             skipSavedPosition
+            hideFooter
+            headerShowTitle
+            mobileViewportFit
+            mobileViewportMaxHeightCss="calc(100dvh - 8px)"
+            mobileViewportDvhBottomGapPx={8}
+            containerExtraClassName="!max-w-[min(94vw,28.75rem)]"
         >
             <div className="text-white">
                 {p1Roll !== null && p2Roll !== null && (

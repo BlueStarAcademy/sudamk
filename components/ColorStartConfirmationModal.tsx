@@ -57,7 +57,7 @@ const ColorStartConfirmationModal: React.FC<ColorStartConfirmationModalProps> = 
     );
     const footer = (
         <ColorAssignmentStickyFooter
-            variant={isHandheld ? 'sticky' : 'inline'}
+            variant="sticky"
             hasConfirmed={hasConfirmed}
             rouletteBlockingStart={!colorRouletteDone}
             showCountdown={resolveArenaSessionPolicy(session).matchAxis === 'pvp'}
@@ -67,6 +67,10 @@ const ColorStartConfirmationModal: React.FC<ColorStartConfirmationModalProps> = 
         />
     );
 
+    const scrollMainClass = isHandheld
+        ? 'flex min-h-0 flex-1 flex-col justify-center overflow-y-auto overflow-x-hidden overscroll-y-contain text-white'
+        : 'flex min-h-0 flex-1 flex-col justify-center overflow-y-auto overflow-x-hidden overscroll-y-contain py-3 text-white sm:py-4';
+
     return (
         <DraggableWindow
             title="흑·백 확인"
@@ -74,18 +78,20 @@ const ColorStartConfirmationModal: React.FC<ColorStartConfirmationModalProps> = 
             shrinkHeightToContent
             windowId="color-start-confirmation"
             transparentModalBackdrop
+            skipSavedPosition
+            hideFooter
+            headerShowTitle
+            mobileViewportFit
+            mobileViewportMaxHeightCss="calc(100dvh - 8px)"
+            mobileViewportDvhBottomGapPx={8}
+            bodyPaddingClassName="p-0"
+            bodyNoScroll
+            containerExtraClassName="!max-w-[min(94vw,22.5rem)]"
         >
-            {isHandheld ? (
-                <>
-                    <div className="flex min-h-[168px] flex-col justify-center text-white sm:min-h-[180px]">{cards}</div>
-                    {footer}
-                </>
-            ) : (
-                <div className="flex min-h-[220px] flex-col text-white">
-                    <div className="flex flex-1 flex-col justify-center py-3 sm:py-4">{cards}</div>
-                    {footer}
-                </div>
-            )}
+            <>
+                <div className={scrollMainClass}>{cards}</div>
+                {footer}
+            </>
         </DraggableWindow>
     );
 };

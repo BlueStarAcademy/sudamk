@@ -41,6 +41,12 @@ const AlkkagiStartConfirmationModal: React.FC<AlkkagiStartConfirmationModalProps
             windowId="alkkagi-start-confirm"
             transparentModalBackdrop
             skipSavedPosition
+            hideFooter
+            headerShowTitle
+            mobileViewportFit
+            mobileViewportMaxHeightCss="calc(100dvh - 8px)"
+            mobileViewportDvhBottomGapPx={8}
+            containerExtraClassName="!max-w-[min(94vw,28.75rem)]"
         >
             <div className="text-white">
                 <PreGameColorRoulette

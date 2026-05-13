@@ -33,7 +33,7 @@ export const ColorAssignmentStickyFooter: React.FC<Props> = ({
 
     return (
         <div
-            className={`${variant === 'sticky' ? SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS : 'shrink-0'} ${footerBarClass}`}
+            className={`shrink-0 ${variant === 'sticky' ? SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS : ''} ${footerBarClass}`}
         >
             <div className="w-full max-w-[12.25rem]">
                 {showCountdown && countdownDeadline ? (
