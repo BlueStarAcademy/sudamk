@@ -583,6 +583,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             title={modalTitle}
             onClose={isScoring ? undefined : () => handleClose(session, onClose)} 
             windowId="sp-summary-redesigned"
+            viewportPortal
             skipSavedPosition
             initialWidth={900}
             initialHeight={780}

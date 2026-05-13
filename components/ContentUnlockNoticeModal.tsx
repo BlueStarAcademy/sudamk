@@ -21,7 +21,7 @@ const CONTENT_META: Record<ContentUnlockType, { title: string; subtitle: string;
     adventure: {
         title: '모험 오픈',
         subtitle: '바둑학원 초급반 20 클리어로\n모험 콘텐츠가 해금되었습니다.',
-        image: ADVENTURE_STAGES[0]?.mapWebp ?? '/images/adventure/chapter1/map.webp',
+        image: ADVENTURE_STAGES[0]?.mapWebp ?? '/images/forest.webp',
         routeHint: '홈 화면에서 모험으로 바로 입장할 수 있습니다.',
     },
 };

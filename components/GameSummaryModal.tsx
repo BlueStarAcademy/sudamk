@@ -2254,6 +2254,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
         <DraggableWindow
             title={isGuildWar ? '길드 전쟁 결과' : '대국 결과'}
             onClose={onConfirm}
+            /** 전역 레벨업·콘텐츠 해금 등(document.body)과 같은 z 스택에서 겹치게 — 스케일 캔버스 내부 modal-root에만 두면 가려질 수 있음 */
+            viewportPortal
             initialWidth={1000}
             /** 내용량에 맞춰 높이를 잡고, maxHeight·뷰포트만으로 상한(한 화면 맞춤) */
             shrinkHeightToContent

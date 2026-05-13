@@ -37,6 +37,7 @@ const NoContestModal: React.FC<NoContestModalProps> = ({ session, currentUser, o
             onClose={onConfirm}
             initialWidth={450}
             windowId="no-contest"
+            viewportPortal
             mobileViewportFit={isMobile}
             mobileLockViewportHeight={isMobile}
             mobileViewportMaxHeightVh={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH : 90}

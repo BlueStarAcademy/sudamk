@@ -1,6 +1,10 @@
 import type { InventoryItem, ItemOption, ItemOptions } from '../types/entities.js';
 import { ItemGrade } from '../types/enums.js';
-import { EQUIPMENT_POOL, LEGACY_TRANSCENDENT_EQUIPMENT_NAME_TO_NEW } from '../constants/items.js';
+import {
+    EQUIPMENT_POOL,
+    LEGACY_TRANSCENDENT_EQUIPMENT_NAME_TO_NEW,
+    resolveEquipmentTemplateLookupName,
+} from '../constants/items.js';
 import { repairEquipmentStatBounds } from './equipmentStatBoundsRepair.js';
 
 const ITEM_GRADE_STRING_SET = new Set<string>(Object.values(ItemGrade));
@@ -113,6 +117,43 @@ export function normalizeLegacyDivineMythicInventoryItem(item: InventoryItem): I
     return { ...rest, name, grade } as InventoryItem;
 }
 
+function canonicalPublicAssetPath(path: string): string {
+    const t = path.trim();
+    if (!t) return t;
+    return t.startsWith('/') ? t : `/${t}`;
+}
+
+/**
+ * 인벤·DB에 남은 `.png`·상대경로 등을 현행 `EQUIPMENT_POOL` 스프라이트(WebP)와 동기화.
+ * 템플릿 매칭 실패 시에도 `…/equipments/…png` → webp 치환으로 404·느린 디코딩을 줄인다.
+ */
+function syncEquipmentSpriteImageFromTemplate(item: InventoryItem): InventoryItem {
+    if (!item || item.type !== 'equipment' || typeof item.name !== 'string') return item;
+    const grade = normalizeItemGradeKey(item.grade);
+    const lookupName = resolveEquipmentTemplateLookupName(item.name, grade) ?? item.name;
+    const pool =
+        EQUIPMENT_POOL.find((t) => t.name === lookupName && t.grade === grade) ??
+        EQUIPMENT_POOL.find((t) => t.name === lookupName);
+    if (pool?.image && typeof pool.image === 'string') {
+        const canonical = canonicalPublicAssetPath(pool.image);
+        const cur =
+            typeof item.image === 'string' && item.image.trim()
+                ? canonicalPublicAssetPath(item.image)
+                : '';
+        if (cur !== canonical) {
+            return { ...item, image: canonical };
+        }
+        return item;
+    }
+    if (typeof item.image === 'string' && /\.png(\?|#|$)/i.test(item.image)) {
+        const replaced = item.image.replace(/\.png(\?|#|$)/i, (_m, suf) => `.webp${suf ?? ''}`);
+        if (replaced !== item.image) {
+            return { ...item, image: canonicalPublicAssetPath(replaced) };
+        }
+    }
+    return item;
+}
+
 /** 구버전 초월 장비명(천룡…) → 신룡 시리즈 및 WebP 스프라이트 */
 function normalizeTranscendentSinryongRename(item: InventoryItem): InventoryItem {
     if (item.type !== 'equipment' || item.grade !== ItemGrade.Transcendent) return item;
@@ -126,7 +167,8 @@ function normalizeTranscendentSinryongRename(item: InventoryItem): InventoryItem
 export function normalizeInventoryEquipmentItem(item: InventoryItem): InventoryItem {
     const legacy = normalizeLegacyDivineMythicInventoryItem(item);
     const renamed = normalizeTranscendentSinryongRename(legacy);
-    const coerced = normalizeEquipmentOptionNumbers(renamed);
+    const imageSynced = syncEquipmentSpriteImageFromTemplate(renamed);
+    const coerced = normalizeEquipmentOptionNumbers(imageSynced);
     return repairEquipmentStatBounds(coerced);
 }
 

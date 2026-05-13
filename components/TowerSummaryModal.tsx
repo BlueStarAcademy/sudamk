@@ -635,6 +635,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             title={modalTitle}
             onClose={isScoring ? undefined : () => handleClose(session, onClose)} 
             windowId="tower-summary-redesigned"
+            viewportPortal
             skipSavedPosition
             initialWidth={840}
             shrinkHeightToContent
