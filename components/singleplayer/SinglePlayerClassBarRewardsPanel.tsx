@@ -11,7 +11,7 @@ import { getItemTemplateByName } from '../../utils/itemTemplateLookup.js';
 const resolveClassBarItemImageSrc = (itemId: string): string => {
     const t = getItemTemplateByName(itemId);
     const raw = (t as { image?: string } | null)?.image;
-    if (!raw) return '/images/Box/box.png';
+    if (!raw) return '/images/Box/box.webp';
     return raw.startsWith('/') ? raw : `/${raw}`;
 };
 
@@ -217,7 +217,7 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
                                                 ⚡
                                             </span>
                                         ) : (
-                                            <img src={itemSrc ?? '/images/Box/box.png'} alt="" className="h-full w-full object-contain p-0.5" />
+                                            <img src={itemSrc ?? '/images/Box/box.webp'} alt="" className="h-full w-full object-contain p-0.5" />
                                         )}
                                         {apBadge ? (
                                             <span

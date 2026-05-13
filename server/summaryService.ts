@@ -320,7 +320,7 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
                     summary.items.push({
                         id: `stat-points-${Date.now()}`,
                         name: `보너스 능력치`,
-                        image: '/images/icons/stat_point.png',
+                        image: '/images/icons/stat_point.webp',
                         type: 'consumable',
                         grade: 'rare',
                         quantity: points,
@@ -1025,7 +1025,7 @@ export function rollAndResolveRewardVipPlayGrant(opts?: { goldOnlyInventory?: bo
             grantedDisplay: {
                 name: '골드',
                 quantity: outcome.amount,
-                image: '/images/icon/Gold.png',
+                image: '/images/icon/Gold.webp',
             },
         };
     }
@@ -1051,7 +1051,7 @@ export function rollAndResolveRewardVipPlayGrant(opts?: { goldOnlyInventory?: bo
         return {
             goldBonus: fb,
             inventoryItem: null,
-            grantedDisplay: { name: '골드', quantity: fb, image: '/images/icon/Gold.png' },
+            grantedDisplay: { name: '골드', quantity: fb, image: '/images/icon/Gold.webp' },
         };
     }
     return {

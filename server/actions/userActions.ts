@@ -580,7 +580,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 name: '다이아',
                 type: 'consumable' as const,
                 grade: 'normal' as const,
-                image: '/images/icon/Zem.png',
+                image: '/images/icon/Zem.webp',
                 quantity: 100,
                 createdAt: Date.now(),
                 isEquipped: false,

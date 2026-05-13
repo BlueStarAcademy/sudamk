@@ -21,11 +21,11 @@ interface ClassNavigationPanelProps {
 }
 
 const CLASS_INFO = [
-    { level: SinglePlayerLevel.입문, name: '입문반', image: '/images/single/Academy1.png' },
-    { level: SinglePlayerLevel.초급, name: '초급반', image: '/images/single/Academy2.png' },
-    { level: SinglePlayerLevel.중급, name: '중급반', image: '/images/single/Academy3.png' },
-    { level: SinglePlayerLevel.고급, name: '고급반', image: '/images/single/Academy4.png' },
-    { level: SinglePlayerLevel.유단자, name: '유단자', image: '/images/single/Academy5.png' },
+    { level: SinglePlayerLevel.입문, name: '입문반', image: '/images/single/Academy1.webp' },
+    { level: SinglePlayerLevel.초급, name: '초급반', image: '/images/single/Academy2.webp' },
+    { level: SinglePlayerLevel.중급, name: '중급반', image: '/images/single/Academy3.webp' },
+    { level: SinglePlayerLevel.고급, name: '고급반', image: '/images/single/Academy4.webp' },
+    { level: SinglePlayerLevel.유단자, name: '유단자', image: '/images/single/Academy5.webp' },
 ];
 
 /** `SinglePlayerLobby` 타이틀 스트립과 동일 계열 */
@@ -88,7 +88,7 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                                     className={`relative z-[1] flex shrink-0 items-center justify-center transition-transform active:scale-90 hover:drop-shadow-lg ${topShelf ? 'h-8 w-8' : 'h-9 w-9'}`}
                                     aria-label="뒤로가기"
                                 >
-                                    <img src="/images/button/back.png" alt="" className="h-full w-full" />
+                                    <img src="/images/button/back.webp" alt="" className="h-full w-full" />
                                 </button>
                                 <h1
                                     className={`truncate text-center font-bold bg-gradient-to-r from-emerald-100 to-teal-200 bg-clip-text text-transparent ${topShelf ? 'text-xs' : 'text-sm'}`}
@@ -107,7 +107,7 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                                 className="relative z-[1] shrink-0 transition-transform active:scale-90 hover:drop-shadow-lg"
                                 aria-label="뒤로가기"
                             >
-                                <img src="/images/button/back.png" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
+                                <img src="/images/button/back.webp" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
                             </button>
                             <h1 className={lobbyTitleH1Class}>{lobbyChrome.screenTitle}</h1>
                         </div>

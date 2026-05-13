@@ -191,7 +191,7 @@ const HelpModal: React.FC<HelpModalProps> = ({ mode, onClose }) => {
                     <div className="space-y-4">
                         {GUILD_BOSS_HELP.sections.map((section, index) => (
                             <div key={index} className="flex items-start gap-4 bg-gray-900/50 p-4 rounded-lg">
-                                {index === 0 && <img src="/images/guild/button/bossraid1.png" alt="보스전" className="w-24 h-24 object-cover rounded-lg flex-shrink-0" />}
+                                {index === 0 && <img src="/images/guild/button/bossraid1.webp" alt="보스전" className="w-24 h-24 object-cover rounded-lg flex-shrink-0" />}
                                 {index === 1 && <div className="w-24 h-24 bg-amber-900/50 rounded-lg flex items-center justify-center flex-shrink-0 text-3xl">⚔</div>}
                                 {index === 2 && <div className="w-24 h-24 bg-gradient-to-br from-yellow-600/80 to-orange-600/80 rounded-lg flex items-center justify-center flex-shrink-0 text-2xl font-bold text-white">E~SSS</div>}
                                 {index === 3 && <div className="w-24 h-24 bg-purple-900/50 rounded-lg flex items-center justify-center flex-shrink-0 text-3xl">🎁</div>}
@@ -219,14 +219,14 @@ const HelpModal: React.FC<HelpModalProps> = ({ mode, onClose }) => {
                     <div className="space-y-4">
                         {GUILD_HELP.sections.map((section, index) => (
                             <div key={index} className="flex items-start gap-4 bg-gray-900/50 p-4 rounded-lg">
-                                {index === 0 && <img src="/images/guild/profile/icon1.png" alt="길드" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
+                                {index === 0 && <img src="/images/guild/profile/icon1.webp" alt="길드" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
                                 {index === 1 && <div className="w-32 h-32 bg-gradient-to-br from-amber-600 to-yellow-600 rounded-lg flex items-center justify-center flex-shrink-0">
                                     <span className="text-4xl">💎</span>
                                 </div>}
-                                {index === 2 && <img src="/images/guild/button/bossraid1.png" alt="보스전" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
-                                {index === 3 && <img src="/images/guild/button/guildwar.png" alt="전쟁" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
-                                {index === 4 && <img src="/images/guild/button/guildlab.png" alt="연구소" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
-                                {index === 5 && <img src="/images/guild/button/guildmission.png" alt="미션" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
+                                {index === 2 && <img src="/images/guild/button/bossraid1.webp" alt="보스전" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
+                                {index === 3 && <img src="/images/guild/button/guildwar.webp" alt="전쟁" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
+                                {index === 4 && <img src="/images/guild/button/guildlab.webp" alt="연구소" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
+                                {index === 5 && <img src="/images/guild/button/guildmission.webp" alt="미션" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
                                 <div className="flex-1">
                                     <h3 className="font-bold text-lg text-yellow-300 mb-2">{section.subtitle}</h3>
                                     <ul className="list-disc list-inside space-y-1 text-xs">
@@ -257,7 +257,7 @@ const HelpModal: React.FC<HelpModalProps> = ({ mode, onClose }) => {
                                         <img key={gm.mode} src={gm.image} alt={gm.name} className="w-16 h-16 object-cover rounded-lg" />
                                     ))}
                                 </div>}
-                                {index === 2 && <img src="/images/PlayingArena.png" alt="대기실" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
+                                {index === 2 && <img src="/images/PlayingArena.webp" alt="대기실" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
                                 {index === 3 && <div className="w-32 h-32 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
                                     <span className="text-4xl">👥</span>
                                 </div>}
@@ -313,7 +313,7 @@ const HelpModal: React.FC<HelpModalProps> = ({ mode, onClose }) => {
                                         <img key={gm.mode} src={gm.image} alt={gm.name} className="w-16 h-16 object-cover rounded-lg" />
                                     ))}
                                 </div>}
-                                {index === 2 && <img src="/images/PlayingArena.png" alt="대기실" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
+                                {index === 2 && <img src="/images/PlayingArena.webp" alt="대기실" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />}
                                 {index === 3 && <div className="w-32 h-32 bg-gradient-to-br from-pink-600 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
                                     <span className="text-4xl">👥</span>
                                 </div>}
@@ -370,7 +370,7 @@ const HelpModal: React.FC<HelpModalProps> = ({ mode, onClose }) => {
     // 게임 모드 이미지 찾기
     const gameModeImage = SPECIAL_GAME_MODES.find(gm => gm.mode === mode)?.image || 
                           PLAYFUL_GAME_MODES.find(gm => gm.mode === mode)?.image || 
-                          '/images/simbols/simbol1.png';
+                          '/images/simbols/simbol1.webp';
 
     return (
         <DraggableWindow title={`${rules.title} 게임 방법`} onClose={onClose} windowId={`help-${mode}`} initialWidth={650}>

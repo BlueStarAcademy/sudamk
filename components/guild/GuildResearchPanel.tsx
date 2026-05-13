@@ -312,7 +312,7 @@ const GuildResearchPanel: React.FC<GuildResearchPanelProps & { onClose: () => vo
                     <div className={`flex justify-end ${isNativeMobile ? 'pr-0.5' : 'pr-1'}`}>
                     <div className={`bg-gradient-to-br from-fuchsia-900/85 via-violet-800/80 to-cyan-900/80 rounded-xl border-2 border-fuchsia-400/60 shadow-2xl backdrop-blur-md relative overflow-hidden flex-shrink-0 ${isNativeMobile ? 'px-2.5 py-1.5' : 'px-3.5 py-2'}`}>
                         <div className="relative z-10 inline-flex items-center gap-1.5">
-                            <img src="/images/guild/button/guildlab.png" alt="" className={`${isNativeMobile ? 'h-4 w-4' : 'h-5 w-5'} object-contain`} />
+                            <img src="/images/guild/button/guildlab.webp" alt="" className={`${isNativeMobile ? 'h-4 w-4' : 'h-5 w-5'} object-contain`} />
                             <span className={`font-black text-cyan-200 drop-shadow-lg tabular-nums ${isNativeMobile ? 'text-sm' : 'text-lg'}`}>
                                 {(guild.researchPoints ?? 0).toLocaleString()} RP
                             </span>

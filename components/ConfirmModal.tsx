@@ -4,7 +4,7 @@ import DraggableWindow from './DraggableWindow.js';
 
 type ButtonColorScheme = 'blue' | 'red' | 'gray' | 'green' | 'yellow' | 'purple' | 'orange' | 'accent' | 'none';
 
-const DIAMOND_ICON = '/images/icon/Zem.png';
+const DIAMOND_ICON = '/images/icon/Zem.webp';
 
 interface ConfirmModalProps {
     title?: string;

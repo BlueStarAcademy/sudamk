@@ -107,7 +107,7 @@ export const ResultModalGoldCurrencySlot: React.FC<{
             className={`${adventureUnifiedSlot ? RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS : BOX_GOLD} ${imageBoxClass(compact)}`}
         >
             <img
-                src="/images/icon/Gold.png"
+                src="/images/icon/Gold.webp"
                 alt=""
                 className={
                     compact

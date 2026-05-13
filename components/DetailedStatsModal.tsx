@@ -16,7 +16,7 @@ interface DetailedStatsModalProps {
     onAction: (action: ServerAction) => void;
 }
 
-const DIAMOND_ICON = '/images/icon/Zem.png';
+const DIAMOND_ICON = '/images/icon/Zem.webp';
 
 const SINGLE_RESET_COST = 300;
 const CATEGORY_RESET_COST = 500;

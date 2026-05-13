@@ -18,12 +18,12 @@ import { resolveBagItemAcquireLines } from '../shared/utils/itemAcquireSourceLin
 
 /** ItemDetailModal과 동일 — 등급별 프레임·배경 (구매 모달 등에서 재사용 가능) */
 export const equipmentDetailGradeStyles: Record<ItemGrade, { name: string; color: string; background: string; frame: string }> = {
-    normal: { name: '일반', color: 'text-zinc-300', background: '/images/equipments/normalbgi.png', frame: 'from-zinc-500/15 to-zinc-700/5 ring-zinc-500/25' },
-    uncommon: { name: '고급', color: 'text-emerald-400', background: '/images/equipments/uncommonbgi.png', frame: 'from-emerald-500/20 to-emerald-900/10 ring-emerald-500/30' },
-    rare: { name: '희귀', color: 'text-sky-400', background: '/images/equipments/rarebgi.png', frame: 'from-sky-500/20 to-blue-950/15 ring-sky-500/35' },
-    epic: { name: '에픽', color: 'text-violet-400', background: '/images/equipments/epicbgi.png', frame: 'from-violet-500/25 to-purple-950/15 ring-violet-500/40' },
-    legendary: { name: '전설', color: 'text-rose-500', background: '/images/equipments/legendarybgi.png', frame: 'from-rose-500/25 to-red-950/15 ring-rose-500/40' },
-    mythic: { name: '신화', color: 'text-amber-400', background: '/images/equipments/mythicbgi.png', frame: 'from-amber-500/25 to-orange-950/20 ring-amber-400/45' },
+    normal: { name: '일반', color: 'text-zinc-300', background: '/images/equipments/normalbgi.webp', frame: 'from-zinc-500/15 to-zinc-700/5 ring-zinc-500/25' },
+    uncommon: { name: '고급', color: 'text-emerald-400', background: '/images/equipments/uncommonbgi.webp', frame: 'from-emerald-500/20 to-emerald-900/10 ring-emerald-500/30' },
+    rare: { name: '희귀', color: 'text-sky-400', background: '/images/equipments/rarebgi.webp', frame: 'from-sky-500/20 to-blue-950/15 ring-sky-500/35' },
+    epic: { name: '에픽', color: 'text-violet-400', background: '/images/equipments/epicbgi.webp', frame: 'from-violet-500/25 to-purple-950/15 ring-violet-500/40' },
+    legendary: { name: '전설', color: 'text-rose-500', background: '/images/equipments/legendarybgi.webp', frame: 'from-rose-500/25 to-red-950/15 ring-rose-500/40' },
+    mythic: { name: '신화', color: 'text-amber-400', background: '/images/equipments/mythicbgi.webp', frame: 'from-amber-500/25 to-orange-950/20 ring-amber-400/45' },
     transcendent: {
         name: '초월',
         color: 'text-cyan-300',
@@ -39,16 +39,16 @@ const renderStarDisplay = (stars: number, comfortableTypography?: boolean) => {
     let numberColor = '';
 
     if (stars >= 10) {
-        starImage = '/images/equipments/Star4.png';
+        starImage = '/images/equipments/Star4.webp';
         numberColor = 'prism-text-effect';
     } else if (stars >= 7) {
-        starImage = '/images/equipments/Star3.png';
+        starImage = '/images/equipments/Star3.webp';
         numberColor = 'text-purple-400';
     } else if (stars >= 4) {
-        starImage = '/images/equipments/Star2.png';
+        starImage = '/images/equipments/Star2.webp';
         numberColor = 'text-amber-400';
     } else if (stars >= 1) {
-        starImage = '/images/equipments/Star1.png';
+        starImage = '/images/equipments/Star1.webp';
         numberColor = 'text-white';
     }
 

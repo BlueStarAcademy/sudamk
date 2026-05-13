@@ -142,7 +142,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                 guildCoinSplitBase != null
                     ? `${guildCoinSplitBase.toLocaleString()}(+${guildCoinSplitBase.toLocaleString()})`
                     : undefined,
-            image: '/images/guild/tokken.png',
+            image: '/images/guild/tokken.webp',
             isSpecial: isTopGrade,
         });
         
@@ -151,7 +151,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             type: 'researchPoints',
             name: '연구소 포인트',
             quantity: rewards.researchPoints,
-            image: '/images/guild/button/guildlab.png',
+            image: '/images/guild/button/guildlab.webp',
             isSpecial: isTopGrade,
         });
         
@@ -160,7 +160,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             type: 'gold',
             name: '골드',
             quantity: rewards.gold,
-            image: '/images/icon/Gold.png',
+            image: '/images/icon/Gold.webp',
             isSpecial: isTopGrade,
         });
         
@@ -169,7 +169,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             type: 'material',
             name: rewards.materials.name,
             quantity: rewards.materials.quantity > 1 ? rewards.materials.quantity : undefined,
-            image: MATERIAL_IMAGES[rewards.materials.name] || '/images/materials/materials1.png',
+            image: MATERIAL_IMAGES[rewards.materials.name] || '/images/materials/materials1.webp',
             isSpecial: isTopGrade,
         });
         
@@ -179,7 +179,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                 type: 'material',
                 name: rewards.materialsBonus.name,
                 quantity: rewards.materialsBonus.quantity > 1 ? rewards.materialsBonus.quantity : undefined,
-                image: MATERIAL_IMAGES[rewards.materialsBonus.name] || '/images/materials/materials5.png',
+                image: MATERIAL_IMAGES[rewards.materialsBonus.name] || '/images/materials/materials5.webp',
                 isSpecial: true,
             });
         }
@@ -190,7 +190,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                 type: 'materialBox',
                 name: rewards.materialBox.name,
                 quantity: rewards.materialBox.quantity > 1 ? rewards.materialBox.quantity : undefined,
-                image: MATERIAL_BOX_IMAGES[rewards.materialBox.name] || '/images/Box/ResourceBox3.png',
+                image: MATERIAL_BOX_IMAGES[rewards.materialBox.name] || '/images/Box/ResourceBox3.webp',
                 isSpecial: true,
             });
         }
@@ -201,7 +201,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                 type: 'ticket',
                 name: ticket.name,
                 quantity: ticket.quantity > 1 ? ticket.quantity : undefined,
-                image: TICKET_IMAGES[ticket.name] || '/images/use/change1.png',
+                image: TICKET_IMAGES[ticket.name] || '/images/use/change1.webp',
                 isSpecial: isTopGrade,
             });
         });
@@ -234,7 +234,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             const gradeKey = equipmentGrade as ItemGrade;
             const imagePath = equipmentImage
                 ? (equipmentImage.startsWith('/') ? equipmentImage : `/${equipmentImage}`)
-                : (gradeBackgrounds[gradeKey] || '/images/equipments/normalbgi.png');
+                : (gradeBackgrounds[gradeKey] || '/images/equipments/normalbgi.webp');
 
             const rawEqQty = (equipmentItem as { quantity?: number } | undefined)?.quantity;
             const equipmentQty = typeof rawEqQty === 'number' && rawEqQty > 1 ? rawEqQty : undefined;
@@ -270,24 +270,24 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
     }, []);
     
     const MATERIAL_IMAGES: Record<string, string> = {
-        '하급 강화석': '/images/materials/materials1.png',
-        '중급 강화석': '/images/materials/materials2.png',
-        '상급 강화석': '/images/materials/materials3.png',
-        '최상급 강화석': '/images/materials/materials4.png',
-        '신비의 강화석': '/images/materials/materials5.png',
+        '하급 강화석': '/images/materials/materials1.webp',
+        '중급 강화석': '/images/materials/materials2.webp',
+        '상급 강화석': '/images/materials/materials3.webp',
+        '최상급 강화석': '/images/materials/materials4.webp',
+        '신비의 강화석': '/images/materials/materials5.webp',
     };
     const MATERIAL_BOX_IMAGES: Record<string, string> = {
-        '재료 상자 I': '/images/Box/ResourceBox1.png',
-        '재료 상자 II': '/images/Box/ResourceBox2.png',
-        '재료 상자 III': '/images/Box/ResourceBox3.png',
-        '재료 상자 IV': '/images/Box/ResourceBox4.png',
+        '재료 상자 I': '/images/Box/ResourceBox1.webp',
+        '재료 상자 II': '/images/Box/ResourceBox2.webp',
+        '재료 상자 III': '/images/Box/ResourceBox3.webp',
+        '재료 상자 IV': '/images/Box/ResourceBox4.webp',
     };
     
     const TICKET_IMAGES: Record<string, string> = {
-        '옵션 종류 변경권': '/images/use/change1.png',
-        '옵션 수치 변경권': '/images/use/change2.png',
-        '스페셜 옵션 변경권': '/images/use/change3.png',
-        '신화 옵션 변경권': '/images/use/change3.png',
+        '옵션 종류 변경권': '/images/use/change1.webp',
+        '옵션 수치 변경권': '/images/use/change2.webp',
+        '스페셜 옵션 변경권': '/images/use/change3.webp',
+        '신화 옵션 변경권': '/images/use/change3.webp',
     };
     
     const getTierColor = (tier: number) => {

@@ -136,16 +136,16 @@ const EquipmentSlotDisplay: React.FC<{
         let numberColor = '';
 
         if (stars >= 10) {
-            starImage = '/images/equipments/Star4.png';
+            starImage = '/images/equipments/Star4.webp';
             numberColor = "prism-text-effect";
         } else if (stars >= 7) {
-            starImage = '/images/equipments/Star3.png';
+            starImage = '/images/equipments/Star3.webp';
             numberColor = "text-purple-400";
         } else if (stars >= 4) {
-            starImage = '/images/equipments/Star2.png';
+            starImage = '/images/equipments/Star2.webp';
             numberColor = "text-amber-400";
         } else if (stars >= 1) {
-            starImage = '/images/equipments/Star1.png';
+            starImage = '/images/equipments/Star1.webp';
             numberColor = "text-white";
         }
 
@@ -446,16 +446,16 @@ const LocalItemDetailDisplay: React.FC<{
         let numberColor = '';
 
         if (stars >= 10) {
-            starImage = '/images/equipments/Star4.png';
+            starImage = '/images/equipments/Star4.webp';
             numberColor = "prism-text-effect";
         } else if (stars >= 7) {
-            starImage = '/images/equipments/Star3.png';
+            starImage = '/images/equipments/Star3.webp';
             numberColor = "text-purple-400";
         } else if (stars >= 4) {
-            starImage = '/images/equipments/Star2.png';
+            starImage = '/images/equipments/Star2.webp';
             numberColor = "text-amber-400";
         } else if (stars >= 1) {
-            starImage = '/images/equipments/Star1.png';
+            starImage = '/images/equipments/Star1.webp';
             numberColor = "text-white";
         }
 
@@ -3299,16 +3299,16 @@ const InventoryItemCard: React.FC<{
         let numberColor = '';
 
         if (stars >= 10) {
-            starImage = '/images/equipments/Star4.png';
+            starImage = '/images/equipments/Star4.webp';
             numberColor = "prism-text-effect";
         } else if (stars >= 7) {
-            starImage = '/images/equipments/Star3.png';
+            starImage = '/images/equipments/Star3.webp';
             numberColor = "text-purple-400";
         } else if (stars >= 4) {
-            starImage = '/images/equipments/Star2.png';
+            starImage = '/images/equipments/Star2.webp';
             numberColor = "text-amber-400";
         } else if (stars >= 1) {
-            starImage = '/images/equipments/Star1.png';
+            starImage = '/images/equipments/Star1.webp';
             numberColor = "text-white";
         }
 

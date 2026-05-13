@@ -17,7 +17,7 @@ function loadGnuGoLocal() {
 }
 
 function createWindow() {
-    const iconPath = path.join(__dirname, '..', 'public', 'images', 'Icon.png');
+    const iconPath = path.join(__dirname, '..', 'public', 'images', 'Icon.webp');
     const winOpts = {
         width: 1280,
         height: 800,

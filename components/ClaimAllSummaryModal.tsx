@@ -18,13 +18,13 @@ const ClaimAllSummaryModal: React.FC<ClaimAllSummaryModalProps> = ({ summary, on
                 <div className="space-y-3 bg-gray-900/50 p-4 rounded-lg text-lg">
                     {summary.gold > 0 && (
                         <div className="flex justify-between items-center gap-3">
-                            <img src="/images/icon/Gold.png" alt="" className="h-5 w-5 shrink-0 object-contain" title="골드" />
+                            <img src="/images/icon/Gold.webp" alt="" className="h-5 w-5 shrink-0 object-contain" title="골드" />
                             <span className="font-bold text-yellow-300 tabular-nums">+{formatGoldAmountKoG(summary.gold)}</span>
                         </div>
                     )}
                     {summary.diamonds > 0 && (
                         <div className="flex justify-between items-center gap-3">
-                            <img src="/images/icon/Zem.png" alt="" className="h-5 w-5 shrink-0 object-contain" title="다이아" />
+                            <img src="/images/icon/Zem.webp" alt="" className="h-5 w-5 shrink-0 object-contain" title="다이아" />
                             <span className="font-bold text-cyan-300 tabular-nums">+{formatWalletDiamonds(summary.diamonds)}</span>
                         </div>
                     )}

@@ -74,7 +74,7 @@ const InventorySlotExpandDiamondBody: React.FC<InventorySlotExpandDiamondBodyPro
                     <p className="mb-2 text-center text-[11px] font-bold uppercase tracking-wider text-stone-400">필요 다이아</p>
                     <div className="flex items-center justify-center gap-2">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-black/30 shadow-inner">
-                            <img src="/images/icon/Zem.png" alt="" className="h-6 w-6 object-contain drop-shadow-[0_0_12px_rgba(56,189,248,0.45)]" />
+                            <img src="/images/icon/Zem.webp" alt="" className="h-6 w-6 object-contain drop-shadow-[0_0_12px_rgba(56,189,248,0.45)]" />
                         </div>
                         <span
                             className={`font-mono text-xl font-black tabular-nums tracking-tight sm:text-[1.5rem] ${
@@ -104,7 +104,7 @@ const InventorySlotExpandDiamondBody: React.FC<InventorySlotExpandDiamondBodyPro
                         <span className="flex items-center justify-center gap-2">
                             <span>확장</span>
                             <span className="flex items-center gap-1 opacity-95">
-                                <img src="/images/icon/Zem.png" alt="" className="h-4 w-4 object-contain" />
+                                <img src="/images/icon/Zem.webp" alt="" className="h-4 w-4 object-contain" />
                                 <span className="font-mono tabular-nums">{diamondCost.toLocaleString()}</span>
                             </span>
                         </span>

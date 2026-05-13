@@ -555,7 +555,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     const petHintImg = petRow
         ? ((petRow as { image?: string }).image ??
               (petRow.templateId ? getPairPetDefinition(petRow.templateId)?.image : null) ??
-              '/images/button/hidden.png')
+              '/images/button/hidden.webp')
         : null;
     const showPetHintBubble = Boolean(strategicPetHintFooterBubble?.visible && strategicPetHintFooterBubble?.message);
     const petHintSlot = (
@@ -627,7 +627,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
         <>
             <div className={colClass}>
                 <ImageButton
-                    src="/images/button/giveup.png"
+                    src="/images/button/giveup.webp"
                     alt="기권"
                     onClick={handleForfeit}
                     disabled={gameStatus === 'scoring'}
@@ -639,7 +639,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
             </div>
             <div className={colClass}>
                 <ImageButton
-                    src="/images/button/reflesh.png"
+                    src="/images/button/reflesh.webp"
                     alt="배치 새로고침"
                     onClick={handleRefresh}
                     disabled={refreshDisabled}
@@ -650,7 +650,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
                 <span className={`${lblBase} font-semibold whitespace-nowrap ${refreshDisabled ? 'text-gray-500' : 'text-amber-100'}`}>배치변경</span>
                 {nextCost > 0 && (
                     <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} flex items-center gap-0.5 whitespace-nowrap ${refreshDisabled ? 'text-gray-500' : 'text-yellow-300'}`}>
-                        <img src="/images/icon/Gold.png" alt="골드" className={`${isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'} shrink-0`} />
+                        <img src="/images/icon/Gold.webp" alt="골드" className={`${isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'} shrink-0`} />
                         {formatGoldAmountKoG(nextCost)}
                     </span>
                 )}
@@ -670,7 +670,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
             {isHiddenMode && (
                 <div className={colClass}>
                     <ItemImageButton
-                        src="/images/button/hidden.png"
+                        src="/images/button/hidden.webp"
                         alt="히든"
                         onClick={handleUseHidden}
                         disabled={hiddenDisabled}
@@ -684,7 +684,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
             {isHiddenMode && (
                 <div className={colClass}>
                     <ItemImageButton
-                        src="/images/button/scan.png"
+                        src="/images/button/scan.webp"
                         alt="스캔"
                         onClick={handleUseScan}
                         disabled={scanDisabled}
@@ -698,7 +698,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
             {isMissileMode && (
                 <div className={colClass}>
                     <ItemImageButton
-                        src="/images/button/missile.png"
+                        src="/images/button/missile.webp"
                         alt="미사일"
                         onClick={handleUseMissile}
                         disabled={missileDisabled}

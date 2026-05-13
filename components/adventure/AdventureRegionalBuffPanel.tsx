@@ -46,7 +46,7 @@ export type AdventureStageUnderstandingRow = {
 const GoldCostInline: React.FC<{ text: string }> = ({ text }) => (
     <span className="inline-flex items-center gap-0.5 tabular-nums">
         <img
-            src="/images/icon/Gold.png"
+            src="/images/icon/Gold.webp"
             alt=""
             className="h-3.5 w-3.5 shrink-0 object-contain sm:h-4 sm:w-4"
             aria-hidden

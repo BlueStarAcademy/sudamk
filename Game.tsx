@@ -247,7 +247,7 @@ const PairIngamePlayerCard: React.FC<{ session: LiveGameSession; seat: PairSeat;
                     <Avatar
                         userId={seat.participantId}
                         userName={display.name}
-                        avatarUrl={display.avatarUrl || (seat.kind === 'pet' ? '/images/pets/pet1.webp' : '/images/profiles/profile1.png')}
+                        avatarUrl={display.avatarUrl || (seat.kind === 'pet' ? '/images/pets/pet1.webp' : '/images/profiles/profile1.webp')}
                         borderUrl={display.borderUrl}
                         size={compact ? 42 : 48}
                     />
@@ -399,7 +399,7 @@ const PairMobileTeamProfilePanel: React.FC<{
                                 <Avatar
                                     userId={seat.participantId}
                                     userName={display.name}
-                                    avatarUrl={display.avatarUrl || (seat.kind === 'pet' ? '/images/pets/pet1.webp' : '/images/profiles/profile1.png')}
+                                    avatarUrl={display.avatarUrl || (seat.kind === 'pet' ? '/images/pets/pet1.webp' : '/images/profiles/profile1.webp')}
                                     borderUrl={display.borderUrl}
                                     size={28}
                                 />
@@ -710,11 +710,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         | { kind: 'diamonds'; amount: number; label?: string };
 
     const strategicPetHintRewardIcon = useCallback((reward: StrategicPetHintBonusReward | undefined): string => {
-        if (!reward) return '/images/icon/Reward.png';
-        if (reward.kind === 'gold') return '/images/icon/Gold.png';
-        if (reward.kind === 'diamonds') return '/images/icon/Zem.png';
+        if (!reward) return '/images/icon/Reward.webp';
+        if (reward.kind === 'gold') return '/images/icon/Gold.webp';
+        if (reward.kind === 'diamonds') return '/images/icon/Zem.webp';
         if (reward.kind === 'actionPoints') return '';
-        return MATERIAL_ITEMS[reward.itemName]?.image || '/images/icon/Reward.png';
+        return MATERIAL_ITEMS[reward.itemName]?.image || '/images/icon/Reward.webp';
     }, []);
 
     const strategicPetHintRewardQuantity = useCallback((reward: StrategicPetHintBonusReward | undefined): string => {
@@ -4853,7 +4853,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                       }
                     : isGuildWarGame
                       ? {
-                            backgroundImage: "url('/images/guild/guildwar/warmap.png')",
+                            backgroundImage: "url('/images/guild/guildwar/warmap.webp')",
                             backgroundSize: 'cover',
                             backgroundPosition: 'center',
                             backgroundRepeat: 'no-repeat',

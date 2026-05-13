@@ -28,12 +28,12 @@ interface ItemObtainedModalProps {
 }
 
 const gradeStyles: Record<ItemGrade, { bg: string, text: string, shadow: string, name: string, background: string }> = {
-    normal: { bg: 'bg-gray-700', text: 'text-white', shadow: 'shadow-gray-900/50', name: '일반', background: '/images/equipments/normalbgi.png' },
-    uncommon: { bg: 'bg-green-700', text: 'text-green-200', shadow: 'shadow-green-500/50', name: '고급', background: '/images/equipments/uncommonbgi.png' },
-    rare: { bg: 'bg-blue-700', text: 'text-blue-200', shadow: 'shadow-blue-500/50', name: '희귀', background: '/images/equipments/rarebgi.png' },
-    epic: { bg: 'bg-purple-700', text: 'text-purple-200', shadow: 'shadow-purple-500/50', name: '에픽', background: '/images/equipments/epicbgi.png' },
-    legendary: { bg: 'bg-red-800', text: 'text-red-200', shadow: 'shadow-red-500/50', name: '전설', background: '/images/equipments/legendarybgi.png' },
-    mythic: { bg: 'bg-orange-700', text: 'text-orange-200', shadow: 'shadow-orange-500/50', name: '신화', background: '/images/equipments/mythicbgi.png' },
+    normal: { bg: 'bg-gray-700', text: 'text-white', shadow: 'shadow-gray-900/50', name: '일반', background: '/images/equipments/normalbgi.webp' },
+    uncommon: { bg: 'bg-green-700', text: 'text-green-200', shadow: 'shadow-green-500/50', name: '고급', background: '/images/equipments/uncommonbgi.webp' },
+    rare: { bg: 'bg-blue-700', text: 'text-blue-200', shadow: 'shadow-blue-500/50', name: '희귀', background: '/images/equipments/rarebgi.webp' },
+    epic: { bg: 'bg-purple-700', text: 'text-purple-200', shadow: 'shadow-purple-500/50', name: '에픽', background: '/images/equipments/epicbgi.webp' },
+    legendary: { bg: 'bg-red-800', text: 'text-red-200', shadow: 'shadow-red-500/50', name: '전설', background: '/images/equipments/legendarybgi.webp' },
+    mythic: { bg: 'bg-orange-700', text: 'text-orange-200', shadow: 'shadow-orange-500/50', name: '신화', background: '/images/equipments/mythicbgi.webp' },
     transcendent: { bg: 'bg-cyan-900', text: 'text-cyan-200', shadow: 'shadow-cyan-500/50', name: '초월', background: '/images/equipments/transcendentbgi.webp' },
 };
 
@@ -61,7 +61,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
     const styles = gradeStyles[item.grade];
     const starInfo = getStarDisplayInfo(item.stars);
     const borderClass = item.grade === ItemGrade.Transcendent ? undefined : gradeBorderStyles[item.grade];
-    const isCurrency = item.image === '/images/icon/Gold.png' || item.image === '/images/icon/Zem.png';
+    const isCurrency = item.image === '/images/icon/Gold.webp' || item.image === '/images/icon/Zem.webp';
     
     const getGlowClass = (grade: ItemGrade) => {
         switch (grade) {
@@ -140,8 +140,8 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
 
     const currencyAmount =
         typeof item.quantity === 'number' && Number.isFinite(item.quantity) ? item.quantity : 0;
-    const isGoldIcon = item.image === '/images/icon/Gold.png';
-    const isZemIcon = item.image === '/images/icon/Zem.png';
+    const isGoldIcon = item.image === '/images/icon/Gold.webp';
+    const isZemIcon = item.image === '/images/icon/Zem.webp';
 
     /** 통화(골드/다이아) 스냅샷은 `EquipmentDetailPanel` 레이아웃이 맞지 않음 — 통화 전용 카드 유지 */
     const useBagDetailPanel =
@@ -206,7 +206,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                         <div
                             className={`relative flex items-center justify-center ${RESULT_MODAL_BOX_GOLD_CLASS} ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} shadow-[0_12px_28px_-12px_rgba(245,158,11,0.32)]`}
                         >
-                            <img src="/images/icon/Gold.png" alt="" className={COMPACT_CURRENCY_IMG_CLASS} />
+                            <img src="/images/icon/Gold.webp" alt="" className={COMPACT_CURRENCY_IMG_CLASS} />
                         </div>
                         <span className={ITEM_OBTAIN_COUNT_BADGE_CLASS}>+{formatGoldAmountKoG(currencyAmount)}</span>
                     </div>
@@ -225,7 +225,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                         <div
                             className={`relative flex items-center justify-center ${RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS} ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} shadow-[0_12px_28px_-12px_rgba(14,165,233,0.28)] ring-1 ring-sky-400/25`}
                         >
-                            <img src="/images/icon/Zem.png" alt="" className={COMPACT_CURRENCY_IMG_CLASS} />
+                            <img src="/images/icon/Zem.webp" alt="" className={COMPACT_CURRENCY_IMG_CLASS} />
                         </div>
                         <span className={ITEM_OBTAIN_COUNT_BADGE_CLASS}>+{formatWalletDiamonds(currencyAmount)}</span>
                     </div>

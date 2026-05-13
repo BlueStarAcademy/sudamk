@@ -825,7 +825,7 @@ const AlkkagiItemPanel: React.FC<{
         return (
             <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-1.5' : 'gap-5'} className={compact ? 'min-w-0' : ''}>
                 <LabeledControlButton
-                    src="/images/button/slow.png"
+                    src="/images/button/slow.webp"
                     alt="슬로우"
                     label="슬로우"
                     count={slowCount}
@@ -836,7 +836,7 @@ const AlkkagiItemPanel: React.FC<{
                     compact={compact}
                 />
                 <LabeledControlButton
-                    src="/images/button/target.png"
+                    src="/images/button/target.webp"
                     alt="조준선"
                     label="조준선"
                     count={aimCount}
@@ -853,7 +853,7 @@ const AlkkagiItemPanel: React.FC<{
     return (
         <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-1.5' : 'gap-5'} className="min-w-0">
             <LabeledControlButton
-                src="/images/button/slow.png"
+                src="/images/button/slow.webp"
                 alt="슬로우"
                 label="슬로우"
                 count={slowCount}
@@ -864,7 +864,7 @@ const AlkkagiItemPanel: React.FC<{
                 compact={compact}
             />
             <LabeledControlButton
-                src="/images/button/target.png"
+                src="/images/button/target.webp"
                 alt="조준선"
                 label="조준선"
                 count={aimCount}
@@ -1268,7 +1268,7 @@ const CurlingItemPanel: React.FC<{
     return (
         <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-1.5' : 'gap-5'} className={compact ? 'min-w-0' : ''}>
             <LabeledControlButton
-                src="/images/button/slow.png"
+                src="/images/button/slow.webp"
                 alt="슬로우"
                 label="슬로우"
                 count={slowCount}
@@ -1278,7 +1278,7 @@ const CurlingItemPanel: React.FC<{
                 compact={compact}
             />
             <LabeledControlButton
-                src="/images/button/target.png"
+                src="/images/button/target.webp"
                 alt="조준선"
                 label="조준선"
                 count={aimCount}
@@ -1547,7 +1547,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         const img = petRow
             ? ((petRow as { image?: string }).image ??
                   (petRow.templateId ? getPairPetDefinition(petRow.templateId)?.image : null) ??
-                  '/images/button/hidden.png')
+                  '/images/button/hidden.webp')
             : null;
 
         const bubble = strategicPetHintFooterBubble;
@@ -1746,7 +1746,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             buttons.push(
                 <LabeledControlButton
                     key="hidden"
-                    src="/images/button/hidden.png"
+                    src="/images/button/hidden.webp"
                     alt="히든"
                     label="히든"
                     onClick={() => handleUseItem('hidden')}
@@ -1771,7 +1771,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 >
                     <LabeledControlButton
                         key="scan"
-                        src="/images/button/scan.png"
+                        src="/images/button/scan.webp"
                         alt="스캔"
                         label="스캔"
                         onClick={() => handleUseItem('scan')}
@@ -1790,7 +1790,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             buttons.push(
                 <LabeledControlButton
                     key="missile"
-                    src="/images/button/missile.png"
+                    src="/images/button/missile.webp"
                     alt="미사일"
                     label="미사일"
                     onClick={() => handleUseItem('missile')}
@@ -2119,7 +2119,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             <>
                 <div className={itemColClass}>
                     <ImageButton
-                        src="/images/button/giveup.png"
+                        src="/images/button/giveup.webp"
                         alt="기권"
                         title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'}
                         onClick={handleResignClick}
@@ -2131,7 +2131,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 </div>
                 <div className={itemColClass}>
                     <ImageButton
-                        src="/images/button/reflesh.png"
+                        src="/images/button/reflesh.webp"
                         alt="돌 재배치"
                         title={placementRefreshAllowed ? '돌 재배치' : '이 스테이지에서는 배치변경을 사용할 수 없습니다.'}
                         onClick={handleRefreshClick}
@@ -2143,7 +2143,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         {nextCost > 0 && (
                             <>
                                 <span>·</span>
-                                <img src="/images/icon/Gold.png" alt="골드" className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0" />
+                                <img src="/images/icon/Gold.webp" alt="골드" className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0" />
                                 <span>{formatGoldAmountKoG(nextCost)}</span>
                             </>
                         )}
@@ -2158,7 +2158,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 {isHiddenMode && (
                     <div className={itemColClass}>
                         <ImageButton
-                            src="/images/button/hidden.png"
+                            src="/images/button/hidden.webp"
                             alt="히든"
                             title="히든 스톤 배치"
                             onClick={() => handleUseItem('hidden')}
@@ -2172,7 +2172,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 {isHiddenMode && (
                     <div className={itemColClass}>
                         <ImageButton
-                            src="/images/button/scan.png"
+                            src="/images/button/scan.webp"
                             alt="스캔"
                             title="상대 히든 스톤 탐지"
                             onClick={() => handleUseItem('scan')}
@@ -2186,7 +2186,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 {isMissileMode && (
                     <div className={itemColClass}>
                         <ImageButton
-                            src="/images/button/missile.png"
+                            src="/images/button/missile.webp"
                             alt="미사일"
                             title="미사일 발사"
                             onClick={() => handleUseItem('missile')}
@@ -2434,7 +2434,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         session.gameCategory !== 'adventure' && (
                         <LabeledControlButton
                             key="pass"
-                            src="/images/button/pass.png"
+                            src="/images/button/pass.webp"
                             alt="통과"
                             label="통과"
                             onClick={handlePass}
@@ -2446,7 +2446,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     {renderStrategicPetHintSlot()}
                     <LabeledControlButton
                         key="resign"
-                        src="/images/button/giveup.png"
+                        src="/images/button/giveup.webp"
                         alt="기권"
                         label="기권"
                         onClick={handleResign}

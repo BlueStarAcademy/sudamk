@@ -143,23 +143,23 @@ export type AdventureMapTreasurePickSession = {
     expiresAtMs: number;
 };
 
-const PREVIEW_GOLD = '/images/icon/Gold.png';
-const PREVIEW_LIGHTNING = '/images/icon/lightning.png';
+const PREVIEW_GOLD = '/images/icon/Gold.webp';
+const PREVIEW_LIGHTNING = '/images/icon/lightning.webp';
 const PREVIEW_EQ: Record<string, string> = {
-    I: '/images/Box/EquipmentBox1.png',
-    II: '/images/Box/EquipmentBox2.png',
-    III: '/images/Box/EquipmentBox3.png',
-    IV: '/images/Box/EquipmentBox4.png',
-    V: '/images/Box/EquipmentBox5.png',
-    VI: '/images/Box/EquipmentBox6.png',
+    I: '/images/Box/EquipmentBox1.webp',
+    II: '/images/Box/EquipmentBox2.webp',
+    III: '/images/Box/EquipmentBox3.webp',
+    IV: '/images/Box/EquipmentBox4.webp',
+    V: '/images/Box/EquipmentBox5.webp',
+    VI: '/images/Box/EquipmentBox6.webp',
 };
 const PREVIEW_MAT: Record<string, string> = {
-    I: '/images/Box/ResourceBox1.png',
-    II: '/images/Box/ResourceBox2.png',
-    III: '/images/Box/ResourceBox3.png',
-    IV: '/images/Box/ResourceBox4.png',
-    V: '/images/Box/ResourceBox5.png',
-    VI: '/images/Box/ResourceBox6.png',
+    I: '/images/Box/ResourceBox1.webp',
+    II: '/images/Box/ResourceBox2.webp',
+    III: '/images/Box/ResourceBox3.webp',
+    IV: '/images/Box/ResourceBox4.webp',
+    V: '/images/Box/ResourceBox5.webp',
+    VI: '/images/Box/ResourceBox6.webp',
 };
 
 /** 보물 룰렛/결과 UI용 미리보기 */
@@ -236,22 +236,22 @@ export type AdventureTreasureRewardPreviewBlocks = {
     ap: TreasurePreviewSlot;
 };
 
-const GOLD_SRC = '/images/icon/Gold.png';
+const GOLD_SRC = '/images/icon/Gold.webp';
 const EQ_IMG: Record<string, string> = {
-    I: '/images/Box/EquipmentBox1.png',
-    II: '/images/Box/EquipmentBox2.png',
-    III: '/images/Box/EquipmentBox3.png',
-    IV: '/images/Box/EquipmentBox4.png',
-    V: '/images/Box/EquipmentBox5.png',
-    VI: '/images/Box/EquipmentBox6.png',
+    I: '/images/Box/EquipmentBox1.webp',
+    II: '/images/Box/EquipmentBox2.webp',
+    III: '/images/Box/EquipmentBox3.webp',
+    IV: '/images/Box/EquipmentBox4.webp',
+    V: '/images/Box/EquipmentBox5.webp',
+    VI: '/images/Box/EquipmentBox6.webp',
 };
 const MAT_IMG: Record<string, string> = {
-    I: '/images/Box/ResourceBox1.png',
-    II: '/images/Box/ResourceBox2.png',
-    III: '/images/Box/ResourceBox3.png',
-    IV: '/images/Box/ResourceBox4.png',
-    V: '/images/Box/ResourceBox5.png',
-    VI: '/images/Box/ResourceBox6.png',
+    I: '/images/Box/ResourceBox1.webp',
+    II: '/images/Box/ResourceBox2.webp',
+    III: '/images/Box/ResourceBox3.webp',
+    IV: '/images/Box/ResourceBox4.webp',
+    V: '/images/Box/ResourceBox5.webp',
+    VI: '/images/Box/ResourceBox6.webp',
 };
 
 /** 유저 UI용 — 확률·가중치 없이 풀 크기·이미지만 */
@@ -291,7 +291,7 @@ export function getAdventureTreasureRewardPreviewBlocks(stageIndex: number): Adv
             image: MAT_IMG[row.roman] ?? MAT_IMG.I!,
             label: `${row.weight}%`,
         })),
-        ap: { image: '/images/icon/lightning.png', label: `${def.actionPoints} 회복` },
+        ap: { image: '/images/icon/lightning.webp', label: `${def.actionPoints} 회복` },
     };
 }
 

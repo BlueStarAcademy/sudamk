@@ -218,10 +218,10 @@ export function resolveBagItemDetailImagePath(item: InventoryItem): string | und
 export function resolveItemObtainDescription(item: InventoryItem): string {
     const trimmed = (item.description || '').trim();
     if (trimmed) return trimmed;
-    if (item.image === '/images/icon/Gold.png') {
+    if (item.image === '/images/icon/Gold.webp') {
         return '바둑계 전역에서 사용되는 대표 화폐입니다.';
     }
-    if (item.image === '/images/icon/Zem.png') {
+    if (item.image === '/images/icon/Zem.webp') {
         return '특별한 구매·확장 등에 사용되는 프리미엄 재화입니다.';
     }
     if (item.type === 'consumable') {
@@ -239,10 +239,10 @@ export function resolveItemObtainDescription(item: InventoryItem): string {
 }
 
 export function resolveItemObtainUsageLines(item: InventoryItem): string[] {
-    if (item.image === '/images/icon/Gold.png') {
+    if (item.image === '/images/icon/Gold.webp') {
         return ['상점, 강화·제작, 입장료 등 골드 소비처에서 사용됩니다.'];
     }
-    if (item.image === '/images/icon/Zem.png') {
+    if (item.image === '/images/icon/Zem.webp') {
         return ['다이아 상점, 가방 슬롯 확장 등에서 사용됩니다.'];
     }
     if (item.type === 'material') {
@@ -376,7 +376,7 @@ export function buildInventoryItemPreviewForPurchase(params: {
         level: 0,
         isEquipped: false,
         createdAt: now,
-        image: imgParam || '/images/icon/Gold.png',
+        image: imgParam || '/images/icon/Gold.webp',
         grade: params.gradeHint !== undefined ? params.gradeHint : ItemGrade.Normal,
         stars: 0,
     };

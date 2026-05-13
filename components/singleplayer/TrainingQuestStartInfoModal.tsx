@@ -32,7 +32,7 @@ const TrainingQuestStartInfoModal: React.FC<TrainingQuestStartInfoModalProps> = 
     onConfirmStart,
 }) => {
     const missionMessage = START_MISSION_MESSAGE_BY_ID[mission.id] ?? '새로운 수련을 시작할 준비가 되었어요.';
-    const rewardIcon = mission.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png';
+    const rewardIcon = mission.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp';
     const rewardAlt = mission.rewardType === 'gold' ? '골드' : '다이아';
 
     return (

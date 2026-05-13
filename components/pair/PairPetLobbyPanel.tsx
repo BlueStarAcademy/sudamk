@@ -420,9 +420,9 @@ function PairPetShopSkuCard({
                 >
                     <div className="flex min-w-0 items-center justify-center gap-0.5 font-semibold tracking-tight sm:gap-1">
                         {isGold ? (
-                            <img src="/images/icon/Gold.png" alt="" className="h-3 w-3 shrink-0 drop-shadow-md sm:h-4 sm:w-4" />
+                            <img src="/images/icon/Gold.webp" alt="" className="h-3 w-3 shrink-0 drop-shadow-md sm:h-4 sm:w-4" />
                         ) : (
-                            <img src="/images/icon/Zem.png" alt="" className="h-3 w-3 shrink-0 drop-shadow-md sm:h-4 sm:w-4" />
+                            <img src="/images/icon/Zem.webp" alt="" className="h-3 w-3 shrink-0 drop-shadow-md sm:h-4 sm:w-4" />
                         )}
                         <span className="tabular-nums">
                             {isGold ? formatGoldAmountKoG(priceAmount) : formatWalletDiamonds(priceAmount)}
@@ -928,7 +928,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 >
                                     <span className="min-w-0 shrink truncate">즉시 완료</span>
                                     <span className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-cyan-300/35 bg-black/25 px-[clamp(0.12rem,0.55vmin,0.28rem)] py-0.5 tabular-nums">
-                                        <img src="/images/icon/Zem.png" alt="" className="h-[clamp(0.75rem,2.1vmin,0.9rem)] w-[clamp(0.75rem,2.1vmin,0.9rem)] shrink-0" />
+                                        <img src="/images/icon/Zem.webp" alt="" className="h-[clamp(0.75rem,2.1vmin,0.9rem)] w-[clamp(0.75rem,2.1vmin,0.9rem)] shrink-0" />
                                         <span>{instantDiamondCost}</span>
                                     </span>
                                 </Button>
@@ -1445,7 +1445,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                     }`}
                                                 >
                                                     <img
-                                                        src="/images/icon/Gold.png"
+                                                        src="/images/icon/Gold.webp"
                                                         alt=""
                                                         className={`object-contain ${useTapTrainingFlow ? 'h-5 w-5' : 'h-8 w-8'}`}
                                                         loading="lazy"
@@ -2546,7 +2546,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             <div className="mx-auto mt-4 flex max-w-[16rem] items-center justify-center gap-2 rounded-xl border border-cyan-400/35 bg-cyan-950/25 px-4 py-2.5">
                                                 <span className="text-xs font-semibold text-cyan-100/90">사용 다이아</span>
                                                 <span className="inline-flex items-center gap-1 rounded-lg border border-cyan-300/30 bg-black/30 px-2.5 py-1 tabular-nums">
-                                                    <img src="/images/icon/Zem.png" alt="" className="h-5 w-5 shrink-0" />
+                                                    <img src="/images/icon/Zem.webp" alt="" className="h-5 w-5 shrink-0" />
                                                     <span className="text-lg font-black text-cyan-50">{costM}</span>
                                                 </span>
                                             </div>
@@ -2608,7 +2608,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             <span>즉시 완료</span>
                                             {sessionM && !canClaimM && costM > 0 ? (
                                                 <span className="inline-flex items-center gap-0.5 rounded-md border border-white/25 bg-black/25 px-1.5 py-0.5 text-xs tabular-nums">
-                                                    <img src="/images/icon/Zem.png" alt="" className="h-3.5 w-3.5" />
+                                                    <img src="/images/icon/Zem.webp" alt="" className="h-3.5 w-3.5" />
                                                     {costM}
                                                 </span>
                                             ) : null}

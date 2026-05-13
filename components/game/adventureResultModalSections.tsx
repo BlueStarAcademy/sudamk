@@ -28,9 +28,9 @@ import AdventureKeyFragmentIcon from '../adventure/AdventureKeyFragmentIcon.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
 const ADVENTURE_DEFAULT_EQUIP_BOX_IMG =
-    CONSUMABLE_ITEMS.find((c) => c.name === '장비 상자 I')?.image ?? '/images/Box/EquipmentBox1.png';
+    CONSUMABLE_ITEMS.find((c) => c.name === '장비 상자 I')?.image ?? '/images/Box/EquipmentBox1.webp';
 const ADVENTURE_DEFAULT_MAT_BOX_IMG =
-    CONSUMABLE_ITEMS.find((c) => c.name === '재료 상자 I')?.image ?? '/images/Box/ResourceBox1.png';
+    CONSUMABLE_ITEMS.find((c) => c.name === '재료 상자 I')?.image ?? '/images/Box/ResourceBox1.webp';
 
 /** 모험 획득 보상: 한 줄 가로 배치, 넘치면 스크롤(미획득 칸 없음) */
 const ADVENTURE_REWARD_SCROLL_ROW_CLASS =
@@ -328,7 +328,7 @@ function GoldRollingPlaceholder({
             <div
                 className={`${RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS} ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'}`}
             >
-                <img src="/images/icon/Gold.png" alt="" className={imgClass} />
+                <img src="/images/icon/Gold.webp" alt="" className={imgClass} />
             </div>
             <VerticalReel rowPx={rowPx} children={[...decoys, finalNum]} />
         </div>

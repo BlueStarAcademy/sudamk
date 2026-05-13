@@ -198,7 +198,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
       <header className={`mb-4 flex flex-shrink-0 items-center justify-between rounded-xl border px-2.5 py-2 sm:px-3 sm:py-2.5 ${theme.headerCard} ${theme.glow}`}>
         <div className="flex-1">
           <button onClick={onBackToLobby} className="p-0 flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg transition-all duration-100 active:shadow-inner active:scale-95 active:translate-y-0.5">
-            <img src="/images/button/back.png" alt="Back" className="w-full h-full" />
+            <img src="/images/button/back.webp" alt="Back" className="w-full h-full" />
           </button>
         </div>
         <div className='flex-1 text-center flex items-center justify-center'>

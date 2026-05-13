@@ -3295,13 +3295,13 @@ const FinalRewardPanel: React.FC<{
                     if (br?.changeTicketGrants?.length) {
                         return br.changeTicketGrants.map(g => {
                             const mat = (MATERIAL_ITEMS as Record<string, { image?: string }>)[g.name];
-                            return { name: g.name, quantity: g.quantity, image: mat?.image || '/images/use/change2.png' };
+                            return { name: g.name, quantity: g.quantity, image: mat?.image || '/images/use/change2.webp' };
                         });
                     }
                     const n =
                         br?.changeTickets ?? DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[effectiveStageAttempt]?.changeTickets ?? 0;
                     if (n > 0 && hasAnyFinishedMatch) {
-                        return [{ name: '변경권', quantity: n, image: '/images/use/change2.png' }];
+                        return [{ name: '변경권', quantity: n, image: '/images/use/change2.webp' }];
                     }
                     return [];
                 })();
@@ -3334,12 +3334,12 @@ const FinalRewardPanel: React.FC<{
                     transcendent: 'border-2 border-teal-400/85',
                 };
                 const EQUIP_GRADE_IMAGE: Record<string, string> = {
-                    normal: '/images/equipments/normalbgi.png',
-                    uncommon: '/images/equipments/uncommonbgi.png',
-                    rare: '/images/equipments/rarebgi.png',
-                    epic: '/images/equipments/epicbgi.png',
-                    legendary: '/images/equipments/legendarybgi.png',
-                    mythic: '/images/equipments/mythicbgi.png',
+                    normal: '/images/equipments/normalbgi.webp',
+                    uncommon: '/images/equipments/uncommonbgi.webp',
+                    rare: '/images/equipments/rarebgi.webp',
+                    epic: '/images/equipments/epicbgi.webp',
+                    legendary: '/images/equipments/legendarybgi.webp',
+                    mythic: '/images/equipments/mythicbgi.webp',
                     transcendent: '/images/equipments/transcendentbgi.webp',
                 };
 
@@ -3357,7 +3357,7 @@ const FinalRewardPanel: React.FC<{
                                             : '획득 골드'
                                     }
                                 >
-                                    <img src="/images/icon/Gold.png" alt="골드" className="w-7 h-7 object-contain" loading="lazy" decoding="async" />
+                                    <img src="/images/icon/Gold.webp" alt="골드" className="w-7 h-7 object-contain" loading="lazy" decoding="async" />
                                     <span className="absolute -bottom-0.5 -right-0.5 text-[11px] font-bold text-yellow-100 bg-black/80 px-1 rounded-tl leading-tight shadow-sm">
                                         {formatGoldAmountKoG(goldAmount)}
                                     </span>
@@ -3436,7 +3436,7 @@ const FinalRewardPanel: React.FC<{
                         {/* 5) 월드챔피언십(레거시): 등급 드롭 전부 — 실제 장비 항목이 없을 때만 */}
                         {hasWorldEquipDropsList &&
                             accumulatedEquipmentDropsList.map((gradeKey: string, di: number) => {
-                                const img = EQUIP_GRADE_IMAGE[gradeKey] || '/images/equipments/normalbgi.png';
+                                const img = EQUIP_GRADE_IMAGE[gradeKey] || '/images/equipments/normalbgi.webp';
                                 const label = EQUIPMENT_GRADE_LABEL_KO[gradeKey] ?? gradeKey;
                                 const borderClass = EQUIP_GRADE_BORDER[gradeKey] || EQUIP_GRADE_BORDER.normal;
                                 return (
@@ -3473,14 +3473,14 @@ const FinalRewardPanel: React.FC<{
                             const row = it as { itemId: string; quantity?: number; min?: number; max?: number };
                             const itemName = row.itemId;
                             let src = '';
-                            if (itemName.includes('골드')) src = '/images/icon/Gold.png';
-                            else if (itemName.includes('다이아')) src = '/images/icon/Zem.png';
+                            if (itemName.includes('골드')) src = '/images/icon/Gold.webp';
+                            else if (itemName.includes('다이아')) src = '/images/icon/Zem.webp';
                             else {
                                 const mat = MATERIAL_ITEMS[itemName];
                                 if (mat?.image) src = mat.image;
                                 else {
                                     const box = CONSUMABLE_ITEMS.find((i) => i.name === itemName);
-                                    src = box?.image || '/images/Box/ResourceBox1.png';
+                                    src = box?.image || '/images/Box/ResourceBox1.webp';
                                 }
                             }
                             const hasRange = row.min != null && row.max != null;
@@ -3676,7 +3676,7 @@ const MatchBox: React.FC<{ match: Match; currentUser: UserWithStatus; tournament
                             {showTrophy && (
                                 <img 
                                     key={`trophy-${player.id}-${match.id}`}
-                                    src="/images/championship/Ranking.png" 
+                                    src="/images/championship/Ranking.webp" 
                                     alt="Trophy" 
                                     className={`flex-shrink-0 drop-shadow-lg ${compact ? 'w-4 h-4' : 'w-5 h-5'}`}
                                     loading="lazy"
@@ -3757,7 +3757,7 @@ const MatchBox: React.FC<{ match: Match; currentUser: UserWithStatus; tournament
                             {showTrophy && (
                                 <img 
                                     key={`trophy-${player.id}-${match.id}`}
-                                    src="/images/championship/Ranking.png" 
+                                    src="/images/championship/Ranking.webp" 
                                     alt="Trophy" 
                                     className="w-5 h-5 flex-shrink-0 drop-shadow-lg"
                                     loading="lazy"
@@ -4110,7 +4110,7 @@ const RoundRobinDisplay: React.FC<{
                                      {isWinner && (
                                          <img 
                                              key={`trophy-rr-${player.id}`}
-                                             src="/images/championship/Ranking.png" 
+                                             src="/images/championship/Ranking.webp" 
                                              alt="Trophy" 
                                              className={`flex-shrink-0 ${compact ? 'h-4 w-4' : 'h-6 w-6'}`}
                                              loading="lazy"

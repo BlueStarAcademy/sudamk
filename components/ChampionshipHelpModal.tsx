@@ -27,7 +27,7 @@ const ChampionshipHelpModal: React.FC<ChampionshipHelpModalProps> = ({ onClose, 
                     </div>
 
                     <div className="flex items-start gap-3 bg-gray-900/50 p-4 rounded-lg">
-                        <img src="/images/championship/Champ1.png" alt="동네바둑리그" className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
+                        <img src="/images/championship/Champ1.webp" alt="동네바둑리그" className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                         <div className="flex-1">
                             <h3 className="font-bold text-lg text-yellow-300 mb-2">동네바둑리그</h3>
                             <ul className="list-disc list-inside space-y-1 text-sm">
@@ -42,7 +42,7 @@ const ChampionshipHelpModal: React.FC<ChampionshipHelpModalProps> = ({ onClose, 
                     </div>
 
                     <div className="flex items-start gap-3 bg-gray-900/50 p-4 rounded-lg">
-                        <img src="/images/championship/Champ2.png" alt="전국바둑대회" className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
+                        <img src="/images/championship/Champ2.webp" alt="전국바둑대회" className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                         <div className="flex-1">
                             <h3 className="font-bold text-lg text-yellow-300 mb-2">전국바둑대회</h3>
                             <ul className="list-disc list-inside space-y-1 text-sm">
@@ -56,7 +56,7 @@ const ChampionshipHelpModal: React.FC<ChampionshipHelpModalProps> = ({ onClose, 
                     </div>
 
                     <div className="flex items-start gap-3 bg-gray-900/50 p-4 rounded-lg">
-                        <img src="/images/championship/Champ3.png" alt="월드챔피언십" className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
+                        <img src="/images/championship/Champ3.webp" alt="월드챔피언십" className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                         <div className="flex-1">
                             <h3 className="font-bold text-lg text-yellow-300 mb-2">월드챔피언십</h3>
                             <ul className="list-disc list-inside space-y-1 text-sm">

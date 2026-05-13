@@ -37,7 +37,7 @@ const GoldRangeSlot: React.FC<{ min: number; max: number; highlight?: 'boss' }> 
       aria-hidden
     >
       <img
-        src="/images/icon/Gold.png"
+        src="/images/icon/Gold.webp"
         alt=""
         className="h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 object-contain p-0.5"
       />
@@ -53,7 +53,7 @@ const GoldPointSlot: React.FC<{ amount: number; tone: 'win' | 'loss' }> = ({ amo
   return (
     <div className="flex flex-col items-center gap-0.5">
       <div className={`${GOLD_BOX_COMPACT} ${ring}`} aria-hidden>
-        <img src="/images/icon/Gold.png" alt="" className="h-7 w-7 object-contain p-0.5 sm:h-8 sm:w-8" />
+        <img src="/images/icon/Gold.webp" alt="" className="h-7 w-7 object-contain p-0.5 sm:h-8 sm:w-8" />
       </div>
       <span className="text-[0.7rem] font-bold tabular-nums text-amber-100 sm:text-xs">{formatGoldAmountKoG(amount)}</span>
     </div>
@@ -63,7 +63,7 @@ const GoldPointSlot: React.FC<{ amount: number; tone: 'win' | 'loss' }> = ({ amo
 const GoldPointCombinedSlot: React.FC<{ amount: number; bonusAmount?: number }> = ({ amount, bonusAmount }) => (
   <div className="flex flex-col items-center gap-0.5">
     <div className={`${GOLD_BOX_COMPACT} ring-1 ring-emerald-400/35`} aria-hidden>
-      <img src="/images/icon/Gold.png" alt="" className="h-7 w-7 object-contain p-0.5 sm:h-8 sm:w-8" />
+      <img src="/images/icon/Gold.webp" alt="" className="h-7 w-7 object-contain p-0.5 sm:h-8 sm:w-8" />
     </div>
     <span className="whitespace-nowrap text-[0.7rem] font-bold tabular-nums text-amber-100 sm:text-xs">
       {formatGoldAmountKoG(amount)}
@@ -318,21 +318,21 @@ export const AiPregameRewardVisualStrip: React.FC<{
         case 'gold_range':
           return {
             key: `gr-${idx}`,
-            image: '/images/icon/Gold.png',
+            image: '/images/icon/Gold.webp',
             isExp: false,
             line: formatGoldRange(slot.min, slot.max),
           };
         case 'gold_point':
           return {
             key: `gp-${idx}`,
-            image: '/images/icon/Gold.png',
+            image: '/images/icon/Gold.webp',
             isExp: false,
             line: formatGoldAmountKoG(slot.amount),
           };
         case 'gold_compact_total':
           return {
             key: `gpc-${idx}`,
-            image: '/images/icon/Gold.png',
+            image: '/images/icon/Gold.webp',
             isExp: false,
             line: `${formatGoldAmountKoG(slot.amount)}${slot.bonusAmount != null && slot.bonusAmount > 0 ? `(+${formatGoldAmountKoG(slot.bonusAmount)})` : ''}`,
           };

@@ -8,22 +8,22 @@ import ResourceActionButton from '../ui/ResourceActionButton';
 
 // This is the same detailed item display used in the EnhancementView
 const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; }> = {
-    normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.png' },
-    uncommon: { name: '고급', color: 'text-green-400', background: '/images/equipments/uncommonbgi.png' },
-    rare: { name: '희귀', color: 'text-blue-400', background: '/images/equipments/rarebgi.png' },
-    epic: { name: '에픽', color: 'text-purple-400', background: '/images/equipments/epicbgi.png' },
-    legendary: { name: '전설', color: 'text-red-500', background: '/images/equipments/legendarybgi.png' },
-    mythic: { name: '신화', color: 'text-orange-400', background: '/images/equipments/mythicbgi.png' },
+    normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
+    uncommon: { name: '고급', color: 'text-green-400', background: '/images/equipments/uncommonbgi.webp' },
+    rare: { name: '희귀', color: 'text-blue-400', background: '/images/equipments/rarebgi.webp' },
+    epic: { name: '에픽', color: 'text-purple-400', background: '/images/equipments/epicbgi.webp' },
+    legendary: { name: '전설', color: 'text-red-500', background: '/images/equipments/legendarybgi.webp' },
+    mythic: { name: '신화', color: 'text-orange-400', background: '/images/equipments/mythicbgi.webp' },
     transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
 const renderStarDisplay = (stars: number) => {
     if (stars === 0) return null;
     let starImage = '';
-    if (stars >= 10) starImage = '/images/equipments/Star4.png';
-    else if (stars >= 7) starImage = '/images/equipments/Star3.png';
-    else if (stars >= 4) starImage = '/images/equipments/Star2.png';
-    else if (stars >= 1) starImage = '/images/equipments/Star1.png';
+    if (stars >= 10) starImage = '/images/equipments/Star4.webp';
+    else if (stars >= 7) starImage = '/images/equipments/Star3.webp';
+    else if (stars >= 4) starImage = '/images/equipments/Star2.webp';
+    else if (stars >= 1) starImage = '/images/equipments/Star1.webp';
 
     return (
         <div
@@ -108,7 +108,7 @@ const CombinationResultModal: React.FC<CombinationResultModalProps> = ({ result,
                 
                 <div className="mt-4 bg-gray-900/50 p-4 rounded-lg text-lg w-full max-w-xs">
                     <div className="flex justify-between items-center">
-                        <span className="flex items-center gap-1"><img src="/images/equipments/moru.png" alt="대장간 경험치" className="w-5 h-5" /> 대장간 경험치:</span>
+                        <span className="flex items-center gap-1"><img src="/images/equipments/moru.webp" alt="대장간 경험치" className="w-5 h-5" /> 대장간 경험치:</span>
                         <span className="font-bold text-orange-400">+{xpGained.toLocaleString()}</span>
                     </div>
                 </div>

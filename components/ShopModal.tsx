@@ -78,7 +78,7 @@ interface MiscShopProduct {
     packageVisual?: MiscPackageVisual;
 }
 
-const SHOP_DIAMOND_ICON = '/images/icon/Zem.png';
+const SHOP_DIAMOND_ICON = '/images/icon/Zem.webp';
 
 /** 현금 다이아 탭 — 합계는 그대로, “더 주는” 느낌으로 구간만 시각 분할 */
 function getCashDiamondShopSegments(total: number): readonly [number, number] | null {
@@ -275,7 +275,7 @@ const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void
                 >
                     <div className="flex w-full min-w-0 flex-col items-center justify-center gap-0.5">
                         <div className="flex items-center justify-center gap-2 text-sm sm:text-base">
-                            <img src="/images/icon/Zem.png" alt="다이아" className="h-5 w-5 shrink-0 drop-shadow-md" />
+                            <img src="/images/icon/Zem.webp" alt="다이아" className="h-5 w-5 shrink-0 drop-shadow-md" />
                             <span className="tabular-nums">{cost.toLocaleString()}</span>
                         </div>
                         <span className="px-1 text-center text-[10px] leading-tight text-slate-800/95 tracking-wide">
@@ -390,9 +390,9 @@ const ShopItemCard: React.FC<{
     const isGold = !!price.gold;
     const priceAmount = price.gold || price.diamonds || 0;
     const PriceIcon = isGold ? (
-        <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 shrink-0 drop-shadow-md sm:h-5 sm:w-5" />
+        <img src="/images/icon/Gold.webp" alt="골드" className="h-4 w-4 shrink-0 drop-shadow-md sm:h-5 sm:w-5" />
     ) : (
-        <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4 shrink-0 drop-shadow-md sm:h-5 sm:w-5" />
+        <img src="/images/icon/Zem.webp" alt="다이아" className="h-4 w-4 shrink-0 drop-shadow-md sm:h-5 sm:w-5" />
     );
     const refinedDescription = formatDescription(description);
     const [showDescription, setShowDescription] = useState(false);
@@ -1124,12 +1124,12 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         ? 'grid grid-cols-2 gap-1.5 min-[390px]:grid-cols-3 min-[390px]:gap-2 items-stretch [&>*]:min-h-0'
         : 'grid grid-cols-4 gap-3 items-stretch [&>*]:min-h-0';
     const materialItems = [
-        { itemId: "material_box_1", name: "재료 상자 I", description: "하급~상급강화석 5개", price: { gold: 500 }, image: "/images/Box/ResourceBox1.png", type: 'material' as const },
-        { itemId: "material_box_2", name: "재료 상자 II", description: "하급~상급강화석 5개", price: { gold: 1000 }, image: "/images/Box/ResourceBox2.png", type: 'material' as const },
-        { itemId: "material_box_3", name: "재료 상자 III", description: "하급~상급강화석 5개", price: { gold: 3000 }, image: "/images/Box/ResourceBox3.png", type: 'material' as const },
-        { itemId: "material_box_4", name: "재료 상자 IV", description: "중급~최상급강화석 5개", price: { gold: 5000 }, image: "/images/Box/ResourceBox4.png", type: 'material' as const },
-        { itemId: "material_box_5", name: "재료 상자 V", description: "상급~신비의강화석 5개", price: { gold: 10000 }, image: "/images/Box/ResourceBox5.png", type: 'material' as const },
-        { itemId: "material_box_6", name: "재료 상자 VI", description: "상급~신비의강화석 5개", price: { diamonds: 100 }, image: "/images/Box/ResourceBox6.png", type: 'material' as const },
+        { itemId: "material_box_1", name: "재료 상자 I", description: "하급~상급강화석 5개", price: { gold: 500 }, image: "/images/Box/ResourceBox1.webp", type: 'material' as const },
+        { itemId: "material_box_2", name: "재료 상자 II", description: "하급~상급강화석 5개", price: { gold: 1000 }, image: "/images/Box/ResourceBox2.webp", type: 'material' as const },
+        { itemId: "material_box_3", name: "재료 상자 III", description: "하급~상급강화석 5개", price: { gold: 3000 }, image: "/images/Box/ResourceBox3.webp", type: 'material' as const },
+        { itemId: "material_box_4", name: "재료 상자 IV", description: "중급~최상급강화석 5개", price: { gold: 5000 }, image: "/images/Box/ResourceBox4.webp", type: 'material' as const },
+        { itemId: "material_box_5", name: "재료 상자 V", description: "상급~신비의강화석 5개", price: { gold: 10000 }, image: "/images/Box/ResourceBox5.webp", type: 'material' as const },
+        { itemId: "material_box_6", name: "재료 상자 VI", description: "상급~신비의강화석 5개", price: { diamonds: 100 }, image: "/images/Box/ResourceBox6.webp", type: 'material' as const },
         {
             itemId: 'equipment_unbind_ticket',
             name: '귀속 해제권',
@@ -1148,9 +1148,9 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
             dailyLimit: 1,
             type: 'material' as const,
         },
-        { itemId: 'option_type_change_ticket', name: "옵션 종류 변경권", description: "장비의 주옵션, 부옵션, 특수옵션 중 하나를 다른 종류로 변경", price: { gold: 2000 }, image: "/images/use/change1.png", dailyLimit: 3, type: 'material' as const },
-        { itemId: 'option_value_change_ticket', name: "옵션 수치 변경권", description: "장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경", price: { gold: 500 }, image: "/images/use/change2.png", dailyLimit: 10, type: 'material' as const },
-        { itemId: 'mythic_option_change_ticket', name: "스페셜 옵션 변경권", description: "신화 또는 초월 장비의 스페셜 옵션을 다른 스페셜 옵션으로 변경", price: { gold: 500 }, image: "/images/use/change3.png", dailyLimit: 10, type: 'material' as const },
+        { itemId: 'option_type_change_ticket', name: "옵션 종류 변경권", description: "장비의 주옵션, 부옵션, 특수옵션 중 하나를 다른 종류로 변경", price: { gold: 2000 }, image: "/images/use/change1.webp", dailyLimit: 3, type: 'material' as const },
+        { itemId: 'option_value_change_ticket', name: "옵션 수치 변경권", description: "장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경", price: { gold: 500 }, image: "/images/use/change2.webp", dailyLimit: 10, type: 'material' as const },
+        { itemId: 'mythic_option_change_ticket', name: "스페셜 옵션 변경권", description: "신화 또는 초월 장비의 스페셜 옵션을 다른 스페셜 옵션으로 변경", price: { gold: 500 }, image: "/images/use/change3.webp", dailyLimit: 10, type: 'material' as const },
     ];
     const vipProducts: MiscShopProduct[] = [
         {
@@ -1233,13 +1233,13 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                 equipmentBonusGradeWord: '에픽',
                 boxes: [
                     {
-                        imageSrc: '/images/Box/EquipmentBox5.png',
+                        imageSrc: '/images/Box/EquipmentBox5.webp',
                         quantity: 1,
                         alt: '장비 상자 V',
                         displayName: '장비 상자 V',
                     },
                     {
-                        imageSrc: '/images/Box/ResourceBox6.png',
+                        imageSrc: '/images/Box/ResourceBox6.webp',
                         quantity: 1,
                         alt: '재료 상자 VI',
                         displayName: '재료 상자 VI',
@@ -1257,13 +1257,13 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                 equipmentBonusGradeWord: '전설',
                 boxes: [
                     {
-                        imageSrc: '/images/Box/EquipmentBox5.png',
+                        imageSrc: '/images/Box/EquipmentBox5.webp',
                         quantity: 2,
                         alt: '장비 상자 V',
                         displayName: '장비 상자 V',
                     },
                     {
-                        imageSrc: '/images/Box/ResourceBox6.png',
+                        imageSrc: '/images/Box/ResourceBox6.webp',
                         quantity: 2,
                         alt: '재료 상자 VI',
                         displayName: '재료 상자 VI',
@@ -1281,13 +1281,13 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                 equipmentBonusGradeWord: '신화',
                 boxes: [
                     {
-                        imageSrc: '/images/Box/EquipmentBox6.png',
+                        imageSrc: '/images/Box/EquipmentBox6.webp',
                         quantity: 2,
                         alt: '장비 상자 VI',
                         displayName: '장비 상자 VI',
                     },
                     {
-                        imageSrc: '/images/Box/ResourceBox6.png',
+                        imageSrc: '/images/Box/ResourceBox6.webp',
                         quantity: 5,
                         alt: '재료 상자 VI',
                         displayName: '재료 상자 VI',
@@ -1406,12 +1406,12 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
 
     const renderContent = () => {
         const equipmentItems = [
-            { itemId: 'equipment_box_1', name: "장비 상자 I", description: "일반~희귀 등급 장비", price: { gold: 500 }, image: "/images/Box/EquipmentBox1.png", type: 'equipment' as const },
-            { itemId: 'equipment_box_2', name: "장비 상자 II", description: "일반~에픽 등급 장비", price: { gold: 1500 }, image: "/images/Box/EquipmentBox2.png", type: 'equipment' as const },
-            { itemId: 'equipment_box_3', name: "장비 상자 III", description: "고급~전설 등급 장비", price: { gold: 5000 }, image: "/images/Box/EquipmentBox3.png", type: 'equipment' as const },
-            { itemId: 'equipment_box_4', name: "장비 상자 IV", description: "희귀~신화 등급 장비", price: { gold: 10000 }, image: "/images/Box/EquipmentBox4.png", type: 'equipment' as const },
-            { itemId: 'equipment_box_5', name: "장비 상자 V", description: "에픽~신화 등급 장비", price: { diamonds: 100 }, image: "/images/Box/EquipmentBox5.png", type: 'equipment' as const },
-            { itemId: 'equipment_box_6', name: "장비 상자 VI", description: "전설~신화 등급 장비", price: { diamonds: 500 }, image: "/images/Box/EquipmentBox6.png", type: 'equipment' as const },
+            { itemId: 'equipment_box_1', name: "장비 상자 I", description: "일반~희귀 등급 장비", price: { gold: 500 }, image: "/images/Box/EquipmentBox1.webp", type: 'equipment' as const },
+            { itemId: 'equipment_box_2', name: "장비 상자 II", description: "일반~에픽 등급 장비", price: { gold: 1500 }, image: "/images/Box/EquipmentBox2.webp", type: 'equipment' as const },
+            { itemId: 'equipment_box_3', name: "장비 상자 III", description: "고급~전설 등급 장비", price: { gold: 5000 }, image: "/images/Box/EquipmentBox3.webp", type: 'equipment' as const },
+            { itemId: 'equipment_box_4', name: "장비 상자 IV", description: "희귀~신화 등급 장비", price: { gold: 10000 }, image: "/images/Box/EquipmentBox4.webp", type: 'equipment' as const },
+            { itemId: 'equipment_box_5', name: "장비 상자 V", description: "에픽~신화 등급 장비", price: { diamonds: 100 }, image: "/images/Box/EquipmentBox5.webp", type: 'equipment' as const },
+            { itemId: 'equipment_box_6', name: "장비 상자 VI", description: "전설~신화 등급 장비", price: { diamonds: 500 }, image: "/images/Box/EquipmentBox6.webp", type: 'equipment' as const },
         ];
 
         switch (activeTab) {
@@ -1504,9 +1504,9 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
             case 'consumables':
             default: {
                 const baseConsumableItems = [
-                    { itemId: 'condition_potion_small', name: "컨디션회복제(소)", description: "긴장감을 완화시켜주는 컨디션 회복제", price: { gold: 100 }, image: "/images/use/con1.png", dailyLimit: 3, type: 'consumable' as const },
-                    { itemId: 'condition_potion_medium', name: "컨디션회복제(중)", description: "머리가 맑아지는 느낌의 컨디션 회복제", price: { gold: 150 }, image: "/images/use/con2.png", dailyLimit: 3, type: 'consumable' as const },
-                    { itemId: 'condition_potion_large', name: "컨디션회복제(대)", description: "오늘의 대회를 성공적으로 치를 것 같은 컨디션 회복제", price: { gold: 200 }, image: "/images/use/con3.png", dailyLimit: 3, type: 'consumable' as const },
+                    { itemId: 'condition_potion_small', name: "컨디션회복제(소)", description: "긴장감을 완화시켜주는 컨디션 회복제", price: { gold: 100 }, image: "/images/use/con1.webp", dailyLimit: 3, type: 'consumable' as const },
+                    { itemId: 'condition_potion_medium', name: "컨디션회복제(중)", description: "머리가 맑아지는 느낌의 컨디션 회복제", price: { gold: 150 }, image: "/images/use/con2.webp", dailyLimit: 3, type: 'consumable' as const },
+                    { itemId: 'condition_potion_large', name: "컨디션회복제(대)", description: "오늘의 대회를 성공적으로 치를 것 같은 컨디션 회복제", price: { gold: 200 }, image: "/images/use/con3.webp", dailyLimit: 3, type: 'consumable' as const },
                 ];
                 // 행동력 회복제: 품목별 일일 1개, 고정 골드가 (ShopItemCard)
                 const ACTION_POINT_ITEMS = [
@@ -1526,7 +1526,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                         name,
                         description,
                         price: { gold: nextPrice },
-                        image: '/images/icon/lightning.png',
+                        image: '/images/icon/lightning.webp',
                         dailyLimit,
                         type: 'consumable' as const,
                         badge,

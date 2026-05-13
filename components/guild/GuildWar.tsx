@@ -44,17 +44,17 @@ import { GuildWarUnifiedScoreboard } from './GuildWarUnifiedScoreboard.js';
 
 const GUILD_WAR_PERSONAL_DAILY_LIMIT = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS;
 
-const GUILD_WAR_TICKET_IMG = '/images/guild/warticket.png';
-const GUILD_WAR_BOARD_IMG = '/images/guild/guildwar/board.png';
-const GUILD_WAR_BLUE_FLAG = '/images/guild/guildwar/blueflag.png';
-const GUILD_WAR_RED_FLAG = '/images/guild/guildwar/redflag.png';
-const GUILD_WAR_STAR_IMG = '/images/guild/guildwar/clearstar.png';
-const GUILD_WAR_EMPTY_STAR_IMG = '/images/guild/guildwar/emptystar.png';
-const GUILD_WAR_BLUE_TEAM_BANNER = '/images/guild/guildwar/blueteam.png';
-const GUILD_WAR_RED_TEAM_BANNER = '/images/guild/guildwar/redteam.png';
-const GUILD_WAR_MISSILE_ICON = '/images/button/missile.png';
-const GUILD_WAR_HIDDEN_ICON = '/images/button/hidden.png';
-const GUILD_WAR_SCAN_ICON = '/images/button/scan.png';
+const GUILD_WAR_TICKET_IMG = '/images/guild/warticket.webp';
+const GUILD_WAR_BOARD_IMG = '/images/guild/guildwar/board.webp';
+const GUILD_WAR_BLUE_FLAG = '/images/guild/guildwar/blueflag.webp';
+const GUILD_WAR_RED_FLAG = '/images/guild/guildwar/redflag.webp';
+const GUILD_WAR_STAR_IMG = '/images/guild/guildwar/clearstar.webp';
+const GUILD_WAR_EMPTY_STAR_IMG = '/images/guild/guildwar/emptystar.webp';
+const GUILD_WAR_BLUE_TEAM_BANNER = '/images/guild/guildwar/blueteam.webp';
+const GUILD_WAR_RED_TEAM_BANNER = '/images/guild/guildwar/redteam.webp';
+const GUILD_WAR_MISSILE_ICON = '/images/button/missile.webp';
+const GUILD_WAR_HIDDEN_ICON = '/images/button/hidden.webp';
+const GUILD_WAR_SCAN_ICON = '/images/button/scan.webp';
 
 /** 서버 `GUILD_WAR_UPDATE` 브로드캐스트 → 대기실 즉시 GET_GUILD_WAR_DATA (hooks/useApp.ts에서 dispatch) */
 const GUILD_WAR_LOBBY_REFRESH_EVENT = 'sudamr:guild-war-update';
@@ -147,9 +147,9 @@ function guildWarBotSeededDisplay(warId: string, boardId: string, botUserId: str
 
 function resolveHomeStyleAvatarUrl(avatarId: string | null | undefined): string {
     if (avatarId == null || avatarId === '' || avatarId === 'default') {
-        return '/images/profiles/profile1.png';
+        return '/images/profiles/profile1.webp';
     }
-    return AVATAR_POOL.find((a) => a.id === avatarId)?.url || '/images/profiles/profile1.png';
+    return AVATAR_POOL.find((a) => a.id === avatarId)?.url || '/images/profiles/profile1.webp';
 }
 
 function isGuildWarBotOccupierUserId(uid: string): boolean {
@@ -509,7 +509,7 @@ const GuildWar = () => {
                         const user = userMap.get(userId) as any;
                         if (user) {
                             const level = Number(user.userLevel ?? 0) || 0;
-                            const avatarUrl = AVATAR_POOL.find((a: any) => a.id === user.avatarId)?.url || '/images/guild/profile/icon1.png';
+                            const avatarUrl = AVATAR_POOL.find((a: any) => a.id === user.avatarId)?.url || '/images/guild/profile/icon1.webp';
                             myChallengers.push({ name: user.nickname, board: boardName, level, avatarUrl });
                         }
                     });
@@ -518,7 +518,7 @@ const GuildWar = () => {
                         const user = userMap.get(userId) as any;
                         if (user) {
                             const level = Number(user.userLevel ?? 0) || 0;
-                            const avatarUrl = AVATAR_POOL.find((a: any) => a.id === user.avatarId)?.url || '/images/guild/profile/icon1.png';
+                            const avatarUrl = AVATAR_POOL.find((a: any) => a.id === user.avatarId)?.url || '/images/guild/profile/icon1.webp';
                             opponentChallengers.push({ name: user.nickname, board: boardName, level, avatarUrl });
                         }
                     });
@@ -698,16 +698,16 @@ const GuildWar = () => {
     const StarDisplay = ({ count, total = 3, size = 'w-6 h-6' }: { count: number, total?: number, size?: string }) => {
         const stars = [];
         for (let i = 0; i < count; i++) {
-            stars.push(<img key={`filled-${i}`} src="/images/guild/guildwar/clearstar.png" alt="filled star" className={size} />);
+            stars.push(<img key={`filled-${i}`} src="/images/guild/guildwar/clearstar.webp" alt="filled star" className={size} />);
         }
         for (let i = count; i < total; i++) {
-            stars.push(<img key={`empty-${i}`} src="/images/guild/guildwar/emptystar.png" alt="empty star" className={size} />);
+            stars.push(<img key={`empty-${i}`} src="/images/guild/guildwar/emptystar.webp" alt="empty star" className={size} />);
         }
         return <div className="flex justify-center">{stars}</div>;
     };
     
     const warMapBgClass = `flex min-h-full w-full flex-col bg-tertiary bg-cover bg-center text-primary ${isNativeMobile ? 'p-2' : 'p-4'}`;
-    const warMapBgStyle = { backgroundImage: "url('/images/guild/guildwar/warmap.png')" } as const;
+    const warMapBgStyle = { backgroundImage: "url('/images/guild/guildwar/warmap.webp')" } as const;
 
     if (!activeWar || !myGuild || !opponentGuild) {
         if (effectiveGuildId && warListLoading) {
@@ -1005,7 +1005,7 @@ const GuildWar = () => {
                                         <Avatar
                                             userId={board.occupierNickname}
                                             userName={board.occupierNickname}
-                                            avatarUrl={board.occupierAvatarUrl || '/images/profiles/profile1.png'}
+                                            avatarUrl={board.occupierAvatarUrl || '/images/profiles/profile1.webp'}
                                             borderUrl={
                                                 BORDER_POOL.find((b) => b.id === (board.occupierBorderId || 'default'))?.url ?? '#FFFFFF'
                                             }
@@ -1124,7 +1124,7 @@ const GuildWar = () => {
                                                 </div>
                                             </div>
                                             <div className="col-span-2 flex items-center gap-2.5 rounded-lg border border-slate-600/40 bg-slate-900/55 px-2 py-1.5 sm:px-2.5 sm:py-2">
-                                                <img src="/images/icon/timer.png" alt="" className="h-7 w-7 shrink-0 rounded-md bg-black/20 object-contain p-0.5 sm:h-8 sm:w-8" />
+                                                <img src="/images/icon/timer.webp" alt="" className="h-7 w-7 shrink-0 rounded-md bg-black/20 object-contain p-0.5 sm:h-8 sm:w-8" />
                                                 <div className="grid min-w-0 flex-1 grid-cols-2 gap-3">
                                                     <div className="min-w-0">
                                                         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-xs">턴 제한</p>
@@ -1367,7 +1367,7 @@ const GuildWar = () => {
                                     </div>
                                 ) : null}
                                 <img
-                                    src={visualBlueGuild.icon || visualBlueGuild.emblem || '/images/guild/profile/icon1.png'}
+                                    src={visualBlueGuild.icon || visualBlueGuild.emblem || '/images/guild/profile/icon1.webp'}
                                     alt=""
                                     className="h-10 w-10 shrink-0 rounded-md object-contain ring-1 ring-blue-400/40"
                                 />
@@ -1384,7 +1384,7 @@ const GuildWar = () => {
                             </div>
                             <div className="flex min-w-0 flex-1 flex-col items-center">
                                 <img
-                                    src={visualRedGuild.icon || visualRedGuild.emblem || '/images/guild/profile/icon1.png'}
+                                    src={visualRedGuild.icon || visualRedGuild.emblem || '/images/guild/profile/icon1.webp'}
                                     alt=""
                                     className="h-10 w-10 shrink-0 rounded-md object-contain ring-1 ring-red-400/40"
                                 />
@@ -1444,12 +1444,12 @@ const GuildWar = () => {
                                 <div className="flex w-[9.25rem] shrink-0 flex-col items-center">
                                     <div className="relative h-40 w-[9.25rem]">
                                         <img
-                                            src="/images/guild/guildwar/blueteam.png"
+                                            src="/images/guild/guildwar/blueteam.webp"
                                             alt="Blue Team Flag"
                                             className="h-full w-full object-contain object-bottom"
                                         />
                                         <img
-                                            src={visualBlueGuild.icon || visualBlueGuild.emblem || '/images/guild/profile/icon1.png'}
+                                            src={visualBlueGuild.icon || visualBlueGuild.emblem || '/images/guild/profile/icon1.webp'}
                                             alt="청팀 길드"
                                             className="absolute left-1/2 top-[42px] h-12 w-12 max-w-[44%] -translate-x-1/2 object-contain drop-shadow-md"
                                         />
@@ -1473,12 +1473,12 @@ const GuildWar = () => {
                                 <div className="flex w-[9.25rem] shrink-0 flex-col items-center">
                                     <div className="relative h-40 w-[9.25rem]">
                                         <img
-                                            src="/images/guild/guildwar/redteam.png"
+                                            src="/images/guild/guildwar/redteam.webp"
                                             alt="Red Team Flag"
                                             className="h-full w-full object-contain object-bottom"
                                         />
                                         <img
-                                            src={visualRedGuild.icon || visualRedGuild.emblem || '/images/guild/profile/icon1.png'}
+                                            src={visualRedGuild.icon || visualRedGuild.emblem || '/images/guild/profile/icon1.webp'}
                                             alt="홍팀 길드"
                                             className="absolute left-1/2 top-[42px] h-12 w-12 max-w-[44%] -translate-x-1/2 object-contain drop-shadow-md"
                                         />

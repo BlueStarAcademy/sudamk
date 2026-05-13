@@ -496,7 +496,7 @@ const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boo
                 <image href={player === Player.Black ? BLACK_HIDDEN_STONE_IMG : WHITE_HIDDEN_STONE_IMG} x={cx - specialImageOffset} y={cy - specialImageOffset} width={specialImageSize} height={specialImageSize} />
             )}
             {isPatternStone && (
-                <image href={player === Player.Black ? '/images/single/BlackDouble.png' : '/images/single/WhiteDouble.png'} x={cx - specialImageOffset} y={cy - specialImageOffset} width={specialImageSize} height={specialImageSize} />
+                <image href={player === Player.Black ? '/images/single/BlackDouble.webp' : '/images/single/WhiteDouble.webp'} x={cx - specialImageOffset} y={cy - specialImageOffset} width={specialImageSize} height={specialImageSize} />
             )}
             {isNewlyRevealed && (
                 <circle

@@ -140,8 +140,8 @@ const ResourceDisplay = memo<{
 });
 ResourceDisplay.displayName = 'ResourceDisplay';
 
-const GUILD_BOSS_TICKET_IMG = '/images/guild/ticket.png';
-const GUILD_WAR_TICKET_IMG = '/images/guild/warticket.png';
+const GUILD_BOSS_TICKET_IMG = '/images/guild/ticket.webp';
+const GUILD_WAR_TICKET_IMG = '/images/guild/warticket.webp';
 
 /** 길드 보스·길드전: 남은 횟수 / 일일 최대 (길드홈 패널과 동일 의미) */
 const GuildTicketPill = memo<{
@@ -482,7 +482,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         ) : null}
                         {diamondPackageRoman ? (
                             <div className="flex shrink-0 items-center gap-0.5 rounded-full border border-cyan-400/45 bg-gradient-to-r from-cyan-600/35 to-sky-500/25 px-1.5 py-0.5 text-[10px] font-extrabold tabular-nums tracking-wide text-cyan-100 shadow-[0_8px_20px_-14px_rgba(34,211,238,0.55)]">
-                                <img src="/images/icon/Zem.png" alt="" className="h-3 w-3 shrink-0 object-contain" />
+                                <img src="/images/icon/Zem.webp" alt="" className="h-3 w-3 shrink-0 object-contain" />
                                 <span>{diamondPackageRoman}</span>
                             </div>
                         ) : null}
@@ -502,7 +502,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             ) : null}
                             {diamondPackageRoman ? (
                                 <span className="flex items-center gap-0.5 rounded-full border border-cyan-400/45 bg-gradient-to-r from-cyan-600/40 to-sky-500/25 px-1.5 py-0.5 text-[10px] font-extrabold tabular-nums tracking-wide text-cyan-100 shadow-[0_8px_20px_-14px_rgba(34,211,238,0.55)]">
-                                    <img src="/images/icon/Zem.png" alt="" className="h-3.5 w-3.5 shrink-0 object-contain" />
+                                    <img src="/images/icon/Zem.webp" alt="" className="h-3.5 w-3.5 shrink-0 object-contain" />
                                     {diamondPackageRoman}
                                 </span>
                             ) : null}
@@ -724,7 +724,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         title="우편함"
                     >
                         <img
-                            src="/images/icon/mail.png"
+                            src="/images/icon/mail.webp"
                             alt="우편함"
                             className={`object-contain ${
                                 isMobile ? MOBILE_HEADER_MAIL_ICON : dense ? 'h-4 w-4' : 'h-6 w-6'

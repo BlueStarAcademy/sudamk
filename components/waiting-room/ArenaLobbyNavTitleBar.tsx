@@ -232,7 +232,7 @@ export const ArenaLobbyNavTitleBar: React.FC<TitleBarProps> = ({
                     className="relative z-[1] shrink-0 transition-transform active:scale-90 hover:drop-shadow-lg"
                     aria-label="뒤로가기"
                 >
-                    <img src="/images/button/back.png" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
+                    <img src="/images/button/back.webp" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
                 </button>
                 <h1 className={`min-w-0 flex-1 truncate ${titleHeadingClass}`}>{arenaTitle[kind]}</h1>
                 {embeddedHandlers ? (

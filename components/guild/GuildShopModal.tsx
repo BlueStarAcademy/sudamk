@@ -19,12 +19,12 @@ interface GuildShopModalProps {
 type ShopTab = 'equipment' | 'material' | 'consumable';
 
 const gradeBackgrounds: Record<ItemGrade, string> = {
-    normal: '/images/equipments/normalbgi.png',
-    uncommon: '/images/equipments/uncommonbgi.png',
-    rare: '/images/equipments/rarebgi.png',
-    epic: '/images/equipments/epicbgi.png',
-    legendary: '/images/equipments/legendarybgi.png',
-    mythic: '/images/equipments/mythicbgi.png',
+    normal: '/images/equipments/normalbgi.webp',
+    uncommon: '/images/equipments/uncommonbgi.webp',
+    rare: '/images/equipments/rarebgi.webp',
+    epic: '/images/equipments/epicbgi.webp',
+    legendary: '/images/equipments/legendarybgi.webp',
+    mythic: '/images/equipments/mythicbgi.webp',
     transcendent: '/images/equipments/transcendentbgi.webp',
 };
 
@@ -98,7 +98,7 @@ const ShopItemCard: React.FC<{ item: GuildShopItem; isNativeMobile: boolean; onS
                 >
                     <div className="flex flex-col items-center justify-center gap-0.5">
                         <div className={`flex items-center justify-center font-semibold tracking-wide ${isNativeMobile ? 'gap-1 text-[13px]' : 'gap-1.5 text-xs'}`}>
-                            <img src="/images/guild/tokken.png" alt="길드 코인" className={isNativeMobile ? 'w-4 h-4 drop-shadow-md' : 'w-5 h-5 drop-shadow-md'} />
+                            <img src="/images/guild/tokken.webp" alt="길드 코인" className={isNativeMobile ? 'w-4 h-4 drop-shadow-md' : 'w-5 h-5 drop-shadow-md'} />
                             <span>{item.cost.toLocaleString()}</span>
                         </div>
                         <span className={`text-slate-700/90 tracking-wide ${isNativeMobile ? 'text-[10px]' : 'text-[9px]'}`}>
@@ -165,7 +165,7 @@ const GuildShopModal: React.FC<GuildShopModalProps> = ({ onClose, isTopmost }) =
                         <div className="relative z-10">
                             <p className={`text-amber-200/80 font-semibold ${isNativeMobile ? 'text-[9px]' : 'text-[10px] mb-0.5'}`}>길드 코인</p>
                             <p className={`font-bold text-yellow-300 drop-shadow-lg flex items-center justify-center gap-1 tabular-nums ${isNativeMobile ? 'text-sm' : 'text-lg'}`}>
-                                <img src="/images/guild/tokken.png" alt="Guild Coin" className={isNativeMobile ? 'w-4 h-4 drop-shadow-md' : 'w-5 h-5 drop-shadow-md'} />
+                                <img src="/images/guild/tokken.webp" alt="Guild Coin" className={isNativeMobile ? 'w-4 h-4 drop-shadow-md' : 'w-5 h-5 drop-shadow-md'} />
                                 {(currentUserWithStatus?.guildCoins ?? 0).toLocaleString()}
                             </p>
                         </div>

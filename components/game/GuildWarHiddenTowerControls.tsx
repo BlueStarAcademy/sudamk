@@ -261,7 +261,7 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                         <div className="flex min-h-0 w-full flex-1 items-center justify-center">
                             <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-3">
                                 <div className={colClass}>
-                                    <ImageButton src="/images/button/giveup.png" alt="기권" onClick={handleForfeit} disabled={gameStatus === 'scoring'} title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'} compact={isMobile} />
+                                    <ImageButton src="/images/button/giveup.webp" alt="기권" onClick={handleForfeit} disabled={gameStatus === 'scoring'} title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'} compact={isMobile} />
                                     <span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>기권</span>
                                 </div>
                             </ArenaControlStrip>
@@ -279,7 +279,7 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                             <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-3">
                                 <div className={colClass}>
                                     <ImageButton
-                                        src="/images/button/hidden.png"
+                                        src="/images/button/hidden.webp"
                                         alt="히든"
                                         onClick={handleUseHidden}
                                         disabled={hiddenDisabled}
@@ -291,7 +291,7 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                                 </div>
                                 <div className={colClass}>
                                     <ImageButton
-                                        src="/images/button/scan.png"
+                                        src="/images/button/scan.webp"
                                         alt="스캔"
                                         onClick={handleUseScan}
                                         disabled={scanDisabled}
@@ -314,7 +314,7 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
 					>
                         <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-7 min-[1025px]:gap-8">
                             <div className={colClass}>
-                                <ImageButton src="/images/button/giveup.png" alt="기권" onClick={handleForfeit} disabled={gameStatus === 'scoring'} title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'} compact={isMobile} />
+                                <ImageButton src="/images/button/giveup.webp" alt="기권" onClick={handleForfeit} disabled={gameStatus === 'scoring'} title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'} compact={isMobile} />
                                 <span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>기권</span>
                             </div>
                         </ArenaControlStrip>
@@ -334,7 +334,7 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                         <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-6 min-[1025px]:gap-7">
                             <div className={colClass}>
                                 <ImageButton
-                                    src="/images/button/hidden.png"
+                                    src="/images/button/hidden.webp"
                                     alt="히든"
                                     onClick={handleUseHidden}
                                     disabled={hiddenDisabled}
@@ -346,7 +346,7 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                             </div>
                             <div className={colClass}>
                                 <ImageButton
-                                    src="/images/button/scan.png"
+                                    src="/images/button/scan.webp"
                                     alt="스캔"
                                     onClick={handleUseScan}
                                     disabled={scanDisabled}

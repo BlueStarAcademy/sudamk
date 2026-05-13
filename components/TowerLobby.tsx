@@ -120,13 +120,13 @@ const resolveTowerRewardImage = (itemId: string): string => {
     const normalized = normalizeTowerRewardItemKey(itemId);
     const equipmentMatch = normalized.match(/^장비상자(\d+)$/);
     if (equipmentMatch) {
-        return `/images/Box/EquipmentBox${equipmentMatch[1]}.png`;
+        return `/images/Box/EquipmentBox${equipmentMatch[1]}.webp`;
     }
     const displayName = resolveTowerRewardDisplayName(itemId);
     const itemTemplate = CONSUMABLE_ITEMS.find(
         (item) => normalizeTowerRewardItemKey(item.name) === normalizeTowerRewardItemKey(displayName)
     );
-    return itemTemplate?.image || '/images/icon/item_box.png';
+    return itemTemplate?.image || '/images/icon/item_box.webp';
 };
 
 const TowerLobby: React.FC = () => {
@@ -344,7 +344,7 @@ const TowerLobby: React.FC = () => {
                                     {/* 첫 번째 줄: 골드 또는 아이템 */}
                                     {reward.gold > 0 ? (
                                         <div className="flex items-center gap-0.5 flex-shrink-0">
-                                            <img src="/images/icon/Gold.png" alt="골드" title="골드" className="w-4 h-4 sm:w-5 sm:h-5" />
+                                            <img src="/images/icon/Gold.webp" alt="골드" title="골드" className="w-4 h-4 sm:w-5 sm:h-5" />
                                             <span className="text-xs sm:text-sm text-yellow-300 font-semibold whitespace-nowrap">{reward.gold}</span>
                                         </div>
                                     ) : hasItemReward && reward.items ? (
@@ -434,11 +434,11 @@ const TowerLobby: React.FC = () => {
                                                         <div className="flex items-center gap-2 min-w-0">
                                                             <div className="flex items-center gap-3 flex-wrap">
                                                                 <div className="flex items-center gap-1">
-                                                                    <img src="/images/single/Black.png" alt="흑" className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+                                                                    <img src="/images/single/Black.webp" alt="흑" className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
                                                                     <span className="text-amber-200 font-bold tabular-nums">{towerDisplayBlackPlain}</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-1">
-                                                                    <img src="/images/single/White.png" alt="백" className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+                                                                    <img src="/images/single/White.webp" alt="백" className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
                                                                     <span className="text-amber-200 font-bold tabular-nums">{towerDisplayWhitePlain}</span>
                                                                 </div>
                                                             </div>
@@ -474,19 +474,19 @@ const TowerLobby: React.FC = () => {
                                                     <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 sm:gap-x-4">
                                                         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 sm:gap-x-3">
                                                             <div className="flex items-center gap-1">
-                                                                <img src="/images/single/Black.png" alt="흑" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
+                                                                <img src="/images/single/Black.webp" alt="흑" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
                                                                 <span className="text-amber-200 font-bold tabular-nums">{towerDisplayBlackPlain}</span>
                                                             </div>
                                                             <div className="flex items-center gap-1">
-                                                                <img src="/images/single/White.png" alt="백" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
+                                                                <img src="/images/single/White.webp" alt="백" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
                                                                 <span className="text-amber-200 font-bold tabular-nums">{towerDisplayWhitePlain}</span>
                                                             </div>
                                                             <div className="flex items-center gap-1">
-                                                                <img src="/images/single/BlackDouble.png" alt="흑 문양" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
+                                                                <img src="/images/single/BlackDouble.webp" alt="흑 문양" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
                                                                 <span className="text-amber-200 font-bold tabular-nums">×{stage.placements.blackPattern}</span>
                                                             </div>
                                                             <div className="flex items-center gap-1">
-                                                                <img src="/images/single/WhiteDouble.png" alt="백 문양" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
+                                                                <img src="/images/single/WhiteDouble.webp" alt="백 문양" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
                                                                 <span className="text-amber-200 font-bold tabular-nums">×{stage.placements.whitePattern}</span>
                                                             </div>
                                                         </div>
@@ -585,11 +585,11 @@ const TowerLobby: React.FC = () => {
             const getItemCount = (namesOrIds: readonly string[]): number =>
                 countTowerLobbyInventoryQty(inventory, namesOrIds);
             const mobileTowerItems = [
-                { name: '턴 추가', icon: '/images/button/addturn.png', count: getItemCount(TOWER_ITEM_TURN_ADD_NAMES) },
-                { name: '미사일', icon: '/images/button/missile.png', count: getItemCount(TOWER_ITEM_MISSILE_NAMES) },
-                { name: '히든', icon: '/images/button/hidden.png', count: getItemCount(TOWER_ITEM_HIDDEN_NAMES) },
-                { name: '스캔', icon: '/images/button/scan.png', count: getItemCount(TOWER_ITEM_SCAN_NAMES) },
-                { name: '배치변경', icon: '/images/button/reflesh.png', count: getItemCount(TOWER_ITEM_REFRESH_NAMES) },
+                { name: '턴 추가', icon: '/images/button/addturn.webp', count: getItemCount(TOWER_ITEM_TURN_ADD_NAMES) },
+                { name: '미사일', icon: '/images/button/missile.webp', count: getItemCount(TOWER_ITEM_MISSILE_NAMES) },
+                { name: '히든', icon: '/images/button/hidden.webp', count: getItemCount(TOWER_ITEM_HIDDEN_NAMES) },
+                { name: '스캔', icon: '/images/button/scan.webp', count: getItemCount(TOWER_ITEM_SCAN_NAMES) },
+                { name: '배치변경', icon: '/images/button/reflesh.webp', count: getItemCount(TOWER_ITEM_REFRESH_NAMES) },
             ] as const;
 
             const mobileHeroDrawerOpen = mobileHeroDrawer !== null;
@@ -776,11 +776,11 @@ const TowerLobby: React.FC = () => {
                                                         <div className="space-y-2">
                                                             <div className="grid grid-cols-1 gap-1.5">
                                                                 <div className="inline-flex min-w-0 items-center justify-center gap-1 rounded-lg border border-amber-500/25 bg-black/35 px-1.5 py-1.5 text-xs text-yellow-100">
-                                                                    <img src="/images/icon/Gold.png" alt="" className="h-3.5 w-3.5 shrink-0" />
+                                                                    <img src="/images/icon/Gold.webp" alt="" className="h-3.5 w-3.5 shrink-0" />
                                                                     <span className="truncate tabular-nums font-semibold">{formatGoldAmountKoG(myRewardTier.gold)}</span>
                                                                 </div>
                                                                 <div className="inline-flex min-w-0 items-center justify-center gap-1 rounded-lg border border-cyan-500/30 bg-black/35 px-1.5 py-1.5 text-xs text-cyan-100">
-                                                                    <img src="/images/icon/Zem.png" alt="" className="h-3.5 w-3.5 shrink-0" />
+                                                                    <img src="/images/icon/Zem.webp" alt="" className="h-3.5 w-3.5 shrink-0" />
                                                                     <span className="truncate tabular-nums font-semibold">{myRewardTier.diamonds}</span>
                                                                 </div>
                                                             </div>
@@ -895,7 +895,7 @@ const TowerLobby: React.FC = () => {
                                 className="relative z-[1] shrink-0 transition-transform active:scale-90 hover:drop-shadow-lg"
                                 aria-label="뒤로가기"
                             >
-                                <img src="/images/button/back.png" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
+                                <img src="/images/button/back.webp" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
                             </button>
                             <h1 className={towerTitleH1Class}>도전의 탑</h1>
                         </div>
@@ -942,11 +942,11 @@ const TowerLobby: React.FC = () => {
                                         <div className="flex flex-col gap-1.5 text-xs">
                                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                                                 <span className="inline-flex items-center gap-1 text-yellow-200">
-                                                    <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 shrink-0" />
+                                                    <img src="/images/icon/Gold.webp" alt="골드" className="h-4 w-4 shrink-0" />
                                                     {formatGoldAmountKoG(myRewardTier.gold)}
                                                 </span>
                                                 <span className="inline-flex items-center gap-1 text-cyan-200">
-                                                    <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4 shrink-0" />
+                                                    <img src="/images/icon/Zem.webp" alt="다이아" className="h-4 w-4 shrink-0" />
                                                     {myRewardTier.diamonds}
                                                 </span>
                                             </div>
@@ -1108,11 +1108,11 @@ const TowerLobby: React.FC = () => {
                                 const getItemCount = (namesOrIds: readonly string[]): number =>
                                     countTowerLobbyInventoryQty(inventory, namesOrIds);
                                 const items = [
-                                    { name: '턴 추가', icon: '/images/button/addturn.png', count: getItemCount(TOWER_ITEM_TURN_ADD_NAMES) },
-                                    { name: '미사일', icon: '/images/button/missile.png', count: getItemCount(TOWER_ITEM_MISSILE_NAMES) },
-                                    { name: '히든', icon: '/images/button/hidden.png', count: getItemCount(TOWER_ITEM_HIDDEN_NAMES) },
-                                    { name: '스캔', icon: '/images/button/scan.png', count: getItemCount(TOWER_ITEM_SCAN_NAMES) },
-                                    { name: '배치변경', icon: '/images/button/reflesh.png', count: getItemCount(TOWER_ITEM_REFRESH_NAMES) },
+                                    { name: '턴 추가', icon: '/images/button/addturn.webp', count: getItemCount(TOWER_ITEM_TURN_ADD_NAMES) },
+                                    { name: '미사일', icon: '/images/button/missile.webp', count: getItemCount(TOWER_ITEM_MISSILE_NAMES) },
+                                    { name: '히든', icon: '/images/button/hidden.webp', count: getItemCount(TOWER_ITEM_HIDDEN_NAMES) },
+                                    { name: '스캔', icon: '/images/button/scan.webp', count: getItemCount(TOWER_ITEM_SCAN_NAMES) },
+                                    { name: '배치변경', icon: '/images/button/reflesh.webp', count: getItemCount(TOWER_ITEM_REFRESH_NAMES) },
                                 ];
                                 return items.map((item, index) => (
                                     <button
@@ -1182,7 +1182,7 @@ const TowerLobby: React.FC = () => {
                                 className="relative z-[1] flex h-9 w-9 shrink-0 items-center justify-center transition-transform active:scale-90 hover:drop-shadow-lg"
                                 aria-label="뒤로가기"
                             >
-                                <img src="/images/button/back.png" alt="" className="h-full w-full" />
+                                <img src="/images/button/back.webp" alt="" className="h-full w-full" />
                             </button>
                             <h1 className="truncate text-center text-sm font-bold bg-gradient-to-r from-amber-200 via-yellow-200 to-amber-100 bg-clip-text text-transparent">
                                 도전의 탑
@@ -1235,11 +1235,11 @@ const TowerLobby: React.FC = () => {
                                             className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] sm:gap-3 sm:text-base ${isMyCurrentTier ? 'pt-2 sm:pt-2.5' : ''}`}
                                         >
                                             <span className="inline-flex items-center gap-1">
-                                                <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 sm:h-6 sm:w-6" />
+                                                <img src="/images/icon/Gold.webp" alt="골드" className="h-4 w-4 sm:h-6 sm:w-6" />
                                                 {formatGoldAmountKoG(tier.gold)}
                                             </span>
                                             <span className="inline-flex items-center gap-1">
-                                                <img src="/images/icon/Zem.png" alt="다이아몬드" className="h-4 w-4 sm:h-6 sm:w-6" />
+                                                <img src="/images/icon/Zem.webp" alt="다이아몬드" className="h-4 w-4 sm:h-6 sm:w-6" />
                                                 {tier.diamonds.toLocaleString()}
                                             </span>
                                             {tier.items.map((it) => (

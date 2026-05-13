@@ -50,12 +50,12 @@ type EncyclopediaItem = {
 };
 
 const gradeBackgrounds: Record<ItemGrade, string> = {
-    normal: 'images/equipments/normalbgi.png',
-    uncommon: 'images/equipments/uncommonbgi.png',
-    rare: 'images/equipments/rarebgi.png',
-    epic: 'images/equipments/epicbgi.png',
-    legendary: 'images/equipments/legendarybgi.png',
-    mythic: 'images/equipments/mythicbgi.png',
+    normal: 'images/equipments/normalbgi.webp',
+    uncommon: 'images/equipments/uncommonbgi.webp',
+    rare: 'images/equipments/rarebgi.webp',
+    epic: 'images/equipments/epicbgi.webp',
+    legendary: 'images/equipments/legendarybgi.webp',
+    mythic: 'images/equipments/mythicbgi.webp',
     transcendent: 'images/equipments/transcendentbgi.webp',
 };
 

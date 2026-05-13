@@ -2048,7 +2048,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                         >
                             <span className="min-w-0 flex-1 text-right text-gray-200">{row.label}</span>
                             <img
-                                src={row.ok ? '/images/guild/guildwar/clearstar.png' : '/images/guild/guildwar/emptystar.png'}
+                                src={row.ok ? '/images/guild/guildwar/clearstar.webp' : '/images/guild/guildwar/emptystar.webp'}
                                 alt=""
                                 className={
                                     isMobile
@@ -2336,8 +2336,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                             key={i}
                                                             src={
                                                                 i < guildWarStars
-                                                                    ? '/images/guild/guildwar/clearstar.png'
-                                                                    : '/images/guild/guildwar/emptystar.png'
+                                                                    ? '/images/guild/guildwar/clearstar.webp'
+                                                                    : '/images/guild/guildwar/emptystar.webp'
                                                             }
                                                             alt=""
                                                             className="h-5 w-5 object-contain drop-shadow sm:h-6 sm:w-6"
@@ -2653,8 +2653,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                 key={i}
                                                 src={
                                                     i < guildWarStars
-                                                        ? '/images/guild/guildwar/clearstar.png'
-                                                        : '/images/guild/guildwar/emptystar.png'
+                                                        ? '/images/guild/guildwar/clearstar.webp'
+                                                        : '/images/guild/guildwar/emptystar.webp'
                                                 }
                                                 alt=""
                                                 className="h-7 w-7 object-contain drop-shadow min-[1024px]:h-8 min-[1024px]:w-8"

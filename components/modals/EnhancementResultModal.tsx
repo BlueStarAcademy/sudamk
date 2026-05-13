@@ -391,7 +391,7 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                     <div className="relative z-[2] mt-1 flex shrink-0 justify-center sm:mt-2">
                         <div className="inline-flex max-w-[min(100%,20rem)] flex-col items-center gap-1 rounded-full border border-amber-500/25 bg-gradient-to-r from-amber-950/50 via-stone-900/60 to-stone-950/80 px-4 py-1.5 shadow-inner sm:flex-row sm:items-center sm:gap-x-2.5 sm:gap-y-0 sm:px-5 sm:py-2">
                             <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-100 sm:text-sm">
-                                <img src="/images/equipments/moru.png" alt="" className="h-4 w-4 shrink-0 opacity-90 sm:h-5 sm:w-5" />
+                                <img src="/images/equipments/moru.webp" alt="" className="h-4 w-4 shrink-0 opacity-90 sm:h-5 sm:w-5" />
                                 대장간 경험치
                             </span>
                             <span className="shrink-0 text-sm font-bold tabular-nums text-amber-300 sm:text-base">

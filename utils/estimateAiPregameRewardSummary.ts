@@ -143,7 +143,7 @@ export function buildAiPregameRewardVisual(session: LiveGameSession, currentUser
         footnote: '※ 승리·스테이지·이해도·버프에 따라 실제 지급이 달라질 수 있습니다.',
       };
     } catch {
-      const slots: AiPregameRewardSlot[] = [{ kind: 'icon_only', image: '/images/Box/EquipmentBox1.png' }];
+      const slots: AiPregameRewardSlot[] = [{ kind: 'icon_only', image: '/images/Box/EquipmentBox1.webp' }];
       appendVipPlayRewardSlot(slots, session, currentUser);
       return {
         slots,
@@ -166,7 +166,7 @@ export function buildAiPregameRewardVisual(session: LiveGameSession, currentUser
 
   if (!isStrategic && !isPlayful) {
     return {
-      slots: [{ kind: 'icon_only', image: '/images/icon/Gold.png' }],
+      slots: [{ kind: 'icon_only', image: '/images/icon/Gold.webp' }],
       footnote: '※ 결과 화면에서 지급 내역을 확인할 수 있습니다.',
     };
   }

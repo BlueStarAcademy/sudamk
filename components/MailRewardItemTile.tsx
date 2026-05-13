@@ -7,7 +7,7 @@ import { getItemTemplateByName } from '../utils/itemTemplateLookup.js';
 import { isActionPointConsumable } from '../constants/items.js';
 
 function resolveItemImageSrc(path: string | undefined): string {
-    if (!path) return '/images/icon/Reward.png';
+    if (!path) return '/images/icon/Reward.webp';
     if (path.startsWith('http') || path.startsWith('/')) return path;
     return `/${path}`;
 }

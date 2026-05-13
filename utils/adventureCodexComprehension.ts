@@ -36,12 +36,12 @@ export const ADVENTURE_CODEX_NORMAL_DROP_CAP_PERCENT = {
 
 /** 장비 슬롯과 동일 webp — 도감 몬스터 뒤 등급 배경 */
 export const CODEX_COMPREHENSION_GRADE_BACKGROUNDS: Record<ItemGrade, string> = {
-    [ItemGrade.Normal]: '/images/equipments/normalbgi.png',
-    [ItemGrade.Uncommon]: '/images/equipments/uncommonbgi.png',
-    [ItemGrade.Rare]: '/images/equipments/rarebgi.png',
-    [ItemGrade.Epic]: '/images/equipments/epicbgi.png',
-    [ItemGrade.Legendary]: '/images/equipments/legendarybgi.png',
-    [ItemGrade.Mythic]: '/images/equipments/mythicbgi.png',
+    [ItemGrade.Normal]: '/images/equipments/normalbgi.webp',
+    [ItemGrade.Uncommon]: '/images/equipments/uncommonbgi.webp',
+    [ItemGrade.Rare]: '/images/equipments/rarebgi.webp',
+    [ItemGrade.Epic]: '/images/equipments/epicbgi.webp',
+    [ItemGrade.Legendary]: '/images/equipments/legendarybgi.webp',
+    [ItemGrade.Mythic]: '/images/equipments/mythicbgi.webp',
     [ItemGrade.Transcendent]: '/images/equipments/transcendentbgi.webp',
 };
 

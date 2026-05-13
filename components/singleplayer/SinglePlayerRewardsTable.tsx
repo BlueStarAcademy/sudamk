@@ -86,7 +86,7 @@ const RewardBadges: React.FC<{ reward: RewardCell | undefined }> = ({ reward }) 
                     tone="gold"
                     label="골드"
                     value={`+${formatGoldAmountKoG(reward.gold ?? 0)}`}
-                    icon={<img src="/images/icon/Gold.png" alt="" className="h-4 w-4 object-contain" />}
+                    icon={<img src="/images/icon/Gold.webp" alt="" className="h-4 w-4 object-contain" />}
                 />
             )}
             {hasExp && (

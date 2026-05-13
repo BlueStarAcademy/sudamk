@@ -4,12 +4,12 @@ import DraggableWindow from '../DraggableWindow.js';
 import { InventoryItem, ItemGrade, ItemOption } from '../../types.js';
 
 const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string }> = {
-    normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.png' },
-    uncommon: { name: '고급', color: 'text-green-400', background: '/images/equipments/uncommonbgi.png' },
-    rare: { name: '희귀', color: 'text-blue-400', background: '/images/equipments/rarebgi.png' },
-    epic: { name: '에픽', color: 'text-purple-400', background: '/images/equipments/epicbgi.png' },
-    legendary: { name: '전설', color: 'text-red-500', background: '/images/equipments/legendarybgi.png' },
-    mythic: { name: '신화', color: 'text-orange-400', background: '/images/equipments/mythicbgi.png' },
+    normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
+    uncommon: { name: '고급', color: 'text-green-400', background: '/images/equipments/uncommonbgi.webp' },
+    rare: { name: '희귀', color: 'text-blue-400', background: '/images/equipments/rarebgi.webp' },
+    epic: { name: '에픽', color: 'text-purple-400', background: '/images/equipments/epicbgi.webp' },
+    legendary: { name: '전설', color: 'text-red-500', background: '/images/equipments/legendarybgi.webp' },
+    mythic: { name: '신화', color: 'text-orange-400', background: '/images/equipments/mythicbgi.webp' },
     transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
@@ -175,16 +175,16 @@ function formatDelta(before: number | null, after: number | null, isPercentage: 
 
 const renderStarBadge = (stars: number) => {
     if (stars <= 0) return null;
-    let starImage = '/images/equipments/Star1.png';
+    let starImage = '/images/equipments/Star1.webp';
     let numberColor = 'text-white';
     if (stars >= 10) {
-        starImage = '/images/equipments/Star4.png';
+        starImage = '/images/equipments/Star4.webp';
         numberColor = 'prism-text-effect';
     } else if (stars >= 7) {
-        starImage = '/images/equipments/Star3.png';
+        starImage = '/images/equipments/Star3.webp';
         numberColor = 'text-purple-300';
     } else if (stars >= 4) {
-        starImage = '/images/equipments/Star2.png';
+        starImage = '/images/equipments/Star2.webp';
         numberColor = 'text-amber-300';
     }
     return (

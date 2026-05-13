@@ -74,7 +74,7 @@ const Lobby: React.FC<LobbyProps> = ({ lobbyType }) => {
         onClick={onBackToProfile}
         className={`relative z-20 flex items-center justify-center rounded-full p-0 transition-all duration-100 active:scale-95 active:shadow-inner active:translate-y-0.5 pointer-events-auto ${isNativeMobile ? 'h-8 w-8' : 'h-10 w-10'}`}
       >
-        <img src="/images/button/back.png" alt="Back" className={isNativeMobile ? 'h-8 w-8' : 'h-10 w-10 sm:h-12 sm:w-12'} />
+        <img src="/images/button/back.webp" alt="Back" className={isNativeMobile ? 'h-8 w-8' : 'h-10 w-10 sm:h-12 sm:w-12'} />
       </button>
       <div className="min-w-0 flex-grow text-center">
         <h1 className={`font-bold ${isNativeMobile ? 'text-base' : 'text-2xl sm:text-4xl'}`}>{title} 로비</h1>

@@ -6,7 +6,7 @@ const ClassNavigation: React.FC = () => {
             <h2 className="text-xl font-bold mb-4">입문반</h2>
             <div className="flex items-center gap-4">
                 <button className="text-2xl">⬅️</button>
-                <img src="/images/championship/Champ1.png" alt="Beginner Class" className="w-48 h-32" />
+                <img src="/images/championship/Champ1.webp" alt="Beginner Class" className="w-48 h-32" />
                 <button className="text-2xl">➡️</button>
             </div>
         </div>

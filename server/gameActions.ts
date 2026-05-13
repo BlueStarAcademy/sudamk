@@ -1524,7 +1524,10 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             const shouldHandleBaseFlowOnStrategicPve =
                 pveStrategicBaseFlow && baseFlowServerActionTypes.has(type);
             // 펫 힌트/힌트 보너스는 아래 `handleStrategicGameAction`으로 넘긴다.
+            // 페어 AI전·기타 `matchAxis !== 'pvp'`(mixed_pair 등)도 이 블록에 들어오는데,
+            // `CONFIRM_COLOR_START`를 여기서 삼키면 페어 순서 확인(pair_order_reveal)·니기리 확인 등이 서버에 영원히 안 붙는다.
             if (
+                type !== 'CONFIRM_COLOR_START' &&
                 type !== 'RESIGN_GAME' &&
                 type !== 'REQUEST_PAIR_TEAM_RESIGN' &&
                 type !== 'RESPOND_PAIR_TEAM_RESIGN' &&

@@ -85,7 +85,7 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
 
         const extraTurnChance = totalStats[CoreStat.ThinkingSpeed] * 0.02;
         if (Math.random() * 100 < extraTurnChance) {
-            battleLog.push({ turn: turnsSurvived, icon: '/images/guild/skill/userskill4.png', message: `[추가공격] 빠르고 정확한 사고속도로 추가 턴을 획득합니다.`, isUserAction: true, isCrit: false });
+            battleLog.push({ turn: turnsSurvived, icon: '/images/guild/skill/userskill4.webp', message: `[추가공격] 빠르고 정확한 사고속도로 추가 턴을 획득합니다.`, isUserAction: true, isCrit: false });
             bossDefeated = runUserTurn(true);
             if (bossDefeated) return true;
         }
@@ -316,7 +316,7 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
         if (!isRewardVipActive(user)) return undefined;
         const o = rollVipPlayRewardOutcome();
         if (o.type === 'gold') {
-            return { name: '골드', quantity: o.amount, image: '/images/icon/Gold.png' };
+            return { name: '골드', quantity: o.amount, image: '/images/icon/Gold.webp' };
         }
         if (o.type === 'legendary_equipment') {
             const pool = EQUIPMENT_POOL.filter((e) => e.grade === ItemGrade.Legendary);

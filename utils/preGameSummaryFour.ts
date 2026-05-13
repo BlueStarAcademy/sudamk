@@ -49,13 +49,13 @@ const LOSE_CAPTURE_RACE = (t: number) =>
 const LOSE_MIX = '종료 시 따내기·계가 등에서 상대가 승리 조건을 먼저 충족하거나 불리하면 패배';
 
 /** 바둑판 문양돌과 동일 스프라이트(`GoBoard` 흑 문양) — 게임 설명 모달 하이라이트 */
-const PATTERN_STONE_HIGHLIGHT_IMG = '/images/single/BlackDouble.png';
+const PATTERN_STONE_HIGHLIGHT_IMG = '/images/single/BlackDouble.webp';
 
 /** 게임 설명 모달「특수 규칙」— 베이스 모드는 짧은 두 줄로 표시 */
 function baseModePregameHighlights(): PreGameSpecialHighlight[] {
   return [
-    { img: '/images/simbols/simbol4.png', text: '베이스돌 5점' },
-    { img: '/images/simbols/simbol4.png', text: '덤 설정으로 흑/백 정하기' },
+    { img: '/images/simbols/simbol4.webp', text: '베이스돌 5점' },
+    { img: '/images/simbols/simbol4.webp', text: '덤 설정으로 흑/백 정하기' },
   ];
 }
 
@@ -207,19 +207,19 @@ function buildItemSlots(settings: GameSettings, mode: GameMode, mix: GameMode[])
   if (effectiveModes.includes(GameMode.Hidden)) {
     const h = settings.hiddenStoneCount ?? 0;
     const s = settings.scanCount ?? 0;
-    if (h > 0) slots.push({ key: 'hidden', img: '/images/button/hidden.png', count: h, title: '히든 돌' });
-    if (s > 0) slots.push({ key: 'scan', img: '/images/button/scan.png', count: s, title: '스캔' });
+    if (h > 0) slots.push({ key: 'hidden', img: '/images/button/hidden.webp', count: h, title: '히든 돌' });
+    if (s > 0) slots.push({ key: 'scan', img: '/images/button/scan.webp', count: s, title: '스캔' });
   }
   if (effectiveModes.includes(GameMode.Missile)) {
     const n = settings.missileCount ?? 0;
-    if (n > 0) slots.push({ key: 'missile', img: '/images/button/missile.png', count: n, title: '미사일' });
+    if (n > 0) slots.push({ key: 'missile', img: '/images/button/missile.webp', count: n, title: '미사일' });
   }
   if (effectiveModes.includes(GameMode.Dice)) {
     const o = settings.oddDiceCount ?? 0;
     const e = settings.evenDiceCount ?? 0;
     const l = settings.lowDiceCount ?? 0;
     const h = settings.highDiceCount ?? 0;
-    const diceImg = '/images/simbols/simbolp1.png';
+    const diceImg = '/images/simbols/simbolp1.webp';
     if (o > 0) slots.push({ key: 'dice-odd', img: diceImg, count: o, title: '홀수 주사위 아이템' });
     if (e > 0) slots.push({ key: 'dice-even', img: diceImg, count: e, title: '짝수 주사위 아이템' });
     if (l > 0) slots.push({ key: 'dice-low', img: diceImg, count: l, title: '낮은 수(1~3) 주사위 아이템' });
@@ -228,14 +228,14 @@ function buildItemSlots(settings: GameSettings, mode: GameMode, mix: GameMode[])
   if (effectiveModes.includes(GameMode.Alkkagi)) {
     const slow = settings.alkkagiSlowItemCount ?? 0;
     const aim = settings.alkkagiAimingLineItemCount ?? 0;
-    if (slow > 0) slots.push({ key: 'alk-slow', img: '/images/button/slow.png', count: slow, title: '슬로우' });
-    if (aim > 0) slots.push({ key: 'alk-aim', img: '/images/button/target.png', count: aim, title: '조준선' });
+    if (slow > 0) slots.push({ key: 'alk-slow', img: '/images/button/slow.webp', count: slow, title: '슬로우' });
+    if (aim > 0) slots.push({ key: 'alk-aim', img: '/images/button/target.webp', count: aim, title: '조준선' });
   }
   if (effectiveModes.includes(GameMode.Curling)) {
     const slow = settings.curlingSlowItemCount ?? 0;
     const aim = settings.curlingAimingLineItemCount ?? 0;
-    if (slow > 0) slots.push({ key: 'curl-slow', img: '/images/button/slow.png', count: slow, title: '슬로우' });
-    if (aim > 0) slots.push({ key: 'curl-aim', img: '/images/button/target.png', count: aim, title: '조준선' });
+    if (slow > 0) slots.push({ key: 'curl-slow', img: '/images/button/slow.webp', count: slow, title: '슬로우' });
+    if (aim > 0) slots.push({ key: 'curl-aim', img: '/images/button/target.webp', count: aim, title: '조준선' });
   }
   return slots;
 }
@@ -271,7 +271,7 @@ function buildSinglePlayerStageItemSlots(
   if (showTurnAddSlot) {
     slots.push({
       key: 'turn-add',
-      img: '/images/button/addturn.png',
+      img: '/images/button/addturn.webp',
       count: owned ? owned.turnAdd : 0,
       title: '턴 추가',
       inventoryBadgeMode: true,
@@ -281,7 +281,7 @@ function buildSinglePlayerStageItemSlots(
   if (showMissileSlot && sm > 0) {
     slots.push({
       key: 'missile',
-      img: '/images/button/missile.png',
+      img: '/images/button/missile.webp',
       count: owned ? owned.missile : sm,
       title: '미사일',
       inventoryBadgeMode: !!owned,
@@ -291,7 +291,7 @@ function buildSinglePlayerStageItemSlots(
   if (showHiddenScanSlots && sh > 0) {
     slots.push({
       key: 'hidden',
-      img: '/images/button/hidden.png',
+      img: '/images/button/hidden.webp',
       count: owned ? owned.hidden : sh,
       title: '히든 돌',
       inventoryBadgeMode: !!owned,
@@ -301,7 +301,7 @@ function buildSinglePlayerStageItemSlots(
   if (showHiddenScanSlots && ss > 0) {
     slots.push({
       key: 'scan',
-      img: '/images/button/scan.png',
+      img: '/images/button/scan.webp',
       count: owned ? owned.scan : ss,
       title: '스캔',
       inventoryBadgeMode: !!owned,
@@ -355,17 +355,17 @@ function mixSpecialHighlights(
     h.push(...baseModePregameHighlights());
   }
   if (hasMix(mix, GameMode.Hidden)) {
-    h.push({ img: '/images/button/hidden.png', text: '히든 착수 · 스캔으로 탐색' });
+    h.push({ img: '/images/button/hidden.webp', text: '히든 착수 · 스캔으로 탐색' });
   }
   if (hasMix(mix, GameMode.Missile)) {
-    h.push({ img: '/images/button/missile.png', text: '미사일로 돌 직선 이동' });
+    h.push({ img: '/images/button/missile.webp', text: '미사일로 돌 직선 이동' });
   }
   if (hasMix(mix, GameMode.Speed) && includeFischerGuide) {
-    h.push({ img: '/images/icon/timer.png', text: '피셔 시계 · 착수당 시간 가산 · 계가 시 시간 보너스' });
+    h.push({ img: '/images/icon/timer.webp', text: '피셔 시계 · 착수당 시간 가산 · 계가 시 시간 보너스' });
   }
   const auto = autoScoringLine(settings, GameMode.Mix, mix);
   if (auto) {
-    h.push({ img: '/images/simbols/simbol7.png', text: auto });
+    h.push({ img: '/images/simbols/simbol7.webp', text: auto });
   }
   return h;
 }
@@ -407,7 +407,7 @@ function singlePlayerStageHighlights(
     const settingsSurv = Number((session.settings as any)?.survivalTurns ?? 0);
     const survN = settingsSurv > 0 ? settingsSurv : resolveSinglePlayerSurvivalTurnCount(stage);
     h.push({
-      img: '/images/simbols/simbol1.png',
+      img: '/images/simbols/simbol1.webp',
       text: `살리기 바둑 · 백 ${survN}턴 내 목표 점수`,
     });
   }
@@ -417,24 +417,24 @@ function singlePlayerStageHighlights(
     !isCaptureMode &&
     usesTerritoryScoring(session.mode, mix)
   ) {
-    h.push({ img: '/images/simbols/simbol7.png', text: `${stage.autoScoringTurns}수 후 자동 계가` });
+    h.push({ img: '/images/simbols/simbol7.webp', text: `${stage.autoScoringTurns}수 후 자동 계가` });
   }
   if (stage.blackTurnLimit && !isSurvivalRules) {
-    h.push({ img: '/images/icon/timer.png', text: `흑 ${stage.blackTurnLimit}턴 제한` });
+    h.push({ img: '/images/icon/timer.webp', text: `흑 ${stage.blackTurnLimit}턴 제한` });
   }
   const missileN = disp.missile;
   const hiddenN = disp.hidden;
   const scanN = disp.scan;
   const turnAddN = disp.turnAdd;
   if (typeof turnAddN === 'number' && turnAddN > 0) {
-    h.push({ img: '/images/button/addturn.png', text: `턴 추가 ${turnAddN}개` });
+    h.push({ img: '/images/button/addturn.webp', text: `턴 추가 ${turnAddN}개` });
   }
   if (em.includes(GameMode.Missile) && missileN > 0) {
-    h.push({ img: '/images/button/missile.png', text: `미사일 ${missileN}개` });
+    h.push({ img: '/images/button/missile.webp', text: `미사일 ${missileN}개` });
   }
   if (em.includes(GameMode.Hidden) && (hiddenN > 0 || scanN > 0)) {
     h.push({
-      img: '/images/button/hidden.png',
+      img: '/images/button/hidden.webp',
       text: `히든 ${hiddenN}개 · 스캔 ${scanN}개`,
     });
   }
@@ -554,7 +554,7 @@ export function getPreGameSummaryFour(
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: session.isAiGame
         ? []
-        : [{ img: '/images/icon/timer.png', text: '피셔 시계 · 사용 시간에 따른 계가 시간 보너스' }],
+        : [{ img: '/images/icon/timer.webp', text: '피셔 시계 · 사용 시간에 따른 계가 시간 보너스' }],
       items: NONE,
       itemSlots: [],
     };
@@ -582,7 +582,7 @@ export function getPreGameSummaryFour(
       loseGoal: autoLose ?? (auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY),
       scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
       timeRules: timeLine(settings, mode, mix),
-      specialHighlights: [{ img: '/images/button/hidden.png', text: '히든 착수 · 스캔으로 탐색' }],
+      specialHighlights: [{ img: '/images/button/hidden.webp', text: '히든 착수 · 스캔으로 탐색' }],
       items: itemLine(settings, mode, mix),
       itemSlots: buildItemSlots(settings, GameMode.Hidden, mix),
     };
@@ -596,7 +596,7 @@ export function getPreGameSummaryFour(
       loseGoal: autoLose ?? (auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY),
       scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
       timeRules: timeLine(settings, mode, mix),
-      specialHighlights: [{ img: '/images/button/missile.png', text: '미사일로 돌 직선 이동' }],
+      specialHighlights: [{ img: '/images/button/missile.webp', text: '미사일로 돌 직선 이동' }],
       items: itemLine(settings, mode, mix),
       itemSlots: buildItemSlots(settings, GameMode.Missile, mix),
     };
@@ -610,7 +610,7 @@ export function getPreGameSummaryFour(
       loseGoal: autoLose ?? (auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY),
       scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
       timeRules: timeLine(settings, mode, mix),
-      specialHighlights: auto ? [{ img: '/images/simbols/simbol7.png', text: auto }] : [],
+      specialHighlights: auto ? [{ img: '/images/simbols/simbol7.webp', text: auto }] : [],
       items: NONE,
       itemSlots: [],
     };
@@ -624,7 +624,7 @@ export function getPreGameSummaryFour(
       loseGoal: '상대가 먼저 5목을 완성하면 패배',
       scoreFactors: '목(승부) — 집 계산 없음',
       timeRules: NONE,
-      specialHighlights: [{ img: '/images/simbols/simbolp2.png', text: `${f33} · ${fo}` }],
+      specialHighlights: [{ img: '/images/simbols/simbolp2.webp', text: `${f33} · ${fo}` }],
       items: NONE,
       itemSlots: [],
     };
@@ -640,8 +640,8 @@ export function getPreGameSummaryFour(
       scoreFactors: '목 승리 또는 따내기 점수',
       timeRules: NONE,
       specialHighlights: [
-        { img: '/images/simbols/simbolp2.png', text: `${f33} · ${fo}` },
-        { img: '/images/simbols/simbol2.png', text: `따내기 ${cap}점 선달성 시 승리` },
+        { img: '/images/simbols/simbolp2.webp', text: `${f33} · ${fo}` },
+        { img: '/images/simbols/simbol2.webp', text: `따내기 ${cap}점 선달성 시 승리` },
       ],
       items: NONE,
       itemSlots: [],
@@ -655,7 +655,7 @@ export function getPreGameSummaryFour(
       loseGoal: `${r}라운드 종료 후 누적 점수가 낮으면 패배`,
       scoreFactors: '라운드별 백돌 따내기 점수 · 마지막 따내기 보너스',
       timeRules: NONE,
-      specialHighlights: [{ img: '/images/simbols/simbolp1.png', text: '주사위 눈만큼 흑 착수 · 백은 활로에만 배치' }],
+      specialHighlights: [{ img: '/images/simbols/simbolp1.webp', text: '주사위 눈만큼 흑 착수 · 백은 활로에만 배치' }],
       items: itemLine(settings, mode, mix),
       itemSlots: buildItemSlots(settings, GameMode.Dice, mix),
     };
@@ -667,7 +667,7 @@ export function getPreGameSummaryFour(
       loseGoal: '라운드 종료 후 총점이 낮으면 패배',
       scoreFactors: '라운드별 획득 점수 합산',
       timeRules: NONE,
-      specialHighlights: [{ img: '/images/simbols/simbolp4.png', text: '도둑(흑)·경찰(백) 역할 교대' }],
+      specialHighlights: [{ img: '/images/simbols/simbolp4.webp', text: '도둑(흑)·경찰(백) 역할 교대' }],
       items: NONE,
       itemSlots: [],
     };
@@ -679,7 +679,7 @@ export function getPreGameSummaryFour(
       loseGoal: '내 돌 모두 넉아웃',
       scoreFactors: '판 밖으로 나간 상대 돌 수',
       timeRules: NONE,
-      specialHighlights: [{ img: '/images/simbols/simbolp5.png', text: '게이지로 힘 조절 · 벽 반사' }],
+      specialHighlights: [{ img: '/images/simbols/simbolp5.webp', text: '게이지로 힘 조절 · 벽 반사' }],
       items: itemLine(settings, mode, mix),
       itemSlots: buildItemSlots(settings, GameMode.Alkkagi, mix),
     };
@@ -691,7 +691,7 @@ export function getPreGameSummaryFour(
       loseGoal: '합산 점수가 낮으면 패배',
       scoreFactors: '하우스(목표)에 가까운 스톤 점수',
       timeRules: NONE,
-      specialHighlights: [{ img: '/images/simbols/simbolp6.png', text: '스톤 미끄러뜨리기 · 라운드제' }],
+      specialHighlights: [{ img: '/images/simbols/simbolp6.webp', text: '스톤 미끄러뜨리기 · 라운드제' }],
       items: itemLine(settings, mode, mix),
       itemSlots: buildItemSlots(settings, GameMode.Curling, mix),
     };

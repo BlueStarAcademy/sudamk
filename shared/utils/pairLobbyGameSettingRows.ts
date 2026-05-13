@@ -42,12 +42,12 @@ export function normalizePairListRoomKind(room: PairListRoomKindSource): PairLob
 }
 
 export function pairLobbyGameModeIconAndName(mode: GameMode | undefined): { image: string; name: string } {
-    if (mode == null) return { image: '/images/simbols/simbol1.png', name: '미정' };
+    if (mode == null) return { image: '/images/simbols/simbol1.webp', name: '미정' };
     const spec = SPECIAL_GAME_MODES.find((m) => m.mode === mode);
     if (spec) return { image: spec.image, name: spec.name };
     const play = PLAYFUL_GAME_MODES.find((m) => m.mode === mode);
     if (play) return { image: play.image, name: play.name };
-    return { image: '/images/simbols/simbol1.png', name: String(mode) };
+    return { image: '/images/simbols/simbol1.webp', name: String(mode) };
 }
 
 export function pairLobbyScheduledGameModeLabel(mode: GameMode | undefined): string {

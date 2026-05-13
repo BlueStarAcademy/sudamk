@@ -72,7 +72,7 @@ function preGameScoreBoxImage(session: LiveGameSession): string {
     const i = modeMetaImage(m);
     if (i) return i;
   }
-  return '/images/simbols/simbol1.png';
+  return '/images/simbols/simbol1.webp';
 }
 
 /**
@@ -282,7 +282,7 @@ export function PreGameSummaryGrid({
       title: '시간 규칙',
       kind: 'img',
       body: summary.timeRules,
-      img: '/images/icon/timer.png',
+      img: '/images/icon/timer.webp',
     },
   ];
   const itemStripCell: TopCell = {
@@ -400,7 +400,7 @@ export function PreGameSummaryGrid({
           role="img"
         >
           <img
-            src="/images/simbols/simbol1.png"
+            src="/images/simbols/simbol1.webp"
             alt=""
             className={
               briefLayout
@@ -597,41 +597,41 @@ export function PreGameFeatureStrip({ session }: { session: LiveGameSession }) {
 
   const mode = session.mode;
   if (mode === GameMode.Capture || mixed.includes(GameMode.Capture)) {
-    add('/images/simbols/simbol2.png', '따내기');
+    add('/images/simbols/simbol2.webp', '따내기');
   }
   if (mode === GameMode.Speed || mixed.includes(GameMode.Speed)) {
-    add('/images/icon/timer.png', '스피드');
+    add('/images/icon/timer.webp', '스피드');
   }
   if (mode === GameMode.Base || mixed.includes(GameMode.Base)) {
-    add('/images/simbols/simbol4.png', '베이스');
+    add('/images/simbols/simbol4.webp', '베이스');
   }
   if (mode === GameMode.Hidden || mixed.includes(GameMode.Hidden)) {
-    add('/images/button/hidden.png', '히든');
-    add('/images/button/scan.png', '스캔');
+    add('/images/button/hidden.webp', '히든');
+    add('/images/button/scan.webp', '스캔');
   }
   if (mode === GameMode.Missile || mixed.includes(GameMode.Missile)) {
-    add('/images/button/missile.png', '미사일');
+    add('/images/button/missile.webp', '미사일');
   }
   if (mode === GameMode.Dice) {
-    add('/images/simbols/simbolp1.png', '주사위');
+    add('/images/simbols/simbolp1.webp', '주사위');
   }
   if (mode === GameMode.Omok || mode === GameMode.Ttamok) {
-    add('/images/simbols/simbolp2.png', '오목');
+    add('/images/simbols/simbolp2.webp', '오목');
   }
   if (mode === GameMode.Alkkagi) {
-    add('/images/simbols/simbolp5.png', '알까기');
+    add('/images/simbols/simbolp5.webp', '알까기');
   }
   if (mode === GameMode.Curling) {
-    add('/images/simbols/simbolp6.png', '컬링');
+    add('/images/simbols/simbolp6.webp', '컬링');
   }
   if (mode === GameMode.Thief) {
-    add('/images/simbols/simbolp4.png', '도둑과경찰');
+    add('/images/simbols/simbolp4.webp', '도둑과경찰');
   }
 
   if (items.length === 0) {
     const fallback: Partial<Record<GameMode, { src: string; label: string }>> = {
-      [GameMode.Standard]: { src: '/images/simbols/simbol1.png', label: '클래식' },
-      [GameMode.Mix]: { src: '/images/simbols/simbol7.png', label: '믹스' },
+      [GameMode.Standard]: { src: '/images/simbols/simbol1.webp', label: '클래식' },
+      [GameMode.Mix]: { src: '/images/simbols/simbol7.webp', label: '믹스' },
     };
     const f = fallback[mode];
     if (f) items.push(f);
@@ -659,7 +659,7 @@ export function PreGameRuleSections({ sections }: { sections: MatchPlayGuideSect
   return (
     <div className="space-y-5">
       <h3 className="flex items-center gap-2 border-b border-white/10 pb-2 text-lg font-bold text-sky-200/95">
-        <img src="/images/icon/timer.png" alt="" className="h-5 w-5 object-contain opacity-80" />
+        <img src="/images/icon/timer.webp" alt="" className="h-5 w-5 object-contain opacity-80" />
         게임 규칙 · 플레이 안내
       </h3>
       {sections.map((section) => (

@@ -27,30 +27,30 @@ import {
 import { ItemGrade } from '../types.js';
 
 const gradeBackgrounds: Record<ItemGrade, string> = {
-    normal: '/images/equipments/normalbgi.png',
-    uncommon: '/images/equipments/uncommonbgi.png',
-    rare: '/images/equipments/rarebgi.png',
-    epic: '/images/equipments/epicbgi.png',
-    legendary: '/images/equipments/legendarybgi.png',
-    mythic: '/images/equipments/mythicbgi.png',
+    normal: '/images/equipments/normalbgi.webp',
+    uncommon: '/images/equipments/uncommonbgi.webp',
+    rare: '/images/equipments/rarebgi.webp',
+    epic: '/images/equipments/epicbgi.webp',
+    legendary: '/images/equipments/legendarybgi.webp',
+    mythic: '/images/equipments/mythicbgi.webp',
     transcendent: '/images/equipments/transcendentbgi.webp',
 };
 
 const starImages = [
-    '/images/equipments/Star1.png',
-    '/images/equipments/Star2.png',
-    '/images/equipments/Star3.png',
-    '/images/equipments/Star4.png',
+    '/images/equipments/Star1.webp',
+    '/images/equipments/Star2.webp',
+    '/images/equipments/Star3.webp',
+    '/images/equipments/Star4.webp',
 ];
 
 const uiImages = [
-    '/images/icon/Gold.png',
-    '/images/icon/Zem.png',
-    '/images/quest.png',
-    '/images/gibo.png',
-    '/images/mail.png',
-    '/images/store.png',
-    '/images/bag.png',
+    '/images/icon/Gold.webp',
+    '/images/icon/Zem.webp',
+    '/images/quest.webp',
+    '/images/gibo.webp',
+    '/images/mail.webp',
+    '/images/store.webp',
+    '/images/bag.webp',
 ];
 
 const dedupePaths = (paths: readonly string[]): string[] =>
@@ -124,11 +124,11 @@ export const ENTRY_ADVENTURE_ROUTE_IMAGE_URLS = dedupePaths([...ENTRY_BOOT_IMAGE
 /** 길드 홈·보스·전쟁 첫 화면에서 자주 쓰는 정적 에셋 */
 export const ENTRY_GUILD_SURFACE_IMAGE_URLS = dedupePaths([
     '/images/guild/guildbg.webp',
-    '/images/guild/tokken.png',
-    '/images/guild/button/guildmission.png',
-    '/images/guild/button/guildlab.png',
-    '/images/guild/guildwar/clearstar.png',
-    '/images/icon/Diamond.png',
+    '/images/guild/tokken.webp',
+    '/images/guild/button/guildmission.webp',
+    '/images/guild/button/guildlab.webp',
+    '/images/guild/guildwar/clearstar.webp',
+    '/images/icon/Zem.webp',
 ]);
 
 export const ENTRY_GUILD_ROUTE_IMAGE_URLS = dedupePaths([...ENTRY_BOOT_IMAGE_URLS, ...ENTRY_GUILD_SURFACE_IMAGE_URLS]);

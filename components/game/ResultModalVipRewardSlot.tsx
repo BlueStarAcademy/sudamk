@@ -56,7 +56,7 @@ export const ResultModalVipRewardSlot: React.FC<{
             .filter((v): v is string => !!v)
             .filter((v) => /box|gold|ticket|material|item/i.test(v))
             .slice(0, 8);
-        const base = [staticDisplaySrc, ...fromConsumables, fallbackVipImg, '/images/icon/Gold.png'].filter((v): v is string => !!v);
+        const base = [staticDisplaySrc, ...fromConsumables, fallbackVipImg, '/images/icon/Gold.webp'].filter((v): v is string => !!v);
         return Array.from(new Set(base));
     }, [staticDisplaySrc, fallbackVipImg]);
 

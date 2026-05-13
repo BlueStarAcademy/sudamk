@@ -54,7 +54,7 @@ const ActivityVitalityIcon: React.FC<{ className?: string; size?: number }> = ({
 };
 
 /** 퀘스트 목록 제목 옆 아이콘 (퀵메뉴·에셋과 동일 계열) */
-const QUEST_LIST_ICON_SRC = '/images/quest.png';
+const QUEST_LIST_ICON_SRC = '/images/quest.webp';
 
 /** 상점 소모품 탭과 동일: 행동력 회복제 카드는 ⚡ 배지 + 수치(아이템 이미지는 lightning.png, applus는 헤더 충전 버튼 전용) */
 const getShopActionPointBadgeFromReward = (reward: QuestReward): string | null => {
@@ -237,7 +237,7 @@ const AchievementTrackPanel: React.FC<{
                                     ) : null}
                                 </div>
                                 <div className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-amber-500/30 bg-black/30 px-2 py-1">
-                                    <img src="/images/icon/Zem.png" alt="" className="h-4 w-4 object-contain" />
+                                    <img src="/images/icon/Zem.webp" alt="" className="h-4 w-4 object-contain" />
                                     <span className="text-xs font-semibold text-amber-100 tabular-nums">{stage.rewardDiamonds}</span>
                                 </div>
                             </div>
@@ -341,7 +341,7 @@ const QuestRewardPill: React.FC<{ quest: Quest; isMobile: boolean }> = ({ quest,
                 <span className="inline-flex min-w-0 flex-nowrap items-center justify-center gap-x-2 font-semibold">
                     {hasGold ? (
                         <span className="inline-flex min-w-0 items-center gap-0.5 text-amber-100">
-                            <img src="/images/icon/Gold.png" alt="" className="h-3 w-3 shrink-0 opacity-95" />
+                            <img src="/images/icon/Gold.webp" alt="" className="h-3 w-3 shrink-0 opacity-95" />
                             <span className="truncate tabular-nums">{formatGoldAmountKoG(quest.reward.gold!)}</span>
                         </span>
                     ) : null}
@@ -400,7 +400,7 @@ const QuestDetailBubble: React.FC<{
                 </span>
                 {gold != null && gold > 0 ? (
                     <span className="font-medium tracking-tight">
-                        <img src="/images/icon/Gold.png" alt="" className="mb-px mr-0.5 inline h-3 w-3 align-middle opacity-95" />
+                        <img src="/images/icon/Gold.webp" alt="" className="mb-px mr-0.5 inline h-3 w-3 align-middle opacity-95" />
                         골드 +{formatGoldAmountKoG(gold)}
                     </span>
                 ) : null}
@@ -572,7 +572,7 @@ const ActivityPanel: React.FC<{
     };
 
     const getItemImage = (reward: QuestReward): string => {
-        if (!reward.items || reward.items.length === 0) return '/images/Box/box.png';
+        if (!reward.items || reward.items.length === 0) return '/images/Box/box.webp';
         const firstItem = reward.items[0];
         const raw = 'itemId' in firstItem ? firstItem.itemId : firstItem.name;
         const fromShopId =
@@ -584,7 +584,7 @@ const ActivityPanel: React.FC<{
                     ? '행동력 회복제(+30)'
                     : raw;
         const itemTemplate = CONSUMABLE_ITEMS.find((item) => item.name === fromShopId);
-        return itemTemplate?.image ?? '/images/Box/box.png';
+        return itemTemplate?.image ?? '/images/Box/box.webp';
     };
 
     const trackWrap = 'mb-2 w-full';
@@ -710,7 +710,7 @@ const ActivityPanel: React.FC<{
                                         </span>
                                     ) : (
                                         <img
-                                            src={itemImage ?? '/images/Box/box.png'}
+                                            src={itemImage ?? '/images/Box/box.webp'}
                                             alt=""
                                             className="h-full w-full object-contain p-0.5"
                                         />

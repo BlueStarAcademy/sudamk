@@ -67,8 +67,8 @@ function getDungeonBotStatRangeForStage(stage: number): { minStat: number; maxSt
 }
 
 function fallbackIconByName(name: string): string {
-    if (name.includes('골드')) return '/images/icon/Gold.png';
-    if (name.includes('다이아')) return '/images/icon/Zem.png';
+    if (name.includes('골드')) return '/images/icon/Gold.webp';
+    if (name.includes('다이아')) return '/images/icon/Zem.webp';
     return '';
 }
 
@@ -132,7 +132,7 @@ function parseDungeonRankRangeToPieces(items: DungeonRankRewardRangeItem[]): Rew
                 key: `rank-g-${idx}`,
                 label: '골드',
                 quantity: qty,
-                imageUrl: '/images/icon/Gold.png',
+                imageUrl: '/images/icon/Gold.webp',
                 frame: 'gold',
                 quantityOnThumbOnly: true,
             });
@@ -141,7 +141,7 @@ function parseDungeonRankRangeToPieces(items: DungeonRankRewardRangeItem[]): Rew
                 key: `rank-d-${idx}`,
                 label: '다이아',
                 quantity: qty,
-                imageUrl: '/images/icon/Zem.png',
+                imageUrl: '/images/icon/Zem.webp',
                 frame: 'diamond',
                 quantityOnThumbOnly: true,
             });
@@ -231,7 +231,7 @@ function getBaseRewardPieces(type: TournamentType, stage: number): RewardPiece[]
                 key: 'base-gold-mystery',
                 label: '',
                 quantity: '',
-                imageUrl: '/images/icon/Gold.png',
+                imageUrl: '/images/icon/Gold.webp',
                 frame: 'gold',
                 mysteryNeighborhoodGold: true,
                 hideThumbQuantityBadge: true,
@@ -254,7 +254,7 @@ function getBaseRewardPieces(type: TournamentType, stage: number): RewardPiece[]
                     key: 'base-mat-fallback',
                     label: m.materialName,
                     quantity: `${m.quantity.toLocaleString()}~${m.quantity.toLocaleString()}`,
-                    imageUrl: getChampionshipRewardItemImageUrl(m.materialName) || '/images/materials/materials1.png',
+                    imageUrl: getChampionshipRewardItemImageUrl(m.materialName) || '/images/materials/materials1.webp',
                     grade: getChampionshipRewardItemGrade(m.materialName),
                     quantityOnThumbOnly: true,
                     suppressTitle: true,
@@ -265,7 +265,7 @@ function getBaseRewardPieces(type: TournamentType, stage: number): RewardPiece[]
             key: `base-mat-${idx}`,
             label: r.materialName,
             quantity: formatRangeQuantity(r.min, r.max),
-            imageUrl: getChampionshipRewardItemImageUrl(r.materialName) || '/images/materials/materials1.png',
+            imageUrl: getChampionshipRewardItemImageUrl(r.materialName) || '/images/materials/materials1.webp',
             grade: getChampionshipRewardItemGrade(r.materialName),
             quantityOnThumbOnly: true,
             suppressTitle: true,
@@ -274,7 +274,7 @@ function getBaseRewardPieces(type: TournamentType, stage: number): RewardPiece[]
     if (type === 'world') {
         const e = DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage];
         if (!e) return [];
-        const boxImg = getChampionshipRewardItemImageUrl('장비 상자 I') || '/images/Box/EquipmentBox1.png';
+        const boxImg = getChampionshipRewardItemImageUrl('장비 상자 I') || '/images/Box/EquipmentBox1.webp';
         const list: RewardPiece[] = [
             {
                 key: 'base-equip-random',
@@ -294,7 +294,7 @@ function getBaseRewardPieces(type: TournamentType, stage: number): RewardPiece[]
                 key: 'tickets',
                 label: '장비 변경권',
                 quantity: '',
-                imageUrl: '/images/use/change1.png',
+                imageUrl: '/images/use/change1.webp',
                 mysteryChangeTicket: true,
                 hideThumbQuantityBadge: true,
                 quantityOnThumbOnly: true,

@@ -794,7 +794,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 const obtainedItems: Partial<InventoryItem>[] = individualAmounts.map(amount => ({
                     name: bundleInfo.type === 'gold' ? '골드' : '다이아',
                     quantity: amount,
-                    image: bundleInfo.type === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png',
+                    image: bundleInfo.type === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp',
                     type: 'material' as const,
                     grade: bundleInfo.type === 'gold' ? ItemGrade.Uncommon : ItemGrade.Rare
                 }));
@@ -1040,8 +1040,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
 
             // Prepare client response
             const clientResponseItems = [...allObtainedItems];
-            if (totalGoldGained > 0) clientResponseItems.push({ name: '골드', quantity: totalGoldGained, image: '/images/icon/Gold.png', type: 'material', grade: 'uncommon' } as any);
-            if (totalDiamondsGained > 0) clientResponseItems.push({ name: '다이아', quantity: totalDiamondsGained, image: '/images/icon/Zem.png', type: 'material', grade: 'rare' } as any);
+            if (totalGoldGained > 0) clientResponseItems.push({ name: '골드', quantity: totalGoldGained, image: '/images/icon/Gold.webp', type: 'material', grade: 'uncommon' } as any);
+            if (totalDiamondsGained > 0) clientResponseItems.push({ name: '다이아', quantity: totalDiamondsGained, image: '/images/icon/Zem.webp', type: 'material', grade: 'rare' } as any);
 
             // 선택적 필드만 반환 (메시지 크기 최적화)
             const updatedUser = getSelectiveUserUpdate(user, 'USE_ALL_ITEMS_OF_TYPE', { includeAll: true });

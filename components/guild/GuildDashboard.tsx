@@ -44,10 +44,13 @@ const GUILD_HOME_BACKGROUND_IMAGE = '/images/guild/guildbg.webp';
 
 // 길드 아이콘 경로 수정 함수
 const getGuildIconPath = (icon: string | undefined): string => {
-    if (!icon) return '/images/guild/profile/icon1.png';
+    if (!icon) return '/images/guild/profile/icon1.webp';
     // 기존 경로가 /images/guild/icon으로 시작하면 /images/guild/profile/icon으로 변환
     if (icon.startsWith('/images/guild/icon')) {
         return icon.replace('/images/guild/icon', '/images/guild/profile/icon');
+    }
+    if (/\/images\//.test(icon) && /\.png$/i.test(icon)) {
+        return icon.replace(/\.png$/i, '.webp');
     }
     // 이미 올바른 경로이거나 다른 경로인 경우 그대로 반환
     return icon;
@@ -168,7 +171,7 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
                             ) : (
                                 <>
                                     <span className="flex items-center gap-1 whitespace-nowrap">
-                                        <img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4 flex-shrink-0" />
+                                        <img src="/images/icon/Gold.webp" alt="골드" className="w-4 h-4 flex-shrink-0" />
                                         <span>{GUILD_DONATION_GOLD_COST.toLocaleString()}</span>
                                     </span>
                                     <span className="text-[10px] opacity-90">{goldDonationsLeft}/{GUILD_DONATION_GOLD_LIMIT}</span>
@@ -193,7 +196,7 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
                             ) : (
                                 <>
                                     <span className="flex items-center gap-1 whitespace-nowrap">
-                                        <img src="/images/icon/Zem.png" alt="다이아" className="w-4 h-4 flex-shrink-0" />
+                                        <img src="/images/icon/Zem.webp" alt="다이아" className="w-4 h-4 flex-shrink-0" />
                                         <span>{GUILD_DONATION_DIAMOND_COST.toLocaleString()}</span>
                                     </span>
                                     <span className="text-[10px] opacity-90">{diamondDonationsLeft}/{GUILD_DONATION_DIAMOND_LIMIT}</span>
@@ -220,10 +223,10 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
                                         {' · '}
                                         <span className="text-blue-200/95">다이아 <span className="font-semibold text-white">{agg.diamondCount}</span>회</span>
                                         {' · '}
-                                        <img src="/images/guild/tokken.png" alt="코인" className="inline h-3 w-3 align-middle" />
+                                        <img src="/images/guild/tokken.webp" alt="코인" className="inline h-3 w-3 align-middle" />
                                         <span className="font-semibold text-amber-200">{agg.totalCoins.toLocaleString()}</span>
                                         {' · '}
-                                        <img src="/images/guild/button/guildlab.png" alt="RP" className="inline h-3 w-3 align-middle" />
+                                        <img src="/images/guild/button/guildlab.webp" alt="RP" className="inline h-3 w-3 align-middle" />
                                         <span className="font-semibold text-blue-200">{agg.totalResearch.toLocaleString()}</span>
                                     </div>
                                 ))
@@ -243,7 +246,7 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
                         {/* 헤더 - 그라데이션 */}
                         <div className={`px-6 py-4 ${donationModal.type === 'gold' ? 'bg-gradient-to-r from-amber-600/90 via-amber-500/90 to-yellow-500/90' : 'bg-gradient-to-r from-sky-600/90 via-blue-500/90 to-indigo-500/90'}`}>
                             <div className="flex items-center gap-2">
-                                <img src={donationModal.type === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'} alt="" className="w-8 h-8 drop-shadow-lg" />
+                                <img src={donationModal.type === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'} alt="" className="w-8 h-8 drop-shadow-lg" />
                                 <h3 className="font-bold text-lg text-white drop-shadow-md">
                                     {donationModal.type === 'gold' ? '골드' : '다이아'} 기부
                                 </h3>
@@ -256,11 +259,11 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
                                 <div className="text-xs text-stone-400 font-semibold mb-2">1회당 보상</div>
                                 <div className="flex items-center justify-center gap-6">
                                     <span className="flex items-center gap-2 text-amber-300 font-bold">
-                                        <img src="/images/guild/tokken.png" alt="" className="w-5 h-5" />
+                                        <img src="/images/guild/tokken.webp" alt="" className="w-5 h-5" />
                                         {donationModal.type === 'gold' ? `${GUILD_DONATION_GOLD_REWARDS.guildCoins[0]}~${GUILD_DONATION_GOLD_REWARDS.guildCoins[1]}` : `${GUILD_DONATION_DIAMOND_REWARDS.guildCoins[0]}~${GUILD_DONATION_DIAMOND_REWARDS.guildCoins[1]}`}
                                     </span>
                                     <span className="flex items-center gap-2 text-blue-300 font-bold">
-                                        <img src="/images/guild/button/guildlab.png" alt="" className="w-5 h-5" />
+                                        <img src="/images/guild/button/guildlab.webp" alt="" className="w-5 h-5" />
                                         {donationModal.type === 'gold' ? `${GUILD_DONATION_GOLD_REWARDS.researchPoints[0]}~${GUILD_DONATION_GOLD_REWARDS.researchPoints[1]} RP` : `${GUILD_DONATION_DIAMOND_REWARDS.researchPoints[0]}~${GUILD_DONATION_DIAMOND_REWARDS.researchPoints[1]} RP`}
                                     </span>
                                 </div>
@@ -420,11 +423,11 @@ const GuildDonationPanelPhone: React.FC<{ guild?: GuildType | null; guildDonatio
                                 >
                                     <span className="min-w-0 max-w-[8.5rem] truncate text-amber-200/90">[{agg.nickname}]</span>
                                     <span className="inline-flex items-center gap-1 text-amber-200/95">
-                                        <img src="/images/icon/Gold.png" alt="골드" className="h-3 w-3 shrink-0" />
+                                        <img src="/images/icon/Gold.webp" alt="골드" className="h-3 w-3 shrink-0" />
                                         <span className="font-semibold text-white">{agg.goldCount}회</span>
                                     </span>
                                     <span className="inline-flex items-center gap-1 text-blue-200/95">
-                                        <img src="/images/icon/Zem.png" alt="다이아" className="h-3 w-3 shrink-0" />
+                                        <img src="/images/icon/Zem.webp" alt="다이아" className="h-3 w-3 shrink-0" />
                                         <span className="font-semibold text-white">{agg.diamondCount}회</span>
                                     </span>
                                 </div>
@@ -446,7 +449,7 @@ const GuildDonationPanelPhone: React.FC<{ guild?: GuildType | null; guildDonatio
                                 <span className="animate-spin">⏳</span>
                             ) : (
                                 <span className="flex items-center gap-1 whitespace-nowrap">
-                                    <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 shrink-0" />
+                                    <img src="/images/icon/Gold.webp" alt="골드" className="h-4 w-4 shrink-0" />
                                     <span>{GUILD_DONATION_GOLD_COST.toLocaleString()}</span>
                                     <span className="ml-1 text-[10px] opacity-90">
                                         {goldDonationsLeft}/{GUILD_DONATION_GOLD_LIMIT}
@@ -467,7 +470,7 @@ const GuildDonationPanelPhone: React.FC<{ guild?: GuildType | null; guildDonatio
                                 <span className="animate-spin">⏳</span>
                             ) : (
                                 <span className="flex items-center gap-1 whitespace-nowrap">
-                                    <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4 shrink-0" />
+                                    <img src="/images/icon/Zem.webp" alt="다이아" className="h-4 w-4 shrink-0" />
                                     <span>{GUILD_DONATION_DIAMOND_COST.toLocaleString()}</span>
                                     <span className="ml-1 text-[10px] opacity-90">
                                         {diamondDonationsLeft}/{GUILD_DONATION_DIAMOND_LIMIT}
@@ -494,7 +497,7 @@ const GuildDonationPanelPhone: React.FC<{ guild?: GuildType | null; guildDonatio
                         {/* 헤더 - 그라데이션 */}
                         <div className={`px-5 py-3 ${donationModal.type === 'gold' ? 'bg-gradient-to-r from-amber-600/90 via-amber-500/90 to-yellow-500/90' : 'bg-gradient-to-r from-sky-600/90 via-blue-500/90 to-indigo-500/90'}`}>
                             <div className="flex items-center gap-2">
-                                <img src={donationModal.type === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'} alt="" className="w-7 h-7 drop-shadow-lg" />
+                                <img src={donationModal.type === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'} alt="" className="w-7 h-7 drop-shadow-lg" />
                                 <h3 className="font-bold text-base text-white drop-shadow-md">
                                     {donationModal.type === 'gold' ? '골드' : '다이아'} 기부
                                 </h3>
@@ -507,11 +510,11 @@ const GuildDonationPanelPhone: React.FC<{ guild?: GuildType | null; guildDonatio
                                 <div className="mb-1.5 text-[11px] font-semibold text-stone-400">1회당 보상</div>
                                 <div className="flex items-center justify-center gap-4 text-sm">
                                     <span className="flex items-center gap-1.5 font-bold text-amber-300">
-                                        <img src="/images/guild/tokken.png" alt="" className="h-4 w-4" />
+                                        <img src="/images/guild/tokken.webp" alt="" className="h-4 w-4" />
                                         {donationModal.type === 'gold' ? `${GUILD_DONATION_GOLD_REWARDS.guildCoins[0]}~${GUILD_DONATION_GOLD_REWARDS.guildCoins[1]}` : `${GUILD_DONATION_DIAMOND_REWARDS.guildCoins[0]}~${GUILD_DONATION_DIAMOND_REWARDS.guildCoins[1]}`}
                                     </span>
                                     <span className="flex items-center gap-1.5 font-bold text-blue-300">
-                                        <img src="/images/guild/button/guildlab.png" alt="" className="h-4 w-4" />
+                                        <img src="/images/guild/button/guildlab.webp" alt="" className="h-4 w-4" />
                                         {donationModal.type === 'gold' ? `${GUILD_DONATION_GOLD_REWARDS.researchPoints[0]}~${GUILD_DONATION_GOLD_REWARDS.researchPoints[1]} RP` : `${GUILD_DONATION_DIAMOND_REWARDS.researchPoints[0]}~${GUILD_DONATION_DIAMOND_REWARDS.researchPoints[1]} RP`}
                                     </span>
                                 </div>
@@ -577,10 +580,10 @@ const GuildDonationPanelPhone: React.FC<{ guild?: GuildType | null; guildDonatio
 
 const ActivityPanel: React.FC<{ onOpenMissions: () => void; onOpenResearch: () => void; onOpenShop: () => void; missionNotification: boolean; onOpenBossGuide: () => void; }> = ({ onOpenMissions, onOpenResearch, onOpenShop, missionNotification, onOpenBossGuide }) => {
     const activities = [
-        { name: '길드 미션', icon: '/images/guild/button/guildmission.png', action: onOpenMissions, notification: missionNotification },
-        { name: '길드 연구소', icon: '/images/guild/button/guildlab.png', action: onOpenResearch },
-        { name: '길드 상점', icon: '/images/guild/button/guildstore.png', action: onOpenShop },
-        { name: '보스 도감', icon: '/images/guild/button/bossraid1.png', action: onOpenBossGuide },
+        { name: '길드 미션', icon: '/images/guild/button/guildmission.webp', action: onOpenMissions, notification: missionNotification },
+        { name: '길드 연구소', icon: '/images/guild/button/guildlab.webp', action: onOpenResearch },
+        { name: '길드 상점', icon: '/images/guild/button/guildstore.webp', action: onOpenShop },
+        { name: '보스 도감', icon: '/images/guild/button/bossraid1.webp', action: onOpenBossGuide },
     ];
     return (
         <div className="flex-shrink-0 rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 p-3 shadow-lg">
@@ -620,10 +623,10 @@ const GuildActivityRailStrip: React.FC<{
     missionNotification: boolean;
 }> = ({ onOpenMissions, onOpenResearch, onOpenShop, onOpenBossGuide, missionNotification }) => {
     const activities = [
-        { name: '길드 미션', icon: '/images/guild/button/guildmission.png', action: onOpenMissions, notification: missionNotification },
-        { name: '길드 연구소', icon: '/images/guild/button/guildlab.png', action: onOpenResearch, notification: false },
-        { name: '길드 상점', icon: '/images/guild/button/guildstore.png', action: onOpenShop, notification: false },
-        { name: '보스 도감', icon: '/images/guild/button/bossraid1.png', action: onOpenBossGuide, notification: false },
+        { name: '길드 미션', icon: '/images/guild/button/guildmission.webp', action: onOpenMissions, notification: missionNotification },
+        { name: '길드 연구소', icon: '/images/guild/button/guildlab.webp', action: onOpenResearch, notification: false },
+        { name: '길드 상점', icon: '/images/guild/button/guildstore.webp', action: onOpenShop, notification: false },
+        { name: '보스 도감', icon: '/images/guild/button/bossraid1.webp', action: onOpenBossGuide, notification: false },
     ];
     return (
         <div className="flex w-full shrink-0 flex-col gap-1.5">
@@ -975,7 +978,7 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
                                 disabled={!canEnter}
                                 className={`${canEnter ? guildPanelBtn.boss : guildPanelBtn.disabled}`}
                             >
-                                <img src="/images/guild/ticket.png" alt="보스전 티켓" className="w-4 h-4" />
+                                <img src="/images/guild/ticket.webp" alt="보스전 티켓" className="w-4 h-4" />
                                 <span>{myBossTickets}/{GUILD_BOSS_MAX_ATTEMPTS}</span>
                                 <span>입장</span>
                             </button>
@@ -1594,7 +1597,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                             >
                                 <div className="absolute inset-0 rounded-xl bg-gradient-to-t from-black/25 to-transparent" aria-hidden />
                                 <img
-                                    src="/images/guild/button/guildwar.png"
+                                    src="/images/guild/button/guildwar.webp"
                                     alt=""
                                     className={`relative z-[1] object-contain drop-shadow-lg ${isMobile ? 'h-8 w-8' : 'h-10 w-10'}`}
                                 />
@@ -1650,7 +1653,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                                 <span
                                                     className={`inline-flex items-center gap-1 rounded-lg border border-amber-400/30 bg-amber-950/35 px-2 py-1 font-bold text-amber-200 ${isMobile ? 'text-[10px]' : 'text-xs'}`}
                                                 >
-                                                    <img src="/images/guild/guildwar/clearstar.png" alt="" className="h-3.5 w-3.5" />
+                                                    <img src="/images/guild/guildwar/clearstar.webp" alt="" className="h-3.5 w-3.5" />
                                                     기여 {myRecordInCurrentWar.contributedStars}
                                                 </span>
                                             ) : null}
@@ -1732,7 +1735,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                             {(warStats as any).myRecordInLastWar != null ? (
                                                 <div className="flex justify-center border-t border-white/10 pt-2">
                                                     <span className="inline-flex items-center gap-1 rounded-lg border border-amber-400/25 bg-black/35 px-2 py-1 text-[10px] font-bold text-amber-200 sm:text-xs">
-                                                        <img src="/images/guild/guildwar/clearstar.png" alt="" className="h-3.5 w-3.5" />
+                                                        <img src="/images/guild/guildwar/clearstar.webp" alt="" className="h-3.5 w-3.5" />
                                                         기여 {((warStats as any).myRecordInLastWar as { contributedStars: number }).contributedStars}
                                                     </span>
                                                 </div>
@@ -1747,19 +1750,19 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                         {lastWarRewardPreview ? (
                                             <div className="grid grid-cols-2 gap-1.5 text-[10px] font-bold text-stone-200 sm:text-xs">
                                                 <div className="flex items-center gap-1 rounded-md bg-stone-900/60 px-1.5 py-1">
-                                                    <img src="/images/icon/Gold.png" alt="" className="h-4 w-4 object-contain" />
+                                                    <img src="/images/icon/Gold.webp" alt="" className="h-4 w-4 object-contain" />
                                                     <span>{formatRewardRange(lastWarRewardPreview.gold)}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1 rounded-md bg-stone-900/60 px-1.5 py-1">
-                                                    <img src="/images/icon/Diamond.png" alt="" className="h-4 w-4 object-contain" />
+                                                    <img src="/images/icon/Zem.webp" alt="" className="h-4 w-4 object-contain" />
                                                     <span>{formatRewardRange(lastWarRewardPreview.diamonds)}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1 rounded-md bg-stone-900/60 px-1.5 py-1">
-                                                    <img src="/images/guild/tokken.png" alt="" className="h-4 w-4 object-contain" />
+                                                    <img src="/images/guild/tokken.webp" alt="" className="h-4 w-4 object-contain" />
                                                     <span>{formatRewardRange(lastWarRewardPreview.guildCoins)}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1 rounded-md bg-stone-900/60 px-1.5 py-1">
-                                                    <img src="/images/guild/button/guildlab.png" alt="" className="h-4 w-4 object-contain" />
+                                                    <img src="/images/guild/button/guildlab.webp" alt="" className="h-4 w-4 object-contain" />
                                                     <span>{formatRewardRange(lastWarRewardPreview.researchPoints)}</span>
                                                 </div>
                                                 <div className="col-span-2 flex items-center justify-center rounded-md bg-stone-900/60 px-1.5 py-1 text-blue-200">
@@ -1768,8 +1771,8 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                             </div>
                                         ) : (
                                             <div className="flex items-center justify-center gap-3 opacity-40">
-                                                <img src="/images/guild/tokken.png" alt="" className="h-6 w-6 object-contain grayscale" />
-                                                <img src="/images/guild/button/guildlab.png" alt="" className="h-6 w-6 object-contain grayscale" />
+                                                <img src="/images/guild/tokken.webp" alt="" className="h-6 w-6 object-contain grayscale" />
+                                                <img src="/images/guild/button/guildlab.webp" alt="" className="h-6 w-6 object-contain grayscale" />
                                             </div>
                                         )}
                                     </div>
@@ -1806,7 +1809,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                             title="길드전 화면으로 이동합니다"
                             className={guildPanelBtn.war}
                         >
-                            <img src="/images/guild/warticket.png" alt="길드전 공격권" className="w-4 h-4" />
+                            <img src="/images/guild/warticket.webp" alt="길드전 공격권" className="w-4 h-4" />
                             <span>{myWarTickets}/{GUILD_WAR_PERSONAL_DAILY_ATTEMPTS}</span>
                             <span>입장</span>
                         </button>
@@ -1990,7 +1993,7 @@ const GuildBossGuideModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
 };
 
 const GuildIconSelectModal: React.FC<{ guild: GuildType; onClose: () => void; onSelect: (icon: string) => void }> = ({ guild, onClose, onSelect }) => {
-    const guildIcons = Array.from({ length: 11 }, (_, i) => `/images/guild/profile/icon${i + 1}.png`);
+    const guildIcons = Array.from({ length: 11 }, (_, i) => `/images/guild/profile/icon${i + 1}.webp`);
     const [selectedIcon, setSelectedIcon] = useState<string>(getGuildIconPath(guild.icon));
 
     return (
@@ -2163,9 +2166,9 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                 }}
             >
                 <div className="flex items-center gap-2 rounded-lg border-2 border-amber-400/60 bg-gradient-to-r from-amber-900/95 via-yellow-900/95 to-amber-800/95 px-4 py-2 shadow-[0_4px_12px_rgba(251,191,36,0.6)]">
-                    <img src="/images/guild/tokken.png" alt="Coin" className="w-5 h-5 drop-shadow-md flex-shrink-0" />
+                    <img src="/images/guild/tokken.webp" alt="Coin" className="w-5 h-5 drop-shadow-md flex-shrink-0" />
                     <span className="text-sm font-bold text-yellow-300 drop-shadow-lg whitespace-nowrap">+{guildDonationAnimation.coins}</span>
-                    <img src="/images/guild/button/guildlab.png" alt="Research" className="w-5 h-5 drop-shadow-md flex-shrink-0" />
+                    <img src="/images/guild/button/guildlab.webp" alt="Research" className="w-5 h-5 drop-shadow-md flex-shrink-0" />
                     <span className="text-sm font-bold text-blue-300 drop-shadow-lg whitespace-nowrap">+{guildDonationAnimation.research} RP</span>
                 </div>
             </div>
@@ -2184,9 +2187,9 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                 }}
             >
                 <div className="flex items-center gap-2 rounded-lg border-2 border-blue-400/60 bg-gradient-to-r from-blue-900/95 via-indigo-900/95 to-purple-900/95 px-4 py-2 shadow-[0_4px_12px_rgba(59,130,246,0.6)]">
-                    <img src="/images/guild/tokken.png" alt="Coin" className="w-5 h-5 drop-shadow-md flex-shrink-0" />
+                    <img src="/images/guild/tokken.webp" alt="Coin" className="w-5 h-5 drop-shadow-md flex-shrink-0" />
                     <span className="text-sm font-bold text-yellow-300 drop-shadow-lg whitespace-nowrap">+{guildDonationAnimation.coins}</span>
-                    <img src="/images/guild/button/guildlab.png" alt="Research" className="w-5 h-5 drop-shadow-md flex-shrink-0" />
+                    <img src="/images/guild/button/guildlab.webp" alt="Research" className="w-5 h-5 drop-shadow-md flex-shrink-0" />
                     <span className="text-sm font-bold text-blue-300 drop-shadow-lg whitespace-nowrap">+{guildDonationAnimation.research} RP</span>
                 </div>
             </div>
@@ -2214,10 +2217,10 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
     };
 
     const guildHomeActions = [
-        { key: 'mission', name: '길드 미션', icon: '/images/guild/button/guildmission.png', action: activityRailProps.onOpenMissions, notification: activityRailProps.missionNotification },
-        { key: 'research', name: '길드 연구소', icon: '/images/guild/button/guildlab.png', action: activityRailProps.onOpenResearch, notification: false },
-        { key: 'shop', name: '길드 상점', icon: '/images/guild/button/guildstore.png', action: activityRailProps.onOpenShop, notification: false },
-        { key: 'bossGuide', name: '보스 도감', icon: '/images/guild/button/bossraid1.png', action: activityRailProps.onOpenBossGuide, notification: false },
+        { key: 'mission', name: '길드 미션', icon: '/images/guild/button/guildmission.webp', action: activityRailProps.onOpenMissions, notification: activityRailProps.missionNotification },
+        { key: 'research', name: '길드 연구소', icon: '/images/guild/button/guildlab.webp', action: activityRailProps.onOpenResearch, notification: false },
+        { key: 'shop', name: '길드 상점', icon: '/images/guild/button/guildstore.webp', action: activityRailProps.onOpenShop, notification: false },
+        { key: 'bossGuide', name: '보스 도감', icon: '/images/guild/button/bossraid1.webp', action: activityRailProps.onOpenBossGuide, notification: false },
     ] as const;
 
     return (

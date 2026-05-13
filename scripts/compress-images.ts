@@ -1,7 +1,7 @@
 /**
  * 이미지 압축 스크립트
  *
- * PWA·파비콘·앱 스토어용 아이콘(`public/images/Icon.png` 등)은 WebP 변환 대상에서 제외합니다.
+ * PWA·파비콘·앱 스토어용 아이콘(`public/images/Icon.png` / `Icon.webp` 등)은 WebP 변환 대상에서 제외합니다.
  * (WebP는 홈 화면/독에서 가장자리가 지저분해 보이는 경우가 많아 PNG를 유지합니다.)
  *
  * 사용법:

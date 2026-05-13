@@ -303,7 +303,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                                     <div className="flex flex-col items-center gap-0.5">
                                         <div className={`${SINGLE_PLAYER_CLEAR_GOLD_BOX} ring-1 ring-amber-400/20`} aria-hidden>
                                             <img
-                                                src="/images/icon/Gold.png"
+                                                src="/images/icon/Gold.webp"
                                                 alt=""
                                                 className="h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 object-contain p-0.5"
                                             />

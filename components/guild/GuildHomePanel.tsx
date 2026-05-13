@@ -158,7 +158,7 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
                         return (
                             <div key={index} className={`flex aspect-square min-w-0 flex-col items-center justify-between rounded-xl border-2 bg-gradient-to-br p-1.5 text-center transition-all hover:scale-105 sm:p-3 ${isAchieved ? 'from-yellow-900/40 via-amber-900/30 to-yellow-800/40 border-yellow-500/60 shadow-[0_0_15px_rgba(251,191,36,0.4)]' : 'from-tertiary/60 via-tertiary/50 to-tertiary/40 border-transparent'}`}>
                                 <div className="flex flex-col items-center">
-                                    <img src="/images/guild/tokken.png" alt="길드 코인" className="w-4 h-4 sm:w-8 sm:h-8 drop-shadow-lg mb-0.5 sm:mb-1"/>
+                                    <img src="/images/guild/tokken.webp" alt="길드 코인" className="w-4 h-4 sm:w-8 sm:h-8 drop-shadow-lg mb-0.5 sm:mb-1"/>
                                     <span className="text-[10px] sm:text-base font-bold text-primary drop-shadow">+{milestone.reward.guildCoins}</span>
                                     <p className="text-[8px] sm:text-xs text-tertiary mt-0.5">{milestone.count}명</p>
                                 </div>
@@ -204,7 +204,7 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
                         <span className="font-bold text-yellow-300">{guildCoinRewardModal.amount.toLocaleString()}개</span>를 받았습니다.
                     </p>
                     <div className="flex items-center justify-center gap-2 py-3 mb-4 rounded-lg bg-amber-950/40 border border-amber-600/30">
-                        <img src="/images/guild/tokken.png" alt="" className="w-10 h-10 drop-shadow-md" />
+                        <img src="/images/guild/tokken.webp" alt="" className="w-10 h-10 drop-shadow-md" />
                         <span className="text-2xl font-bold text-yellow-300">+{guildCoinRewardModal.amount.toLocaleString()}</span>
                     </div>
                     <Button

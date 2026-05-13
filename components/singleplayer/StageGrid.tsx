@@ -385,7 +385,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                             {stage.rewards.firstClear.gold > 0 && (
                                                 <span className="flex min-w-0 items-center gap-0.5">
                                                     <img
-                                                        src="/images/icon/Gold.png"
+                                                        src="/images/icon/Gold.webp"
                                                         alt="골드"
                                                         className={tabShelf ? 'h-3 w-3' : 'h-3.5 w-3.5'}
                                                     />

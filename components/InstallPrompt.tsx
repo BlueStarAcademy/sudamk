@@ -90,7 +90,7 @@ const InstallPrompt: React.FC = () => {
       <div className="bg-gray-800 border-2 border-accent rounded-lg p-4 shadow-lg">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0">
-            <img src="/images/Icon.png" alt="SUDAM" className="w-12 h-12 rounded-lg" />
+            <img src="/images/Icon.webp" alt="SUDAM" className="w-12 h-12 rounded-lg" />
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-white font-bold text-sm mb-1">앱 설치하기</h3>

@@ -39,7 +39,7 @@ const TOWER_ITEMS: TowerItem[] = [
     {
         itemId: '턴 추가',
         name: '턴 추가',
-        icon: '/images/button/addturn.png',
+        icon: '/images/button/addturn.webp',
         price: { gold: 300 },
         maxOwned: 3,
         dailyPurchaseLimit: 3,
@@ -48,7 +48,7 @@ const TOWER_ITEMS: TowerItem[] = [
     {
         itemId: '미사일',
         name: '미사일',
-        icon: '/images/button/missile.png',
+        icon: '/images/button/missile.webp',
         price: { gold: 300 },
         maxOwned: 2,
         dailyPurchaseLimit: 2,
@@ -57,7 +57,7 @@ const TOWER_ITEMS: TowerItem[] = [
     {
         itemId: '히든',
         name: '히든',
-        icon: '/images/button/hidden.png',
+        icon: '/images/button/hidden.webp',
         price: { gold: 500 },
         maxOwned: 2,
         dailyPurchaseLimit: 2,
@@ -66,7 +66,7 @@ const TOWER_ITEMS: TowerItem[] = [
     {
         itemId: '스캔',
         name: '스캔',
-        icon: '/images/button/scan.png',
+        icon: '/images/button/scan.webp',
         price: { gold: 400 },
         maxOwned: 2,
         dailyPurchaseLimit: 2,
@@ -75,7 +75,7 @@ const TOWER_ITEMS: TowerItem[] = [
     {
         itemId: '배치변경',
         name: '배치변경',
-        icon: '/images/button/reflesh.png',
+        icon: '/images/button/reflesh.webp',
         price: { gold: 100 },
         maxOwned: 5,
         dailyPurchaseLimit: 5,
@@ -318,8 +318,8 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
                                                 </span>
                                             </div>
                                             <div className="mt-0.5 flex items-center justify-center gap-1">
-                                                {item.price.gold && <img src="/images/icon/Gold.png" alt="골드" className="h-3 w-3" />}
-                                                {item.price.diamonds && <img src="/images/icon/Zem.png" alt="다이아" className="h-3 w-3" />}
+                                                {item.price.gold && <img src="/images/icon/Gold.webp" alt="골드" className="h-3 w-3" />}
+                                                {item.price.diamonds && <img src="/images/icon/Zem.webp" alt="다이아" className="h-3 w-3" />}
                                                 <span className="text-[10px] font-semibold text-amber-100">
                                                     {item.price.gold
                                                         ? formatGoldAmountKoG(item.price.gold)
@@ -404,13 +404,13 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
                                                     <div className="flex items-center gap-2 mt-1">
                                                         {item.price.gold && (
                                                             <div className="flex items-center gap-1">
-                                                                <img src="/images/icon/Gold.png" alt="골드" className="w-3 h-3" />
+                                                                <img src="/images/icon/Gold.webp" alt="골드" className="w-3 h-3" />
                                                                 <span className="text-xs text-yellow-300 font-semibold">{item.price.gold}</span>
                                                             </div>
                                                         )}
                                                         {item.price.diamonds && (
                                                             <div className="flex items-center gap-1">
-                                                                <img src="/images/icon/Zem.png" alt="다이아" className="w-3 h-3" />
+                                                                <img src="/images/icon/Zem.webp" alt="다이아" className="w-3 h-3" />
                                                                 <span className="text-xs text-blue-300 font-semibold">{item.price.diamonds}</span>
                                                             </div>
                                                         )}
@@ -484,14 +484,14 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
                             <div className="flex items-center gap-2">
                                 {totalGold > 0 ? (
                                     <div className="flex items-center gap-1">
-                                        <img src="/images/icon/Gold.png" alt="골드" className={`${isNativeMobile ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
+                                        <img src="/images/icon/Gold.webp" alt="골드" className={`${isNativeMobile ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
                                         <span className={`${isNativeMobile ? 'text-sm' : 'text-xs'} font-bold ${canAfford ? 'text-yellow-300' : 'text-red-400'}`}>
                                             {totalGold.toLocaleString()}
                                         </span>
                                     </div>
                                 ) : totalDiamonds > 0 ? (
                                     <div className="flex items-center gap-1">
-                                        <img src="/images/icon/Zem.png" alt="다이아" className={`${isNativeMobile ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
+                                        <img src="/images/icon/Zem.webp" alt="다이아" className={`${isNativeMobile ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
                                         <span className={`${isNativeMobile ? 'text-sm' : 'text-xs'} font-bold ${canAfford ? 'text-blue-300' : 'text-red-400'}`}>
                                             {totalDiamonds.toLocaleString()}
                                         </span>

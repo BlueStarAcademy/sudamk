@@ -52,7 +52,7 @@ export function getKstHourStartEpochMs(nowMs: number): number {
 export function adventureTreasureChestEquipmentImageForStageIndex(stageIndex: number): string {
     const s = Math.max(1, Math.min(5, Math.floor(stageIndex)));
     const boxNum = s + 1;
-    return `/images/Box/EquipmentBox${boxNum}.png`;
+    return `/images/Box/EquipmentBox${boxNum}.webp`;
 }
 
 function distanceSquaredPct(a: { xPct: number; yPct: number }, b: { xPct: number; yPct: number }): number {

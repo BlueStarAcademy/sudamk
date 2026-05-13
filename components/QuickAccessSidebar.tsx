@@ -104,7 +104,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
             {
                 label: '퀘스트',
                 gameplay: true,
-                iconUrl: '/images/quickmenu/quest.png',
+                iconUrl: '/images/quickmenu/quest.webp',
                 handler: handlers.openQuests,
                 disabled: tutorialQuickDisabled('퀘스트'),
                 notification: hasClaimableQuest,
@@ -120,7 +120,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
             {
                 label: '대장간',
                 gameplay: true,
-                iconUrl: '/images/quickmenu/enhance.png',
+                iconUrl: '/images/quickmenu/enhance.webp',
                 handler: handlers.openBlacksmithModal,
                 disabled: tutorialQuickDisabled('대장간'),
                 notification: false,
@@ -130,7 +130,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
             {
                 label: '상점',
                 gameplay: true,
-                iconUrl: '/images/quickmenu/store.png',
+                iconUrl: '/images/quickmenu/store.webp',
                 handler: () => handlers.openShop(),
                 disabled: tutorialQuickDisabled('상점'),
                 notification: false,
@@ -138,7 +138,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
             {
                 label: '가방',
                 gameplay: true,
-                iconUrl: '/images/quickmenu/bag.png',
+                iconUrl: '/images/quickmenu/bag.webp',
                 handler: handlers.openInventory,
                 disabled: tutorialQuickDisabled('가방'),
                 notification: false,
@@ -172,7 +172,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
             {
                 label: '도감',
                 gameplay: false,
-                iconUrl: '/images/button/itembook.png',
+                iconUrl: '/images/button/itembook.webp',
                 handler: handlers.openEncyclopedia,
                 disabled: false,
                 notification: false,

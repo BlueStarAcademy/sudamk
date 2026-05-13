@@ -729,7 +729,7 @@ const GuildWarStarConditionsPanel: React.FC<{
                         <div key={row.label} className={`flex items-start justify-between gap-2 ${starBodyClass}`}>
                             <span className="min-w-0 flex-1 leading-snug">{row.label}</span>
                             <img
-                                src={row.ok ? '/images/guild/guildwar/clearstar.png' : '/images/guild/guildwar/emptystar.png'}
+                                src={row.ok ? '/images/guild/guildwar/clearstar.webp' : '/images/guild/guildwar/emptystar.webp'}
                                 alt=""
                                 className="mt-0.5 h-4 w-4 shrink-0 object-contain opacity-95"
                                 aria-hidden

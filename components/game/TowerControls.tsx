@@ -533,7 +533,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
     const petHintImg = petRow
         ? ((petRow as { image?: string }).image ??
               (petRow.templateId ? getPairPetDefinition(petRow.templateId)?.image : null) ??
-              '/images/button/hidden.png')
+              '/images/button/hidden.webp')
         : null;
     const showPetHintBubble = Boolean(strategicPetHintFooterBubble?.visible && strategicPetHintFooterBubble?.message);
     const petHintSlot = (
@@ -607,7 +607,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
 		<>
 			<div className={colClass}>
 				<ImageButton
-					src="/images/button/giveup.png"
+					src="/images/button/giveup.webp"
 					alt="기권"
 					onClick={handleForfeit}
 					disabled={gameStatus === 'scoring'}
@@ -619,7 +619,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
 			{passAllowed && (
 				<div className={colClass}>
 					<ImageButton
-						src="/images/button/pass.png"
+						src="/images/button/pass.webp"
 						alt="통과"
 						onClick={handlePassClick}
 						disabled={!isMyTurn || gameStatus !== 'playing'}
@@ -631,7 +631,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
 			)}
 			<div className={colClass}>
 				<ImageButton
-					src="/images/button/reflesh.png"
+					src="/images/button/reflesh.webp"
 					alt="배치변경"
 					onClick={handleRefresh}
 					disabled={refreshButtonDisabled}
@@ -657,7 +657,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
 			{showTurnAdd && (
 				<div className={colClass}>
 					<ImageButton
-						src="/images/button/addturn.png"
+						src="/images/button/addturn.webp"
 						alt="턴 추가"
 						onClick={handleTurnAddClick}
 						disabled={turnAddButtonDisabled}
@@ -675,7 +675,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
 			{showMissileAndHiddenForHook && (
 				<div className={colClass}>
 					<ImageButton
-						src="/images/button/missile.png"
+						src="/images/button/missile.webp"
 						alt="미사일"
 						onClick={handleUseMissile}
 						disabled={missileButtonDisabled}
@@ -690,7 +690,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
 			{showMissileAndHiddenForHook && (
 				<div className={colClass}>
 					<ImageButton
-						src="/images/button/hidden.png"
+						src="/images/button/hidden.webp"
 						alt="히든"
 						onClick={handleUseHidden}
 						disabled={hiddenButtonDisabled}
@@ -705,7 +705,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
 			{showMissileAndHiddenForHook && (
 				<div className={colClass}>
 					<ImageButton
-						src="/images/button/scan.png"
+						src="/images/button/scan.webp"
 						alt="스캔"
 						onClick={handleUseScan}
 						disabled={scanButtonDisabled}

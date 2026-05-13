@@ -9,7 +9,7 @@ import { ItemGrade } from '../../shared/types/enums.js';
 import type { AdventureStageId } from '../../constants/adventureConstants.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
-const GOLD_SRC = '/images/icon/Gold.png';
+const GOLD_SRC = '/images/icon/Gold.webp';
 
 type Props = {
     stageId: AdventureStageId;

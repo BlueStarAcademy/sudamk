@@ -139,7 +139,7 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                         <div className="flex items-center justify-center gap-2 sm:justify-start">
                             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-amber-400/30 bg-amber-900/40 sm:h-9 sm:w-9">
-                                <img src="/images/icon/Gold.png" alt="" className="h-7 w-7 object-contain opacity-95 sm:h-6 sm:w-6" />
+                                <img src="/images/icon/Gold.webp" alt="" className="h-7 w-7 object-contain opacity-95 sm:h-6 sm:w-6" />
                             </div>
                             <div className="min-w-0 text-left">
                                 <p className="text-xs font-bold uppercase tracking-wider text-amber-200/85 sm:text-[11px] sm:text-amber-200/65">

@@ -4333,7 +4333,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     if (guild) {
                         const icon = guild.emblem?.startsWith('/images/guild/icon')
                             ? guild.emblem.replace('/images/guild/icon', '/images/guild/profile/icon')
-                            : (guild.emblem || '/images/guild/profile/icon1.png');
+                            : (guild.emblem || '/images/guild/profile/icon1.webp');
                         publicUser.guildName = guild.name;
                         publicUser.guildLevel = guild.level;
                         publicUser.guildIcon = icon;

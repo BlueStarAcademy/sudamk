@@ -59,12 +59,12 @@ function isMailAttachedCashPackageRow(row: MailAttachmentPickerRow): row is Mail
 
 /** 패키지 탭 그리드 썸네일 */
 const MAIL_PACKAGE_THUMB: Record<CashShopPackageId, string> = {
-    diamond_package_1: '/images/icon/Zem.png',
-    diamond_package_2: '/images/icon/Zem.png',
-    diamond_package_3: '/images/icon/Zem.png',
-    equipment_package_1: '/images/Box/EquipmentBox5.png',
-    equipment_package_2: '/images/Box/EquipmentBox5.png',
-    equipment_package_3: '/images/Box/EquipmentBox6.png',
+    diamond_package_1: '/images/icon/Zem.webp',
+    diamond_package_2: '/images/icon/Zem.webp',
+    diamond_package_3: '/images/icon/Zem.webp',
+    equipment_package_1: '/images/Box/EquipmentBox5.webp',
+    equipment_package_2: '/images/Box/EquipmentBox5.webp',
+    equipment_package_3: '/images/Box/EquipmentBox6.webp',
     remove_ads: '/images/shop/remove_ads_package.svg',
 };
 
@@ -640,14 +640,14 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
                     </div>
                     <div>
                         <label className="mb-1 flex items-center gap-1 font-medium text-secondary">
-                            <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 object-contain" />
+                            <img src="/images/icon/Gold.webp" alt="골드" className="h-4 w-4 object-contain" />
                             골드
                         </label>
                         <input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} value={gold} onChange={(e) => setGold(clampGameInt(parseInt(e.target.value, 10) || 0))} className={adminInput} />
                     </div>
                     <div>
                         <label className="mb-1 flex items-center gap-1 font-medium text-secondary">
-                            <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4 object-contain" />
+                            <img src="/images/icon/Zem.webp" alt="다이아" className="h-4 w-4 object-contain" />
                             다이아
                         </label>
                         <input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} value={diamonds} onChange={(e) => setDiamonds(clampGameInt(parseInt(e.target.value, 10) || 0, { max: MAX_GAME_INTEGER_INPUT }))} className={adminInput} />

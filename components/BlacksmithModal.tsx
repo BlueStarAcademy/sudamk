@@ -601,7 +601,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                                             {/* 이미지: 패널 가용 영역을 object-cover로 채움 (PC 좌측 패널과 동일 계열) */}
                                             <div className="relative min-h-[6.75rem] min-w-0 flex-1">
                                                 <img
-                                                    src="/images/equipments/moru.png"
+                                                    src="/images/equipments/moru.webp"
                                                     alt="Blacksmith"
                                                     className="absolute inset-0 h-full w-full object-cover object-center"
                                                     decoding="async"
@@ -720,7 +720,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                     {/* Left Panel */}
                     <div className="w-[360px] flex flex-shrink-0 flex-col items-center gap-4 overflow-hidden rounded-2xl border border-amber-400/20 bg-gradient-to-b from-[#1b1f2f]/85 via-[#131827]/90 to-[#0c101a]/95 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_48px_-28px_rgba(0,0,0,0.85)]">
                         <div className="relative w-full overflow-hidden rounded-xl border border-amber-400/25 shadow-[0_14px_30px_-20px_rgba(251,191,36,0.45)] aspect-w-3 aspect-h-2 flex-shrink-0">
-                            <img src="/images/equipments/moru.png" alt="Blacksmith" className="w-full h-full object-cover" />
+                            <img src="/images/equipments/moru.webp" alt="Blacksmith" className="w-full h-full object-cover" />
                         </div>
                         <div className="text-center">
                             <h2 className="text-2xl font-black tracking-tight text-amber-100">

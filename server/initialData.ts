@@ -286,7 +286,7 @@ export const createDefaultGuild = (id: string, name: string, description: string
         name,
         description,
         isPublic,
-        icon: '/images/guild/profile/icon1.png',
+        icon: '/images/guild/profile/icon1.webp',
         leaderId: creator.id,
         gold: 0,
         level: 1,

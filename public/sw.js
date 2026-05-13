@@ -1,30 +1,33 @@
 // Service Worker for PWA
-// 캝시 버전을 빌드 타임스탬프로 업띰이트 (잝띙으로 변경띨)
-const CACHE_NAME = 'sudam-v' + new Date().getTime();
-const IMAGE_CACHE_NAME = 'sudam-images-v' + new Date().getTime();
+// 배포마다 `new Date().getTime()`으로 캐시 이름을 바꾸면 activate 시 이전 sudam-* 캐시가
+// 전부 삭제되어, 이미지가 매번 네트워크에서 다시 받혀지는 것처럼 느려진다.
+// 캐시를 비우고 싶을 때만 아래 버전 문자열을 올린다.
+const CACHE_VERSION = '20260513';
+const CACHE_NAME = 'sudam-v' + CACHE_VERSION;
+const IMAGE_CACHE_NAME = 'sudam-images-v' + CACHE_VERSION;
 const urlsToCache = [
   '/',
   '/index.html',
   '/index.css',
-  '/images/Icon.png',
+  '/images/Icon.webp',
   '/manifest.json'
 ];
 
-// 잝주 사용띘는 이미지 목록 (UI 아이콘, 등급 배경 등)
+// 자주 쓰는 UI·등급 배경 (public에 대응 webp 존재)
 const priorityImages = [
-  '/images/icon/Gold.png',
-  '/images/icon/Zem.png',
-  '/images/equipments/normalbgi.png',
-  '/images/equipments/uncommonbgi.png',
-  '/images/equipments/rarebgi.png',
-  '/images/equipments/epicbgi.png',
-  '/images/equipments/legendarybgi.png',
-  '/images/equipments/mythicbgi.png',
+  '/images/icon/Gold.webp',
+  '/images/icon/Zem.webp',
+  '/images/equipments/normalbgi.webp',
+  '/images/equipments/uncommonbgi.webp',
+  '/images/equipments/rarebgi.webp',
+  '/images/equipments/epicbgi.webp',
+  '/images/equipments/legendarybgi.webp',
+  '/images/equipments/mythicbgi.webp',
   '/images/equipments/transcendentbgi.webp',
-  '/images/equipments/Star1.png',
-  '/images/equipments/Star2.png',
-  '/images/equipments/Star3.png',
-  '/images/equipments/Star4.png',
+  '/images/equipments/Star1.webp',
+  '/images/equipments/Star2.webp',
+  '/images/equipments/Star3.webp',
+  '/images/equipments/Star4.webp',
 ];
 
 // Install event - cache resources

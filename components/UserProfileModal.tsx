@@ -88,12 +88,12 @@ const CombinedLevelBadge: React.FC<{ level: number }> = ({ level }) => {
 };
 
 const gradeBackgrounds: Record<ItemGrade, string> = {
-    normal: '/images/equipments/normalbgi.png',
-    uncommon: '/images/equipments/uncommonbgi.png',
-    rare: '/images/equipments/rarebgi.png',
-    epic: '/images/equipments/epicbgi.png',
-    legendary: '/images/equipments/legendarybgi.png',
-    mythic: '/images/equipments/mythicbgi.png',
+    normal: '/images/equipments/normalbgi.webp',
+    uncommon: '/images/equipments/uncommonbgi.webp',
+    rare: '/images/equipments/rarebgi.webp',
+    epic: '/images/equipments/epicbgi.webp',
+    legendary: '/images/equipments/legendarybgi.webp',
+    mythic: '/images/equipments/mythicbgi.webp',
     transcendent: '/images/equipments/transcendentbgi.webp',
 };
 
@@ -102,19 +102,19 @@ const getStarDisplay = (stars: number) => {
     let numberColor = '';
 
     if (stars >= 10) {
-        starImage = '/images/equipments/Star4.png';
+        starImage = '/images/equipments/Star4.webp';
         numberColor = "prism-text-effect";
     } else if (stars >= 7) {
-        starImage = '/images/equipments/Star3.png';
+        starImage = '/images/equipments/Star3.webp';
         numberColor = "text-purple-400";
     } else if (stars >= 4) {
-        starImage = '/images/equipments/Star2.png';
+        starImage = '/images/equipments/Star2.webp';
         numberColor = "text-amber-400";
     } else if (stars >= 1) {
-        starImage = '/images/equipments/Star1.png';
+        starImage = '/images/equipments/Star1.webp';
         numberColor = "text-white";
     } else {
-        return <img src="/images/equipments/Star1.png" alt="star" className="w-4 h-4 inline-block opacity-30" title="미강화" />;
+        return <img src="/images/equipments/Star1.webp" alt="star" className="w-4 h-4 inline-block opacity-30" title="미강화" />;
     }
 
     // Add text shadow here for consistency across all usages
@@ -595,7 +595,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                                             className="w-full h-full object-cover"
                                         />
                                     ) : (
-                                        <img src="/images/button/guild.png" alt="길드" className="w-4 h-4 object-contain" />
+                                        <img src="/images/button/guild.webp" alt="길드" className="w-4 h-4 object-contain" />
                                     )}
                                 </div>
                                 <span className="text-[0.65rem] font-bold uppercase tracking-wider text-indigo-300/80">길드</span>

@@ -209,7 +209,7 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                 <span
                     className={`flex min-w-0 shrink-0 items-center gap-0.5 font-bold text-cyan-100 ${isNativeMobile ? 'text-[11px]' : ''}`}
                 >
-                    <img src="/images/icon/Zem.png" alt="" className="h-3 w-3 shrink-0 object-contain opacity-90" />
+                    <img src="/images/icon/Zem.webp" alt="" className="h-3 w-3 shrink-0 object-contain opacity-90" />
                     <span className="min-w-0 break-words">{diamondPkgRoman ? `다이아 패키지 ${diamondPkgRoman}` : '다이아 패키지'}</span>
                 </span>
                 <span
@@ -540,9 +540,9 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                                         {isPurchasable && shopItem && (
                                             <div className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-center gap-0.5 rounded-b-full bg-black/80 py-px text-[8px] font-semibold text-amber-100 sm:py-0.5 sm:text-[9px]">
                                                 {shopItem.price.gold ? (
-                                                    <img src="/images/icon/Gold.png" alt="" className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
+                                                    <img src="/images/icon/Gold.webp" alt="" className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
                                                 ) : (
-                                                    <img src="/images/icon/Zem.png" alt="" className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
+                                                    <img src="/images/icon/Zem.webp" alt="" className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
                                                 )}
                                                 <span>
                                                     {shopItem.price.gold != null
@@ -689,13 +689,13 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                                     <span
                                         className={`flex items-center gap-1.5 font-bold tabular-nums ${canAffordNicknameChange ? 'text-cyan-200' : 'text-red-400'}`}
                                     >
-                                        <img src="/images/icon/Zem.png" alt="" className="h-4 w-4" /> {nicknameChangeCost}
+                                        <img src="/images/icon/Zem.webp" alt="" className="h-4 w-4" /> {nicknameChangeCost}
                                     </span>
                                 </div>
                                 <div className="mt-2 flex items-center justify-between">
                                     <span className="text-zinc-400">보유 다이아</span>
                                     <span className="flex items-center gap-1.5 font-bold tabular-nums text-stone-100">
-                                        <img src="/images/icon/Zem.png" alt="" className="h-4 w-4" /> {formatWalletDiamonds(currentUser.diamonds)}
+                                        <img src="/images/icon/Zem.webp" alt="" className="h-4 w-4" /> {formatWalletDiamonds(currentUser.diamonds)}
                                     </span>
                                 </div>
                             </div>
@@ -720,7 +720,7 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                                 </p>
                                 <div className="mt-6 rounded-xl border border-amber-500/40 bg-gradient-to-b from-amber-950/50 to-zinc-950/80 p-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
                                     <div className="mb-2 flex items-center justify-center gap-2">
-                                        <img src="/images/icon/Zem.png" alt="" className="h-7 w-7" />
+                                        <img src="/images/icon/Zem.webp" alt="" className="h-7 w-7" />
                                         <span className="text-2xl font-black tabular-nums text-amber-200">100</span>
                                     </div>
                                     <p className="mb-4 text-sm text-zinc-300">최초 설정 시 다이아 100개를 드립니다</p>

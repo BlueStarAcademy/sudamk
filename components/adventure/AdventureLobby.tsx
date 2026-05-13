@@ -269,7 +269,7 @@ const AdventureLobby: React.FC = () => {
                             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg p-0 transition-transform hover:bg-zinc-800 hover:drop-shadow-lg active:scale-90 sm:h-11 sm:w-11"
                             aria-label="뒤로가기"
                         >
-                            <img src="/images/button/back.png" alt="" className="h-full w-full" />
+                            <img src="/images/button/back.webp" alt="" className="h-full w-full" />
                         </button>
                     )}
                     <div className={`flex min-w-0 flex-1 items-start gap-2 ${mobileAdventureShell ? 'justify-center' : ''}`}>

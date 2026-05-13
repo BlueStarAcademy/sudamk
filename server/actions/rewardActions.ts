@@ -957,7 +957,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 broadcastUserUpdate(fullUserForBroadcast, ['inventory', 'equipment', 'quests', 'gold', 'diamonds', 'actionPoints', 'mail', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament', 'dungeonProgress']);
                 const allObtainedItems: any[] = [...accumulatedMaterials, ...accumulatedWorldEquipment];
                 if (accumulatedGold > 0) {
-                    allObtainedItems.unshift({ name: `${accumulatedGold} 골드 (경기 보상)`, image: '/images/icon/Gold.png' });
+                    allObtainedItems.unshift({ name: `${accumulatedGold} 골드 (경기 보상)`, image: '/images/icon/Gold.webp' });
                 }
                 
                 // rewardSummary 형식으로 변환하여 모달 표시
@@ -1064,7 +1064,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                     description: '경기에서 획득한 골드입니다.',
                     type: 'consumable',
                     slot: null,
-                    image: '/images/icon/Gold.png',
+                    image: '/images/icon/Gold.webp',
                     grade: 'rare',
                     quantity: accumulatedGold,
                     createdAt: Date.now(),
@@ -1083,7 +1083,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                     description: '순위 보상으로 획득한 골드입니다.',
                     type: 'consumable',
                     slot: null,
-                    image: '/images/icon/Gold.png',
+                    image: '/images/icon/Gold.webp',
                     grade: 'rare',
                     quantity: rankGold,
                     createdAt: Date.now(),
@@ -1099,7 +1099,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                     description: '순위 보상으로 획득한 다이아입니다.',
                     type: 'consumable',
                     slot: null,
-                    image: '/images/icon/Zem.png',
+                    image: '/images/icon/Zem.webp',
                     grade: 'epic',
                     quantity: rankDiamonds,
                     createdAt: Date.now(),

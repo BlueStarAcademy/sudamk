@@ -430,7 +430,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                 className="pointer-events-auto relative z-20 flex h-10 w-10 items-center justify-center rounded-lg p-0 transition-all duration-100 active:translate-y-0.5 active:scale-95 active:shadow-inner sm:h-12 sm:w-12"
                 aria-label="뒤로가기"
               >
-                <img src="/images/button/back.png" alt="" className="h-full w-full" />
+                <img src="/images/button/back.webp" alt="" className="h-full w-full" />
               </button>
             </div>
             <div className="pointer-events-none flex min-w-0 flex-1 justify-center px-2 text-center">
@@ -605,7 +605,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     className="relative z-[1] shrink-0 transition-transform active:scale-90 hover:drop-shadow-lg"
                     aria-label="뒤로가기"
                   >
-                    <img src="/images/button/back.png" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
+                    <img src="/images/button/back.webp" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
                   </button>
                   <h1 className={waitingLobbyTitleH1Class}>
                     {mode === 'strategic' ? '전략바둑 대기실' : '놀이바둑 대기실'}

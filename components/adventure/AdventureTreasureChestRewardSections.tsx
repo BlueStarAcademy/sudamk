@@ -2,7 +2,7 @@ import React from 'react';
 import type { AdventureTreasureUserRewardSections } from '../../shared/utils/adventureMapTreasureRewards.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
-const GOLD_SRC = '/images/icon/Gold.png';
+const GOLD_SRC = '/images/icon/Gold.webp';
 
 type Props = {
     sections: AdventureTreasureUserRewardSections;

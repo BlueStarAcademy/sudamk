@@ -63,7 +63,7 @@ function ClaimAllTotalsBox({
                 {totalGold > 0 && (
                     <div className={rowGrid}>
                         <div className={iconWrap}>
-                            <img src="/images/icon/Gold.png" alt="골드" className={`${iconClass} shrink-0 object-contain`} />
+                            <img src="/images/icon/Gold.webp" alt="골드" className={`${iconClass} shrink-0 object-contain`} />
                         </div>
                         <span className={numClass}>+{formatGoldAmountKoG(totalGold)}</span>
                     </div>
@@ -71,7 +71,7 @@ function ClaimAllTotalsBox({
                 {totalDiamonds > 0 && (
                     <div className={rowGrid}>
                         <div className={iconWrap}>
-                            <img src="/images/icon/Zem.png" alt="다이아" className={`${iconClass} shrink-0 object-contain`} />
+                            <img src="/images/icon/Zem.webp" alt="다이아" className={`${iconClass} shrink-0 object-contain`} />
                         </div>
                         <span className={diaClass}>+{formatWalletDiamonds(totalDiamonds)}</span>
                     </div>
@@ -149,14 +149,14 @@ function MobileClaimBody({
                                 <div className="flex shrink-0 items-center gap-1 pt-0.5">
                                     {reward.rewardType === 'gold' ? (
                                         <>
-                                            <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4" />
+                                            <img src="/images/icon/Gold.webp" alt="골드" className="h-4 w-4" />
                                             <span className="text-xs font-bold tabular-nums text-yellow-300 sm:text-[13px]">
                                                 +{formatGoldAmountKoG(reward.rewardAmount)}
                                             </span>
                                         </>
                                     ) : (
                                         <>
-                                            <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4" />
+                                            <img src="/images/icon/Zem.webp" alt="다이아" className="h-4 w-4" />
                                             <span className="text-xs font-bold tabular-nums text-cyan-300 sm:text-[13px]">
                                                 +{formatWalletDiamonds(reward.rewardAmount)}
                                             </span>
@@ -290,14 +290,14 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
                                     <div className="flex shrink-0 items-center gap-1.5">
                                         {reward.rewardType === 'gold' ? (
                                             <>
-                                                <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 sm:h-5 sm:w-5" />
+                                                <img src="/images/icon/Gold.webp" alt="골드" className="h-4 w-4 sm:h-5 sm:w-5" />
                                                 <span className="text-xs font-bold tabular-nums text-yellow-300 sm:text-sm">
                                                     +{formatGoldAmountKoG(reward.rewardAmount)}
                                                 </span>
                                             </>
                                         ) : (
                                             <>
-                                                <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4 sm:h-5 sm:w-5" />
+                                                <img src="/images/icon/Zem.webp" alt="다이아" className="h-4 w-4 sm:h-5 sm:w-5" />
                                                 <span className="text-xs font-bold tabular-nums text-cyan-300 sm:text-sm">
                                                     +{formatWalletDiamonds(reward.rewardAmount)}
                                                 </span>

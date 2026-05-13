@@ -1031,7 +1031,7 @@ const TournamentLobby: React.FC = () => {
                                 className="relative z-[1] shrink-0 transition-transform active:scale-90 filter hover:drop-shadow-lg"
                                 aria-label="프로필로 돌아가기"
                             >
-                                <img src="/images/button/back.png" alt="" className="h-9 w-9" />
+                                <img src="/images/button/back.webp" alt="" className="h-9 w-9" />
                             </button>
                             <h1 className="relative z-[1] min-w-0 truncate text-left text-lg font-bold text-amber-50">챔피언십</h1>
                         </div>
@@ -1167,7 +1167,7 @@ const TournamentLobby: React.FC = () => {
                                     className="relative z-[1] shrink-0 transition-transform active:scale-90 filter hover:drop-shadow-lg"
                                     aria-label="프로필로 돌아가기"
                                 >
-                                    <img src="/images/button/back.png" alt="" className="h-10 w-10 sm:h-11 sm:w-11" />
+                                    <img src="/images/button/back.webp" alt="" className="h-10 w-10 sm:h-11 sm:w-11" />
                                 </button>
                                 <h1 className="relative z-[1] min-w-0 truncate text-left text-xl font-bold sm:text-2xl lg:text-3xl">챔피언십</h1>
                             </div>

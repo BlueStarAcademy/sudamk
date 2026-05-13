@@ -174,7 +174,7 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
                     <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-start gap-4">
                             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-amber-400/30 bg-black/40 shadow-inner ring-1 ring-amber-500/15">
-                                <img src="/images/quickmenu/gibo.png" alt="" className="h-9 w-9 object-contain opacity-95" />
+                                <img src="/images/quickmenu/gibo.webp" alt="" className="h-9 w-9 object-contain opacity-95" />
                             </div>
                             <div>
                                 <h2 className="text-xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-amber-200 to-yellow-200 sm:text-2xl">
@@ -217,7 +217,7 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
                     {sortedRecords.length === 0 ? (
                         <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-zinc-900/60 to-black/40 px-6 py-16 text-center ring-1 ring-inset ring-white/[0.04]">
                             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-500/20 bg-black/30">
-                                <img src="/images/quickmenu/gibo.png" alt="" className="h-10 w-10 opacity-50" />
+                                <img src="/images/quickmenu/gibo.webp" alt="" className="h-10 w-10 opacity-50" />
                             </div>
                             <p className="text-lg font-semibold text-slate-200">저장된 기보가 없습니다</p>
                             <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">

@@ -4,12 +4,12 @@ import { isRefinementTicketMaterial } from '../../constants/items.js';
 import { isPairArenaExclusiveBagItem } from '../../shared/constants/petLobby.js';
 
 const gradeBackgrounds: Record<ItemGrade, string> = {
-    normal: '/images/equipments/normalbgi.png',
-    uncommon: '/images/equipments/uncommonbgi.png',
-    rare: '/images/equipments/rarebgi.png',
-    epic: '/images/equipments/epicbgi.png',
-    legendary: '/images/equipments/legendarybgi.png',
-    mythic: '/images/equipments/mythicbgi.png',
+    normal: '/images/equipments/normalbgi.webp',
+    uncommon: '/images/equipments/uncommonbgi.webp',
+    rare: '/images/equipments/rarebgi.webp',
+    epic: '/images/equipments/epicbgi.webp',
+    legendary: '/images/equipments/legendarybgi.webp',
+    mythic: '/images/equipments/mythicbgi.webp',
     transcendent: '/images/equipments/transcendentbgi.webp',
 };
 
@@ -20,16 +20,16 @@ const renderStarDisplay = (stars: number) => {
     let numberColor = '';
 
     if (stars >= 10) {
-        starImage = '/images/equipments/Star4.png';
+        starImage = '/images/equipments/Star4.webp';
         numberColor = "prism-text-effect";
     } else if (stars >= 7) {
-        starImage = '/images/equipments/Star3.png';
+        starImage = '/images/equipments/Star3.webp';
         numberColor = "text-purple-400";
     } else if (stars >= 4) {
-        starImage = '/images/equipments/Star2.png';
+        starImage = '/images/equipments/Star2.webp';
         numberColor = "text-amber-400";
     } else if (stars >= 1) {
-        starImage = '/images/equipments/Star1.png';
+        starImage = '/images/equipments/Star1.webp';
         numberColor = "text-white";
     }
 

@@ -518,12 +518,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                 alt=""
                                                                 className="h-full w-full object-cover"
                                                                 onError={(e) => {
-                                                                    const target = e.target as HTMLImageElement;
-                                                                    if (target.src.includes('.webp')) {
-                                                                        target.src = target.src.replace(/\.webp($|\?)/, '.png$1');
-                                                                        return;
-                                                                    }
-                                                                    target.style.display = 'none';
+                                                                    (e.target as HTMLImageElement).style.display = 'none';
                                                                 }}
                                                             />
                                                         </div>
@@ -559,7 +554,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                     <span className="flex items-center gap-0.5">
                                                                         <span>수령</span>
                                                                         <img
-                                                                            src={quest.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                                            src={quest.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                                             alt=""
                                                                             className="h-2.5 w-2.5 object-contain"
                                                                         />
@@ -612,7 +607,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                                 {quest.levelInfo.productionRateMinutes}분 / {quest.levelInfo.rewardAmount}
                                                                             </span>
                                                                             <img
-                                                                                src={quest.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                                                src={quest.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                                                 alt=""
                                                                                 className="h-3 w-3 shrink-0 object-contain opacity-95"
                                                                             />
@@ -666,7 +661,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                         <span className="flex items-center justify-center gap-0.5">
                                                                             <span>수령</span>
                                                                             <img
-                                                                                src={quest.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                                                src={quest.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                                                 alt=""
                                                                                 className="h-2.5 w-2.5 shrink-0 object-contain sm:h-3 sm:w-3"
                                                                             />
@@ -703,12 +698,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                     alt={quest.name}
                                                                     className="h-full w-full object-cover"
                                                                     onError={(e) => {
-                                                                        const target = e.target as HTMLImageElement;
-                                                                        if (target.src.includes('.webp')) {
-                                                                            target.src = target.src.replace(/\.webp($|\?)/, '.png$1');
-                                                                            return;
-                                                                        }
-                                                                        target.style.display = 'none';
+                                                                        (e.target as HTMLImageElement).style.display = 'none';
                                                                     }}
                                                                 />
                                                             </div>
@@ -741,12 +731,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                         alt={quest.name}
                                                                         className="h-full w-full object-cover"
                                                                         onError={(e) => {
-                                                                            const target = e.target as HTMLImageElement;
-                                                                            if (target.src.includes('.webp')) {
-                                                                                target.src = target.src.replace(/\.webp($|\?)/, '.png$1');
-                                                                                return;
-                                                                            }
-                                                                            target.style.display = 'none';
+                                                                            (e.target as HTMLImageElement).style.display = 'none';
                                                                         }}
                                                                     />
                                                                 </div>
@@ -796,7 +781,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                             {quest.levelInfo.productionRateMinutes}분/{quest.levelInfo.rewardAmount}
                                                                         </span>
                                                                         <img
-                                                                            src={quest.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                                            src={quest.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                                             alt={quest.rewardType === 'gold' ? '골드' : '다이아'}
                                                                             className="h-3 w-3 shrink-0 object-contain opacity-95"
                                                                         />
@@ -807,7 +792,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                             생산 {quest.levelInfo.productionRateMinutes}분 / {quest.levelInfo.rewardAmount}
                                                                         </span>
                                                                         <img
-                                                                            src={quest.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                                            src={quest.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                                             alt={quest.rewardType === 'gold' ? '골드' : '다이아'}
                                                                             className="h-3.5 w-3.5 shrink-0 object-contain opacity-95"
                                                                         />
@@ -889,7 +874,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                             <span className={`flex items-center ${embeddedTabNarrow ? 'gap-0.5' : 'gap-1'}`}>
                                                                 <span>수령</span>
                                                                 <img
-                                                                    src={quest.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                                    src={quest.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                                     alt={quest.rewardType === 'gold' ? '골드' : '다이아'}
                                                                     className={`object-contain ${embeddedTabNarrow ? 'h-2.5 w-2.5' : 'h-3 w-3'}`}
                                                                 />
@@ -941,7 +926,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                             <span className={`flex items-center ${embeddedTabNarrow ? 'gap-0.5' : 'gap-1'}`}>
                                                                 <span>수령</span>
                                                                 <img
-                                                                    src={quest.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                                    src={quest.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                                     alt={quest.rewardType === 'gold' ? '골드' : '다이아'}
                                                                     className={`flex-shrink-0 object-contain ${embeddedTabNarrow ? 'h-2.5 w-2.5' : 'h-3 w-3'}`}
                                                                 />
@@ -974,12 +959,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                         alt={quest.name}
                                                         className="h-full w-full object-cover object-center"
                                                         onError={(e) => {
-                                                            const target = e.target as HTMLImageElement;
-                                                            if (target.src.includes('.webp')) {
-                                                                target.src = target.src.replace(/\.webp($|\?)/, '.png$1');
-                                                                return;
-                                                            }
-                                                            target.style.display = 'none';
+                                                            (e.target as HTMLImageElement).style.display = 'none';
                                                         }}
                                                     />
                                                 </div>
@@ -1020,7 +1000,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                     생산 {quest.levelInfo.productionRateMinutes}분 / {quest.levelInfo.rewardAmount}
                                                                 </span>
                                                                 <img
-                                                                    src={quest.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                                    src={quest.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                                     alt={quest.rewardType === 'gold' ? '골드' : '다이아'}
                                                                     className="h-4 w-4 shrink-0 object-contain opacity-95 sm:h-[18px] sm:w-[18px]"
                                                                 />
@@ -1118,7 +1098,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                             <span className="flex items-center gap-1">
                                                                 <span>수령</span>
                                                                 <img
-                                                                    src={quest.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                                    src={quest.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                                     alt={quest.rewardType === 'gold' ? '골드' : '다이아'}
                                                                     className="h-3 w-3 object-contain"
                                                                 />
@@ -1166,7 +1146,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                             <span className="flex items-center gap-1">
                                                                 <span>수령</span>
                                                                 <img
-                                                                    src={quest.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                                    src={quest.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                                     alt={quest.rewardType === 'gold' ? '골드' : '다이아'}
                                                                     className="h-3 w-3 flex-shrink-0 object-contain"
                                                                 />

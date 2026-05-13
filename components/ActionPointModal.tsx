@@ -162,7 +162,7 @@ const ActionPointModal: React.FC<ActionPointModalProps> = ({ currentUser, onClos
                                         >
                                             <div className="flex flex-col items-center justify-center gap-0.5">
                                                 <div className="flex items-center justify-center gap-2 text-sm">
-                                                    <img src="/images/icon/Zem.png" alt="다이아" className="w-5 h-5 drop-shadow-md" />
+                                                    <img src="/images/icon/Zem.webp" alt="다이아" className="w-5 h-5 drop-shadow-md" />
                                                     <span>{currentCost.toLocaleString()}</span>
                                                 </div>
                                                 <span className="text-[10px] text-slate-700/90 tracking-wide">

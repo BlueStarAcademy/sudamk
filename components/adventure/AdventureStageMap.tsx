@@ -786,7 +786,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg p-0 transition-transform hover:bg-zinc-800 active:scale-90"
                             aria-label="스테이지 목록으로"
                         >
-                            <img src="/images/button/back.png" alt="" className="h-full w-full" />
+                            <img src="/images/button/back.webp" alt="" className="h-full w-full" />
                         </button>
                         <div className="flex min-w-0 flex-1 items-center gap-1.5">
                             <div className="flex min-w-0 shrink items-center gap-1.5 sm:gap-2">
@@ -848,7 +848,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg p-0 transition-transform hover:bg-zinc-800 active:scale-90 sm:h-11 sm:w-11"
                         aria-label="스테이지 목록으로"
                     >
-                        <img src="/images/button/back.png" alt="" className="h-full w-full" />
+                        <img src="/images/button/back.webp" alt="" className="h-full w-full" />
                     </button>
                     <div className="flex min-w-0 flex-1 items-center justify-center px-0.5 sm:px-1">
                         <div className="flex max-w-full items-center justify-center gap-1.5 sm:gap-2.5">

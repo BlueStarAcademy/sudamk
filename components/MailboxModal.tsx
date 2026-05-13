@@ -66,25 +66,25 @@ function renderAttachmentsBlock(m: Mail, compact?: boolean) {
                             ) : null}
                             {(m.attachments.guildCoins ?? 0) > 0 ? (
                                 <span className="inline-flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-950/25 px-2.5 py-1.5 text-[13px] font-medium text-amber-100 sm:px-3 sm:py-2 sm:text-sm">
-                                    <img src="/images/guild/tokken.png" alt="" className="h-5 w-5" />
+                                    <img src="/images/guild/tokken.webp" alt="" className="h-5 w-5" />
                                     {m.attachments.guildCoins!.toLocaleString()} 길드코인
                                 </span>
                             ) : null}
                             {(m.attachments.researchPoints ?? 0) > 0 ? (
                                 <span className="inline-flex items-center gap-2 rounded-lg border border-purple-500/20 bg-purple-950/25 px-2.5 py-1.5 text-[13px] font-medium text-purple-100 sm:px-3 sm:py-2 sm:text-sm">
-                                    <img src="/images/guild/button/guildlab.png" alt="" className="h-5 w-5" />
+                                    <img src="/images/guild/button/guildlab.webp" alt="" className="h-5 w-5" />
                                     {m.attachments.researchPoints!.toLocaleString()} RP
                                 </span>
                             ) : null}
                             {(m.attachments.gold ?? 0) > 0 ? (
                                 <span className="inline-flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-950/25 px-2.5 py-1.5 text-[13px] font-medium text-amber-100 sm:px-3 sm:py-2 sm:text-sm">
-                                    <img src="/images/icon/Gold.png" alt="" className="h-5 w-5" />
+                                    <img src="/images/icon/Gold.webp" alt="" className="h-5 w-5" />
                                     {formatGoldAmountKoG(m.attachments.gold!)} 골드
                                 </span>
                             ) : null}
                             {(m.attachments.diamonds ?? 0) > 0 ? (
                                 <span className="inline-flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-950/25 px-2.5 py-1.5 text-[13px] font-medium text-cyan-100 sm:px-3 sm:py-2 sm:text-sm">
-                                    <img src="/images/icon/Zem.png" alt="" className="h-5 w-5" />
+                                    <img src="/images/icon/Zem.webp" alt="" className="h-5 w-5" />
                                     {formatWalletDiamonds(m.attachments.diamonds!)} 다이아
                                 </span>
                             ) : null}

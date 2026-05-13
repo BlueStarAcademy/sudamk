@@ -259,7 +259,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                     ) : (
                         <span className="flex items-center justify-center gap-[clamp(0.25rem,1.5vw,0.5rem)] font-semibold tracking-wide">
                             <img
-                                src="/images/icon/Gold.png"
+                                src="/images/icon/Gold.webp"
                                 alt="골드"
                                 className={`flex-shrink-0 drop-shadow ${isCompactUi ? 'h-[clamp(1rem,4.2vw,1.25rem)] w-[clamp(1rem,4.2vw,1.25rem)]' : 'h-6 w-6'}`}
                             />
@@ -366,7 +366,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                         <div className="mx-auto flex w-full max-w-sm flex-col gap-1 pb-0.5">
                             <div className="flex min-h-[2rem] items-center gap-1 rounded-lg border border-white/[0.06] bg-slate-900/40 px-2 py-1">
                                 <img
-                                    src="/images/icon/timer.png"
+                                    src="/images/icon/timer.webp"
                                     alt=""
                                     className="size-[clamp(1.125rem,4.8vw,1.5rem)] shrink-0 opacity-90"
                                 />
@@ -389,7 +389,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
 
                             <div className="flex min-h-[2rem] items-center gap-1 rounded-lg border border-white/[0.06] bg-slate-900/40 px-2 py-1">
                                 <img
-                                    src={mission.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                    src={mission.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                     alt=""
                                     className="size-[clamp(1.125rem,4.8vw,1.5rem)] shrink-0 opacity-95"
                                 />
@@ -498,7 +498,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                     <div className="shrink-0 overflow-visible px-4 py-2">
                         <div className="mx-auto flex w-full max-w-md flex-col gap-1.5">
                             <div className="flex min-h-[2.35rem] items-center gap-2 rounded-lg border border-white/[0.08] bg-slate-900/50 px-3 py-1.5">
-                                <img src="/images/icon/timer.png" alt="" className="h-7 w-7 shrink-0 opacity-95" />
+                                <img src="/images/icon/timer.webp" alt="" className="h-7 w-7 shrink-0 opacity-95" />
                                 <span className="w-12 shrink-0 text-sm font-medium text-slate-400">생산</span>
                                 <div className="min-w-0 flex-1 text-right text-lg tabular-nums leading-snug">
                                     <span className="text-slate-200">{currentLevelInfo ? `${currentLevelInfo.productionRateMinutes}분` : '—'}</span>
@@ -516,7 +516,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
 
                             <div className="flex min-h-[2.35rem] items-center gap-2 rounded-lg border border-white/[0.08] bg-slate-900/50 px-3 py-1.5">
                                 <img
-                                    src={mission.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                    src={mission.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                     alt=""
                                     className="h-7 w-7 shrink-0 opacity-95"
                                 />
@@ -592,7 +592,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                                     '골드 부족'
                                 ) : (
                                     <span className="flex items-center justify-center gap-2 font-semibold tracking-wide">
-                                        <img src="/images/icon/Gold.png" alt="골드" className="h-6 w-6 flex-shrink-0 drop-shadow" />
+                                        <img src="/images/icon/Gold.webp" alt="골드" className="h-6 w-6 flex-shrink-0 drop-shadow" />
                                         <span>{upgradeCost.toLocaleString()}</span>
                                         <span>강화</span>
                                     </span>

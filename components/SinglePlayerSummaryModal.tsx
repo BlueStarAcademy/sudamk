@@ -230,7 +230,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                               ? tpl.image.startsWith('/')
                                   ? tpl.image
                                   : `/${tpl.image}`
-                              : '/images/icon/item.png';
+                              : '/images/icon/item.webp';
                           if (tpl?.type === 'equipment') {
                               return {
                                   id: `temp-${ref.itemId}-${Date.now()}`,
@@ -255,7 +255,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                           return {
                               id: `temp-${ref.itemId}-${Date.now()}`,
                               name: ref.itemId,
-                              image: '/images/icon/item.png',
+                              image: '/images/icon/item.webp',
                               type: 'consumable' as const,
                               grade: ItemGrade.Normal,
                               quantity: qty,

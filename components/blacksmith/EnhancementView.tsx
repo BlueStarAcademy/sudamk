@@ -16,12 +16,12 @@ const formatEnhancePercent = (n: number): string => {
 };
 
 const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; }> = {
-    normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.png' },
-    uncommon: { name: '고급', color: 'text-green-400', background: '/images/equipments/uncommonbgi.png' },
-    rare: { name: '희귀', color: 'text-blue-400', background: '/images/equipments/rarebgi.png' },
-    epic: { name: '에픽', color: 'text-purple-400', background: '/images/equipments/epicbgi.png' },
-    legendary: { name: '전설', color: 'text-red-500', background: '/images/equipments/legendarybgi.png' },
-    mythic: { name: '신화', color: 'text-orange-400', background: '/images/equipments/mythicbgi.png' },
+    normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
+    uncommon: { name: '고급', color: 'text-green-400', background: '/images/equipments/uncommonbgi.webp' },
+    rare: { name: '희귀', color: 'text-blue-400', background: '/images/equipments/rarebgi.webp' },
+    epic: { name: '에픽', color: 'text-purple-400', background: '/images/equipments/epicbgi.webp' },
+    legendary: { name: '전설', color: 'text-red-500', background: '/images/equipments/legendarybgi.webp' },
+    mythic: { name: '신화', color: 'text-orange-400', background: '/images/equipments/mythicbgi.webp' },
     transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
@@ -32,16 +32,16 @@ const renderStarDisplay = (stars: number, previousStars?: number, isAnimating?: 
     let numberColor = '';
 
     if (stars >= 10) {
-        starImage = '/images/equipments/Star4.png';
+        starImage = '/images/equipments/Star4.webp';
         numberColor = "prism-text-effect";
     } else if (stars >= 7) {
-        starImage = '/images/equipments/Star3.png';
+        starImage = '/images/equipments/Star3.webp';
         numberColor = "text-purple-400";
     } else if (stars >= 4) {
-        starImage = '/images/equipments/Star2.png';
+        starImage = '/images/equipments/Star2.webp';
         numberColor = "text-amber-400";
     } else if (stars >= 1) {
-        starImage = '/images/equipments/Star1.png';
+        starImage = '/images/equipments/Star1.webp';
         numberColor = "text-white";
     }
 
@@ -521,7 +521,7 @@ useEffect(() => {
                                     title={`골드: ${formatGoldAmountKoG(currentUser?.gold || 0)} / ${formatGoldAmountKoG(goldCost)}`}
                                 >
                                     <div className="relative h-8 w-8" style={{ background: 'transparent', borderRadius: 0, overflow: 'hidden' }}>
-                                        <img src="/images/icon/Gold.png" alt="골드" className="h-full w-full" style={{ background: 'transparent', borderRadius: 0, padding: 0, margin: 0, objectFit: 'contain', display: 'block', border: 'none', boxShadow: 'none' }} />
+                                        <img src="/images/icon/Gold.webp" alt="골드" className="h-full w-full" style={{ background: 'transparent', borderRadius: 0, padding: 0, margin: 0, objectFit: 'contain', display: 'block', border: 'none', boxShadow: 'none' }} />
                                         {!hasEnoughGold && <div className="absolute inset-0 rounded-full bg-red-500/30" />}
                                     </div>
                                     <span className={`mt-0.5 w-full text-center font-mono text-xs leading-tight ${hasEnoughGold ? 'text-green-400' : 'text-red-400'}`}>

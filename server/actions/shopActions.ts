@@ -710,7 +710,7 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                     level: 1,
                     isEquipped: false,
                     createdAt: now,
-                    image: '/images/icon/Zem.png',
+                    image: '/images/icon/Zem.webp',
                     grade: ItemGrade.Normal,
                     stars: 0,
                 });

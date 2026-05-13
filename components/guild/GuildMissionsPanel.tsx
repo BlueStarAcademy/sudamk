@@ -62,7 +62,7 @@ const MissionItem: React.FC<{
                     <div className="flex min-w-0 gap-2">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-500/35 bg-gradient-to-b from-amber-950/50 to-stone-950/80 shadow-inner">
                             <img
-                                src="/images/guild/button/guildmission.png"
+                                src="/images/guild/button/guildmission.webp"
                                 alt=""
                                 className="h-7 w-7 object-contain opacity-95"
                             />
@@ -90,7 +90,7 @@ const MissionItem: React.FC<{
                     <div className="flex min-w-0 items-center justify-between gap-2">
                         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
                             <span className="inline-flex max-w-full items-center gap-1 rounded-lg border border-amber-500/25 bg-black/35 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200/95">
-                                <img src="/images/guild/tokken.png" alt="" className="h-3 w-3 shrink-0" />
+                                <img src="/images/guild/tokken.webp" alt="" className="h-3 w-3 shrink-0" />
                                 <span className="truncate">{mission.personalReward?.guildCoins ?? 0}</span>
                             </span>
                             <span className="inline-flex max-w-full items-center rounded-lg border border-emerald-500/25 bg-black/35 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300/95">
@@ -132,7 +132,7 @@ const MissionItem: React.FC<{
                 <div className="relative z-10 flex flex-row items-stretch gap-4">
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-amber-500/35 bg-gradient-to-b from-amber-950/50 to-stone-950/80 shadow-inner sm:h-[3.75rem] sm:w-[3.75rem]">
                         <img
-                            src="/images/guild/button/guildmission.png"
+                            src="/images/guild/button/guildmission.webp"
                             alt=""
                             className="h-10 w-10 object-contain opacity-95 sm:h-11 sm:w-11"
                         />
@@ -170,7 +170,7 @@ const MissionItem: React.FC<{
                     <div className="flex w-[7.25rem] shrink-0 flex-col justify-between border-l border-stone-700/40 pl-4">
                         <div className="mb-2 flex flex-wrap justify-center gap-1 sm:mb-2 sm:gap-1.5">
                             <span className="inline-flex items-center gap-1 rounded-lg border border-amber-500/25 bg-black/35 px-2 py-0.5 text-[10px] font-semibold text-amber-200/95">
-                                <img src="/images/guild/tokken.png" alt="" className="h-3 w-3" />
+                                <img src="/images/guild/tokken.webp" alt="" className="h-3 w-3" />
                                 {mission.personalReward?.guildCoins ?? 0}
                             </span>
                             <span className="inline-flex items-center rounded-lg border border-emerald-500/25 bg-black/35 px-2 py-0.5 text-[10px] font-semibold text-emerald-300/95">
@@ -269,7 +269,7 @@ const GuildMissionsPanel: React.FC<GuildMissionsPanelProps> = ({ guild, onClose 
                                 }`}
                             >
                                 <img
-                                    src="/images/guild/button/guildmission.png"
+                                    src="/images/guild/button/guildmission.webp"
                                     alt=""
                                     className={isNativeMobile ? 'h-6 w-6 object-contain opacity-95' : 'h-8 w-8 object-contain opacity-95'}
                                 />

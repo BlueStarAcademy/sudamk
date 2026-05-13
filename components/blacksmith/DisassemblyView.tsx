@@ -13,12 +13,12 @@ import {
 import { BLACKSMITH_DISASSEMBLY_JACKPOT_RATES } from '../../constants/rules.js';
 
 const gradeStyles: Record<ItemGrade, { color: string; background: string }> = {
-    normal: { color: 'text-gray-300', background: '/images/equipments/normalbgi.png' },
-    uncommon: { color: 'text-green-400', background: '/images/equipments/uncommonbgi.png' },
-    rare: { color: 'text-blue-400', background: '/images/equipments/rarebgi.png' },
-    epic: { color: 'text-purple-400', background: '/images/equipments/epicbgi.png' },
-    legendary: { color: 'text-red-500', background: '/images/equipments/legendarybgi.png' },
-    mythic: { color: 'text-orange-400', background: '/images/equipments/mythicbgi.png' },
+    normal: { color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
+    uncommon: { color: 'text-green-400', background: '/images/equipments/uncommonbgi.webp' },
+    rare: { color: 'text-blue-400', background: '/images/equipments/rarebgi.webp' },
+    epic: { color: 'text-purple-400', background: '/images/equipments/epicbgi.webp' },
+    legendary: { color: 'text-red-500', background: '/images/equipments/legendarybgi.webp' },
+    mythic: { color: 'text-orange-400', background: '/images/equipments/mythicbgi.webp' },
     transcendent: { color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
@@ -47,16 +47,16 @@ const renderStarDisplay = (stars: number, compact?: boolean) => {
     let numberColor = '';
 
     if (stars >= 10) {
-        starImage = '/images/equipments/Star4.png';
+        starImage = '/images/equipments/Star4.webp';
         numberColor = 'prism-text-effect';
     } else if (stars >= 7) {
-        starImage = '/images/equipments/Star3.png';
+        starImage = '/images/equipments/Star3.webp';
         numberColor = 'text-purple-400';
     } else if (stars >= 4) {
-        starImage = '/images/equipments/Star2.png';
+        starImage = '/images/equipments/Star2.webp';
         numberColor = 'text-amber-400';
     } else if (stars >= 1) {
-        starImage = '/images/equipments/Star1.png';
+        starImage = '/images/equipments/Star1.webp';
         numberColor = 'text-white';
     }
 

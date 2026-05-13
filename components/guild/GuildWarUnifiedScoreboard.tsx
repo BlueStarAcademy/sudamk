@@ -1,6 +1,6 @@
 import React from 'react';
 
-const STAR_FILLED = '/images/guild/guildwar/clearstar.png';
+const STAR_FILLED = '/images/guild/guildwar/clearstar.webp';
 
 export type GuildWarUnifiedScoreboardProps = {
     blueStars: number;

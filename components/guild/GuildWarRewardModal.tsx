@@ -130,7 +130,7 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, onCl
                                 {/* 골드 보상 */}
                                 <div className="bg-stone-800/50 rounded-lg p-4 border border-stone-700/50">
                                     <div className="flex items-center justify-between gap-3">
-                                        <img src="/images/icon/Gold.png" alt="" className="h-8 w-8 shrink-0 object-contain" title="골드" />
+                                        <img src="/images/icon/Gold.webp" alt="" className="h-8 w-8 shrink-0 object-contain" title="골드" />
                                         <span className="text-yellow-400 font-bold text-lg tabular-nums">+{formatGoldAmountKoG(rewards.gold)}</span>
                                     </div>
                                 </div>
@@ -138,7 +138,7 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, onCl
                                 {/* 다이아 보상 */}
                                 <div className="bg-stone-800/50 rounded-lg p-4 border border-stone-700/50">
                                     <div className="flex items-center justify-between gap-3">
-                                        <img src="/images/icon/Diamond.png" alt="" className="h-8 w-8 shrink-0 object-contain" title="다이아" />
+                                        <img src="/images/icon/Zem.webp" alt="" className="h-8 w-8 shrink-0 object-contain" title="다이아" />
                                         <span className="text-cyan-400 font-bold text-lg tabular-nums">+{formatWalletDiamonds(rewards.diamonds)}</span>
                                     </div>
                                 </div>
@@ -146,7 +146,7 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, onCl
                                 {/* 길드 코인 보상 */}
                                 <div className="bg-stone-800/50 rounded-lg p-4 border border-stone-700/50">
                                     <div className="flex items-center justify-between gap-3">
-                                        <img src="/images/guild/tokken.png" alt="" className="h-8 w-8 shrink-0 object-contain" title="길드 코인" />
+                                        <img src="/images/guild/tokken.webp" alt="" className="h-8 w-8 shrink-0 object-contain" title="길드 코인" />
                                         <span className="text-amber-300 font-bold text-lg tabular-nums">+{rewards.guildCoins.toLocaleString()}</span>
                                     </div>
                                 </div>
@@ -162,7 +162,7 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, onCl
                                 {/* 연구 포인트 보상 */}
                                 <div className="bg-stone-800/50 rounded-lg p-4 border border-stone-700/50">
                                     <div className="flex items-center justify-between gap-3">
-                                        <img src="/images/guild/button/guildlab.png" alt="" className="h-8 w-8 shrink-0 object-contain" title="연구 포인트" />
+                                        <img src="/images/guild/button/guildlab.webp" alt="" className="h-8 w-8 shrink-0 object-contain" title="연구 포인트" />
                                         <span className="text-purple-300 font-bold text-lg tabular-nums">+{rewards.researchPoints.toLocaleString()}</span>
                                     </div>
                                 </div>

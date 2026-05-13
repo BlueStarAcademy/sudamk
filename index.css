@@ -1985,7 +1985,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .bg-login-background {
-    background-image: url('/images/bg/loginbg.png');
+    background-image: url('/images/bg/loginbg.webp');
     /* 화면 가득 채움. 비율 유지(왜곡 없음) — 잘리는 부분은 뷰포트 종횡비에 따라 달라짐 */
     background-size: cover;
     background-position: center;
@@ -2104,7 +2104,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .bg-single-player-background {
-    background-image: url('/images/bg/singlebg.png');
+    background-image: url('/images/bg/singlebg.webp');
     background-size: cover;
     background-position: center;
     background-color: rgb(var(--bg-tertiary));

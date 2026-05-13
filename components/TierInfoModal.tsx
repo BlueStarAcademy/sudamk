@@ -22,7 +22,7 @@ const TierInfoModal: React.FC<TierInfoModalProps> = ({ onClose }) => {
     };
 
     const getItemImage = (itemName: string): string | null => {
-        if (itemName.includes('다이아')) return '/images/icon/Zem.png';
+        if (itemName.includes('다이아')) return '/images/icon/Zem.webp';
         const item = CONSUMABLE_ITEMS.find(i => i.name === itemName);
         return item?.image || null;
     };
@@ -33,7 +33,7 @@ const TierInfoModal: React.FC<TierInfoModalProps> = ({ onClose }) => {
         
         const rewardsToShow: { name: string, image: string | null }[] = [];
         if (reward.diamonds) {
-            rewardsToShow.push({ name: `${reward.diamonds.toLocaleString()}`, image: '/images/icon/Zem.png' });
+            rewardsToShow.push({ name: `${reward.diamonds.toLocaleString()}`, image: '/images/icon/Zem.webp' });
         }
         if (reward.items) {
             reward.items.forEach(item => {

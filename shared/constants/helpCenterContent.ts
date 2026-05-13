@@ -77,11 +77,11 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             type: 'imageRow',
                             compact: true,
                             images: [
-                                { src: '/images/quickmenu/quest.png', alt: '퀘스트', caption: '퀘스트' },
-                                { src: '/images/quickmenu/gibo.png', alt: '기보', caption: '기보' },
-                                { src: '/images/quickmenu/enhance.png', alt: '대장간', caption: '대장간' },
-                                { src: '/images/quickmenu/store.png', alt: '상점', caption: '상점' },
-                                { src: '/images/quickmenu/bag.png', alt: '가방', caption: '가방' },
+                                { src: '/images/quickmenu/quest.webp', alt: '퀘스트', caption: '퀘스트' },
+                                { src: '/images/quickmenu/gibo.webp', alt: '기보', caption: '기보' },
+                                { src: '/images/quickmenu/enhance.webp', alt: '대장간', caption: '대장간' },
+                                { src: '/images/quickmenu/store.webp', alt: '상점', caption: '상점' },
+                                { src: '/images/quickmenu/bag.webp', alt: '가방', caption: '가방' },
                                 { src: '/images/button/help.webp', alt: '도움말', caption: '도움말' },
                             ],
                         },
@@ -120,7 +120,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'start-settings',
                     title: '설정과 계정',
                     tagline: '그래픽·알림·프로필 편집은 설정에서 한곳에 모았습니다.',
-                    hero: { src: '/images/simbols/simbol1.png', alt: '설정' },
+                    hero: { src: '/images/simbols/simbol1.webp', alt: '설정' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -142,7 +142,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
     {
         id: 'lobby',
         label: '대기실 · 매칭',
-        iconSrc: '/images/PlayingArena.png',
+        iconSrc: '/images/PlayingArena.webp',
         accentClass: 'from-cyan-500/15 to-sky-600/10',
         subcategories: [
             {
@@ -152,7 +152,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'lobby-common',
                     title: '대기실에서 할 수 있는 것',
                     tagline: '접속자 목록부터 관전·채팅까지 한 공간에서 처리합니다.',
-                    hero: { src: '/images/PlayingArena.png', alt: '대기실' },
+                    hero: { src: '/images/PlayingArena.webp', alt: '대기실' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -203,7 +203,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
     {
         id: 'pve',
         label: '바둑학원 · 도전의 탑',
-        iconSrc: '/images/tower/Tower.png',
+        iconSrc: '/images/tower/Tower.webp',
         accentClass: 'from-emerald-500/15 to-amber-600/10',
         subcategories: [
             {
@@ -213,7 +213,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'pve-singleplayer',
                     title: '바둑학원',
                     tagline: '난이도별 스테이지와 수련과제로 AI와 수읽기를 연습합니다.',
-                    hero: { src: '/images/single/Map.png', alt: '바둑학원' },
+                    hero: { src: '/images/single/Map.webp', alt: '바둑학원' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -243,7 +243,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'pve-tower',
                     title: '도전의 탑',
                     tagline: '100층 PvE, 월간 랭킹과 보상이 함께 갱신됩니다.',
-                    hero: { src: '/images/tower/Tower.png', alt: '도전의 탑' },
+                    hero: { src: '/images/tower/Tower.webp', alt: '도전의 탑' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -270,7 +270,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
     {
         id: 'modes',
         label: '게임 모드',
-        iconSrc: '/images/simbols/simbol7.png',
+        iconSrc: '/images/simbols/simbol7.webp',
         accentClass: 'from-violet-500/15 to-fuchsia-600/10',
         subcategories: [
             {
@@ -332,7 +332,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
     {
         id: 'adventure',
         label: '모험',
-        iconSrc: '/images/adventure.png',
+        iconSrc: '/images/adventure.webp',
         accentClass: 'from-amber-500/22 via-fuchsia-600/12 to-violet-900/15',
         subcategories: [
             {
@@ -342,7 +342,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'adventure-chapters',
                     title: '챕터 맵과 몬스터',
                     tagline: '입장부터 맵 탐색·대국까지 한눈에.',
-                    hero: { src: '/images/adventure.png', alt: '모험' },
+                    hero: { src: '/images/adventure.webp', alt: '모험' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -414,8 +414,8 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             type: 'imageRow',
                             compact: true,
                             images: [
-                                { src: '/images/icon/Gold.png', alt: '골드', caption: '변경·강화 비용' },
-                                { src: '/images/adventure.png', alt: '모험', caption: '효과 획득·변경' },
+                                { src: '/images/icon/Gold.webp', alt: '골드', caption: '변경·강화 비용' },
+                                { src: '/images/adventure.webp', alt: '모험', caption: '효과 획득·변경' },
                             ],
                         },
                         {
@@ -435,7 +435,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
     {
         id: 'growth',
         label: '성장 · 스탯',
-        iconSrc: '/images/quickmenu/enhance.png',
+        iconSrc: '/images/quickmenu/enhance.webp',
         accentClass: 'from-emerald-500/15 to-teal-600/10',
         subcategories: [
             {
@@ -487,7 +487,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
     {
         id: 'gear',
         label: '장비 · 대장간',
-        iconSrc: '/images/quickmenu/enhance.png',
+        iconSrc: '/images/quickmenu/enhance.webp',
         accentClass: 'from-orange-500/15 to-amber-600/10',
         subcategories: [
             {
@@ -497,7 +497,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'gear-basics',
                     title: '장비 시스템',
                     tagline: '부위·등급·옵션이 캐릭터 성능을 만듭니다.',
-                    hero: { src: '/images/button/itembook.png', alt: '도감' },
+                    hero: { src: '/images/button/itembook.webp', alt: '도감' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -521,7 +521,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'gear-blacksmith',
                     title: '대장간 안내',
                     tagline: '강화·합성·제련·분해·재료 변환과 대장간 경험치까지 한곳에 정리합니다.',
-                    hero: { src: '/images/equipments/moru.png', alt: '대장간' },
+                    hero: { src: '/images/equipments/moru.webp', alt: '대장간' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -631,7 +631,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
     {
         id: 'rank',
         label: '랭킹 · 시즌',
-        iconSrc: '/images/quickmenu/store.png',
+        iconSrc: '/images/quickmenu/store.webp',
         accentClass: 'from-indigo-500/15 to-purple-600/10',
         subcategories: [
             {
@@ -712,7 +712,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
     {
         id: 'pve',
         label: '도전의 탑 · 챔피언십',
-        iconSrc: '/images/simbols/simbol3.png',
+        iconSrc: '/images/simbols/simbol3.webp',
         accentClass: 'from-fuchsia-500/15 to-pink-600/10',
         subcategories: [
             {
@@ -767,7 +767,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'pve-training',
                     title: '연습 모드와 AI 스테이지',
                     tagline: '봇과의 대국·미션형 스테이지로 실력을 다듬습니다.',
-                    hero: { src: '/images/simbols/simbol1.png', alt: '연습' },
+                    hero: { src: '/images/simbols/simbol1.webp', alt: '연습' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -788,7 +788,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
     {
         id: 'guild',
         label: '길드',
-        iconSrc: '/images/guild/profile/icon1.png',
+        iconSrc: '/images/guild/profile/icon1.webp',
         accentClass: 'from-emerald-600/15 to-green-900/10',
         subcategories: [
             {
@@ -798,7 +798,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'guild-overview',
                     title: '길드란?',
                     tagline: '기부·연구·보스·전쟁·미션으로 함께 성장하는 커뮤니티입니다.',
-                    hero: { src: '/images/guild/profile/icon1.png', alt: '길드' },
+                    hero: { src: '/images/guild/profile/icon1.webp', alt: '길드' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -807,10 +807,10 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                         {
                             type: 'imageRow',
                             images: [
-                                { src: '/images/guild/button/bossraid1.png', alt: '보스', caption: '보스전' },
-                                { src: '/images/guild/button/guildwar.png', alt: '전쟁', caption: '전쟁' },
-                                { src: '/images/guild/button/guildlab.png', alt: '연구', caption: '연구소' },
-                                { src: '/images/guild/button/guildmission.png', alt: '미션', caption: '미션' },
+                                { src: '/images/guild/button/bossraid1.webp', alt: '보스', caption: '보스전' },
+                                { src: '/images/guild/button/guildwar.webp', alt: '전쟁', caption: '전쟁' },
+                                { src: '/images/guild/button/guildlab.webp', alt: '연구', caption: '연구소' },
+                                { src: '/images/guild/button/guildmission.webp', alt: '미션', caption: '미션' },
                             ],
                         },
                     ],
@@ -842,7 +842,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'guild-boss',
                     title: '길드 보스전',
                     tagline: '주간 보스에게 입힌 피해로 등급과 보상이 결정됩니다.',
-                    hero: { src: '/images/guild/button/bossraid1.png', alt: '보스전' },
+                    hero: { src: '/images/guild/button/bossraid1.webp', alt: '보스전' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -872,7 +872,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'guild-war',
                     title: '길드 전쟁',
                     tagline: '다른 길드와 영토 점령률로 승패를 가립니다.',
-                    hero: { src: '/images/guild/button/guildwar.png', alt: '길드 전쟁' },
+                    hero: { src: '/images/guild/button/guildwar.webp', alt: '길드 전쟁' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -911,8 +911,8 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                         {
                             type: 'imageRow',
                             images: [
-                                { src: '/images/guild/button/guildlab.png', alt: '연구소', caption: '연구소' },
-                                { src: '/images/guild/button/guildmission.png', alt: '미션', caption: '미션' },
+                                { src: '/images/guild/button/guildlab.webp', alt: '연구소', caption: '연구소' },
+                                { src: '/images/guild/button/guildmission.webp', alt: '미션', caption: '미션' },
                             ],
                         },
                     ],
@@ -923,7 +923,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
     {
         id: 'util',
         label: '우편 · 퀘스트 · 기타',
-        iconSrc: '/images/quickmenu/bag.png',
+        iconSrc: '/images/quickmenu/bag.webp',
         accentClass: 'from-slate-500/15 to-zinc-700/10',
         subcategories: [
             {
@@ -1006,7 +1006,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
     {
         id: 'encyclopedia',
         label: '도감 · 옵션 규칙',
-        iconSrc: '/images/button/itembook.png',
+        iconSrc: '/images/button/itembook.webp',
         accentClass: 'from-amber-600/10 to-orange-900/10',
         subcategories: [
             {
@@ -1016,7 +1016,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'ency-rules',
                     title: '도감과 장비 옵션 규칙',
                     tagline: '아이콘을 눌러 말풍선으로 상세 스펙을 확인합니다.',
-                    hero: { src: '/images/button/itembook.png', alt: '도감' },
+                    hero: { src: '/images/button/itembook.webp', alt: '도감' },
                     blocks: [
                         {
                             type: 'paragraph',

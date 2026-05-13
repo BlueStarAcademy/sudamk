@@ -119,12 +119,12 @@ const CombinedLevelBadge: React.FC<{ level: number; compact?: boolean }> = ({ le
 };
 
 const gradeBackgrounds: Record<ItemGrade, string> = {
-    normal: '/images/equipments/normalbgi.png',
-    uncommon: '/images/equipments/uncommonbgi.png',
-    rare: '/images/equipments/rarebgi.png',
-    epic: '/images/equipments/epicbgi.png',
-    legendary: '/images/equipments/legendarybgi.png',
-    mythic: '/images/equipments/mythicbgi.png',
+    normal: '/images/equipments/normalbgi.webp',
+    uncommon: '/images/equipments/uncommonbgi.webp',
+    rare: '/images/equipments/rarebgi.webp',
+    epic: '/images/equipments/epicbgi.webp',
+    legendary: '/images/equipments/legendarybgi.webp',
+    mythic: '/images/equipments/mythicbgi.webp',
     transcendent: '/images/equipments/transcendentbgi.webp',
 };
 
@@ -1272,7 +1272,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                         className="h-full w-full object-cover"
                                     />
                                 ) : (
-                                    <img src="/images/button/guild.png" alt="길드" className={`object-contain ${nh ? 'h-7 w-7' : 'h-7 w-7 sm:h-8 sm:w-8'}`} />
+                                    <img src="/images/button/guild.webp" alt="길드" className={`object-contain ${nh ? 'h-7 w-7' : 'h-7 w-7 sm:h-8 sm:w-8'}`} />
                                 )}
                             </div>
                             <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden sm:gap-1.5">
@@ -2162,11 +2162,11 @@ const Profile: React.FC<ProfileProps> = () => {
 
             <div className="flex h-full min-h-0 min-w-0 flex-col">
                 {isNativeMobile && profileTab !== 'home' ? (
-                    <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.png" layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={true} locked={!!getArenaEntryLockReason('tower')} lockReason={getArenaEntryLockReason('tower') ?? undefined} />
+                    <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.webp" layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={true} locked={!!getArenaEntryLockReason('tower')} lockReason={getArenaEntryLockReason('tower') ?? undefined} />
                 ) : (
                     <div className={mergedCardClass} data-onboarding-target="onboarding-tower-card">
                         <div className={imagePaneClass}>
-                            <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.png" layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={false} hideOverlayText={true} locked={!!getArenaEntryLockReason('tower')} lockReason={getArenaEntryLockReason('tower') ?? undefined} />
+                            <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.webp" layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={false} hideOverlayText={true} locked={!!getArenaEntryLockReason('tower')} lockReason={getArenaEntryLockReason('tower') ?? undefined} />
                         </div>
                         <div className={infoPanelShellClass}>
                             <div className={infoTitleClass}>도전의 탑</div>
@@ -2506,7 +2506,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                                 className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/35 px-2 py-1.5"
                                             >
                                                 <span className="flex min-w-0 items-center gap-1 text-[11px] font-semibold text-cyan-50/95">
-                                                    <img src="/images/icon/Zem.png" alt="" className="h-3.5 w-3.5 shrink-0 object-contain" />
+                                                    <img src="/images/icon/Zem.webp" alt="" className="h-3.5 w-3.5 shrink-0 object-contain" />
                                                     패키지 {roman}
                                                 </span>
                                                 <div className="flex shrink-0 gap-0.5">

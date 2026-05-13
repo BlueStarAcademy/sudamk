@@ -15,7 +15,7 @@ const Avatar: React.FC<AvatarProps> = ({ userId, userName, avatarUrl, borderUrl,
   const remSize = size / 16;
   const isColorBorder = borderUrl && (borderUrl.startsWith('#') || borderUrl.startsWith('conic-gradient'));
   const isImageBorder = borderUrl && !isColorBorder;
-  const finalAvatarUrl = avatarUrl || '/images/profiles/profile1.png';
+  const finalAvatarUrl = avatarUrl || '/images/profiles/profile1.webp';
 
   // Case 1: Image Border — 외곽은 항상 `size`×`size` 고정, 얼굴 원은 PNG 링 안쪽에 들어가도록 축소
   if (isImageBorder) {

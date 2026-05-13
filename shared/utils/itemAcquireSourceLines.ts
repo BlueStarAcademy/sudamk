@@ -60,13 +60,13 @@ export function resolveBagItemAcquireLines(item: InventoryItem): string[] {
     const lines: string[] = [];
 
     /** 획득 모달 등: 통화 전용 스냅샷(이미지로만 구분되는 경우) */
-    if (item.image === '/images/icon/Gold.png') {
+    if (item.image === '/images/icon/Gold.webp') {
         lines.push('[경기·콘텐츠] 바둑 대국, 싱글플레이, 던전·리그 등');
         lines.push('[퀘스트·모험] 일일·주간·월간 퀘스트, 보물상자, VIP 슬롯');
         lines.push('[거래·분해] 거래소 판매 정산, 장비 분해, 일부 상점 판매');
         return lines;
     }
-    if (item.image === '/images/icon/Zem.png') {
+    if (item.image === '/images/icon/Zem.webp') {
         lines.push('[상점] 다이아 패키지·소모품·재료 탭');
         lines.push('[결제·이벤트] 충전, 운영·프로모션 우편');
         lines.push('[기능] 가방 슬롯 확장 등 일부 프리미엄 기능');

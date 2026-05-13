@@ -104,7 +104,7 @@ const DisassemblyResultModal: React.FC<DisassemblyResultModalProps> = ({ onClose
                             <div className="flex items-center justify-between gap-2">
                                 <span className="flex items-center gap-2 text-sm font-semibold text-amber-100/90">
                                     <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-400/25 bg-black/40 p-1">
-                                        <img src="/images/equipments/moru.png" alt="" className="h-6 w-6 object-contain" />
+                                        <img src="/images/equipments/moru.webp" alt="" className="h-6 w-6 object-contain" />
                                     </span>
                                     대장간 경험치
                                 </span>

@@ -74,21 +74,21 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
             tournamentState.matchGoldRewards.forEach((goldAmount: number, idx: number) => {
                 rewardItemsMap.set(`neighborhood_round_${idx}`, {
                     name: `골드 ${formatGoldAmountKoG(goldAmount)}`,
-                    image: '/images/icon/Gold.png',
+                    image: '/images/icon/Gold.webp',
                     quantity: goldAmount,
                 });
             });
         } else {
             rewardItemsMap.set('gold', {
                 name: '골드',
-                image: '/images/icon/Gold.png',
+                image: '/images/icon/Gold.webp',
                 quantity: baseRewards.gold,
             });
         }
     } else if (baseRewards.gold && baseRewards.gold > 0) {
         rewardItemsMap.set('gold', {
             name: '골드',
-            image: '/images/icon/Gold.png',
+            image: '/images/icon/Gold.webp',
             quantity: baseRewards.gold,
         });
     }
@@ -137,7 +137,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                 const grade = template?.grade as ItemGrade | undefined;
                 rewardItemsMap.set(`world_drop_${idx}_${eq.name}`, {
                     name: eq.name,
-                    image: eq.image || '/images/equipments/normalbgi.png',
+                    image: eq.image || '/images/equipments/normalbgi.webp',
                     quantity: 1,
                     grade,
                 });
@@ -147,24 +147,24 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                 const grade = (eq as any).grade as ItemGrade | undefined;
                 rewardItemsMap.set(`world_generated_${idx}_${eq.name}`, {
                     name: eq.name,
-                    image: eq.image || '/images/equipments/normalbgi.png',
+                    image: eq.image || '/images/equipments/normalbgi.webp',
                     quantity: 1,
                     grade,
                 });
             });
         } else if (tournamentState.accumulatedEquipmentDrops && tournamentState.accumulatedEquipmentDrops.length > 0) {
             const EQUIP_GRADE_IMAGE: Record<string, string> = {
-                normal: '/images/equipments/normalbgi.png',
-                uncommon: '/images/equipments/uncommonbgi.png',
-                rare: '/images/equipments/rarebgi.png',
-                epic: '/images/equipments/epicbgi.png',
-                legendary: '/images/equipments/legendarybgi.png',
-                mythic: '/images/equipments/mythicbgi.png',
+                normal: '/images/equipments/normalbgi.webp',
+                uncommon: '/images/equipments/uncommonbgi.webp',
+                rare: '/images/equipments/rarebgi.webp',
+                epic: '/images/equipments/epicbgi.webp',
+                legendary: '/images/equipments/legendarybgi.webp',
+                mythic: '/images/equipments/mythicbgi.webp',
                 transcendent: '/images/equipments/transcendentbgi.webp',
             };
             (tournamentState.accumulatedEquipmentDrops as string[]).forEach((gradeKey: string, idx: number) => {
                 const label = EQUIPMENT_GRADE_LABEL_KO[gradeKey] ?? gradeKey;
-                const img = EQUIP_GRADE_IMAGE[gradeKey] || '/images/equipments/normalbgi.png';
+                const img = EQUIP_GRADE_IMAGE[gradeKey] || '/images/equipments/normalbgi.webp';
                 rewardItemsMap.set(`world_equip_${idx}_${gradeKey}`, {
                     name: `${label} 장비`,
                     image: img,
@@ -191,7 +191,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
     if (baseRewards.changeTicketGrants && baseRewards.changeTicketGrants.length > 0) {
         for (const g of baseRewards.changeTicketGrants) {
             const mat = (MATERIAL_ITEMS as Record<string, { image?: string }>)[g.name];
-            const img = mat?.image || '/images/use/change2.png';
+            const img = mat?.image || '/images/use/change2.webp';
             const key = `change_ticket_${g.name}`;
             const existing = rewardItemsMap.get(key);
             if (existing) {
@@ -208,7 +208,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
     } else if (baseRewards.changeTickets && baseRewards.changeTickets > 0) {
         rewardItemsMap.set('changeTickets', {
             name: `변경권 x${baseRewards.changeTickets}`,
-            image: '/images/use/change2.png',
+            image: '/images/use/change2.webp',
             quantity: baseRewards.changeTickets,
             grade: ItemGrade.Normal,
         });
@@ -245,10 +245,10 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
             const image =
                 itemTemplate?.image ||
                 (itemName.includes('골드')
-                    ? '/images/icon/Gold.png'
+                    ? '/images/icon/Gold.webp'
                     : itemName.includes('다이아')
-                      ? '/images/icon/Zem.png'
-                      : (MATERIAL_ITEMS as any)[item.itemId]?.image || '/images/Box/ResourceBox1.png');
+                      ? '/images/icon/Zem.webp'
+                      : (MATERIAL_ITEMS as any)[item.itemId]?.image || '/images/Box/ResourceBox1.webp');
             rewardItemsMap.set(`rank_${rankIdx}_${itemName}`, {
                 name: itemName,
                 image,
@@ -263,7 +263,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
     const rewardChipFooterNumber = (item: RewardChip): string | null => {
         if (item.displayAmount != null && item.displayAmount !== '') return item.displayAmount;
         if (dungeonType === 'world' && item.grade != null && item.quantity <= 1) return null;
-        if (item.image === '/images/icon/Gold.png') return formatGoldAmountKoG(item.quantity);
+        if (item.image === '/images/icon/Gold.webp') return formatGoldAmountKoG(item.quantity);
         return item.quantity.toLocaleString('ko-KR');
     };
 

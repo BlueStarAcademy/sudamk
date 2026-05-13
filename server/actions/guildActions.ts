@@ -784,7 +784,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         name: dbGuild.name,
                         leaderId: dbGuild.leaderId,
                         description: dbGuild.description || undefined,
-                        icon: dbGuild.emblem || '/images/guild/profile/icon1.png',
+                        icon: dbGuild.emblem || '/images/guild/profile/icon1.webp',
                         level: dbGuild.level,
                         gold: Number(dbGuild.gold),
                         experience: Number(dbGuild.experience),
@@ -947,7 +947,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                                 description: kvGuild.description || undefined,
                                 icon: kvGuild.icon?.startsWith('/images/guild/icon') 
                                     ? kvGuild.icon.replace('/images/guild/icon', '/images/guild/profile/icon')
-                                    : (kvGuild.icon || '/images/guild/profile/icon1.png'),
+                                    : (kvGuild.icon || '/images/guild/profile/icon1.webp'),
                                 level: kvGuild.level,
                                 memberCount: kvGuild.members?.length || 0,
                                 memberLimit: kvGuild.memberLimit || 30,
@@ -955,7 +955,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                             };
                         } else {
                             // KV store에 없으면 DB 데이터 사용
-                            const dbIcon = dbGuild.emblem || '/images/guild/profile/icon1.png';
+                            const dbIcon = dbGuild.emblem || '/images/guild/profile/icon1.webp';
                             const dbSettings = (dbGuild.settings as any) || {};
                             const dbIsPublic = dbSettings.isPublic !== undefined ? dbSettings.isPublic : true;
                             
@@ -992,7 +992,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                                     description: kvGuild.description || undefined,
                                     icon: kvGuild.icon?.startsWith('/images/guild/icon') 
                                         ? kvGuild.icon.replace('/images/guild/icon', '/images/guild/profile/icon')
-                                        : (kvGuild.icon || '/images/guild/profile/icon1.png'),
+                                        : (kvGuild.icon || '/images/guild/profile/icon1.webp'),
                                     level: kvGuild.level,
                                     memberCount: kvGuild.members?.length || 0,
                                     memberLimit: kvGuild.memberLimit || 30,
@@ -1019,7 +1019,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                                     description: kvGuild.description || undefined,
                                     icon: kvGuild.icon?.startsWith('/images/guild/icon') 
                                         ? kvGuild.icon.replace('/images/guild/icon', '/images/guild/profile/icon')
-                                        : (kvGuild.icon || '/images/guild/profile/icon1.png'),
+                                        : (kvGuild.icon || '/images/guild/profile/icon1.webp'),
                                     level: kvGuild.level,
                                     memberCount: kvGuild.members?.length || 0,
                                     memberLimit: kvGuild.memberLimit || 30,
@@ -3175,7 +3175,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         name: dbGuild.name,
                         leaderId: canonicalLeaderId,
                         description: dbGuild.description || undefined,
-                        icon: dbGuild.emblem || '/images/guild/profile/icon1.png',
+                        icon: dbGuild.emblem || '/images/guild/profile/icon1.webp',
                         level: dbGuild.level,
                         gold: Number(dbGuild.gold),
                         experience: Number(dbGuild.experience),
@@ -3208,7 +3208,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         name: basicGuild.name || dbGuild.name || '이름 없는 길드', // name 필드 보장
                         icon: basicGuild.icon?.startsWith('/images/guild/icon') 
                             ? basicGuild.icon.replace('/images/guild/icon', '/images/guild/profile/icon')
-                            : (basicGuild.icon || '/images/guild/profile/icon1.png')
+                            : (basicGuild.icon || '/images/guild/profile/icon1.webp')
                     };
                     
                     return { clientResponse: { guild: guildWithFixedIcon } };
@@ -3343,7 +3343,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     members: guild.members || [],
                     icon: guild.icon?.startsWith('/images/guild/icon') 
                         ? guild.icon.replace('/images/guild/icon', '/images/guild/profile/icon')
-                        : (guild.icon || '/images/guild/profile/icon1.png')
+                        : (guild.icon || '/images/guild/profile/icon1.webp')
                 };
                 return { clientResponse: { guild: guildWithFixedIcon } };
             } catch (error: any) {

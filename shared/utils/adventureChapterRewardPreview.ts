@@ -33,20 +33,20 @@ function gradeRank(g: ItemGrade): number {
 export function adventureEquipmentBoxImageForGrade(grade: ItemGrade): string {
     switch (grade) {
         case ItemGrade.Normal:
-            return '/images/Box/EquipmentBox1.png';
+            return '/images/Box/EquipmentBox1.webp';
         case ItemGrade.Uncommon:
-            return '/images/Box/EquipmentBox2.png';
+            return '/images/Box/EquipmentBox2.webp';
         case ItemGrade.Rare:
-            return '/images/Box/EquipmentBox3.png';
+            return '/images/Box/EquipmentBox3.webp';
         case ItemGrade.Epic:
-            return '/images/Box/EquipmentBox4.png';
+            return '/images/Box/EquipmentBox4.webp';
         case ItemGrade.Legendary:
-            return '/images/Box/EquipmentBox5.png';
+            return '/images/Box/EquipmentBox5.webp';
         case ItemGrade.Mythic:
         case ItemGrade.Transcendent:
-            return '/images/Box/EquipmentBox6.png';
+            return '/images/Box/EquipmentBox6.webp';
         default:
-            return '/images/Box/EquipmentBox1.png';
+            return '/images/Box/EquipmentBox1.webp';
     }
 }
 
@@ -143,7 +143,7 @@ export function getAdventureChapterRewardVisual(stageId: AdventureStageId): Adve
         const q = ADVENTURE_ENHANCEMENT_STONE_QTY_NORMAL[m.name];
         const g = meta?.grade ?? ItemGrade.Normal;
         return {
-            image: meta?.image ?? '/images/materials/materials1.png',
+            image: meta?.image ?? '/images/materials/materials1.webp',
             gradeBg: gradeBackgrounds[g] ?? gradeBackgrounds[ItemGrade.Normal],
             qtyMin: q?.min ?? 1,
             qtyMax: q?.max ?? 1,

@@ -20,12 +20,12 @@ interface BulkItemObtainedModalProps {
 }
 
 const gradeStyles: Record<ItemGrade, { bg: string, text: string, shadow: string, name: string, background: string }> = {
-    normal: { bg: 'bg-gray-700', text: 'text-white', shadow: 'shadow-gray-900/50', name: '일반', background: '/images/equipments/normalbgi.png' },
-    uncommon: { bg: 'bg-green-700', text: 'text-green-200', shadow: 'shadow-green-500/50', name: '고급', background: '/images/equipments/uncommonbgi.png' },
-    rare: { bg: 'bg-blue-700', text: 'text-blue-200', shadow: 'shadow-blue-500/50', name: '희귀', background: '/images/equipments/rarebgi.png' },
-    epic: { bg: 'bg-purple-700', text: 'text-purple-200', shadow: 'shadow-purple-500/50', name: '에픽', background: '/images/equipments/epicbgi.png' },
-    legendary: { bg: 'bg-red-800', text: 'text-red-200', shadow: 'shadow-red-500/50', name: '전설', background: '/images/equipments/legendarybgi.png' },
-    mythic: { bg: 'bg-orange-700', text: 'text-orange-200', shadow: 'shadow-orange-500/50', name: '신화', background: '/images/equipments/mythicbgi.png' },
+    normal: { bg: 'bg-gray-700', text: 'text-white', shadow: 'shadow-gray-900/50', name: '일반', background: '/images/equipments/normalbgi.webp' },
+    uncommon: { bg: 'bg-green-700', text: 'text-green-200', shadow: 'shadow-green-500/50', name: '고급', background: '/images/equipments/uncommonbgi.webp' },
+    rare: { bg: 'bg-blue-700', text: 'text-blue-200', shadow: 'shadow-blue-500/50', name: '희귀', background: '/images/equipments/rarebgi.webp' },
+    epic: { bg: 'bg-purple-700', text: 'text-purple-200', shadow: 'shadow-purple-500/50', name: '에픽', background: '/images/equipments/epicbgi.webp' },
+    legendary: { bg: 'bg-red-800', text: 'text-red-200', shadow: 'shadow-red-500/50', name: '전설', background: '/images/equipments/legendarybgi.webp' },
+    mythic: { bg: 'bg-orange-700', text: 'text-orange-200', shadow: 'shadow-orange-500/50', name: '신화', background: '/images/equipments/mythicbgi.webp' },
     transcendent: { bg: 'bg-cyan-900', text: 'text-cyan-200', shadow: 'shadow-cyan-500/50', name: '초월', background: '/images/equipments/transcendentbgi.webp' },
 };
 
@@ -114,8 +114,8 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                     itemGrade === ItemGrade.Transcendent
                                         ? ''
                                         : BULK_TILE_STATIC_BORDER[itemGrade] ?? BULK_TILE_STATIC_BORDER[ItemGrade.Normal];
-                                const isCurrency = item.image === '/images/icon/Gold.png' || item.image === '/images/icon/Zem.png';
-                                const isGoldIcon = item.image === '/images/icon/Gold.png';
+                                const isCurrency = item.image === '/images/icon/Gold.webp' || item.image === '/images/icon/Zem.webp';
+                                const isGoldIcon = item.image === '/images/icon/Gold.webp';
                                 const currencyQty =
                                     typeof item.quantity === 'number' && Number.isFinite(item.quantity) ? item.quantity : 0;
                                 const grantQty =
@@ -138,7 +138,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                                 className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl ring-1 ring-amber-400/30 ${RESULT_MODAL_BOX_GOLD_CLASS}`}
                                             >
                                                 <img
-                                                    src="/images/icon/Gold.png"
+                                                    src="/images/icon/Gold.webp"
                                                     alt=""
                                                     className="relative z-[1] h-[48%] w-[48%] object-contain p-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)] sm:h-[46%] sm:w-[46%]"
                                                 />
@@ -156,7 +156,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                                 className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl ring-1 ring-sky-400/25 ${RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS}`}
                                             >
                                                 <img
-                                                    src="/images/icon/Zem.png"
+                                                    src="/images/icon/Zem.webp"
                                                     alt=""
                                                     className="relative z-[1] h-[48%] w-[48%] object-contain p-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)] sm:h-[46%] sm:w-[46%]"
                                                 />

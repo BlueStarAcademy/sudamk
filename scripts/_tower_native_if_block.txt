@@ -47,8 +47,8 @@
                                     <p className="text-amber-300/90 text-xs mb-1.5">이번 달 예정 보상 (현재 기록 기준)</p>
                                     {myRewardTier ? (
                                         <div className="flex flex-wrap items-center gap-2 text-xs">
-                                            <span className="inline-flex items-center gap-1 text-yellow-200"><img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />{myRewardTier.gold.toLocaleString()}</span>
-                                            <span className="inline-flex items-center gap-1 text-cyan-200"><img src="/images/icon/Zem.png" alt="다이아" className="w-4 h-4" />{myRewardTier.diamonds}</span>
+                                            <span className="inline-flex items-center gap-1 text-yellow-200"><img src="/images/icon/Gold.webp" alt="골드" className="w-4 h-4" />{myRewardTier.gold.toLocaleString()}</span>
+                                            <span className="inline-flex items-center gap-1 text-cyan-200"><img src="/images/icon/Zem.webp" alt="다이아" className="w-4 h-4" />{myRewardTier.diamonds}</span>
                                             {myRewardTier.items.map((it: { itemId: string; quantity: number }, i: number) => (
                                                 <span key={i} className="inline-flex items-center gap-1 text-amber-200">
                                                     <img src={`/images/Box/EquipmentBox${it.itemId.replace('장비상자', '')}.png`} alt={it.itemId} className="w-4 h-4" />
@@ -147,11 +147,11 @@
                                 const getItemCount = (namesOrIds: readonly string[]): number =>
                                     countTowerLobbyInventoryQty(inventory, namesOrIds);
                                 const items = [
-                                    { name: '턴 추가', icon: '/images/button/addturn.png', count: getItemCount(TOWER_ITEM_TURN_ADD_NAMES) },
-                                    { name: '미사일', icon: '/images/button/missile.png', count: getItemCount(TOWER_ITEM_MISSILE_NAMES) },
-                                    { name: '히든', icon: '/images/button/hidden.png', count: getItemCount(TOWER_ITEM_HIDDEN_NAMES) },
-                                    { name: '스캔', icon: '/images/button/scan.png', count: getItemCount(TOWER_ITEM_SCAN_NAMES) },
-                                    { name: '배치변경', icon: '/images/button/reflesh.png', count: getItemCount(TOWER_ITEM_REFRESH_NAMES) },
+                                    { name: '턴 추가', icon: '/images/button/addturn.webp', count: getItemCount(TOWER_ITEM_TURN_ADD_NAMES) },
+                                    { name: '미사일', icon: '/images/button/missile.webp', count: getItemCount(TOWER_ITEM_MISSILE_NAMES) },
+                                    { name: '히든', icon: '/images/button/hidden.webp', count: getItemCount(TOWER_ITEM_HIDDEN_NAMES) },
+                                    { name: '스캔', icon: '/images/button/scan.webp', count: getItemCount(TOWER_ITEM_SCAN_NAMES) },
+                                    { name: '배치변경', icon: '/images/button/reflesh.webp', count: getItemCount(TOWER_ITEM_REFRESH_NAMES) },
                                 ];
                                 return items.map((item, index) => (
                                     <button

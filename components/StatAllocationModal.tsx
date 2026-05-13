@@ -371,7 +371,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                         cooldownMs={0}
                         className="max-w-[min(100%,15rem)] min-h-[34px] !rounded-lg !border !border-rose-400/30 !bg-gradient-to-r !from-rose-700/90 !via-rose-600/90 !to-orange-600/85 !px-3 !py-1.5 !text-[10px] !font-semibold !leading-tight !shadow-md hover:!brightness-105 sm:!min-h-[36px] sm:!text-[11px]"
                     >
-                        초기화 (<img src="/images/icon/Gold.png" alt="골드" className="inline-block h-3 w-3 align-middle" />
+                        초기화 (<img src="/images/icon/Gold.webp" alt="골드" className="inline-block h-3 w-3 align-middle" />
                         {resetCost.toLocaleString()})
                     </Button>
                     <p className="mt-1 whitespace-nowrap text-center text-[9px] text-slate-500 sm:text-[10px]">

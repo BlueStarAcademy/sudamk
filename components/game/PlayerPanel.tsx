@@ -581,7 +581,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                                     title={isFoulMode ? `남은 기회 ${effectiveByoyomiPeriodsLeft}회` : undefined}
                                 >
                                     <img
-                                        src="/images/icon/timer.png"
+                                        src="/images/icon/timer.webp"
                                         alt={isFoulMode ? '남은 기회' : '초읽기'}
                                         className={`object-contain ${fluidTextLayout && isMobile ? 'h-4 w-4' : isMobile ? 'h-5 w-5' : 'h-4 w-4'}`}
                                     />

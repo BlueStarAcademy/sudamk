@@ -181,7 +181,7 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({ item, cur
                     <div className="mt-2 flex flex-col gap-2 border-t border-amber-500/15 pt-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                         <div className="flex items-center justify-center gap-2 sm:justify-start">
                             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-amber-400/30 bg-amber-900/40 sm:h-9 sm:w-9">
-                                <img src="/images/icon/Gold.png" alt="" className="h-7 w-7 object-contain sm:h-6 sm:w-6" />
+                                <img src="/images/icon/Gold.webp" alt="" className="h-7 w-7 object-contain sm:h-6 sm:w-6" />
                             </div>
                             <span className="text-sm font-bold text-amber-200/85 sm:text-xs sm:uppercase sm:tracking-wider sm:text-amber-200/60">
                                 {isDeleteOnly ? '합계 (삭제)' : '총 받을 골드'}

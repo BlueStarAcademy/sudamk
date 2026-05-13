@@ -418,7 +418,7 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
                             </div>
                             <div className="flex items-center gap-1.5 rounded border border-white/[0.06] bg-black/25 px-1.5 py-1">
                                 <img
-                                    src={isGold ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                    src={isGold ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                     alt=""
                                     className="h-4 w-4 shrink-0 object-contain opacity-95"
                                     aria-hidden

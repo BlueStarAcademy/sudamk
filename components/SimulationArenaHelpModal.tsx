@@ -12,7 +12,7 @@ const SimulationArenaHelpModal: React.FC<SimulationArenaHelpModalProps> = ({ onC
             <div className="max-h-[70vh] overflow-y-auto pr-2 text-gray-300">
                 <div className="space-y-4">
                     <div className="flex items-start gap-4 bg-gray-900/50 p-4 rounded-lg">
-                        <img src="/images/PlayingArena.png" alt="시뮬레이션 경기" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />
+                        <img src="/images/PlayingArena.webp" alt="시뮬레이션 경기" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />
                         <div className="flex-1">
                             <h3 className="font-bold text-lg text-yellow-300 mb-2">시뮬레이션 경기 개요</h3>
                             <p className="text-sm mb-2">
@@ -24,9 +24,9 @@ const SimulationArenaHelpModal: React.FC<SimulationArenaHelpModalProps> = ({ onC
 
                     <div className="flex items-start gap-4 bg-gray-900/50 p-4 rounded-lg">
                         <div className="flex flex-col gap-2 flex-shrink-0">
-                            <img src="/images/icon/Gold.png" alt="골드" className="w-16 h-16 object-cover rounded-lg" />
-                            <img src="/images/materials/materials1.png" alt="재료" className="w-16 h-16 object-cover rounded-lg" />
-                            <img src="/images/Box/EquipmentBox1.png" alt="장비상자" className="w-16 h-16 object-cover rounded-lg" />
+                            <img src="/images/icon/Gold.webp" alt="골드" className="w-16 h-16 object-cover rounded-lg" />
+                            <img src="/images/materials/materials1.webp" alt="재료" className="w-16 h-16 object-cover rounded-lg" />
+                            <img src="/images/Box/EquipmentBox1.webp" alt="장비상자" className="w-16 h-16 object-cover rounded-lg" />
                         </div>
                         <div className="flex-1">
                             <h3 className="font-bold text-lg text-yellow-300 mb-2">보상 안내</h3>
@@ -105,7 +105,7 @@ const SimulationArenaHelpModal: React.FC<SimulationArenaHelpModalProps> = ({ onC
                     </div>
 
                     <div className="flex items-start gap-4 bg-gray-900/50 p-4 rounded-lg">
-                        <img src="/images/use/con1.png" alt="컨디션" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />
+                        <img src="/images/use/con1.webp" alt="컨디션" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />
                         <div className="flex-1">
                             <h3 className="font-bold text-lg text-yellow-300 mb-2">컨디션</h3>
                             <ul className="list-disc list-inside space-y-2 text-sm">

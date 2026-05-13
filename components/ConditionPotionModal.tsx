@@ -37,7 +37,7 @@ const GRADE_RING: Record<PotionInfo['grade'], string> = {
 const POTION_TYPES: Record<PotionType, PotionInfo> = {
     small: {
         name: '컨디션회복제(소)',
-        image: '/images/use/con1.png',
+        image: '/images/use/con1.webp',
         minRecovery: 5,
         maxRecovery: 15,
         price: 100,
@@ -45,7 +45,7 @@ const POTION_TYPES: Record<PotionType, PotionInfo> = {
     },
     medium: {
         name: '컨디션회복제(중)',
-        image: '/images/use/con2.png',
+        image: '/images/use/con2.webp',
         minRecovery: 15,
         maxRecovery: 25,
         price: 150,
@@ -53,7 +53,7 @@ const POTION_TYPES: Record<PotionType, PotionInfo> = {
     },
     large: {
         name: '컨디션회복제(대)',
-        image: '/images/use/con3.png',
+        image: '/images/use/con3.webp',
         minRecovery: 25,
         maxRecovery: 35,
         price: 200,

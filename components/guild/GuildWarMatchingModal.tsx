@@ -72,7 +72,7 @@ const GuildWarMatchingModal: React.FC<GuildWarMatchingModalProps> = ({
                 <div className={`absolute inset-0 bg-gradient-to-br ${tStyle.ring} pointer-events-none rounded-b-xl`} />
                 <div className="relative z-10 flex flex-col items-center flex-1 min-h-0 p-6">
                     <div className="flex-shrink-0 w-20 h-20 rounded-xl bg-gradient-to-br from-stone-800/90 to-stone-900/90 border-2 border-stone-500/40 flex items-center justify-center mb-3 shadow-lg">
-                        <img src="/images/guild/button/guildwar.png" alt="길드 전쟁" className="w-14 h-14 object-contain drop-shadow-xl" />
+                        <img src="/images/guild/button/guildwar.webp" alt="길드 전쟁" className="w-14 h-14 object-contain drop-shadow-xl" />
                     </div>
                     {matchPresentation?.badge && (
                         <div

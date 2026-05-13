@@ -180,10 +180,10 @@ function resolveExchangeHistoryRowVisual(
     line: string,
 ): { itemImage: string; itemGrade: ItemGrade; itemStars: number } {
     const name = itemName?.trim();
-    const genericFallback = '/images/Box/ResourceBox1.png';
+    const genericFallback = '/images/Box/ResourceBox1.webp';
     if (!name) {
         return {
-            itemImage: line.includes('정산') ? '/images/Box/GoldBox3.png' : genericFallback,
+            itemImage: line.includes('정산') ? '/images/Box/GoldBox3.webp' : genericFallback,
             itemGrade: ItemGrade.Normal,
             itemStars: 0,
         };
@@ -278,7 +278,7 @@ function createExchangeSettlementCurrencyObtainItem(currency: SaleCurrency, quan
         level: 1,
         isEquipped: false,
         createdAt: now,
-        image: isGold ? '/images/icon/Gold.png' : '/images/icon/Zem.png',
+        image: isGold ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp',
         grade: ItemGrade.Normal,
         stars: 0,
     };
@@ -299,10 +299,10 @@ const getBuyListingGroupKey = (entry: Pick<ExchangeListing, 'itemName' | 'itemGr
     [entry.itemName, entry.itemGrade ?? ItemGrade.Normal, entry.itemStars ?? 0, entry.itemSlot ?? 'none', entry.currency].join('::');
 
 const getStarVisual = (stars: number): { image: string; color: string } | null => {
-    if (stars >= 10) return { image: '/images/equipments/Star4.png', color: 'prism-text-effect' };
-    if (stars >= 7) return { image: '/images/equipments/Star3.png', color: 'text-purple-400' };
-    if (stars >= 4) return { image: '/images/equipments/Star2.png', color: 'text-amber-400' };
-    if (stars >= 1) return { image: '/images/equipments/Star1.png', color: 'text-white' };
+    if (stars >= 10) return { image: '/images/equipments/Star4.webp', color: 'prism-text-effect' };
+    if (stars >= 7) return { image: '/images/equipments/Star3.webp', color: 'text-purple-400' };
+    if (stars >= 4) return { image: '/images/equipments/Star2.webp', color: 'text-amber-400' };
+    if (stars >= 1) return { image: '/images/equipments/Star1.webp', color: 'text-white' };
     return null;
 };
 
@@ -1170,9 +1170,9 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                 const diaBulk = line.match(/다이아\s*([0-9,]+)/);
                 const gBulk = goldBulk ? Number((goldBulk[1] ?? '0').replace(/,/g, '')) || 0 : 0;
                 const dBulk = diaBulk ? Number((diaBulk[1] ?? '0').replace(/,/g, '')) || 0 : 0;
-                let bulkImage = '/images/Box/GoldBox3.png';
-                if (gBulk > 0 && dBulk === 0) bulkImage = '/images/icon/Gold.png';
-                else if (dBulk > 0 && gBulk === 0) bulkImage = '/images/icon/Zem.png';
+                let bulkImage = '/images/Box/GoldBox3.webp';
+                if (gBulk > 0 && dBulk === 0) bulkImage = '/images/icon/Gold.webp';
+                else if (dBulk > 0 && gBulk === 0) bulkImage = '/images/icon/Zem.webp';
                 return {
                     line,
                     timestampText,
@@ -1295,7 +1295,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                     <span className="flex items-center gap-1 font-semibold text-amber-200">
                         <span className="tabular-nums">{formatWalletCurrencyAmount(selectedBuyListing.price, selectedBuyListing.currency)}</span>
                         <img
-                            src={selectedBuyListing.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                            src={selectedBuyListing.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                             alt={selectedBuyListing.currency === 'gold' ? '골드' : '다이아'}
                             className={statIcon}
                         />
@@ -1311,7 +1311,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                             )}
                         </span>
                         <img
-                            src={selectedBuyListing.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                            src={selectedBuyListing.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                             alt={selectedBuyListing.currency === 'gold' ? '골드' : '다이아'}
                             className={statIcon}
                         />
@@ -1327,7 +1327,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                         </span>
                         {recentSoldForBuySelection ? (
                             <img
-                                src={recentSoldForBuySelection.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                src={recentSoldForBuySelection.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                 alt={recentSoldForBuySelection.currency === 'gold' ? '골드' : '다이아'}
                                 className={statIcon}
                             />
@@ -1382,7 +1382,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                             }}
                             className="sr-only"
                         />
-                        <img src="/images/icon/Gold.png" alt="" className={sellCurrencyRadioIcon} aria-hidden />
+                        <img src="/images/icon/Gold.webp" alt="" className={sellCurrencyRadioIcon} aria-hidden />
                         <span className={`${sellFormText} font-semibold text-amber-100`}>골드</span>
                     </label>
                     <label className={`flex cursor-pointer flex-col items-center justify-center gap-0.5 rounded border px-1 py-1 ${saleCurrency === 'diamonds' ? 'border-sky-400/70 bg-sky-900/30' : 'border-slate-600 bg-slate-800/70'}`}>
@@ -1397,7 +1397,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                             }}
                             className="sr-only"
                         />
-                        <img src="/images/icon/Zem.png" alt="" className={sellCurrencyRadioIcon} aria-hidden />
+                        <img src="/images/icon/Zem.webp" alt="" className={sellCurrencyRadioIcon} aria-hidden />
                         <span className={`${sellFormText} font-semibold text-sky-100`}>다이아</span>
                     </label>
                 </div>
@@ -1419,7 +1419,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                             }`}
                         />
                         <img
-                            src={saleCurrency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                            src={saleCurrency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                             alt={saleCurrency === 'gold' ? '골드' : '다이아'}
                             className={`${mobileExchange ? 'h-3.5 w-3.5' : 'h-4 w-4'} shrink-0 object-contain`}
                         />
@@ -1432,7 +1432,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                             <span className="flex items-center gap-0.5 font-semibold">
                                 <span className="tabular-nums">{formatWalletCurrencyAmount(currentLowestForSelected.price, saleCurrency)}</span>
                                 <img
-                                    src={currentLowestForSelected.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                    src={currentLowestForSelected.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                     alt={currentLowestForSelected.currency === 'gold' ? '골드' : '다이아'}
                                     className={`${mobileExchange ? 'h-3.5 w-3.5' : 'h-4 w-4'} object-contain`}
                                 />
@@ -1456,7 +1456,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                         <span className="flex items-center gap-0.5 tabular-nums font-semibold">
                             <span>{formatWalletCurrencyAmount(saleFee, saleCurrency)}</span>
                             <img
-                                src={saleCurrency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                src={saleCurrency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                 alt={saleCurrency === 'gold' ? '골드' : '다이아'}
                                 className={`${mobileExchange ? 'h-3.5 w-3.5' : 'h-4 w-4'} object-contain`}
                             />
@@ -1533,14 +1533,14 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                     <span className="text-slate-300">판매 가격</span>
                                     <span className="flex items-center gap-1 font-semibold">
                                         <span>{formatWalletCurrencyAmount(pendingRegistration.price, pendingRegistration.currency)}</span>
-                                        <img src={pendingRegistration.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'} alt="" className="h-4 w-4 object-contain" />
+                                        <img src={pendingRegistration.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'} alt="" className="h-4 w-4 object-contain" />
                                     </span>
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-slate-300">등록 수수료(10%)</span>
                                     <span className="flex items-center gap-1 font-semibold">
                                         <span>{formatWalletCurrencyAmount(pendingRegistration.fee, pendingRegistration.currency)}</span>
-                                        <img src={pendingRegistration.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'} alt="" className="h-4 w-4 object-contain" />
+                                        <img src={pendingRegistration.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'} alt="" className="h-4 w-4 object-contain" />
                                     </span>
                                 </div>
                             </div>
@@ -1890,13 +1890,13 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                         <div
                             className={`flex items-center gap-1 rounded-md border border-amber-500/35 bg-amber-900/20 text-amber-200 ${mobileExchange ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}
                         >
-                            <img src="/images/icon/Gold.png" alt="골드" className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
+                            <img src="/images/icon/Gold.webp" alt="골드" className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
                             <span className="tabular-nums">{formatGoldAmountKoG(walletGold)}</span>
                         </div>
                         <div
                             className={`flex items-center gap-1 rounded-md border border-sky-500/35 bg-sky-900/20 text-sky-200 ${mobileExchange ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}
                         >
-                            <img src="/images/icon/Zem.png" alt="다이아" className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
+                            <img src="/images/icon/Zem.webp" alt="다이아" className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
                             <span className="tabular-nums">{formatWalletDiamonds(walletDiamonds)}</span>
                         </div>
                         <div
@@ -2156,7 +2156,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                         {formatWalletCurrencyAmount(listing.price, listing.currency)}
                                                     </span>
                                                     <img
-                                                        src={listing.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                        src={listing.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                         alt={listing.currency === 'gold' ? '골드' : '다이아'}
                                                         className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'}
                                                     />
@@ -2171,7 +2171,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                         )}
                                                     </span>
                                                     <img
-                                                        src={listing.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                        src={listing.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                         alt={listing.currency === 'gold' ? '골드' : '다이아'}
                                                         className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'}
                                                     />
@@ -2301,7 +2301,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                                             {formatWalletCurrencyAmount(slot.price, slot.currency)}
                                                                         </span>
                                                                         <img
-                                                                            src={slot.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                                            src={slot.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                                             alt={slot.currency === 'gold' ? '골드' : '다이아'}
                                                                             className="h-3.5 w-3.5 shrink-0 object-contain"
                                                                         />
@@ -2453,7 +2453,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                                                 {formatWalletCurrencyAmount(slot.price, slot.currency)}
                                                                             </span>
                                                                             <img
-                                                                                src={slot.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                                                src={slot.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                                                 alt={slot.currency === 'gold' ? '골드' : '다이아'}
                                                                                 className="h-3.5 w-3.5 object-contain"
                                                                             />
@@ -2608,7 +2608,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                 const gradeKey = (entry.itemGrade ?? ItemGrade.Normal) as ItemGrade;
                                                 const gradeLabel = gradeStyles[gradeKey]?.name ?? '일반';
                                                 const starVisual = getStarVisual(entry.itemStars ?? 0);
-                                                const currencyIcon = entry.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png';
+                                                const currencyIcon = entry.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp';
                                                 const currencyAlt = entry.currency === 'gold' ? '골드' : '다이아';
                                                 return (
                                                     <button
@@ -2695,7 +2695,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                     <span className="flex items-center gap-1 tabular-nums font-semibold text-rose-200">
                                                         <span>{formatWalletCurrencyAmount(selectedSettlement.fee, selectedSettlement.currency)}</span>
                                                         <img
-                                                            src={selectedSettlement.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                            src={selectedSettlement.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                             alt={selectedSettlement.currency === 'gold' ? '골드' : '다이아'}
                                                             className="h-3.5 w-3.5 object-contain"
                                                         />
@@ -2706,7 +2706,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                     <span className="flex items-center gap-1 tabular-nums font-bold text-emerald-200">
                                                         <span>{formatWalletCurrencyAmount(selectedSettlement.net, selectedSettlement.currency)}</span>
                                                         <img
-                                                            src={selectedSettlement.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                            src={selectedSettlement.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                             alt={selectedSettlement.currency === 'gold' ? '골드' : '다이아'}
                                                             className="h-3.5 w-3.5 object-contain"
                                                         />
@@ -2721,11 +2721,11 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                         <div className="grid grid-cols-2 items-center gap-1">
                                                             <span className="flex min-w-[72px] items-center justify-end gap-1 tabular-nums font-semibold text-rose-200">
                                                                 <span>{formatGoldAmountKoG(settlementTotals.selectedFeeGold)}</span>
-                                                                <img src="/images/icon/Gold.png" alt="골드" className="h-3.5 w-3.5 object-contain" />
+                                                                <img src="/images/icon/Gold.webp" alt="골드" className="h-3.5 w-3.5 object-contain" />
                                                             </span>
                                                             <span className="flex min-w-[72px] items-center justify-end gap-1 tabular-nums font-semibold text-rose-200">
                                                                 <span>{formatWalletDiamonds(settlementTotals.selectedFeeDiamonds)}</span>
-                                                                <img src="/images/icon/Zem.png" alt="다이아" className="h-3.5 w-3.5 object-contain" />
+                                                                <img src="/images/icon/Zem.webp" alt="다이아" className="h-3.5 w-3.5 object-contain" />
                                                             </span>
                                                         </div>
                                                     </div>
@@ -2734,11 +2734,11 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                         <div className="grid grid-cols-2 items-center gap-1">
                                                             <span className="flex min-w-[72px] items-center justify-end gap-1 tabular-nums font-bold text-emerald-200">
                                                                 <span>{formatGoldAmountKoG(settlementTotals.selectedNetGold)}</span>
-                                                                <img src="/images/icon/Gold.png" alt="골드" className="h-3.5 w-3.5 object-contain" />
+                                                                <img src="/images/icon/Gold.webp" alt="골드" className="h-3.5 w-3.5 object-contain" />
                                                             </span>
                                                             <span className="flex min-w-[72px] items-center justify-end gap-1 tabular-nums font-bold text-emerald-200">
                                                                 <span>{formatWalletDiamonds(settlementTotals.selectedNetDiamonds)}</span>
-                                                                <img src="/images/icon/Zem.png" alt="다이아" className="h-3.5 w-3.5 object-contain" />
+                                                                <img src="/images/icon/Zem.webp" alt="다이아" className="h-3.5 w-3.5 object-contain" />
                                                             </span>
                                                         </div>
                                                     </div>
@@ -2789,13 +2789,13 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                         className={`flex min-w-0 items-center justify-end gap-0.5 tabular-nums font-semibold text-rose-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}
                                                     >
                                                         <span className="min-w-0 truncate">{formatGoldAmountKoG(historySummary.totals.outGold)}</span>
-                                                        <img src="/images/icon/Gold.png" alt="골드" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
+                                                        <img src="/images/icon/Gold.webp" alt="골드" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
                                                     </span>
                                                     <span
                                                         className={`flex min-w-0 items-center justify-end gap-0.5 tabular-nums font-semibold text-rose-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}
                                                     >
                                                         <span className="min-w-0 truncate">{formatWalletDiamonds(historySummary.totals.outDiamonds)}</span>
-                                                        <img src="/images/icon/Zem.png" alt="다이아" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
+                                                        <img src="/images/icon/Zem.webp" alt="다이아" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
                                                     </span>
                                                 </div>
                                             </div>
@@ -2806,13 +2806,13 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                         className={`flex min-w-0 items-center justify-end gap-0.5 tabular-nums font-semibold text-emerald-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}
                                                     >
                                                         <span className="min-w-0 truncate">{formatGoldAmountKoG(historySummary.totals.inGold)}</span>
-                                                        <img src="/images/icon/Gold.png" alt="골드" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
+                                                        <img src="/images/icon/Gold.webp" alt="골드" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
                                                     </span>
                                                     <span
                                                         className={`flex min-w-0 items-center justify-end gap-0.5 tabular-nums font-semibold text-emerald-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}
                                                     >
                                                         <span className="min-w-0 truncate">{formatWalletDiamonds(historySummary.totals.inDiamonds)}</span>
-                                                        <img src="/images/icon/Zem.png" alt="다이아" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
+                                                        <img src="/images/icon/Zem.webp" alt="다이아" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
                                                     </span>
                                                 </div>
                                             </div>
@@ -2878,7 +2878,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                                 {formatWalletCurrencyAmount(row.priceAmount, row.priceCurrency)}
                                                             </span>
                                                             <img
-                                                                src={row.priceCurrency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                                src={row.priceCurrency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                                 alt={row.priceCurrency === 'gold' ? '골드' : '다이아'}
                                                                 className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'}
                                                             />
@@ -2894,7 +2894,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                                 {formatWalletCurrencyAmount(row.feeAmount, row.feeCurrency)}
                                                             </span>
                                                             <img
-                                                                src={row.feeCurrency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                                src={row.feeCurrency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                                 alt={row.feeCurrency === 'gold' ? '골드' : '다이아'}
                                                                 className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'}
                                                             />

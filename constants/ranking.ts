@@ -2,14 +2,14 @@ import { LeagueTier, QuestReward, LeagueRewardTier } from '../types/index.js';
 
 /** 랭킹전(전략바둑/놀이바둑 PVP) 전용 티어·점수 기준. 챔피언십(던전)과 무관함. */
 export const LEAGUE_DATA: { tier: LeagueTier, name: string, scoreThreshold: number, icon: string }[] = [
-    { tier: LeagueTier.Sprout, name: '새싹 리그', scoreThreshold: 0, icon: '/images/tire/auto1.png' },
-    { tier: LeagueTier.Rookie, name: '루키 리그', scoreThreshold: 1300, icon: '/images/tire/auto2.png' },
-    { tier: LeagueTier.Rising, name: '라이징 리그', scoreThreshold: 1400, icon: '/images/tire/auto3.png' },
-    { tier: LeagueTier.Ace, name: '에이스 리그', scoreThreshold: 1500, icon: '/images/tire/auto4.png' },
-    { tier: LeagueTier.Diamond, name: '다이아 리그', scoreThreshold: 1600, icon: '/images/tire/auto5.png' },
-    { tier: LeagueTier.Master, name: '마스터 리그', scoreThreshold: 1700, icon: '/images/tire/auto6.png' },
-    { tier: LeagueTier.Grandmaster, name: '그랜드마스터 리그', scoreThreshold: 1800, icon: '/images/tire/auto7.png' },
-    { tier: LeagueTier.Challenger, name: '챌린저 리그', scoreThreshold: 2000, icon: '/images/tire/auto8.png' },
+    { tier: LeagueTier.Sprout, name: '새싹 리그', scoreThreshold: 0, icon: '/images/tire/auto1.webp' },
+    { tier: LeagueTier.Rookie, name: '루키 리그', scoreThreshold: 1300, icon: '/images/tire/auto2.webp' },
+    { tier: LeagueTier.Rising, name: '라이징 리그', scoreThreshold: 1400, icon: '/images/tire/auto3.webp' },
+    { tier: LeagueTier.Ace, name: '에이스 리그', scoreThreshold: 1500, icon: '/images/tire/auto4.webp' },
+    { tier: LeagueTier.Diamond, name: '다이아 리그', scoreThreshold: 1600, icon: '/images/tire/auto5.webp' },
+    { tier: LeagueTier.Master, name: '마스터 리그', scoreThreshold: 1700, icon: '/images/tire/auto6.webp' },
+    { tier: LeagueTier.Grandmaster, name: '그랜드마스터 리그', scoreThreshold: 1800, icon: '/images/tire/auto7.webp' },
+    { tier: LeagueTier.Challenger, name: '챌린저 리그', scoreThreshold: 2000, icon: '/images/tire/auto8.webp' },
 ];
 
 export const LEAGUE_WEEKLY_REWARDS: Record<LeagueTier, LeagueRewardTier[]> = {
@@ -71,15 +71,15 @@ export const LEAGUE_WEEKLY_REWARDS: Record<LeagueTier, LeagueRewardTier[]> = {
 };
 
 export const RANKING_TIERS: { name: string; icon: string; color: string; threshold: (score: number, rank: number, totalGames: number) => boolean; }[] = [
-    { name: '챌린저', icon: '/images/tire/tire9.png', color: 'text-cyan-400', threshold: (score, rank, totalGames) => score >= 3500 && rank <= 100 },
-    { name: '마스터', icon: '/images/tire/tire8.png', color: 'text-purple-400', threshold: (score, rank, totalGames) => score >= 3000 },
-    { name: '다이아', icon: '/images/tire/tire7.png', color: 'text-blue-400', threshold: (score, rank, totalGames) => score >= 2400 },
-    { name: '플래티넘', icon: '/images/tire/tire6.png', color: 'text-teal-400', threshold: (score, rank, totalGames) => score >= 2000 },
-    { name: '골드', icon: '/images/tire/tire5.png', color: 'text-yellow-400', threshold: (score, rank, totalGames) => score >= 1700 },
-    { name: '실버', icon: '/images/tire/tire4.png', color: 'text-gray-300', threshold: (score, rank, totalGames) => score >= 1500 },
-    { name: '브론즈', icon: '/images/tire/tire3.png', color: 'text-orange-400', threshold: (score, rank, totalGames) => score >= 1400 },
-    { name: '루키', icon: '/images/tire/tire2.png', color: 'text-green-400', threshold: (score, rank, totalGames) => score >= 1300 },
-    { name: '새싹', icon: '/images/tire/tire1.png', color: 'text-green-200', threshold: (score, rank, totalGames) => score < 1300 || totalGames < 50 },
+    { name: '챌린저', icon: '/images/tire/tire9.webp', color: 'text-cyan-400', threshold: (score, rank, totalGames) => score >= 3500 && rank <= 100 },
+    { name: '마스터', icon: '/images/tire/tire8.webp', color: 'text-purple-400', threshold: (score, rank, totalGames) => score >= 3000 },
+    { name: '다이아', icon: '/images/tire/tire7.webp', color: 'text-blue-400', threshold: (score, rank, totalGames) => score >= 2400 },
+    { name: '플래티넘', icon: '/images/tire/tire6.webp', color: 'text-teal-400', threshold: (score, rank, totalGames) => score >= 2000 },
+    { name: '골드', icon: '/images/tire/tire5.webp', color: 'text-yellow-400', threshold: (score, rank, totalGames) => score >= 1700 },
+    { name: '실버', icon: '/images/tire/tire4.webp', color: 'text-gray-300', threshold: (score, rank, totalGames) => score >= 1500 },
+    { name: '브론즈', icon: '/images/tire/tire3.webp', color: 'text-orange-400', threshold: (score, rank, totalGames) => score >= 1400 },
+    { name: '루키', icon: '/images/tire/tire2.webp', color: 'text-green-400', threshold: (score, rank, totalGames) => score >= 1300 },
+    { name: '새싹', icon: '/images/tire/tire1.webp', color: 'text-green-200', threshold: (score, rank, totalGames) => score < 1300 || totalGames < 50 },
 ];
 
 export const SEASONAL_TIER_REWARDS: Record<string, QuestReward> = {

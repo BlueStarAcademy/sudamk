@@ -25,7 +25,7 @@ const AdminPageHeader: React.FC<AdminPageHeaderProps> = ({
         <div className="flex shrink-0 items-center gap-2 self-end sm:self-center">
             {rightSlot}
             <button type="button" onClick={onBack} className={adminBackBtn} aria-label="이전 화면">
-                <img src="/images/button/back.png" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
+                <img src="/images/button/back.webp" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
             </button>
         </div>
     </header>
