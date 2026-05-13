@@ -652,7 +652,11 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
         case 'DELETE_MAIL': {
             const { mailId } = payload;
             const mailIndex = user.mail.findIndex(m => m.id === mailId);
-            if (mailIndex === -1) return { error: 'Mail not found.' };
+            // 이미 삭제됐거나 동시 요청·낙관적 UI로 중복 삭제 시 400 대신 멱등 성공(클라이언트 로그 노이즈 방지)
+            if (mailIndex === -1) {
+                const updatedUser = getSelectiveUserUpdate(user, 'DELETE_MAIL');
+                return { clientResponse: { updatedUser } };
+            }
 
             const mail = user.mail[mailIndex];
             if (mail.attachments && !mail.attachmentsClaimed && !isMailRewardsClaimExpired(mail)) {

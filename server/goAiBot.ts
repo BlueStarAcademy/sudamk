@@ -96,11 +96,6 @@ function getProgressTurnCount(game: types.LiveGameSession): number {
     return getValidStoneMoveCount(game);
 }
 
-function pairAiForcePassPlyThreshold(boardSize: number): number {
-    const size = Number.isFinite(boardSize) && boardSize > 0 ? Math.floor(boardSize) : 19;
-    return Math.max(1, Math.ceil(size * size * 0.7));
-}
-
 function modeIncludesCaptureRule(game: types.LiveGameSession): boolean {
     return game.mode === types.GameMode.Capture ||
         (game.mode === types.GameMode.Mix && Boolean(game.settings?.mixedModes?.includes(types.GameMode.Capture)));
@@ -1732,7 +1727,6 @@ type KataExclusivePickResult = {
     picked: Point | null;
     kataBestMove: Point | null;
     kataCandidates: Point[];
-    usedPassFromKata: boolean;
 };
 
 async function pickKataMoveExclusiveWithBoardResync(params: {
@@ -1740,7 +1734,6 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
     aiPlayerEnum: types.Player;
     opponentPlayerEnum: types.Player;
     kataLevel: number;
-    kataAllowPass: boolean;
     guildWarKataRetries: number;
     isHiddenMode: boolean;
     tagSuffix: string;
@@ -1750,7 +1743,6 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
         aiPlayerEnum,
         opponentPlayerEnum,
         kataLevel,
-        kataAllowPass,
         guildWarKataRetries,
         isHiddenMode,
         tagSuffix,
@@ -1773,7 +1765,8 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
                 game,
                 `${tagSuffix}-rs${resync}-${randomUUID().slice(0, 8)}`,
             ),
-            allowPass: kataAllowPass,
+            // Kata `/move`는 항상 착점만 사용 — PASS·기권은 서버에서 처리하지 않는다.
+            allowPass: false,
             moveApiRetries: guildWarKataRetries,
         };
 
@@ -1795,19 +1788,6 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
         const kataCandidates = kataDetails.candidates;
         lastCandidates = kataCandidates;
         lastBest = kataDetails.bestMove;
-
-        const kataPassCandidate =
-            kataAllowPass
-                ? kataCandidates.find((cand) => cand.x === -1 && cand.y === -1) ?? null
-                : null;
-        if (kataAllowPass && kataPassCandidate) {
-            return {
-                picked: kataPassCandidate,
-                kataBestMove: lastBest,
-                kataCandidates,
-                usedPassFromKata: true,
-            };
-        }
 
         if (
             kataCandidates.length === 0 ||
@@ -1834,7 +1814,6 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
                     picked: cand,
                     kataBestMove: lastBest,
                     kataCandidates,
-                    usedPassFromKata: false,
                 };
             }
             if (isHiddenMode && shouldMaskUserHiddenFromAi(game)) {
@@ -1847,7 +1826,6 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
                         picked: cand,
                         kataBestMove: lastBest,
                         kataCandidates,
-                        usedPassFromKata: false,
                     };
                 }
             }
@@ -1865,7 +1843,6 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
         picked: null,
         kataBestMove: lastBest,
         kataCandidates: lastCandidates,
-        usedPassFromKata: false,
     };
 }
 
@@ -2229,16 +2206,9 @@ export async function makeGoAiBotMove(
         pairClassicGame &&
         !captureRuleGame &&
         Number((game.settings as any)?.scoringTurnLimit ?? 0) > 0;
-    const pairKataAllowPass = Boolean(pairCurrentSeat && pairKataStats && pairKataPhase === 'endgame' && !captureRuleGame && !pairHasFixedScoringTurnLimit);
-    const pairKataForcePassPlyThreshold = pairCurrentSeat
-        ? pairAiForcePassPlyThreshold(game.settings.boardSize || 19)
-        : Number.POSITIVE_INFINITY;
-    const pairKataForcePassByPly =
-        pairKataAllowPass &&
-        pairValidPlyForNextMove >= pairKataForcePassPlyThreshold;
     if (process.env.NODE_ENV === 'development') {
         console.log(
-            `[makeGoAiBotMove] game=${game.id} category=${(game as any).gameCategory ?? 'normal'} stage=${(game as any).stageId ?? '-'} floor=${(game as any).towerFloor ?? '-'} profileStep=${goAiProfileLevel} configuredKata=${configuredKataLevel ?? 'none'} resolvedKata=${resolvedKataLevel} pairSeat=${pairCurrentSeat?.participantId ?? 'none'} pairPhase=${pairKataPhase ?? 'none'} pairPly=${pairCurrentSeat ? pairValidPlyForNextMove : 'none'} pairPassThreshold=${pairCurrentSeat ? pairKataForcePassPlyThreshold : 'none'} pairFixed=${Number.isFinite(pairFixedKataLevel) ? Number(pairFixedKataLevel) : 'none'}`
+            `[makeGoAiBotMove] game=${game.id} category=${(game as any).gameCategory ?? 'normal'} stage=${(game as any).stageId ?? '-'} floor=${(game as any).towerFloor ?? '-'} profileStep=${goAiProfileLevel} configuredKata=${configuredKataLevel ?? 'none'} resolvedKata=${resolvedKataLevel} pairSeat=${pairCurrentSeat?.participantId ?? 'none'} pairPhase=${pairKataPhase ?? 'none'} pairPly=${pairCurrentSeat ? pairValidPlyForNextMove : 'none'} pairFixed=${Number.isFinite(pairFixedKataLevel) ? Number(pairFixedKataLevel) : 'none'}`,
         );
     }
 
@@ -2419,13 +2389,6 @@ export async function makeGoAiBotMove(
         );
     }
 
-    if (!selectedMove && pairKataForcePassByPly) {
-        selectedMove = { x: -1, y: -1 };
-        console.log(
-            `[makeGoAiBotMove] Pair pet AI forced PASS by endgame ply threshold game=${game.id} ply=${pairValidPlyForNextMove} threshold=${pairKataForcePassPlyThreshold}`,
-        );
-    }
-
     if (!selectedMove) {
         const kataLevel = resolvedKataLevel;
         let kataCandidates: Point[] = [];
@@ -2438,17 +2401,13 @@ export async function makeGoAiBotMove(
                 aiPlayerEnum,
                 opponentPlayerEnum,
                 kataLevel,
-                kataAllowPass: pairKataAllowPass,
                 guildWarKataRetries,
                 isHiddenMode,
                 tagSuffix: 'mv',
             });
             kataCandidates = kataPick.kataCandidates;
             kataBestMove = kataPick.kataBestMove;
-            if (kataPick.usedPassFromKata && kataPick.picked) {
-                selectedMove = kataPick.picked;
-                console.log(`[makeGoAiBotMove] Pair pet Kata selected PASS in endgame, game=${game.id}`);
-            } else if (kataPick.picked) {
+            if (kataPick.picked) {
                 pickedFromKata = kataPick.picked;
             }
         }
@@ -2477,12 +2436,6 @@ export async function makeGoAiBotMove(
                         const { getGameResult } = await import('./gameModes.js');
                         await getGameResult(game);
                         return;
-                    } else if (pairKataAllowPass && pairCurrentSeat) {
-                        selectedMove = { x: -1, y: -1 };
-                        console.warn(
-                            `[makeGoAiBotMove] pair endgame (no Kata): no legal moves → PASS, game=${game.id}`,
-                        );
-                        pickedFromKata = null;
                     } else {
                         console.warn(
                             `[makeGoAiBotMove] no legal move (Kata unavailable) → resign, game=${game.id}`,
@@ -2508,7 +2461,7 @@ export async function makeGoAiBotMove(
                 const { getGameResult } = await import('./gameModes.js');
                 await getGameResult(game);
                 return;
-            } else if (isSinglePlayerOrTowerPve(game)) {
+            } else {
                 const fallbackMove = pickServerScoredLegalMove(
                     game,
                     aiPlayerEnum,
@@ -2528,12 +2481,6 @@ export async function makeGoAiBotMove(
                     await summaryService.endGame(game, opponentPlayerEnum, 'resign');
                     return;
                 }
-            } else {
-                console.error(
-                    `[makeGoAiBotMove] Kata-only: no valid Kata move after ${KATA_EXCLUSIVE_MAX_BOARD_RESYNC} board resyncs → resign, game=${game.id}`,
-                );
-                await summaryService.endGame(game, opponentPlayerEnum, 'resign');
-                return;
             }
         }
 
@@ -2630,7 +2577,6 @@ export async function makeGoAiBotMove(
                 aiPlayerEnum,
                 opponentPlayerEnum,
                 kataLevel: resolvedKataLevel,
-                kataAllowPass: false,
                 guildWarKataRetries,
                 isHiddenMode,
                 tagSuffix: 'nopass',
@@ -2745,7 +2691,6 @@ export async function makeGoAiBotMove(
                     aiPlayerEnum,
                     opponentPlayerEnum,
                     kataLevel: resolvedKataLevel,
-                    kataAllowPass: pairKataAllowPass,
                     guildWarKataRetries,
                     isHiddenMode,
                     tagSuffix: `hrq-${hiddenRevealTag}`,
@@ -2753,9 +2698,12 @@ export async function makeGoAiBotMove(
                 pickedReveal = revealPick.picked;
             }
             if (!pickedReveal) {
-                const fallbackRevealMove = isSinglePlayerOrTowerPve(game)
-                    ? pickServerScoredLegalMove(game, aiPlayerEnum, opponentPlayerEnum, goAiProfileLevel)
-                    : null;
+                const fallbackRevealMove = pickServerScoredLegalMove(
+                    game,
+                    aiPlayerEnum,
+                    opponentPlayerEnum,
+                    goAiProfileLevel,
+                );
                 if (!fallbackRevealMove) {
                     console.error(
                         `[makeGoAiBotMove] Kata re-query after hidden reveal failed (no Kata move) → resign, game=${game.id}`,
@@ -2815,7 +2763,6 @@ export async function makeGoAiBotMove(
                 aiPlayerEnum,
                 opponentPlayerEnum,
                 kataLevel: resolvedKataLevel,
-                kataAllowPass: pairKataAllowPass,
                 guildWarKataRetries,
                 isHiddenMode,
                 tagSuffix: 'emg',
@@ -2836,23 +2783,14 @@ export async function makeGoAiBotMove(
                     pendingPairPetKataGameChat = null;
                     result = retry;
                 }
-            } else if (emergencyPick.usedPassFromKata && ep) {
-                const retryPass = processMove(
-                    game.boardState,
-                    { ...ep, player: aiPlayerEnum },
-                    game.koInfo,
-                    game.moveHistory.length,
-                );
-                if (retryPass.isValid) {
-                    selectedMove = ep;
-                    pendingPairPetKataGameChat = null;
-                    result = retryPass;
-                }
             }
             if (!result.isValid) {
-                const fallbackMove = isSinglePlayerOrTowerPve(game)
-                    ? pickServerScoredLegalMove(game, aiPlayerEnum, opponentPlayerEnum, goAiProfileLevel)
-                    : null;
+                const fallbackMove = pickServerScoredLegalMove(
+                    game,
+                    aiPlayerEnum,
+                    opponentPlayerEnum,
+                    goAiProfileLevel,
+                );
                 if (fallbackMove) {
                     const retry = processMove(
                         game.boardState,

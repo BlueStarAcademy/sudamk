@@ -3359,7 +3359,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
         setIsPaused(false);
         setResumeCountdown(0);
-        setPauseButtonCooldown(5);
+        const postGameOrNonClockPause = ['ended', 'no_contest', 'rematch_pending'].includes(gameStatus);
+        if (!postGameOrNonClockPause) {
+            setPauseButtonCooldown(5);
+        }
         // 싱글플레이/도전의 탑은 클라이언트가 타이머를 직접 조정(로컬 실행)
         // 일반 AI 대국은 서버가 타이머를 관리하므로 여기서 deadline을 조정하지 않음
         const isTower = sessionPolicy.kind === 'tower';
@@ -3378,7 +3381,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
         }
         clearPauseCountdown();
-    }, [isPaused, clearPauseCountdown, session]);
+    }, [isPaused, clearPauseCountdown, session, gameStatus, sessionPolicy.kind, isSinglePlayer]);
 
     const initiatePause = useCallback(() => {
         if (isPaused || pauseButtonCooldown > 0) return;
@@ -3406,7 +3409,22 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             sessionPolicy.kind !== 'tower' &&
             sessionPolicy.kind !== 'singleplayer';
         if (!(isSinglePlayer || isTower || isPausableAiGame)) return;
+
+        const postGameAiBoardHide =
+            isPausableAiGame &&
+            (session.gameStatus === 'ended' ||
+                session.gameStatus === 'no_contest' ||
+                session.gameStatus === 'rematch_pending');
+
         if (!isPaused) {
+            if (postGameAiBoardHide) {
+                audioService.stopTimerWarning();
+                clearPauseCountdown();
+                pauseStartedAtRef.current = null;
+                setIsPaused(true);
+                setResumeCountdown(0);
+                return;
+            }
             initiatePause();
             if (isPausableAiGame) {
                 handlers.handleAction({ type: 'PAUSE_AI_GAME', payload: { gameId: session.id } } as any);
@@ -3414,11 +3432,22 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         } else {
             if (resumeCountdownRef.current > 0) return;
             resumeFromPause();
-            if (isPausableAiGame) {
+            if (isPausableAiGame && !postGameAiBoardHide) {
                 handlers.handleAction({ type: 'RESUME_AI_GAME', payload: { gameId: session.id } } as any);
             }
         }
-    }, [isPaused, initiatePause, resumeFromPause, isSinglePlayer, sessionPolicy.kind, session.isAiGame, session.id, handlers.handleAction]);
+    }, [
+        isPaused,
+        initiatePause,
+        resumeFromPause,
+        isSinglePlayer,
+        sessionPolicy.kind,
+        session.isAiGame,
+        session.id,
+        session.gameStatus,
+        handlers.handleAction,
+        clearPauseCountdown,
+    ]);
 
     useEffect(() => {
         if (pauseButtonCooldown <= 0) return;
@@ -5077,7 +5106,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                             isPaused={effectivePaused}
                                             resumeCountdown={resumeCountdown}
                                             pauseButtonCooldown={pauseButtonCooldown}
-                                            pauseDisabledBecauseAiTurn={isPausableAiGame && !isMyTurn}
+                                            pauseDisabledBecauseAiTurn={
+                                                isPausableAiGame &&
+                                                !['ended', 'no_contest', 'rematch_pending'].includes(gameStatus) &&
+                                                !isMyTurn
+                                            }
                                         />
                                     )}
                                 </div>
@@ -5128,7 +5161,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         isPaused={effectivePaused}
                                         resumeCountdown={resumeCountdown}
                                         pauseButtonCooldown={pauseButtonCooldown}
-                                        pauseDisabledBecauseAiTurn={isPausableAiGame && !isMyTurn}
+                                        pauseDisabledBecauseAiTurn={
+                                            isPausableAiGame &&
+                                            !['ended', 'no_contest', 'rematch_pending'].includes(gameStatus) &&
+                                            !isMyTurn
+                                        }
                                     />
                                 )}
                             </div>

@@ -785,6 +785,13 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
             ? '관전종료'
             : '기권하기';
 
+    /** AI 대국 종료 후: 사이드바 주 버튼은 일시정지(판 숨김·배경), 보조로만 대기실/맵 이동 */
+    const postGameAiLeaveLabel = isNoContestLeaveAvailable
+        ? '무효처리'
+        : isAdventureGame
+          ? '맵으로 이동'
+          : '대기실로';
+
     return (
         <div className={`${arenaGameRoomSidebarShell} gap-2`}>
             <div className="flex-shrink-0 space-y-2">
@@ -835,20 +842,46 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                     </div>
                 </div>
             )}
-            <div className="flex-shrink-0 pt-2">
-                {isPausableAiGame && !isGameEnded && !isSpectator && onTogglePause ? (
-                    <Button
-                        bare
-                        onClick={onTogglePause}
-                        colorScheme="none"
-                        className={`w-full ${arenaGameRoomSidebarPauseBtnClass(isPaused)}`}
-                        disabled={isPauseButtonDisabled}
-                        title={pauseDisabledBecauseAiTurn ? '내 차례에만 일시정지할 수 있습니다' : undefined}
-                    >
-                        {isPaused
-                            ? (resumeCountdown > 0 ? `대국 재개 (${resumeCountdown})` : '대국 재개')
-                            : (pauseButtonCooldown > 0 ? `일시 정지 (${pauseButtonCooldown})` : (pauseDisabledBecauseAiTurn ? '일시 정지 (AI 차례)' : '일시 정지'))}
-                    </Button>
+            <div className="flex-shrink-0 flex flex-col gap-1.5 pt-2">
+                {isPausableAiGame && !isSpectator && onTogglePause ? (
+                    <>
+                        <Button
+                            bare
+                            onClick={onTogglePause}
+                            colorScheme="none"
+                            className={`w-full ${arenaGameRoomSidebarPauseBtnClass(isPaused)}`}
+                            disabled={isPauseButtonDisabled}
+                            title={
+                                pauseDisabledBecauseAiTurn
+                                    ? '내 차례에만 일시정지할 수 있습니다'
+                                    : isGameEnded
+                                      ? isPaused
+                                          ? '바둑판을 다시 표시합니다'
+                                          : '바둑판을 숨기고 배경만 감상합니다'
+                                      : undefined
+                            }
+                        >
+                            {isPaused
+                                ? resumeCountdown > 0
+                                    ? `대국 재개 (${resumeCountdown})`
+                                    : '대국 재개'
+                                : pauseButtonCooldown > 0
+                                  ? `일시 정지 (${pauseButtonCooldown})`
+                                  : pauseDisabledBecauseAiTurn
+                                    ? '일시 정지 (AI 차례)'
+                                    : '일시 정지'}
+                        </Button>
+                        {isGameEnded && (
+                            <Button
+                                bare
+                                onClick={onLeaveOrResign}
+                                colorScheme="none"
+                                className={`w-full text-xs font-medium text-stone-400 hover:text-amber-200/95 ${arenaGameRoomSidebarLeaveBtnClass(isNoContestLeaveAvailable)} !py-2`}
+                            >
+                                {postGameAiLeaveLabel}
+                            </Button>
+                        )}
+                    </>
                 ) : (
                     <Button
                         bare

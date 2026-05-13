@@ -117,4 +117,47 @@ describe('negotiation flow', () => {
         );
         expect(r3.clientResponse?.negotiationId).toBe(negId);
     });
+
+    it('SEND_CHALLENGE on rematch draft preserves pairGame from REQUEST_REMATCH settings', async () => {
+        const { handleNegotiationAction } = await import('../../actions/negotiationActions.js');
+
+        const negId = 'neg-rematch-pair';
+        const pairGameMeta = {
+            lobbyChannel: 'pair' as const,
+            roomId: 'pair-room-1',
+            turnOrder: [{ seatId: 's1', participantId: 'challenger', player: 1, kind: 'human' as const, slot: 0 }],
+        };
+        volatileState.userStatuses = {
+            challenger: { status: UserStatus.Negotiating, mode: GameMode.Standard },
+            opponent: { status: UserStatus.Negotiating, mode: GameMode.Standard },
+        };
+        volatileState.negotiations[negId] = {
+            id: negId,
+            challenger,
+            opponent,
+            mode: GameMode.Standard,
+            settings: {
+                boardSize: 19,
+                pairGame: pairGameMeta,
+            } as any,
+            proposerId: challenger.id,
+            status: 'draft',
+            turnCount: 0,
+            deadline: Date.now() + 60_000,
+            rematchOfGameId: 'game-original-1',
+        };
+
+        const r = await handleNegotiationAction(
+            volatileState,
+            {
+                type: 'SEND_CHALLENGE',
+                payload: { negotiationId: negId, settings: { boardSize: 13 } },
+                userId: 'challenger',
+            },
+            challenger
+        );
+        expect(r.error).toBeUndefined();
+        expect(volatileState.negotiations[negId].settings.boardSize).toBe(13);
+        expect((volatileState.negotiations[negId].settings as any).pairGame).toEqual(pairGameMeta);
+    });
 });

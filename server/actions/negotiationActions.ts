@@ -265,8 +265,17 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             }
 
             negotiation.previousSettings = undefined; // 초기 신청이므로 이전 설정 없음
+            // 재대결: draft는 `REQUEST_REMATCH` 시 원본 `pairGame`을 포함하지만, 클라이언트
+            // `ChallengeSelectionModal` 설정에는 `pairGame`이 없어 덮어쓰면 페어 국이 1:1 UI로 바뀐다.
+            const rematchPairGameSnapshot =
+                negotiation.rematchOfGameId && negotiation.settings?.pairGame
+                    ? JSON.parse(JSON.stringify(negotiation.settings.pairGame))
+                    : undefined;
             // settings를 깊은 복사로 저장하여 전달
             negotiation.settings = JSON.parse(JSON.stringify(settings));
+            if (rematchPairGameSnapshot) {
+                negotiation.settings = { ...negotiation.settings, pairGame: rematchPairGameSnapshot };
+            }
             negotiation.status = 'pending';
             negotiation.proposerId = negotiation.opponent.id;
             negotiation.turnCount = 0; // 초기 신청은 turnCount 0
@@ -297,7 +306,14 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             }
 
             negotiation.previousSettings = { ...negotiation.settings }; // 이전 설정 저장
+            const rematchPairGameSnapshot =
+                negotiation.rematchOfGameId && negotiation.settings?.pairGame
+                    ? JSON.parse(JSON.stringify(negotiation.settings.pairGame))
+                    : undefined;
             negotiation.settings = settings;
+            if (rematchPairGameSnapshot) {
+                negotiation.settings = { ...negotiation.settings, pairGame: rematchPairGameSnapshot };
+            }
             negotiation.proposerId = negotiation.challenger.id === user.id ? negotiation.opponent.id : negotiation.challenger.id;
             negotiation.turnCount = (negotiation.turnCount || 0) + 1;
             negotiation.deadline = now + 60000;
