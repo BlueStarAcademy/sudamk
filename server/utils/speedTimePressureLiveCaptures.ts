@@ -1,11 +1,12 @@
 import type { LiveGameSession } from '../../types/index.js';
 import { GameMode, Player } from '../../types/enums.js';
+import { SPEED_TIME_PRESSURE_SERVER_SECONDS_PER_POINT } from '../../shared/constants/speedTimePressure.js';
 import { aiUserId } from '../aiPlayer.js';
 import { hasTimeControl, shouldEnforceTimeControl } from '../modes/shared.js';
 import { applyPveSpeedTimePressureGraceToLiveUsedSec } from '../../shared/utils/speedTimePveGrace.js';
 
 /** `finalizeAnalysisResult` 스피드 분기와 동일 */
-export const SPEED_TIME_PRESSURE_SECONDS_PER_POINT = 10;
+export const SPEED_TIME_PRESSURE_SECONDS_PER_POINT = SPEED_TIME_PRESSURE_SERVER_SECONDS_PER_POINT;
 
 /**
  * 착수·패스 직후 시계(남은 시간·turnDeadline)·`__speedBonusConsumedSec` 반영 여부.
@@ -91,7 +92,8 @@ export function getSpeedTimeBonusPointsDesired(
 }
 
 /**
- * 대국 중: 누적 사용 시간 10초마다 상대 `captures`에 +1 (이미 `captures`에 넣은 만큼은 settings.__speedTimePressureGranted에 기록).
+ * 대국 중: 누적 사용 시간 `SPEED_TIME_PRESSURE_SECONDS_PER_POINT`초마다 상대 `captures`에 +1
+ * (이미 `captures`에 넣은 만큼은 settings.__speedTimePressureGranted에 기록).
  * @returns captures 또는 grant가 바뀌었으면 true
  */
 export function syncSpeedTimePressureCaptures(game: LiveGameSession, nowMs: number): boolean {

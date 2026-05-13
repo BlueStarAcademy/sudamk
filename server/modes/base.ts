@@ -458,61 +458,71 @@ const placeRemainingStonesRandomly = (game: types.LiveGameSession, playerKey: 'b
  */
 const runBasePlacementAutoFillAndValidate = (game: types.LiveGameSession) => {
     const target = game.settings.baseStones ?? 4;
-
-    if ((game.baseStones_p1?.length ?? 0) < target) {
-        placeRemainingStonesRandomly(game, 'baseStones_p1');
-    }
-    if ((game.baseStones_p2?.length ?? 0) < target) {
-        placeRemainingStonesRandomly(game, 'baseStones_p2');
-    }
-
     const { boardSize } = game.settings;
-    const p1Stones = [...(game.baseStones_p1 || [])];
-    const p2Stones = [...(game.baseStones_p2 || [])];
-    const coordMap = new Map<string, { player: 'p1' | 'p2', point: types.Point }[]>();
-    p1Stones.forEach(p => {
-        const key = `${p.x},${p.y}`;
-        if (!coordMap.has(key)) coordMap.set(key, []);
-        coordMap.get(key)!.push({ player: 'p1', point: p });
-    });
-    p2Stones.forEach(p => {
-        const key = `${p.x},${p.y}`;
-        if (!coordMap.has(key)) coordMap.set(key, []);
-        coordMap.get(key)!.push({ player: 'p2', point: p });
-    });
-    const overlappingCoords = new Set<string>();
-    for (const [key, stones] of coordMap.entries()) {
-        if (stones.length > 1) {
-            overlappingCoords.add(key);
+    const MAX_AUTOFILL_ATTEMPTS = 4;
+
+    for (let attempt = 0; attempt < MAX_AUTOFILL_ATTEMPTS; attempt++) {
+        if ((game.baseStones_p1?.length ?? 0) < target) {
+            placeRemainingStonesRandomly(game, 'baseStones_p1');
         }
-    }
-    let validP1Stones = p1Stones.filter(p => !overlappingCoords.has(`${p.x},${p.y}`));
-    let validP2Stones = p2Stones.filter(p => !overlappingCoords.has(`${p.x},${p.y}`));
-    if (validP1Stones.length > 0 || validP2Stones.length > 0) {
-        const tempBoard: types.BoardState = Array(boardSize).fill(0).map(() => Array(boardSize).fill(types.Player.None));
-        validP1Stones.forEach(p => (tempBoard[p.y][p.x] = getBasePlacementColorForKey(game, 'baseStones_p1')));
-        validP2Stones.forEach(p => (tempBoard[p.y][p.x] = getBasePlacementColorForKey(game, 'baseStones_p2')));
-        const tempGame = { boardState: tempBoard, settings: { boardSize } } as types.LiveGameSession;
-        const logic = getGoLogic(tempGame);
-        const stonesToRemove = new Set<string>();
-        const allStones = [
-            ...validP1Stones.map(p => ({ ...p, player: getBasePlacementColorForKey(game, 'baseStones_p1') })),
-            ...validP2Stones.map(p => ({ ...p, player: getBasePlacementColorForKey(game, 'baseStones_p2') })),
-        ];
-        for (const stone of allStones) {
-            const group = logic.findGroup(stone.x, stone.y, stone.player, tempBoard);
-            if (group && group.liberties === 0) {
-                group.stones.forEach(s => stonesToRemove.add(`${s.x},${s.y}`));
+        if ((game.baseStones_p2?.length ?? 0) < target) {
+            placeRemainingStonesRandomly(game, 'baseStones_p2');
+        }
+
+        const p1Stones = [...(game.baseStones_p1 || [])];
+        const p2Stones = [...(game.baseStones_p2 || [])];
+        const coordMap = new Map<string, { player: 'p1' | 'p2'; point: types.Point }[]>();
+        p1Stones.forEach((p) => {
+            const key = `${p.x},${p.y}`;
+            if (!coordMap.has(key)) coordMap.set(key, []);
+            coordMap.get(key)!.push({ player: 'p1', point: p });
+        });
+        p2Stones.forEach((p) => {
+            const key = `${p.x},${p.y}`;
+            if (!coordMap.has(key)) coordMap.set(key, []);
+            coordMap.get(key)!.push({ player: 'p2', point: p });
+        });
+        const overlappingCoords = new Set<string>();
+        for (const [key, stones] of coordMap.entries()) {
+            if (stones.length > 1) {
+                overlappingCoords.add(key);
             }
         }
-        if (stonesToRemove.size > 0) {
-            validP1Stones = validP1Stones.filter(p => !stonesToRemove.has(`${p.x},${p.y}`));
-            validP2Stones = validP2Stones.filter(p => !stonesToRemove.has(`${p.x},${p.y}`));
+        let validP1Stones = p1Stones.filter((p) => !overlappingCoords.has(`${p.x},${p.y}`));
+        let validP2Stones = p2Stones.filter((p) => !overlappingCoords.has(`${p.x},${p.y}`));
+        if (validP1Stones.length > 0 || validP2Stones.length > 0) {
+            const tempBoard: types.BoardState = Array(boardSize)
+                .fill(0)
+                .map(() => Array(boardSize).fill(types.Player.None));
+            validP1Stones.forEach((p) => (tempBoard[p.y][p.x] = getBasePlacementColorForKey(game, 'baseStones_p1')));
+            validP2Stones.forEach((p) => (tempBoard[p.y][p.x] = getBasePlacementColorForKey(game, 'baseStones_p2')));
+            const tempGame = { boardState: tempBoard, settings: { boardSize } } as types.LiveGameSession;
+            const logic = getGoLogic(tempGame);
+            const stonesToRemove = new Set<string>();
+            const allStones = [
+                ...validP1Stones.map((p) => ({ ...p, player: getBasePlacementColorForKey(game, 'baseStones_p1') })),
+                ...validP2Stones.map((p) => ({ ...p, player: getBasePlacementColorForKey(game, 'baseStones_p2') })),
+            ];
+            for (const stone of allStones) {
+                const group = logic.findGroup(stone.x, stone.y, stone.player, tempBoard);
+                if (group && group.liberties === 0) {
+                    group.stones.forEach((s) => stonesToRemove.add(`${s.x},${s.y}`));
+                }
+            }
+            if (stonesToRemove.size > 0) {
+                validP1Stones = validP1Stones.filter((p) => !stonesToRemove.has(`${p.x},${p.y}`));
+                validP2Stones = validP2Stones.filter((p) => !stonesToRemove.has(`${p.x},${p.y}`));
+            }
+        }
+
+        game.baseStones_p1 = validP1Stones;
+        game.baseStones_p2 = validP2Stones;
+
+        if ((validP1Stones.length ?? 0) >= target && (validP2Stones.length ?? 0) >= target) {
+            break;
         }
     }
 
-    game.baseStones_p1 = validP1Stones;
-    game.baseStones_p2 = validP2Stones;
     game.basePlacementDeadline = undefined;
     game.basePlacementReady = undefined;
 };
@@ -945,6 +955,10 @@ export const handleBaseAction = (game: types.LiveGameSession, action: types.Serv
                 }
                 game.basePlacementReady[game.player1.id] = true;
                 game.basePlacementReady[game.player2.id] = true;
+                if (game.isAiGame) {
+                    resolveBasePlacementAndTransition(game, now);
+                    return baseHttpGameSnapshot(game);
+                }
                 return {};
             }
             const confirmKey = user.id === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
@@ -959,6 +973,10 @@ export const handleBaseAction = (game: types.LiveGameSession, action: types.Serv
                 }
             }
             game.basePlacementReady[user.id] = true;
+            if (game.isAiGame) {
+                resolveBasePlacementAndTransition(game, now);
+                return baseHttpGameSnapshot(game);
+            }
             return {};
         }
         case 'SUBMIT_BASE_STONE_COLOR_CHOICE': {

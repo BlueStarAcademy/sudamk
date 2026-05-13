@@ -29,6 +29,10 @@ import { mergeStaffNicknameDisplayClass } from '../../shared/utils/staffNickname
 import { getAdventureCodexMonsterById } from '../../constants/adventureMonstersCodex.js';
 import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
+import {
+    SPEED_TIME_PRESSURE_SERVER_SECONDS_PER_POINT,
+    SPEED_TIME_PRESSURE_UI_BAR_SECONDS,
+} from '../../shared/constants/speedTimePressure.js';
 import { applyPveSpeedTimePressureGraceToLiveUsedSec } from '../../shared/utils/speedTimePveGrace.js';
 const formatTime = (seconds: number) => {
     if (seconds < 0) seconds = 0;
@@ -1276,7 +1280,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         const liveTurnUsedSecRaw = getLiveTurnUsedSecRawForSpeedBonusUi(playerEnum, storedAtTurnStart, current);
         const liveTurnUsedSec = applyPveSpeedTimePressureGraceToLiveUsedSec(session as any, playerEnum, liveTurnUsedSecRaw, aiUserId);
         const usedSec = committedUsedSec + liveTurnUsedSec;
-        return Math.floor(usedSec / 10);
+        return Math.floor(usedSec / SPEED_TIME_PRESSURE_SERVER_SECONDS_PER_POINT);
     };
     const speedBonusStableRef = useRef<{ gameId: string; byPlayerId: Record<string, number | null> }>({
         gameId: '',
@@ -1335,11 +1339,14 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         const liveTurnUsedSecRaw = getLiveTurnUsedSecRawForSpeedBonusUi(playerEnum, storedAtTurnStart, current);
         const liveTurnUsedSec = applyPveSpeedTimePressureGraceToLiveUsedSec(session as any, playerEnum, liveTurnUsedSecRaw, aiUserId);
         const usedSec = committedUsedSec + liveTurnUsedSec;
-        const withinChunk = ((usedSec % 10) + 10) % 10;
-        const secToNextDropRaw = 10 - withinChunk;
-        const secToNextDrop = secToNextDropRaw <= 0 ? 10 : Math.ceil(secToNextDropRaw);
+        const withinChunk =
+            ((usedSec % SPEED_TIME_PRESSURE_UI_BAR_SECONDS) + SPEED_TIME_PRESSURE_UI_BAR_SECONDS) %
+            SPEED_TIME_PRESSURE_UI_BAR_SECONDS;
+        const secToNextDropRaw = SPEED_TIME_PRESSURE_UI_BAR_SECONDS - withinChunk;
+        const secToNextDrop =
+            secToNextDropRaw <= 0 ? SPEED_TIME_PRESSURE_UI_BAR_SECONDS : Math.ceil(secToNextDropRaw);
         return {
-            progress: withinChunk / 10,
+            progress: withinChunk / SPEED_TIME_PRESSURE_UI_BAR_SECONDS,
             secToNextDrop,
         };
     };
@@ -1402,7 +1409,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
           : humanSide?.userId === rightPlayerUser.id
             ? stableHumanSpeedBonusTick
             : { progress: null as number | null, secToNextDrop: null as number | null };
-    /** PVP: 내 누적 사용 시간 10초당 상대 집(+1) — 패널에는 상대가 받는 추정치(= floor(내 사용/10)) */
+    /** PVP: 내 누적 사용 시간(서버 기준 초수)당 상대 집(+1) — 패널에는 상대가 받는 추정치 */
     const leftLiveSpeedTimeBonusScore = isLeftAi
         ? humanUsedTimeBonusScore
         : isPvpHumanSpeedLiveBonusUi
@@ -1478,7 +1485,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                   humanSide.liveMainTime,
               )
             : null;
-    /** 서버 `syncSpeedTimePressureCaptures` 틱 사이에도 10초마다 상대 집(+1)이 바로 보이도록 */
+    /** 서버 `syncSpeedTimePressureCaptures` 틱 사이에도 (서버 기준 초수당) 상대 집(+1)이 바로 보이도록 */
     const liveSpeedTimePressureCaptureBonusDelta = (playerEnum: Player): number => {
         if (!isSpeedLiveBonusUi || !session.isAiGame || isScoreMode) return 0;
         const aiEnum =
@@ -1495,7 +1502,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             playerEnum === Player.Black
                 ? Math.max(0, Number(grant.black ?? 0))
                 : Math.max(0, Number(grant.white ?? 0));
-        return Math.max(0, Math.floor(Math.max(0, liveHumanUsed) / 10) - g);
+        return Math.max(
+            0,
+            Math.floor(Math.max(0, liveHumanUsed) / SPEED_TIME_PRESSURE_SERVER_SECONDS_PER_POINT) - g,
+        );
     };
     const leftPanelStoneCaptureDisplay =
         leftCaptureHeadStartFlatBonus != null

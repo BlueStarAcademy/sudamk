@@ -207,6 +207,7 @@ describe('base mode', () => {
         game.baseStones_p1 = [{ x: 2, y: 2 }, { x: 2, y: 6 }];
 
         handleBaseAction(game, { type: 'CONFIRM_BASE_PLACEMENT_COMPLETE', userId: game.player1.id, payload: { gameId: game.id } } as any, game.player1);
+        expect(game.gameStatus).toBe('base_stone_color_choice');
         updateBaseState(game, Date.now());
         expect(game.gameStatus).toBe('base_stone_color_choice');
         expect(game.baseColorChoiceDeadline).toBeUndefined();
@@ -241,6 +242,8 @@ describe('base mode', () => {
         updateBaseState(game, Date.now());
 
         expect(game.gameStatus).toBe('base_stone_color_choice');
+        expect(game.baseStones_p1?.length ?? 0).toBe(2);
+        expect(game.baseStones_p2?.length ?? 0).toBe(2);
     });
 
     it('keeps base markers unless the base stone is actually captured', () => {
