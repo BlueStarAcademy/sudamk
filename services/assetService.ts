@@ -81,14 +81,7 @@ const ENTRY_INVENTORY_ITEM_URLS = dedupePaths([
     ...Object.values(MATERIAL_ITEMS).map((m) => m.image),
 ]);
 
-/**
- * 프로필 라우트 게이트: 공통 셸만(배경·퀵 아이콘·바둑돌).
- * 아바타/테두리/티어/장비 풀을 진입 시 선로드하면 URL이 수백 개가 되어 모바일에서 수 분 단위 지연·버벅임을 유발하므로 넣지 않는다.
- * 실제 아바타·장비 썸네일은 화면의 img가 지연 로드한다.
- */
-export const ENTRY_PROFILE_ROUTE_GATE_IMAGE_URLS = ENTRY_BOOT_IMAGE_URLS;
-
-/** 프로필·가방·상점에 쓰이는 정적 타일 URL 전체(디버그·도구용; 라우트 게이트에는 사용하지 않음) */
+/** 프로필·가방·상점에 쓰이는 정적 타일 URL 전체(디버그·도구·백그라운드 프리페치용) */
 export const ENTRY_PROFILE_ROUTE_IMAGE_URLS = dedupePaths([
     ...ENTRY_BOOT_IMAGE_URLS,
     ...ENTRY_PROFILE_DECORATION_URLS,
@@ -195,3 +188,47 @@ export const preloadImages = (urls: string[], options?: PreloadImagesOptions): P
     const pool = Math.min(Math.max(1, maxConcurrent), Math.max(1, urls.length));
     return Promise.all(Array.from({ length: pool }, () => worker())).then(() => results);
 };
+
+/**
+ * 라우트 전환 직후 UI를 막지 않고, 브라우저 유휴 시에만 해당 화면 관련 이미지를 워밍한다.
+ * (진입 게이트로 `preloadImages`를 await 하면 URL이 많은 화면에서 수십 초~수 분 대기가 될 수 있음)
+ */
+export function scheduleRouteImagePrefetch(view: string): void {
+    if (typeof window === 'undefined') return;
+
+    let urls: readonly string[];
+    switch (view) {
+        case 'profile':
+            urls = ENTRY_PROFILE_ROUTE_IMAGE_URLS;
+            break;
+        case 'lobby':
+        case 'waiting':
+        case 'pair':
+        case 'singleplayer':
+        case 'tower':
+        case 'tournament':
+            urls = ENTRY_ARENA_FLOW_IMAGE_URLS;
+            break;
+        case 'adventure':
+            urls = ENTRY_ADVENTURE_ROUTE_IMAGE_URLS;
+            break;
+        case 'guild':
+        case 'guildboss':
+        case 'guildwar':
+            urls = ENTRY_GUILD_ROUTE_IMAGE_URLS;
+            break;
+        default:
+            urls = ENTRY_BOOT_IMAGE_URLS;
+            break;
+    }
+
+    const run = () => {
+        void preloadImages([...urls], { priority: 'low', maxConcurrent: 2 }).catch(() => {});
+    };
+
+    if ('requestIdleCallback' in window) {
+        requestIdleCallback(run, { timeout: 8000 });
+    } else {
+        window.setTimeout(run, 50);
+    }
+}
