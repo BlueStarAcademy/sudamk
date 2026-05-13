@@ -21,6 +21,7 @@ export const resourceIcons = {
 
 export const specialResourceIcons = {
     guildCoins: specialResourcePaths.guildCoins,
+    champCoins: specialResourcePaths.champCoins,
 } as const;
 
 
