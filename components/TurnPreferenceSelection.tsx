@@ -1,9 +1,11 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LiveGameSession, User, ServerAction } from '../types.js';
-import { GameCategory } from '../types/enums.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
+import RoundCountdownIndicator from './RoundCountdownIndicator.js';
+import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
 
 interface TurnPreferenceSelectionProps {
     session: LiveGameSession;
@@ -14,10 +16,9 @@ interface TurnPreferenceSelectionProps {
 
 const TurnPreferenceSelection: React.FC<TurnPreferenceSelectionProps> = (props) => {
     const { session, currentUser } = props;
-    const { player1, player2, turnChoices, turnChoiceDeadline, gameCategory } = session;
-    const isAdventure = gameCategory === GameCategory.Adventure;
+    const { player1, player2, turnChoices, turnChoiceDeadline } = session;
+    const isPvpPreGame = resolveArenaSessionPolicy(session).matchAxis === 'pvp';
     const [localChoice, setLocalChoice] = useState<'first' | 'second' | null>(null);
-    const [countdown, setCountdown] = useState(30);
 
     const latestProps = useRef(props);
     useEffect(() => {
@@ -39,25 +40,17 @@ const TurnPreferenceSelection: React.FC<TurnPreferenceSelectionProps> = (props) 
     }, []);
 
     useEffect(() => {
-        if (myTurnChoice || localChoice || isAdventure) {
-            setCountdown(30);
-            return;
-        }
-        if (!turnChoiceDeadline) {
-            setCountdown(30);
-            return;
-        }
+        if (myTurnChoice || localChoice || !isPvpPreGame) return;
+        if (!turnChoiceDeadline) return;
 
         const timerId = setInterval(() => {
-            const remaining = Math.max(0, Math.ceil((turnChoiceDeadline - Date.now()) / 1000));
-            setCountdown(remaining);
-            if (remaining <= 0) {
+            if (Date.now() >= turnChoiceDeadline) {
                 clearInterval(timerId);
             }
         }, 1000);
 
         return () => clearInterval(timerId);
-    }, [myTurnChoice, localChoice, turnChoiceDeadline, isAdventure]);
+    }, [myTurnChoice, localChoice, turnChoiceDeadline, isPvpPreGame]);
 
 
     const renderContent = () => {
@@ -76,17 +69,14 @@ const TurnPreferenceSelection: React.FC<TurnPreferenceSelectionProps> = (props) 
         return (
             <div className="text-center">
                 <p className="text-gray-300 mb-6">원하는 순서를 선택하세요. 순서가 같으면 룰렛으로 무작위 정해집니다.</p>
-                {!isAdventure && (
-                    <div className="my-4 text-center">
-                        <div className="w-full bg-gray-700 rounded-full h-2.5 mb-2 overflow-hidden">
-                            <div
-                                className="bg-yellow-400 h-2.5 rounded-full"
-                                style={{ width: `${(countdown / 30) * 100}%`, transition: 'width 1s linear' }}
-                            />
-                        </div>
-                        <div className="text-5xl font-mono text-yellow-300">{countdown}</div>
-                    </div>
-                )}
+                {isPvpPreGame ? (
+                    <RoundCountdownIndicator
+                        deadline={turnChoiceDeadline}
+                        durationSeconds={PRE_GAME_PVP_COUNTDOWN_SECONDS}
+                        label="자동 선택까지"
+                        labelShort="자동 선택"
+                    />
+                ) : null}
                 <div className="flex gap-4 mt-4">
                     <Button
                         onClick={() => handleChoice('first')}

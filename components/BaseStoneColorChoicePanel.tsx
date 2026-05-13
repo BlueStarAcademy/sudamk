@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { GameCategory } from '../types/enums.js';
 import { LiveGameSession, User, Player, ServerAction } from '../types.js';
+import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
 
-const COLOR_CHOICE_SEC = 30;
+const COLOR_CHOICE_SEC = PRE_GAME_PVP_COUNTDOWN_SECONDS;
 
 const komiWindowShell =
     'rounded-xl border border-amber-400/20 bg-gradient-to-b from-slate-900/95 via-slate-950/98 to-black/90 shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_20px_50px_-20px_rgba(0,0,0,0.85)]';
@@ -23,8 +24,7 @@ const BaseStoneColorChoicePanel: React.FC<Props> = ({
     isSinglePlayer = false,
 }) => {
     const gameId = session.id;
-    const isAdventure = session.gameCategory === GameCategory.Adventure;
-    const showCountdown = !session.isAiGame && !isAdventure;
+    const showCountdown = resolveArenaSessionPolicy(session).matchAxis === 'pvp';
     const pairLobbyOwnerId = (session.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)?.pairGame
         ?.pairLobbyOwnerId;
     const isPairHostChoice = Boolean(pairLobbyOwnerId && currentUser.id === pairLobbyOwnerId);

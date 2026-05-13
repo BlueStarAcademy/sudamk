@@ -8,6 +8,7 @@ describe('normalizeInventoryEquipmentItem equipment image', () => {
         const raw: InventoryItem = {
             id: 'eq-1',
             name: '푸른 바람 부채',
+            description: 'legacy fan image fixture',
             type: 'equipment',
             slot: 'fan',
             grade: ItemGrade.Normal,
@@ -26,6 +27,7 @@ describe('normalizeInventoryEquipmentItem equipment image', () => {
         const raw: InventoryItem = {
             id: 'eq-2',
             name: '신룡 바둑판',
+            description: 'legacy board image fixture',
             type: 'equipment',
             slot: 'board',
             grade: ItemGrade.Transcendent,

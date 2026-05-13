@@ -295,7 +295,7 @@ const formatCooldown = (ms: number) => {
 interface ActionButtonsPanelProps {
     session: LiveGameSession;
     isSpectator: boolean;
-    onAction: (action: ServerAction) => void;
+    onAction: (action: ServerAction) => unknown;
     currentUser: GameProps['currentUser'];
     isMobile?: boolean;
 }
@@ -313,6 +313,7 @@ const ACTIVE_GAME_STATUSES: GameStatus[] = [
 
 const ActionButtonsPanel: React.FC<ActionButtonsPanelProps> = ({ session, isSpectator, onAction, currentUser, isMobile = false }) => {
     const [cooldownTime, setCooldownTime] = useState('00:00');
+    const [actionButtonBusy, setActionButtonBusy] = useState(false);
     const { id: gameId, mode, gameStatus } = session;
 
     useEffect(() => {
@@ -344,6 +345,20 @@ const ActionButtonsPanel: React.FC<ActionButtonsPanelProps> = ({ session, isSpec
     const isGameActive = ACTIVE_GAME_STATUSES.includes(gameStatus);
     const hasUsedThisCycle = session.actionButtonUsedThisCycle?.[currentUser.id];
     const isReady = cooldownTime === 'READY';
+    const handleUseActionButton = async (buttonName: string) => {
+        if (isSpectator || !isGameActive || actionButtonBusy) return;
+        setActionButtonBusy(true);
+        try {
+            const result = await Promise.resolve(onAction({ type: 'USE_ACTION_BUTTON', payload: { gameId, buttonName } }));
+            const err = (result as { error?: string } | null | undefined)?.error;
+            if (err) window.alert(err);
+        } catch (error) {
+            console.error('[GameControls] USE_ACTION_BUTTON failed:', error);
+            window.alert('매너 액션 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+        } finally {
+            setActionButtonBusy(false);
+        }
+    };
 
     const actionNodes =
         hasButtons && !hasUsedThisCycle
@@ -351,11 +366,11 @@ const ActionButtonsPanel: React.FC<ActionButtonsPanelProps> = ({ session, isSpec
                   <Button
                       key={button.name}
                       bare
-                      onClick={() => onAction({ type: 'USE_ACTION_BUTTON', payload: { gameId, buttonName: button.name } })}
+                      onClick={() => void handleUseActionButton(button.name)}
                       colorScheme="none"
                       className={arenaGameRoomMannerChipClass(isMobile, button.type === 'manner' ? 'manner' : 'other')}
                       title={button.message}
-                      disabled={isSpectator || !isGameActive}
+                      disabled={isSpectator || !isGameActive || actionButtonBusy}
                   >
                       {button.name}
                   </Button>

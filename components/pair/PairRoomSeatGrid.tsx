@@ -70,6 +70,19 @@ function ReadyRibbonOnAvatar({ compact }: { compact?: boolean }) {
     );
 }
 
+function PresenceOverlayBadge({ label, compact }: { label: string; compact?: boolean }) {
+    return (
+        <span
+            className={`pointer-events-none absolute left-1/2 top-1/2 z-[7] -translate-x-1/2 -translate-y-1/2 rounded-md border border-amber-300/70 bg-black/85 px-1.5 py-0.5 font-extrabold tracking-wide text-amber-100 shadow-[0_0_14px_rgba(245,158,11,0.35)] ${
+                compact ? 'text-[8px]' : 'text-[10px]'
+            }`}
+            aria-label={label}
+        >
+            {label}
+        </span>
+    );
+}
+
 function SeatTile({
     tone,
     label,
@@ -94,6 +107,7 @@ function SeatTile({
     petLineName,
     avatarUrl,
     borderUrl,
+    statusOverlayLabel,
     lobbyChromeTone = 'pair',
 }: {
     tone: SeatTone;
@@ -124,6 +138,7 @@ function SeatTile({
     petLineName?: string | null;
     avatarUrl?: string | null;
     borderUrl?: string | null;
+    statusOverlayLabel?: string;
     lobbyChromeTone?: WaitingLobbyPanelTone;
 }) {
     const locked = tone === 'locked';
@@ -288,6 +303,7 @@ function SeatTile({
                             />
                         ) : null}
                         {showReady ? <ReadyRibbonOnAvatar compact={compact} /> : null}
+                        {statusOverlayLabel ? <PresenceOverlayBadge label={statusOverlayLabel} compact={compact} /> : null}
                     </div>
                     <div className="@container flex min-h-0 min-w-0 flex-1 flex-col justify-center gap-0.5 pr-0.5">
                         {usePetNameLines ? (
@@ -368,6 +384,7 @@ function SeatTile({
                             />
                         ) : null}
                         {showReady ? <ReadyRibbonOnAvatar compact={compact} /> : null}
+                        {statusOverlayLabel ? <PresenceOverlayBadge label={statusOverlayLabel} compact={compact} /> : null}
                     </div>
                     {usePetNameLines ? (
                         <div
@@ -713,6 +730,8 @@ export interface PairRoomSeatGridProps {
     /** duo/펫 AI 대전 로비: 방·설정으로 합성 상대 두 슬롯 표시 레벨(게임 시작 전 결정론적) */
     pairAiLobbyRoomId?: string;
     pairAiLobbySettings?: GameSettings;
+    /** 특정 유저 좌석에 덧씌울 상태 배지(예: 참여중) */
+    statusOverlayByUserId?: Record<string, string>;
 }
 
 const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
@@ -744,6 +763,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     arenaAiGameMode,
     pairAiLobbyRoomId,
     pairAiLobbySettings,
+    statusOverlayByUserId,
 }) => {
     const viewerPetAiId = `pet-ai-${viewerId}`;
     const isPetPairLobby = roomKind === 'ai_duel';
@@ -872,6 +892,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                 String(cell.kind).toLowerCase() === 'user' &&
                 !uid.startsWith('pet-ai-');
             const showDelegateButton = Boolean(showKickButton && onDelegateRoomOwnershipRequest);
+            const statusOverlayLabel = statusOverlayByUserId?.[uid];
             /** 방장일 때 강퇴·위임 줄 높이를 모든 착석 타일에 동일하게 잡아 패널 높이가 들쭉날쭉하지 않게 함 */
             const reserveKickStrip = canOfferKick;
             const kickFooter =
@@ -946,6 +967,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                     petLineName={cell.petLineName ?? undefined}
                     avatarUrl={cell.avatarUrl ?? undefined}
                     borderUrl={cell.borderUrl ?? undefined}
+                    statusOverlayLabel={statusOverlayLabel}
                     lobbyChromeTone={seatChromeTone}
                 />
             );

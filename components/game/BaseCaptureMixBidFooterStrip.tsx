@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LiveGameSession, ServerAction, User } from '../../types.js';
 import Button from '../Button.js';
+import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
+import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../../shared/constants/preGameCountdown.js';
 
 type BaseCaptureMixBidFooterStripProps = {
     session: LiveGameSession;
@@ -19,7 +21,7 @@ const BaseCaptureMixBidFooterStrip: React.FC<BaseCaptureMixBidFooterStripProps> 
 }) => {
     const { player1, player2, bids, biddingRound, captureBidDeadline, settings, captureFirstRoundTieBidSnapshot } = session;
     const [localBid, setLocalBid] = useState(1);
-    const [countdown, setCountdown] = useState(30);
+    const [countdown, setCountdown] = useState(PRE_GAME_PVP_COUNTDOWN_SECONDS);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const lastBiddingRoundRef = useRef(biddingRound);
     const latestRef = useRef({ session, currentUser, onAction });
@@ -58,7 +60,7 @@ const BaseCaptureMixBidFooterStrip: React.FC<BaseCaptureMixBidFooterStripProps> 
     const myBid = bids?.[myBidSubjectId];
     const opponentBid = bids?.[opponentSubjectId];
     const bothHaveBid = typeof myBid === 'number' && typeof opponentBid === 'number';
-    const hasBidCountdown = Boolean(captureBidDeadline) && !session.isAiGame && settings.pairGame?.pairMode !== 'ai';
+    const hasBidCountdown = Boolean(captureBidDeadline) && resolveArenaSessionPolicy(session).matchAxis === 'pvp';
 
     const baseTarget = settings.captureTarget || 20;
     const maxBid = Math.max(1, baseTarget - 1);
@@ -108,7 +110,10 @@ const BaseCaptureMixBidFooterStrip: React.FC<BaseCaptureMixBidFooterStripProps> 
         [myBid, maxBid],
     );
 
-    const progressPercent = useMemo(() => Math.max(0, Math.min(100, (countdown / 30) * 100)), [countdown]);
+    const progressPercent = useMemo(
+        () => Math.max(0, Math.min(100, (countdown / PRE_GAME_PVP_COUNTDOWN_SECONDS) * 100)),
+        [countdown],
+    );
 
     const viewerInGame = currentUser.id === player1.id || currentUser.id === player2.id || Boolean(myPairTeam);
 

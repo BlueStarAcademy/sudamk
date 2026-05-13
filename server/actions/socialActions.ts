@@ -1086,6 +1086,36 @@ const refreshPairRoomTeams = (room: types.PairRoomState): types.PairRoomState =>
     return room;
 };
 
+function restoreEndedPairRoomShellsIfNeeded(volatileState: VolatileState, game: types.LiveGameSession): boolean {
+    if (!volatileState.pairRooms) return false;
+    if (game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest') return false;
+
+    const payloadRoomId = typeof game.settings?.pairGame?.roomId === 'string' ? game.settings.pairGame.roomId : '';
+    const playerIds = new Set<string>([game.player1.id, game.player2.id].filter(Boolean));
+    let changed = false;
+
+    for (const room of Object.values(volatileState.pairRooms)) {
+        if (!room || room.phase !== 'in_game') continue;
+
+        const roomMemberIds = new Set<string>([
+            room.ownerId,
+            room.partnerId,
+            ...(room.extraPairMembers ?? []).map((m) => m.id),
+        ].filter((id): id is string => Boolean(id) && !isPetAiId(id)));
+        const hasAnyPlayer = Array.from(playerIds).some((id) => roomMemberIds.has(id));
+        const idMatched =
+            (payloadRoomId && (payloadRoomId === room.id || payloadRoomId.includes(room.id))) ||
+            hasAnyPlayer;
+        if (!idMatched) continue;
+
+        room.matchStartedAt = undefined;
+        refreshPairRoomTeams(room);
+        changed = true;
+    }
+
+    return changed;
+}
+
 /** 페어 경기장에서 방을 만들지 않고 펫 페어 AI 대전만 시작할 때 — volatileState에 넣지 않는 일회용 스냅샷 */
 function buildEphemeralPairPetAiDuelLobbySnapshot(
     user: User,
@@ -1374,9 +1404,6 @@ function applyPairRoomLobbyOwnerPayloadToRoom(
         const normalizedKind = p.roomKind;
         const lobbyCh = (target as { lobbyChannel?: string }).lobbyChannel ?? 'pair';
         if (normalizedKind !== target.roomKind) {
-            if (normalizedKind === 'duo_match' && lobbyCh === 'pair') {
-                return '페어 경기장에서는 2인 듀오 랭킹 방으로 바꿀 수 없습니다. 페어 랭킹전은 「페어 펫 랭킹전」에서 시작해 주세요.';
-            }
             if (normalizedKind === 'arena_ai' && lobbyCh !== 'strategic' && lobbyCh !== 'playful') {
                 return 'AI와 대결은 전략·놀이 경기장 방만 전환할 수 있습니다.';
             }
@@ -2581,6 +2608,10 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             }
 
             if (volatileState.userStatuses[user.id]) {
+                const restoredPairRoom = restoreEndedPairRoomShellsIfNeeded(volatileState, game);
+                if (restoredPairRoom) {
+                    broadcastPairRooms(volatileState);
+                }
                 const leaveArenaChannel = arenaChannelForGameSession(game);
                 const isPairGameLeave = leaveArenaChannel === 'pair';
                 // 싱글플레이 게임이 아닌 경우, 게임 모드를 strategic/playful로 변환 (페어 국은 전략 대기실이 아닌 페어 경기장으로 복귀)
@@ -3273,11 +3304,6 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (pairPetRankedQueueShell && (normalizedKind !== 'ai_duel' || normalizedChannel !== 'pair')) {
                 return { error: '페어 경기장 펫 랭킹전 대기 방만 이 방식으로 만들 수 있습니다.' };
             }
-            if (normalizedKind === 'duo_match' && normalizedChannel === 'pair') {
-                return {
-                    error: '페어 경기장에서는 2인 듀오 랭킹 방을 만들 수 없습니다. 페어 랭킹전은 유저 목록 위쪽 「페어 펫 랭킹전」에서 시작해 주세요.',
-                };
-            }
             if (normalizedKind === 'arena_ai' && normalizedChannel !== 'strategic' && normalizedChannel !== 'playful') {
                 return { error: 'AI와 대결 방은 전략·놀이 경기장에서만 만들 수 있습니다.' };
             }
@@ -3518,7 +3544,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (target.roomKind === 'friendly_4p' && countPairRoomHumanUsers(target) >= 4) {
                 return { error: '방이 가득 찼습니다.' };
             }
-            if (target.roomKind === 'duo_match' && countPairRoomHumanUsers(target) >= 4) {
+            if (target.roomKind === 'duo_match' && countPairRoomHumanUsers(target) >= ((target.lobbyChannel ?? 'pair') === 'pair' ? 2 : 4)) {
                 return { error: '방이 가득 찼습니다.' };
             }
             if (target.partnerId) return { error: '이미 파트너가 입장한 방입니다.' };
@@ -3654,11 +3680,6 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     ? roomKind
                     : 'friendly_4p';
             const setKindLobby = (target as { lobbyChannel?: string }).lobbyChannel ?? 'pair';
-            if (normalizedKind === 'duo_match' && setKindLobby === 'pair') {
-                return {
-                    error: '페어 경기장에서는 2인 듀오 랭킹 방으로 바꿀 수 없습니다. 페어 랭킹전은 「페어 펫 랭킹전」에서 시작해 주세요.',
-                };
-            }
             if (normalizedKind === 'arena_ai' && setKindLobby !== 'strategic' && setKindLobby !== 'playful') {
                 return { error: 'AI와 대결은 전략·놀이 경기장에서만 사용할 수 있습니다.' };
             }
@@ -4034,7 +4055,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                         !target.pairDuoRankedLobbyProposal &&
                         ((target.phase ?? 'waiting') === 'waiting' || target.phase === 'ready');
                     if (!friendlyDuoArenaLobby) {
-                        return { error: '2인 페어는 「랭킹전 매칭」으로 시작해 주세요.' };
+                        return startLobbyCh === 'pair'
+                            ? { error: '2인 AI대전 방은 「AI대전 시작」 버튼으로 시작해 주세요.' }
+                            : { error: '2인 페어는 「랭킹전 매칭」으로 시작해 주세요.' };
                     }
                 } else {
                     if (startLobbyCh !== 'pair') {
@@ -4531,7 +4554,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (isPetPairAiDuel && targetLobbyChannel !== 'pair') {
                 return { error: '펫 페어 AI 대전은 페어 경기장에서만 시작할 수 있습니다.' };
             }
-            if ((target.roomKind === 'arena_ai' || isDuoPairAiDuel) && targetLobbyChannel !== 'strategic' && targetLobbyChannel !== 'playful') {
+            if (target.roomKind === 'arena_ai' && targetLobbyChannel !== 'strategic' && targetLobbyChannel !== 'playful') {
                 return { error: 'AI와 대결은 전략·놀이 경기장에서만 시작할 수 있습니다.' };
             }
             if (isDuoPairAiDuel) {

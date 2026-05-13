@@ -11,7 +11,8 @@ import {
     cloneBoardStateForKataOpeningSnapshot,
     encodeBoardStateAsKataSetupMovesFromEmpty,
 } from '../kataCaptureSetupEncoding.js';
-import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
+import { modeIncludesBaseCaptureMix, resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
+import { PRE_GAME_PVP_COUNTDOWN_MS } from '../../shared/constants/preGameCountdown.js';
 
 /** 메인 루프가 매 틱 호출해도 동일한 값이 나오게 (AI 선호·타임아웃 무작위 흔들림 방지) */
 const pickBlackOrWhiteFromDeterministicSeed = (seed: string): types.Player => {
@@ -31,7 +32,8 @@ const isAdventureBaseGame = (game: types.LiveGameSession) => game.gameCategory =
 const skipBaseStartConfirmationDeadline = (game: types.LiveGameSession) =>
     isAdventureBaseGame(game) || game.isSinglePlayer;
 
-const shouldUseBaseSetupCountdown = (game: types.LiveGameSession) => !game.isAiGame && !isAdventureBaseGame(game);
+const shouldUseBaseSetupCountdown = (game: types.LiveGameSession) =>
+    resolveArenaSessionPolicy(game).matchAxis === 'pvp';
 
 const isAiLikeParticipantId = (id?: string | null): boolean =>
     !!id && (id === aiUserId || String(id).startsWith('dungeon-bot-'));
@@ -100,7 +102,7 @@ const enterBaseGameStartConfirmation = (game: types.LiveGameSession, now: number
     const p1Id = game.player1.id;
     const p2Id = game.player2.id;
     game.gameStatus = 'base_game_start_confirmation';
-    game.revealEndTime = skipBaseStartConfirmationDeadline(game) ? undefined : now + 30000;
+    game.revealEndTime = skipBaseStartConfirmationDeadline(game) ? undefined : now + PRE_GAME_PVP_COUNTDOWN_MS;
     game.preGameConfirmations = { [p1Id]: false, [p2Id]: false };
     if (game.isAiGame) {
         const aiId = resolveAiParticipantId(game);
@@ -115,7 +117,7 @@ export const enterBaseCaptureStartConfirmation = enterBaseGameStartConfirmation;
 
 export const initializeBase = (game: types.LiveGameSession, now: number) => {
     game.gameStatus = 'base_placement';
-    game.basePlacementDeadline = shouldUseBaseSetupCountdown(game) ? now + 30000 : undefined;
+    game.basePlacementDeadline = shouldUseBaseSetupCountdown(game) ? now + PRE_GAME_PVP_COUNTDOWN_MS : undefined;
     game.baseStones_p1 = [];
     game.baseStones_p2 = [];
     const p1Id = game.player1.id;
@@ -535,7 +537,7 @@ const resolveBasePlacementAndTransition = (game: types.LiveGameSession, now: num
         game.bids = { [game.player1.id]: null, [game.player2.id]: null };
         game.biddingRound = 1;
         game.captureFirstRoundTieBidSnapshot = undefined;
-        game.captureBidDeadline = shouldUseBaseSetupCountdown(game) ? now + 30000 : undefined;
+        game.captureBidDeadline = shouldUseBaseSetupCountdown(game) ? now + PRE_GAME_PVP_COUNTDOWN_MS : undefined;
         game.baseStoneColorChoices = undefined;
         game.baseColorChoiceDeadline = undefined;
         game.baseSameColorTieColor = undefined;
@@ -550,7 +552,7 @@ const resolveBasePlacementAndTransition = (game: types.LiveGameSession, now: num
 
     game.gameStatus = 'base_stone_color_choice';
     game.baseStoneColorChoices = { [game.player1.id]: null, [game.player2.id]: null };
-    game.baseColorChoiceDeadline = shouldUseBaseSetupCountdown(game) ? now + 30000 : undefined;
+    game.baseColorChoiceDeadline = shouldUseBaseSetupCountdown(game) ? now + PRE_GAME_PVP_COUNTDOWN_MS : undefined;
     game.baseSameColorTieColor = undefined;
     game.komiBids = undefined;
     game.komiBiddingDeadline = undefined;
@@ -704,7 +706,7 @@ const resolveBaseStoneColorChoicePhase = (game: types.LiveGameSession, now: numb
         game.baseSameColorTieColor = c1;
         game.gameStatus = 'base_same_color_points_bid';
         game.komiBids = { [p1]: null, [p2]: null };
-        game.komiBiddingDeadline = shouldUseBaseSetupCountdown(game) ? now + 30000 : undefined;
+        game.komiBiddingDeadline = shouldUseBaseSetupCountdown(game) ? now + PRE_GAME_PVP_COUNTDOWN_MS : undefined;
         game.komiBiddingRound = 1;
         game.turnDeadline = undefined;
         game.turnStartTime = undefined;
@@ -804,9 +806,10 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
 
             if (bothHaveBid || deadlinePassed) {
                 if (deadlinePassed) {
-                    const fill = { color: lockedSame ?? types.Player.Black, komi: 0 };
-                    if (!game.komiBids![p1Id]) game.komiBids![p1Id] = fill;
-                    if (!game.komiBids![p2Id]) game.komiBids![p2Id] = fill;
+                    const fillP1 = { color: lockedSame ?? types.Player.Black, komi: Math.floor(Math.random() * 11) };
+                    const fillP2 = { color: lockedSame ?? types.Player.Black, komi: Math.floor(Math.random() * 11) };
+                    if (!game.komiBids![p1Id]) game.komiBids![p1Id] = fillP1;
+                    if (!game.komiBids![p2Id]) game.komiBids![p2Id] = fillP2;
                 }
                 applyBaseKomiBidResolution(game, now);
             }

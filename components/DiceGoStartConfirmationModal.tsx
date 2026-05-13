@@ -5,6 +5,8 @@ import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import Dice from './Dice.js';
+import RoundCountdownIndicator from './RoundCountdownIndicator.js';
+import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
 
 interface DiceGoStartConfirmationModalProps {
     session: LiveGameSession;
@@ -15,10 +17,10 @@ interface DiceGoStartConfirmationModalProps {
 const DiceGoStartConfirmationModal: React.FC<DiceGoStartConfirmationModalProps> = ({ session, currentUser, onAction }) => {
     const { id: gameId, player1, player2, blackPlayerId, whitePlayerId, preGameConfirmations, revealEndTime, turnOrderRolls } = session;
     const hasConfirmed = preGameConfirmations?.[currentUser.id];
-    const [countdown, setCountdown] = useState(10);
+    const [countdown, setCountdown] = useState(PRE_GAME_PVP_COUNTDOWN_SECONDS);
 
     useEffect(() => {
-        const deadline = revealEndTime || (Date.now() + 10000);
+        const deadline = revealEndTime || (Date.now() + PRE_GAME_PVP_COUNTDOWN_SECONDS * 1000);
         const timerId = setInterval(() => {
             const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
             setCountdown(remaining);
@@ -57,7 +59,13 @@ const DiceGoStartConfirmationModal: React.FC<DiceGoStartConfirmationModalProps> 
                 {p1Roll !== null && p2Roll !== null && (
                     <p className="text-center text-gray-300 mb-2">주사위 결과 <span className="font-bold text-yellow-300">{winner.nickname}</span>님이 승리하여 선/후공이 결정되었습니다.</p>
                 )}
-                <p className="text-center text-gray-400 mb-4 text-sm">아래 시작 버튼을 누르거나 10초 후 대국이 자동으로 시작됩니다.</p>
+                <p className="text-center text-gray-400 mb-4 text-sm">아래 시작 버튼을 누르거나 30초 후 대국이 자동으로 시작됩니다.</p>
+                <RoundCountdownIndicator
+                    deadline={revealEndTime}
+                    durationSeconds={PRE_GAME_PVP_COUNTDOWN_SECONDS}
+                    label="자동 진행까지"
+                    labelShort="자동 진행"
+                />
 
                 {p1Roll !== null && p2Roll !== null && (
                      <div className="flex justify-around items-center my-4 bg-gray-900/50 p-3 rounded-lg">

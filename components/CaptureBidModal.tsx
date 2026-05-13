@@ -3,6 +3,8 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { LiveGameSession, User, ServerAction } from '../types.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
+import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
 
 interface CaptureBidModalProps {
     session: LiveGameSession;
@@ -33,7 +35,7 @@ const CaptureBidModal: React.FC<CaptureBidModalProps> = (props) => {
     const { session, currentUser, onAction } = props;
     const { id: gameId, player1, player2, bids, biddingRound, captureBidDeadline, settings } = session;
     const [localBid, setLocalBid] = useState<number>(1);
-    const [countdown, setCountdown] = useState(30);
+    const [countdown, setCountdown] = useState(PRE_GAME_PVP_COUNTDOWN_SECONDS);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     const lastBiddingRoundRef = useRef(biddingRound);
@@ -68,7 +70,7 @@ const CaptureBidModal: React.FC<CaptureBidModalProps> = (props) => {
     const myBid = bids?.[myBidSubjectId];
     const opponentBid = bids?.[opponentSubjectId];
     const bothHaveBid = typeof myBid === 'number' && typeof opponentBid === 'number';
-    const hasBidCountdown = Boolean(captureBidDeadline) && !session.isAiGame && settings.pairGame?.pairMode !== 'ai';
+    const hasBidCountdown = Boolean(captureBidDeadline) && resolveArenaSessionPolicy(session).matchAxis === 'pvp';
     
     const handleBidSubmit = useCallback(() => {
         const { onAction: currentOnAction, session: currentSession, currentUser } = latestProps.current;
@@ -110,7 +112,10 @@ const CaptureBidModal: React.FC<CaptureBidModalProps> = (props) => {
         setLocalBid(prev => Math.max(1, Math.min(Math.max(1, (settings.captureTarget || 20) - 1), prev + amount)));
     }, [myBid, settings.captureTarget]);
 
-    const progressPercent = useMemo(() => Math.max(0, Math.min(100, (countdown / 30) * 100)), [countdown]);
+    const progressPercent = useMemo(
+        () => Math.max(0, Math.min(100, (countdown / PRE_GAME_PVP_COUNTDOWN_SECONDS) * 100)),
+        [countdown],
+    );
     const baseTarget = settings.captureTarget || 20;
     const maxBid = Math.max(1, baseTarget - 1);
     const effectiveLocalBid = Math.min(localBid, maxBid);

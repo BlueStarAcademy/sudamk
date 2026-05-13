@@ -6,6 +6,7 @@ import { DICE_GO_INITIAL_WHITE_STONES_BY_ROUND, DICE_GO_LAST_CAPTURE_BONUS_BY_TO
 import { endGame } from '../summaryService.js';
 import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
 import { cancelAiProcessing, clearAiSession } from '../aiSessionManager.js';
+import { PRE_GAME_PVP_COUNTDOWN_MS } from '../../shared/constants/preGameCountdown.js';
 
 /** AI 대국: 인간 착수 직후 상대(봇) 주사위 단계로 바로 넘어가면 마지막 돌·따내기 연출이 밀림 → 1초 대기 (도둑과 경찰에서도 동일 상수 사용) */
 export const DICE_HUMAN_PLACE_SETTLE_MS = 1000;
@@ -628,7 +629,7 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                 }
                 
                 game.gameStatus = 'dice_start_confirmation';
-                game.revealEndTime = now + 10000;
+                game.revealEndTime = now + PRE_GAME_PVP_COUNTDOWN_MS;
             }
             break;
         case 'dice_start_confirmation':
@@ -1038,7 +1039,7 @@ export const handleDiceGoAction = async (volatileState: types.VolatileState, gam
                 game.blackPlayerId = otherId;
             }
             game.gameStatus = 'dice_start_confirmation';
-            game.revealEndTime = now + 10000;
+            game.revealEndTime = now + PRE_GAME_PVP_COUNTDOWN_MS;
             return {};
         }
         case 'DICE_CONFIRM_START': {

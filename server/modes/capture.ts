@@ -4,7 +4,9 @@ import { transitionToPlaying, shouldEnforceTimeControl } from './shared.js';
 import * as summaryService from '../summaryService.js';
 import { aiUserId } from '../aiPlayer.js';
 import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
+import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 import { finalizeBaseCaptureBidResolution, baseHttpGameSnapshot } from './base.js';
+import { PRE_GAME_PVP_COUNTDOWN_MS } from '../../shared/constants/preGameCountdown.js';
 
 const getCaptureBidMax = (game: types.LiveGameSession): number => {
     const baseTarget = Math.max(1, Math.floor(Number(game.settings.captureTarget ?? 20)));
@@ -51,7 +53,7 @@ const getPairTeamBidSubjectId = (
 ): string => teamId === 'teamA' ? game.player1.id : game.player2.id;
 
 const shouldUseCaptureCountdown = (game: types.LiveGameSession): boolean =>
-    !game.isAiGame && game.settings?.pairGame?.pairMode !== 'ai';
+    resolveArenaSessionPolicy(game).matchAxis === 'pvp';
 
 const getAiRevealConfirmations = (game: types.LiveGameSession): Record<string, boolean> => {
     const confirmations: Record<string, boolean> = {};
@@ -67,7 +69,7 @@ const enterCaptureReveal = (
     status: 'capture_reveal' | 'capture_tiebreaker',
 ) => {
     game.gameStatus = status;
-    game.revealEndTime = shouldUseCaptureCountdown(game) ? now + 10000 : undefined;
+    game.revealEndTime = shouldUseCaptureCountdown(game) ? now + PRE_GAME_PVP_COUNTDOWN_MS : undefined;
     game.preGameConfirmations = getAiRevealConfirmations(game);
 };
 
@@ -119,7 +121,7 @@ export const initializeCapture = (game: types.LiveGameSession, now: number) => {
     game.bids = { [p1Id]: null, [p2Id]: null };
     game.biddingRound = 1;
     game.captureFirstRoundTieBidSnapshot = undefined;
-    game.captureBidDeadline = shouldUseCaptureCountdown(game) ? now + 30000 : undefined;
+    game.captureBidDeadline = shouldUseCaptureCountdown(game) ? now + PRE_GAME_PVP_COUNTDOWN_MS : undefined;
 };
 
 export const updateCaptureState = (game: types.LiveGameSession, now: number) => {
@@ -134,8 +136,8 @@ export const updateCaptureState = (game: types.LiveGameSession, now: number) => 
 
             if (bothHaveBid || deadlinePassedBid) {
                 if (deadlinePassedBid) {
-                    if (game.bids![p1Id] == null) game.bids![p1Id] = clampCaptureBid(game, 1);
-                    if (game.bids![p2Id] == null) game.bids![p2Id] = clampCaptureBid(game, 1);
+                    if (game.bids![p1Id] == null) game.bids![p1Id] = randomCaptureBid1To5(game);
+                    if (game.bids![p2Id] == null) game.bids![p2Id] = randomCaptureBid1To5(game);
                 }
 
                 const p1Bid = clampCaptureBid(game, game.bids![p1Id]!);
@@ -165,7 +167,7 @@ export const updateCaptureState = (game: types.LiveGameSession, now: number) => 
                         game.captureFirstRoundTieBidSnapshot = { [p1Id]: p1Bid, [p2Id]: p2Bid };
                         game.biddingRound = 2;
                         game.bids = { [p1Id]: null, [p2Id]: null };
-                        game.captureBidDeadline = shouldUseCaptureCountdown(game) ? now + 30000 : undefined;
+                        game.captureBidDeadline = shouldUseCaptureCountdown(game) ? now + PRE_GAME_PVP_COUNTDOWN_MS : undefined;
                         game.gameStatus = 'capture_bidding';
                         game.preGameConfirmations = {};
                         game.revealEndTime = undefined;
@@ -207,7 +209,7 @@ export const updateCaptureState = (game: types.LiveGameSession, now: number) => 
                     game.captureFirstRoundTieBidSnapshot = { [p1Id]: p1Bid, [p2Id]: p2Bid };
                     game.biddingRound = 2;
                     game.bids = { [p1Id]: null, [p2Id]: null };
-                    game.captureBidDeadline = shouldUseCaptureCountdown(game) ? now + 30000 : undefined;
+                    game.captureBidDeadline = shouldUseCaptureCountdown(game) ? now + PRE_GAME_PVP_COUNTDOWN_MS : undefined;
                     game.gameStatus = 'capture_bidding';
                     game.preGameConfirmations = {};
                     game.revealEndTime = undefined;

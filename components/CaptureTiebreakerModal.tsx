@@ -5,7 +5,9 @@ import Button from './Button.js';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import PreGameColorRoulette from './PreGameColorRoulette.js';
 import { getSessionPlayerDisplayName } from '../utils/gameDisplayNames.js';
-import { modeIncludesBaseCaptureMix } from '../shared/utils/liveSessionArenaKind.js';
+import RoundCountdownIndicator from './RoundCountdownIndicator.js';
+import { modeIncludesBaseCaptureMix, resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
 
 interface CaptureTiebreakerModalProps {
     session: LiveGameSession;
@@ -28,10 +30,10 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
         finalKomi,
     } = session;
     const hasConfirmed = preGameConfirmations?.[currentUser.id];
-    const [countdown, setCountdown] = useState(10);
+    const [countdown, setCountdown] = useState(PRE_GAME_PVP_COUNTDOWN_SECONDS);
     const isTiebreaker = gameStatus === 'capture_tiebreaker';
     const isBaseStartConfirmation = gameStatus === 'base_game_start_confirmation';
-    const hasRevealCountdown = Boolean(revealEndTime) && !session.isAiGame && settings.pairGame?.pairMode !== 'ai';
+    const hasRevealCountdown = Boolean(revealEndTime) && resolveArenaSessionPolicy(session).matchAxis === 'pvp';
     const [rouletteDone, setRouletteDone] = useState(() => !isTiebreaker);
 
     useEffect(() => {
@@ -49,7 +51,7 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
             setCountdown(0);
             return;
         }
-        const deadline = revealEndTime || (Date.now() + 10000);
+        const deadline = revealEndTime || (Date.now() + PRE_GAME_PVP_COUNTDOWN_SECONDS * 1000);
         const timerId = setInterval(() => {
             const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
             setCountdown(remaining);
@@ -290,6 +292,14 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
                         </div>
                     </div>
                 )}
+                {hasRevealCountdown && showAssignmentGrid ? (
+                    <RoundCountdownIndicator
+                        deadline={revealEndTime}
+                        durationSeconds={PRE_GAME_PVP_COUNTDOWN_SECONDS}
+                        label="자동 진행까지"
+                        labelShort="자동 진행"
+                    />
+                ) : null}
                 </div>
                     </div>
                 </div>

@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { GameCategory } from '../types/enums.js';
 import { LiveGameSession, User, Player, ServerAction } from '../types.js';
 import Button from './Button.js';
+import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
 
-const BID_SEC = 30;
+const BID_SEC = PRE_GAME_PVP_COUNTDOWN_SECONDS;
 
 interface Props {
     session: LiveGameSession;
@@ -22,8 +23,7 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
 }) => {
     const gameId = session.id;
     const locked = session.baseSameColorTieColor;
-    const isAdventure = session.gameCategory === GameCategory.Adventure;
-    const showCountdown = !session.isAiGame && !isAdventure;
+    const showCountdown = resolveArenaSessionPolicy(session).matchAxis === 'pvp';
     const { komiBids, komiBiddingDeadline, player1, player2 } = session;
     const pairLobbyOwnerId = (session.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)?.pairGame
         ?.pairLobbyOwnerId;

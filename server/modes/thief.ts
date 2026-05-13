@@ -7,6 +7,7 @@ import { DICE_HUMAN_PLACE_SETTLE_MS } from './diceGo.js';
 import { endGame } from '../summaryService.js';
 import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
 import { cancelAiProcessing, clearAiSession } from '../aiSessionManager.js';
+import { PRE_GAME_PVP_COUNTDOWN_MS } from '../../shared/constants/preGameCountdown.js';
 
 /** 세그먼트 리셋·역할 전 직후: 디스패치 락·AI 세션 정리 (주사위바둑 kickDiceGoAiForNewRound와 동일 계열) */
 function releaseThiefAiDispatchLocks(game: types.LiveGameSession) {
@@ -223,7 +224,7 @@ export const initializeThief = (game: types.LiveGameSession, neg: types.Negotiat
         game.blackPlayerId = thiefPlayer.id;
         game.whitePlayerId = policePlayer.id;
         game.gameStatus = 'thief_role_confirmed';
-        game.revealEndTime = now + 10000;
+        game.revealEndTime = now + PRE_GAME_PVP_COUNTDOWN_MS;
         game.preGameConfirmations = { [p1.id]: false, [p2.id]: false };
         game.roleChoices = undefined;
         game.turnChoiceDeadline = undefined;

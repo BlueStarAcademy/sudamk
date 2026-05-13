@@ -7,6 +7,8 @@ import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { aiUserId } from '../constants/index.js';
 import { getAdventureCodexMonsterById } from '../constants/adventureMonstersCodex.js';
 import { getSessionPlayerDisplayName } from '../utils/gameDisplayNames.js';
+import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
 
 interface ColorStartConfirmationModalProps {
     session: LiveGameSession;
@@ -58,6 +60,9 @@ const ColorStartConfirmationModal: React.FC<ColorStartConfirmationModalProps> = 
             variant={isHandheld ? 'sticky' : 'inline'}
             hasConfirmed={hasConfirmed}
             rouletteBlockingStart={!colorRouletteDone}
+            showCountdown={resolveArenaSessionPolicy(session).matchAxis === 'pvp'}
+            countdownDeadline={session.revealEndTime}
+            countdownSeconds={PRE_GAME_PVP_COUNTDOWN_SECONDS}
             onConfirm={() => onAction({ type: 'CONFIRM_COLOR_START', payload: { gameId } })}
         />
     );

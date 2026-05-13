@@ -31,7 +31,7 @@ if (!process.env.RAILWAY_ENVIRONMENT &&
     console.log('[Server] Railway environment auto-detected');
 }
 import { handleAction, resetAndGenerateQuests, updateQuestProgress } from './gameActions.js';
-import { tickPairPartnerInviteExpiry } from './actions/socialActions.js';
+import { leavePairWaitingRoomIfPresent, tickPairPartnerInviteExpiry } from './actions/socialActions.js';
 import { regenerateActionPoints } from './effectService.js';
 import { mergeGamesWithLatestCache, updateGameStates } from './gameModes.js';
 import { isSessionSpeedTimePressureMode } from './utils/speedTimePressureLiveCaptures.js';
@@ -2102,6 +2102,8 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         releaseIpBindingForUser(volatileState, userId);
                         delete volatileState.userConnections[userId];
                         volatileState.activeTournamentViewers.delete(userId);
+                        // 브라우저 종료·로그아웃 등으로 타임아웃된 세션은 페어 방에서도 강제 이탈 처리.
+                        leavePairWaitingRoomIfPresent(volatileState, userId);
                 
                         if (activeGame) {
                             // User was in a game. Set the disconnection state for the single-player-disconnect logic.

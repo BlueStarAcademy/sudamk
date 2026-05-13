@@ -1,0 +1,2 @@
+export const PRE_GAME_PVP_COUNTDOWN_MS = 30_000;
+export const PRE_GAME_PVP_COUNTDOWN_SECONDS = 30;

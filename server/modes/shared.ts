@@ -21,7 +21,8 @@ import {
     pairWinningPlayerWhenTeamResigns,
     syncPairTurnOrderWithAssignedColors,
 } from '../../shared/utils/pairGameTurn.js';
-import { isPairHumanHumanPvpForTeamResign } from '../../shared/utils/liveSessionArenaKind.js';
+import { isPairHumanHumanPvpForTeamResign, resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
+import { PRE_GAME_PVP_COUNTDOWN_MS } from '../../shared/constants/preGameCountdown.js';
 
 // AI 대국 일시정지/재개 쿨다운 (서버 메모리 기반)
 // - "일시정지" 후 5초가 지나야 "대국 재개" 허용
@@ -248,7 +249,7 @@ export const startColorConfirmation = (
     game: types.LiveGameSession,
     now: number,
     gameStatus: types.GameStatus = 'color_start_confirmation',
-    revealDurationMs: number = 30000
+    revealDurationMs: number = PRE_GAME_PVP_COUNTDOWN_MS
 ) => {
     assignRandomColors(game);
     game.gameStatus = gameStatus;
@@ -351,19 +352,19 @@ export const finalizePlayfulColorsAfterTurnOrder = (game: types.LiveGameSession,
     const p2Id = game.player2.id;
     if (game.mode === types.GameMode.Alkkagi) {
         game.gameStatus = 'alkkagi_start_confirmation';
-        game.revealEndTime = now + 30000;
+        game.revealEndTime = now + PRE_GAME_PVP_COUNTDOWN_MS;
         game.preGameConfirmations = { [p1Id]: false, [p2Id]: false };
         if (game.isAiGame) game.preGameConfirmations[aiUserId] = true;
     } else if (game.mode === types.GameMode.Curling) {
         game.gameStatus = 'curling_start_confirmation';
-        game.revealEndTime = now + 30000;
+        game.revealEndTime = now + PRE_GAME_PVP_COUNTDOWN_MS;
         game.preGameConfirmations = { [p1Id]: false, [p2Id]: false };
         if (game.isAiGame) game.preGameConfirmations[aiUserId] = true;
     } else if (game.mode === types.GameMode.Thief) {
         game.thiefPlayerId = game.blackPlayerId!;
         game.policePlayerId = game.whitePlayerId!;
         game.gameStatus = 'thief_role_confirmed';
-        game.revealEndTime = now + 10000;
+        game.revealEndTime = now + PRE_GAME_PVP_COUNTDOWN_MS;
         if (game.isAiGame) game.preGameConfirmations = { [aiUserId]: true };
     } else {
         transitionToPlaying(game, now);
@@ -415,7 +416,7 @@ export const updateSharedGameState = (game: LiveGameSession, now: number): boole
     if (game.gameStatus === 'turn_preference_selection') {
         const p1Choice = game.turnChoices?.[p1Id];
         const p2Choice = game.turnChoices?.[p2Id];
-        const adventureNoTurnPrefTimeout = game.gameCategory === 'adventure';
+        const adventureNoTurnPrefTimeout = resolveArenaSessionPolicy(game).kind === 'adventure';
         const deadlinePassed =
             !adventureNoTurnPrefTimeout && !!game.turnChoiceDeadline && now > game.turnChoiceDeadline;
 
@@ -495,7 +496,7 @@ export const updateSharedGameState = (game: LiveGameSession, now: number): boole
                 game.blackPlayerId = game.thiefPlayerId;
                 game.whitePlayerId = game.policePlayerId;
                 game.gameStatus = 'thief_role_confirmed';
-                game.revealEndTime = now + 10000;
+                game.revealEndTime = now + PRE_GAME_PVP_COUNTDOWN_MS;
                 if (game.isAiGame) game.preGameConfirmations = { [aiUserId]: true };
             } else {
                 game.turnChoices = undefined;
