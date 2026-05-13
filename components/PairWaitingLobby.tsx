@@ -3046,10 +3046,22 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     }, [currentUserWithStatus, onlineUsers]);
     const seatStatusOverlayByUserId = useMemo((): Record<string, string> => {
         if (!myRoom?.ownerId) return {};
+        /** 방은 대기실로 돌아왔는데 소켓/스냅샷상 `UserStatus.InGame`이 남는 경우 배지가 안 사라지는 것을 막음 */
+        if (myRoom.phase !== 'in_game') return {};
+        const out: Record<string, string> = {};
         const ownerStatus = pairLobbyStatusByUserId.get(myRoom.ownerId);
-        if (!ownerStatus || ownerStatus.status !== UserStatus.InGame) return {};
-        return { [myRoom.ownerId]: '참여중' };
-    }, [myRoom?.ownerId, pairLobbyStatusByUserId]);
+        if (ownerStatus?.status === UserStatus.InGame) {
+            out[myRoom.ownerId] = '참여중';
+        }
+        const pid = myRoom.partnerId;
+        if (pid && !String(pid).startsWith('pet-ai-')) {
+            const partnerStatus = pairLobbyStatusByUserId.get(pid);
+            if (partnerStatus?.status === UserStatus.InGame) {
+                out[pid] = '참여중';
+            }
+        }
+        return out;
+    }, [myRoom?.ownerId, myRoom?.partnerId, myRoom?.phase, pairLobbyStatusByUserId]);
 
     const seatTeamAMembers = useMemo((): PairSeatMember[] | undefined => {
         if (!myRoom?.teamA?.members?.length) return undefined;
@@ -4349,6 +4361,9 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                         myRoom.roomKind === 'duo_match' || myRoom.roomKind === 'ai_duel'
                                             ? myRoom.settings
                                             : undefined
+                                    }
+                                    hideDuoAiOpponentColumn={
+                                        lobbyChannel === 'pair' && myRoom.roomKind === 'duo_match'
                                     }
                                     roomKind={myRoom.roomKind}
                                     ownerId={myRoom.ownerId}

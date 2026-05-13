@@ -730,6 +730,8 @@ export interface PairRoomSeatGridProps {
     /** duo/펫 AI 대전 로비: 방·설정으로 합성 상대 두 슬롯 표시 레벨(게임 시작 전 결정론적) */
     pairAiLobbyRoomId?: string;
     pairAiLobbySettings?: GameSettings;
+    /** 페어 경기장 `duo_match`(2인 AI대전): 우측 합성 AI 열 없이 방장·파트너 2슬롯만 표시 */
+    hideDuoAiOpponentColumn?: boolean;
     /** 특정 유저 좌석에 덧씌울 상태 배지(예: 참여중) */
     statusOverlayByUserId?: Record<string, string>;
 }
@@ -763,6 +765,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     arenaAiGameMode,
     pairAiLobbyRoomId,
     pairAiLobbySettings,
+    hideDuoAiOpponentColumn = false,
     statusOverlayByUserId,
 }) => {
     const viewerPetAiId = `pet-ai-${viewerId}`;
@@ -1117,7 +1120,45 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     }
 
     /**
-     * 2인 페어: 4칸(2×2) — 우리 팀 2슬롯 + 상대 팀 2슬롯.
+     * 페어 경기장 2인 AI대전: 인간 팀 슬롯만(방장·파트너). 상대 AI 합성 열은 표시하지 않음.
+     * (서버·로비 규칙상 인간은 `teamA` 두 칸 — 기존 좌측 열과 동일)
+     */
+    if (roomKind === 'duo_match' && !isFriendly && hideDuoAiOpponentColumn) {
+        const hostHomeTeam = pickOwnerHomeTeam(ownerId, teamAMembers, teamBMembers);
+        const accentA = hostHomeTeam === 'teamA' ? 'ally' : 'enemy';
+        return (
+            <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
+                <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
+                    <TeamPanel
+                        title=""
+                        subtitle=""
+                        variant={hostHomeTeam === 'teamA' ? 'ally' : 'enemy'}
+                        compact={compact}
+                        seatColumns={2}
+                    >
+                        {renderHumanSlot(gridA[0], 0, 'teamA', accentA, {
+                            emptyLabel: '빈 슬롯',
+                            emptySub: inviteOpen('teamA', 0) ? '터치하여 초대' : undefined,
+                            onOpen: inviteOpen('teamA', 0),
+                        })}
+                        {renderHumanSlot(gridA[1], 1, 'teamA', accentA, {
+                            emptyLabel: '파트너',
+                            emptySub:
+                                canClickPartnerSlot || inviteOpen('teamA', 1)
+                                    ? '터치하여 초대'
+                                    : partnerSlotFilled
+                                      ? undefined
+                                      : '대기 중',
+                            onOpen: canClickPartnerSlot ? onInvitePartnerSlot : inviteOpen('teamA', 1),
+                        })}
+                    </TeamPanel>
+                </div>
+            </div>
+        );
+    }
+
+    /**
+     * 2인 페어(전략·놀이 등): 4칸(2×2) — 우리 팀 2슬롯 + 상대 팀 2슬롯.
      * AI 대전 시 상대는 `pair-opponent-ai` / `pair-opponent-pet`에 대응하는 봇 프로필을 미리 표시(대기 중 teamB 비어 있을 때).
      */
     if (roomKind === 'duo_match' && !isFriendly) {
