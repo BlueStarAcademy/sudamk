@@ -962,6 +962,8 @@ export const handleBaseAction = (game: types.LiveGameSession, action: types.Serv
                     resolveBasePlacementAndTransition(game, now);
                     return baseHttpGameSnapshot(game);
                 }
+                /** `mixed_pair` 등에서는 HTTP 액션 직후 `updateStrategicGameState` 틱이 생략될 수 있어 여기서 한 번 진행 */
+                updateBaseState(game, now);
                 return {};
             }
             const confirmKey = user.id === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
@@ -980,6 +982,7 @@ export const handleBaseAction = (game: types.LiveGameSession, action: types.Serv
                 resolveBasePlacementAndTransition(game, now);
                 return baseHttpGameSnapshot(game);
             }
+            updateBaseState(game, now);
             return {};
         }
         case 'SUBMIT_BASE_STONE_COLOR_CHOICE': {

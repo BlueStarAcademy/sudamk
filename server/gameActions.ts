@@ -1591,7 +1591,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         }
 
         // 베이스 전·덤 단계: 메인 루프 틱이 밀리면 배치 확정·선호 색·동색 입찰이 한 박자 늦게 반영될 수 있음 → 액션 직후 한 틱 적용.
-        // (싱글/탑·모험·길드 AI뿐 아니라 **PVP 인간 대 인간**도 동일 — 두 번째 색 선택 직후 즉시 전환)
+        // (싱글/탑·모험·길드 AI뿐 아니라 **PVP·페어 mixed_pair 인간 대전**도 동일 — 두 번째 색 선택 직후 즉시 전환)
         const strategicBasePrePlayStatuses = new Set<string>([
             'base_placement',
             'base_stone_color_choice',
@@ -1617,7 +1617,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             strategicBasePrePlayStatuses.has(game.gameStatus);
         const needsPvpHumanBaseStrategicTick =
             arenaPolicy.kind !== 'singleplayer' &&
-            arenaPolicy.matchAxis === 'pvp' &&
+            (arenaPolicy.matchAxis === 'pvp' || arenaPolicy.matchAxis === 'mixed_pair') &&
             isStrategicBaseOrMixWithBase &&
             strategicBasePrePlayStatuses.has(game.gameStatus);
         if (
