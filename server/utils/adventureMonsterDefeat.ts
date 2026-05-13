@@ -18,7 +18,7 @@ import { applyRegionalSpecialtyBuffTierGrants } from '../../utils/adventureRegio
 import * as effectService from '../effectService.js';
 import { bumpAdventureMapKeyProgressOnMonsterDefeat } from './adventureMapKeysAndTreasure.js';
 
-const ALLOWED_MODES = new Set(['classic', 'capture', 'base', 'hidden', 'missile']);
+const ALLOWED_MODES = new Set(['classic', 'capture', 'base', 'hidden', 'missile', 'speed']);
 
 /** RECORD / 배틀 시작 공통: 도감·스테이지·룰 검증. 오류 시 한글 메시지 반환 */
 export function assertValidAdventureMonsterRef(params: {

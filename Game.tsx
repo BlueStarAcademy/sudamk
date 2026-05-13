@@ -2539,6 +2539,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             settings.features.moveConfirmButtonBox &&
             settings.features.mobileConfirm &&
             isMyTurn &&
+            gameStatus !== 'base_placement' &&
             !isItemModeActive
         ) {
             if (

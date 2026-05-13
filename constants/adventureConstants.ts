@@ -7,7 +7,7 @@ import {
 } from './adventureMonstersCodex.js';
 import { GameMode } from '../types/index.js';
 
-export type AdventureMonsterBattleMode = 'classic' | 'capture' | 'base' | 'hidden' | 'missile';
+export type AdventureMonsterBattleMode = 'classic' | 'capture' | 'base' | 'hidden' | 'missile' | 'speed';
 
 /** 맵 몬스터 룰 → 전략바둑 `GameMode` */
 export function adventureBattleModeToGameMode(mode: AdventureMonsterBattleMode): GameMode {
@@ -22,6 +22,8 @@ export function adventureBattleModeToGameMode(mode: AdventureMonsterBattleMode):
             return GameMode.Hidden;
         case 'missile':
             return GameMode.Missile;
+        case 'speed':
+            return GameMode.Speed;
         default:
             return GameMode.Standard;
     }
@@ -209,6 +211,7 @@ export const ADVENTURE_MONSTER_MODE_LABELS: Record<AdventureMonsterBattleMode, s
     base: '베이스',
     hidden: '히든',
     missile: '미사일',
+    speed: '스피드',
 };
 
 /** 맵·챕터 목록 등에서 몬스터 이름 옆 한 글자 룰 표기 */
@@ -218,6 +221,7 @@ export const ADVENTURE_MONSTER_MODE_BADGE_SHORT: Record<AdventureMonsterBattleMo
     base: '베',
     hidden: '히',
     missile: '미',
+    speed: '속',
 };
 
 export const ADVENTURE_MONSTER_MODES: readonly AdventureMonsterBattleMode[] = [
@@ -226,6 +230,7 @@ export const ADVENTURE_MONSTER_MODES: readonly AdventureMonsterBattleMode[] = [
     'base',
     'hidden',
     'missile',
+    'speed',
 ];
 
 /** 스테이지 N → 몬스터 레벨 (N*10-9)~(N*10) */

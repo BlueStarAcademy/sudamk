@@ -146,6 +146,8 @@ function resolveAdventureMonsterBattleModeForSummary(
             return 'hidden';
         case GameMode.Missile:
             return 'missile';
+        case GameMode.Speed:
+            return 'speed';
         default:
             return null;
     }

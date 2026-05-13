@@ -33,6 +33,15 @@ const skipBaseStartConfirmationDeadline = (game: types.LiveGameSession) =>
 
 const shouldUseBaseSetupCountdown = (game: types.LiveGameSession) => !game.isAiGame && !isAdventureBaseGame(game);
 
+const isAiLikeParticipantId = (id?: string | null): boolean =>
+    !!id && (id === aiUserId || String(id).startsWith('dungeon-bot-'));
+
+const resolveAiParticipantId = (game: types.LiveGameSession): string | null => {
+    if (isAiLikeParticipantId(game.player1.id)) return game.player1.id;
+    if (isAiLikeParticipantId(game.player2.id)) return game.player2.id;
+    return null;
+};
+
 /**
  * 배치 단계 임시 좌석으로 p1/p2 키의 돌 색을 정한다.
  * - 본대국 좌석(`blackPlayerId`/`whitePlayerId`)은 색 확정 전에는 비어 있어야 하므로 절대 읽지 않는다.
@@ -94,8 +103,8 @@ const enterBaseGameStartConfirmation = (game: types.LiveGameSession, now: number
     game.revealEndTime = skipBaseStartConfirmationDeadline(game) ? undefined : now + 30000;
     game.preGameConfirmations = { [p1Id]: false, [p2Id]: false };
     if (game.isAiGame) {
-        const aiId = p1Id === aiUserId ? p1Id : p2Id;
-        game.preGameConfirmations[aiId] = true;
+        const aiId = resolveAiParticipantId(game);
+        if (aiId) game.preGameConfirmations[aiId] = true;
     }
     game.turnDeadline = undefined;
     game.turnStartTime = undefined;
@@ -125,13 +134,16 @@ export const initializeBase = (game: types.LiveGameSession, now: number) => {
     // 싱글플레이는 유저가 보이지 않는 AI 선점 좌표를 클릭해 400이 나는 것을 막기 위해
     // 유저 배치 확정 시 resolveBasePlacementAndTransition에서 AI 부족분을 채운다.
     if (game.isAiGame && !game.isSinglePlayer) {
-        const aiBaseKey: 'baseStones_p1' | 'baseStones_p2' = game.player1.id === aiUserId ? 'baseStones_p1' : 'baseStones_p2';
-        placeRemainingStonesRandomly(game, aiBaseKey);
-        const aiId = p1Id === aiUserId ? p1Id : p2Id;
-        game.basePlacementReady![aiId] = true;
+        const aiId = resolveAiParticipantId(game);
+        if (aiId) {
+            const aiBaseKey: 'baseStones_p1' | 'baseStones_p2' =
+                aiId === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
+            placeRemainingStonesRandomly(game, aiBaseKey);
+            game.basePlacementReady![aiId] = true;
+        }
     } else if (game.isAiGame) {
-        const aiId = p1Id === aiUserId ? p1Id : p2Id;
-        game.basePlacementReady![aiId] = true;
+        const aiId = resolveAiParticipantId(game);
+        if (aiId) game.basePlacementReady![aiId] = true;
     }
 };
 
@@ -643,9 +655,9 @@ const resolveBaseStoneColorChoicePhase = (game: types.LiveGameSession, now: numb
     if (!game.baseStoneColorChoices) {
         game.baseStoneColorChoices = { [p1]: null, [p2]: null };
     }
-    const aiId = game.player1.id === aiUserId ? game.player1.id : game.player2.id;
+    const aiId = resolveAiParticipantId(game);
     const humanId = aiId === p1 ? p2 : p1;
-    if (game.isAiGame) {
+    if (game.isAiGame && aiId) {
         const humanChoice = game.baseStoneColorChoices[humanId];
         if (humanChoice != null && game.baseStoneColorChoices[aiId] == null) {
             game.baseStoneColorChoices[aiId] = pickBlackOrWhiteFromDeterministicSeed(`${game.id}:baseAiStonePref:${humanId}:${humanChoice}`);
@@ -766,13 +778,15 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
         case 'base_same_color_points_bid': {
             const lockedSame = game.baseSameColorTieColor;
             if (game.isAiGame && game.komiBids) {
-                const aiId = game.player1.id === aiUserId ? game.player1.id : game.player2.id;
-                const humanId = aiId === p1Id ? p2Id : p1Id;
-                if (lockedSame != null && game.komiBids[humanId] != null && game.komiBids[aiId] == null) {
-                    const fromStage = (game.settings as types.GameSettings | undefined)?.singlePlayerAiBaseKomiBid;
-                    const humanK = game.komiBids[humanId]!.komi;
-                    const aiKomi = pickAiKomiValueAvoiding(fromStage, Number.isFinite(humanK) ? humanK : undefined);
-                    game.komiBids[aiId] = { color: lockedSame, komi: Math.min(100, Math.max(0, Math.floor(aiKomi))) };
+                const aiId = resolveAiParticipantId(game);
+                if (aiId) {
+                    const humanId = aiId === p1Id ? p2Id : p1Id;
+                    if (lockedSame != null && game.komiBids[humanId] != null && game.komiBids[aiId] == null) {
+                        const fromStage = (game.settings as types.GameSettings | undefined)?.singlePlayerAiBaseKomiBid;
+                        const humanK = game.komiBids[humanId]!.komi;
+                        const aiKomi = pickAiKomiValueAvoiding(fromStage, Number.isFinite(humanK) ? humanK : undefined);
+                        game.komiBids[aiId] = { color: lockedSame, komi: Math.min(100, Math.max(0, Math.floor(aiKomi))) };
+                    }
                 }
             }
             const bothHaveBid = game.komiBids?.[p1Id] != null && game.komiBids?.[p2Id] != null;
@@ -925,8 +939,8 @@ export const handleBaseAction = (game: types.LiveGameSession, action: types.Serv
                 if (!game.basePlacementReady) {
                     game.basePlacementReady = { [game.player1.id]: false, [game.player2.id]: false };
                     if (game.isAiGame) {
-                        const aiId = game.player1.id === aiUserId ? game.player1.id : game.player2.id;
-                        game.basePlacementReady[aiId] = true;
+                        const aiId = resolveAiParticipantId(game);
+                        if (aiId) game.basePlacementReady[aiId] = true;
                     }
                 }
                 game.basePlacementReady[game.player1.id] = true;
@@ -940,8 +954,8 @@ export const handleBaseAction = (game: types.LiveGameSession, action: types.Serv
             if (!game.basePlacementReady) {
                 game.basePlacementReady = { [game.player1.id]: false, [game.player2.id]: false };
                 if (game.isAiGame) {
-                    const aiId = game.player1.id === aiUserId ? game.player1.id : game.player2.id;
-                    game.basePlacementReady[aiId] = true;
+                    const aiId = resolveAiParticipantId(game);
+                    if (aiId) game.basePlacementReady[aiId] = true;
                 }
             }
             game.basePlacementReady[user.id] = true;

@@ -1859,11 +1859,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                                 <span className={`${turnInfoTotalSize} text-gray-400`}>/ {strategicLobbyTurnInfo.total}</span>
                             </div>
                         )}
-                        {strategicLobbyTurnInfo.type === 'scoring_limit' && !settings.pairGame ? (
-                            <span className="mt-0.5 max-w-[10rem] text-[0.58rem] leading-snug text-stone-400 sm:max-w-[12rem] sm:text-[0.62rem]">
-                                양측 연속 패스 시 수 한도 전에도 계가합니다
-                            </span>
-                        ) : null}
                     </div>
                 </div>
             );
@@ -2160,11 +2155,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                                 <span className={`${turnInfoTotalSize} text-gray-400`}>/ {strategicLobbyTurnInfo.total}</span>
                             </div>
                         )}
-                        {strategicLobbyTurnInfo.type === 'scoring_limit' && !settings.pairGame ? (
-                            <span className="mt-0.5 max-w-[10rem] text-[0.58rem] leading-snug text-stone-400 sm:max-w-[12rem] sm:text-[0.62rem]">
-                                양측 연속 패스 시 수 한도 전에도 계가합니다
-                            </span>
-                        ) : null}
                     </div>
                 </div>
             )}

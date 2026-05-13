@@ -4,7 +4,7 @@ import type { GameSettings } from '../types/entities.js';
 /** `adventureMonstersCodex`의 `isAdventureBoss`와 동기화 — 놀이동산 19줄·고보상 전용 */
 export const ADVENTURE_BOSS_CODEX_IDS = new Set<string>(['amuse_09']);
 
-export type AdventureMonsterBattleModeKey = 'classic' | 'capture' | 'base' | 'hidden' | 'missile';
+export type AdventureMonsterBattleModeKey = 'classic' | 'capture' | 'base' | 'hidden' | 'missile' | 'speed';
 
 export function isAdventureBossCodexId(codexId: string): boolean {
     return ADVENTURE_BOSS_CODEX_IDS.has(codexId);
@@ -111,9 +111,9 @@ export function resolveAdventureBoardSize(
 /** 19줄: 따내기·베이스·히든 불가 */
 export function getAdventureAllowedBattleModes(boardSize: number): AdventureMonsterBattleModeKey[] {
     if (boardSize === 19) {
-        return ['classic', 'missile'];
+        return ['classic', 'missile', 'speed'];
     }
-    return ['classic', 'capture', 'base', 'hidden', 'missile'];
+    return ['classic', 'capture', 'base', 'hidden', 'missile', 'speed'];
 }
 
 type BoardRuleRow = {

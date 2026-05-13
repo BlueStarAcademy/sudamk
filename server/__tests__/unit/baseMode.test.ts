@@ -218,6 +218,31 @@ describe('base mode', () => {
         expect(game.gameStatus === 'base_same_color_points_bid' ? game.komiBiddingDeadline : undefined).toBeUndefined();
     });
 
+    it('marks dungeon-bot AI ready in adventure base placement', () => {
+        const adventureBotId = 'dungeon-bot-adventure-1';
+        const game = makeBaseGame({
+            id: 'adventure-base-flow-test',
+            isSinglePlayer: true,
+            isAiGame: true,
+            gameCategory: GameCategory.Adventure,
+            player2: makeUser(adventureBotId),
+            settings: { boardSize: 9, baseStones: 2, komi: 0.5 } as any,
+        });
+
+        initializeBase(game, Date.now());
+        expect(game.basePlacementReady?.[adventureBotId]).toBe(true);
+
+        game.baseStones_p1 = [{ x: 2, y: 2 }, { x: 2, y: 6 }];
+        handleBaseAction(
+            game,
+            { type: 'CONFIRM_BASE_PLACEMENT_COMPLETE', userId: game.player1.id, payload: { gameId: game.id } } as any,
+            game.player1
+        );
+        updateBaseState(game, Date.now());
+
+        expect(game.gameStatus).toBe('base_stone_color_choice');
+    });
+
     it('keeps base markers unless the base stone is actually captured', () => {
         const game = {
             id: 'base-marker-test',
