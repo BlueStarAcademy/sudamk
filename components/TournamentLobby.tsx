@@ -23,6 +23,8 @@ import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { normalizeDungeonProgress, isStageCleared } from '../utils/championshipDungeonProgress.js';
 import HomeNativeMergedEquipmentAbilityPanel from './HomeNativeMergedEquipmentAbilityPanel.js';
 import { championshipKataAbilityScore } from '../shared/constants/championshipRealMatch.js';
+import { specialResourceIcons } from './resourceIcons.js';
+import ChampionshipShopPanel from './championship/ChampionshipShopPanel.js';
 
 /** 챔피언십 로비 패널: 경기장 배경 블러(전략/놀이 대기실과 동일 계열) */
 const CHAMPIONSHIP_PANEL_GLASS =
@@ -1055,8 +1057,8 @@ const TournamentLobby: React.FC = () => {
                         championshipPhaseAbilityScores={championshipPhaseAbilityScores}
                     />
 
-                    {/* 입장 카드: PVE / PVP 탭 + 스크롤 */}
-                    <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-1 overflow-hidden">
+                    {/* 입장 카드 + 챔피언십 상점 (네이티브 모바일) */}
+                    <div className="grid min-h-0 w-full min-w-0 flex-1 grid-rows-[auto_minmax(0,1fr)_minmax(11rem,0.48fr)] gap-1 overflow-hidden">
                         <div
                             role="tablist"
                             aria-label="챔피언십 입장 종류"
@@ -1090,7 +1092,7 @@ const TournamentLobby: React.FC = () => {
                             </button>
                         </div>
                         <div
-                            className={`flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-lg border border-stone-600/40 p-[clamp(0.2rem,0.85dvh,0.45rem)] shadow-inner [-webkit-overflow-scrolling:touch] ${CHAMPIONSHIP_PANEL_GLASS} bg-stone-950/45`}
+                            className={`flex min-h-0 w-full min-w-0 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-lg border border-stone-600/40 p-[clamp(0.2rem,0.85dvh,0.45rem)] shadow-inner [-webkit-overflow-scrolling:touch] ${CHAMPIONSHIP_PANEL_GLASS} bg-stone-950/45`}
                             role="tabpanel"
                         >
                             {championshipLobbyEntryTab === 'pve' ? (
@@ -1149,6 +1151,38 @@ const TournamentLobby: React.FC = () => {
                                 </div>
                             )}
                         </div>
+                        <section
+                            className="relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_40px_-20px_rgba(0,0,0,0.7)] ring-1 ring-amber-100/10"
+                            aria-label="챔피언십 상점"
+                        >
+                            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
+                            <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
+                            <div className="relative flex shrink-0 items-center justify-between gap-2 border-b border-amber-500/25 px-2 py-1.5">
+                                <h2 className="min-w-0 flex-1 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-sm font-bold tracking-tight text-transparent">
+                                    챔피언십 상점
+                                </h2>
+                                <div
+                                    className="flex shrink-0 items-center gap-1 rounded-full border border-amber-400/35 bg-black/35 py-0.5 pl-1 pr-1.5 shadow-inner"
+                                    title="챔프 코인"
+                                >
+                                    <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/90">
+                                        <img
+                                            src={specialResourceIcons.champCoins}
+                                            alt="챔프 코인"
+                                            className="h-4 w-4 object-contain"
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                    </div>
+                                    <span className="text-xs font-bold tabular-nums text-amber-100">
+                                        {(currentUserWithStatus.champCoins ?? 0).toLocaleString()}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-1.5 pb-1.5 pt-1">
+                                <ChampionshipShopPanel currentUser={currentUserWithStatus} onAction={handlers.handleAction} />
+                            </div>
+                        </section>
                     </div>
                 </div>
             </>
@@ -1197,23 +1231,30 @@ const TournamentLobby: React.FC = () => {
                             >
                                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
                                 <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
-                                <div className="relative shrink-0 border-b border-amber-500/25 px-2.5 py-2">
-                                    <h2 className="bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-base font-bold tracking-tight text-transparent sm:text-lg">
+                                <div className="relative flex shrink-0 items-center justify-between gap-2 border-b border-amber-500/25 px-2.5 py-2">
+                                    <h2 className="min-w-0 flex-1 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-base font-bold tracking-tight text-transparent sm:text-lg">
                                         챔피언십 상점
                                     </h2>
-                                </div>
-                                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden p-2.5 [-webkit-overflow-scrolling:touch]">
                                     <div
-                                        className="grid min-h-0 flex-1 auto-rows-fr grid-cols-2 gap-2 sm:grid-cols-3"
-                                        aria-hidden
+                                        className="flex shrink-0 items-center gap-1.5 rounded-full border border-amber-400/35 bg-black/35 py-1 pl-1.5 pr-2 shadow-inner"
+                                        title="챔프 코인"
                                     >
-                                        {Array.from({ length: 6 }, (_, i) => (
-                                            <div
-                                                key={i}
-                                                className="min-h-[4.5rem] rounded-lg border border-dashed border-stone-500/35 bg-black/25 sm:min-h-[5rem]"
+                                        <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/90">
+                                            <img
+                                                src={specialResourceIcons.champCoins}
+                                                alt="챔프 코인"
+                                                className="h-5 w-5 object-contain"
+                                                loading="lazy"
+                                                decoding="async"
                                             />
-                                        ))}
+                                        </div>
+                                        <span className="font-bold tabular-nums text-amber-100">
+                                            {(currentUserWithStatus.champCoins ?? 0).toLocaleString()}
+                                        </span>
                                     </div>
+                                </div>
+                                <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2 pb-2.5 pt-2">
+                                    <ChampionshipShopPanel currentUser={currentUserWithStatus} onAction={handlers.handleAction} />
                                 </div>
                             </section>
                         </div>

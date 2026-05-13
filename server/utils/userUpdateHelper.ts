@@ -33,6 +33,7 @@ export function getSelectiveUserUpdate(
         
         // 상점 관련
         'BUY_SHOP_ITEM': ['inventory', 'gold', 'diamonds', 'quests'],
+        'BUY_CHAMPIONSHIP_SHOP_ITEM': ['inventory', 'champCoins', 'championshipShopWeekPurchases', 'quests'],
         'BUY_MATERIAL_BOX': ['inventory', 'gold', 'diamonds', 'dailyShopPurchases', 'quests'],
         'BUY_CONDITION_POTION': ['inventory', 'gold', 'dailyShopPurchases'],
         'BUY_TOWER_ITEM': ['inventory', 'gold', 'diamonds', 'dailyShopPurchases'],
@@ -157,7 +158,7 @@ export function getSelectiveUserUpdate(
         'ADMIN_RESET_ALL_USERS_STRATEGIC_RANKING_TO_BASE': [],
         'CLAIM_TOURNAMENT_REWARD': ['inventory', 'gold', 'diamonds', 'tournamentScore', 'cumulativeTournamentScore', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament', 'dungeonProgress'],
         'START_DUNGEON_STAGE': ['dungeonProgress', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament'],
-        'COMPLETE_DUNGEON_STAGE': ['dungeonProgress', 'inventory', 'gold', 'diamonds', 'tournamentScore', 'cumulativeTournamentScore', 'dailyDungeonScore', 'quests', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodPlayedDate', 'lastNationalPlayedDate', 'lastWorldPlayedDate', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament'],
+        'COMPLETE_DUNGEON_STAGE': ['dungeonProgress', 'inventory', 'gold', 'diamonds', 'champCoins', 'tournamentScore', 'cumulativeTournamentScore', 'dailyDungeonScore', 'quests', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodPlayedDate', 'lastNationalPlayedDate', 'lastWorldPlayedDate', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament'],
         
         // 싱글플레이어 관련
         'START_SINGLE_PLAYER_GAME': ['actionPoints', 'singlePlayerProgress'],

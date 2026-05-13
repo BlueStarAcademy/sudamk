@@ -5577,6 +5577,7 @@ export const useApp = () => {
                         'TOWER_ADD_TURNS',
                         'COMPLETE_DUNGEON_STAGE',
                         'BUY_SHOP_ITEM',
+                        'BUY_CHAMPIONSHIP_SHOP_ITEM',
                         'BUY_MATERIAL_BOX',
                         'BUY_CASH_PACKAGE',
                         'BUY_VIP_PACKAGE',
@@ -5730,6 +5731,7 @@ export const useApp = () => {
                     const actionsThatShouldHaveUpdatedUser = [
                         'TOGGLE_EQUIP_ITEM', 'UNBIND_EQUIPMENT', 'MARK_ITEM_EXCHANGE_LISTED', 'UNMARK_ITEM_EXCHANGE_LISTED', 'USE_ITEM', 'USE_ALL_ITEMS_OF_TYPE', 'ENHANCE_ITEM',
                         'COMBINE_ITEMS', 'DISASSEMBLE_ITEM', 'CRAFT_MATERIAL', 'BUY_SHOP_ITEM',
+                        'BUY_CHAMPIONSHIP_SHOP_ITEM',
                         'BUY_CASH_PACKAGE',
                         'BUY_VIP_PACKAGE',
                         'CANCEL_VIP_SHOP_AUTO_RENEW',

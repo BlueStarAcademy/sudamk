@@ -3,7 +3,7 @@ import * as db from '../db.js';
 import { type ServerAction, type User, type VolatileState, TournamentType, PlayerForTournament, InventoryItem, InventoryItemType, TournamentState, LeagueTier, CoreStat, EquipmentSlot } from '../../types/index.js';
 import { ItemGrade } from '../../types/enums.js';
 import * as types from '../../types/index.js';
-import { TOURNAMENT_DEFINITIONS, BASE_TOURNAMENT_REWARDS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, BOT_NAMES, AVATAR_POOL, BORDER_POOL, DUNGEON_STAGE_BOT_STATS, DUNGEON_TYPE_MULTIPLIER, DUNGEON_RANK_REWARD_MULTIPLIER, DUNGEON_DEFAULT_REWARD_MULTIPLIER, DUNGEON_STAGE_BASE_REWARDS_GOLD, DUNGEON_STAGE_BASE_REWARDS_MATERIAL, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT, DUNGEON_STAGE_BASE_SCORE, DUNGEON_RANK_SCORE_BONUS, DUNGEON_DEFAULT_SCORE_BONUS, getDungeonRankRewardNeighborhood, getDungeonRankRewardNational, getDungeonRankRewardWorld } from '../../shared/constants';
+import { TOURNAMENT_DEFINITIONS, BASE_TOURNAMENT_REWARDS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, BOT_NAMES, AVATAR_POOL, BORDER_POOL, DUNGEON_STAGE_BOT_STATS, DUNGEON_TYPE_MULTIPLIER, DUNGEON_RANK_REWARD_MULTIPLIER, DUNGEON_DEFAULT_REWARD_MULTIPLIER, DUNGEON_STAGE_BASE_REWARDS_GOLD, DUNGEON_STAGE_BASE_REWARDS_MATERIAL, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT, DUNGEON_STAGE_BASE_SCORE, DUNGEON_RANK_SCORE_BONUS, DUNGEON_DEFAULT_SCORE_BONUS, getDungeonRankRewardNeighborhood, getDungeonRankRewardNational, getDungeonRankRewardWorld, rollDungeonStageChampCoins } from '../../shared/constants';
 import { updateQuestProgress } from '../questService.js';
 import { createItemFromTemplate, SHOP_ITEMS } from '../shop.js';
 import { isSameDayKST, getStartOfDayKST } from '../../utils/timeUtils.js';
@@ -2073,7 +2073,10 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             const userWins = myWL?.wins ?? userPlayer?.wins ?? 0;
             const userLosses = myWL?.losses ?? userPlayer?.losses ?? 0;
 
-            console.log(`[COMPLETE_DUNGEON_STAGE] User rank: ${userRank}, cleared: ${cleared}, stage: ${stage}, dungeonType: ${dungeonType}, wins: ${userWins}, losses: ${userLosses}`);
+            const champCoinGrant = rollDungeonStageChampCoins(stage, userWins);
+            freshUser.champCoins = (freshUser.champCoins ?? 0) + champCoinGrant;
+
+            console.log(`[COMPLETE_DUNGEON_STAGE] User rank: ${userRank}, cleared: ${cleared}, stage: ${stage}, dungeonType: ${dungeonType}, wins: ${userWins}, losses: ${userLosses}, champCoins: ${champCoinGrant}`);
             
             // 단계 결과 저장
             if (!dungeonProgress.stageResults[stage]) {
@@ -2085,7 +2088,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             }
             
             // 클리어 성공 시 업데이트 및 보상 지급
-            let rewards: { gold?: number; materials?: Record<string, number>; equipmentBoxes?: Record<string, number>; changeTickets?: number } = {};
+            let rewards: { gold?: number; materials?: Record<string, number>; equipmentBoxes?: Record<string, number>; changeTickets?: number; champCoins?: number } = {};
             let grantedRankReward: { items: Array<{ itemId: string; quantity: number }> } = { items: [] };
             
             // 기본 보상 지급 (각 경기마다 누적된 보상). 골드는 동네바둑리그만, 전국은 재료만, 월드는 장비 드롭만
@@ -2284,6 +2287,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 changeTickets?: number;
                 /** 월드: 실제 지급된 변경권 종류·수량(모달 표시용) */
                 changeTicketGrants?: { name: string; quantity: number }[];
+                champCoins?: number;
             } = {};
             
             if (dungeonState.accumulatedGold) {
@@ -2307,6 +2311,8 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                     baseRewards.changeTicketGrants = worldChangeTicketGrants;
                 }
             }
+
+            baseRewards.champCoins = champCoinGrant;
             
             // 다음 단계 언락 여부 확인 (1·2·3위만 다음 단계 열림)
             const nextStageUnlocked = userRank <= 3 && stage < 10 && dungeonProgress.unlockedStages.includes(stage + 1);
@@ -2355,6 +2361,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                         'inventory',
                         'gold',
                         'diamonds',
+                        'champCoins',
                         'quests',
                         'neighborhoodRewardClaimed',
                         'nationalRewardClaimed',

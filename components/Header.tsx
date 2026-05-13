@@ -22,6 +22,7 @@ const RESOURCE_LABEL: Record<ResourceIconKey, string> = {
 
 const SPECIAL_RESOURCE_LABEL: Record<SpecialResourceIconKey, string> = {
     guildCoins: '길드 코인',
+    champCoins: '챔프 코인',
 };
 
 /**
@@ -359,7 +360,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
     if (!currentUserWithStatus) return null;
 
     const { handleLogout, openProfileEditModal, openMailbox, openSettingsModal, handleAction } = handlers;
-    const { actionPoints, gold, diamonds, guildCoins, isAdmin, avatarId, borderId, mbti, userLevel, guildId } = currentUserWithStatus;
+    const { actionPoints, gold, diamonds, guildCoins, champCoins, isAdmin, avatarId, borderId, mbti, userLevel, guildId } = currentUserWithStatus;
     const guildWarTickets = useGuildWarTicketsRemaining(guildId, handleAction);
     const todayKstBoss = getTodayKSTDateString();
     const guildBossUsedToday =
@@ -393,6 +394,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
         }[] = [
             { key: 'diamonds', icon: resourceIcons.diamonds, label: RESOURCE_LABEL.diamonds, value: safeDiamonds },
             { key: 'guildCoins', icon: specialResourceIcons.guildCoins, label: SPECIAL_RESOURCE_LABEL.guildCoins, value: guildCoins ?? 0 },
+            { key: 'champCoins', icon: specialResourceIcons.champCoins, label: SPECIAL_RESOURCE_LABEL.champCoins, value: champCoins ?? 0 },
         ];
         if (guildId) {
             base.push({
@@ -415,6 +417,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
         guildId,
         guildBossRemaining,
         guildCoins,
+        champCoins,
         guildWarTickets.max,
         guildWarTickets.remaining,
         safeDiamonds,
@@ -424,7 +427,20 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
         <div className="w-max max-w-[min(18rem,calc(100vw-1rem))] rounded-lg border border-color bg-primary py-1.5 shadow-2xl sm:py-2">
             {(isMobile
                 ? mobileAdditionalResources
-                : [{ key: 'guildCoins', icon: specialResourceIcons.guildCoins, label: SPECIAL_RESOURCE_LABEL.guildCoins, value: guildCoins ?? 0 }]
+                : [
+                      {
+                          key: 'guildCoins',
+                          icon: specialResourceIcons.guildCoins,
+                          label: SPECIAL_RESOURCE_LABEL.guildCoins,
+                          value: guildCoins ?? 0,
+                      },
+                      {
+                          key: 'champCoins',
+                          icon: specialResourceIcons.champCoins,
+                          label: SPECIAL_RESOURCE_LABEL.champCoins,
+                          value: champCoins ?? 0,
+                      },
+                  ]
             ).map((resource) => (
                 <div
                     key={resource.key}
@@ -655,28 +671,24 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             <div className="flex min-w-0 w-full max-w-full items-center gap-1">
                                 <ResourceDisplay icon="gold" value={safeGold} dense={dense} />
                                 <ResourceDisplay icon="diamonds" value={safeDiamonds} dense={dense} />
-                                <div
-                                    className={`flex flex-shrink-0 items-center rounded-full bg-tertiary/50 shadow-inner ${
-                                        dense ? 'gap-0.5 py-0.5 pl-0.5 pr-1.5' : 'gap-1 py-1 pl-1 pr-2 sm:gap-2 sm:pr-3'
-                                    }`}
+                                <button
+                                    type="button"
+                                    onClick={() => setIsSpecialResourcesOpen(!isSpecialResourcesOpen)}
+                                    aria-expanded={isSpecialResourcesOpen}
+                                    className={`flex flex-shrink-0 items-center justify-center rounded-full border border-tertiary/40 bg-tertiary/60 shadow-inner transition-all hover:bg-tertiary/80 active:scale-95 ${
+                                        dense ? 'h-7 w-7' : 'h-7 w-7 sm:h-8 sm:w-8'
+                                    } ${isSpecialResourcesOpen ? 'bg-tertiary/80' : ''}`}
+                                    title="길드 코인·챔프 코인"
                                 >
-                                    <div
-                                        className={`bg-primary flex flex-shrink-0 items-center justify-center rounded-full ${
-                                            dense ? 'h-6 w-6' : 'h-7 w-7 text-lg'
+                                    <span
+                                        className={`text-xs text-primary transition-transform duration-200 sm:text-sm ${
+                                            isSpecialResourcesOpen ? 'rotate-180' : ''
                                         }`}
+                                        aria-hidden
                                     >
-                                        <img
-                                            src={specialResourceIcons.guildCoins}
-                                            alt={SPECIAL_RESOURCE_LABEL.guildCoins}
-                                            className={`object-contain ${dense ? 'h-4 w-4' : 'h-5 w-5'}`}
-                                            loading="lazy"
-                                            decoding="async"
-                                        />
-                                    </div>
-                                    <span className={`min-w-0 font-bold text-primary whitespace-nowrap ${dense ? HEADER_RESOURCE_VALUE_CLASS.dense : HEADER_RESOURCE_VALUE_CLASS.pc}`}>
-                                        {(guildCoins ?? 0).toLocaleString()}
+                                        ▼
                                     </span>
-                                </div>
+                                </button>
                             </div>
                         )}
                     </div>

@@ -28,6 +28,7 @@ export interface DungeonStageSummaryModalProps {
         equipmentBoxes?: Record<string, number>;
         changeTickets?: number;
         changeTicketGrants?: { name: string; quantity: number }[];
+        champCoins?: number;
     };
     rankReward?: {
         items?: Array<{ itemId: string; quantity?: number; min?: number; max?: number }>;
@@ -211,6 +212,14 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
             image: '/images/use/change2.webp',
             quantity: baseRewards.changeTickets,
             grade: ItemGrade.Normal,
+        });
+    }
+    if (typeof baseRewards.champCoins === 'number' && baseRewards.champCoins > 0) {
+        rewardItemsMap.set('champ_coins', {
+            name: '챔프 코인',
+            image: '/images/icon/champcoin.webp',
+            quantity: baseRewards.champCoins,
+            displayAmount: baseRewards.champCoins.toLocaleString('ko-KR'),
         });
     }
     if (rankReward?.items) {

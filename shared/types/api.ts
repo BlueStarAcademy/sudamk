@@ -562,6 +562,7 @@ export type ServerAction =
     | { type: 'CLAIM_ACHIEVEMENT_REWARD', payload: { trackId: string; stageIndex: number } }
     // Shop
     | { type: 'BUY_SHOP_ITEM', payload: { itemId: string, quantity: number } }
+    | { type: 'BUY_CHAMPIONSHIP_SHOP_ITEM', payload: { productId: string; quantity?: number } }
     | { type: 'BUY_MATERIAL_BOX', payload: { itemId: string, quantity: number } }
     | { type: 'BUY_TOWER_ITEM', payload: { itemId: string; quantity: number; gameId?: string } }
     | { type: 'BUY_CONSUMABLE', payload: { itemId: string; quantity?: number } }

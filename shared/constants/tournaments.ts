@@ -515,6 +515,45 @@ export const DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT: Record<number, { boxes: { box
     10: { boxes: [{ boxName: '장비 상자 IV', quantity: 3 }], changeTickets: 3 },
 };
 
+/** PVE 챔피언십 단계별 챔프 코인: (단계 범위 내 무작위) + 이번 대회 승리 수 */
+export const DUNGEON_STAGE_CHAMP_COIN_REWARD_RANGE: Record<number, { min: number; max: number }> = {
+    1: { min: 10, max: 15 },
+    2: { min: 13, max: 18 },
+    3: { min: 16, max: 21 },
+    4: { min: 25, max: 30 },
+    5: { min: 30, max: 35 },
+    6: { min: 35, max: 40 },
+    7: { min: 50, max: 55 },
+    8: { min: 55, max: 60 },
+    9: { min: 60, max: 70 },
+    10: { min: 70, max: 100 },
+};
+
+function champCoinRandomInclusive(min: number, max: number): number {
+    const lo = Math.min(min, max);
+    const hi = Math.max(min, max);
+    return lo + Math.floor(Math.random() * (hi - lo + 1));
+}
+
+export function getDungeonChampCoinRewardRangeForStage(stage: number): { min: number; max: number } {
+    const s = Math.max(1, Math.min(10, Math.floor(stage) || 1));
+    return DUNGEON_STAGE_CHAMP_COIN_REWARD_RANGE[s] ?? DUNGEON_STAGE_CHAMP_COIN_REWARD_RANGE[1];
+}
+
+/** 서버 보상 확정: 범위 롤 + 승리 수 합산 */
+export function rollDungeonStageChampCoins(stage: number, wins: number): number {
+    const r = getDungeonChampCoinRewardRangeForStage(stage);
+    const w = Math.max(0, Math.floor(Number(wins) || 0));
+    return champCoinRandomInclusive(r.min, r.max) + w;
+}
+
+/** 획득 보상 패널용: 수령 전 `{min}~{max}+승{w}` */
+export function formatDungeonChampCoinRewardPreviewLabel(stage: number, wins: number): string {
+    const r = getDungeonChampCoinRewardRangeForStage(stage);
+    const w = Math.max(0, Math.floor(Number(wins) || 0));
+    return `${r.min}~${r.max}+승${w}`;
+}
+
 // 일일 랭킹 점수: 단계별 기본 점수 (레거시, DUNGEON_STAGE_1_SCORE_BY_TYPE + 배율 사용 권장)
 export const DUNGEON_STAGE_BASE_SCORE: Record<number, number> = {
     1: 10,

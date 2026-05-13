@@ -376,6 +376,7 @@ export type TournamentState = {
             equipmentBoxes?: Record<string, number>;
             changeTickets?: number;
             changeTicketGrants?: { name: string; quantity: number }[];
+            champCoins?: number;
         };
         rankReward?: {
             items?: Array<{ itemId: string; quantity?: number; min?: number; max?: number }>;
@@ -667,6 +668,10 @@ export type User = {
   lastLoginAt?: number;
   dailyDonations?: { gold: number; diamond: number; date: number };
   guildCoins?: number;
+  /** 챔피언십 상점: 주간 한도 상품 구매 수 (키: 상품 id, date: 마지막 구매 시각 ms — `isDifferentWeekKST`로 주 초기화) */
+  championshipShopWeekPurchases?: Record<string, { quantity: number; date: number }>;
+  /** 챔피언십 상점 등 전용 재화 */
+  champCoins?: number;
   guildBossAttempts?: number;
   /** KST 기준 마지막 보스전 참여일 'YYYY-MM-DD' (일일 2회 제한용) */
   guildBossLastAttemptDayKST?: string;

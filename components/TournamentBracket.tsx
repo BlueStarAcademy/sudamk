@@ -17,7 +17,7 @@ import {
     EQUIPMENT_GRADE_LABEL_KO,
     getChampionshipArenaBackgroundUrl,
 } from '../constants';
-import { getDungeonRankRewardForDisplay, getDungeonRankRewardRangeForDisplay } from '../shared/constants/tournaments';
+import { getDungeonRankRewardForDisplay, getDungeonRankRewardRangeForDisplay, formatDungeonChampCoinRewardPreviewLabel } from '../shared/constants/tournaments';
 import Avatar from './Avatar.js';
 import RadarChart from './RadarChart.js';
 import SgfViewer from './SgfViewer.js';
@@ -3307,6 +3307,26 @@ const FinalRewardPanel: React.FC<{
                 })();
                 const hasWorldChangeTickets = worldChangeTicketChips.length > 0;
 
+                const champCoinsExactClaimed =
+                    typeof claimedRewardSummary?.baseRewards?.champCoins === 'number'
+                        ? claimedRewardSummary.baseRewards.champCoins
+                        : undefined;
+                let champWinsPreview = 0;
+                if (champCoinsExactClaimed == null) {
+                    for (const r of tournamentState.rounds || []) {
+                        for (const m of r.matches || []) {
+                            if (m.isFinished && m.isUserMatch && m.winner?.id === currentUser.id) {
+                                champWinsPreview++;
+                            }
+                        }
+                    }
+                }
+                const showChampCoinChip =
+                    isDungeonMode &&
+                    effectiveStageAttempt >= 1 &&
+                    effectiveStageAttempt <= 10 &&
+                    (type === 'neighborhood' || type === 'national' || type === 'world');
+
                 const hasAnyMatchReward =
                     hasNeighborhoodGold ||
                     hasNationalMergedMaterials ||
@@ -3314,7 +3334,8 @@ const FinalRewardPanel: React.FC<{
                     hasLegacyEquipBoxes ||
                     hasWorldEquipItemsList ||
                     hasWorldEquipDropsList ||
-                    hasWorldChangeTickets;
+                    hasWorldChangeTickets ||
+                    showChampCoinChip;
 
                 if (!hasAnyMatchReward && !showRankReward) {
                     return (
@@ -3467,6 +3488,25 @@ const FinalRewardPanel: React.FC<{
                                     </div>
                                 );
                             })}
+
+                        {/* PVE 공통: 챔프 코인 (완료 수령 시 확정, 그 전에는 단계 범위 + 현재 승) */}
+                        {showChampCoinChip && (
+                            <div
+                                className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg border-2 border-amber-400/70 bg-amber-950/45"
+                                title={
+                                    champCoinsExactClaimed != null
+                                        ? `챔프 코인 ${champCoinsExactClaimed.toLocaleString('ko-KR')}개`
+                                        : `챔프 코인: 단계별 무작위 + 승리 수 (현재 ${formatDungeonChampCoinRewardPreviewLabel(effectiveStageAttempt, champWinsPreview)})`
+                                }
+                            >
+                                <img src="/images/icon/champcoin.webp" alt="" className="h-7 w-7 object-contain" loading="lazy" decoding="async" />
+                                <span className="absolute -bottom-0.5 -right-0.5 max-w-[2.75rem] truncate rounded-tl bg-black/80 px-0.5 text-[9px] font-bold leading-tight text-amber-100 shadow-sm">
+                                    {champCoinsExactClaimed != null
+                                        ? champCoinsExactClaimed.toLocaleString('ko-KR')
+                                        : formatDungeonChampCoinRewardPreviewLabel(effectiveStageAttempt, champWinsPreview)}
+                                </span>
+                            </div>
+                        )}
 
                         {/* 6) 순위 보상 — 매 경기 보상과 같은 줄에 이어 붙는다. 호화 amber 테두리로 시각적으로 구분 */}
                         {showRankReward && rankRewardForDisplay!.reward.items!.map((it, idx) => {
@@ -4639,6 +4679,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             equipmentBoxes?: Record<string, number>;
             changeTickets?: number;
             changeTicketGrants?: { name: string; quantity: number }[];
+            champCoins?: number;
         };
         rankReward?: {
             items?: Array<{ itemId: string; quantity?: number; min?: number; max?: number }>;
@@ -4802,6 +4843,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 equipmentBoxes?: Record<string, number>;
                 changeTickets?: number;
                 changeTicketGrants?: { name: string; quantity: number }[];
+                champCoins?: number;
             } = {};
             
             if (tournament.accumulatedGold) {
@@ -4861,6 +4903,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     equipmentBoxes?: Record<string, number>;
                     changeTickets?: number;
                     changeTicketGrants?: { name: string; quantity: number }[];
+                    champCoins?: number;
                 },
                 rankReward: res.grantedRankReward ? { items: res.grantedRankReward.items.map(it => ({ itemId: it.itemId, quantity: it.quantity })) } : undefined,
                 grantedEquipmentDrops: res.grantedEquipmentDrops,

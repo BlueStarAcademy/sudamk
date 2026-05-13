@@ -213,6 +213,8 @@ export const createDefaultUser = (id: string, username: string, nickname: string
         onboardingCompletionRewardClaimed: false,
         guildId: undefined,
         guildCoins: 0,
+        champCoins: 0,
+        championshipShopWeekPurchases: {},
         guildBossAttempts: 0,
         lastLoginAt: now,
         dailyDonations: { gold: 0, diamond: 0, date: 0 },

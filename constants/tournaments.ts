@@ -128,6 +128,10 @@ export {
     DUNGEON_STAGE_BASE_REWARDS_GOLD,
     DUNGEON_STAGE_BASE_REWARDS_MATERIAL,
     DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT,
+    DUNGEON_STAGE_CHAMP_COIN_REWARD_RANGE,
+    getDungeonChampCoinRewardRangeForStage,
+    rollDungeonStageChampCoins,
+    formatDungeonChampCoinRewardPreviewLabel,
 } from '../shared/constants/tournaments.js';
 
 // 일일 랭킹 점수: 단계별 기본 점수

@@ -43,6 +43,8 @@ import * as guildService from '../guildService.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
 import { ItemGrade } from '../../shared/types/enums.js';
 import { CONDITION_POTION_SHOP_GOLD_BY_TYPE } from '../../shared/constants/conditionPotionShop.js';
+import { getChampionshipShopProductById } from '../../shared/constants/championshipShop.js';
+import { openChampionshipEquipmentBox } from '../shop.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -116,6 +118,99 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
     const { type, payload } = action as any;
 
     switch (type) {
+        case 'BUY_CHAMPIONSHIP_SHOP_ITEM': {
+            try {
+                const { productId, quantity: rawQty } = payload as { productId?: string; quantity?: number };
+                const quantity = typeof rawQty === 'number' && rawQty > 0 ? Math.min(99, Math.floor(rawQty)) : 1;
+                if (!productId || typeof productId !== 'string') {
+                    return { error: '유효하지 않은 요청입니다.' };
+                }
+                const product = getChampionshipShopProductById(productId);
+                if (!product) {
+                    return { error: '유효하지 않은 상품입니다.' };
+                }
+                const totalCost = product.champCoins * quantity;
+                if (!user.isAdmin && (user.champCoins ?? 0) < totalCost) {
+                    return { error: '챔프 코인이 부족합니다.' };
+                }
+
+                const now = Date.now();
+                if (!user.championshipShopWeekPurchases) user.championshipShopWeekPurchases = {};
+
+                if (product.weeklyLimit != null && product.weeklyLimit > 0) {
+                    const rec = user.championshipShopWeekPurchases[productId];
+                    let used = 0;
+                    if (rec && !isDifferentWeekKST(rec.date, now)) {
+                        used = rec.quantity;
+                    }
+                    if (!user.isAdmin && used + quantity > product.weeklyLimit) {
+                        return { error: '이번 주 구매 한도를 초과했습니다.' };
+                    }
+                }
+
+                const obtainedItems: InventoryItem[] = [];
+                for (let q = 0; q < quantity; q++) {
+                    if (product.tab === 'equipment') {
+                        obtainedItems.push(openChampionshipEquipmentBox(product.boxLevel));
+                    } else {
+                        const template = MATERIAL_ITEMS[product.materialName];
+                        if (!template) {
+                            return { error: '상품 데이터를 찾을 수 없습니다.' };
+                        }
+                        obtainedItems.push({
+                            ...template,
+                            id: `item-${randomUUID()}`,
+                            createdAt: Date.now(),
+                            quantity: 1,
+                            isEquipped: false,
+                            level: 1,
+                            stars: 0,
+                        } as InventoryItem);
+                    }
+                }
+
+                if (!user.inventory) user.inventory = [];
+                if (!user.inventorySlots) {
+                    user.inventorySlots = { equipment: 30, consumable: 30, material: 30 };
+                }
+
+                const { success, updatedInventory } = addItemsToInventory(user.inventory, user.inventorySlots, obtainedItems);
+                if (!success || !updatedInventory) {
+                    return { error: '인벤토리 공간이 부족합니다.' };
+                }
+                user.inventory = updatedInventory;
+
+                if (!user.isAdmin) {
+                    user.champCoins = Math.max(0, (user.champCoins ?? 0) - totalCost);
+                }
+
+                if (product.weeklyLimit != null && product.weeklyLimit > 0) {
+                    const prev = user.championshipShopWeekPurchases[productId];
+                    const sameWeek = prev && !isDifferentWeekKST(prev.date, now);
+                    user.championshipShopWeekPurchases[productId] = {
+                        quantity: (sameWeek ? prev.quantity : 0) + quantity,
+                        date: now,
+                    };
+                }
+
+                if (product.tab === 'equipment') {
+                    recordAchievementBoxOpens(user, 'equipment', quantity);
+                }
+                await guildService.recordGuildEpicPlusEquipmentAcquisition(user, obtainedItems);
+
+                const updatedUser = getSelectiveUserUpdate(user, 'BUY_CHAMPIONSHIP_SHOP_ITEM', { includeAll: true });
+                db.updateUser(user).catch((err) => {
+                    console.error(`[BUY_CHAMPIONSHIP_SHOP_ITEM] Failed to save user ${user.id}:`, err);
+                });
+                const { broadcastUserUpdate } = await import('../socket.js');
+                broadcastUserUpdate(user, ['inventory', 'champCoins', 'championshipShopWeekPurchases', 'quests']);
+
+                return { clientResponse: { obtainedItemsBulk: obtainedItems, updatedUser } };
+            } catch (error: any) {
+                console.error(`[BUY_CHAMPIONSHIP_SHOP_ITEM]`, error);
+                return { error: error?.message || '구매 처리 중 오류가 발생했습니다.' };
+            }
+        }
         case 'BUY_SHOP_ITEM': {
             try {
                 const { itemId, quantity } = payload;

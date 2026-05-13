@@ -1,5 +1,5 @@
 export type ResourceIconKey = 'gold' | 'diamonds';
-export type SpecialResourceIconKey = 'guildCoins';
+export type SpecialResourceIconKey = 'guildCoins' | 'champCoins';
 
 const iconPaths: Record<ResourceIconKey | 'actionPlus', string> = {
     gold: new URL('/images/icon/Gold.webp', import.meta.url).href,
@@ -10,6 +10,7 @@ const iconPaths: Record<ResourceIconKey | 'actionPlus', string> = {
 
 const specialResourcePaths: Record<SpecialResourceIconKey, string> = {
     guildCoins: new URL('/images/guild/tokken.webp', import.meta.url).href,
+    champCoins: new URL('/images/icon/champcoin.webp', import.meta.url).href,
 };
 
 export const resourceIcons = {

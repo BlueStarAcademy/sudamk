@@ -484,6 +484,14 @@ const applyDefaults = (
     singlePlayerMissions: user.singlePlayerMissions ?? {},
     guildId: user.guildId ?? undefined,
     guildCoins: user.guildCoins ?? (status?.serializedUser?.guildCoins ?? 0),
+    champCoins: safeNumber(
+      user.champCoins ?? (status?.serializedUser as User | undefined)?.champCoins ?? 0,
+      0
+    ),
+    championshipShopWeekPurchases:
+      user.championshipShopWeekPurchases ??
+      (status?.serializedUser as User | undefined)?.championshipShopWeekPurchases ??
+      {},
     dailyDonations: user.dailyDonations ?? (status?.serializedUser?.dailyDonations ?? undefined),
     guildBossAttempts: user.guildBossAttempts ?? (status?.serializedUser as User | undefined)?.guildBossAttempts ?? 0,
     guildBossLastAttemptDayKST: user.guildBossLastAttemptDayKST ?? (status?.serializedUser as User | undefined)?.guildBossLastAttemptDayKST ?? undefined,
@@ -978,6 +986,14 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
     monthlyTowerFloor: safeNumber((prismaUser as any).monthlyTowerFloor, safeNumber((legacy as any)?.monthlyTowerFloor, 0)),
     guildId: (legacy.guildId as string | undefined) ?? (prismaUser.guildMember?.guildId ?? undefined),
     guildCoins: safeNumber(status.serializedUser?.guildCoins ?? legacy.guildCoins, 0),
+    champCoins: safeNumber(
+      (status.serializedUser as User | undefined)?.champCoins ?? (legacy as Partial<User>).champCoins,
+      0
+    ),
+    championshipShopWeekPurchases:
+      (status.serializedUser as User | undefined)?.championshipShopWeekPurchases ??
+      ((legacy as Partial<User>).championshipShopWeekPurchases as User['championshipShopWeekPurchases']) ??
+      {},
     dailyDonations: (status.serializedUser as User | undefined)?.dailyDonations ?? parseJson(legacy.dailyDonations, undefined)
   };
 
