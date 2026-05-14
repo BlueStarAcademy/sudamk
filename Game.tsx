@@ -694,6 +694,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const strategicPetHintMoveLenRef = useRef<number | null>(null);
     const strategicPetHintBubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const strategicPetHintRewardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    /** 동일 수에 대해 CLAIM_STRATEGIC_PET_HINT_BONUS가 연타·중복 비동기로 두 번 나가는 것을 막음 */
+    const strategicPetHintBonusClaimKeyRef = useRef<string | null>(null);
+    /** 펫 힌트 좌표에 온라인 착수 시: 내 수 + 상대 수가 moveHistory에 반영될 때까지 보드 클릭 차단 */
+    const strategicPetHintBoardInputLockUntilHistoryLenRef = useRef<number | null>(null);
 
     type StrategicPetHintActionResult = {
         strategicPetHint?: { x: number; y: number; message: string };
@@ -784,12 +788,21 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         (x: number, y: number, expectedMoveHistoryLength: number) => {
             const hint = strategicPetHintBoardOverlay;
             if (!hint || hint.x !== x || hint.y !== y) return;
+            const key = `${session.id}|${x}|${y}|${expectedMoveHistoryLength}`;
+            if (strategicPetHintBonusClaimKeyRef.current === key) return;
+            strategicPetHintBonusClaimKeyRef.current = key;
             void Promise.resolve(
                 handlers.handleAction({
                     type: 'CLAIM_STRATEGIC_PET_HINT_BONUS',
                     payload: { gameId: session.id, x, y, expectedMoveHistoryLength },
                 } as ServerAction),
-            ).then(handleStrategicPetHintActionResult);
+            )
+                .then(handleStrategicPetHintActionResult)
+                .finally(() => {
+                    if (strategicPetHintBonusClaimKeyRef.current === key) {
+                        strategicPetHintBonusClaimKeyRef.current = null;
+                    }
+                });
         },
         [handlers.handleAction, handleStrategicPetHintActionResult, session.id, strategicPetHintBoardOverlay],
     );
@@ -859,6 +872,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             strategicPetHintMoveLenRef.current = null;
         }
     }, [session.moveHistory?.length, strategicPetHintBoardOverlay, session.id]);
+
+    useEffect(() => {
+        strategicPetHintBonusClaimKeyRef.current = null;
+    }, [session.moveHistory?.length, session.id]);
 
     useEffect(() => {
         setStrategicPetHintBoardOverlay(null);
@@ -2378,6 +2395,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         strategicAiStoneLockRef.current = false;
     }, [isMyTurn, gameStatus, session.id]);
 
+    useEffect(() => {
+        const need = strategicPetHintBoardInputLockUntilHistoryLenRef.current;
+        if (need == null) return;
+        if ((session.moveHistory?.length ?? 0) >= need) {
+            strategicPetHintBoardInputLockUntilHistoryLenRef.current = null;
+        }
+    }, [session.moveHistory?.length]);
+
+    useEffect(() => {
+        if (['ended', 'no_contest', 'scoring'].includes(gameStatus)) {
+            strategicPetHintBoardInputLockUntilHistoryLenRef.current = null;
+        }
+    }, [gameStatus]);
+
     const runHiddenPlacementWithDelay = useCallback((execute: () => void): void => {
         // Hidden item delay is now handled at item-mode entry (hidden_placing intro gate).
         // Keep this shim to avoid broad call-site churn.
@@ -2533,6 +2564,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             console.log('[Game] Move in flight or placement lock, ignoring additional click');
             return;
         }
+        const petHintBoardLockUntil = strategicPetHintBoardInputLockUntilHistoryLenRef.current;
+        if (petHintBoardLockUntil != null && (session.moveHistory?.length ?? 0) < petHintBoardLockUntil) {
+            return;
+        }
 
         // 착수 버튼 모드(ON)면 PC/모바일 모두 pendingMove로 확정 처리
         if (
@@ -2654,6 +2689,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     return;
                 }
                 const submitTowerHiddenPlacement = () => {
+                    if (pveLocalStonePlacementLockRef.current) return;
+                    pveLocalStonePlacementLockRef.current = true;
                     // 로컬 즉시 반영 (히든 표시 및 playing 전환)
                     handlers.handleAction({
                         type: 'TOWER_CLIENT_MOVE',
@@ -2684,7 +2721,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             hiddenMoves: session.hiddenMoves || {},
                             humanHiddenStonePoints: (session as any).humanHiddenStonePoints || [],
                         }
-                    } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
+                    } as ServerAction))
+                        .then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined))
+                        .finally(() => {
+                            pveLocalStonePlacementLockRef.current = false;
+                        });
                     if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
                 };
                 if (gameStatus === 'hidden_placing') {
@@ -2788,6 +2829,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     return;
                 }
                 const submitSingleHiddenPlacement = () => {
+                    if (pveLocalStonePlacementLockRef.current) return;
+                    pveLocalStonePlacementLockRef.current = true;
                     handlers.handleAction({
                         type: 'SINGLE_PLAYER_CLIENT_MOVE',
                         payload: {
@@ -2814,7 +2857,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             boardState: moveResult.newBoardState,
                             moveHistory: [...(session.moveHistory || []), { x, y, player: myPlayerEnum }],
                         }
-                    } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
+                    } as ServerAction))
+                        .then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined))
+                        .finally(() => {
+                            pveLocalStonePlacementLockRef.current = false;
+                        });
                     if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
                 };
                 if (gameStatus === 'hidden_placing') {
@@ -2981,6 +3028,21 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
         if (actionType) {
             console.log('[Game] Sending action:', { actionType, payload, isMyTurn, myPlayerEnum, currentPlayer, gameStatus });
+            const isStrategicOnlinePlaceStone =
+                actionType === 'PLACE_STONE' &&
+                (gameStatus === 'playing' || gameStatus === 'hidden_placing') &&
+                mode !== GameMode.Omok &&
+                mode !== GameMode.Ttamok;
+            if (isStrategicOnlinePlaceStone) {
+                const o = strategicPetHintBoardOverlay;
+                if (o && o.x === x && o.y === y) {
+                    strategicPetHintBoardInputLockUntilHistoryLenRef.current = (session.moveHistory?.length ?? 0) + 2;
+                }
+            }
+            setIsMoveInFlight(true);
+            if (isStrategicOnlinePlaceStone) {
+                strategicAiStoneLockRef.current = true;
+            }
             const isPairClassicOnline = isPairClassicGame(session.settings, mode);
             const optimisticAiStonePlace =
                 actionType === 'PLACE_STONE' &&
@@ -3013,18 +3075,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 boardForOptimistic &&
                 boardForOptimistic[y]?.[x] === Player.None;
             if (canOptimisticPairPlace && applyOptimisticPairUserMove(x, y)) {
-                strategicAiStoneLockRef.current = true;
+                // 잠금은 위에서 이미 설정됨(PLACE_STONE)
             } else if (canOptimisticAiPlace && applyOptimisticAiUserMove(x, y)) {
-                strategicAiStoneLockRef.current = true;
+                // 잠금은 위에서 이미 설정됨(PLACE_STONE)
             }
-            setIsMoveInFlight(true);
             void Promise.resolve(handlers.handleAction({ type: actionType, payload } as ServerAction))
                 .then((res) => {
                     handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined);
                     const hasErr = res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error;
                     if (hasErr) {
                         setIsMoveInFlight(false);
-                        if (actionType === 'PLACE_STONE') strategicAiStoneLockRef.current = false;
+                        if (actionType === 'PLACE_STONE') {
+                            strategicAiStoneLockRef.current = false;
+                            strategicPetHintBoardInputLockUntilHistoryLenRef.current = null;
+                        }
                         const err = String((res as { error: string }).error);
                         if (actionType === 'PLACE_STONE' && (err.includes('패 모양') || err.includes('코 금지') || (err.includes('바로') && err.includes('따낼')))) {
                             showKoRuleFlash();
@@ -3094,6 +3158,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.permanentlyRevealedStones,
         session.itemUseDeadline,
         session.settings,
+        strategicPetHintBoardOverlay,
     ]);
 
     const handleConfirmMove = useCallback(() => {
@@ -3109,6 +3174,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         // 이미 한 수가 처리 중이면 추가 확정 무시
         if (isMoveInFlight || pveLocalStonePlacementLockRef.current || strategicAiStoneLockRef.current) {
             console.log('[Game] Move in flight or placement lock, ignoring confirm');
+            return;
+        }
+        const petHintBoardLockUntilConfirm = strategicPetHintBoardInputLockUntilHistoryLenRef.current;
+        if (petHintBoardLockUntilConfirm != null && (session.moveHistory?.length ?? 0) < petHintBoardLockUntilConfirm) {
             return;
         }
 
@@ -3246,6 +3315,21 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     ((actionType === 'TOWER_CLIENT_MOVE' || actionType === 'SINGLE_PLAYER_CLIENT_MOVE') && !!payload?.isHidden)
                 );
             const submitConfirmedMove = () => {
+            const isStrategicOnlinePlaceStoneConfirm =
+                actionType === 'PLACE_STONE' &&
+                (gameStatus === 'playing' || gameStatus === 'hidden_placing') &&
+                mode !== GameMode.Omok &&
+                mode !== GameMode.Ttamok;
+            if (isStrategicOnlinePlaceStoneConfirm) {
+                const o = strategicPetHintBoardOverlay;
+                if (o && o.x === x && o.y === y) {
+                    strategicPetHintBoardInputLockUntilHistoryLenRef.current = (session.moveHistory?.length ?? 0) + 2;
+                }
+            }
+            setIsMoveInFlight(true);
+            if (isStrategicOnlinePlaceStoneConfirm) {
+                strategicAiStoneLockRef.current = true;
+            }
             const isPairClassicOnlineConfirm = isPairClassicGame(session.settings, mode);
             const optimisticAiStonePlaceConfirm =
                 actionType === 'PLACE_STONE' &&
@@ -3277,11 +3361,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 boardForOptimisticConfirm &&
                 boardForOptimisticConfirm[y]?.[x] === Player.None;
             if (canOptimisticPairPlaceConfirm && applyOptimisticPairUserMove(x, y)) {
-                strategicAiStoneLockRef.current = true;
+                // 잠금은 위에서 이미 설정됨(PLACE_STONE)
             } else if (canOptimisticAiPlaceConfirm && applyOptimisticAiUserMove(x, y)) {
-                strategicAiStoneLockRef.current = true;
+                // 잠금은 위에서 이미 설정됨(PLACE_STONE)
             }
-            setIsMoveInFlight(true);
             const at = actionType;
             void Promise.resolve(handlers.handleAction({ type: at, payload } as ServerAction))
                 .then((res) => {
@@ -3292,7 +3375,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     const hasErr = res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error;
                     if (hasErr) {
                         setIsMoveInFlight(false);
-                        if (at === 'PLACE_STONE') strategicAiStoneLockRef.current = false;
+                        if (at === 'PLACE_STONE') {
+                            strategicAiStoneLockRef.current = false;
+                            strategicPetHintBoardInputLockUntilHistoryLenRef.current = null;
+                        }
                         const err = String((res as { error: string }).error);
                         if (at === 'PLACE_STONE' && (err.includes('패 모양') || err.includes('코 금지') || (err.includes('바로') && err.includes('따낼')))) {
                             showKoRuleFlash();
@@ -3343,6 +3429,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.permanentlyRevealedStones,
         session.itemUseDeadline,
         session.settings,
+        strategicPetHintBoardOverlay,
     ]);
 
     const handleCancelMove = useCallback(() => setPendingMove(null), []);
@@ -3596,6 +3683,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         setLastReceivedServerRevision(session.serverRevision ?? 0);
         pveLocalStonePlacementLockRef.current = false;
         strategicAiStoneLockRef.current = false;
+        strategicPetHintBonusClaimKeyRef.current = null;
+        strategicPetHintBoardInputLockUntilHistoryLenRef.current = null;
     }, [session.id, clearPauseCountdown]);
 
     // 같은 게임 내 serverRevision 변경 시: 최신 리비전 반영 및 보드 잠금 해제 (일시정지 상태는 유지)

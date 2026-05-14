@@ -17,7 +17,7 @@ import {
     EQUIPMENT_GRADE_LABEL_KO,
     getChampionshipArenaBackgroundUrl,
 } from '../constants';
-import { getDungeonRankRewardForDisplay, getDungeonRankRewardRangeForDisplay, formatDungeonChampCoinRewardPreviewLabel } from '../shared/constants/tournaments';
+import { getDungeonRankRewardForDisplay, getDungeonRankRewardRangeForDisplay } from '../shared/constants/tournaments';
 import Avatar from './Avatar.js';
 import RadarChart from './RadarChart.js';
 import SgfViewer from './SgfViewer.js';
@@ -3307,20 +3307,6 @@ const FinalRewardPanel: React.FC<{
                 })();
                 const hasWorldChangeTickets = worldChangeTicketChips.length > 0;
 
-                const champCoinsExactClaimed =
-                    typeof claimedRewardSummary?.baseRewards?.champCoins === 'number'
-                        ? claimedRewardSummary.baseRewards.champCoins
-                        : undefined;
-                let champWinsPreview = 0;
-                if (champCoinsExactClaimed == null) {
-                    for (const r of tournamentState.rounds || []) {
-                        for (const m of r.matches || []) {
-                            if (m.isFinished && m.isUserMatch && m.winner?.id === currentUser.id) {
-                                champWinsPreview++;
-                            }
-                        }
-                    }
-                }
                 const showChampCoinChip =
                     isDungeonMode &&
                     effectiveStageAttempt >= 1 &&
@@ -3489,22 +3475,13 @@ const FinalRewardPanel: React.FC<{
                                 );
                             })}
 
-                        {/* PVE 공통: 챔프 코인 (완료 수령 시 확정, 그 전에는 단계 범위 + 현재 승) */}
+                        {/* PVE 공통: 챔프 코인 — 인게임에는 아이콘만(수량은 경기 결과 보상 모달에서만 표시) */}
                         {showChampCoinChip && (
                             <div
                                 className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg border-2 border-amber-400/70 bg-amber-950/45"
-                                title={
-                                    champCoinsExactClaimed != null
-                                        ? `챔프 코인 ${champCoinsExactClaimed.toLocaleString('ko-KR')}개`
-                                        : `챔프 코인: 단계별 무작위 + 승리 수 (현재 ${formatDungeonChampCoinRewardPreviewLabel(effectiveStageAttempt, champWinsPreview)})`
-                                }
+                                title="챔프 코인 — 획득 수량은 경기 종료 후 보상 확인 창에서 표시됩니다."
                             >
-                                <img src="/images/icon/champcoin.webp" alt="" className="h-7 w-7 object-contain" loading="lazy" decoding="async" />
-                                <span className="absolute -bottom-0.5 -right-0.5 max-w-[2.75rem] truncate rounded-tl bg-black/80 px-0.5 text-[9px] font-bold leading-tight text-amber-100 shadow-sm">
-                                    {champCoinsExactClaimed != null
-                                        ? champCoinsExactClaimed.toLocaleString('ko-KR')
-                                        : formatDungeonChampCoinRewardPreviewLabel(effectiveStageAttempt, champWinsPreview)}
-                                </span>
+                                <img src="/images/icon/champcoin.webp" alt="챔프 코인" className="h-7 w-7 object-contain" loading="lazy" decoding="async" />
                             </div>
                         )}
 

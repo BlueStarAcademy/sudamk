@@ -20,6 +20,8 @@ export interface PairPetBadukPhaseStripAndCoreGridProps {
     coreGridDensity?: 'default' | 'compact' | 'micro' | 'fit';
     /** 네이티브 홈 대표펫: 스트립·코어 그리드 세로·가로 여백 축소, 스크롤 없이 맞춤 */
     mobileHomeRepPet?: boolean;
+    /** 챔피언십 로비 등: 홈 대표펫 밀도를 유지하면서 초·중·종반 스트립만 여유 있게 */
+    enlargeHomeRepPhaseStrip?: boolean;
     className?: string;
 }
 
@@ -32,6 +34,7 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
     dense = false,
     coreGridDensity: coreGridDensityProp,
     mobileHomeRepPet = false,
+    enlargeHomeRepPhaseStrip = false,
     className = '',
 }) => {
     const layout: PairPetBadukStripLayout = layoutProp ?? (dense ? 'dense' : 'default');
@@ -44,6 +47,7 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
     /** 펫 상세 모달(비 panelFit) — 스트립 타이포·좁은 간격 */
     const modalStripComfort = isModal && !tight;
     const homePackStrip = Boolean(mobileHomeRepPet && modalStripComfort);
+    const roomyPetStrip = Boolean(homePackStrip && enlargeHomeRepPhaseStrip);
 
     const stripTextMain = tight
         ? homeColumn
@@ -94,16 +98,18 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
         ? 'gap-x-1 px-1 py-0.5 sm:gap-x-1.5 sm:px-1.5 sm:py-1'
         : tight
           ? 'gap-x-1.5 px-1.5 py-1 sm:gap-x-2 sm:px-2 sm:py-1.5'
-          : homePackStrip
+          : roomyPetStrip
+            ? 'gap-x-2 px-2.5 py-2 sm:gap-x-2.5 sm:px-3 sm:py-2.5'
+            : homePackStrip
             ? 'gap-x-1 px-1.5 py-1 sm:gap-x-1.5 sm:px-2 sm:py-1'
             : modalStripComfort
               ? 'gap-x-1 px-1.5 py-1 sm:gap-x-1.5 sm:px-2 sm:py-1.5'
               : 'gap-x-2 px-2 py-1.5 sm:gap-x-3 sm:px-3 sm:py-2';
 
-    const blockGap = homeColumn ? 'gap-1' : homePackStrip ? 'gap-1' : tight ? 'gap-2' : 'gap-4';
+    const blockGap = homeColumn ? 'gap-1' : roomyPetStrip ? 'gap-1.5 sm:gap-2' : homePackStrip ? 'gap-1' : tight ? 'gap-2' : 'gap-4';
 
     const gridDensity =
-        coreGridDensityProp ?? (homePackStrip ? 'fit' : homeColumn ? 'micro' : tight ? 'compact' : 'default');
+        coreGridDensityProp ?? (roomyPetStrip ? 'compact' : homePackStrip ? 'fit' : homeColumn ? 'micro' : tight ? 'compact' : 'default');
 
     const phaseDefs = [
         { phase: 'opening' as const, label: '초반' },
@@ -118,28 +124,61 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
                     className={`flex min-w-0 flex-nowrap items-center justify-center rounded-xl border border-sky-500/30 bg-gradient-to-r from-sky-950/40 to-zinc-950/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${homePackStrip ? 'overflow-x-hidden' : 'overflow-x-auto [scrollbar-width:thin]'} ${stripPad}`}
                 >
                     <span className="inline-flex shrink-0 items-baseline gap-0.5">
-                        <span className={homePackStrip ? 'text-xs font-bold text-amber-100 sm:text-sm' : stripTextMainModal}>바둑능력</span>
                         <span
-                            className={`font-mono tabular-nums ${homePackStrip ? 'text-sm font-black text-amber-50 sm:text-base' : stripTotalNumModal}`}
+                            className={
+                                roomyPetStrip || !homePackStrip ? stripTextMainModal : 'text-xs font-bold text-amber-100 sm:text-sm'
+                            }
+                        >
+                            바둑능력
+                        </span>
+                        <span
+                            className={`font-mono tabular-nums ${
+                                roomyPetStrip || !homePackStrip
+                                    ? stripTotalNumModal
+                                    : 'text-sm font-black text-amber-50 sm:text-base'
+                            }`}
                         >
                             {badukTotalPower}
                         </span>
                     </span>
-                    <span className={`shrink-0 self-center bg-white/15 ${homePackStrip ? 'mx-0.5 h-2.5 w-px sm:h-3' : 'mx-1 h-3 w-px sm:h-3.5'}`} aria-hidden />
+                    <span
+                        className={`shrink-0 self-center bg-white/15 ${
+                            roomyPetStrip
+                                ? 'mx-1 h-3.5 w-px sm:h-4'
+                                : homePackStrip
+                                  ? 'mx-0.5 h-2.5 w-px sm:h-3'
+                                  : 'mx-1 h-3 w-px sm:h-3.5'
+                        }`}
+                        aria-hidden
+                    />
                     {phaseDefs.map(({ phase, label }, idx) => (
                         <React.Fragment key={phase}>
                             {idx > 0 ? (
                                 <span
-                                    className={`shrink-0 self-center bg-white/12 ${homePackStrip ? 'mx-0.5 h-2.5 w-px sm:h-3' : 'h-3 w-px sm:h-3.5'}`}
+                                    className={`shrink-0 self-center bg-white/12 ${
+                                        roomyPetStrip
+                                            ? 'mx-0.5 h-3.5 w-px sm:h-4'
+                                            : homePackStrip
+                                              ? 'mx-0.5 h-2.5 w-px sm:h-3'
+                                              : 'h-3 w-px sm:h-3.5'
+                                    }`}
                                     aria-hidden
                                 />
                             ) : null}
                             <span className="inline-flex shrink-0 items-baseline gap-0.5">
-                                <span className={homePackStrip ? 'text-[0.62rem] font-semibold leading-none text-slate-400 sm:text-xs' : stripPhaseLabelModal}>
+                                <span
+                                    className={
+                                        roomyPetStrip || !homePackStrip
+                                            ? stripPhaseLabelModal
+                                            : 'text-[0.62rem] font-semibold leading-none text-slate-400 sm:text-xs'
+                                    }
+                                >
                                     {label}
                                 </span>
                                 <span
-                                    className={`font-mono font-bold tabular-nums ${homePackStrip ? 'text-xs text-sky-100 sm:text-sm' : stripPhaseNumModal}`}
+                                    className={`font-mono font-bold tabular-nums ${
+                                        roomyPetStrip || !homePackStrip ? stripPhaseNumModal : 'text-xs text-sky-100 sm:text-sm'
+                                    }`}
                                 >
                                     {phaseScores[phase]}
                                 </span>

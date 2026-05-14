@@ -1724,6 +1724,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         arenaPostGameButtonClass('neutral', isMobile, 'strip');
     const endedIngameRowBtn = (extra?: string) =>
         `${getLuxuryButtonClasses()} ${arenaPostGameButtonInRowModifier}${extra ? ` ${extra}` : ''}`;
+    /** 대기실·관전 종료 등 퇴장 버튼 */
+    const endedIngameLobbyLeaveRowBtn = (extra?: string) =>
+        `${arenaPostGameButtonClass('danger', isMobile, 'strip')} ${arenaPostGameButtonInRowModifier}${extra ? ` ${extra}` : ''}`;
 
     // 아이템 설정값 (함수 외부에서 선언하여 재사용)
     const hiddenCountSetting = session.settings.hiddenStoneCount ?? 0;
@@ -2072,7 +2075,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 재대결
                             </Button>
                         )}
-                        <Button bare onClick={handleCloseResults} colorScheme="none" className={endedIngameRowBtn()} disabled={blockPostGameFooter}>
+                        <Button bare onClick={handleCloseResults} colorScheme="none" className={endedIngameLobbyLeaveRowBtn()} disabled={blockPostGameFooter}>
                             대기실로
                         </Button>
                         </div>
@@ -2314,7 +2317,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 bare
                                 onClick={onLeaveOrResign}
                                 colorScheme="none"
-                                className={endedIngameRowBtn()}
+                                className={endedIngameLobbyLeaveRowBtn()}
                                 disabled={blockPostGameFooter}
                             >
                                 맵으로 이동
@@ -2390,7 +2393,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             bare
                             onClick={onLeaveOrResign}
                             colorScheme="none"
-                            className={endedIngameRowBtn()}
+                            className={endedIngameLobbyLeaveRowBtn()}
                             disabled={blockPostGameFooter}
                         >
                             {isSpectator ? '관전종료' : '대기실로'}

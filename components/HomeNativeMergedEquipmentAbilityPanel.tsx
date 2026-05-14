@@ -121,6 +121,8 @@ export interface HomeNativeMergedEquipmentAbilityPanelProps {
     compactLayout?: boolean;
     /** 챔피언십 로비: 장비·6스탯 하단에 초반/중반/종반 가중 능력치 점수 */
     championshipPhaseAbilityScores?: ChampionshipPhaseAbilityScores;
+    /** 챔피언십 PC: 하단이 상점 패널과 맞닿도록 하단 라운드·테두리 제거 */
+    joinShopBelow?: boolean;
 }
 
 /**
@@ -142,15 +144,27 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
     framed = false,
     compactLayout = true,
     championshipPhaseAbilityScores,
+    joinShopBelow = false,
 }) => {
     const ch = compactLayout;
     const getItemForSlot = (slot: EquipmentSlot) => equippedItems.find((it) => it.slot === slot);
 
-    const mergeEquipScale = ch ? 0.82 : 1.18;
+    const mergeEquipScale = joinShopBelow
+        ? championshipPhaseAbilityScores != null
+            ? 0.96
+            : 0.93
+        : ch
+          ? 0.82
+          : 1.18;
+    const lobbyChampionshipUser = Boolean(joinShopBelow && championshipPhaseAbilityScores != null);
     const homeEquipGrid = ch
-        ? 'grid w-full grid-cols-3 gap-x-1 gap-y-0.5 auto-rows-auto sm:gap-x-1.5 sm:gap-y-1'
+        ? `grid w-full grid-cols-3 auto-rows-auto ${lobbyChampionshipUser ? 'gap-x-1.5 gap-y-1 sm:gap-x-2 sm:gap-y-1' : 'gap-x-1 gap-y-0.5 sm:gap-x-1.5 sm:gap-y-1'}`
         : 'grid w-full grid-cols-3 gap-1.5 auto-rows-auto sm:gap-2';
-    const mergeSlotCapClass = ch ? 'mx-auto w-full max-w-[min(100%,4.55rem)]' : 'w-full';
+    const mergeSlotCapClass = ch
+        ? lobbyChampionshipUser
+            ? 'mx-auto w-full max-w-[min(100%,5.35rem)]'
+            : 'mx-auto w-full max-w-[min(100%,5rem)]'
+        : 'w-full';
 
     const equipmentBlock = (
         <div className="flex min-h-0 w-full flex-col items-stretch gap-1 overflow-x-hidden overflow-y-visible">
@@ -199,7 +213,11 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
     const bannerBlock = (
         <div
             className={`relative w-full shrink-0 rounded-xl border border-amber-600/45 bg-gradient-to-r from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${
-                ch ? 'px-1.5 py-1 sm:px-2 sm:py-1.5' : 'px-2 py-1.5 sm:px-2.5 sm:py-2'
+                lobbyChampionshipUser
+                    ? 'px-2 py-1.5 sm:px-2.5 sm:py-2'
+                    : ch
+                      ? 'px-1.5 py-1 sm:px-2 sm:py-1.5'
+                      : 'px-2 py-1.5 sm:px-2.5 sm:py-2'
             }`}
         >
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent" aria-hidden />
@@ -207,7 +225,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                 <div className={`flex min-w-0 items-baseline ${ch ? 'gap-1 sm:gap-1.5' : 'gap-1.5 sm:gap-2'}`}>
                     <span
                         className={`shrink-0 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text font-bold tracking-tight text-transparent drop-shadow-[0_0_20px_rgba(251,191,36,0.22)] ${
-                            ch ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
+                            lobbyChampionshipUser ? 'text-sm sm:text-base' : ch ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
                         }`}
                         title="6개 핵심 능력치 합계"
                     >
@@ -215,7 +233,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                     </span>
                     <span
                         className={`min-w-0 font-mono font-black tabular-nums leading-none text-amber-100 drop-shadow-[0_1px_0_rgba(0,0,0,0.35)] ${
-                            ch ? 'text-lg sm:text-xl' : 'text-2xl sm:text-[1.75rem]'
+                            lobbyChampionshipUser ? 'text-xl sm:text-2xl' : ch ? 'text-lg sm:text-xl' : 'text-2xl sm:text-[1.75rem]'
                         }`}
                         title="6개 핵심 능력치 합계"
                     >
@@ -224,7 +242,9 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                 </div>
                 <div className={`flex shrink-0 items-center ${ch ? 'gap-1 sm:gap-1.5' : 'gap-1.5 sm:gap-2'}`}>
                     <span
-                        className={`whitespace-nowrap font-medium text-amber-100/90 ${ch ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'}`}
+                        className={`whitespace-nowrap font-medium text-amber-100/90 ${
+                            lobbyChampionshipUser ? 'text-xs sm:text-sm' : ch ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
+                        }`}
                         title={`보너스: ${availablePoints}P`}
                     >
                         보너스 <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
@@ -246,60 +266,72 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
         </div>
     );
 
-    const coreStatsGrid = (
-        <div className={`grid w-full min-w-0 shrink-0 grid-cols-1 ${ch ? 'gap-0.5 sm:gap-1' : 'gap-1 sm:gap-1.5'}`}>
-            {CORE_STAT_RADAR_ORDER.map((stat) => {
-                const cap = BADUK_ABILITY_STAT_CAP;
-                const finalV = Number(finalByStat[stat]);
-                const safeFinal = Number.isFinite(finalV) ? finalV : 0;
-                const v = Math.min(cap, Math.max(0, Math.floor(safeFinal)));
-                const baseV = baseByStat[stat] ?? 0;
-                const bonus = safeFinal - baseV;
-                const bonusRounded = Math.round(bonus);
-                const hasBonus = bonusRounded > 0;
-                const label = CORE_STATS_DATA[stat]?.name ?? stat;
-                const statLabelClass =
-                    'max-w-[58%] truncate text-left text-[11px] font-semibold leading-snug text-slate-300 sm:text-xs';
-                const statValueClass = 'font-mono text-xs font-bold tabular-nums text-amber-100 sm:text-sm';
-                const statBonusClass = ch
-                    ? 'shrink-0 font-mono text-[10px] font-semibold tabular-nums text-emerald-400/95 sm:text-[11px]'
-                    : 'shrink-0 font-mono text-[10px] font-semibold tabular-nums text-emerald-400/95 sm:text-xs';
-                return (
-                    <div
-                        key={stat}
-                        className={
-                            ch
-                                ? 'flex min-w-0 flex-row items-center justify-between gap-1 rounded-md border border-white/10 bg-black/30 px-1 py-0.5 sm:px-1.5 sm:py-1'
-                                : 'flex min-w-0 flex-row items-center justify-between gap-1.5 rounded-md border border-white/10 bg-black/30 px-1.5 py-1 sm:px-2'
-                        }
-                        title={
-                            hasBonus
-                                ? `기본 ${baseV} → 표시 ${v} (장비·보너스 +${bonusRounded})`
-                                : baseV !== v
-                                  ? `기본 ${baseV} · 장비·보너스 반영`
-                                  : undefined
-                        }
-                    >
-                        <span className={statLabelClass}>{label}</span>
-                        <span className={`flex min-w-0 flex-wrap items-center leading-tight shrink-0 justify-end gap-x-1`}>
-                            <span className={statValueClass}>{v}</span>
-                            {hasBonus ? <span className={statBonusClass}>(+{bonusRounded})</span> : null}
-                        </span>
-                    </div>
-                );
-            })}
-        </div>
+    const coreStatRows = CORE_STAT_RADAR_ORDER.map((stat) => {
+        const cap = BADUK_ABILITY_STAT_CAP;
+        const finalV = Number(finalByStat[stat]);
+        const safeFinal = Number.isFinite(finalV) ? finalV : 0;
+        const v = Math.min(cap, Math.max(0, Math.floor(safeFinal)));
+        const baseV = baseByStat[stat] ?? 0;
+        const bonus = safeFinal - baseV;
+        const bonusRounded = Math.round(bonus);
+        const hasBonus = bonusRounded > 0;
+        const label = CORE_STATS_DATA[stat]?.name ?? stat;
+        const statLabelClass = lobbyChampionshipUser
+            ? 'max-w-[46%] truncate text-left text-[10px] font-semibold leading-tight text-slate-300 sm:text-[11px]'
+            : 'max-w-[58%] truncate text-left text-[11px] font-semibold leading-snug text-slate-300 sm:text-xs';
+        const statValueClass = lobbyChampionshipUser
+            ? 'font-mono text-[11px] font-bold tabular-nums text-amber-100 sm:text-xs'
+            : 'font-mono text-xs font-bold tabular-nums text-amber-100 sm:text-sm';
+        const statBonusClass = lobbyChampionshipUser
+            ? 'shrink-0 font-mono text-[9px] font-semibold tabular-nums text-emerald-400/95 sm:text-[10px]'
+            : ch
+              ? 'shrink-0 font-mono text-[10px] font-semibold tabular-nums text-emerald-400/95 sm:text-[11px]'
+              : 'shrink-0 font-mono text-[10px] font-semibold tabular-nums text-emerald-400/95 sm:text-xs';
+        const rowShell =
+            lobbyChampionshipUser
+                ? 'flex min-h-0 min-w-0 flex-1 basis-0 flex-row items-center justify-between gap-0.5 rounded-md border border-white/10 bg-black/30 px-1 py-0.5 sm:gap-1 sm:px-1.5 sm:py-0.5'
+                : ch
+                  ? 'flex min-w-0 flex-row items-center justify-between gap-1 rounded-md border border-white/10 bg-black/30 px-1 py-0.5 sm:px-1.5 sm:py-1'
+                  : 'flex min-w-0 flex-row items-center justify-between gap-1.5 rounded-md border border-white/10 bg-black/30 px-1.5 py-1 sm:px-2';
+        return (
+            <div
+                key={stat}
+                className={rowShell}
+                title={
+                    hasBonus
+                        ? `기본 ${baseV} → 표시 ${v} (장비·보너스 +${bonusRounded})`
+                        : baseV !== v
+                          ? `기본 ${baseV} · 장비·보너스 반영`
+                          : undefined
+                }
+            >
+                <span className={statLabelClass}>{label}</span>
+                <span className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-x-1 leading-tight">
+                    <span className={statValueClass}>{v}</span>
+                    {hasBonus ? <span className={statBonusClass}>(+{bonusRounded})</span> : null}
+                </span>
+            </div>
+        );
+    });
+
+    const coreStatsGrid = lobbyChampionshipUser ? (
+        <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-0.5 overflow-hidden sm:gap-1">{coreStatRows}</div>
+    ) : (
+        <div className={`grid w-full min-w-0 shrink-0 grid-cols-1 ${ch ? 'gap-0.5 sm:gap-1' : 'gap-1 sm:gap-1.5'}`}>{coreStatRows}</div>
     );
 
+    /** 챔피언십 로비: 초·중·종반 KATA 점수 */
     const phaseAbilityFooter =
         championshipPhaseAbilityScores != null ? (
             <div
-                className={`mt-1.5 w-full shrink-0 rounded-lg border border-amber-500/25 bg-black/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
-                    ch ? 'px-1 py-1.5 sm:px-1.5 sm:py-2' : 'px-2 py-2 sm:px-2.5 sm:py-2.5'
+                className={`w-full shrink-0 rounded-lg border border-amber-500/35 bg-black/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
+                    lobbyChampionshipUser
+                        ? 'mt-1.5 px-1.5 py-1.5 sm:px-2 sm:py-2'
+                        : 'mt-2 px-2 py-2 sm:px-2.5 sm:py-2.5'
                 }`}
                 aria-label="챔피언십 페이즈별 능력치 점수"
             >
-                <div className="grid w-full grid-cols-3 gap-1 sm:gap-1.5">
+                <div className={`grid w-full grid-cols-3 ${lobbyChampionshipUser ? 'gap-1 sm:gap-1.5' : 'gap-1.5 sm:gap-2'}`}>
                     {(
                         [
                             { key: 'opening' as const, label: '초반' },
@@ -309,20 +341,20 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                     ).map(({ key, label }) => (
                         <div
                             key={key}
-                            className={`flex min-w-0 flex-col items-center justify-center rounded-md border border-white/10 bg-black/35 px-0.5 py-1 sm:px-1 ${
-                                ch ? 'gap-0.5 py-1.5 sm:py-2' : 'gap-1 py-2 sm:py-2.5'
+                            className={`flex min-w-0 flex-row items-center justify-center gap-1 rounded-md border border-white/12 bg-black/40 px-1.5 py-1 sm:gap-1.5 sm:px-2 sm:py-1.5 ${
+                                lobbyChampionshipUser ? 'min-h-[2.1rem] sm:min-h-[2.35rem]' : 'min-h-[2.5rem] sm:min-h-[2.75rem]'
                             }`}
                         >
                             <span
-                                className={`font-bold text-slate-200 ${
-                                    ch ? 'text-xs font-extrabold sm:text-sm' : 'text-sm font-extrabold sm:text-base'
+                                className={`shrink-0 font-extrabold leading-none text-slate-400 ${
+                                    lobbyChampionshipUser ? 'text-[10px] sm:text-xs' : 'text-xs sm:text-sm'
                                 }`}
                             >
                                 {label}
                             </span>
                             <span
-                                className={`font-mono font-black tabular-nums text-amber-100 ${
-                                    ch ? 'text-sm sm:text-base' : 'text-base sm:text-lg'
+                                className={`min-w-0 truncate font-mono font-black tabular-nums leading-none text-amber-100 ${
+                                    lobbyChampionshipUser ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
                                 }`}
                             >
                                 {championshipPhaseAbilityScores[key]}
@@ -336,13 +368,25 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
     const inner = (
         <>
             {bannerBlock}
-            <div className={`mt-1 flex min-h-0 w-full min-w-0 flex-row items-stretch ${ch ? 'gap-1.5 sm:gap-2' : 'gap-2 sm:gap-2.5'}`}>
-                <div className={`flex flex-none flex-col justify-start ${compactLayout ? 'w-[min(15.5rem,100%)]' : 'w-[min(18rem,100%)]'}`}>{equipmentBlock}</div>
+            <div
+                className={`mt-1 flex min-h-0 w-full min-w-0 flex-row items-stretch ${ch ? 'gap-1.5 sm:gap-2' : 'gap-2 sm:gap-2.5'} ${
+                    joinShopBelow ? 'min-h-0 flex-1' : ''
+                }`}
+            >
+                <div className={`flex flex-none flex-col justify-start ${compactLayout ? (lobbyChampionshipUser ? 'w-[min(16.25rem,100%)]' : 'w-[min(15.5rem,100%)]') : 'w-[min(18rem,100%)]'}`}>{equipmentBlock}</div>
                 <div
                     className="w-px shrink-0 self-stretch bg-gradient-to-b from-amber-600/5 via-amber-400/50 to-amber-600/5"
                     aria-hidden
                 />
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center overflow-x-hidden py-0.5">{coreStatsGrid}</div>
+                <div
+                    className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden ${
+                        lobbyChampionshipUser
+                            ? 'overflow-hidden py-0.5 sm:py-1'
+                            : `overflow-y-auto ${joinShopBelow ? 'justify-evenly py-1 sm:py-1.5' : 'justify-center py-0.5'}`
+                    }`}
+                >
+                    {coreStatsGrid}
+                </div>
             </div>
             {phaseAbilityFooter}
         </>
@@ -352,11 +396,24 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
         return <div className="text-on-panel">{inner}</div>;
     }
 
+    const frameRound = joinShopBelow ? 'rounded-t-xl rounded-b-none' : 'rounded-xl';
+    const frameShadow = joinShopBelow
+        ? 'shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
+        : 'shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_40px_-20px_rgba(0,0,0,0.72)]';
+
     return (
-        <div className="relative w-full shrink-0 overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_40px_-20px_rgba(0,0,0,0.72)] ring-1 ring-amber-100/12">
+        <div
+            className={`relative w-full overflow-hidden ${frameRound} border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 ${frameShadow} ring-1 ring-amber-100/12 ${
+                joinShopBelow ? 'flex min-h-0 min-w-0 flex-1 flex-col border-b-0' : 'shrink-0'
+            }`}
+        >
             <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
-            <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
-            <div className="relative p-2 text-on-panel sm:p-2.5">{inner}</div>
+            <div className={`pointer-events-none absolute inset-0 ${frameRound} ring-1 ring-inset ring-white/10`} aria-hidden />
+            <div
+                className={`relative text-on-panel ${joinShopBelow ? 'flex min-h-0 flex-1 flex-col p-2 pb-1 sm:p-2.5 sm:pb-1' : 'p-2 sm:p-2.5'}`}
+            >
+                {inner}
+            </div>
         </div>
     );
 };

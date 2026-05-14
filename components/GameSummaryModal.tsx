@@ -19,7 +19,11 @@ import {
     getGuildWarStarScoreTier3MinDiff,
 } from '../shared/constants/guildConstants.js';
 import { computeGuildWarAttemptMetrics } from '../shared/utils/guildWarAttemptMetrics.js';
-import { arenaPostGameButtonClass, arenaPostGameButtonGridClass } from './game/arenaPostGameButtonStyles.js';
+import {
+    arenaPostGameButtonClass,
+    arenaPostGameSingleConfirmFooterClass,
+    arenaPostGameSingleModalConfirmButtonClass,
+} from './game/arenaPostGameButtonStyles.js';
 import { ResultModalXpRewardBadge, ResultModalPetGradeUpgradeNeededSlot } from './game/ResultModalXpRewardBadge.js';
 import {
     ResultModalGoldCurrencySlot,
@@ -2907,10 +2911,10 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                     className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} flex flex-col ${isMobile ? 'mt-1 gap-1 pt-1.5' : 'mt-3 gap-1.5 pt-2.5'} flex-shrink-0 border-t border-amber-500/20 bg-gradient-to-t from-zinc-950/95 via-zinc-900/90 to-transparent px-1 pb-1 sm:px-2 sm:pb-1.5`}
                 >
                     {isMobile ? <div className="min-w-0 w-full shrink-0">{pvpRewardsSection}</div> : null}
-                    <div className={`${arenaPostGameButtonGridClass} min-w-0 shrink-0`}>
+                    <div className={`${arenaPostGameSingleConfirmFooterClass} shrink-0`}>
                         <button
                             type="button"
-                            className={arenaPostGameButtonClass('neutral', isMobile, 'modal')}
+                            className={`${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${arenaPostGameSingleModalConfirmButtonClass}`}
                             style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
                             onClick={onConfirm}
                         >

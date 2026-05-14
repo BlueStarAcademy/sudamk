@@ -1500,13 +1500,14 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 (pvePlace?.triggerAutoScoring === true || pvePlace?.syncTimeAndStateForScoring === true);
             const shouldHandlePlaceStoneOnServer =
                 type === 'PLACE_STONE' && (isStrategicPVE || towerScoringOrSyncPlaceStone);
-            // 싱글/탑 PVE는 대부분 클라이언트 착수이나, 베이스 전·중반(배치·덤·확인)은 서버 `handleBaseAction`이 처리해야 함.
-            // 여기서 막으면 PLACE_BASE_STONE 등이 빈 응답으로 떨어져 돌이 영원히 안 쌓임.
+            // 싱글·모험·길드전·로비 AI 등 PVP가 아닌 전략 세션은 대부분 클라 착수이나,
+            // 베이스 전·중반(배치·덤·확인)은 서버 `handleBaseAction`이 처리해야 함.
+            // `kind === singleplayer`만 허용하면 모험/길드전 등에서 액션이 `{}`로 삼켜져 배치 확정 후 단계 전환이 영구 정지한다.
             const mixModesForBasePve = ((game.settings as { mixedModes?: GameMode[] } | undefined)?.mixedModes ??
                 []) as GameMode[];
             const pveStrategicBaseFlow =
                 isStrategicPVE &&
-                arenaPolicy.kind === 'singleplayer' &&
+                arenaPolicy.matchAxis !== 'pvp' &&
                 (game.mode === GameMode.Base ||
                     (game.mode === GameMode.Mix && mixModesForBasePve.includes(GameMode.Base)));
             const baseFlowServerActionTypes = new Set<string>([

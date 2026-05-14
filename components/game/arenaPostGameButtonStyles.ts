@@ -43,11 +43,16 @@ const UNIFIED_POST_GAME_SURFACE =
     'border-zinc-600/38 bg-gradient-to-b from-zinc-700/48 via-zinc-800/92 to-zinc-950 text-zinc-100/95 ' +
     'hover:border-zinc-500/48 hover:from-zinc-600/55 hover:via-zinc-800/94';
 
+/** 대기실 퇴장·경고성 액션 (인게임 푸터·사이드바 나가기 등) */
+const DANGER_POST_GAME_SURFACE =
+    'border-rose-800/42 bg-gradient-to-b from-rose-950/50 via-zinc-900 to-zinc-950 text-rose-50/95 ' +
+    'hover:border-rose-600/48 hover:from-rose-900/58 hover:via-zinc-900 hover:to-zinc-950';
+
 const VARIANT: Record<ArenaPostGameActionVariant, string> = {
     result: UNIFIED_POST_GAME_SURFACE,
     primary: UNIFIED_POST_GAME_SURFACE,
     retry: UNIFIED_POST_GAME_SURFACE,
-    danger: UNIFIED_POST_GAME_SURFACE,
+    danger: DANGER_POST_GAME_SURFACE,
     success: UNIFIED_POST_GAME_SURFACE,
     neutral: UNIFIED_POST_GAME_SURFACE,
 };
@@ -91,10 +96,17 @@ export const arenaPostGameIngameEndedRowClass =
 
 /**
  * `arenaPostGameButtonClass` 기본 셸에 `w-full`이 있어 그리드에 맞춘 것임.
- * 가로 한 줄 행 안에서는 균등 분배 + 최소 폭만 유지.
+ * 인게임 종료 한 줄: 내용·라벨 길이에 맞추고 행은 가로 스크롤(너무 넓게 늘어나지 않음).
  */
 export const arenaPostGameButtonInRowModifier =
-    '!w-auto min-w-0 flex-1 basis-0 sm:min-w-[5.75rem] md:min-w-[6.5rem]';
+    '!w-auto shrink-0 min-w-[5rem] sm:min-w-[5.5rem] md:min-w-[6rem]';
+
+/** 결과 모달 푸터 등 단일 확인만 있을 때 중앙 정렬 */
+export const arenaPostGameSingleConfirmFooterClass = 'flex w-full min-w-0 justify-center';
+
+/** 단일 확인 버튼: 전체 열 폭을 쓰지 않음 */
+export const arenaPostGameSingleModalConfirmButtonClass =
+    '!w-auto min-w-[7.5rem] max-w-[11rem] px-6 sm:min-w-[8rem] sm:max-w-[12rem] sm:px-8';
 
 export const arenaPostGamePanelShellClass =
     'min-w-0 rounded-xl border border-slate-600/40 bg-gradient-to-b from-slate-900/95 via-[#0f1218] to-[#06080c] px-2 py-3 sm:px-4 sm:py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-white/[0.03]';

@@ -25,6 +25,10 @@ import HomeNativeMergedEquipmentAbilityPanel from './HomeNativeMergedEquipmentAb
 import { championshipKataAbilityScore } from '../shared/constants/championshipRealMatch.js';
 import { specialResourceIcons } from './resourceIcons.js';
 import ChampionshipShopPanel from './championship/ChampionshipShopPanel.js';
+import PairPetDetailEmbedPanel from './pair/PairPetDetailEmbedPanel.js';
+import PairPetHomeEmptyDetailFrame from './pair/PairPetHomeEmptyDetailFrame.js';
+import { PairPetDetailFitScale } from './pair/PairPetDetailCardBody.js';
+import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 
 /** 챔피언십 로비 패널: 경기장 배경 블러(전략/놀이 대기실과 동일 계열) */
 const CHAMPIONSHIP_PANEL_GLASS =
@@ -33,10 +37,6 @@ const CHAMPIONSHIP_PANEL_GLASS =
 /** 프로필 홈 경기장 그리드(`Profile.tsx` lobbyGridShell)와 동일 — 2열 동일 폭·3행 동일 높이 */
 const CHAMPIONSHIP_ENTRY_GRID_DESKTOP_HOME_MATCH =
     'grid h-full min-h-0 w-full content-center grid-cols-2 grid-rows-[repeat(3,minmax(0,15rem))] gap-2.5 overflow-hidden lg:grid-rows-[repeat(3,minmax(0,17.5rem))] lg:gap-3 [&>*]:min-h-0 [&>*]:min-w-0';
-
-/** 탭·좁은 뷰포트(브라우저): 남는 세로 공간을 3등분해 카드 높이 통일 */
-const CHAMPIONSHIP_ENTRY_GRID_TAB_EQUAL_ROWS =
-    'grid min-h-0 h-full w-full min-w-0 flex-1 grid-cols-1 [grid-template-rows:repeat(3,minmax(0,1fr))] gap-[clamp(0.3rem,1.2dvh,0.55rem)] pb-1';
 
 /** 네이티브 모바일 챔피언십: 입장 카드 16:9 유지, 영역 안에서 세로 스크롤 */
 const CHAMPIONSHIP_ENTRY_STACK_NATIVE_SCROLL =
@@ -882,10 +882,9 @@ const filterInProgress = (state: TournamentState | null | undefined): Tournament
 const TournamentLobby: React.FC = () => {
     const { currentUserWithStatus, handlers, presets } = useAppContext();
     const { isNativeMobile, isNarrowViewport, pcLikeMobileLayout } = useNativeMobileShell();
-    /** 네이티브 앱이 아니어도 좁은 화면(모바일 브라우저 등)에서는 입장카드 우측을 컴팩트 패널로 */
+    /** 네이티브 앱이 아니어도 좁은 화면(모바일 브라우저 등)에서는 단일 열 탭 로비 */
     const useCompactMergedChampionshipCards = isNarrowViewport && !pcLikeMobileLayout;
-    /** 입장 카드: PVE / PVP 탭 (네이티브·좁은 뷰포트). 넓은 화면은 홈과 동일 2×3 그리드(열 50:50, 좌 PVE·우 PVP·펫·펫페어) */
-    const useChampionshipLobbyEntryTabs = isNativeMobile || useCompactMergedChampionshipCards;
+    const isHandheldChampionshipLobby = isNativeMobile || useCompactMergedChampionshipCards;
 
     const venueLobbyPanelStyle = useMemo(
         () =>
@@ -898,7 +897,10 @@ const TournamentLobby: React.FC = () => {
     const [hasRankChanged, setHasRankChanged] = useState(false);
     const [enrollingIn, setEnrollingIn] = useState<TournamentType | null>(null);
     const [selectedPreset, setSelectedPreset] = useState(0);
-    const [championshipLobbyEntryTab, setChampionshipLobbyEntryTab] = useState<'pve' | 'pvp'>('pve');
+    /** 네이티브·좁은 뷰포트 챔피언십 로비: 능력치 / 경기장 / 상점 */
+    const [nativeChampionshipTab, setNativeChampionshipTab] = useState<'stats' | 'arena' | 'shop'>('stats');
+    /** PC 챔피언십 로비 좌측: 유저 장비·능력치 / 대표 펫 능력치 */
+    const [pcChampionshipLeftAbilityTab, setPcChampionshipLeftAbilityTab] = useState<'user' | 'pet'>('user');
 
     if (!currentUserWithStatus) {
         return (
@@ -955,6 +957,15 @@ const TournamentLobby: React.FC = () => {
         await handlers.handleAction({ type: 'START_TOURNAMENT_ROUND', payload: { type: type } });
         window.location.hash = `#/tournament/${type}`;
     }, [handlers]);
+
+    const openPairLobbyForRepresentativePet = useCallback(() => {
+        try {
+            sessionStorage.setItem('sudamr_pair_lobby_open_pet_tab', '1');
+        } catch {
+            // ignore
+        }
+        window.location.hash = '#/pair';
+    }, []);
 
     const equippedItems = useMemo(() => {
         if (!currentUserWithStatus?.inventory) return [];
@@ -1014,12 +1025,22 @@ const TournamentLobby: React.FC = () => {
     const totalPoints = (Math.max(0, currentUserWithStatus.userLevel - 1) * 2) + (currentUserWithStatus.bonusStatPoints || 0);
     const spentPoints = Object.values(currentUserWithStatus.spentStatPoints || {}).reduce((sum, points) => sum + points, 0);
     const availablePoints = totalPoints - spentPoints;
+    const equippedPairPetRowNative = useMemo(
+        () => getEquippedPairPetInventoryRow(currentUserWithStatus),
+        [currentUserWithStatus],
+    );
     return (
         <div
-            className={`relative flex w-full flex-col bg-lobby-shell-championship text-primary ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-hidden overscroll-y-contain px-0.5 pb-0.5' : 'h-full p-2 sm:p-4 lg:p-2'}`}
+            className={`relative flex w-full flex-col bg-lobby-shell-championship text-primary ${
+                isHandheldChampionshipLobby
+                    ? isNativeMobile
+                        ? 'sudamr-native-route-root min-h-0 flex-1 overflow-hidden overscroll-y-contain px-0.5 pb-0.5'
+                        : 'h-full min-h-0 flex-1 overflow-hidden px-1 py-0.5 sm:px-1.5 sm:py-1'
+                    : 'h-full p-2 sm:p-4 lg:p-2'
+            }`}
             style={venueLobbyPanelStyle}
         >
-            {isNativeMobile ? (
+            {isHandheldChampionshipLobby ? (
                 <>
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-[clamp(0.25rem,1.2dvh,0.5rem)] overflow-hidden pb-[clamp(0.125rem,0.6dvh,0.25rem)]">
                     {/* 상단: 뒤로가기 + 타이틀 */}
@@ -1039,63 +1060,108 @@ const TournamentLobby: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* 홈과 동일: 바둑능력 배너 + 장비(3×2·프리셋) + 6가지 능력치 (육각형 없음) */}
-                    <HomeNativeMergedEquipmentAbilityPanel
-                        equippedItems={equippedItems}
-                        presets={presets}
-                        selectedPreset={selectedPreset}
-                        onPresetChange={handlePresetChange}
-                        onOpenEquipmentEffects={handlers.openEquipmentEffectsModal}
-                        onOpenStatAllocation={handlers.openStatAllocationModal}
-                        onViewEquippedItem={(item) => handlers.openViewingItem(item, true)}
-                        finalByStat={finalByStat}
-                        baseByStat={baseByStat}
-                        badukAbilityTotal={badukAbilityTotal}
-                        availablePoints={availablePoints}
-                        framed
-                        compactLayout
-                        championshipPhaseAbilityScores={championshipPhaseAbilityScores}
-                    />
+                    <div
+                        role="tablist"
+                        aria-label="챔피언십 구역"
+                        className="flex w-full shrink-0 gap-0.5 rounded-lg border border-amber-500/40 bg-black/45 p-0.5 shadow-inner"
+                    >
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={nativeChampionshipTab === 'stats'}
+                            onClick={() => setNativeChampionshipTab('stats')}
+                            className={`min-h-[2.125rem] min-w-0 flex-1 rounded-md px-0.5 py-1 text-[10px] font-black leading-tight transition-colors sm:min-h-[2.35rem] sm:px-1.5 sm:text-xs ${
+                                nativeChampionshipTab === 'stats'
+                                    ? 'bg-amber-500/90 text-slate-950 shadow'
+                                    : 'text-amber-100/80 hover:bg-white/10'
+                            }`}
+                        >
+                            능력치
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={nativeChampionshipTab === 'arena'}
+                            onClick={() => setNativeChampionshipTab('arena')}
+                            className={`min-h-[2.125rem] min-w-0 flex-1 rounded-md px-0.5 py-1 text-[10px] font-black leading-tight transition-colors sm:min-h-[2.35rem] sm:px-1.5 sm:text-xs ${
+                                nativeChampionshipTab === 'arena'
+                                    ? 'bg-amber-500/90 text-slate-950 shadow'
+                                    : 'text-amber-100/80 hover:bg-white/10'
+                            }`}
+                        >
+                            경기장
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={nativeChampionshipTab === 'shop'}
+                            onClick={() => setNativeChampionshipTab('shop')}
+                            className={`min-h-[2.125rem] min-w-0 flex-1 rounded-md px-0.5 py-1 text-[9px] font-black leading-tight transition-colors sm:min-h-[2.35rem] sm:px-1.5 sm:text-xs ${
+                                nativeChampionshipTab === 'shop'
+                                    ? 'bg-amber-500/90 text-slate-950 shadow'
+                                    : 'text-amber-100/80 hover:bg-white/10'
+                            }`}
+                            title="챔피언십 상점"
+                        >
+                            챔피언십 상점
+                        </button>
+                    </div>
 
-                    {/* 입장 카드 + 챔피언십 상점 (네이티브 모바일) */}
-                    <div className="grid min-h-0 w-full min-w-0 flex-1 grid-rows-[auto_minmax(0,1fr)_minmax(11rem,0.48fr)] gap-1 overflow-hidden">
-                        <div
-                            role="tablist"
-                            aria-label="챔피언십 입장 종류"
-                            className="flex w-full shrink-0 gap-1 rounded-lg border border-amber-500/40 bg-black/45 p-0.5 shadow-inner"
-                        >
-                            <button
-                                type="button"
-                                role="tab"
-                                aria-selected={championshipLobbyEntryTab === 'pve'}
-                                onClick={() => setChampionshipLobbyEntryTab('pve')}
-                                className={`min-h-[2.25rem] flex-1 rounded-md px-2 text-xs font-black transition-colors sm:text-sm ${
-                                    championshipLobbyEntryTab === 'pve'
-                                        ? 'bg-amber-500/90 text-slate-950 shadow'
-                                        : 'text-amber-100/80 hover:bg-white/10'
-                                }`}
-                            >
-                                PVE
-                            </button>
-                            <button
-                                type="button"
-                                role="tab"
-                                aria-selected={championshipLobbyEntryTab === 'pvp'}
-                                onClick={() => setChampionshipLobbyEntryTab('pvp')}
-                                className={`min-h-[2.25rem] flex-1 rounded-md px-2 text-xs font-black transition-colors sm:text-sm ${
-                                    championshipLobbyEntryTab === 'pvp'
-                                        ? 'bg-amber-500/90 text-slate-950 shadow'
-                                        : 'text-amber-100/80 hover:bg-white/10'
-                                }`}
-                            >
-                                PVP
-                            </button>
-                        </div>
-                        <div
-                            className={`flex min-h-0 w-full min-w-0 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-lg border border-stone-600/40 p-[clamp(0.2rem,0.85dvh,0.45rem)] shadow-inner [-webkit-overflow-scrolling:touch] ${CHAMPIONSHIP_PANEL_GLASS} bg-stone-950/45`}
-                            role="tabpanel"
-                        >
-                            {championshipLobbyEntryTab === 'pve' ? (
+                    <div
+                        className={`flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-stone-600/40 shadow-inner [-webkit-overflow-scrolling:touch] ${CHAMPIONSHIP_PANEL_GLASS} bg-stone-950/45`}
+                        role="tabpanel"
+                        aria-label={
+                            nativeChampionshipTab === 'stats'
+                                ? '능력치'
+                                : nativeChampionshipTab === 'arena'
+                                  ? '경기장'
+                                  : '챔피언십 상점'
+                        }
+                    >
+                        {nativeChampionshipTab === 'stats' ? (
+                            <div className="flex min-h-0 flex-1 flex-col gap-[clamp(0.25rem,1dvh,0.45rem)] overflow-y-auto overflow-x-hidden overscroll-y-contain p-[clamp(0.2rem,0.85dvh,0.45rem)]">
+                                <HomeNativeMergedEquipmentAbilityPanel
+                                    equippedItems={equippedItems}
+                                    presets={presets}
+                                    selectedPreset={selectedPreset}
+                                    onPresetChange={handlePresetChange}
+                                    onOpenEquipmentEffects={handlers.openEquipmentEffectsModal}
+                                    onOpenStatAllocation={handlers.openStatAllocationModal}
+                                    onViewEquippedItem={(item) => handlers.openViewingItem(item, true)}
+                                    finalByStat={finalByStat}
+                                    baseByStat={baseByStat}
+                                    badukAbilityTotal={badukAbilityTotal}
+                                    availablePoints={availablePoints}
+                                    framed
+                                    compactLayout
+                                    championshipPhaseAbilityScores={championshipPhaseAbilityScores}
+                                />
+                                <div className="relative shrink-0 overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_40px_-20px_rgba(0,0,0,0.65)] ring-1 ring-amber-100/12">
+                                    <div
+                                        className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent"
+                                        aria-hidden
+                                    />
+                                    <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
+                                    <div className="relative z-[1] flex min-h-0 max-h-[min(48dvh,22rem)] flex-col overflow-hidden p-1.5 sm:max-h-[min(50dvh,24rem)]">
+                                        {equippedPairPetRowNative ? (
+                                            <PairPetDetailEmbedPanel
+                                                currentUser={currentUserWithStatus}
+                                                item={equippedPairPetRowNative}
+                                                detailVariant="modal"
+                                                contentHeight="hug"
+                                                showRepresentativeBadge
+                                            />
+                                        ) : (
+                                            <PairPetHomeEmptyDetailFrame
+                                                variant="modal"
+                                                onRequestEquip={openPairLobbyForRepresentativePet}
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ) : nativeChampionshipTab === 'arena' ? (
+                            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain p-[clamp(0.2rem,0.85dvh,0.45rem)]">
                                 <div className={CHAMPIONSHIP_ENTRY_STACK_NATIVE_SCROLL}>
                                     <div className="flex w-full min-w-0 shrink-0 flex-col">
                                         <TournamentCard
@@ -1136,9 +1202,6 @@ const TournamentLobby: React.FC = () => {
                                             userDungeonCoreStatAverage={userDungeonCoreStatAverage}
                                         />
                                     </div>
-                                </div>
-                            ) : (
-                                <div className={CHAMPIONSHIP_ENTRY_STACK_NATIVE_SCROLL}>
                                     <div className="flex w-full min-w-0 shrink-0 flex-col">
                                         <PvpChampionshipComingSoonCard compactMerged mergedInfoPanelStretch />
                                     </div>
@@ -1149,40 +1212,41 @@ const TournamentLobby: React.FC = () => {
                                         <PetPairChampionshipComingSoonCard compactMerged mergedInfoPanelStretch />
                                     </div>
                                 </div>
-                            )}
-                        </div>
-                        <section
-                            className="relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_40px_-20px_rgba(0,0,0,0.7)] ring-1 ring-amber-100/10"
-                            aria-label="챔피언십 상점"
-                        >
-                            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
-                            <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
-                            <div className="relative flex shrink-0 items-center justify-between gap-2 border-b border-amber-500/25 px-2 py-1.5">
-                                <h2 className="min-w-0 flex-1 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-sm font-bold tracking-tight text-transparent">
-                                    챔피언십 상점
-                                </h2>
-                                <div
-                                    className="flex shrink-0 items-center gap-1 rounded-full border border-amber-400/35 bg-black/35 py-0.5 pl-1 pr-1.5 shadow-inner"
-                                    title="챔프 코인"
-                                >
-                                    <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/90">
-                                        <img
-                                            src={specialResourceIcons.champCoins}
-                                            alt="챔프 코인"
-                                            className="h-4 w-4 object-contain"
-                                            loading="lazy"
-                                            decoding="async"
-                                        />
+                            </div>
+                        ) : (
+                            <section
+                                className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+                                aria-label="챔피언십 상점"
+                            >
+                                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
+                                <div className="pointer-events-none absolute inset-0 rounded-lg ring-1 ring-inset ring-white/8" aria-hidden />
+                                <div className="relative flex shrink-0 items-center justify-between gap-2 border-b border-amber-500/25 px-2 py-1.5">
+                                    <h2 className="min-w-0 flex-1 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-sm font-bold tracking-tight text-transparent">
+                                        챔피언십 상점
+                                    </h2>
+                                    <div
+                                        className="flex shrink-0 items-center gap-1 rounded-full border border-amber-400/35 bg-black/35 py-0.5 pl-1 pr-1.5 shadow-inner"
+                                        title="챔프 코인"
+                                    >
+                                        <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/90">
+                                            <img
+                                                src={specialResourceIcons.champCoins}
+                                                alt="챔프 코인"
+                                                className="h-4 w-4 object-contain"
+                                                loading="lazy"
+                                                decoding="async"
+                                            />
+                                        </div>
+                                        <span className="text-xs font-bold tabular-nums text-amber-100">
+                                            {(currentUserWithStatus.champCoins ?? 0).toLocaleString()}
+                                        </span>
                                     </div>
-                                    <span className="text-xs font-bold tabular-nums text-amber-100">
-                                        {(currentUserWithStatus.champCoins ?? 0).toLocaleString()}
-                                    </span>
                                 </div>
-                            </div>
-                            <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-1.5 pb-1.5 pt-1">
-                                <ChampionshipShopPanel currentUser={currentUserWithStatus} onAction={handlers.handleAction} />
-                            </div>
-                        </section>
+                                <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-1.5 pb-1.5 pt-1">
+                                    <ChampionshipShopPanel currentUser={currentUserWithStatus} onAction={handlers.handleAction} />
+                                </div>
+                            </section>
+                        )}
                     </div>
                 </div>
             </>
@@ -1190,7 +1254,7 @@ const TournamentLobby: React.FC = () => {
             <div className="flex h-full min-h-0 min-w-0 flex-1 flex-row gap-1.5 overflow-hidden">
                 <div className="min-h-0 flex-1 flex flex-col gap-1.5 overflow-hidden">
                     <div className="flex min-h-0 flex-1 flex-row gap-1.5 overflow-hidden">
-                    <aside className="flex h-full min-h-0 w-[min(42%,480px)] min-w-[288px] max-w-[480px] shrink-0 flex-col gap-1.5 overflow-hidden">
+                    <aside className="flex h-full min-h-0 w-[min(42%,480px)] min-w-[288px] max-w-[480px] shrink-0 flex-col gap-1 overflow-hidden">
                         <div className="relative shrink-0 overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15">
                             <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
                             <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
@@ -1206,32 +1270,106 @@ const TournamentLobby: React.FC = () => {
                                 <h1 className="relative z-[1] min-w-0 truncate text-left text-xl font-bold sm:text-2xl lg:text-3xl">챔피언십</h1>
                             </div>
                         </div>
-                        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden overscroll-y-contain">
-                            <div className="min-h-0 shrink-0 overflow-y-auto overflow-x-hidden overscroll-y-contain [-webkit-overflow-scrolling:touch]">
-                                <HomeNativeMergedEquipmentAbilityPanel
-                                    equippedItems={equippedItems}
-                                    presets={presets}
-                                    selectedPreset={selectedPreset}
-                                    onPresetChange={handlePresetChange}
-                                    onOpenEquipmentEffects={handlers.openEquipmentEffectsModal}
-                                    onOpenStatAllocation={handlers.openStatAllocationModal}
-                                    onViewEquippedItem={(item) => handlers.openViewingItem(item, true)}
-                                    finalByStat={finalByStat}
-                                    baseByStat={baseByStat}
-                                    badukAbilityTotal={badukAbilityTotal}
-                                    availablePoints={availablePoints}
-                                    framed
-                                    compactLayout={false}
-                                    championshipPhaseAbilityScores={championshipPhaseAbilityScores}
-                                />
+                        <div className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden overscroll-y-contain">
+                            {/* 유저·펫: 남는 높이 전부 사용. 상점은 본문 높이만(shrink-0) — 장비 6칸 스크롤 없이 맞춤 */}
+                            <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
+                                <div
+                                    role="tablist"
+                                    aria-label="능력치 패널"
+                                    className="flex w-full shrink-0 gap-1 rounded-lg border border-amber-500/40 bg-black/40 p-0.5 shadow-inner"
+                                >
+                                    <button
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={pcChampionshipLeftAbilityTab === 'user'}
+                                        onClick={() => setPcChampionshipLeftAbilityTab('user')}
+                                        className={`min-h-[2.25rem] flex-1 rounded-md px-2 text-xs font-black transition-colors sm:text-sm ${
+                                            pcChampionshipLeftAbilityTab === 'user'
+                                                ? 'bg-amber-500/90 text-slate-950 shadow'
+                                                : 'text-amber-100/85 hover:bg-white/10'
+                                        }`}
+                                    >
+                                        유저
+                                    </button>
+                                    <button
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={pcChampionshipLeftAbilityTab === 'pet'}
+                                        onClick={() => setPcChampionshipLeftAbilityTab('pet')}
+                                        className={`min-h-[2.25rem] flex-1 rounded-md px-2 text-xs font-black transition-colors sm:text-sm ${
+                                            pcChampionshipLeftAbilityTab === 'pet'
+                                                ? 'bg-amber-500/90 text-slate-950 shadow'
+                                                : 'text-amber-100/85 hover:bg-white/10'
+                                        }`}
+                                    >
+                                        펫
+                                    </button>
+                                </div>
+                                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-b-none bg-black/20 ring-1 ring-inset ring-white/5">
+                                    <PairPetDetailFitScale
+                                        itemId={
+                                            pcChampionshipLeftAbilityTab === 'user'
+                                                ? `champ-lobby-left-user-${currentUserWithStatus.id}`
+                                                : equippedPairPetRowNative
+                                                  ? `champ-lobby-left-pet-${equippedPairPetRowNative.id}`
+                                                  : 'champ-lobby-left-pet-empty'
+                                        }
+                                        outerClassName="px-0.5 py-0.5 sm:px-1 sm:py-1"
+                                        innerClassName={
+                                            pcChampionshipLeftAbilityTab === 'user'
+                                                ? 'flex h-full min-h-0 w-full flex-col'
+                                                : 'flex w-full min-w-0 min-h-0 shrink-0 flex-col'
+                                        }
+                                        stretchInnerHeightWhenUnscaled
+                                    >
+                                        {pcChampionshipLeftAbilityTab === 'user' ? (
+                                            <HomeNativeMergedEquipmentAbilityPanel
+                                                equippedItems={equippedItems}
+                                                presets={presets}
+                                                selectedPreset={selectedPreset}
+                                                onPresetChange={handlePresetChange}
+                                                onOpenEquipmentEffects={handlers.openEquipmentEffectsModal}
+                                                onOpenStatAllocation={handlers.openStatAllocationModal}
+                                                onViewEquippedItem={(item) => handlers.openViewingItem(item, true)}
+                                                finalByStat={finalByStat}
+                                                baseByStat={baseByStat}
+                                                badukAbilityTotal={badukAbilityTotal}
+                                                availablePoints={availablePoints}
+                                                framed
+                                                joinShopBelow
+                                                compactLayout
+                                                championshipPhaseAbilityScores={championshipPhaseAbilityScores}
+                                            />
+                                        ) : equippedPairPetRowNative ? (
+                                            <div className="flex w-full shrink-0 flex-col rounded-t-xl rounded-b-none border border-fuchsia-500/40 border-b-0 bg-gradient-to-b from-zinc-900/92 to-zinc-950 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-fuchsia-500/18 sm:p-2">
+                                                <PairPetDetailEmbedPanel
+                                                    currentUser={currentUserWithStatus}
+                                                    item={equippedPairPetRowNative}
+                                                    detailVariant="modal"
+                                                    contentHeight="fill"
+                                                    showRepresentativeBadge
+                                                    suppressDetailFitScale
+                                                    parentOuterFitScale
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="flex w-full shrink-0 flex-col rounded-t-xl rounded-b-none border border-fuchsia-500/40 border-b-0 bg-gradient-to-b from-zinc-900/92 to-zinc-950 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-fuchsia-500/18 sm:p-2">
+                                                <PairPetHomeEmptyDetailFrame
+                                                    variant="modal"
+                                                    onRequestEquip={openPairLobbyForRepresentativePet}
+                                                />
+                                            </div>
+                                        )}
+                                    </PairPetDetailFitScale>
+                                </div>
                             </div>
                             <section
-                                className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_40px_-20px_rgba(0,0,0,0.7)] ring-1 ring-amber-100/10"
+                                className="relative flex w-full min-w-0 shrink-0 flex-col overflow-hidden rounded-b-xl rounded-t-none border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_40px_-20px_rgba(0,0,0,0.7)] ring-1 ring-amber-100/10"
                                 aria-label="챔피언십 상점"
                             >
                                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
-                                <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
-                                <div className="relative flex shrink-0 items-center justify-between gap-2 border-b border-amber-500/25 px-2.5 py-2">
+                                <div className="pointer-events-none absolute inset-0 rounded-b-xl rounded-t-none ring-1 ring-inset ring-white/8" aria-hidden />
+                                <div className="relative flex shrink-0 items-center justify-between gap-2 border-b border-amber-500/25 px-2 py-1.5">
                                     <h2 className="min-w-0 flex-1 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-base font-bold tracking-tight text-transparent sm:text-lg">
                                         챔피언십 상점
                                     </h2>
@@ -1253,126 +1391,19 @@ const TournamentLobby: React.FC = () => {
                                         </span>
                                     </div>
                                 </div>
-                                <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2 pb-2.5 pt-2">
-                                    <ChampionshipShopPanel currentUser={currentUserWithStatus} onAction={handlers.handleAction} />
+                                <div className="flex flex-col overflow-hidden px-2 pb-1.5 pt-0">
+                                    <ChampionshipShopPanel
+                                        currentUser={currentUserWithStatus}
+                                        onAction={handlers.handleAction}
+                                        layoutVariant="asideIntrinsic"
+                                    />
                                 </div>
                             </section>
                         </div>
                     </aside>
                     <main className="min-h-0 flex-1 flex flex-col items-center overflow-hidden rounded-lg border border-zinc-600/80 bg-panel p-1 shadow-inner">
                         <div className="mx-auto flex h-full min-h-0 w-full max-w-[min(100%,1280px)] flex-col justify-center px-0.5">
-                            {useChampionshipLobbyEntryTabs ? (
-                                <div className="flex h-full min-h-0 w-full flex-col gap-2 overflow-hidden">
-                                    <div
-                                        role="tablist"
-                                        aria-label="챔피언십 입장 종류"
-                                        className="flex w-full shrink-0 gap-1.5 rounded-lg border border-amber-500/40 bg-black/40 p-1 shadow-inner"
-                                    >
-                                        <button
-                                            type="button"
-                                            role="tab"
-                                            aria-selected={championshipLobbyEntryTab === 'pve'}
-                                            onClick={() => setChampionshipLobbyEntryTab('pve')}
-                                            className={`min-h-[2.5rem] flex-1 rounded-md px-2 text-sm font-black transition-colors sm:text-base ${
-                                                championshipLobbyEntryTab === 'pve'
-                                                    ? 'bg-amber-500/90 text-slate-950 shadow'
-                                                    : 'text-amber-100/85 hover:bg-white/10'
-                                            }`}
-                                        >
-                                            PVE
-                                        </button>
-                                        <button
-                                            type="button"
-                                            role="tab"
-                                            aria-selected={championshipLobbyEntryTab === 'pvp'}
-                                            onClick={() => setChampionshipLobbyEntryTab('pvp')}
-                                            className={`min-h-[2.5rem] flex-1 rounded-md px-2 text-sm font-black transition-colors sm:text-base ${
-                                                championshipLobbyEntryTab === 'pvp'
-                                                    ? 'bg-amber-500/90 text-slate-950 shadow'
-                                                    : 'text-amber-100/85 hover:bg-white/10'
-                                            }`}
-                                        >
-                                            PVP
-                                        </button>
-                                    </div>
-                                    <div
-                                        className={`flex min-h-0 flex-1 flex-col overflow-hidden overflow-x-hidden overscroll-y-contain rounded-lg border border-stone-600/45 p-2 shadow-inner [-webkit-overflow-scrolling:touch] ${CHAMPIONSHIP_PANEL_GLASS} bg-stone-950/40`}
-                                        role="tabpanel"
-                                    >
-                                        {championshipLobbyEntryTab === 'pve' ? (
-                                            <div className={CHAMPIONSHIP_ENTRY_GRID_TAB_EQUAL_ROWS}>
-                                                <div className="flex h-full min-h-0 min-w-0 flex-col">
-                                                    <TournamentCard
-                                                        type="neighborhood"
-                                                        onClick={(stage) => handleEnterArena('neighborhood', stage)}
-                                                        onContinue={() => handleContinueTournament('neighborhood')}
-                                                        inProgress={neighborhoodState || null}
-                                                        currentUser={currentUserWithStatus}
-                                                        mergedInfoPanel
-                                                        mergedInfoPanelCompact={useCompactMergedChampionshipCards}
-                                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
-                                                        fillLobbyGridCell
-                                                        userDungeonCoreStatAverage={userDungeonCoreStatAverage}
-                                                    />
-                                                </div>
-                                                <div className="flex h-full min-h-0 min-w-0 flex-col">
-                                                    <TournamentCard
-                                                        type="national"
-                                                        onClick={(stage) => handleEnterArena('national', stage)}
-                                                        onContinue={() => handleContinueTournament('national')}
-                                                        inProgress={nationalState || null}
-                                                        currentUser={currentUserWithStatus}
-                                                        mergedInfoPanel
-                                                        mergedInfoPanelCompact={useCompactMergedChampionshipCards}
-                                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
-                                                        fillLobbyGridCell
-                                                        userDungeonCoreStatAverage={userDungeonCoreStatAverage}
-                                                    />
-                                                </div>
-                                                <div className="flex h-full min-h-0 min-w-0 flex-col">
-                                                    <TournamentCard
-                                                        type="world"
-                                                        onClick={(stage) => handleEnterArena('world', stage)}
-                                                        onContinue={() => handleContinueTournament('world')}
-                                                        inProgress={worldState || null}
-                                                        currentUser={currentUserWithStatus}
-                                                        mergedInfoPanel
-                                                        mergedInfoPanelCompact={useCompactMergedChampionshipCards}
-                                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
-                                                        fillLobbyGridCell
-                                                        userDungeonCoreStatAverage={userDungeonCoreStatAverage}
-                                                    />
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className={CHAMPIONSHIP_ENTRY_GRID_TAB_EQUAL_ROWS}>
-                                                <div className="flex h-full min-h-0 min-w-0 flex-col">
-                                                    <PvpChampionshipComingSoonCard
-                                                        compactMerged={useCompactMergedChampionshipCards}
-                                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
-                                                        fillLobbyGridCell
-                                                    />
-                                                </div>
-                                                <div className="flex h-full min-h-0 min-w-0 flex-col">
-                                                    <PetChampionshipComingSoonCard
-                                                        compactMerged={useCompactMergedChampionshipCards}
-                                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
-                                                        fillLobbyGridCell
-                                                    />
-                                                </div>
-                                                <div className="flex h-full min-h-0 min-w-0 flex-col">
-                                                    <PetPairChampionshipComingSoonCard
-                                                        compactMerged={useCompactMergedChampionshipCards}
-                                                        mergedInfoPanelStretch={useCompactMergedChampionshipCards}
-                                                        fillLobbyGridCell
-                                                    />
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className={CHAMPIONSHIP_ENTRY_GRID_DESKTOP_HOME_MATCH}>
+                            <div className={CHAMPIONSHIP_ENTRY_GRID_DESKTOP_HOME_MATCH}>
                                     <div className="flex h-full min-h-0 min-w-0 flex-col">
                                         <TournamentCard
                                             type="neighborhood"
@@ -1425,7 +1456,6 @@ const TournamentLobby: React.FC = () => {
                                         <PetPairChampionshipComingSoonCard compactMerged={false} fillLobbyGridCell />
                                     </div>
                                 </div>
-                            )}
                         </div>
                     </main>
                     </div>

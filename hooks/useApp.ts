@@ -6188,6 +6188,8 @@ export const useApp = () => {
                         action.type === 'CONFIRM_TOWER_GAME_START' ||
                         action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||
                         action.type === 'CONFIRM_AI_GAME_START' ||
+                        /** 베이스 배치 확정: AI·모험 등에서 `baseHttpGameSnapshot`으로 `game`이 오나 WS만 기다리면 단계 전환이 안 보임 */
+                        action.type === 'CONFIRM_BASE_PLACEMENT_COMPLETE' ||
                         action.type === 'CONFIRM_BASE_REVEAL' ||
                         action.type === 'CONFIRM_CAPTURE_REVEAL' ||
                         action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' ||
@@ -6224,6 +6226,7 @@ export const useApp = () => {
                             setSinglePlayerGames(currentGames => {
                                 const shouldUpdate =
                                     action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||
+                                    action.type === 'CONFIRM_BASE_PLACEMENT_COMPLETE' ||
                                     action.type === 'CONFIRM_BASE_REVEAL' ||
                                     action.type === 'CONFIRM_CAPTURE_REVEAL' ||
                                     action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' ||
@@ -6269,6 +6272,7 @@ export const useApp = () => {
                                 // CONFIRM·배치변경·턴 추가·스캔/히든 아이템 사용 시 게임 상태가 바뀌었으므로 업데이트
                                 if (
                                     action.type === 'CONFIRM_TOWER_GAME_START' ||
+                                    action.type === 'CONFIRM_BASE_PLACEMENT_COMPLETE' ||
                                     action.type === 'TOWER_REFRESH_PLACEMENT' ||
                                     action.type === 'TOWER_ADD_TURNS' ||
                                     action.type === 'START_SCANNING' ||

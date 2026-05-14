@@ -1,8 +1,8 @@
 import React, { useCallback, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-/** 모바일 상점 카드 `overflow-hidden` 밖에서 설명을 보이게 하기 위한 뷰포트 고정 레이어 */
-export const SHOP_IMAGE_DESC_POPOVER_Z = 100_000;
+/** 상점·챔피언십 등 이미지 설명 팝오버 — 일반 모달(z~6만) 위에 표시 */
+export const SHOP_IMAGE_DESC_POPOVER_Z = 130_000;
 
 export function formatShopItemDescription(desc: string): string {
     if (!desc) return '';
@@ -47,7 +47,9 @@ export const ShopMobileImageDescriptionPortal: React.FC<{
     anchorRef: React.RefObject<HTMLDivElement | null>;
     onRequestClose: () => void;
     children: React.ReactNode;
-}> = ({ open, anchorRef, onRequestClose, children }) => {
+    /** false면 전체 화면 히트 레이어 없음(데스크톱 호버 툴팁 등). 기본 true(모바일 탭 닫기). */
+    fullscreenBackdrop?: boolean;
+}> = ({ open, anchorRef, onRequestClose, children, fullscreenBackdrop = true }) => {
     const [box, setBox] = useState<ShopMobileDescBox | null>(null);
 
     const recompute = useCallback(() => {
@@ -85,15 +87,17 @@ export const ShopMobileImageDescriptionPortal: React.FC<{
 
     return createPortal(
         <>
-            <div
-                className="fixed inset-0 bg-transparent"
-                style={{ zIndex: SHOP_IMAGE_DESC_POPOVER_Z - 1, touchAction: 'manipulation' }}
-                aria-hidden
-                onPointerDown={(e) => {
-                    e.preventDefault();
-                    onRequestClose();
-                }}
-            />
+            {fullscreenBackdrop ? (
+                <div
+                    className="fixed inset-0 bg-transparent"
+                    style={{ zIndex: SHOP_IMAGE_DESC_POPOVER_Z - 1, touchAction: 'manipulation' }}
+                    aria-hidden
+                    onPointerDown={(e) => {
+                        e.preventDefault();
+                        onRequestClose();
+                    }}
+                />
+            ) : null}
             {box ? (
                 <div
                     role="dialog"

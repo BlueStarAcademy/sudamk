@@ -57,7 +57,14 @@ export const PairPetDetailFitScale: React.FC<{
     children: React.ReactNode;
     /** 스케일 대상 바깥 여백 — 테두리·링 안쪽으로 콘텐츠가 붙지 않게 */
     outerClassName?: string;
-}> = ({ itemId, children, outerClassName = '' }) => {
+    /** 스케일 대상 안쪽(자식 flex 높이 체인 등) — 챔피언십 로비 좌측 패널 등 */
+    innerClassName?: string;
+    /**
+     * true이고 scale이 1이면 inner 높이를 outer에 맞춤(인라인 height:auto가 h-full을 덮는 문제 방지).
+     * 챔피언십 PC 좌측 유저/펫 칸이 상점 위까지 세로로 꽉 차게 할 때 사용.
+     */
+    stretchInnerHeightWhenUnscaled?: boolean;
+}> = ({ itemId, children, outerClassName = '', innerClassName = '', stretchInnerHeightWhenUnscaled = false }) => {
     const outerRef = useRef<HTMLDivElement>(null);
     const innerRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(1);
@@ -81,7 +88,7 @@ export const PairPetDetailFitScale: React.FC<{
         ro.observe(outer);
         ro.observe(inner);
         return () => ro.disconnect();
-    }, [itemId]);
+    }, [itemId, stretchInnerHeightWhenUnscaled]);
 
     return (
         <div
@@ -90,11 +97,16 @@ export const PairPetDetailFitScale: React.FC<{
         >
             <div
                 ref={innerRef}
-                className="min-h-0 min-w-0 origin-top-left will-change-transform"
+                className={`min-h-0 min-w-0 origin-top-left will-change-transform ${innerClassName}`.trim()}
                 style={{
                     transform: `scale(${scale})`,
                     width: scale < 1 ? `${100 / scale}%` : '100%',
-                    height: scale < 1 ? `${100 / scale}%` : 'auto',
+                    height:
+                        scale < 1
+                            ? `${100 / scale}%`
+                            : stretchInnerHeightWhenUnscaled
+                              ? '100%'
+                              : 'auto',
                 }}
             >
                 {children}
@@ -112,6 +124,12 @@ export interface PairPetDetailCardBodyProps {
     showRepresentativeBadge?: boolean;
     /** 네이티브 홈 대표펫: 줄임·스크롤 없이 `PairPetDetailFitScale`에 맡기기 위한 촘촘 레이아웃 */
     mobileHomeRepPet?: boolean;
+    /** 챔피언십 로비: `mobileHomeRepPet`일 때 초·중·종반 스트립만 여유 있게 */
+    enlargeHomeRepPhaseStrip?: boolean;
+    /**
+     * `true`면 `panelFit`일 때 내부 `PairPetDetailFitScale`을 쓰지 않음 — 부모(예: 챔피언십 로비)가 한 번만 스케일할 때 이중 축소 방지.
+     */
+    suppressFitScale?: boolean;
 }
 
 /**
@@ -124,6 +142,8 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
     statsGridVariant,
     showRepresentativeBadge = false,
     mobileHomeRepPet = false,
+    enlargeHomeRepPhaseStrip = false,
+    suppressFitScale = false,
 }) => {
     const meta = useMemo(() => resolvePairPetMetaFromInventoryRow(item), [item]);
     const rpsAttr = useMemo(
@@ -356,11 +376,12 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                 dense={false}
                 coreGridDensity={undefined}
                 mobileHomeRepPet={homePack}
+                enlargeHomeRepPhaseStrip={enlargeHomeRepPhaseStrip}
             />
         </div>
     );
 
-    if (isPanelFit) {
+    if (isPanelFit && !suppressFitScale) {
         return (
             <PairPetDetailFitScale
                 itemId={item.id}
