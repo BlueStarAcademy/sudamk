@@ -542,7 +542,7 @@ export const GUILD_SHOP_ITEMS: GuildShopItem[] = [
     { itemId: 'guild_equip_box_2', name: '길드 장비 상자(희귀)', description: '희귀 등급 장비 1개 획득. 상자를 열면 길드 관련 특수 옵션이 반드시 포함됩니다.', cost: 300, image: '/images/Box/EquipmentBox3.webp', type: 'equipment_box', limit: 3, limitType: 'weekly', grade: ItemGrade.Rare },
     { itemId: 'guild_equip_box_3', name: '길드 장비 상자(에픽)', description: '에픽 등급 장비 1개 획득. 상자를 열면 길드 관련 특수 옵션이 반드시 포함됩니다.', cost: 1000, image: '/images/Box/EquipmentBox4.webp', type: 'equipment_box', limit: 1, limitType: 'weekly', grade: ItemGrade.Epic },
     { itemId: 'guild_equip_box_4', name: '길드 장비 상자(전설)', description: '전설 등급 장비 1개 획득. 상자를 열면 길드 관련 특수 옵션이 반드시 포함됩니다.', cost: 3000, image: '/images/Box/EquipmentBox5.webp', type: 'equipment_box', limit: 1, limitType: 'monthly', grade: ItemGrade.Legendary },
-    { itemId: 'guild_equip_box_mythic', name: '신화 장비 상자', description: '신화 등급 장비 1개 획득. 상자를 열면 길드 관련 특수 옵션이 반드시 포함됩니다.', cost: 10000, image: '/images/Box/EquipmentBox6.webp', type: 'equipment_box', limit: 1, limitType: 'weekly', grade: ItemGrade.Mythic },
+    { itemId: 'guild_equip_box_mythic', name: '길드 장비 상자(신화)', description: '신화 등급 장비 1개 획득. 상자를 열면 길드 관련 특수 옵션이 반드시 포함됩니다.', cost: 10000, image: '/images/Box/EquipmentBox6.webp', type: 'equipment_box', limit: 1, limitType: 'weekly', grade: ItemGrade.Mythic },
 
     // Materials
     { itemId: '하급 강화석', name: '하급 강화석', description: '장비 강화에 사용되는 기본 재료.', cost: 10, image: '/images/materials/materials1.webp', type: 'material', limit: 100, limitType: 'weekly', grade: ItemGrade.Normal },

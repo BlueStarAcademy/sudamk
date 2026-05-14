@@ -5,6 +5,8 @@ import { useRanking } from '../hooks/useRanking.js';
 import { RankingEntry } from '../hooks/useRanking.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import Avatar from './Avatar.js';
+import { pickChampionshipVersusSeasonRankingStats } from '../shared/utils/championshipVersusElo.js';
+import { getCurrentSeason } from '../shared/utils/timeUtils.js';
 
 const CHAMPIONSHIP_TOP = 100;
 const MOBILE_RANK_ROW_CLASS = 'min-h-[3rem]';
@@ -122,11 +124,7 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
     const { currentUserWithStatus, handlers } = useAppContext();
     const { rankings, loading, error } = useRanking('championship', CHAMPIONSHIP_TOP, 0);
 
-    /** 0점 유저는 표시하지 않음 (API와 동일, 캐시 지연 대비 클라이언트에서도 재필터) */
-    const visibleRankings = useMemo(() => {
-        const filtered = rankings.filter(e => e.score > 0);
-        return filtered.map((e, i) => ({ ...e, rank: i + 1 }));
-    }, [rankings]);
+    const visibleRankings = useMemo(() => rankings, [rankings]);
 
     const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY);
     const loadMoreRef = useRef<HTMLDivElement | HTMLLIElement>(null);
@@ -157,59 +155,78 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
 
     const myRankDisplay = useMemo(() => {
         if (!currentUserWithStatus) return null;
-        const score = currentUserWithStatus.cumulativeTournamentScore ?? 0;
         if (myEntry) {
             return { rank: myEntry.rank, score: myEntry.score };
         }
-        return { rank: null as number | null, score };
-    }, [currentUserWithStatus, myEntry]);
+        const row = pickChampionshipVersusSeasonRankingStats(currentUserWithStatus);
+        if (!row) {
+            return { rank: null as number | null, score: 0 };
+        }
+        const rankApprox =
+            visibleRankings.filter((e) => e.score > row.rating).length + 1;
+        return { rank: rankApprox, score: row.rating };
+    }, [currentUserWithStatus, myEntry, visibleRankings]);
 
-    if (!currentUserWithStatus) {
+    if (!currentUserWithStatus && !compact) {
         return (
             <div
                 className={
-                    compact
-                        ? `border border-color rounded-lg p-1.5 h-full flex items-center justify-center text-gray-500 text-xs bg-panel ${lobbyGlass ? 'backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)]' : ''}`
-                        : `rounded-lg p-4 flex flex-col shadow-lg h-full min-h-0 items-center justify-center text-gray-500 ${lobbyGlass ? 'border border-color/50 bg-gray-900/45 backdrop-blur-xl backdrop-saturate-150' : 'bg-gray-800'}`
+                    `rounded-lg p-4 flex flex-col shadow-lg h-full min-h-0 items-center justify-center text-gray-500 ${lobbyGlass ? 'border border-color/50 bg-gray-900/45 backdrop-blur-xl backdrop-saturate-150' : 'bg-gray-800'}`
                 }
             >
-                랭킹 정보를 불러오는 중...
+                로그인 후 챔피언십 랭킹을 확인할 수 있습니다.
             </div>
         );
     }
 
     // 홈화면용: 게임/바둑 랭킹과 동일한 패널 디자인
     if (compact) {
+        const versus = currentUserWithStatus ? pickChampionshipVersusSeasonRankingStats(currentUserWithStatus) : null;
         const myRank = myRankDisplay?.rank != null ? myRankDisplay.rank : 0;
         const myScore = myRankDisplay?.score ?? 0;
-        const currentUserEntry: RankingEntry = myEntry || {
-            id: currentUserWithStatus.id,
-            nickname: currentUserWithStatus.nickname,
-            avatarId: currentUserWithStatus.avatarId,
-            borderId: currentUserWithStatus.borderId,
-            rank: myRank,
-            score: myScore,
-            totalGames: 0,
-            wins: 0,
-            losses: 0,
-        };
+        const currentUserEntry: RankingEntry | null = currentUserWithStatus
+            ? myEntry ?? {
+                  id: currentUserWithStatus.id,
+                  nickname: currentUserWithStatus.nickname,
+                  avatarId: currentUserWithStatus.avatarId,
+                  borderId: currentUserWithStatus.borderId,
+                  rank: myRank,
+                  score: myScore,
+                  totalGames: versus ? versus.seasonWins + versus.seasonLosses : 0,
+                  wins: versus?.seasonWins ?? 0,
+                  losses: versus?.seasonLosses ?? 0,
+              }
+            : null;
 
         return (
             <div
                 className={`relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-fuchsia-500/20 bg-gradient-to-b from-zinc-900/95 via-zinc-950 to-black text-on-panel shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-black/30 ${dense ? 'gap-0.5 p-0.5' : 'gap-1.5 p-2'} ${lobbyGlass ? 'backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)]' : ''}`}
             >
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-400/35 to-transparent" aria-hidden />
-                <h3
-                    className={`relative z-[1] flex-shrink-0 text-center font-black tracking-tight ${
-                        dense
-                            ? 'text-[8px] leading-tight text-secondary'
-                            : lobbyNativeMobile
-                              ? 'bg-gradient-to-r from-fuchsia-100 via-violet-50 to-amber-100/90 bg-clip-text text-lg text-transparent sm:text-xl'
-                              : 'bg-gradient-to-r from-fuchsia-100 via-violet-50 to-amber-100/90 bg-clip-text text-sm text-transparent'
-                    }`}
-                >
-                    챔피언십 랭킹
-                </h3>
+                <div className="relative z-[1] flex-shrink-0 text-center">
+                    <h3
+                        className={`font-black tracking-tight ${
+                            dense
+                                ? 'text-[8px] leading-tight text-secondary'
+                                : lobbyNativeMobile
+                                  ? 'bg-gradient-to-r from-fuchsia-100 via-violet-50 to-amber-100/90 bg-clip-text text-lg text-transparent sm:text-xl'
+                                  : 'bg-gradient-to-r from-fuchsia-100 via-violet-50 to-amber-100/90 bg-clip-text text-sm text-transparent'
+                        }`}
+                    >
+                        챔피언십 랭킹
+                    </h3>
+                    <p
+                        className={`mt-0.5 font-medium text-gray-400/95 ${
+                            dense
+                                ? 'text-[6px] leading-tight'
+                                : lobbyNativeMobile
+                                  ? 'text-[10px] sm:text-xs'
+                                  : 'text-[10px] sm:text-[11px]'
+                        }`}
+                    >
+                        {getCurrentSeason().name}
+                    </p>
+                </div>
                 <div
                     className={`flex min-h-0 flex-grow flex-col overflow-y-auto pr-0.5 ${RANKING_MODAL_SLIM_SCROLL_Y} ${dense ? 'gap-0.5 text-[8px]' : 'gap-1 pr-1'}`}
                 >
@@ -219,7 +236,7 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
                         <div className={`flex h-full items-center justify-center text-red-400 ${lobbyNativeMobile ? 'text-xs sm:text-[13px]' : 'text-xs'}`}>랭킹을 불러오는데 실패했습니다.</div>
                     ) : (
                         <>
-                            {currentUserEntry && (
+                            {currentUserEntry && currentUserWithStatus && (
                                 <div className="sticky top-0 z-10 border-b border-cyan-500/25 bg-gradient-to-r from-cyan-950/40 to-transparent pb-1 pt-0.5">
                                     <CompactRankRow
                                         entry={currentUserEntry}
@@ -240,7 +257,7 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
                                         <CompactRankRow
                                             key={entry.id}
                                             entry={entry}
-                                            isCurrentUser={entry.id === currentUserWithStatus.id}
+                                            isCurrentUser={Boolean(currentUserWithStatus) && entry.id === currentUserWithStatus?.id}
                                             onViewUser={handlers.openViewingUser}
                                             dense={dense}
                                             lobbyNativeMobile={lobbyNativeMobile}
@@ -259,6 +276,7 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
     }
 
     // 챔피언십 대기실용: 기존 디자인
+    const cu = currentUserWithStatus!;
     return (
         <div
             className={`rounded-lg p-4 flex flex-col shadow-lg h-full min-h-0 ${
@@ -267,9 +285,9 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
                     : 'bg-gray-800'
             }`}
         >
-            <div className="flex justify-between items-center mb-3 border-b border-gray-700 pb-2 flex-shrink-0">
+            <div className="mb-3 flex-shrink-0 border-b border-gray-700 pb-2">
                 <h2 className="text-xl font-bold">챔피언십 랭킹</h2>
-                <span className="text-xs text-gray-400">동네+전국+월드 합산 · Top {CHAMPIONSHIP_TOP}</span>
+                <p className="mt-0.5 text-sm font-medium text-gray-400">{getCurrentSeason().name}</p>
             </div>
 
             {loading && rankings.length === 0 ? (
@@ -295,14 +313,14 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
                                     )}
                                 </div>
                                 <Avatar
-                                    userId={currentUserWithStatus.id}
-                                    userName={currentUserWithStatus.nickname}
+                                    userId={cu.id}
+                                    userName={cu.nickname}
                                     size={40}
-                                    avatarUrl={AVATAR_POOL.find(a => a.id === currentUserWithStatus.avatarId)?.url}
-                                    borderUrl={BORDER_POOL.find(b => b.id === currentUserWithStatus.borderId)?.url}
+                                    avatarUrl={AVATAR_POOL.find(a => a.id === cu.avatarId)?.url}
+                                    borderUrl={BORDER_POOL.find(b => b.id === cu.borderId)?.url}
                                 />
                                 <div className="ml-2.5 lg:ml-3 flex-grow overflow-hidden">
-                                    <p className="truncate font-semibold text-base">{currentUserWithStatus.nickname}</p>
+                                    <p className="truncate font-semibold text-base">{cu.nickname}</p>
                                     <p className="font-mono text-sm text-yellow-400">{myRankDisplay.score.toLocaleString()}점</p>
                                 </div>
                             </div>
@@ -316,7 +334,7 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
                                     <RankRow
                                         key={entry.id}
                                         entry={entry}
-                                        isCurrentUser={entry.id === currentUserWithStatus.id}
+                                        isCurrentUser={entry.id === cu.id}
                                         onViewUser={handlers.openViewingUser}
                                     />
                                 ))}

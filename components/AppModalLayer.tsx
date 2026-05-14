@@ -118,10 +118,13 @@ const AppModalLayer: React.FC = () => {
         if (modals.isShopOpen) ids.push('shop');
         if (modals.isExchangeOpen) ids.push('exchange');
         if (modals.isActionPointModalOpen) ids.push('actionPoint');
-        if (modals.viewingUser) ids.push('viewingUser');
+        if (modals.viewingUser && !modals.isRankingQuickModalOpen) ids.push('viewingUser');
         if (modals.isInfoModalOpen) ids.push('infoModal');
         if (modals.isAnnouncementsModalOpen) ids.push('announcementsModal');
-        if (modals.isRankingQuickModalOpen) ids.push('rankingQuickModal');
+        if (modals.isRankingQuickModalOpen) {
+            ids.push('rankingQuickModal');
+            if (modals.viewingUser) ids.push('viewingUser');
+        }
         if (modals.isChatQuickModalOpen) ids.push('chatQuickModal');
         if (modals.isEncyclopediaOpen) ids.push('encyclopedia');
         if (modals.isStatAllocationModalOpen) ids.push('statAllocation');

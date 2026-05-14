@@ -144,6 +144,7 @@ export function getSelectiveUserUpdate(
             'inventory',
             'gold',
             'dungeonConditionSnapshot',
+            'championshipVersusConditionSnapshot',
             'lastNeighborhoodTournament',
             'lastNationalTournament',
             'lastWorldTournament',

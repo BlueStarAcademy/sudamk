@@ -1,9 +1,29 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, Component, ErrorInfo, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { UserWithStatus, TournamentState, PlayerForTournament, ServerAction, User, CoreStat, Match, Round, CommentaryLine, TournamentType, LeagueTier, GameMode, Player } from '../types.js';
+import {
+    UserWithStatus,
+    TournamentState,
+    PlayerForTournament,
+    ServerAction,
+    User,
+    CoreStat,
+    Match,
+    Round,
+    CommentaryLine,
+    TournamentType,
+    LeagueTier,
+    GameMode,
+    Player,
+    type AnalysisResult,
+} from '../types.js';
 import Button from './Button.js';
+import { ArenaRightSidebarCollapseToggle } from './game/ArenaRightSidebarCollapseToggle.js';
 import { useButtonClickThrottle } from '../hooks/useButtonClickThrottle.js';
-import { useTournamentSimulation, type ChampionshipPlaybackSpeed } from '../hooks/useTournamentSimulation.js';
+import {
+    useTournamentSimulation,
+    CHAMPIONSHIP_SCORING_VEIL_DURATION_MS,
+    type ChampionshipPlaybackSpeed,
+} from '../hooks/useTournamentSimulation.js';
 import {
     TOURNAMENT_DEFINITIONS,
     CONSUMABLE_ITEMS,
@@ -232,8 +252,14 @@ export const ChampionshipRealGoBoard: React.FC<{
     tournamentForResult?: TournamentState | null;
     /** 던전 경기장: 바둑판 중앙 안내(카타 로딩·경기 전 대기) */
     dungeonBoardCenterMode?: 'deep_breath' | 'players_entering' | null;
+    /** `players_entering`일 때 중앙 문구(미지정이면 기본: 선수 입장 안내) */
+    dungeonPlayersEnteringHint?: string;
     /** 모든 경기 종료 후 최종 순위표 */
     finalStandings?: ChampionshipDungeonStandingRow[] | null;
+    /** true면 경기 종료 후 바둑판 위 FINAL RESULT 카드(오버레이)를 숨긴다 — 장내 PVP 등에서 별도 결과 모달과 함께 사용 */
+    suppressFinishedResultCard?: boolean;
+    /** 계가·종료 판면에서 영토/사석 오버레이(서버 `calculateScoreManually` 또는 엔진 분석) */
+    territoryAnalysis?: AnalysisResult | null;
 }> = ({
     match,
     currentUser,
@@ -241,6 +267,9 @@ export const ChampionshipRealGoBoard: React.FC<{
     tournamentForResult = null,
     dungeonBoardCenterMode = null,
     finalStandings = null,
+    suppressFinishedResultCard = false,
+    territoryAnalysis = null,
+    dungeonPlayersEnteringHint,
 }) => {
     const realGame = match?.championshipRealGame;
 
@@ -259,19 +288,42 @@ export const ChampionshipRealGoBoard: React.FC<{
         return realGame.boardState;
     }, [realGame?.boardState, realGame?.boardSize, realGame?.currentPly, realGame?.status]);
 
+    /** 계가 베일·스캔 연출 — `realGame` 없을 때도 훅 순서를 유지해야 함(조기 return 위에 둔다). */
+    const [scoringVeilComplete, setScoringVeilComplete] = React.useState(false);
+    React.useEffect(() => {
+        if (!realGame || realGame.status !== 'scoring') {
+            setScoringVeilComplete(false);
+            return;
+        }
+        setScoringVeilComplete(false);
+        const id = window.setTimeout(() => setScoringVeilComplete(true), CHAMPIONSHIP_SCORING_VEIL_DURATION_MS);
+        return () => window.clearTimeout(id);
+    }, [realGame?.status, match?.id]);
+
     if (!realGame) {
-        const fallbackText = tournamentFinished
-            ? '경기가 모두 종료되었습니다. 시상식이 치뤄지고 있습니다.'
-            : dungeonBoardCenterMode === 'deep_breath'
-              ? '대회에 참가하기 위해 심호흡을 하고있습니다.'
-              : dungeonBoardCenterMode === 'players_entering'
-                ? '선수들이 입장하고 있습니다. 잠시만 기다려주세요.'
-                : '경기장에 선수들이 입장하고 있습니다. 잠시만 기다려 주세요.';
-        return (
-            <div className="flex h-full w-full items-center justify-center bg-transparent px-4 text-center text-sm text-slate-300/85">
-                <span>{fallbackText}</span>
-            </div>
-        );
+        if (tournamentFinished) {
+            return (
+                <div className="flex h-full w-full items-center justify-center bg-transparent px-4 text-center text-sm text-slate-300/85">
+                    <span>경기가 모두 종료되었습니다. 시상식이 치뤄지고 있습니다.</span>
+                </div>
+            );
+        }
+        if (dungeonBoardCenterMode === 'deep_breath') {
+            return (
+                <div className="flex h-full w-full items-center justify-center bg-transparent px-4 text-center text-sm text-slate-300/85">
+                    <span>대회에 참가하기 위해 심호흡을 하고있습니다.</span>
+                </div>
+            );
+        }
+        if (dungeonBoardCenterMode === 'players_entering') {
+            return (
+                <div className="flex h-full w-full items-center justify-center bg-transparent px-4 text-center text-sm text-slate-300/85">
+                    <span>{dungeonPlayersEnteringHint ?? '선수들이 입장하고 있습니다. 잠시만 기다려주세요.'}</span>
+                </div>
+            );
+        }
+        /** 경기 시작 전·기보 없음: 입장 안내는 `players_entering`(시작 클릭 후)에만 표시 */
+        return <div className="h-full w-full bg-transparent" aria-hidden />;
     }
 
     const blackName = match?.players.find(p => p?.id === realGame.blackPlayerId)?.nickname ?? '흑';
@@ -280,8 +332,17 @@ export const ChampionshipRealGoBoard: React.FC<{
     const lastMoveForDisplay = isFreshBeforePlayback ? null : realGame.lastMove;
     const moveHistoryForDisplay = isFreshBeforePlayback ? [] : realGame.moves;
 
+    const boardGameStatus =
+        realGame.status === 'scoring' ? 'scoring' : realGame.status === 'finished' ? 'ended' : 'playing';
+
+    const showTerritoryOnBoard =
+        !!territoryAnalysis &&
+        !isFreshBeforePlayback &&
+        (realGame.status === 'finished' || (realGame.status === 'scoring' && scoringVeilComplete));
+
     // 매 경기 종료 후 다음 경기를 누르기 전까지 결과 카드를 바둑판 위에 띄워, 어떤 결과로 끝났는지 한눈에 확인할 수 있게 한다.
-    const showFinishedResult = realGame.status === 'finished' && !!match?.isFinished && !!realGame.winnerId;
+    const showFinishedResult =
+        !suppressFinishedResultCard && realGame.status === 'finished' && !!match?.isFinished && !!realGame.winnerId;
     const finishedScoreLeadAbs = showFinishedResult
         ? Math.abs(realGame.finalScore?.scoreLead ?? 0)
         : 0;
@@ -353,7 +414,7 @@ export const ChampionshipRealGoBoard: React.FC<{
                     isSpectator
                     mode={GameMode.Standard}
                     myPlayerEnum={Player.Black}
-                    gameStatus={realGame.status === 'scoring' ? 'scoring' : 'playing'}
+                    gameStatus={boardGameStatus}
                     currentPlayer={moveHistoryForDisplay.length % 2 === 0 ? Player.Black : Player.White}
                     showLastMoveMarker
                     currentUser={currentUser}
@@ -362,8 +423,10 @@ export const ChampionshipRealGoBoard: React.FC<{
                     isItemModeActive={false}
                     moveHistory={moveHistoryForDisplay}
                     captures={{ [Player.Black]: 0, [Player.White]: 0 }}
+                    analysisResult={territoryAnalysis ?? undefined}
+                    showTerritoryOverlay={showTerritoryOnBoard}
                 />
-                {realGame.status === 'scoring' && (
+                {realGame.status === 'scoring' && !scoringVeilComplete && (
                     <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
                         {/* 좌→우로 채워지는 어두운 베일 (계가 연출의 본판) — 바둑판 정사각형 영역만 덮는다 */}
                         <div className="championship-scoring-veil absolute inset-0" aria-hidden />
@@ -519,37 +582,57 @@ export const ChampionshipAbilityPlayerPanel: React.FC<{
     stats: Record<string, number>;
     match: Match | null;
     currentPhase: 'early' | 'mid' | 'end' | 'none';
-    tone: 'blue' | 'rose';
+    /** 흑/백 선수에 맞춘 패널 테마(청·홍 대신) */
+    tone: 'black' | 'white';
     sideLabel: string;
     abilityKataLadder: readonly ChampionshipAbilityKataLadderRow[];
-}> = ({ player, stats, match, currentPhase, tone, sideLabel, abilityKataLadder }) => {
+    /** 페어 챔피언십: 유저·펫 능력치를 각각 KATA 사다리로 표시 */
+    splitPairAbilities?: {
+        userBlockTitle: string;
+        userStats: Record<string, number>;
+        petBlockTitle: string;
+        petStats: Record<string, number>;
+    } | null;
+    /** 페어 챔피언십: 유저·펫 블록 각각 착수 턴 강조 */
+    pairSplitTurnHighlight?: { user: boolean; pet: boolean } | null;
+}> = ({
+    player,
+    stats,
+    match,
+    currentPhase,
+    tone,
+    sideLabel,
+    abilityKataLadder,
+    splitPairAbilities,
+    pairSplitTurnHighlight = null,
+}) => {
     const realGame = match?.championshipRealGame;
     const boardSize = realGame?.boardSize ?? 19;
     const activePhaseKey =
         currentPhase === 'early' ? 'opening' : currentPhase === 'mid' ? 'midgame' : currentPhase === 'end' ? 'endgame' : null;
     const accentTone =
-        tone === 'blue'
-            ? 'border-blue-300/45 bg-gradient-to-br from-[#1e3a5f] via-[#13253f] to-[#07111f] text-blue-50 ring-blue-300/15'
-            : 'border-rose-300/45 bg-gradient-to-br from-[#5f1e33] via-[#351724] to-[#14070c] text-rose-50 ring-rose-300/15';
+        tone === 'black'
+            ? 'border-zinc-600 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 text-stone-100 ring-stone-500/25'
+            : 'border-slate-500 bg-gradient-to-br from-slate-600 via-slate-700 to-slate-900 text-slate-50 ring-slate-300/22';
     const statCardTone =
-        tone === 'blue'
-            ? 'border-blue-300/35 from-[#172c48] via-[#0e1b2d] to-[#050911]'
-            : 'border-rose-300/35 from-[#481724] via-[#250d15] to-[#090406]';
+        tone === 'black'
+            ? 'border-zinc-600/80 from-zinc-800 via-zinc-900 to-zinc-950'
+            : 'border-slate-500/80 from-slate-600 via-slate-700 to-slate-900';
     const phaseRowActiveClass = (phaseKey: (typeof CHAMPIONSHIP_PHASE_META)[number]['key']): string => {
-        if (activePhaseKey !== phaseKey) return 'border-slate-600/45 bg-black/24';
+        if (activePhaseKey !== phaseKey) return tone === 'black' ? 'border-zinc-700/50 bg-zinc-950/90' : 'border-slate-600/50 bg-slate-950/88';
         if (phaseKey === 'opening') {
-            return tone === 'blue'
+            return tone === 'black'
                 ? 'border-cyan-300/55 bg-gradient-to-r from-cyan-600/28 to-sky-900/35 ring-1 ring-cyan-400/25'
-                : 'border-cyan-300/45 bg-gradient-to-r from-cyan-700/22 to-rose-950/40 ring-1 ring-cyan-300/20';
+                : 'border-cyan-300/45 bg-gradient-to-r from-cyan-700/22 to-slate-900/50 ring-1 ring-cyan-300/20';
         }
         if (phaseKey === 'midgame') {
-            return tone === 'blue'
+            return tone === 'black'
                 ? 'border-fuchsia-300/50 bg-gradient-to-r from-fuchsia-600/26 to-indigo-950/38 ring-1 ring-fuchsia-400/22'
-                : 'border-fuchsia-300/45 bg-gradient-to-r from-fuchsia-700/24 to-rose-950/42 ring-1 ring-fuchsia-300/20';
+                : 'border-fuchsia-300/45 bg-gradient-to-r from-fuchsia-700/24 to-slate-900/48 ring-1 ring-fuchsia-300/20';
         }
-        return tone === 'blue'
+        return tone === 'black'
             ? 'border-amber-300/50 bg-gradient-to-r from-amber-600/26 to-orange-950/38 ring-1 ring-amber-400/25'
-            : 'border-amber-300/45 bg-gradient-to-r from-amber-700/24 to-rose-950/45 ring-1 ring-amber-300/22';
+            : 'border-amber-300/45 bg-gradient-to-r from-amber-700/24 to-slate-900/50 ring-1 ring-amber-300/22';
     };
 
     const phaseRowLabelClass = (phaseKey: (typeof CHAMPIONSHIP_PHASE_META)[number]['key']): string => {
@@ -575,60 +658,112 @@ export const ChampionshipAbilityPlayerPanel: React.FC<{
                 ? 'border-amber-400/50 bg-amber-950/50 text-amber-100'
                 : 'border-white/15 bg-black/28 text-slate-300';
 
+    const renderCoreAndPhaseBlock = (blockStats: Record<string, number>, density: 'normal' | 'compact' = 'normal') => {
+        const gridGap = density === 'compact' ? 'gap-x-1.5 gap-y-1' : 'gap-x-2 gap-y-1.5';
+        const pad = density === 'compact' ? 'p-2' : 'p-2.5';
+        const statText = density === 'compact' ? 'text-[10px]' : 'text-[11px]';
+        const valText = density === 'compact' ? 'text-[11px]' : 'text-[12px]';
+        const phasePad = density === 'compact' ? 'px-2 py-1.5' : 'px-2.5 py-2';
+        const phaseLabel = density === 'compact' ? 'text-[11px]' : 'text-[12px]';
+        return (
+            <>
+                <div className={`grid shrink-0 grid-cols-2 ${gridGap} rounded-lg border bg-gradient-to-b ${pad} text-[11px] leading-tight shadow-lg ${statCardTone}`}>
+                    {CHAMPIONSHIP_CORE_STATS.map((stat) => {
+                        const hi = currentPhase !== 'none' && KEY_STATS_BY_PHASE[currentPhase].includes(stat);
+                        const ps = currentPhase !== 'none' ? CHAMPIONSHIP_PHASE_STAT_STYLE[currentPhase] : null;
+                        return (
+                            <React.Fragment key={stat}>
+                                <span
+                                    className={`truncate font-semibold ${statText} ${hi && ps ? `${ps.labelActive} font-bold` : 'text-slate-400'}`}
+                                >
+                                    {stat}
+                                </span>
+                                <span
+                                    className={`text-right ${valText} font-black tabular-nums ${hi && ps ? `${ps.valueActive}` : 'text-slate-50'}`}
+                                >
+                                    {Math.round(blockStats?.[stat] ?? 0)}
+                                </span>
+                            </React.Fragment>
+                        );
+                    })}
+                </div>
+
+                <div className={`shrink-0 rounded-lg border bg-gradient-to-b ${pad} shadow-lg ${statCardTone}`}>
+                    <div className="space-y-2">
+                        {CHAMPIONSHIP_PHASE_META.map((phase) => {
+                            const ply = championshipPhaseMetaPly(boardSize, phase);
+                            /** 페어 분할 시 스냅샷은 좌석 통합 스탯 기준이라 유저·펫에 동일 적용됨 → 각 블록 코어로만 KATA 산출 */
+                            const fromSnapshot =
+                                !splitPairAbilities && player?.id
+                                    ? realGame?.phaseStatsByPlayerId?.[player.id]?.[phase.key]
+                                    : undefined;
+                            const computed =
+                                fromSnapshot ?? championshipKataLevelForPly(ply, blockStats as any, undefined, abilityKataLadder);
+                            return (
+                                <div
+                                    key={phase.key}
+                                    className={`rounded-lg border ${phasePad} shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${phaseRowActiveClass(phase.key)}`}
+                                >
+                                    <div className={`flex items-center justify-between gap-2 ${phaseLabel}`}>
+                                        <span className={phaseRowLabelClass(phase.key)}>{phase.label}</span>
+                                        <span className={phaseRowValueClass(phase.key)}>{computed.abilityScore}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </>
+        );
+    };
+
+    const splitUserTurnRing = pairSplitTurnHighlight?.user
+        ? 'ring-2 ring-amber-400/88 shadow-[0_0_22px_-6px_rgba(245,158,11,0.48)] ring-inset rounded-lg'
+        : '';
+    const splitPetTurnRing = pairSplitTurnHighlight?.pet
+        ? 'ring-2 ring-amber-400/88 shadow-[0_0_22px_-6px_rgba(245,158,11,0.48)] ring-inset rounded-lg'
+        : '';
+
     return (
-        <aside className="flex h-fit max-h-full w-[165px] shrink-0 flex-col gap-2 self-start overflow-hidden rounded-xl border border-slate-700/35 bg-gradient-to-b from-[#111827] via-[#070b12] to-[#020305] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_42px_-22px_rgba(0,0,0,0.9)] xl:w-[185px]">
+        <aside
+            className={`flex h-fit max-h-full w-[165px] shrink-0 flex-col gap-2 self-start overflow-hidden rounded-xl border-2 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_42px_-22px_rgba(0,0,0,0.9)] xl:w-[185px] ${
+                tone === 'black'
+                    ? 'border-zinc-600 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950'
+                    : 'border-slate-500 bg-gradient-to-b from-slate-600 via-slate-700 to-slate-900'
+            }`}
+        >
             <div className={`flex shrink-0 items-center justify-between rounded-lg border p-2 shadow-lg ring-1 ring-inset ${accentTone}`}>
                 <div>
                     <div className="text-[13px] font-black tracking-wide text-amber-100">{sideLabel}</div>
-                    <div className="mt-0.5 max-w-[7rem] truncate text-[11px] font-semibold text-slate-300">{player?.nickname ?? '선수'} 능력치</div>
+                    <div className="mt-0.5 max-w-[7rem] truncate text-[11px] font-semibold text-slate-300">
+                        {splitPairAbilities ? '유저 · 펫 능력치' : `${player?.nickname ?? '선수'} 능력치`}
+                    </div>
                 </div>
                 <div className={`rounded-lg border px-2 py-1 text-[12px] font-black shadow-inner ${phaseBadgeClass}`}>
                     {currentPhase === 'early' ? '초반' : currentPhase === 'mid' ? '중반' : currentPhase === 'end' ? '종반' : '대기'}
                 </div>
             </div>
 
-            <div className={`grid shrink-0 grid-cols-2 gap-x-2 gap-y-1.5 rounded-lg border bg-gradient-to-b p-2.5 text-[11px] leading-tight shadow-lg ${statCardTone}`}>
-                {CHAMPIONSHIP_CORE_STATS.map((stat) => {
-                    const hi = currentPhase !== 'none' && KEY_STATS_BY_PHASE[currentPhase].includes(stat);
-                    const ps = currentPhase !== 'none' ? CHAMPIONSHIP_PHASE_STAT_STYLE[currentPhase] : null;
-                    return (
-                        <React.Fragment key={stat}>
-                            <span
-                                className={`truncate font-semibold ${hi && ps ? `${ps.labelActive} font-bold` : 'text-slate-400'}`}
-                            >
-                                {stat}
-                            </span>
-                            <span
-                                className={`text-right text-[12px] font-black tabular-nums ${hi && ps ? `${ps.valueActive}` : 'text-slate-50'}`}
-                            >
-                                {Math.round(stats?.[stat] ?? 0)}
-                            </span>
-                        </React.Fragment>
-                    );
-                })}
-            </div>
-
-            <div className={`shrink-0 rounded-lg border bg-gradient-to-b p-2.5 shadow-lg ${statCardTone}`}>
-                <div className="space-y-2">
-                    {CHAMPIONSHIP_PHASE_META.map((phase) => {
-                        const ply = championshipPhaseMetaPly(boardSize, phase);
-                        const fromSnapshot = player?.id ? realGame?.phaseStatsByPlayerId?.[player.id]?.[phase.key] : undefined;
-                        const computed =
-                            fromSnapshot ?? championshipKataLevelForPly(ply, stats as any, undefined, abilityKataLadder);
-                        return (
-                            <div
-                                key={phase.key}
-                                className={`rounded-lg border px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${phaseRowActiveClass(phase.key)}`}
-                            >
-                                <div className="flex items-center justify-between gap-2 text-[12px]">
-                                    <span className={phaseRowLabelClass(phase.key)}>{phase.label}</span>
-                                    <span className={phaseRowValueClass(phase.key)}>{computed.abilityScore}</span>
-                                </div>
-                            </div>
-                        );
-                    })}
+            {splitPairAbilities ? (
+                <div className="flex min-h-0 flex-col gap-2 overflow-y-auto">
+                    <div className={`min-h-0 space-y-2 ${splitUserTurnRing}`}>
+                        <div className="shrink-0 text-center text-[10px] font-black uppercase tracking-wide text-amber-100/95">
+                            {splitPairAbilities.userBlockTitle}
+                        </div>
+                        {renderCoreAndPhaseBlock(splitPairAbilities.userStats, 'compact')}
+                    </div>
+                    <div className={`min-h-0 space-y-2 pt-0.5 ${splitPetTurnRing}`}>
+                        <div className="shrink-0 border-t border-white/10 pt-1 text-center text-[10px] font-black uppercase tracking-wide text-sky-200/95">
+                            {splitPairAbilities.petBlockTitle}
+                        </div>
+                        {renderCoreAndPhaseBlock(splitPairAbilities.petStats, 'compact')}
+                    </div>
                 </div>
-            </div>
+            ) : (
+                <>
+                    {renderCoreAndPhaseBlock(stats, 'normal')}
+                </>
+            )}
         </aside>
     );
 };
@@ -648,7 +783,7 @@ const ChampionshipAbilitySidePanel: React.FC<{
             stats={p1Stats}
             match={match}
             currentPhase={currentPhase}
-            tone="blue"
+            tone="black"
             sideLabel="챔피언십 능력치"
             abilityKataLadder={abilityKataLadder}
         />
@@ -657,7 +792,7 @@ const ChampionshipAbilitySidePanel: React.FC<{
             stats={p2Stats}
             match={match}
             currentPhase={currentPhase}
-            tone="rose"
+            tone="white"
             sideLabel="챔피언십 능력치"
             abilityKataLadder={abilityKataLadder}
         />
@@ -6677,7 +6812,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         matchForDisplay?.championshipRealGame?.finalScore?.white,
     ]);
 
-    const renderSimpleChampionshipPlayerCard = (player: PlayerForTournament | null, tone: 'blue' | 'rose') => {
+    const renderSimpleChampionshipPlayerCard = (player: PlayerForTournament | null, tone: 'black' | 'white') => {
         const avatarUrl = player ? AVATAR_POOL.find((a) => a.id === player.avatarId)?.url : undefined;
         const borderUrl = player ? BORDER_POOL.find((b) => b.id === player.borderId)?.url : undefined;
         const isCurrentUser = player?.id === currentUser.id;
@@ -6687,14 +6822,23 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const colorLabel = isBlackPlayer ? '흑' : player?.id && realGame?.whitePlayerId === player.id ? '백' : '';
         const isWhite = colorLabel === '백';
         const isBlackStone = colorLabel === '흑';
-        const isRightSide = tone === 'rose';
-        const toneClass = isWhite
-            ? 'border-slate-500/90 bg-gradient-to-br from-slate-100 to-slate-300/95 text-slate-950 shadow-sm'
+        const isRightSide = tone === 'white';
+        const toneSurface = isWhite
+            ? 'bg-gradient-to-br from-slate-100 to-slate-300/95 text-slate-950 shadow-sm'
             : isBlackStone
-              ? 'border-gray-600 bg-gradient-to-br from-gray-800 to-black text-slate-100 shadow-lg'
-              : tone === 'blue'
-                ? 'border-blue-400/30 bg-gradient-to-br from-gray-800 to-black text-blue-100 shadow-lg'
-                : 'border-rose-400/30 bg-gradient-to-br from-gray-800 to-black text-rose-100 shadow-lg';
+              ? 'bg-gradient-to-br from-zinc-900/92 to-black/95 text-stone-100 shadow-lg'
+              : tone === 'black'
+                ? 'bg-gradient-to-br from-zinc-900/92 to-black/95 text-stone-100 shadow-lg'
+                : 'bg-gradient-to-br from-slate-600/90 via-slate-700/92 to-slate-950/95 text-slate-50 shadow-lg';
+        const toneBorder = isCurrentUser
+            ? 'border-2 border-amber-400/90 shadow-[0_0_24px_-6px_rgba(245,158,11,0.5)] ring-1 ring-inset ring-amber-200/25'
+            : isWhite
+              ? 'border-2 border-slate-500/90'
+              : isBlackStone
+                ? 'border-2 border-stone-600/55'
+                : tone === 'black'
+                  ? 'border-2 border-stone-500/45'
+                  : 'border-2 border-slate-400/40';
         const mutedText = isWhite ? 'text-slate-700' : 'text-slate-300';
         const strongText = isWhite ? 'text-slate-950' : 'text-slate-50';
         const chipClass = isWhite ? 'bg-slate-900/10 text-slate-800' : 'bg-white/10 text-slate-200';
@@ -6737,7 +6881,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 className={`flex w-[4.8rem] shrink-0 flex-col items-center justify-center rounded-lg border-2 px-2 py-1.5 text-center shadow-lg ${
                     isWhite
                         ? 'border-slate-500/90 bg-gradient-to-br from-slate-100 to-slate-300 text-slate-950'
-                        : 'border-gray-600 bg-gradient-to-br from-gray-800 to-black text-white'
+                        : 'border-stone-600/55 bg-gradient-to-br from-zinc-900/92 to-black/95 text-white'
                 }`}
             >
                 <span className={`text-[10px] font-bold leading-none ${isWhite ? 'text-slate-700' : 'text-gray-300'}`}>
@@ -6748,7 +6892,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         );
 
         return (
-            <div className={`relative flex min-w-0 flex-1 items-center gap-3 rounded-lg border-2 px-3 py-2 transition-all duration-300 ${isRightSide ? 'flex-row-reverse text-right' : ''} ${toneClass}`}>
+            <div
+                className={`relative flex min-w-0 flex-1 items-center gap-3 rounded-lg px-3 py-2 transition-all duration-300 ${isRightSide ? 'flex-row-reverse text-right' : ''} ${toneBorder} ${toneSurface}`}
+            >
                 <button
                     type="button"
                     className={`shrink-0 ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
@@ -6800,7 +6946,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         : null;
     const maxPlyToScoring = realGameForCountdown?.maxPly ?? 180;
     const championshipScoringCountdownPanel = (
-        <div className="flex w-36 shrink-0 flex-col items-center justify-center rounded-lg border-2 border-stone-600/80 bg-gradient-to-br from-gray-800 to-black px-3 py-2 text-center shadow-lg">
+        <div className="flex w-36 shrink-0 flex-col items-center justify-center rounded-lg border-2 border-stone-600/80 bg-gradient-to-br from-zinc-900/92 to-black/95 px-3 py-2 text-center shadow-lg">
             <div className="text-[11px] font-bold tracking-wide text-amber-100">계가까지</div>
             <div className="mt-0.5 text-2xl font-black tabular-nums text-white">
                 {remainingPlyToScoring ?? '-'}/{maxPlyToScoring}
@@ -6812,10 +6958,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const championshipPlayerRail = matchForDisplay && (p1 || p2) ? (
         <div className="flex-shrink-0 w-full flex justify-center">
             <div className="min-w-0 w-full flex-1 px-2 pt-1 min-[1025px]:px-1">
-                <section className="flex min-h-[74px] shrink-0 flex-row items-stretch gap-2 overflow-hidden rounded-lg border-2 border-stone-500 bg-stone-800/95 p-2 shadow-xl">
-                    {renderSimpleChampionshipPlayerCard(p1, 'blue')}
+                <section className="flex min-h-[74px] shrink-0 flex-row items-stretch gap-2 overflow-hidden rounded-lg border-2 border-stone-500 bg-stone-900/92 p-2 shadow-xl">
+                    {renderSimpleChampionshipPlayerCard(p1, 'black')}
                     {championshipScoringCountdownPanel}
-                    {renderSimpleChampionshipPlayerCard(p2, 'rose')}
+                    {renderSimpleChampionshipPlayerCard(p2, 'white')}
                 </section>
             </div>
         </div>
@@ -6830,7 +6976,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     const championshipFooterControls = (
         <div className="flex-shrink-0 w-full flex flex-col gap-1">
-            <div className="rounded-2xl border border-amber-300/18 bg-gradient-to-b from-[#283247] via-[#151c2a] to-[#07090f] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_52px_-18px_rgba(0,0,0,0.96)] ring-1 ring-inset ring-white/[0.04]">
+            <div className="rounded-2xl border border-amber-300/18 bg-gradient-to-b from-[#283247]/92 via-[#151c2a]/90 to-[#07090f]/92 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_52px_-18px_rgba(0,0,0,0.96)] ring-1 ring-inset ring-white/[0.04]">
                 <div className="grid min-h-[168px] grid-cols-[0.7fr_1.3fr] gap-2 overflow-hidden">
                     {renderChampionshipMatchControlPanel()}
                     {finalRewardSection}
@@ -6853,7 +6999,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                         stats={p1Stats as Record<string, number>}
                                         match={matchForDisplay}
                                         currentPhase={currentPhase}
-                                        tone="blue"
+                                        tone="black"
                                         sideLabel="챔피언십 능력치"
                                         abilityKataLadder={abilityKataLadder}
                                     />
@@ -6872,7 +7018,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                         stats={p2Stats as Record<string, number>}
                                         match={matchForDisplay}
                                         currentPhase={currentPhase}
-                                        tone="rose"
+                                        tone="white"
                                         sideLabel="챔피언십 능력치"
                                         abilityKataLadder={abilityKataLadder}
                                     />
@@ -6923,13 +7069,22 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 : null;
         const recordWinsMobile = dungeonRunRecordMobile ? dungeonRunRecordMobile.wins : (player?.wins ?? 0);
         const recordLossesMobile = dungeonRunRecordMobile ? dungeonRunRecordMobile.losses : (player?.losses ?? 0);
-        const toneClass = isWhitePlayer
-            ? 'border-slate-400/85 bg-gradient-to-br from-slate-100 to-slate-300/95 text-slate-950'
+        const toneSurface = isWhitePlayer
+            ? 'bg-gradient-to-br from-slate-100 to-slate-300/95 text-slate-950'
             : isBlackPlayer
-              ? 'border-gray-600 bg-gradient-to-br from-gray-800 to-black text-slate-100'
+              ? 'bg-gradient-to-br from-zinc-900/92 to-black/95 text-stone-100'
               : side === 'left'
-                ? 'border-blue-400/40 bg-gradient-to-br from-slate-800 to-black text-blue-50'
-                : 'border-rose-400/40 bg-gradient-to-br from-slate-800 to-black text-rose-50';
+                ? 'bg-gradient-to-br from-zinc-900/92 to-black/95 text-stone-100'
+                : 'bg-gradient-to-br from-slate-600/90 via-slate-700/92 to-slate-950/95 text-slate-50';
+        const toneBorder = isCurrentUser
+            ? 'border-2 border-amber-400/90 shadow-[0_0_18px_-5px_rgba(245,158,11,0.45)] ring-1 ring-inset ring-amber-200/20'
+            : isWhitePlayer
+              ? 'border-2 border-slate-400/85'
+              : isBlackPlayer
+                ? 'border-2 border-stone-600/55'
+                : side === 'left'
+                  ? 'border-2 border-stone-500/45'
+                  : 'border-2 border-slate-400/40';
         const mutedText = isWhitePlayer ? 'text-slate-700' : 'text-slate-300';
         const strongText = isWhitePlayer ? 'text-slate-950' : 'text-slate-50';
         const chipClass = isWhitePlayer ? 'bg-slate-900/12 text-slate-800' : 'bg-white/12 text-slate-100';
@@ -6938,9 +7093,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
         return (
             <div
-                className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md border-2 px-1.5 py-1 ${
-                    isRightSide ? 'flex-row-reverse text-right' : ''
-                } ${toneClass}`}
+                className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 py-1 ${isRightSide ? 'flex-row-reverse text-right' : ''} ${toneBorder} ${toneSurface}`}
             >
                 <button
                     type="button"
@@ -7015,7 +7168,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     const mobileChampionshipPlayerInfoRow =
         matchForDisplay && (p1 || p2) ? (
-            <section className="flex shrink-0 flex-row items-stretch gap-1 rounded-md border border-stone-500/70 bg-stone-900/48 p-1 shadow-md backdrop-blur-md">
+            <section className="flex shrink-0 flex-row items-stretch gap-1 rounded-md border border-stone-500/70 bg-stone-900/90 p-1 shadow-md">
                 {renderMobileChampionshipPureInfoCard(p1, 'left')}
                 {renderMobileChampionshipPureInfoCard(p2, 'right')}
             </section>
@@ -7025,7 +7178,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const renderMobileChampionshipAbilityPanel = (
         player: PlayerForTournament | null,
         stats: Record<string, number>,
-        tone: 'blue' | 'rose',
+        tone: 'black' | 'white',
     ) => {
         const realGame = matchForDisplay?.championshipRealGame;
         const boardSize = realGame?.boardSize ?? 19;
@@ -7038,10 +7191,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     ? 'endgame'
                     : null;
         const accentTone =
-            tone === 'blue'
-                ? 'border-blue-300/45 bg-gradient-to-br from-[#172c48] via-[#0e1b2d] to-[#050911]'
-                : 'border-rose-300/45 bg-gradient-to-br from-[#481724] via-[#250d15] to-[#090406]';
-        const valueColor = tone === 'blue' ? 'text-blue-50' : 'text-rose-50';
+            tone === 'black'
+                ? 'border-stone-500/45 bg-gradient-to-br from-zinc-900/92 via-zinc-950/93 to-black/95'
+                : 'border-slate-300/40 bg-gradient-to-br from-slate-600/90 via-slate-700/92 to-slate-950/95';
+        const valueColor = tone === 'black' ? 'text-stone-100' : 'text-slate-50';
 
         return (
             <div className={`flex min-w-0 flex-1 flex-col gap-1 rounded-md border ${accentTone} p-1`}>
@@ -7090,9 +7243,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     const mobileChampionshipAbilityRow =
         matchForDisplay && (p1 || p2) ? (
-            <section className="flex shrink-0 flex-row items-stretch gap-1 rounded-md border border-slate-700/45 bg-gradient-to-b from-[#111827]/55 to-[#070b12]/62 p-1 shadow-md backdrop-blur-md">
-                {renderMobileChampionshipAbilityPanel(p1, p1Stats as Record<string, number>, 'blue')}
-                {renderMobileChampionshipAbilityPanel(p2, p2Stats as Record<string, number>, 'rose')}
+            <section className="flex shrink-0 flex-row items-stretch gap-1 rounded-md border border-slate-700/45 bg-gradient-to-b from-[#111827]/88 to-[#070b12]/90 p-1 shadow-md">
+                {renderMobileChampionshipAbilityPanel(p1, p1Stats as Record<string, number>, 'black')}
+                {renderMobileChampionshipAbilityPanel(p2, p2Stats as Record<string, number>, 'white')}
             </section>
         ) : null;
 
@@ -7134,7 +7287,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         ) => {
             const cellTone = isWhite
                 ? 'border-slate-500/85 bg-gradient-to-br from-slate-100 to-slate-300 text-slate-950'
-                : 'border-gray-600 bg-gradient-to-br from-gray-800 to-black text-white';
+                : 'border-gray-600 bg-gradient-to-br from-gray-800/92 to-black/94 text-white';
             const labelColor = isWhite ? 'text-slate-700' : 'text-gray-300';
             const scoreText =
                 score == null ? '-' : mobileScoreKind === 'captures' ? String(Math.round(score)) : score.toFixed(1);
@@ -7155,7 +7308,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         return (
             <section className="flex shrink-0 flex-row items-stretch gap-1">
                 {renderScoreCell(p1IsWhite, p1Score, p1IsBlack ? '흑' : p1IsWhite ? '백' : '', 'left')}
-                <div className="flex w-[36%] shrink-0 flex-col items-center justify-center rounded-md border-2 border-amber-400/55 bg-gradient-to-br from-gray-800 to-black px-1 py-0.5 text-center">
+                <div className="flex w-[36%] shrink-0 flex-col items-center justify-center rounded-md border-2 border-amber-400/55 bg-gradient-to-br from-gray-800/92 to-black/94 px-1 py-0.5 text-center">
                     <div className="text-[9px] font-bold tracking-wide text-amber-100">계가까지</div>
                     <div className="text-base font-black tabular-nums leading-none text-white">
                         {remainingPly}/{maxPly}
@@ -7430,7 +7583,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
                 {!isMobile && (
                     <div
-                        className={`relative max-h-full min-h-0 flex-shrink-0 self-stretch transition-[width] duration-200 ${
+                        className={`relative overflow-visible max-h-full min-h-0 flex-shrink-0 self-stretch transition-[width] duration-200 ${
                             isRightSidebarCollapsed ? 'w-0' : 'w-[320px] xl:w-[360px]'
                         }`}
                     >
@@ -7442,15 +7595,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                 </div>
                             </div>
                         )}
-                        <button
-                            type="button"
-                            onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
-                            className="absolute top-1/2 -left-6 z-[120] flex h-9 w-7 -translate-y-1/2 items-center justify-center rounded-md border border-slate-600/80 bg-slate-900/90 text-gray-300 transition-colors hover:bg-slate-800/90 hover:text-white"
-                            title={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
-                            aria-label={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
-                        >
-                            <span className="text-sm font-bold leading-none">{isRightSidebarCollapsed ? '<' : '>'}</span>
-                        </button>
+                        <ArenaRightSidebarCollapseToggle
+                            collapsed={isRightSidebarCollapsed}
+                            onToggle={() => setIsRightSidebarCollapsed((prev) => !prev)}
+                            tone="championship"
+                        />
                     </div>
                 )}
 

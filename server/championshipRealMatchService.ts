@@ -24,6 +24,7 @@ import { processMove } from './goLogic.js';
 import { calculateScoreManually } from '../shared/utils/manualScoring.js';
 import { generateKataServerMoveCandidateDetails, isKataServerAvailable } from './kataServerService.js';
 import { buildChampionshipResultContract } from './utils/resultContract.js';
+import { buildChampionshipVersusPetPairTurnOrder } from '../shared/utils/pairGameTurn.js';
 
 type KoInfo = { point: Point; turn: number } | null;
 
@@ -223,11 +224,19 @@ function createManualScoringSession(params: {
     } as any;
 }
 
+export type GenerateChampionshipRealMatchOptions = {
+    /** 페어 챔피언십: 유저·펫 4인 수순 기보(각 수에 `pairSeatId` 저장) */
+    petPairDuel?: {
+        petDisplayNameByUserId: Record<string, string>;
+    } | null;
+};
+
 export async function generateChampionshipRealMatch(
     match: Match,
     players: PlayerForTournament[],
     user: User,
     rules: ChampionshipRealMatchRules = DEFAULT_CHAMPIONSHIP_REAL_MATCH_RULES,
+    options?: GenerateChampionshipRealMatchOptions,
 ): Promise<ChampionshipRealMatchGenerationResult> {
     const startedAt = Date.now();
     if (!match.players[0] || !match.players[1]) {
@@ -236,12 +245,16 @@ export async function generateChampionshipRealMatch(
 
     const abilityKataLadder = getChampionshipAbilityKataLadder();
 
-    const userPlayer = players.find(p => p.id === user.id);
-    const opponentPlayer = players.find(p => p.id !== user.id && match.players.some(mp => mp?.id === p.id));
     const p1 = players.find(p => p.id === match.players[0]!.id);
     const p2 = players.find(p => p.id === match.players[1]!.id);
-    const black = userPlayer && match.players.some(p => p?.id === user.id) ? userPlayer : p1!;
-    const white = black.id === p1?.id ? p2! : opponentPlayer ?? p1!;
+    if (!p1 || !p2) {
+        throw new Error('챔피언십 실제 대국 선수 정보가 올바르지 않습니다.');
+    }
+    // `match.players[0]`이 항상 흑이 되면 장내·던전 모두 한쪽만 선수로 고정된다. 좌석 무작위 선행.
+    void user;
+    const seat0IsBlack = Math.random() < 0.5;
+    const black = seat0IsBlack ? p1 : p2;
+    const white = seat0IsBlack ? p2 : p1;
 
     const boardSize = rules.boardSize;
     let boardState = createEmptyBoard(boardSize);
@@ -258,12 +271,25 @@ export async function generateChampionshipRealMatch(
         [Player.White]: white,
     };
 
+    const petPairNames = options?.petPairDuel?.petDisplayNameByUserId;
+    const pairTurnOrder =
+        petPairNames && petPairNames[black.id] && petPairNames[white.id]
+            ? buildChampionshipVersusPetPairTurnOrder({
+                  blackUser: { id: black.id, nickname: black.nickname },
+                  whiteUser: { id: white.id, nickname: white.nickname },
+                  blackPet: { participantId: `pet-ai-${black.id}`, displayName: petPairNames[black.id]! },
+                  whitePet: { participantId: `pet-ai-${white.id}`, displayName: petPairNames[white.id]! },
+              })
+            : null;
+    const usePairSeats = pairTurnOrder != null && pairTurnOrder.length === 4;
+
     let nextEventPly: number | null = randomIntInclusive(5, 7);
     let nextEventPlayerId: string | null =
         nextEventPly !== null ? (nextEventPly % 2 === 1 ? black.id : white.id) : null;
 
     for (let ply = 1; ply <= rules.maxPly; ply++) {
-        const color = ply % 2 === 1 ? Player.Black : Player.White;
+        const seat = usePairSeats ? pairTurnOrder![(ply - 1) % 4]! : null;
+        const color = usePairSeats ? (seat!.player as Player.Black | Player.White) : ply % 2 === 1 ? Player.Black : Player.White;
         const actor = playerByColor[color];
         const levelInfo = championshipKataLevelForPly(ply, actor.stats, rules, abilityKataLadder);
         const candidates = legalCandidates(boardState, color, koInfo, moves.length);
@@ -350,15 +376,44 @@ export async function generateChampionshipRealMatch(
         boardState = result.newBoardState;
         koInfo = result.newKoInfo as KoInfo;
         captures[color] += result.capturedStones.length;
-        moves.push({ ...appliedMove, player: color, actorId: actor.id });
+        if (usePairSeats && seat) {
+            moves.push({ ...appliedMove, player: color, actorId: seat.participantId, pairSeatId: seat.seatId });
+        } else {
+            moves.push({ ...appliedMove, player: color, actorId: actor.id });
+        }
     }
 
-    const scoring = calculateScoreManually(createManualScoringSession({
-        id: `championship-${match.id}`,
-        boardState,
-        boardSize,
-        captures,
-    }));
+    const scoringSession = {
+        ...createManualScoringSession({
+            id: `championship-${match.id}`,
+            boardState,
+            boardSize,
+            captures,
+        }),
+        /** `analyzeGame` 보드 스냅샷 모드에서 다음 착수 색만 쿼리에 쓰임 */
+        currentPlayer: moves.length % 2 === 0 ? Player.Black : Player.White,
+    } as any;
+
+    let scoring: AnalysisResult;
+    try {
+        const { analyzeGame, getScoringKataGoLimits } = await import('./kataGoService.js');
+        const { finalizeAnalysisResult } = await import('./gameModes.js');
+        const limits = getScoringKataGoLimits();
+        const kataRaw = await analyzeGame(scoringSession, {
+            maxVisits: limits.maxVisits,
+            maxTimeSec: limits.maxTimeSec,
+            includePolicy: false,
+            includeOwnership: true,
+        });
+        scoring = finalizeAnalysisResult(kataRaw, scoringSession);
+    } catch (err) {
+        console.warn(
+            `[ChampionshipRealMatch] KataGo scoring failed, using manual scoring. match=${match.id}`,
+            err instanceof Error ? err.message : err,
+        );
+        scoring = calculateScoreManually(scoringSession, { silent: true });
+    }
+
     const blackScore = scoring.areaScore?.black ?? 0;
     const whiteScore = scoring.areaScore?.white ?? 0;
     const winner = blackScore > whiteScore ? black : white;
@@ -372,6 +427,7 @@ export async function generateChampionshipRealMatch(
         maxPly: rules.maxPly,
         blackPlayerId: black.id,
         whitePlayerId: white.id,
+        ...(pairTurnOrder ? { pairTurnOrder } : {}),
         boardState: cloneBoard(boardState),
         moves,
         lastMove: moves.length > 0 ? { x: moves[moves.length - 1]!.x, y: moves[moves.length - 1]!.y } : null,

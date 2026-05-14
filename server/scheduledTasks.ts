@@ -559,28 +559,26 @@ export async function processWeeklyResetAndRematch(force: boolean = false): Prom
         updatedUser.weeklyCompetitors = competitorList;
         updatedUser.lastWeeklyCompetitorsUpdate = nowForUpdate;
         
-        // 모든 유저의 주간 점수를 0으로 리셋 (processWeeklyLeagueUpdates에서 이미 누적 점수에 추가됨)
+        // 모든 유저의 주간 던전 점수(tournamentScore)를 0으로 리셋
         // 관리자 계정 포함 모든 유저의 점수를 강제로 0으로 초기화
         const oldScore = updatedUser.tournamentScore || 0;
         updatedUser.tournamentScore = 0;
+        updatedUser.cumulativeTournamentScore = 0;
         if (oldScore !== 0) {
             console.log(`[WeeklyReset] Reset tournamentScore for ${updatedUser.nickname} (${updatedUser.id}): ${oldScore} -> 0`);
         }
         
-        // 월요일 0시에 유저의 yesterdayTournamentScore를 현재 누적 점수로 설정 (변화없음으로 시작)
-        // 이렇게 하면 누적 점수는 업데이트되어도 변화표에 "변화없음"으로 표시됨
-        // (liveScore - yesterdayScore = cumulativeTournamentScore - cumulativeTournamentScore = 0)
-        updatedUser.yesterdayTournamentScore = updatedUser.cumulativeTournamentScore || 0;
+        // 주간 리그 표시는 주간 던전 점수(tournamentScore) 기준 — 월요일 0시 직후 변화 없음으로 시작
+        updatedUser.yesterdayTournamentScore = updatedUser.tournamentScore || 0;
         
         // dailyRankings.championship도 초기화하여 변화표가 올바르게 표시되도록 함
         if (!updatedUser.dailyRankings) {
             updatedUser.dailyRankings = {};
         }
-        // 월요일 0시에는 누적 점수가 업데이트된 상태이지만, 변화표는 변화없음으로 시작하도록 설정
-        // processDailyRankings에서 나중에 rank를 업데이트함
+        // processDailyRankings에서 rank 갱신. score는 주간 던전 점수 스냅샷용
         updatedUser.dailyRankings.championship = {
-            rank: 0, // processDailyRankings에서 나중에 업데이트됨
-            score: updatedUser.cumulativeTournamentScore || 0, // 누적 점수 유지
+            rank: 0,
+            score: updatedUser.tournamentScore || 0,
             lastUpdated: now
         };
         
@@ -681,11 +679,6 @@ export async function resetAllUsersLeagueScoresForNewWeek(): Promise<void> {
     
     for (const user of allUsers) {
         if (user.tournamentScore !== 0) {
-            // 누적 점수에 현재 주간 점수 추가 (리셋 전에)
-            const weeklyScore = user.tournamentScore || 0;
-            user.cumulativeTournamentScore = (user.cumulativeTournamentScore || 0) + weeklyScore;
-            
-            // 주간 점수를 0으로 리셋
             user.tournamentScore = 0;
             await db.updateUser(user);
             updatedCount++;
@@ -851,10 +844,6 @@ export async function processWeeklyLeagueUpdates(user: types.User): Promise<type
     } else {
         console.log(`[LeagueUpdate] ${user.nickname} (${user.id}): ${oldLeague} 유지 (${resultText}, Rank: ${myRank})`);
     }
-
-    // 주간 점수를 누적 점수에 추가 (티어변동 계산 후)
-    const weeklyScore = user.tournamentScore || 0;
-    user.cumulativeTournamentScore = (user.cumulativeTournamentScore || 0) + weeklyScore;
 
     // KST 기준으로 날짜 정보 가져오기
     const kstYear = getKSTFullYear(now);
@@ -1817,39 +1806,30 @@ export async function processDailyRankings(): Promise<void> {
         
         // 기존 호환성을 위한 전체 챔피언십 랭킹 (보너스 점수 계산용)
         const championshipRank = championshipRankings.findIndex(r => r.userId === user.id);
-        // 던전 시스템에서는 cumulativeTournamentScore를 사용 (누적 점수)
-        const currentScore = user.cumulativeTournamentScore || 0;
-        
-        // 던전 점수는 경기 완료 시점에 타입·단계·순위별 점수표로 이미 지급되므로 0시에 추가 보너스 없음
+        /** 주간 던전(동네·전국·월드) 점수 — 리그 경쟁 상대 목록 변화량 표시용 */
+        const weeklyDungeonScore = user.tournamentScore || 0;
 
-        // 월요일 0시인 경우: yesterdayTournamentScore를 현재 누적 점수로 설정하여 변화없음으로 시작
-        // 월요일이 아닌 경우: 어제 점수를 저장 (0시 직전의 점수)
         if (isMondayMidnight) {
-            // 월요일 0시에는 processWeeklyResetAndRematch에서 이미 yesterdayTournamentScore를 현재 누적 점수로 설정했지만,
-            // 여기서도 확인하여 확실하게 설정 (누적 점수 = yesterdayScore이므로 변화량 = 0)
-            updatedUser.yesterdayTournamentScore = currentScore;
+            updatedUser.yesterdayTournamentScore = weeklyDungeonScore;
             updatedUser.dailyRankings.championship = {
                 rank: championshipRank !== -1 ? championshipRank + 1 : allUsers.length,
-                score: updatedUser.cumulativeTournamentScore || 0, // 보너스 적용 후 누적 점수
+                score: weeklyDungeonScore,
                 lastUpdated: now
             };
         } else {
-            // 월요일이 아닌 경우: 어제 점수를 저장 (0시 직전의 점수)
-            // dailyRankings.championship.score가 있으면 그것을 어제 점수로 사용, 없으면 현재 점수를 어제 점수로 설정
-            const yesterdayScore = updatedUser.dailyRankings.championship?.score ?? currentScore;
+            const yesterdayScore = updatedUser.dailyRankings.championship?.score ?? weeklyDungeonScore;
             updatedUser.yesterdayTournamentScore = yesterdayScore;
-            
+
             if (championshipRank !== -1) {
                 updatedUser.dailyRankings.championship = {
                     rank: championshipRank + 1,
-                    score: updatedUser.cumulativeTournamentScore || 0, // 보너스 적용 후 누적 점수
+                    score: weeklyDungeonScore,
                     lastUpdated: now
                 };
             } else {
-                // 랭킹에 없는 경우에도 0점으로 기록 (누적 점수가 없는 신규 사용자 등)
                 updatedUser.dailyRankings.championship = {
-                    rank: allUsers.length, // 마지막 순위
-                    score: updatedUser.cumulativeTournamentScore || 0,
+                    rank: allUsers.length,
+                    score: weeklyDungeonScore,
                     lastUpdated: now
                 };
             }

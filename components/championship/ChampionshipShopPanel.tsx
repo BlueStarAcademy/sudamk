@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import type { HandleActionResult, ServerAction } from '../../types/api.js';
 import type { UserWithStatus } from '../../types.js';
+import type { ItemGrade } from '../../shared/types/enums.js';
 import {
     CHAMPIONSHIP_SHOP_CHANGE,
     CHAMPIONSHIP_SHOP_EQUIPMENT,
@@ -11,6 +12,8 @@ import {
     type ChampionshipShopTab,
 } from '../../shared/constants/championshipShop.js';
 import { isDifferentWeekKST } from '../../shared/utils/timeUtils.js';
+import { gradeStyles } from '../../shared/constants/items.js';
+import { getChampionshipEquipmentBoxDisplayGrades, getChampionshipEquipmentBoxShopInfoLineKo } from '../../shared/constants/shopLootTables.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { specialResourceIcons } from '../resourceIcons.js';
 import { formatShopItemDescription, ShopMobileImageDescriptionPortal } from '../shopImageDescriptionPopover.js';
@@ -55,7 +58,17 @@ const ChampionshipSimpleShopCard: React.FC<{
     const [showDescription, setShowDescription] = useState(false);
     const imageAnchorRef = useRef<HTMLDivElement>(null);
     const refinedDescription = formatShopItemDescription(p.description);
+    const championshipEquipGradeRange = useMemo((): { low: ItemGrade; high: ItemGrade } | null => {
+        if (p.tab !== 'equipment') return null;
+        const grades = getChampionshipEquipmentBoxDisplayGrades(p.boxLevel);
+        if (grades.length === 0) return null;
+        const low = grades[0]!;
+        const high = grades[grades.length - 1]!;
+        return { low, high };
+    }, [p.tab, p.tab === 'equipment' ? p.boxLevel : null]);
     const cardH = compact ? CARD_H_COMPACT : CARD_H_DEFAULT;
+    const imageTitle =
+        p.tab === 'equipment' ? getChampionshipEquipmentBoxShopInfoLineKo(p.boxLevel) : refinedDescription || p.label;
 
     return (
         <div
@@ -63,6 +76,7 @@ const ChampionshipSimpleShopCard: React.FC<{
         >
             <div
                 ref={imageAnchorRef}
+                title={imageTitle}
                 className={`relative mb-1 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_18px_-8px_rgba(251,191,36,0.35)] transition-transform hover:scale-105 ${
                     compact ? 'flex h-12 w-12 sm:h-14 sm:w-14' : 'flex h-14 w-14 sm:h-16 sm:w-16'
                 }`}
@@ -97,9 +111,26 @@ const ChampionshipSimpleShopCard: React.FC<{
                     onRequestClose={() => setShowDescription(false)}
                     fullscreenBackdrop={mobile}
                 >
-                    <p className={`text-left leading-relaxed text-slate-100 ${mobile ? 'text-[11px]' : 'text-[11px] sm:text-xs'}`}>
-                        {refinedDescription}
-                    </p>
+                    <div className={`text-left leading-relaxed text-slate-100 ${mobile ? 'text-[11px]' : 'text-[11px] sm:text-xs'}`}>
+                        {championshipEquipGradeRange ? (
+                            <p>
+                                <span className={`font-bold ${gradeStyles[championshipEquipGradeRange.low].color}`}>
+                                    {gradeStyles[championshipEquipGradeRange.low].name}
+                                </span>
+                                {championshipEquipGradeRange.low !== championshipEquipGradeRange.high ? (
+                                    <>
+                                        <span className="text-slate-400">~</span>
+                                        <span className={`font-bold ${gradeStyles[championshipEquipGradeRange.high].color}`}>
+                                            {gradeStyles[championshipEquipGradeRange.high].name}
+                                        </span>
+                                    </>
+                                ) : null}
+                                <span> 장비 획득. 챔피언십 능력치 상승 특수옵션 반드시 포함</span>
+                            </p>
+                        ) : (
+                            <p>{refinedDescription}</p>
+                        )}
+                    </div>
                 </ShopMobileImageDescriptionPortal>
             )}
             <button
@@ -131,7 +162,7 @@ const ChampionshipSimpleShopCard: React.FC<{
     );
 };
 
-type SpecialProduct = Extract<ChampionshipShopMaterialProduct, { tab: 'special' }>;
+type SpecialProduct = ChampionshipShopMaterialProduct & { tab: 'special' };
 
 /** 특수 탭 전용 — 주간 한도·구매 버튼만 담당 (다른 탭과 UI 분리) */
 const ChampionshipSpecialShopCard: React.FC<{
@@ -281,7 +312,7 @@ function renderShopCard(
         return (
             <ChampionshipSpecialShopCard
                 key={p.id}
-                p={p}
+                p={p as SpecialProduct}
                 mobile={ctx.mobile}
                 champ={ctx.champ}
                 purchases={ctx.purchases}

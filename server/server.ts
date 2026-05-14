@@ -65,6 +65,7 @@ import { getKakaoAuthUrl, getKakaoAccessToken, getKakaoUserInfo } from './servic
 import { getGoogleAuthUrl, getGoogleAccessToken, getGoogleUserInfo } from './services/googleAuthService.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../shared/constants/rewardConfig.js';
 import { PVP_DISCONNECT_REJOIN_GRACE_MS } from '../shared/utils/pvpDisconnectPolicy.js';
+import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 
 const VERBOSE_ACTION_LOGS = process.env.DEBUG_ACTION_LOGS === '1' || process.env.LOG_ACTIONS === '1';
 
@@ -4302,7 +4303,14 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 return res.status(404).json({ error: 'User not found' });
             }
             const equipIds = new Set(Object.values(user.equipment || {}).filter(Boolean));
-            const equippedItems = Array.isArray(user.inventory) ? user.inventory.filter((item: any) => item && equipIds.has(item.id)) : [];
+            const equippedItems: types.InventoryItem[] = Array.isArray(user.inventory)
+                ? (user.inventory as types.InventoryItem[]).filter((item) => item && equipIds.has(item.id))
+                : [];
+            /** 대표펫은 `equipment` 슬롯이 아니라 별도 필드로 장착 → 공개 프로필에도 행·메타가 필요 */
+            const pairPetRow = getEquippedPairPetInventoryRow(user);
+            if (pairPetRow?.id && !equippedItems.some((it) => it.id === pairPetRow.id)) {
+                equippedItems.push(pairPetRow);
+            }
 
             const publicUser: Record<string, unknown> = {
                 id: user.id,
@@ -4327,6 +4335,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 isAdmin: user.isAdmin,
                 equipment: user.equipment || {},
                 inventory: equippedItems,
+                equippedPairPetTemplateId: user.equippedPairPetTemplateId ?? null,
+                equippedPairPetInventoryItemId: user.equippedPairPetInventoryItemId ?? null,
+                pairPetTrainingSlots: user.pairPetTrainingSlots ?? undefined,
                 baseStats: user.baseStats || {},
                 spentStatPoints: user.spentStatPoints || {},
                 guildId: user.guildId ?? undefined,

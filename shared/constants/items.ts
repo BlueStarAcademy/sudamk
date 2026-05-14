@@ -281,14 +281,25 @@ export function isTowerOnlyConsumable(name: string | undefined): boolean {
     return TOWER_ONLY_CONSUMABLE_NAMES.has(name.trim());
 }
 
-export function isRefinementTicketMaterial(name: string | undefined): boolean {
-    if (!name) return false;
-    if (REFINEMENT_TICKET_NAMES.has(name)) return true;
-    let collapsed = name.replace(/\s+/g, ' ').trim();
-    if (typeof collapsed.normalize === 'function') {
-        collapsed = collapsed.normalize('NFKC');
+/**
+ * ZWSP·단어 결합자 등으로 시각적으로는 동일하지만 `REFINEMENT_TICKET_NAMES`와 불일치하는 인벤 문자열을
+ * 제련 변경권 판매·스택·탭 분류에서 누락하지 않도록 정규화합니다.
+ */
+export function normalizeRefinementTicketInventoryName(name: string | undefined): string {
+    if (!name || typeof name !== 'string') return '';
+    let s = name
+        .replace(/[\u200B-\u200D\uFEFF\u2060\u00AD\u061C]/g, '')
+        .replace(/[\s\u3000\u00A0\u202F]+/g, ' ')
+        .trim();
+    if (typeof s.normalize === 'function') {
+        s = s.normalize('NFKC');
     }
-    return REFINEMENT_TICKET_NAMES.has(collapsed);
+    return s;
+}
+
+export function isRefinementTicketMaterial(name: string | undefined): boolean {
+    const collapsed = normalizeRefinementTicketInventoryName(name);
+    return collapsed !== '' && REFINEMENT_TICKET_NAMES.has(collapsed);
 }
 
 export const gradeBackgrounds: Record<ItemGrade, string> = {

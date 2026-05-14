@@ -47,6 +47,7 @@ import {
     calculateEnhancementGoldCost,
     MAIN_ENHANCEMENT_STEP_MULTIPLIER,
     isRefinementTicketMaterial,
+    normalizeRefinementTicketInventoryName,
 } from '../../constants/index.js';
 import { mythicStatPoolForItemGrade } from '../../shared/utils/specialOptionGearEffects.js';
 import { isPairEggItem, isPairPetMaterial } from '../../shared/constants/petLobby.js';
@@ -1281,7 +1282,9 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 // 장비는 전체 판매
                 user.inventory.splice(itemIndex, 1);
             } else if (item.type === 'material' || sellAsRefinementMaterial) {
-                const nameKey = (item.name || '').replace(/\s+/g, ' ').trim();
+                const nameKey =
+                    normalizeRefinementTicketInventoryName(item.name) ||
+                    (item.name || '').replace(/\s+/g, ' ').trim();
                 const rawMat = MATERIAL_SELL_PRICES[nameKey] ?? MATERIAL_SELL_PRICES[item.name || ''];
                 const pricePerUnit =
                     rawMat != null && rawMat > 0

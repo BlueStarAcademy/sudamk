@@ -1,15 +1,17 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { Guild as GuildType, ServerAction, InventoryItem, ItemGrade } from '../../types/index.js';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
-import { GUILD_SHOP_ITEMS, GuildShopItem } from '../../constants/guildConstants.js';
+import { GUILD_SHOP_ITEMS, GuildShopItem, GUILD_EQUIPMENT_BOX_POPOVER_TAIL } from '../../constants/guildConstants.js';
 import { buildInventoryItemPreviewForPurchase } from '../../shared/utils/bagItemDetailHelpers.js';
 import { EquipmentDetailPanel } from '../EquipmentDetailPanel.js';
 import { isDifferentWeekKST, isDifferentMonthKST } from '../../utils/timeUtils.js';
 import { addItemsToInventory } from '../../utils/inventoryUtils.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../../constants/index.js';
+import { gradeStyles } from '../../shared/constants/items.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
+import { ShopMobileImageDescriptionPortal } from '../shopImageDescriptionPopover.js';
 
 interface GuildShopModalProps {
     onClose: () => void;
@@ -35,6 +37,9 @@ const ShopItemCard: React.FC<{ item: GuildShopItem; isNativeMobile: boolean; onS
     onShowDetail,
 }) => {
     const { handlers, currentUserWithStatus } = useAppContext();
+    const [showEquipmentBoxDesc, setShowEquipmentBoxDesc] = useState(false);
+    const equipmentImageAnchorRef = useRef<HTMLDivElement>(null);
+    const isEquipmentBox = item.type === 'equipment_box';
 
     const purchaseRecord = currentUserWithStatus?.dailyShopPurchases?.[item.itemId];
     const now = Date.now();
@@ -73,22 +78,69 @@ const ShopItemCard: React.FC<{ item: GuildShopItem; isNativeMobile: boolean; onS
             {!isNativeMobile && (
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.35),transparent_65%)] pointer-events-none" />
             )}
-            <button
-                type="button"
-                title="상세 정보"
-                className={`bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent rounded-lg flex items-center justify-center shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] cursor-pointer active:scale-95 transition-transform ${isNativeMobile ? 'w-[3.75rem] h-[3.75rem] mb-1.5' : 'w-16 h-16 mb-2 hover:scale-105'}`}
-                onClick={() => onShowDetail(item)}
-            >
-                <img src={item.image} alt={item.name} className={`w-full h-full object-contain drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)] ${isNativeMobile ? 'p-1' : 'p-1.5'}`} />
-            </button>
-            <button
-                type="button"
-                className={`w-full text-center font-semibold tracking-wide text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] line-clamp-2 leading-tight hover:text-amber-100/95 ${isNativeMobile ? 'text-[11px] min-h-[2.5rem]' : 'text-sm line-clamp-1'}`}
-                title="상세 정보"
-                onClick={() => onShowDetail(item)}
-            >
-                {item.name}
-            </button>
+            {isEquipmentBox ? (
+                <>
+                    <div
+                        ref={equipmentImageAnchorRef}
+                        className={`relative bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent rounded-lg flex items-center justify-center shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] cursor-pointer active:scale-95 transition-transform ${isNativeMobile ? 'w-[3.75rem] h-[3.75rem] mb-1.5' : 'w-16 h-16 mb-2 hover:scale-105'}`}
+                        onClick={() => setShowEquipmentBoxDesc((v) => !v)}
+                        onMouseEnter={() => {
+                            if (!isNativeMobile) setShowEquipmentBoxDesc(true);
+                        }}
+                        onMouseLeave={() => {
+                            if (!isNativeMobile) setShowEquipmentBoxDesc(false);
+                        }}
+                    >
+                        <img src={item.image} alt={item.name} className={`w-full h-full object-contain drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)] ${isNativeMobile ? 'p-1' : 'p-1.5'}`} />
+                    </div>
+                    {showEquipmentBoxDesc && isNativeMobile && (
+                        <ShopMobileImageDescriptionPortal
+                            open
+                            anchorRef={equipmentImageAnchorRef}
+                            onRequestClose={() => setShowEquipmentBoxDesc(false)}
+                        >
+                            <p className={`text-left leading-relaxed text-slate-100 ${isNativeMobile ? 'text-[11px]' : 'text-[10px]'}`}>
+                                <span className={`font-bold ${gradeStyles[item.grade].color}`}>{gradeStyles[item.grade].name}</span>
+                                <span>{GUILD_EQUIPMENT_BOX_POPOVER_TAIL}</span>
+                            </p>
+                        </ShopMobileImageDescriptionPortal>
+                    )}
+                    {showEquipmentBoxDesc && !isNativeMobile && (
+                        <div className="absolute left-1/2 top-20 z-50 w-52 -translate-x-1/2 rounded-lg border border-indigo-400/50 bg-[#0b1220] p-2 shadow-xl">
+                            <p className="text-left text-[10px] leading-relaxed text-slate-100">
+                                <span className={`font-bold ${gradeStyles[item.grade].color}`}>{gradeStyles[item.grade].name}</span>
+                                <span>{GUILD_EQUIPMENT_BOX_POPOVER_TAIL}</span>
+                            </p>
+                        </div>
+                    )}
+                </>
+            ) : (
+                <button
+                    type="button"
+                    title="상세 정보"
+                    className={`bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent rounded-lg flex items-center justify-center shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] cursor-pointer active:scale-95 transition-transform ${isNativeMobile ? 'w-[3.75rem] h-[3.75rem] mb-1.5' : 'w-16 h-16 mb-2 hover:scale-105'}`}
+                    onClick={() => onShowDetail(item)}
+                >
+                    <img src={item.image} alt={item.name} className={`w-full h-full object-contain drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)] ${isNativeMobile ? 'p-1' : 'p-1.5'}`} />
+                </button>
+            )}
+            {isEquipmentBox ? (
+                <div
+                    className={`w-full text-center font-semibold tracking-wide text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] line-clamp-2 leading-tight ${isNativeMobile ? 'text-[11px] min-h-[2.5rem]' : 'text-sm line-clamp-1'}`}
+                    title={item.name}
+                >
+                    {item.name}
+                </div>
+            ) : (
+                <button
+                    type="button"
+                    className={`w-full text-center font-semibold tracking-wide text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] line-clamp-2 leading-tight hover:text-amber-100/95 ${isNativeMobile ? 'text-[11px] min-h-[2.5rem]' : 'text-sm line-clamp-1'}`}
+                    title="상세 정보"
+                    onClick={() => onShowDetail(item)}
+                >
+                    {item.name}
+                </button>
+            )}
             <div className={`flex flex-col items-stretch justify-center w-full ${isNativeMobile ? 'gap-1 mt-1.5' : 'gap-1.5 mt-2'}`}>
                 <Button
                     onClick={handleBuy}
@@ -121,11 +173,11 @@ const GuildShopModal: React.FC<GuildShopModalProps> = ({ onClose, isTopmost }) =
     const [detailItem, setDetailItem] = useState<GuildShopItem | null>(null);
 
     const guildDetailPreview = useMemo(() => {
-        if (!detailItem) return null;
+        if (!detailItem || detailItem.type === 'equipment_box') return null;
         return buildInventoryItemPreviewForPurchase({
             itemId: detailItem.itemId,
             name: detailItem.name,
-            type: detailItem.type === 'equipment_box' ? 'consumable' : detailItem.type,
+            type: detailItem.type,
             image: detailItem.image,
             description: detailItem.description,
             gradeHint: detailItem.grade,

@@ -295,6 +295,8 @@ export type ChampionshipRealGameState = {
     maxPly: number;
     blackPlayerId: string;
     whitePlayerId: string;
+    /** 페어 챔피언십 등: 4인 수순(흑1·백1·흑2·백2). `moves[].pairSeatId`와 함께 쓰인다. */
+    pairTurnOrder?: import('../utils/pairGameTurn.js').PairGameTurnSeat[] | null;
     boardState: BoardState;
     moves: Move[];
     lastMove: Point | null;
@@ -541,6 +543,18 @@ export type ChampionshipVersusVenueRatingEntry = {
     seasonLosses: number;
 };
 
+/** KST 달력 기준 최근 7일 챔피언십 대전장 대전 기록(본인 시점: 상대·승패·내 ELO 변화) */
+export type ChampionshipVersusDuelWeekLogEntry = {
+    id: string;
+    occurredAt: number;
+    venue: ChampionshipVersusVenueKind;
+    opponentUserId: string;
+    opponentNickname: string;
+    won: boolean;
+    ratingBefore: number;
+    ratingAfter: number;
+};
+
 /** 직전 시즌 종료 시점의 챔피언십 대전장 티어(전략바둑 시즌 보상과 동일 RANKING_TIERS) */
 export type ChampionshipVersusSeasonHistory = Partial<Record<ChampionshipVersusVenueKind, string>>;
 
@@ -665,7 +679,7 @@ export type User = {
   blacksmithLevel: number;
   blacksmithXp: number;
   cumulativeRankingScore?: Record<string, number>;
-  cumulativeTournamentScore?: number; // 누적 챔피언십 점수 (홈 화면 랭킹용)
+  cumulativeTournamentScore?: number; /** @deprecated 레거시 던전 누적 — 항상 0, 랭킹에는 미사용 */
   yesterdayTournamentScore?: number; // 어제의 챔피언십 점수 (변화량 계산용)
   inventorySlotsMigrated?: boolean;
   towerFloor?: number; // 도전의 탑 최고 층수
@@ -697,10 +711,20 @@ export type User = {
   championshipVersusOppRefreshDayKST?: string;
   /** 당일 무료 새로고침 사용 횟수(날짜 바뀌면 0으로 리셋) */
   championshipVersusOppRefreshFreeUsed?: number;
-  /** 챔피언십 대전장 결투권(최대 5). 2시간마다 1회복 */
+  /** PVP·펫·페어 챔피언십 경기장별 오늘(KST) 컨디션 스냅샷 — 던전과 동일하게 회복제·재입장 시 유지 */
+  championshipVersusConditionSnapshot?: Partial<
+    Record<ChampionshipVersusVenueKind, { condition: number; dateStartOfDayKST: number }>
+  >;
+  /** 챔피언십 대전장 결투권(최대 5). 2시간마다 1회복 — PVP 풀 미러(구 클라이언트·로그용) */
   championshipVersusDuelTickets?: number;
-  /** 결투권이 최대 미만일 때 다음 1개 충전 시각(ms) */
+  /** 결투권이 최대 미만일 때 다음 1개 충전 시각(ms) — PVP 풀 미러 */
   championshipVersusDuelTicketNextAt?: number;
+  /** 경기장별 결투권 보유 수(PVP·펫·페어 각각 소모, ELO는 공유) */
+  championshipVersusDuelTicketsByVenue?: Partial<Record<ChampionshipVersusVenueKind, number>>;
+  /** 경기장별 다음 1개 충전 시각(ms) */
+  championshipVersusDuelTicketNextAtByVenue?: Partial<Record<ChampionshipVersusVenueKind, number>>;
+  /** KST 최근 7일 챔피언십 대전장 대전 기록 */
+  championshipVersusDuelWeekLog?: ChampionshipVersusDuelWeekLogEntry[];
   guildBossAttempts?: number;
   /** KST 기준 마지막 보스전 참여일 'YYYY-MM-DD' (일일 2회 제한용) */
   guildBossLastAttemptDayKST?: string;

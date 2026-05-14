@@ -14,11 +14,10 @@ import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSid
 import { BADUK_ABILITY_STAT_CAP, BADUK_ABILITY_TOTAL_CAP, CORE_STAT_RADAR_ORDER } from './CoreStatsHexagonChart.js';
 import GameRankingBoard from './GameRankingBoard.js';
 import BadukRankingBoard from './BadukRankingBoard.js';
-import { useRanking } from '../hooks/useRanking.js';
 import MannerRankModal from './MannerRankModal.js';
 import GuildCreateModal from './guild/GuildCreateModal.js';
 import GuildJoinModal from './guild/GuildJoinModal.js';
-import type { Guild } from '../types/entities.js';
+import type { Guild, ChampionshipVersusVenueKind } from '../types/entities.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { ADVENTURE_STAGES } from '../constants/adventureConstants.js';
 import {
@@ -57,6 +56,8 @@ import {
 import { getXpRequirementForLevel } from '../shared/utils/strategyLevelXp.js';
 import { readStrategicRankedBlock, readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
 import { RANKED_ELO_BASE_SCORE } from '../shared/constants/rules.js';
+import { getSeasonalRankingTierName } from '../shared/constants/ranking.js';
+import { getChampionshipVersusDisplayRating } from '../shared/utils/championshipVersusElo.js';
 import { NEW_FEATURE_BADGE_CLASS } from '../utils/newFeatureBadges.js';
 import PairPetProfilePanel from './pair/PairPetProfilePanel.js';
 import PairPetDetailEmbedPanel from './pair/PairPetDetailEmbedPanel.js';
@@ -643,13 +644,43 @@ const Profile: React.FC<ProfileProps> = () => {
     const homeLeftColumnMerge = profileTab === 'home';
     /** 네이티브 앱 홈: PC와 동일 구조, 타이포·썸네일·펫 카드만 축소해 통일 */
     const nativeCompactHome = isNativeMobile && homeLeftColumnMerge;
-    const { rankings: championshipRankings } = useRanking('championship', 100, 0);
-    const championshipMyEntry = useMemo(() => {
-        if (!currentUserWithStatus) return null;
-        return championshipRankings.find(e => e.id === currentUserWithStatus.id) ?? null;
-    }, [championshipRankings, currentUserWithStatus]);
-    const championshipScore = championshipMyEntry?.score ?? currentUserWithStatus?.cumulativeTournamentScore ?? 0;
-    const championshipRank = championshipMyEntry?.rank ?? null;
+    /** 챔피언십 경기장: 통합 ELO + 경기장별 시즌 전적 */
+    const championshipVenueStrip = useMemo(() => {
+        const u = currentUserWithStatus;
+        if (!u) {
+            const fallback = RANKING_TIERS[RANKING_TIERS.length - 1]!;
+            return {
+                rating: RANKED_ELO_BASE_SCORE,
+                tier: fallback,
+                tierName: fallback.name,
+                venueSeason: [] as { label: string; wins: number; losses: number }[],
+            };
+        }
+        const rating = getChampionshipVersusDisplayRating(u, 'pvp', Date.now());
+        const wl = (k: ChampionshipVersusVenueKind) => {
+            const e = u.championshipVersusVenueRatings?.[k];
+            return {
+                wins: Math.max(0, Math.floor(Number(e?.seasonWins) || 0)),
+                losses: Math.max(0, Math.floor(Number(e?.seasonLosses) || 0)),
+            };
+        };
+        const p = wl('pvp');
+        const pet = wl('pet');
+        const pr = wl('petpair');
+        const games = Math.max(p.wins + p.losses, pet.wins + pet.losses, pr.wins + pr.losses);
+        const tierName = getSeasonalRankingTierName(rating, 999_999, games);
+        const tier = RANKING_TIERS.find((x) => x.name === tierName) ?? RANKING_TIERS[RANKING_TIERS.length - 1]!;
+        return {
+            rating: Math.round(rating),
+            tier,
+            tierName,
+            venueSeason: [
+                { label: 'PVP', ...p },
+                { label: '펫', ...pet },
+                { label: '페어', ...pr },
+            ],
+        };
+    }, [currentUserWithStatus]);
     const [detailedStatsType, setDetailedStatsType] = useState<'strategic' | 'playful' | 'both' | null>(null);
     const [trainingQuestModalOpen, setTrainingQuestModalOpen] = useState(false);
     const [towerTimeLeft, setTowerTimeLeft] = useState('');
@@ -2070,7 +2101,6 @@ const Profile: React.FC<ProfileProps> = () => {
         : '입문반';
     const towerCurrentFloor = Math.max(1, (currentUserWithStatus as User)?.towerFloor ?? 0);
     const towerCurrentRank = (currentUserWithStatus as any)?.monthlyTowerRank ?? (currentUserWithStatus as any)?.towerRank ?? null;
-    const dungeonProgress = (currentUserWithStatus as any)?.dungeonProgress ?? {};
     const adventureCodexBreakdown = getAdventureCodexCompletionBreakdown(currentUserWithStatus.adventureProfile);
     const adventureCodexOverallPercentText =
         adventureCodexBreakdown.overallPercent >= 10
@@ -2304,11 +2334,33 @@ const Profile: React.FC<ProfileProps> = () => {
                         <div className={infoPanelShellClass}>
                             <div className={infoTitleClass}>챔피언십</div>
                             <div className={infoPanelMiddleClass}>
-                                <div className={infoRowClass}><span className={infoLabelClass}>시즌 점수</span><span className={infoValueClass}>{championshipScore}점</span></div>
-                                <div className={infoRowClass}><span className={infoLabelClass}>현재 순위</span><span className={infoValueClass}>{championshipRank != null ? `${championshipRank}위` : '100+위'}</span></div>
-                                <div className={infoRowClass}><span className={infoLabelClass}>동네리그</span><span className={infoValueClass}>{dungeonProgress.neighborhood?.currentStage ?? 0}단계</span></div>
-                                <div className={infoRowClass}><span className={infoLabelClass}>전국대회</span><span className={infoValueClass}>{dungeonProgress.national?.currentStage ?? 0}단계</span></div>
-                                <div className={infoRowClass}><span className={infoLabelClass}>월드전</span><span className={infoValueClass}>{dungeonProgress.world?.currentStage ?? 0}단계</span></div>
+                                <div className="flex w-full items-center gap-2 rounded-md border border-white/10 bg-white/[0.05] px-2 py-2">
+                                    <img
+                                        src={championshipVenueStrip.tier.icon}
+                                        alt=""
+                                        title={championshipVenueStrip.tierName}
+                                        className="h-9 w-9 shrink-0 object-contain sm:h-10 sm:w-10"
+                                    />
+                                    <div className="min-w-0 flex-1 text-center">
+                                        <span className={`${infoLabelClass} block text-[11px]`}>통합 점수</span>
+                                        <span className={`${infoValueClass} block font-mono text-base text-amber-100 sm:text-lg`}>
+                                            {championshipVenueStrip.rating}점
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className={infoRowClass}>
+                                    <span className={`${infoLabelClass} self-start`}>시즌 전적</span>
+                                    <div className={`${infoValueClass} flex flex-col items-end gap-0.5 font-mono text-[11px] leading-tight sm:text-xs`}>
+                                        {championshipVenueStrip.venueSeason.map((row) => (
+                                            <span key={row.label} className="whitespace-nowrap text-right">
+                                                <span className="text-slate-500">{row.label}</span>{' '}
+                                                <span className="text-primary">
+                                                    {row.wins}승 {row.losses}패
+                                                </span>
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

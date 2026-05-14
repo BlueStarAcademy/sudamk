@@ -87,6 +87,8 @@ export interface EquipmentDetailPanelProps {
     hideOwnedQuantity?: boolean;
     /** `obtained`: 획득 모달 등 — 스냅샷 수량을 「획득 수량」으로 표시 (가방 보유와 구분) */
     materialQuantityCaption?: 'owned' | 'obtained';
+    /** 소모품·재료 카드의 「설명」 블록을 통째로 교체(길드 장비 상자 등) */
+    descriptionSlot?: React.ReactNode;
 }
 
 /**
@@ -102,6 +104,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
     showAcquireSources = false,
     hideOwnedQuantity = false,
     materialQuantityCaption = 'owned',
+    descriptionSlot,
 }) => {
     const { currentUserWithStatus } = useAppContext();
     const styles = equipmentDetailGradeStyles[item.grade];
@@ -231,7 +234,11 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                     <div className={`${optsBlock} ${optionRowsSingleLine ? 'min-w-0 overflow-x-auto' : ''}`}>
                         <div>
                             <p className={sectionLabelClass}>설명</p>
-                            <p className="mt-1 text-slate-200/95">{item.description?.trim() ? item.description : '—'}</p>
+                            {descriptionSlot != null ? (
+                                <div className={`mt-1 ${metaText} text-slate-200/95`}>{descriptionSlot}</div>
+                            ) : (
+                                <p className="mt-1 text-slate-200/95">{item.description?.trim() ? item.description : '—'}</p>
+                            )}
                         </div>
                         <div className="my-2 h-px w-full shrink-0 bg-gradient-to-r from-transparent via-white/12 to-transparent" aria-hidden />
                         <div>

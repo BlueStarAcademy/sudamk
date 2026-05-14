@@ -23,6 +23,11 @@ const moveIntervalMsForSpeed = (speed: ChampionshipPlaybackSpeed): number =>
 // 그 이후에도 약 0.4s 더 가려진 상태를 유지해 "스캔이 오른쪽 끝까지 간 뒤 결과가 등장한다"는
 // 흐름을 명확히 보여준다.
 const REAL_MATCH_SCORING_DELAY_MS = 3000;
+/** `index.css`의 `.championship-scoring-veil` / beam 애니메이션 길이와 동기 */
+export const CHAMPIONSHIP_SCORING_VEIL_DURATION_MS = 2600;
+/** 실대국 계가 연출 후 결과 화면까지 대기(ms) — PVE 토너먼트·PVP 장내 카타 재생과 동일 */
+export const CHAMPIONSHIP_REAL_MATCH_SCORING_DELAY_MS = REAL_MATCH_SCORING_DELAY_MS;
+
 type CommentaryPhase = 'early' | 'mid' | 'end';
 
 const createEmptyBoard = (boardSize: number): BoardState =>
@@ -41,6 +46,20 @@ const boardAfterMoves = (boardSize: number, moves: Array<{ x: number; y: number;
     }
     return board;
 };
+
+/** 챔피언십 실대국 수 재생 간격(ms) — 배속 버튼과 동일 규칙 */
+export function championshipPlaybackMoveIntervalMs(speed: ChampionshipPlaybackSpeed): number {
+    return moveIntervalMsForSpeed(speed);
+}
+
+/** 챔피언십 기보 `moves`의 앞 `count`수까지 적용한 판면(클라이언트 규칙) */
+export function championshipReplayBoardAfterMoves(
+    boardSize: number,
+    moves: Array<{ x: number; y: number; player: Player }>,
+    count: number,
+): BoardState {
+    return boardAfterMoves(boardSize, moves, count);
+}
 
 type PersistedTournamentSimulation = {
     userId: string;
@@ -632,7 +651,7 @@ export const useTournamentSimulation = (
                             },
                         });
                         isSimulatingRef.current = false;
-                    }, REAL_MATCH_SCORING_DELAY_MS);
+                    }, CHAMPIONSHIP_REAL_MATCH_SCORING_DELAY_MS);
                 } else {
                     isSimulatingRef.current = false;
                 }
@@ -815,7 +834,7 @@ export const useTournamentSimulation = (
                             payload: completionPayload,
                         });
                         isSimulatingRef.current = false;
-                    }, REAL_MATCH_SCORING_DELAY_MS);
+                    }, CHAMPIONSHIP_REAL_MATCH_SCORING_DELAY_MS);
                     return; // 마지막 수에 도달했으면 다음 틱을 예약하지 않는다.
                 }
 

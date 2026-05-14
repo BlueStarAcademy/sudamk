@@ -1564,6 +1564,15 @@ export const useApp = () => {
                 patch.dailyShopPurchases !== undefined
                     ? { ...(base.dailyShopPurchases ?? {}), ...patch.dailyShopPurchases }
                     : base.dailyShopPurchases,
+            // 챔피언십 결투권(경기장별): 부분 패치 시 다른 경기장 키 유지
+            championshipVersusDuelTicketsByVenue:
+                patch.championshipVersusDuelTicketsByVenue !== undefined
+                    ? { ...(base.championshipVersusDuelTicketsByVenue ?? {}), ...patch.championshipVersusDuelTicketsByVenue }
+                    : base.championshipVersusDuelTicketsByVenue,
+            championshipVersusDuelTicketNextAtByVenue:
+                patch.championshipVersusDuelTicketNextAtByVenue !== undefined
+                    ? { ...(base.championshipVersusDuelTicketNextAtByVenue ?? {}), ...patch.championshipVersusDuelTicketNextAtByVenue }
+                    : base.championshipVersusDuelTicketNextAtByVenue,
             // 챔피언십: WS/HTTP 패치에 기보가 빠지면 클라 실대국이 50초 시뮬로 추락하므로 동일 슬롯에서는 베이스 기보를 보존
             lastNeighborhoodTournament:
                 patch.lastNeighborhoodTournament !== undefined
@@ -2062,7 +2071,10 @@ export const useApp = () => {
     const [enhancementOutcome, setEnhancementOutcome] = useState<{ message: string; success: boolean; itemBefore: InventoryItem; itemAfter: InventoryItem; xpGained?: number; isRolling?: boolean; } | null>(null);
     const [refinementResult, setRefinementResult] = useState<{ message: string; success: boolean; itemBefore: InventoryItem; itemAfter: InventoryItem; } | null>(null);
     const [enhancementAnimationTarget, setEnhancementAnimationTarget] = useState<{ itemId: string; stars: number } | null>(null);
-    const [pastRankingsInfo, setPastRankingsInfo] = useState<{ user: UserWithStatus; mode: GameMode | 'strategic' | 'pair'; } | null>(null);
+    const [pastRankingsInfo, setPastRankingsInfo] = useState<{
+        user: UserWithStatus;
+        mode: GameMode | 'strategic' | 'pair' | 'unified';
+    } | null>(null);
     const [enhancingItem, setEnhancingItem] = useState<InventoryItem | null>(null);
     const [viewingItem, setViewingItem] = useState<{
         item: InventoryItem;
@@ -7796,7 +7808,9 @@ export const useApp = () => {
                                         updatedCurrentUser.lastNationalTournament !== undefined ||
                                         updatedCurrentUser.lastWorldTournament !== undefined ||
                                         (updatedCurrentUser as { dungeonConditionSnapshot?: unknown }).dungeonConditionSnapshot !==
-                                            undefined);
+                                            undefined ||
+                                        (updatedCurrentUser as { championshipVersusConditionSnapshot?: unknown })
+                                            .championshipVersusConditionSnapshot !== undefined);
                                 /** 상점에서 회복제 구매 직후 WS(인벤·골드·일일구매) — 디바운스에 걸리면 가방에 안 들어온 것처럼 보일 수 있음 */
                                 const isPostBuyConditionPotionSyncWs =
                                     lastHttpActionType.current === 'BUY_CONDITION_POTION' &&
@@ -10617,10 +10631,6 @@ export const useApp = () => {
     };
     
     const handleViewUser = useCallback(async (userId: string) => {
-        // 랭킹 퀵 모달에서 유저 프로필을 열 때 프로필 모달이 뒤로 깔리지 않도록 먼저 닫는다.
-        if (isRankingQuickModalOpen) {
-            setIsRankingQuickModalOpen(false);
-        }
         // allUsers(usersMap)에 전체 프로필이 있으면 사용 (협상 상대 등)
         if (Array.isArray(allUsers)) {
             const userToView = allUsers.find(u => u && u.id === userId);
@@ -10646,7 +10656,7 @@ export const useApp = () => {
         } catch (error) {
             console.error(`[handleViewUser] Error fetching user ${userId}:`, error);
         }
-    }, [onlineUsers, allUsers, isRankingQuickModalOpen]);
+    }, [onlineUsers, allUsers]);
 
     const openModerationModal = useCallback((userId: string) => {
         if (!Array.isArray(onlineUsers) || !Array.isArray(allUsers)) return;
@@ -11038,7 +11048,8 @@ export const useApp = () => {
             closeStatAllocationModal: () => setIsStatAllocationModalOpen(false),
             openProfileEditModal: () => setIsProfileEditModalOpen(true),
             closeProfileEditModal: () => setIsProfileEditModalOpen(false),
-            openPastRankings: (info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'pair'; }) => setPastRankingsInfo(info),
+            openPastRankings: (info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'pair' | 'unified' }) =>
+                setPastRankingsInfo(info),
             closePastRankings: () => setPastRankingsInfo(null),
             openViewingItem,
             openPairPetDetailModal,

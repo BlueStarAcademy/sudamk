@@ -12,6 +12,7 @@ import {
     MYTHIC_STATS_DATA,
     CORE_STATS_DATA,
     EQUIPMENT_BOX_LOOT_TABLES,
+    getChampionshipEquipmentBoxGradeWeights,
     MATERIAL_BOX_PROBABILITIES,
 } from '../shared/constants/index.js';
 import { normalizeInventoryEquipmentItem } from '../shared/utils/inventoryLegacyNormalize.js';
@@ -253,29 +254,12 @@ export function openEquipmentBox4(): InventoryItem { return openBoxWithLootTable
 export function openEquipmentBox5(): InventoryItem { return openBoxWithLootTable(EQUIPMENT_BOX_LOOT_TABLES.equipment_box_5); }
 export function openEquipmentBox6(): InventoryItem { return openBoxWithLootTable(EQUIPMENT_BOX_LOOT_TABLES.equipment_box_6); }
 
-const CHAMPIONSHIP_BOX_KEYS = [
-    'equipment_box_1',
-    'equipment_box_2',
-    'equipment_box_3',
-    'equipment_box_4',
-    'equipment_box_5',
-    'equipment_box_6',
-] as const satisfies readonly (keyof typeof EQUIPMENT_BOX_LOOT_TABLES)[];
-
-/** 챔피언십 상점 상자: 일반 등급 루트 제외(특수 옵션 없음) */
-function championshipEquipmentLootTable(boxLevel: 1 | 2 | 3 | 4 | 5 | 6) {
-    const key = CHAMPIONSHIP_BOX_KEYS[boxLevel - 1];
-    const base = EQUIPMENT_BOX_LOOT_TABLES[key];
-    const filtered = base.filter((e) => e.grade !== ItemGrade.Normal);
-    return filtered.length > 0 ? filtered : base;
-}
-
 /**
  * 챔피언십 장비 상자: 기존 상자와 동일 등급 테이블(일반 제외) + 특수 옵션 중 하나를 반드시 `챔피언십 능력치`(+2~4%)로 고정.
  * 특수가 1줄만 붙는 등급이면 그 줄만 챔피언십 능력치입니다.
  */
 export function openChampionshipEquipmentBox(boxLevel: 1 | 2 | 3 | 4 | 5 | 6): InventoryItem {
-    const item = openBoxWithLootTable(championshipEquipmentLootTable(boxLevel));
+    const item = openBoxWithLootTable(getChampionshipEquipmentBoxGradeWeights(boxLevel));
     applyChampionshipVenueStatToEquipmentItem(item);
     return normalizeInventoryEquipmentItem(item);
 }

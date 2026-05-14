@@ -71,6 +71,61 @@ type PairParticipantLike = {
 
 export const PAIR_TURN_SEAT_IDS: PairGameTurnSeatId[] = ['black1', 'white1', 'black2', 'white2'];
 
+/**
+ * 장내 페어 챔피언십 실대국(`generateChampionshipRealMatch`)용 4인 수순.
+ * 팀 보존 수순(`buildTeamPreservingPairTurnOrder`)과 동일하게 흑1·백1·흑2·백2로 두며,
+ * 각 팀 내에서 유저·펫의 1·2번 자리만 무작위로 섞는다.
+ */
+export function buildChampionshipVersusPetPairTurnOrder(params: {
+    blackUser: { id: string; nickname: string };
+    whiteUser: { id: string; nickname: string };
+    blackPet: { participantId: string; displayName: string };
+    whitePet: { participantId: string; displayName: string };
+    rng?: () => number;
+}): PairGameTurnSeat[] {
+    const rng = params.rng ?? Math.random;
+    const shuffled = <T,>(items: T[]): T[] => {
+        const out = [...items];
+        for (let i = out.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(rng() * (i + 1));
+            [out[i], out[j]] = [out[j]!, out[i]!];
+        }
+        return out;
+    };
+
+    type M = { id: string; name: string; kind: PairGameSeatKind; slot: string; teamId: 'teamA' | 'teamB' };
+    const blackMembers = shuffled<M>([
+        { id: params.blackUser.id, name: params.blackUser.nickname, kind: 'user', slot: 'user', teamId: 'teamA' },
+        { id: params.blackPet.participantId, name: params.blackPet.displayName, kind: 'pet', slot: 'pet', teamId: 'teamA' },
+    ]);
+    const whiteMembers = shuffled<M>([
+        { id: params.whiteUser.id, name: params.whiteUser.nickname, kind: 'user', slot: 'user', teamId: 'teamB' },
+        { id: params.whitePet.participantId, name: params.whitePet.displayName, kind: 'pet', slot: 'pet', teamId: 'teamB' },
+    ]);
+
+    const toSeat = (seatId: PairGameTurnSeatId, p: M): PairGameTurnSeat => {
+        const player = seatId.startsWith('black') ? Player.Black : Player.White;
+        const order = seatId.endsWith('1') ? 1 : 2;
+        return {
+            seatId,
+            player,
+            order,
+            participantId: p.id,
+            name: p.name,
+            kind: p.kind,
+            teamId: p.teamId,
+            slot: p.slot,
+        };
+    };
+
+    return [
+        toSeat('black1', blackMembers[0]!),
+        toSeat('white1', whiteMembers[0]!),
+        toSeat('black2', blackMembers[1]!),
+        toSeat('white2', whiteMembers[1]!),
+    ];
+}
+
 /** 대국실 채팅 등: 페어 좌석 ID를 짧은 한글 라벨로 */
 export function pairTurnSeatIdShortLabel(seatId: string): string {
     return seatId === 'black1'

@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import GameRankingBoard from './GameRankingBoard.js';
 import RankingList from './waiting-room/RankingList.js';
+import ChampionshipRankingList from './waiting-room/ChampionshipRankingList.js';
+import Button from './Button.js';
 import MobileRankingGuidePanel from './MobileRankingGuidePanel.js';
 import TierInfoModal from './TierInfoModal.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
@@ -12,20 +14,44 @@ import { useAppContext } from '../hooks/useAppContext.js';
 import { RANKING_MODAL_SLIM_SCROLL_X, RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScrollbar.js';
 import type { MobileRankingGuideVariant } from './MobileRankingGuidePanel.js';
 
-/** 모바일 랭킹 퀵 모달: 탭당 하나의 랭킹 보드 */
-type RankingMobileTab = 'combat' | 'manner' | 'championship' | 'strategic' | 'pair';
+/** 모바일: 메인 카테고리(게임/바둑/챔피언십) + 하위 탭 조합으로 패널 키를 만든다 */
+type RankingMobilePanelKey = 'game-combat' | 'game-manner' | 'baduk-strategic' | 'baduk-pair' | 'championship';
 
-type PcMainTab = 'game' | 'baduk';
+type MobileMainTab = 'game' | 'baduk' | 'championship';
+
+type MobileGameSubTab = 'combat' | 'manner';
+
+type MobileBadukSubTab = 'strategic' | 'pair';
+
+/** 스코어 가이드 모달용(챔피언십은 별도 가이드 없음) */
+type RankingGuideTab = MobileGameSubTab | MobileBadukSubTab;
+
+type PcMainTab = 'game' | 'baduk' | 'championship';
 
 interface RankingQuickModalProps {
     onClose: () => void;
     isTopmost?: boolean;
 }
 
-const MOBILE_RANKING_TABS: { id: RankingMobileTab; label: string }[] = [
+const MOBILE_MAIN_TABS: { id: MobileMainTab; label: string }[] = [
+    { id: 'game', label: '게임랭킹' },
+    { id: 'baduk', label: '바둑랭킹' },
+    { id: 'championship', label: '챔피언십랭킹' },
+];
+
+const MOBILE_GAME_SUB_TABS: { id: MobileGameSubTab; label: string }[] = [
     { id: 'combat', label: '바둑능력' },
     { id: 'manner', label: '매너' },
-    { id: 'championship', label: '챔피언십' },
+];
+
+const MOBILE_BADUK_SUB_TABS: { id: MobileBadukSubTab; label: string }[] = [
+    { id: 'strategic', label: '전략바둑' },
+    { id: 'pair', label: '페어바둑' },
+];
+
+const RANKING_GUIDE_TABS: { id: RankingGuideTab; label: string }[] = [
+    { id: 'combat', label: '바둑능력' },
+    { id: 'manner', label: '매너' },
     { id: 'strategic', label: '전략바둑' },
     { id: 'pair', label: '페어바둑' },
 ];
@@ -33,28 +59,36 @@ const MOBILE_RANKING_TABS: { id: RankingMobileTab; label: string }[] = [
 const PC_MAIN_TAB_BTN =
     'rounded-xl border px-4 py-2 text-sm font-bold tracking-tight transition-all duration-200 sm:px-5 sm:py-2.5 sm:text-base';
 
-const RetiredChampionshipRankingPanel: React.FC = () => (
-    <div className="flex h-full min-h-0 flex-col items-center justify-center rounded-lg border border-amber-400/20 bg-zinc-950/70 p-4 text-center">
-        <div className="text-base font-bold text-amber-100">챔피언십 랭킹 종료</div>
-        <p className="mt-2 max-w-sm text-sm leading-relaxed text-zinc-300">
-            PVE 챔피언십은 일일 도전과 결과 보상 중심으로 개편되었습니다. 추후 PVP 챔피언십에서 결투점수 월간 랭킹이 열릴 예정입니다.
-        </p>
-    </div>
-);
+const RANKING_HEADER_ACTION_BTN =
+    '!rounded-lg border border-purple-400/30 bg-gradient-to-r from-purple-600/90 via-indigo-600/90 to-purple-600/90 font-bold text-white shadow-[0_4px_12px_rgba(99,102,241,0.4)] transition-all duration-200 hover:border-purple-300/50 hover:from-purple-500 hover:via-indigo-500 hover:to-purple-500 hover:shadow-[0_6px_16px_rgba(99,102,241,0.5)]';
 
 const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmost }) => {
     const isCompactViewport = useIsHandheldDevice(1024);
     const { isNativeMobile } = useNativeMobileShell();
     const { currentUserWithStatus, handlers } = useAppContext();
     const isMobile = isCompactViewport || isNativeMobile;
-    const [mobilePanelTab, setMobilePanelTab] = useState<RankingMobileTab>('combat');
+    const [mobileMainTab, setMobileMainTab] = useState<MobileMainTab>('game');
+    const [mobileGameSubTab, setMobileGameSubTab] = useState<MobileGameSubTab>('combat');
+    const [mobileBadukSubTab, setMobileBadukSubTab] = useState<MobileBadukSubTab>('strategic');
     const [isTipModalOpen, setIsTipModalOpen] = useState(false);
-    const [guideMainTab, setGuideMainTab] = useState<RankingMobileTab>('combat');
+    const [guideTab, setGuideTab] = useState<RankingGuideTab>('combat');
     const [pcMainTab, setPcMainTab] = useState<PcMainTab>('game');
     const [tierInfoOpen, setTierInfoOpen] = useState(false);
 
+    const openUnifiedPastRankings = () => {
+        if (currentUserWithStatus) {
+            handlers.openPastRankings({ user: currentUserWithStatus, mode: 'unified' });
+        }
+    };
+
+    const mobilePanelKey = useMemo((): RankingMobilePanelKey => {
+        if (mobileMainTab === 'championship') return 'championship';
+        if (mobileMainTab === 'game') return mobileGameSubTab === 'combat' ? 'game-combat' : 'game-manner';
+        return mobileBadukSubTab === 'strategic' ? 'baduk-strategic' : 'baduk-pair';
+    }, [mobileMainTab, mobileGameSubTab, mobileBadukSubTab]);
+
     const guideVariant = useMemo((): MobileRankingGuideVariant | null => {
-        switch (guideMainTab) {
+        switch (guideTab) {
             case 'combat':
                 return 'game-combat';
             case 'manner':
@@ -66,7 +100,16 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
             default:
                 return null;
         }
-    }, [guideMainTab]);
+    }, [guideTab]);
+
+    const syncGuideTabFromMobilePanel = () => {
+        if (mobileMainTab === 'championship') return;
+        if (mobileMainTab === 'game') {
+            setGuideTab(mobileGameSubTab);
+            return;
+        }
+        setGuideTab(mobileBadukSubTab);
+    };
 
     return (
         <DraggableWindow
@@ -111,24 +154,30 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                 />
                 {isMobile ? (
                     <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-                        <div className="flex min-w-0 items-center gap-2">
+                        <div className="flex min-w-0 items-center gap-1.5">
                             <div
                                 className={`flex min-w-0 flex-1 shrink-0 gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch] ${RANKING_MODAL_SLIM_SCROLL_X}`}
                                 role="tablist"
-                                aria-label="랭킹 종류"
+                                aria-label="랭킹 카테고리"
                             >
-                                {MOBILE_RANKING_TABS.map(({ id, label }) => {
-                                    const selected = mobilePanelTab === id;
+                                {MOBILE_MAIN_TABS.map(({ id, label }) => {
+                                    const selected = mobileMainTab === id;
+                                    const selectedClass =
+                                        id === 'game'
+                                            ? 'border-amber-300/55 bg-gradient-to-b from-amber-500/85 via-amber-700/75 to-amber-950/80 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_10px_22px_-12px_rgba(251,191,36,0.55)] ring-1 ring-amber-300/25'
+                                            : id === 'baduk'
+                                              ? 'border-emerald-300/50 bg-gradient-to-b from-emerald-600/85 via-teal-800/72 to-zinc-950/88 text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] ring-1 ring-emerald-300/22'
+                                              : 'border-violet-300/50 bg-gradient-to-b from-violet-600/85 via-purple-900/75 to-zinc-950/90 text-violet-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-violet-300/25';
                                     return (
                                         <button
                                             key={id}
                                             type="button"
                                             role="tab"
                                             aria-selected={selected}
-                                            onClick={() => setMobilePanelTab(id)}
+                                            onClick={() => setMobileMainTab(id)}
                                             className={`min-h-[31px] shrink-0 rounded-lg border px-2 py-1 text-[11px] font-semibold tracking-tight transition-all duration-200 active:scale-[0.98] ${
                                                 selected
-                                                    ? 'border-amber-300/55 bg-gradient-to-b from-amber-500/85 via-amber-700/75 to-amber-950/80 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_10px_22px_-12px_rgba(251,191,36,0.55)] ring-1 ring-amber-300/25'
+                                                    ? selectedClass
                                                     : 'border-white/10 bg-gradient-to-b from-zinc-800/65 to-zinc-950/70 text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-amber-400/30 hover:text-amber-100'
                                             }`}
                                         >
@@ -137,10 +186,30 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                     );
                                 })}
                             </div>
+                            {currentUserWithStatus && (
+                                <>
+                                    <Button
+                                        type="button"
+                                        onClick={openUnifiedPastRankings}
+                                        colorScheme="none"
+                                        className={`shrink-0 !px-2 !py-1 !text-[10px] !font-bold sm:!text-[11px] ${RANKING_HEADER_ACTION_BTN}`}
+                                    >
+                                        지난 랭킹
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        onClick={() => setTierInfoOpen(true)}
+                                        colorScheme="none"
+                                        className={`shrink-0 !px-2 !py-1 !text-[10px] !font-bold sm:!text-[11px] ${RANKING_HEADER_ACTION_BTN}`}
+                                    >
+                                        티어 안내
+                                    </Button>
+                                </>
+                            )}
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setGuideMainTab(mobilePanelTab);
+                                    syncGuideTabFromMobilePanel();
                                     setIsTipModalOpen(true);
                                 }}
                                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-300/40 bg-amber-500/20 text-[13px] shadow-sm shadow-amber-900/40 transition hover:bg-amber-500/30 active:scale-[0.97]"
@@ -150,15 +219,69 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                 💡
                             </button>
                         </div>
+                        {mobileMainTab === 'game' && (
+                            <div
+                                className={`flex min-w-0 gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch] ${RANKING_MODAL_SLIM_SCROLL_X}`}
+                                role="tablist"
+                                aria-label="게임 랭킹 종류"
+                            >
+                                {MOBILE_GAME_SUB_TABS.map(({ id, label }) => {
+                                    const selected = mobileGameSubTab === id;
+                                    return (
+                                        <button
+                                            key={id}
+                                            type="button"
+                                            role="tab"
+                                            aria-selected={selected}
+                                            onClick={() => setMobileGameSubTab(id)}
+                                            className={`min-h-[29px] shrink-0 rounded-lg border px-2 py-1 text-[11px] font-semibold tracking-tight transition-all duration-200 active:scale-[0.98] ${
+                                                selected
+                                                    ? 'border-sky-300/45 bg-gradient-to-b from-sky-600/80 via-sky-900/65 to-zinc-950/85 text-sky-50 ring-1 ring-sky-300/20'
+                                                    : 'border-white/10 bg-zinc-900/55 text-zinc-400 hover:border-sky-400/30 hover:text-sky-100'
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        {mobileMainTab === 'baduk' && (
+                            <div
+                                className={`flex min-w-0 gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch] ${RANKING_MODAL_SLIM_SCROLL_X}`}
+                                role="tablist"
+                                aria-label="바둑 랭킹 종류"
+                            >
+                                {MOBILE_BADUK_SUB_TABS.map(({ id, label }) => {
+                                    const selected = mobileBadukSubTab === id;
+                                    return (
+                                        <button
+                                            key={id}
+                                            type="button"
+                                            role="tab"
+                                            aria-selected={selected}
+                                            onClick={() => setMobileBadukSubTab(id)}
+                                            className={`min-h-[29px] shrink-0 rounded-lg border px-2 py-1 text-[11px] font-semibold tracking-tight transition-all duration-200 active:scale-[0.98] ${
+                                                selected
+                                                    ? 'border-emerald-300/45 bg-gradient-to-b from-emerald-600/75 via-teal-900/65 to-zinc-950/85 text-emerald-50 ring-1 ring-emerald-300/20'
+                                                    : 'border-white/10 bg-zinc-900/55 text-zinc-400 hover:border-emerald-400/30 hover:text-emerald-100'
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-white/[0.04]">
                             <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                                 <MobileEqualHeightTabPanels
-                                    activeTabKey={mobilePanelTab}
+                                    activeTabKey={mobilePanelKey}
                                     className="min-h-0 flex-1"
                                     fillParentHeight
                                     items={[
                                         {
-                                            tabKey: 'combat',
+                                            tabKey: 'game-combat',
                                             panel: (
                                                 <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
                                                     <GameRankingBoard
@@ -171,7 +294,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             ),
                                         },
                                         {
-                                            tabKey: 'manner',
+                                            tabKey: 'game-manner',
                                             panel: (
                                                 <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
                                                     <GameRankingBoard
@@ -187,12 +310,22 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             tabKey: 'championship',
                                             panel: (
                                                 <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
-                                                    <RetiredChampionshipRankingPanel />
+                                                    {currentUserWithStatus ? (
+                                                        <ChampionshipRankingList
+                                                            currentUser={currentUserWithStatus}
+                                                            onViewUser={handlers.openViewingUser}
+                                                            splitStack
+                                                        />
+                                                    ) : (
+                                                        <div className="flex h-full items-center justify-center px-4 text-center text-sm text-zinc-400">
+                                                            로그인 후 챔피언십 랭킹을 확인할 수 있습니다.
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ),
                                         },
                                         {
-                                            tabKey: 'strategic',
+                                            tabKey: 'baduk-strategic',
                                             panel: (
                                                 <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
                                                     {currentUserWithStatus ? (
@@ -204,6 +337,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                                             onShowPastRankings={handlers.openPastRankings}
                                                             lobbyType="strategic"
                                                             splitStack
+                                                            hideHeaderActions
                                                         />
                                                     ) : (
                                                         <div className="flex h-full items-center justify-center px-4 text-center text-sm text-zinc-400">
@@ -214,7 +348,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             ),
                                         },
                                         {
-                                            tabKey: 'pair',
+                                            tabKey: 'baduk-pair',
                                             panel: (
                                                 <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
                                                     {currentUserWithStatus ? (
@@ -226,6 +360,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                                             onShowPastRankings={handlers.openPastRankings}
                                                             lobbyType="pair"
                                                             splitStack
+                                                            hideHeaderActions
                                                         />
                                                     ) : (
                                                         <div className="flex h-full items-center justify-center px-4 text-center text-sm text-zinc-400">
@@ -260,13 +395,13 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                     </div>
                                     <div className="flex flex-col gap-2 border-b border-white/10 px-3 py-2">
                                         <div className={`flex items-center gap-1.5 overflow-x-auto ${RANKING_MODAL_SLIM_SCROLL_X}`}>
-                                            {MOBILE_RANKING_TABS.map(({ id, label }) => (
+                                            {RANKING_GUIDE_TABS.map(({ id, label }) => (
                                                 <button
                                                     key={id}
                                                     type="button"
-                                                    onClick={() => setGuideMainTab(id)}
+                                                    onClick={() => setGuideTab(id)}
                                                     className={`shrink-0 rounded-lg border px-2 py-1 text-[11px] font-semibold ${
-                                                        guideMainTab === id
+                                                        guideTab === id
                                                             ? 'border-amber-300/50 bg-amber-500/20 text-amber-50'
                                                             : 'border-white/15 bg-white/5 text-zinc-300'
                                                     }`}
@@ -281,7 +416,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             <MobileRankingGuidePanel variant={guideVariant} />
                                         ) : (
                                             <div className="flex h-full items-center justify-center px-4 text-center text-sm text-zinc-300">
-                                                챔피언십 탭은 별도 스코어 가이드가 준비되어 있지 않습니다.
+                                                이 항목용 스코어 가이드가 아직 준비되어 있지 않습니다.
                                             </div>
                                         )}
                                     </div>
@@ -295,33 +430,66 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                     </div>
                 ) : (
                     <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-                        <div className="flex shrink-0 flex-wrap gap-2" role="tablist" aria-label="랭킹 카테고리">
-                            <button
-                                type="button"
-                                role="tab"
-                                aria-selected={pcMainTab === 'game'}
-                                onClick={() => setPcMainTab('game')}
-                                className={`${PC_MAIN_TAB_BTN} ${
-                                    pcMainTab === 'game'
-                                        ? 'border-amber-300/55 bg-gradient-to-b from-amber-500/85 via-amber-800/70 to-amber-950/85 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] ring-1 ring-amber-300/30'
-                                        : 'border-white/12 bg-zinc-900/70 text-zinc-300 hover:border-amber-400/35 hover:text-amber-100'
-                                }`}
-                            >
-                                게임랭킹
-                            </button>
-                            <button
-                                type="button"
-                                role="tab"
-                                aria-selected={pcMainTab === 'baduk'}
-                                onClick={() => setPcMainTab('baduk')}
-                                className={`${PC_MAIN_TAB_BTN} ${
-                                    pcMainTab === 'baduk'
-                                        ? 'border-emerald-300/50 bg-gradient-to-b from-emerald-600/90 via-teal-800/75 to-zinc-950/90 text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-emerald-300/25'
-                                        : 'border-white/12 bg-zinc-900/70 text-zinc-300 hover:border-emerald-400/35 hover:text-emerald-100'
-                                }`}
-                            >
-                                바둑랭킹
-                            </button>
+                        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+                            <div className="flex flex-wrap gap-2" role="tablist" aria-label="랭킹 카테고리">
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={pcMainTab === 'game'}
+                                    onClick={() => setPcMainTab('game')}
+                                    className={`${PC_MAIN_TAB_BTN} ${
+                                        pcMainTab === 'game'
+                                            ? 'border-amber-300/55 bg-gradient-to-b from-amber-500/85 via-amber-800/70 to-amber-950/85 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] ring-1 ring-amber-300/30'
+                                            : 'border-white/12 bg-zinc-900/70 text-zinc-300 hover:border-amber-400/35 hover:text-amber-100'
+                                    }`}
+                                >
+                                    게임랭킹
+                                </button>
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={pcMainTab === 'baduk'}
+                                    onClick={() => setPcMainTab('baduk')}
+                                    className={`${PC_MAIN_TAB_BTN} ${
+                                        pcMainTab === 'baduk'
+                                            ? 'border-emerald-300/50 bg-gradient-to-b from-emerald-600/90 via-teal-800/75 to-zinc-950/90 text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-emerald-300/25'
+                                            : 'border-white/12 bg-zinc-900/70 text-zinc-300 hover:border-emerald-400/35 hover:text-emerald-100'
+                                    }`}
+                                >
+                                    바둑랭킹
+                                </button>
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={pcMainTab === 'championship'}
+                                    onClick={() => setPcMainTab('championship')}
+                                    className={`${PC_MAIN_TAB_BTN} ${
+                                        pcMainTab === 'championship'
+                                            ? 'border-violet-300/50 bg-gradient-to-b from-violet-600/90 via-purple-900/78 to-zinc-950/92 text-violet-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-violet-300/28'
+                                            : 'border-white/12 bg-zinc-900/70 text-zinc-300 hover:border-violet-400/38 hover:text-violet-100'
+                                    }`}
+                                >
+                                    챔피언십랭킹
+                                </button>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                                <Button
+                                    type="button"
+                                    onClick={openUnifiedPastRankings}
+                                    colorScheme="none"
+                                    className={`!px-2.5 !py-1.5 !text-xs !font-bold sm:!px-3 sm:!text-sm ${RANKING_HEADER_ACTION_BTN}`}
+                                >
+                                    지난 랭킹
+                                </Button>
+                                <Button
+                                    type="button"
+                                    onClick={() => setTierInfoOpen(true)}
+                                    colorScheme="none"
+                                    className={`!px-2.5 !py-1.5 !text-xs !font-bold sm:!px-3 sm:!text-sm ${RANKING_HEADER_ACTION_BTN}`}
+                                >
+                                    티어 안내
+                                </Button>
+                            </div>
                         </div>
 
                         <div className="min-h-0 flex-1 overflow-hidden rounded-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-white/[0.06]">
@@ -343,8 +511,16 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             panelTitle="매너"
                                         />
                                     </div>
+                                </div>
+                            )}
+                            {pcMainTab === 'championship' && (
+                                <div className="flex h-full min-h-0 flex-row gap-2 overflow-hidden p-1.5 sm:gap-3 sm:p-2">
                                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
-                                        <RetiredChampionshipRankingPanel />
+                                        <ChampionshipRankingList
+                                            currentUser={currentUserWithStatus}
+                                            onViewUser={handlers.openViewingUser}
+                                            splitStack
+                                        />
                                     </div>
                                 </div>
                             )}
@@ -359,6 +535,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             onShowPastRankings={handlers.openPastRankings}
                                             lobbyType="strategic"
                                             splitStack
+                                            hideHeaderActions
                                         />
                                     </div>
                                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
@@ -370,6 +547,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             onShowPastRankings={handlers.openPastRankings}
                                             lobbyType="pair"
                                             splitStack
+                                            hideHeaderActions
                                         />
                                     </div>
                                 </div>

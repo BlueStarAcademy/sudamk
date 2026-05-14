@@ -232,6 +232,11 @@ export const getStartOfDayKST = (timestamp: number = Date.now()): number => {
     return kstDate.getTime() - KST_OFFSET;
 };
 
+/** 다음 KST 자정(당일이 아닌 다음날 0:00 KST)까지의 기준 시각(UTC ms) */
+export const getNextKstMidnightUtcMs = (timestamp: number = Date.now()): number => {
+    return getStartOfDayKST(timestamp) + 24 * 60 * 60 * 1000;
+};
+
 /**
  * `dailyShopPurchases` 등에 저장된 `date` 값 정규화.
  * JSON 직렬화·DB에서 숫자 밀리초, ISO 문자열, `Date` 등으로 올 수 있어 KST 일일 판정이 어긋나지 않게 처리합니다.

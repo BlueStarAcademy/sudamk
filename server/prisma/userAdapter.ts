@@ -32,6 +32,7 @@ import { clampGameInt } from "../../shared/utils/gameIntegerField.js";
 import { MAX_PLAYER_DIAMONDS, MAX_PLAYER_GOLD } from "../../shared/constants/numericLimits.js";
 import { mergeLegacyStrategyPlayfulIntoUserLevelXp } from "../../shared/utils/userLevelMerge.js";
 import { migrateUserStatsToUnifiedRanked } from "../../shared/utils/unifiedRankedStatsMigration.js";
+import { pruneChampionshipVersusDuelWeekLog } from "../../shared/utils/championshipVersusDuelWeekLog.js";
 
 export { normalizeLegacyDivineMythicInventoryItem } from "../../shared/utils/inventoryLegacyNormalize.js";
 
@@ -555,6 +556,49 @@ const applyDefaults = (
       user.exchangeState ?? (status?.serializedUser as User | undefined)?.exchangeState ?? undefined,
     dungeonProgress: user.dungeonProgress ?? (status?.serializedUser as User | undefined)?.dungeonProgress ?? undefined,
     dungeonConditionSnapshot: user.dungeonConditionSnapshot ?? (status?.serializedUser as User | undefined)?.dungeonConditionSnapshot ?? undefined,
+    championshipVersusConditionSnapshot:
+        user.championshipVersusConditionSnapshot ??
+        (status?.serializedUser as User | undefined)?.championshipVersusConditionSnapshot ??
+        undefined,
+    /** 결투장·시즌 ELO 등은 `serializedUser` 전체에만 있을 수 있어 applyDefaults에서 반드시 끌어올린다(누락 시 매 요청마다 티켓·레이팅이 초기화됨). */
+    championshipVersusVenueRatings:
+        user.championshipVersusVenueRatings ??
+        (status?.serializedUser as User | undefined)?.championshipVersusVenueRatings ??
+        undefined,
+    championshipVersusSeasonHistory:
+        user.championshipVersusSeasonHistory ??
+        (status?.serializedUser as User | undefined)?.championshipVersusSeasonHistory ??
+        undefined,
+    championshipVersusOppRefreshDayKST:
+        user.championshipVersusOppRefreshDayKST ??
+        (status?.serializedUser as User | undefined)?.championshipVersusOppRefreshDayKST ??
+        undefined,
+    championshipVersusOppRefreshFreeUsed:
+        user.championshipVersusOppRefreshFreeUsed ??
+        (status?.serializedUser as User | undefined)?.championshipVersusOppRefreshFreeUsed ??
+        undefined,
+    championshipVersusDuelTickets:
+        user.championshipVersusDuelTickets ??
+        (status?.serializedUser as User | undefined)?.championshipVersusDuelTickets ??
+        undefined,
+    championshipVersusDuelTicketNextAt:
+        user.championshipVersusDuelTicketNextAt ??
+        (status?.serializedUser as User | undefined)?.championshipVersusDuelTicketNextAt ??
+        undefined,
+    championshipVersusDuelTicketsByVenue:
+        user.championshipVersusDuelTicketsByVenue ??
+        (status?.serializedUser as User | undefined)?.championshipVersusDuelTicketsByVenue ??
+        undefined,
+    championshipVersusDuelTicketNextAtByVenue:
+        user.championshipVersusDuelTicketNextAtByVenue ??
+        (status?.serializedUser as User | undefined)?.championshipVersusDuelTicketNextAtByVenue ??
+        undefined,
+    championshipVersusDuelWeekLog: (() => {
+        const raw =
+            user.championshipVersusDuelWeekLog ?? (status?.serializedUser as User | undefined)?.championshipVersusDuelWeekLog;
+        if (!raw || !Array.isArray(raw)) return undefined;
+        return pruneChampionshipVersusDuelWeekLog(raw as User['championshipVersusDuelWeekLog'], Date.now());
+    })(),
     lastLoginAt: user.lastLoginAt ?? (status?.leagueMetadata?.lastLoginAt != null ? safeNumber(status.leagueMetadata.lastLoginAt, 0) : undefined) ?? (status?.serializedUser as User | undefined)?.lastLoginAt ?? undefined,
     rewardVipExpiresAt:
         user.rewardVipExpiresAt ??

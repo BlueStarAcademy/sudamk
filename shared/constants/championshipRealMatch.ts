@@ -69,6 +69,20 @@ export function resolveChampionshipDungeonPlaybackSpeedChoices(
     return [0.5, 1, 2, 3];
 }
 
+/** 장내 챔피언십(대국) 배속 — 9줄: x0.5·x1만, 13줄: x2 추가, 19줄: x3 추가 */
+export function resolveChampionshipVersusPlaybackSpeedChoices(
+    boardSize: number,
+): readonly ChampionshipPlaybackSpeedChoice[] {
+    const b = Math.floor(Number(boardSize));
+    if (b === 9) return [0.5, 1];
+    if (b === 13) return [0.5, 1, 2];
+    if (b === 19) return [0.5, 1, 2, 3];
+    if (b > 0 && b < 9) return [0.5, 1];
+    if (b > 9 && b < 13) return [0.5, 1];
+    if (b > 13 && b < 19) return [0.5, 1, 2];
+    return [0.5, 1, 2, 3];
+}
+
 /** 포석·중원·끝내기 구간별 능력치 가중합 (집중력·사고속도·판단력·계산력·전투력·안정감) */
 export const CHAMPIONSHIP_KATA_PHASE_WEIGHTS: Record<ChampionshipKataPhase, ChampionshipCoreStatsSix> = {
     opening: {

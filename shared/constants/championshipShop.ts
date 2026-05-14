@@ -2,6 +2,7 @@
  * 챔피언십 상점 — 클라이언트 목록·서버 검증 공통 소스
  */
 
+import { getChampionshipEquipmentBoxShopInfoLineKo } from './shopLootTables.js';
 export type ChampionshipShopTab = 'equipment' | 'change' | 'special';
 
 export type ChampionshipShopEquipmentProduct = {
@@ -40,7 +41,7 @@ export const CHAMPIONSHIP_SHOP_EQUIPMENT: readonly ChampionshipShopEquipmentProd
         boxLevel: 1,
         champCoins: 100,
         image: BOX_IMG(1),
-        description: '일반 등급 제외. 특수 옵션 중 하나가 반드시 챔피언십 능력치(+2~4%)입니다.',
+        description: getChampionshipEquipmentBoxShopInfoLineKo(1),
     },
     {
         id: 'championship_equip_box_2',
@@ -49,7 +50,7 @@ export const CHAMPIONSHIP_SHOP_EQUIPMENT: readonly ChampionshipShopEquipmentProd
         boxLevel: 2,
         champCoins: 200,
         image: BOX_IMG(2),
-        description: '일반 등급 제외. 특수 옵션 중 하나가 반드시 챔피언십 능력치(+2~4%)입니다.',
+        description: getChampionshipEquipmentBoxShopInfoLineKo(2),
     },
     {
         id: 'championship_equip_box_3',
@@ -58,7 +59,7 @@ export const CHAMPIONSHIP_SHOP_EQUIPMENT: readonly ChampionshipShopEquipmentProd
         boxLevel: 3,
         champCoins: 500,
         image: BOX_IMG(3),
-        description: '특수 옵션 중 하나가 반드시 챔피언십 능력치(+2~4%)입니다.',
+        description: getChampionshipEquipmentBoxShopInfoLineKo(3),
     },
     {
         id: 'championship_equip_box_4',
@@ -67,7 +68,7 @@ export const CHAMPIONSHIP_SHOP_EQUIPMENT: readonly ChampionshipShopEquipmentProd
         boxLevel: 4,
         champCoins: 1000,
         image: BOX_IMG(4),
-        description: '특수 옵션 중 하나가 반드시 챔피언십 능력치(+2~4%)입니다.',
+        description: getChampionshipEquipmentBoxShopInfoLineKo(4),
     },
     {
         id: 'championship_equip_box_5',
@@ -76,7 +77,7 @@ export const CHAMPIONSHIP_SHOP_EQUIPMENT: readonly ChampionshipShopEquipmentProd
         boxLevel: 5,
         champCoins: 2000,
         image: BOX_IMG(5),
-        description: '특수 옵션 중 하나가 반드시 챔피언십 능력치(+2~4%)입니다.',
+        description: getChampionshipEquipmentBoxShopInfoLineKo(5),
     },
     {
         id: 'championship_equip_box_6',
@@ -85,7 +86,7 @@ export const CHAMPIONSHIP_SHOP_EQUIPMENT: readonly ChampionshipShopEquipmentProd
         boxLevel: 6,
         champCoins: 5000,
         image: BOX_IMG(6),
-        description: '특수 옵션 중 하나가 반드시 챔피언십 능력치(+2~4%)입니다.',
+        description: getChampionshipEquipmentBoxShopInfoLineKo(6),
     },
 ] as const;
 

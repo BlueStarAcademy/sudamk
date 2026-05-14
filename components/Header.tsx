@@ -9,11 +9,22 @@ import Avatar from './Avatar.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import { GUILD_BOSS_MAX_ATTEMPTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS } from '../shared/constants/guildConstants.js';
-import { getTodayKSTDateString } from '../utils/timeUtils.js';
+import {
+    CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX,
+    CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE,
+    CHAMPIONSHIP_VERSUS_VENUE_KINDS,
+} from '../shared/constants/championshipVersusVenue.js';
+import { getTodayKSTDateString, getNextKstMidnightUtcMs } from '../utils/timeUtils.js';
 import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
 import { isInsideSudamrAdUi } from '../constants/ads.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { resourceIcons, ResourceIconKey, specialResourceIcons, SpecialResourceIconKey } from './resourceIcons.js';
+import ChampionshipVersusDuelTicketCountdown from './ChampionshipVersusDuelTicketCountdown.js';
+import LiveCountdownToMs from './LiveCountdownToMs.js';
+import {
+    getChampionshipVersusDuelTicketsForVenue,
+    getChampionshipVersusDuelTicketNextAtForVenue,
+} from '../shared/utils/championshipVersusDuelTickets.js';
 
 const RESOURCE_LABEL: Record<ResourceIconKey, string> = {
     gold: '골드',
@@ -144,52 +155,6 @@ ResourceDisplay.displayName = 'ResourceDisplay';
 const GUILD_BOSS_TICKET_IMG = '/images/guild/ticket.webp';
 const GUILD_WAR_TICKET_IMG = '/images/guild/warticket.webp';
 
-/** 길드 보스·길드전: 남은 횟수 / 일일 최대 (길드홈 패널과 동일 의미) */
-const GuildTicketPill = memo<{
-    iconSrc: string;
-    label: string;
-    remaining: number;
-    max: number;
-    dense: boolean;
-    isMobile: boolean;
-}>(({ iconSrc, label, remaining, max, dense, isMobile }) => {
-    const textClass = isMobile
-        ? 'gap-[clamp(0.05rem,0.5vw,0.2rem)] text-[clamp(0.6rem,calc(0.42rem+2.35vw),0.84rem)] sm:gap-1'
-        : dense
-          ? 'gap-0.5 text-xs sm:gap-1 sm:text-sm'
-          : 'gap-0.5 text-sm sm:gap-1 sm:text-base';
-    const iconWrap = isMobile
-        ? 'h-[clamp(1.28rem,4.6vw,1.625rem)] w-[clamp(1.28rem,4.6vw,1.625rem)]'
-        : dense
-          ? 'h-6 w-6'
-          : 'h-7 w-7 text-lg';
-    const iconImg = isMobile
-        ? 'h-[clamp(0.82rem,3.2vw,1.05rem)] w-[clamp(0.82rem,3.2vw,1.05rem)]'
-        : dense
-          ? 'h-4 w-4'
-          : 'h-5 w-5';
-    return (
-        <div
-            title={label}
-            className={`flex flex-shrink-0 items-center rounded-full border border-tertiary/40 bg-tertiary/60 shadow-inner ${
-                isMobile
-                    ? 'h-[clamp(1.45rem,4.8vw,1.85rem)] gap-[clamp(0.08rem,0.7vw,0.2rem)] pl-[clamp(0.3rem,1.5vw,0.45rem)] pr-[clamp(0.2rem,1vw,0.35rem)]'
-                    : dense
-                      ? 'gap-0.5 py-1 pl-1.5 pr-1.5 sm:gap-1'
-                      : 'gap-0.5 py-1 pl-2 pr-2 sm:gap-1 sm:pr-2.5'
-            }`}
-        >
-            <div className={`bg-primary flex flex-shrink-0 items-center justify-center rounded-full ${iconWrap}`}>
-                <img src={iconSrc} alt="" className={`object-contain ${iconImg}`} loading="lazy" decoding="async" />
-            </div>
-            <span className={`flex min-w-0 items-center font-bold whitespace-nowrap text-primary tabular-nums ${textClass}`}>
-                {`${remaining}/${max}`}
-            </span>
-        </div>
-    );
-});
-GuildTicketPill.displayName = 'GuildTicketPill';
-
 function useGuildWarTicketsRemaining(
     guildId: string | undefined,
     handleAction: (action: ServerAction) => Promise<{ error?: string; clientResponse?: Record<string, unknown> } | void>,
@@ -245,6 +210,17 @@ function useGuildWarTicketsRemaining(
         };
     }, [guildId, max, EVENT_REFRESH_COOLDOWN_MS]);
     return { remaining, max };
+}
+
+function useKstMidnightDeadlineMs(): number {
+    const [ms, setMs] = useState(() => getNextKstMidnightUtcMs(Date.now()));
+    useEffect(() => {
+        const id = window.setInterval(() => {
+            setMs(getNextKstMidnightUtcMs(Date.now()));
+        }, 1000);
+        return () => clearInterval(id);
+    }, []);
+    return ms;
 }
 
 export const ActionPointTimer: React.FC<{ user: UserWithStatus; mobile?: boolean }> = ({ user, mobile = false }) => {
@@ -305,11 +281,16 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
     const { currentUserWithStatus, handlers, unreadMailCount, isNativeMobile } = useAppContext();
     const isMobile = Boolean(isNativeMobile);
     const dense = isMobile || compact;
+    const guildWarTickets = useGuildWarTicketsRemaining(currentUserWithStatus?.guildId, handlers.handleAction);
     const [isSpecialResourcesOpen, setIsSpecialResourcesOpen] = useState(false);
+    const [isParticipationTicketsOpen, setIsParticipationTicketsOpen] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const specialResourcesRef = useRef<HTMLDivElement>(null);
     const specialResourcesPopoverPortalRef = useRef<HTMLDivElement>(null);
+    const participationTicketsRef = useRef<HTMLDivElement>(null);
+    const participationPopoverPortalRef = useRef<HTMLDivElement>(null);
     const [specialPopoverFixed, setSpecialPopoverFixed] = useState<{ top: number; right: number } | null>(null);
+    const [participationPopoverFixed, setParticipationPopoverFixed] = useState<{ top: number; right: number } | null>(null);
 
     const updateSpecialPopoverPosition = useCallback(() => {
         if (!isSpecialResourcesOpen || !specialResourcesRef.current) return;
@@ -341,27 +322,67 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
         };
     }, [isSpecialResourcesOpen, updateSpecialPopoverPosition]);
 
+    const updateParticipationPopoverPosition = useCallback(() => {
+        if (!isParticipationTicketsOpen || !participationTicketsRef.current) return;
+        const rect = participationTicketsRef.current.getBoundingClientRect();
+        const margin = 8;
+        const rightOffset = window.innerWidth - rect.right;
+        setParticipationPopoverFixed({
+            top: rect.bottom + 4,
+            right: Math.max(margin, rightOffset),
+        });
+    }, [isParticipationTicketsOpen]);
+
+    useLayoutEffect(() => {
+        if (!isParticipationTicketsOpen) {
+            setParticipationPopoverFixed(null);
+            return;
+        }
+        updateParticipationPopoverPosition();
+        window.addEventListener('resize', updateParticipationPopoverPosition);
+        window.addEventListener('scroll', updateParticipationPopoverPosition, true);
+        const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+        vv?.addEventListener('resize', updateParticipationPopoverPosition);
+        vv?.addEventListener('scroll', updateParticipationPopoverPosition);
+        return () => {
+            window.removeEventListener('resize', updateParticipationPopoverPosition);
+            window.removeEventListener('scroll', updateParticipationPopoverPosition, true);
+            vv?.removeEventListener('resize', updateParticipationPopoverPosition);
+            vv?.removeEventListener('scroll', updateParticipationPopoverPosition);
+        };
+    }, [isParticipationTicketsOpen, updateParticipationPopoverPosition]);
+
     useEffect(() => {
-        // 팝오버 열림 상태에서 외부 클릭으로 닫기
+        if (!isSpecialResourcesOpen && !isParticipationTicketsOpen) return;
         const handleClickOutside = (event: MouseEvent) => {
             const target = event.target as HTMLElement;
-            if (!isSpecialResourcesOpen) return;
             if (isInsideSudamrAdUi(target)) return;
-            if (specialResourcesRef.current?.contains(target)) return;
-            if (specialResourcesPopoverPortalRef.current?.contains(target)) return;
-            setIsSpecialResourcesOpen(false);
+
+            if (isSpecialResourcesOpen) {
+                if (
+                    !specialResourcesRef.current?.contains(target) &&
+                    !specialResourcesPopoverPortalRef.current?.contains(target)
+                ) {
+                    setIsSpecialResourcesOpen(false);
+                }
+            }
+            if (isParticipationTicketsOpen) {
+                if (
+                    !participationTicketsRef.current?.contains(target) &&
+                    !participationPopoverPortalRef.current?.contains(target)
+                ) {
+                    setIsParticipationTicketsOpen(false);
+                }
+            }
         };
-        if (isSpecialResourcesOpen) {
-            document.addEventListener('mousedown', handleClickOutside);
-            return () => document.removeEventListener('mousedown', handleClickOutside);
-        }
-    }, [isSpecialResourcesOpen]);
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isSpecialResourcesOpen, isParticipationTicketsOpen]);
 
     if (!currentUserWithStatus) return null;
 
     const { handleLogout, openProfileEditModal, openMailbox, openSettingsModal, handleAction } = handlers;
     const { actionPoints, gold, diamonds, guildCoins, champCoins, isAdmin, avatarId, borderId, mbti, userLevel, guildId } = currentUserWithStatus;
-    const guildWarTickets = useGuildWarTicketsRemaining(guildId, handleAction);
     const todayKstBoss = getTodayKSTDateString();
     const guildBossUsedToday =
         guildId && currentUserWithStatus.guildBossLastAttemptDayKST === todayKstBoss
@@ -396,32 +417,8 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
             { key: 'guildCoins', icon: specialResourceIcons.guildCoins, label: SPECIAL_RESOURCE_LABEL.guildCoins, value: guildCoins ?? 0 },
             { key: 'champCoins', icon: specialResourceIcons.champCoins, label: SPECIAL_RESOURCE_LABEL.champCoins, value: champCoins ?? 0 },
         ];
-        if (guildId) {
-            base.push({
-                key: 'guildBossTickets',
-                icon: GUILD_BOSS_TICKET_IMG,
-                label: '길드 보스 입장권',
-                value: guildBossRemaining,
-                ratio: { remaining: guildBossRemaining, max: GUILD_BOSS_MAX_ATTEMPTS },
-            });
-            base.push({
-                key: 'guildWarTickets',
-                icon: GUILD_WAR_TICKET_IMG,
-                label: '길드전 참여권',
-                value: guildWarTickets.remaining,
-                ratio: { remaining: guildWarTickets.remaining, max: guildWarTickets.max },
-            });
-        }
         return base;
-    }, [
-        guildId,
-        guildBossRemaining,
-        guildCoins,
-        champCoins,
-        guildWarTickets.max,
-        guildWarTickets.remaining,
-        safeDiamonds,
-    ]);
+    }, [guildCoins, champCoins, safeDiamonds]);
 
     const specialResourcesPopoverPanel = (
         <div className="w-max max-w-[min(18rem,calc(100vw-1rem))] rounded-lg border border-color bg-primary py-1.5 shadow-2xl sm:py-2">
@@ -472,6 +469,142 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                     </span>
                 </div>
             ))}
+        </div>
+    );
+
+    const kstMidnightDeadlineMs = useKstMidnightDeadlineMs();
+
+    const participationTicketsPopoverPanel = (
+        <div className="w-max max-w-[min(20rem,calc(100vw-1rem))] rounded-lg border border-color bg-primary py-1.5 shadow-2xl sm:py-2">
+            <div
+                className={`flex min-w-0 items-center gap-2 px-[clamp(0.65rem,2.2vw,0.85rem)] py-1.5 sm:gap-2.5 sm:px-3 sm:py-2 ${
+                    isMobile ? '' : ''
+                }`}
+            >
+                <div
+                    className={`${
+                        isMobile ? 'h-[clamp(1.28rem,4.6vw,1.625rem)] w-[clamp(1.28rem,4.6vw,1.625rem)]' : 'h-8 w-8'
+                    } flex shrink-0 items-center justify-center rounded-full bg-primary`}
+                >
+                    <img
+                        src={GUILD_BOSS_TICKET_IMG}
+                        alt=""
+                        className={`shrink-0 object-contain ${
+                            isMobile
+                                ? 'h-[clamp(0.82rem,3.2vw,1.05rem)] w-[clamp(0.82rem,3.2vw,1.05rem)]'
+                                : 'h-5 w-5 sm:h-6 sm:w-6'
+                        }`}
+                        loading="lazy"
+                        decoding="async"
+                    />
+                </div>
+                <span
+                    className={`min-w-0 font-bold tabular-nums whitespace-nowrap ${
+                        guildId ? 'text-primary' : 'text-slate-500'
+                    } ${
+                        isMobile
+                            ? 'text-[clamp(0.75rem,calc(0.55rem+1.9vw),0.9rem)]'
+                            : 'text-sm sm:text-base'
+                    }`}
+                >
+                    {guildId ? `${guildBossRemaining}/${GUILD_BOSS_MAX_ATTEMPTS}` : '—/—'}
+                </span>
+                {guildId ? (
+                    <LiveCountdownToMs
+                        deadlineMs={kstMidnightDeadlineMs}
+                        className={`shrink-0 font-mono font-bold tabular-nums text-amber-200/95 ${
+                            isMobile ? 'text-[clamp(0.62rem,calc(0.42rem+1.6vw),0.78rem)]' : 'text-xs sm:text-sm'
+                        }`}
+                    />
+                ) : null}
+            </div>
+            <div
+                className={`flex min-w-0 items-center gap-2 px-[clamp(0.65rem,2.2vw,0.85rem)] py-1.5 sm:gap-2.5 sm:px-3 sm:py-2`}
+            >
+                <div
+                    className={`${
+                        isMobile ? 'h-[clamp(1.28rem,4.6vw,1.625rem)] w-[clamp(1.28rem,4.6vw,1.625rem)]' : 'h-8 w-8'
+                    } flex shrink-0 items-center justify-center rounded-full bg-primary`}
+                >
+                    <img
+                        src={GUILD_WAR_TICKET_IMG}
+                        alt=""
+                        className={`shrink-0 object-contain ${
+                            isMobile
+                                ? 'h-[clamp(0.82rem,3.2vw,1.05rem)] w-[clamp(0.82rem,3.2vw,1.05rem)]'
+                                : 'h-5 w-5 sm:h-6 sm:w-6'
+                        }`}
+                        loading="lazy"
+                        decoding="async"
+                    />
+                </div>
+                <span
+                    className={`min-w-0 font-bold tabular-nums whitespace-nowrap ${
+                        guildId ? 'text-primary' : 'text-slate-500'
+                    } ${
+                        isMobile
+                            ? 'text-[clamp(0.75rem,calc(0.55rem+1.9vw),0.9rem)]'
+                            : 'text-sm sm:text-base'
+                    }`}
+                >
+                    {guildId ? `${guildWarTickets.remaining}/${guildWarTickets.max}` : '—/—'}
+                </span>
+                {guildId ? (
+                    <LiveCountdownToMs
+                        deadlineMs={kstMidnightDeadlineMs}
+                        className={`shrink-0 font-mono font-bold tabular-nums text-amber-200/95 ${
+                            isMobile ? 'text-[clamp(0.62rem,calc(0.42rem+1.6vw),0.78rem)]' : 'text-xs sm:text-sm'
+                        }`}
+                    />
+                ) : null}
+            </div>
+            {CHAMPIONSHIP_VERSUS_VENUE_KINDS.map((vk) => {
+                const cur = getChampionshipVersusDuelTicketsForVenue(currentUserWithStatus, vk);
+                const nextAt = getChampionshipVersusDuelTicketNextAtForVenue(currentUserWithStatus, vk);
+                return (
+                    <div
+                        key={vk}
+                        className={`flex min-w-0 items-center gap-2 px-[clamp(0.65rem,2.2vw,0.85rem)] py-1.5 sm:gap-2.5 sm:px-3 sm:py-2`}
+                    >
+                        <div
+                            className={`${
+                                isMobile ? 'h-[clamp(1.28rem,4.6vw,1.625rem)] w-[clamp(1.28rem,4.6vw,1.625rem)]' : 'h-8 w-8'
+                            } flex shrink-0 items-center justify-center rounded-full bg-primary`}
+                        >
+                            <img
+                                src={CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE[vk]}
+                                alt=""
+                                className={`shrink-0 object-contain ${
+                                    isMobile
+                                        ? 'h-[clamp(0.82rem,3.2vw,1.05rem)] w-[clamp(0.82rem,3.2vw,1.05rem)]'
+                                        : 'h-5 w-5 sm:h-6 sm:w-6'
+                                }`}
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </div>
+                        <span
+                            className={`min-w-0 font-bold tabular-nums text-primary whitespace-nowrap ${
+                                isMobile
+                                    ? 'text-[clamp(0.75rem,calc(0.55rem+1.9vw),0.9rem)]'
+                                    : 'text-sm sm:text-base'
+                            }`}
+                        >
+                            {`${cur}/${CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}`}
+                        </span>
+                        {cur < CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX && typeof nextAt === 'number' && Number.isFinite(nextAt) ? (
+                            <ChampionshipVersusDuelTicketCountdown
+                                current={cur}
+                                max={CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
+                                nextAt={nextAt}
+                                className={`shrink-0 font-mono font-bold tabular-nums text-amber-200/95 ${
+                                    isMobile ? 'text-[clamp(0.62rem,calc(0.42rem+1.6vw),0.78rem)]' : 'text-xs sm:text-sm'
+                                }`}
+                            />
+                        ) : null}
+                    </div>
+                );
+            })}
         </div>
     );
 
@@ -612,26 +745,33 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             />
                         </button>
                     </div>
-                    {!isMobile && guildId && (
-                        <>
-                            <GuildTicketPill
-                                iconSrc={GUILD_BOSS_TICKET_IMG}
-                                label="길드 보스 입장권"
-                                remaining={guildBossRemaining}
-                                max={GUILD_BOSS_MAX_ATTEMPTS}
-                                dense={dense}
-                                isMobile={false}
-                            />
-                            <GuildTicketPill
-                                iconSrc={GUILD_WAR_TICKET_IMG}
-                                label="길드전 참여권"
-                                remaining={guildWarTickets.remaining}
-                                max={guildWarTickets.max}
-                                dense={dense}
-                                isMobile={false}
-                            />
-                        </>
-                    )}
+                    <div className="relative shrink-0" ref={participationTicketsRef}>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsParticipationTicketsOpen((v) => !v);
+                                setIsSpecialResourcesOpen(false);
+                            }}
+                            aria-expanded={isParticipationTicketsOpen}
+                            className={`flex flex-shrink-0 items-center justify-center rounded-full border border-tertiary/40 bg-tertiary/60 shadow-inner transition-all hover:bg-tertiary/80 active:scale-95 ${
+                                isMobile
+                                    ? 'h-[clamp(1.45rem,4.8vw,1.85rem)] w-[clamp(1.45rem,4.8vw,1.85rem)] touch-manipulation'
+                                    : dense
+                                      ? 'h-7 w-7'
+                                      : 'h-7 w-7 sm:h-8 sm:w-8'
+                            } ${isParticipationTicketsOpen ? 'bg-tertiary/80' : ''}`}
+                            title="길드·챔피언십 참여권"
+                        >
+                            <span
+                                className={`text-primary transition-transform duration-200 ${
+                                    isMobile ? 'text-[clamp(0.44rem,1.9vw,0.62rem)]' : 'text-xs sm:text-sm'
+                                } ${isParticipationTicketsOpen ? 'rotate-180' : ''}`}
+                                aria-hidden
+                            >
+                                ▼
+                            </span>
+                        </button>
+                    </div>
                     <div
                         className={`relative min-w-[4.5rem] shrink-0 ${isMobile ? 'flex-1' : 'sm:min-w-0'}`}
                         ref={specialResourcesRef}
@@ -650,7 +790,10 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                                 </div>
                                 <button
                                     type="button"
-                                    onClick={() => setIsSpecialResourcesOpen(!isSpecialResourcesOpen)}
+                                    onClick={() => {
+                                        setIsSpecialResourcesOpen(!isSpecialResourcesOpen);
+                                        setIsParticipationTicketsOpen(false);
+                                    }}
                                     aria-expanded={isSpecialResourcesOpen}
                                     className={`flex h-[clamp(1.45rem,4.8vw,1.85rem)] w-[clamp(1.45rem,4.8vw,1.85rem)] shrink-0 touch-manipulation items-center justify-center rounded-full border border-tertiary/40 bg-tertiary/60 transition-all hover:bg-tertiary/80 active:scale-95 ${
                                         isSpecialResourcesOpen ? 'bg-tertiary/80' : ''
@@ -673,7 +816,10 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                                 <ResourceDisplay icon="diamonds" value={safeDiamonds} dense={dense} />
                                 <button
                                     type="button"
-                                    onClick={() => setIsSpecialResourcesOpen(!isSpecialResourcesOpen)}
+                                    onClick={() => {
+                                        setIsSpecialResourcesOpen(!isSpecialResourcesOpen);
+                                        setIsParticipationTicketsOpen(false);
+                                    }}
                                     aria-expanded={isSpecialResourcesOpen}
                                     className={`flex flex-shrink-0 items-center justify-center rounded-full border border-tertiary/40 bg-tertiary/60 shadow-inner transition-all hover:bg-tertiary/80 active:scale-95 ${
                                         dense ? 'h-7 w-7' : 'h-7 w-7 sm:h-8 sm:w-8'
@@ -823,7 +969,24 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                 >
                     {specialResourcesPopoverPanel}
                 </div>,
-                document.body
+                document.body,
+            )}
+        {isParticipationTicketsOpen &&
+            participationPopoverFixed &&
+            typeof document !== 'undefined' &&
+            createPortal(
+                <div
+                    ref={participationPopoverPortalRef}
+                    className="pointer-events-auto fixed w-max max-w-[min(20rem,calc(100vw-1rem))]"
+                    style={{
+                        top: participationPopoverFixed.top,
+                        right: participationPopoverFixed.right,
+                        zIndex: SPECIAL_RESOURCES_POPOVER_Z,
+                    }}
+                >
+                    {participationTicketsPopoverPanel}
+                </div>,
+                document.body,
             )}
         {showLogoutConfirm && (
             <ConfirmModal

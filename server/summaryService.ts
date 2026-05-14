@@ -1100,7 +1100,7 @@ function getPairGoHumanParticipantIds(game: LiveGameSession): string[] {
     return [...ids];
 }
 
-function applyPairPetRewardXp(
+export function applyPairPetRewardXp(
     user: User,
     rawGain: number,
 ):

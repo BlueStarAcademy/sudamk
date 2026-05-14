@@ -8,18 +8,21 @@ import { RANKING_MODAL_SLIM_SCROLL_Y } from '../../shared/constants/rankingModal
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { useRanking } from '../../hooks/useRanking.js';
 import Button from '../Button.js';
+import SeasonalBadukRankingRow from './SeasonalBadukRankingRow.js';
 
 interface RankingListProps {
     currentUser: UserWithStatus;
     mode: GameMode | 'strategic' | 'playful';
     onViewUser: (userId: string) => void;
     onShowTierInfo: () => void;
-    onShowPastRankings: (info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'pair' }) => void;
+    onShowPastRankings: (info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'pair' | 'unified' }) => void;
     lobbyType: 'strategic' | 'pair';
     /** 네이티브 전략·놀이 대기실: 페어 경기장 모바일과 유사한 글자 크기 */
     pairAlignedNativeCompact?: boolean;
     /** 랭킹 모달 등 상·하 분할: 패딩·타이틀·행 간격을 더 촘촘히 */
     splitStack?: boolean;
+    /** 상단 「지난 랭킹」「티어 안내」를 숨기고 부모에서만 노출할 때 */
+    hideHeaderActions?: boolean;
 }
 
 const getTier = (score: number, rank: number, totalGames: number) => {
@@ -53,6 +56,7 @@ const RankingList: React.FC<RankingListProps> = ({
     lobbyType,
     pairAlignedNativeCompact = false,
     splitStack = false,
+    hideHeaderActions = false,
 }) => {
     const rankingType = lobbyType === 'pair' ? 'pair' : 'strategic';
     /** 페어 시즌 랭킹은 최소 대국 수 기준이 전략과 다를 수 있음 */
@@ -252,13 +256,7 @@ const RankingList: React.FC<RankingListProps> = ({
         const winRate = (wins + losses) > 0 ? Math.round((wins / (wins + losses)) * 100) : 0;
         const score = user.avgScore;
         const tier = getTierForUser(user);
-        const displayLevel =
-            user.userLevel != null && Number.isFinite(Number(user.userLevel))
-                ? Math.max(1, Math.floor(Number(user.userLevel)))
-                : user.id === currentUser.id
-                  ? Math.max(1, Math.floor(Number(currentUser.userLevel) || 1))
-                  : null;
-        
+
         const isCurrentUserInList = !isMyRankDisplay && user.id === currentUser.id;
         const isTopThree = rank <= 3 && !isMyRankDisplay;
         
@@ -362,103 +360,18 @@ const RankingList: React.FC<RankingListProps> = ({
             winRate >= 60 ? 'text-green-400' : winRate >= 50 ? 'text-yellow-400' : 'text-gray-400';
 
         if (seasonalBadukInlineLayout) {
-            const rowPad = rankSmall ? 'gap-1.5 p-1.5 sm:gap-2 sm:p-2' : 'gap-2 p-2 sm:gap-2.5 sm:p-2.5';
-            const tierIconCls = rankSmall ? 'h-9 w-9 sm:h-10 sm:w-10' : 'h-11 w-11 sm:h-12 sm:w-12';
-            const avatarSz = rankSmall ? (isTopThree ? 40 : 38) : isTopThree ? 48 : 46;
-            const lineCls = rankSmall
-                ? 'text-xs sm:text-sm'
-                : 'text-sm sm:text-base lg:text-lg';
-
             return (
-                <li
-                    key={user.id}
-                    className={`flex min-w-0 items-center ${rowPad} rounded-lg transition-all duration-300 ${rankStyle.container} ${isClickable ? 'cursor-pointer hover:scale-[1.01] hover:-translate-y-0.5' : ''}`}
-                    onClick={isClickable ? () => onViewUser(user.id) : undefined}
-                    title={isClickable ? `${user.nickname} 프로필 보기` : ''}
-                >
-                    <div className={rankStyle.glow} />
-                    <div
-                        className={`relative z-10 flex shrink-0 items-center justify-center ${
-                            rankSmall ? 'w-10 sm:w-11' : 'w-12 sm:w-14'
-                        }`}
-                    >
-                        {rankDisplay()}
-                    </div>
-                    <div
-                        className={`relative z-10 flex shrink-0 flex-col items-center ${
-                            rankSmall ? 'w-[3.5rem] sm:w-[3.75rem]' : 'w-[3.75rem] sm:w-16'
-                        }`}
-                    >
-                        <div className="relative flex justify-center">
-                            <img
-                                src={tier.icon}
-                                alt={tier.name}
-                                className={`flex-shrink-0 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] transition-transform duration-300 group-hover:scale-105 ${tierIconCls}`}
-                                title={tier.name}
-                            />
-                            {(isTopThree || isMyRankDisplay) && (
-                                <div className="pointer-events-none absolute inset-0 rounded-lg bg-gradient-to-br from-white/20 to-transparent blur-sm" />
-                            )}
-                        </div>
-                        <span
-                            className={`mt-0.5 max-w-full text-center font-extrabold leading-tight text-gray-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)] ${
-                                rankSmall ? 'text-[9px] sm:text-[10px]' : 'text-[10px] sm:text-xs'
-                            }`}
-                        >
-                            {tier.name}
-                        </span>
-                    </div>
-                    <Avatar
-                        userId={user.id}
-                        userName={user.nickname}
-                        size={avatarSz}
-                        avatarUrl={avatarUrl}
-                        borderUrl={borderUrl}
-                        fixedFrameSize
-                        className="relative z-10 shrink-0 transition-transform duration-300 group-hover:scale-105"
-                    />
-                    <div
-                        className={`relative z-10 flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-1 sm:items-center ${lineCls}`}
-                    >
-                        <span className="shrink-0 font-extrabold tabular-nums text-amber-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
-                            Lv.{displayLevel ?? '—'}
-                        </span>
-                        <span
-                            className={`min-w-0 flex-1 font-bold whitespace-normal break-words drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] ${
-                                isTopThree || isMyRankDisplay ? 'text-white' : 'text-gray-100'
-                            }`}
-                        >
-                            {user.nickname}
-                        </span>
-                    </div>
-                    <div className="relative z-10 flex shrink-0 flex-col items-end gap-0.5 text-right">
-                        <span
-                            className={`font-mono font-black tabular-nums leading-none tracking-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)] ${
-                                isTopThree || isMyRankDisplay ? 'text-yellow-100' : 'text-yellow-300'
-                            } ${
-                                rankSmall ? 'text-base sm:text-lg' : 'text-lg sm:text-2xl lg:text-3xl'
-                            }`}
-                        >
-                            {dashPlaceholder ? '—' : `${Math.round(score)}점`}
-                        </span>
-                        <div
-                            className={`font-semibold tabular-nums text-gray-200 ${
-                                rankSmall ? 'text-[9px] sm:text-[11px]' : 'text-xs sm:text-sm'
-                            }`}
-                        >
-                            {dashPlaceholder ? (
-                                <span>—</span>
-                            ) : (
-                                <>
-                                    <span>
-                                        {wins}승 {losses}패
-                                    </span>
-                                    <span className={`ml-1.5 font-bold ${winRateClass}`}>{winRate}%</span>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                </li>
+                <SeasonalBadukRankingRow
+                    user={user}
+                    rank={rank}
+                    isMyRankDisplay={isMyRankDisplay}
+                    dashPlaceholder={dashPlaceholder}
+                    rankSmall={rankSmall}
+                    tier={tier}
+                    onViewUser={onViewUser}
+                    currentUserId={currentUser.id}
+                    currentUserLevel={Number(currentUser.userLevel) || 1}
+                />
             );
         }
 
@@ -542,7 +455,17 @@ const RankingList: React.FC<RankingListProps> = ({
                 </div>
             </li>
         );
-    }, [lobbyType, minGamesForTierList, currentUser.id, currentUser.userLevel, seasonalBadukInlineLayout, getTierForUser, onViewUser, pairAlignedNativeCompact, splitStack]);
+    }, [
+        lobbyType,
+        minGamesForTierList,
+        currentUser.id,
+        currentUser.userLevel,
+        seasonalBadukInlineLayout,
+        getTierForUser,
+        onViewUser,
+        pairAlignedNativeCompact,
+        splitStack,
+    ]);
 
     const rankingTitle =
         lobbyType === 'strategic' ? '전략바둑 랭킹' : lobbyType === 'pair' ? '페어 바둑 랭킹' : `${mode} 랭킹`;
@@ -589,35 +512,37 @@ const RankingList: React.FC<RankingListProps> = ({
                         </p>
                     </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-                    <Button 
-                        onClick={() =>
-                            onShowPastRankings({
-                                user: currentUser,
-                                mode: lobbyType === 'pair' ? 'pair' : 'strategic',
-                            })
-                        }
-                        colorScheme="none"
-                        className={`!rounded-lg border border-purple-400/30 bg-gradient-to-r from-purple-600/90 via-indigo-600/90 to-purple-600/90 font-bold text-white shadow-[0_4px_12px_rgba(99,102,241,0.4)] transition-all duration-200 hover:border-purple-300/50 hover:from-purple-500 hover:via-indigo-500 hover:to-purple-500 hover:shadow-[0_6px_16px_rgba(99,102,241,0.5)] ${
-                            panelTight
-                                ? '!px-2 !py-1 !text-xs sm:!text-[13px]'
-                                : '!px-3 !py-1.5 !text-sm'
-                        }`}
-                    >
-                        지난 랭킹
-                    </Button>
-                    <Button 
-                        onClick={onShowTierInfo}
-                        colorScheme="none"
-                        className={`!rounded-lg border border-purple-400/30 bg-gradient-to-r from-purple-600/90 via-indigo-600/90 to-purple-600/90 font-bold text-white shadow-[0_4px_12px_rgba(99,102,241,0.4)] transition-all duration-200 hover:border-purple-300/50 hover:from-purple-500 hover:via-indigo-500 hover:to-purple-500 hover:shadow-[0_6px_16px_rgba(99,102,241,0.5)] ${
-                            panelTight
-                                ? '!px-2 !py-1 !text-xs sm:!text-[13px]'
-                                : '!px-3 !py-1.5 !text-sm'
-                        }`}
-                    >
-                        티어 안내
-                    </Button>
-                </div>
+                {!hideHeaderActions && (
+                    <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                        <Button
+                            onClick={() =>
+                                onShowPastRankings({
+                                    user: currentUser,
+                                    mode: lobbyType === 'pair' ? 'pair' : 'strategic',
+                                })
+                            }
+                            colorScheme="none"
+                            className={`!rounded-lg border border-purple-400/30 bg-gradient-to-r from-purple-600/90 via-indigo-600/90 to-purple-600/90 font-bold text-white shadow-[0_4px_12px_rgba(99,102,241,0.4)] transition-all duration-200 hover:border-purple-300/50 hover:from-purple-500 hover:via-indigo-500 hover:to-purple-500 hover:shadow-[0_6px_16px_rgba(99,102,241,0.5)] ${
+                                panelTight
+                                    ? '!px-2 !py-1 !text-xs sm:!text-[13px]'
+                                    : '!px-3 !py-1.5 !text-sm'
+                            }`}
+                        >
+                            지난 랭킹
+                        </Button>
+                        <Button
+                            onClick={onShowTierInfo}
+                            colorScheme="none"
+                            className={`!rounded-lg border border-purple-400/30 bg-gradient-to-r from-purple-600/90 via-indigo-600/90 to-purple-600/90 font-bold text-white shadow-[0_4px_12px_rgba(99,102,241,0.4)] transition-all duration-200 hover:border-purple-300/50 hover:from-purple-500 hover:via-indigo-500 hover:to-purple-500 hover:shadow-[0_6px_16px_rgba(99,102,241,0.5)] ${
+                                panelTight
+                                    ? '!px-2 !py-1 !text-xs sm:!text-[13px]'
+                                    : '!px-3 !py-1.5 !text-sm'
+                            }`}
+                        >
+                            티어 안내
+                        </Button>
+                    </div>
+                )}
             </div>
             
             {myRankDataResolved && (

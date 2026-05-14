@@ -36,6 +36,7 @@ import {
     resolveChampionshipDungeonRulesFromStage,
 } from '../../shared/constants/championshipRealMatch.js';
 import { buildChampionshipResultContract } from '../utils/resultContract.js';
+import { hasPersistedVersusDuelTicketsByVenue } from '../../shared/utils/championshipVersusDuelTickets.js';
 
 
 type HandleActionResult = { 
@@ -768,7 +769,22 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
         }
 
         case 'USE_CONDITION_POTION': {
-            const { tournamentType, potionType } = payload as { tournamentType: TournamentType; potionType: 'small' | 'medium' | 'large' };
+            const rawPayload = payload as {
+                tournamentType?: TournamentType;
+                versusVenue?: ChampionshipVersusVenueKind;
+                potionType: 'small' | 'medium' | 'large';
+            };
+            if (!rawPayload.potionType || !['small', 'medium', 'large'].includes(rawPayload.potionType)) {
+                return { error: '유효하지 않은 회복제 타입입니다.' };
+            }
+            if (rawPayload.versusVenue === 'pvp' || rawPayload.versusVenue === 'pet' || rawPayload.versusVenue === 'petpair') {
+                const { applyChampionshipVersusConditionPotion } = await import('../championshipVersusVenueService.js');
+                const r = await applyChampionshipVersusConditionPotion(user, rawPayload.versusVenue, rawPayload.potionType, now);
+                if (r.error) return { error: r.error };
+                return { clientResponse: { updatedUser: r.user } };
+            }
+
+            const { tournamentType, potionType } = rawPayload as { tournamentType: TournamentType; potionType: 'small' | 'medium' | 'large' };
             
             // 회복제 타입별 정보
             const potionInfo = {
@@ -2414,6 +2430,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 buildChampionshipVersusOpponentList,
                 championshipVersusSelfNeedsRatingPersist,
                 championshipVersusEconomyForClient,
+                resolveChampionshipVersusConditionForDay,
             } = await import('../championshipVersusVenueService.js');
             const { ensureChampionshipVersusRatingEntry } = await import('../../shared/utils/championshipVersusElo.js');
             const v = parseVersusVenuePayload(venue);
@@ -2421,9 +2438,10 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             const needPersist = championshipVersusSelfNeedsRatingPersist(user, v, now);
             ensureChampionshipVersusRatingEntry(user, v, now);
             const firstEconomy =
-                user.championshipVersusDuelTickets === undefined || user.championshipVersusOppRefreshDayKST === undefined;
+                !hasPersistedVersusDuelTicketsByVenue(user) || user.championshipVersusOppRefreshDayKST === undefined;
             const economy = championshipVersusEconomyForClient(user, now);
-            if (needPersist || firstEconomy) {
+            const versusCondSnapNew = resolveChampionshipVersusConditionForDay(user, v, now).assignedNew;
+            if (needPersist || firstEconomy || versusCondSnapNew) {
                 updateUserCache(user);
                 void db.updateUser(user).catch((err) => console.error('[GET_CHAMPIONSHIP_VERSUS_VENUE_STATE] save user failed:', err));
             }
@@ -2525,7 +2543,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                         actorVenueRatingAfter: result.actorVenueRatingAfter,
                         actorVenueRatingDelta: result.actorVenueRatingDelta,
                         champCoinsDelta: result.champCoinsDelta,
-                        guildCoinsDelta: result.guildCoinsDelta,
+                        versusActorRewards: result.versusActorRewards,
                     },
                 },
             };

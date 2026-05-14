@@ -14,8 +14,8 @@ describe('championshipVersusElo', () => {
     });
 
     it('awards champ coins from pre-match rating', () => {
-        expect(champCoinsForVersusWin(1200)).toBe(180);
-        expect(champCoinsForVersusLoss(1200)).toBe(36);
-        expect(champCoinsForVersusWin(CHAMPIONSHIP_VERSUS_ELO_DEFAULT)).toBe(180);
+        expect(champCoinsForVersusWin(1200)).toBe(90);
+        expect(champCoinsForVersusLoss(1200)).toBe(18);
+        expect(champCoinsForVersusWin(CHAMPIONSHIP_VERSUS_ELO_DEFAULT)).toBe(90);
     });
 });

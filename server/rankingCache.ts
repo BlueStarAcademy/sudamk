@@ -5,6 +5,8 @@ import { ensurePrismaEngineReady } from './prisma/gameService.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants/index.js';
 import { RANKED_ELO_BASE_SCORE } from '../shared/constants/rules.js';
 import { readStrategicRankedBlock, readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
+import { pickChampionshipVersusSeasonRankingStats } from '../shared/utils/championshipVersusElo.js';
+import type { User } from '../types/index.js';
 
 interface RankingEntry {
     id: string;
@@ -240,43 +242,38 @@ export async function buildRankingCache(): Promise<RankingCache> {
     return buildingPromise;
 }
 
-// 챔피언십 랭킹 계산: 동네바둑리그 + 전국바둑대회 + 월드챔피언십 점수 합산(cumulativeTournamentScore) 기준, Top 100
+// 챔피언십 랭킹: 대전장(PVP·펫·페어) 시즌 ELO(1200점 기준) + 시즌 전적, 상위 100명
 function calculateChampionshipRankings(allUsers: any[]): RankingEntry[] {
     const rankings: RankingEntry[] = [];
-    const allGameModes = [...SPECIAL_GAME_MODES, ...PLAYFUL_GAME_MODES];
 
     for (const user of allUsers) {
         if (!user || !user.id) continue;
+        const row = pickChampionshipVersusSeasonRankingStats(user as User);
+        if (!row) continue;
 
-        const score = typeof user.cumulativeTournamentScore === 'number' ? user.cumulativeTournamentScore : 0;
-        if (score <= 0) continue;
-
-        const totalGames = calculateTotalGames(user, allGameModes);
-        let wins = 0;
-        let losses = 0;
-        for (const mode of allGameModes) {
-            const gameStats = user.stats?.[mode.mode];
-            if (gameStats) {
-                wins += gameStats.wins || 0;
-                losses += gameStats.losses || 0;
-            }
-        }
-
+        const totalGames = row.seasonWins + row.seasonLosses;
         rankings.push({
             id: user.id,
             nickname: user.nickname || user.username,
             avatarId: user.avatarId,
             borderId: user.borderId,
             rank: 0,
-            score,
+            score: row.rating,
             totalGames,
-            wins,
-            losses,
-            league: user.league
+            wins: row.seasonWins,
+            losses: row.seasonLosses,
+            league: user.league,
+            userLevel: Math.max(1, Math.floor(Number(user.userLevel) || 1)),
         });
     }
 
-    rankings.sort((a, b) => b.score - a.score);
+    rankings.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        const awr = a.totalGames > 0 ? a.wins / a.totalGames : 0;
+        const bwr = b.totalGames > 0 ? b.wins / b.totalGames : 0;
+        if (bwr !== awr) return bwr - awr;
+        return a.losses - b.losses;
+    });
     return rankings.slice(0, 100).map((entry, index) => ({ ...entry, rank: index + 1 }));
 }
 

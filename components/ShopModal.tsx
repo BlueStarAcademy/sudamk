@@ -27,6 +27,7 @@ import { useAdContext } from './ads/AdProvider.js';
 import {
     formatShopItemDescription as formatDescription,
     ShopMobileImageDescriptionPortal,
+    StandardEquipmentBoxShopDescription,
 } from './shopImageDescriptionPopover.js';
 
 interface ShopModalProps {
@@ -350,12 +351,28 @@ const ShopItemCard: React.FC<{
                     anchorRef={imageAnchorRef}
                     onRequestClose={() => setShowDescription(false)}
                 >
-                    <p className="text-[11px] leading-relaxed text-slate-100">{refinedDescription}</p>
+                    {item.type === 'equipment' ? (
+                        <StandardEquipmentBoxShopDescription
+                            itemId={item.itemId}
+                            textClassName="text-[11px]"
+                            fallback={<p className="text-[11px] leading-relaxed text-slate-100">{refinedDescription}</p>}
+                        />
+                    ) : (
+                        <p className="text-[11px] leading-relaxed text-slate-100">{refinedDescription}</p>
+                    )}
                 </ShopMobileImageDescriptionPortal>
             )}
             {showDescription && !mobile && (
                 <div className="absolute left-1/2 top-20 z-50 w-48 -translate-x-1/2 rounded-lg border border-indigo-400/50 bg-[#0b1220] p-2 shadow-xl">
-                    <p className="text-[10px] leading-relaxed text-slate-100">{refinedDescription}</p>
+                    {item.type === 'equipment' ? (
+                        <StandardEquipmentBoxShopDescription
+                            itemId={item.itemId}
+                            textClassName="text-[10px]"
+                            fallback={<p className="text-[10px] leading-relaxed text-slate-100">{refinedDescription}</p>}
+                        />
+                    ) : (
+                        <p className="text-[10px] leading-relaxed text-slate-100">{refinedDescription}</p>
+                    )}
                 </div>
             )}
             <div className="mt-1.5 flex w-full flex-shrink-0 flex-col items-stretch justify-center gap-1">

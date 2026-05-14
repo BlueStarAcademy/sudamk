@@ -1,5 +1,7 @@
 import React, { useCallback, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { gradeStyles } from '../shared/constants/items.js';
+import { getStandardEquipmentBoxDisplayGrades, parseStandardEquipmentBoxLevel } from '../shared/constants/shopLootTables.js';
 
 /** 상점·챔피언십 등 이미지 설명 팝오버 — 일반 모달(z~6만) 위에 표시 */
 export const SHOP_IMAGE_DESC_POPOVER_Z = 130_000;
@@ -21,6 +23,36 @@ export function formatShopItemDescription(desc: string): string {
 
     return cleaned;
 }
+
+/** 골드/다이아 상점 `equipment_box_1`~`6` 설명 — 등급명만 `gradeStyles` 색상(챔피언십 상점과 동일 팔레트) */
+export const StandardEquipmentBoxShopDescription: React.FC<{
+    itemId: string;
+    textClassName?: string;
+    /** `equipment_box_*`가 아니거나 테이블이 비었을 때 */
+    fallback?: React.ReactNode;
+}> = ({ itemId, textClassName, fallback = null }) => {
+    const level = parseStandardEquipmentBoxLevel(itemId);
+    if (level == null) return <>{fallback}</>;
+    const grades = getStandardEquipmentBoxDisplayGrades(level);
+    if (grades.length === 0) return <>{fallback}</>;
+    const low = grades[0]!;
+    const high = grades[grades.length - 1]!;
+    const lowSt = gradeStyles[low];
+    const highSt = gradeStyles[high];
+    const cls = textClassName ?? 'text-[11px] sm:text-xs';
+    return (
+        <p className={`text-left leading-relaxed text-slate-100 ${cls}`}>
+            <span className={`font-bold ${lowSt.color}`}>{lowSt.name}</span>
+            {low !== high ? (
+                <>
+                    <span className="text-slate-400">~</span>
+                    <span className={`font-bold ${highSt.color}`}>{highSt.name}</span>
+                </>
+            ) : null}
+            <span> 등급 장비.</span>
+        </p>
+    );
+};
 
 type ShopMobileDescBox = { left: number; top: number; maxW: number; transform: string };
 

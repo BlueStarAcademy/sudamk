@@ -17,6 +17,7 @@ import Sidebar from './components/game/Sidebar.js';
 import PlayerPanel from './components/game/PlayerPanel.js';
 import GameModals from './components/game/GameModals.js';
 import TurnDisplay from './components/game/TurnDisplay.js';
+import { ArenaRightSidebarCollapseToggle } from './components/game/ArenaRightSidebarCollapseToggle.js';
 import { audioService } from './services/audioService.js';
 import { TerritoryAnalysisWindow, HintWindow } from './components/game/AnalysisWindows.js';
 import GameControls from './components/game/GameControls.js';
@@ -4687,7 +4688,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     
                     {!isMobile && (
                         <div
-                            className={`relative max-h-full min-h-0 flex-shrink-0 self-stretch transition-[width] duration-200 ${
+                            className={`relative overflow-visible max-h-full min-h-0 flex-shrink-0 self-stretch transition-[width] duration-200 ${
                                 isRightSidebarCollapsed ? 'w-0' : 'w-[320px] xl:w-[360px]'
                             }`}
                         >
@@ -4707,17 +4708,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     </div>
                                 </div>
                             )}
-                            <button
-                                type="button"
-                                onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
-                                className="absolute top-1/2 -left-6 z-[120] -translate-y-1/2 w-7 h-9 flex items-center justify-center rounded-md bg-gray-800/90 hover:bg-gray-700/90 text-gray-300 hover:text-white transition-colors border border-gray-700/80"
-                                title={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
-                                aria-label={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
-                            >
-                                <span className="text-sm font-bold leading-none">
-                                    {isRightSidebarCollapsed ? '<' : '>'}
-                                </span>
-                            </button>
+                            <ArenaRightSidebarCollapseToggle
+                                collapsed={isRightSidebarCollapsed}
+                                onToggle={() => setIsRightSidebarCollapsed((prev) => !prev)}
+                                tone="standard"
+                            />
                         </div>
                     )}
                     
@@ -4858,7 +4853,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     
                     {!isMobile && (
                         <div
-                            className={`relative max-h-full min-h-0 flex-shrink-0 self-stretch transition-[width] duration-200 ${
+                            className={`relative overflow-visible max-h-full min-h-0 flex-shrink-0 self-stretch transition-[width] duration-200 ${
                                 isRightSidebarCollapsed ? 'w-0' : 'w-[320px] xl:w-[360px]'
                             }`}
                         >
@@ -4878,17 +4873,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     </div>
                                 </div>
                             )}
-                            <button
-                                type="button"
-                                onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
-                                className="absolute top-1/2 -left-6 z-[120] -translate-y-1/2 w-7 h-9 flex items-center justify-center rounded-md bg-gray-800/90 hover:bg-gray-700/90 text-gray-300 hover:text-white transition-colors border border-gray-700/80"
-                                title={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
-                                aria-label={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
-                            >
-                                <span className="text-sm font-bold leading-none">
-                                    {isRightSidebarCollapsed ? '<' : '>'}
-                                </span>
-                            </button>
+                            <ArenaRightSidebarCollapseToggle
+                                collapsed={isRightSidebarCollapsed}
+                                onToggle={() => setIsRightSidebarCollapsed((prev) => !prev)}
+                                tone="standard"
+                            />
                         </div>
                     )}
                     
@@ -4898,7 +4887,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 className={`fixed inset-y-0 right-0 z-50 flex w-[280px] flex-col overflow-hidden bg-secondary shadow-2xl transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
                                 style={mobileGameSidebarDrawerStyle}
                             >
-                                <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+                            <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                                     <TowerSidebar
                                         session={sessionWithRestoredPatternStones}
                                         gameChat={gameChat}
@@ -5169,7 +5158,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 
                 {!isMobile && (
                     <div
-                        className={`relative max-h-full min-h-0 flex-shrink-0 self-stretch transition-[width] duration-200 ${
+                        className={`relative overflow-visible max-h-full min-h-0 flex-shrink-0 self-stretch transition-[width] duration-200 ${
                             isRightSidebarCollapsed ? 'w-0' : 'w-[320px] xl:w-[360px]'
                         }`}
                     >
@@ -5206,17 +5195,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 </div>
                             </div>
                         )}
-                        <button
-                            type="button"
-                            onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
-                            className="absolute top-1/2 -left-6 z-[120] -translate-y-1/2 w-7 h-9 flex items-center justify-center rounded-md bg-gray-800/90 hover:bg-gray-700/90 text-gray-300 hover:text-white transition-colors border border-gray-700/80"
-                            title={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
-                            aria-label={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
-                        >
-                            <span className="text-sm font-bold leading-none">
-                                {isRightSidebarCollapsed ? '<' : '>'}
-                            </span>
-                        </button>
+                        <ArenaRightSidebarCollapseToggle
+                            collapsed={isRightSidebarCollapsed}
+                            onToggle={() => setIsRightSidebarCollapsed((prev) => !prev)}
+                            tone="standard"
+                        />
                     </div>
                 )}
                 

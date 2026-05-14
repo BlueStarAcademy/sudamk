@@ -11,6 +11,15 @@ import {
     BORDER_POOL,
     getHighestDungeonStageWhereUserAvgExceedsBot,
 } from '../constants';
+import {
+    CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX,
+    CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE,
+} from '../shared/constants/championshipVersusVenue.js';
+import {
+    getChampionshipVersusDuelTicketsForVenue,
+    getChampionshipVersusDuelTicketNextAtForVenue,
+} from '../shared/utils/championshipVersusDuelTickets.js';
+import ChampionshipVersusDuelTicketCountdown from './ChampionshipVersusDuelTicketCountdown.js';
 import Avatar from './Avatar.js';
 import { isSameDayKST } from '../utils/timeUtils.js';
 import { useAppContext } from '../hooks/useAppContext.js';
@@ -29,6 +38,11 @@ import PairPetDetailEmbedPanel from './pair/PairPetDetailEmbedPanel.js';
 import PairPetHomeEmptyDetailFrame from './pair/PairPetHomeEmptyDetailFrame.js';
 import { PairPetDetailFitScale } from './pair/PairPetDetailCardBody.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
+import { getChampionshipVersusDisplayRating } from '../shared/utils/championshipVersusElo.js';
+import { getSeasonalRankingTierName, RANKING_TIERS } from '../shared/constants/ranking.js';
+import { RANKED_ELO_BASE_SCORE } from '../shared/constants/rules.js';
+import { resolvePublicUrl } from '../utils/publicAssetUrl.js';
+import ChampionshipVersusDuelHistoryModal from './ChampionshipVersusDuelHistoryModal.js';
 
 /** 챔피언십 로비 패널: 경기장 배경 블러(전략/놀이 대기실과 동일 계열) */
 const CHAMPIONSHIP_PANEL_GLASS =
@@ -172,8 +186,7 @@ const WeeklyCompetitorsPanel_DEPRECATED: React.FC<{ setHasRankChanged: (changed:
                 return { ...competitor, liveScore, scoreChange };
             } else {
                 const liveData = allUsers.find(u => u.id === competitor.id);
-                // cumulativeTournamentScore를 사용하여 일주일 동안의 모든 경기장 점수 합계 표시
-                const liveScore = liveData ? (liveData.cumulativeTournamentScore || 0) : competitor.initialScore;
+                const liveScore = liveData ? liveData.tournamentScore || 0 : competitor.initialScore;
                 // 어제 점수를 기준으로 변화량 계산
                 // yesterdayTournamentScore가 있으면 그것을 사용, 없으면 dailyRankings.championship.score를 사용
                 // 둘 다 없으면 현재 점수를 어제 점수로 간주 (변화 없음)
@@ -318,7 +331,7 @@ const RankItem: React.FC<RankItemProps> = ({ user, rank, isMyRankDisplay }) => {
     const { currentUserWithStatus, handlers } = useAppContext();
     if (!currentUserWithStatus) return null;
 
-    const score = user.cumulativeTournamentScore || 0;
+    const score = user.tournamentScore || 0;
 
     const rankDisplay = useMemo(() => {
         if (rank === 1) return <span className="text-3xl" role="img" aria-label="Gold Trophy">🥇</span>;
@@ -360,12 +373,21 @@ type ChampionshipVersusLobbyKind = 'pvp' | 'pet' | 'petpair';
 
 const CHAMPIONSHIP_VERSUS_LOBBY_META: Record<
     ChampionshipVersusLobbyKind,
-    { title: string; subtitle: string; image: string; ring: string; border: string; panelFrom: string; chip: string; chipText: string }
+    {
+        title: string;
+        image: string;
+        ticketImage: string;
+        ring: string;
+        border: string;
+        panelFrom: string;
+        chip: string;
+        chipText: string;
+    }
 > = {
     pvp: {
         title: 'PVP 챔피언십',
-        subtitle: '월간 ELO · 상대 매칭 · 경기장 입장',
         image: CHAMPIONSHIP_PVP_VENUE_BG_WEBP,
+        ticketImage: CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE.pvp,
         ring: 'ring-white/10',
         border: 'border-slate-500/45',
         panelFrom: 'from-zinc-900/90',
@@ -374,8 +396,8 @@ const CHAMPIONSHIP_VERSUS_LOBBY_META: Record<
     },
     pet: {
         title: '펫 챔피언십',
-        subtitle: '펫 동행 · 월간 랭킹 · 코인 보상',
         image: CHAMPIONSHIP_PET_VENUE_BG_WEBP,
+        ticketImage: CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE.pet,
         ring: 'ring-fuchsia-200/10',
         border: 'border-fuchsia-500/45',
         panelFrom: 'from-violet-950/90',
@@ -383,9 +405,9 @@ const CHAMPIONSHIP_VERSUS_LOBBY_META: Record<
         chipText: 'text-fuchsia-50',
     },
     petpair: {
-        title: '펫 페어 챔피언십',
-        subtitle: '페어 대전 · 월간 랭킹 · 코인 보상',
+        title: '페어 챔피언십',
         image: CHAMPIONSHIP_PET_PAIR_VENUE_BG_WEBP,
+        ticketImage: CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE.petpair,
         ring: 'ring-sky-200/10',
         border: 'border-sky-500/45',
         panelFrom: 'from-cyan-950/90',
@@ -394,17 +416,163 @@ const CHAMPIONSHIP_VERSUS_LOBBY_META: Record<
     },
 };
 
+type VersusLobbyMeta = (typeof CHAMPIONSHIP_VERSUS_LOBBY_META)['pvp'];
+
+/** 챔피언십 대전장 입장 카드 우측: 티어·ELO·전적(승률)·입장권 — PVP/펫/페어 공통 */
+function ChampionshipVersusLobbyCardRightStats(props: {
+    compact: boolean;
+    meta: VersusLobbyMeta;
+    versusRating: number;
+    tierName: string;
+    tierIconUrl: string;
+    wins: number;
+    losses: number;
+    duelTickets: number;
+    duelTicketNextAt?: number;
+}) {
+    const { compact, meta, versusRating, tierName, tierIconUrl, wins, losses, duelTickets, duelTicketNextAt } = props;
+    const seasonGames = wins + losses;
+    const winPct = seasonGames > 0 ? Math.round((100 * wins) / seasonGames) : 0;
+
+    if (compact) {
+        return (
+            <>
+                <div className="mt-1.5 flex w-full flex-col items-center rounded-lg border border-white/[0.09] bg-gradient-to-br from-white/[0.06] via-black/35 to-black/55 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-white/[0.05]">
+                    <div className="flex flex-col items-center">
+                        <img
+                            src={resolvePublicUrl(tierIconUrl)}
+                            alt=""
+                            className="h-8 w-8 object-contain drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)] sm:h-9 sm:w-9"
+                        />
+                        <p className="mt-1 max-w-full truncate text-center text-[8px] font-semibold leading-tight tracking-wide text-slate-400/95 sm:text-[9px]">
+                            {tierName}
+                        </p>
+                        <p className="mt-0.5 whitespace-nowrap text-center text-base font-black tabular-nums leading-none text-white drop-shadow-sm sm:text-lg">
+                            {versusRating}
+                        </p>
+                    </div>
+                </div>
+                <p className="mt-1.5 text-center text-[10px] font-bold leading-snug text-slate-200/95 sm:text-[11px]">
+                    시즌 전적{' '}
+                    <span className="font-black tabular-nums text-white">
+                        {wins}승 {losses}패
+                    </span>
+                    <span className="font-black tabular-nums text-amber-200/90"> ({winPct}%)</span>
+                </p>
+                <div className="mt-1.5 flex w-full min-w-0 flex-wrap items-center justify-center gap-x-1 gap-y-0 rounded-full border border-amber-400/25 bg-gradient-to-r from-amber-500/14 via-amber-950/25 to-black/40 px-2 py-1 shadow-inner ring-1 ring-inset ring-amber-300/10">
+                    <img
+                        src={meta.ticketImage}
+                        alt=""
+                        className="h-3.5 w-auto max-w-[1.35rem] shrink-0 object-contain opacity-95 sm:h-4"
+                        loading="lazy"
+                        decoding="async"
+                    />
+                    <span className="shrink-0 text-[10px] font-black tabular-nums tracking-wide text-amber-50 sm:text-[11px]">
+                        {duelTickets}/{CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
+                    </span>
+                    <ChampionshipVersusDuelTicketCountdown
+                        current={duelTickets}
+                        max={CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
+                        nextAt={duelTicketNextAt}
+                        className="shrink-0 text-[9px] font-mono font-bold tabular-nums text-amber-200/90 sm:text-[10px]"
+                    />
+                </div>
+            </>
+        );
+    }
+
+    return (
+        <>
+            <div className="mb-2 flex w-full max-w-[16rem] flex-col items-center rounded-xl border border-white/[0.1] bg-gradient-to-br from-white/[0.07] via-slate-950/55 to-black/60 px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_28px_-18px_rgba(0,0,0,0.75)] ring-1 ring-inset ring-amber-400/12">
+                <div className="flex flex-col items-center">
+                    <img
+                        src={resolvePublicUrl(tierIconUrl)}
+                        alt=""
+                        className="h-12 w-12 object-contain drop-shadow-[0_4px_14px_rgba(0,0,0,0.5)] sm:h-[3.25rem] sm:w-[3.25rem]"
+                    />
+                    <p className="mt-1.5 max-w-full truncate px-1 text-center text-[10px] font-semibold leading-tight tracking-wide text-slate-400 sm:text-[11px]">
+                        {tierName}
+                    </p>
+                    <p className="mt-1 whitespace-nowrap text-center text-2xl font-black tabular-nums leading-none text-white drop-shadow-sm sm:text-3xl">
+                        {versusRating}
+                    </p>
+                </div>
+            </div>
+            <p className="text-center text-sm font-bold leading-snug text-slate-200">
+                시즌 전적{' '}
+                <span className="font-black tabular-nums text-white">
+                    {wins}승 {losses}패
+                </span>
+                <span className="font-black tabular-nums text-amber-200/95"> ({winPct}%)</span>
+            </p>
+            <div className="mt-2 flex w-full max-w-[16rem] min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-0 rounded-full border border-amber-400/30 bg-gradient-to-r from-amber-500/18 via-amber-950/35 to-black/45 px-3 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-300/12">
+                <img
+                    src={meta.ticketImage}
+                    alt=""
+                    className="h-4 w-auto max-w-[1.5rem] shrink-0 object-contain opacity-95 sm:h-[1.125rem]"
+                    loading="lazy"
+                    decoding="async"
+                />
+                <span className="shrink-0 text-sm font-black tabular-nums tracking-wide text-amber-50">
+                    {duelTickets}/{CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
+                </span>
+                <ChampionshipVersusDuelTicketCountdown
+                    current={duelTickets}
+                    max={CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
+                    nextAt={duelTicketNextAt}
+                    className="shrink-0 text-[11px] font-mono font-bold tabular-nums text-amber-200/90 sm:text-xs"
+                />
+            </div>
+        </>
+    );
+}
+
 const ChampionshipVersusLobbyCard: React.FC<{
     kind: ChampionshipVersusLobbyKind;
     compactMerged: boolean;
     mergedInfoPanelStretch?: boolean;
     fillLobbyGridCell?: boolean;
 }> = ({ kind, compactMerged, mergedInfoPanelStretch = false, fillLobbyGridCell = false }) => {
+    const { currentUserWithStatus } = useAppContext();
     const meta = CHAMPIONSHIP_VERSUS_LOBBY_META[kind];
+    const ratingEntry = currentUserWithStatus?.championshipVersusVenueRatings?.[kind];
+    const wins = Math.max(0, Math.floor(Number(ratingEntry?.seasonWins) || 0));
+    const losses = Math.max(0, Math.floor(Number(ratingEntry?.seasonLosses) || 0));
+    const seasonGames = wins + losses;
+    const versusRating = useMemo(() => {
+        if (!currentUserWithStatus) return RANKED_ELO_BASE_SCORE;
+        return getChampionshipVersusDisplayRating(currentUserWithStatus, kind, Date.now());
+    }, [currentUserWithStatus, kind, ratingEntry?.rating, ratingEntry?.seasonWins, ratingEntry?.seasonLosses]);
+    const tierName = useMemo(
+        () => getSeasonalRankingTierName(versusRating, 999_999, seasonGames),
+        [versusRating, seasonGames],
+    );
+    const tierIconUrl = useMemo(() => {
+        const t = RANKING_TIERS.find((x) => x.name === tierName) ?? RANKING_TIERS[RANKING_TIERS.length - 1]!;
+        return t.icon;
+    }, [tierName]);
+    const duelTickets = useMemo(() => {
+        if (!currentUserWithStatus) return CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX;
+        return getChampionshipVersusDuelTicketsForVenue(currentUserWithStatus, kind);
+    }, [
+        currentUserWithStatus,
+        kind,
+        currentUserWithStatus?.championshipVersusDuelTicketsByVenue,
+        currentUserWithStatus?.championshipVersusDuelTickets,
+    ]);
+    const duelTicketNextAt = useMemo(() => {
+        if (!currentUserWithStatus) return undefined;
+        return getChampionshipVersusDuelTicketNextAtForVenue(currentUserWithStatus, kind);
+    }, [
+        currentUserWithStatus,
+        kind,
+        currentUserWithStatus?.championshipVersusDuelTicketNextAtByVenue,
+        currentUserWithStatus?.championshipVersusDuelTicketNextAt,
+    ]);
     const go = () => {
         window.location.hash = `#/tournament/${kind}`;
     };
-    const shell = `flex w-full cursor-pointer overflow-hidden rounded-2xl border ${meta.border} bg-gradient-to-br from-slate-950 via-slate-950 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ${meta.ring} transition-transform active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60`;
+    const shell = `flex w-full cursor-pointer overflow-hidden rounded-2xl border ${meta.border} bg-gradient-to-br from-slate-950 via-slate-950 to-black shadow-[0_22px_48px_-20px_rgba(0,0,0,0.92),0_0_0_1px_rgba(255,255,255,0.04)] ring-1 ${meta.ring} transition-[transform,box-shadow] duration-200 hover:shadow-[0_26px_56px_-18px_rgba(0,0,0,0.88)] active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60`;
 
     if (compactMerged) {
         return (
@@ -424,15 +592,24 @@ const ChampionshipVersusLobbyCard: React.FC<{
                     <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/55 via-black/20 to-black/78" />
                 </div>
                 <div
-                    className={`flex min-h-0 min-w-0 max-w-[42%] flex-1 flex-col items-stretch justify-center border-l border-white/10 ${meta.panelFrom} to-black/84 p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-2.5`}
+                    className={`relative flex min-h-0 min-w-0 max-w-[42%] flex-1 flex-col items-stretch justify-center overflow-hidden border-l border-white/10 ${meta.panelFrom} to-black/88 p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.09)] before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent sm:p-2.5`}
                 >
                     <div
-                        className={`inline-flex w-full shrink-0 items-center justify-center rounded-lg border px-1.5 py-1 text-[12px] font-black leading-tight tracking-tight shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:text-[13px] ${meta.chip} ${meta.chipText}`}
+                        className={`relative inline-flex w-full shrink-0 items-center justify-center rounded-lg border px-1.5 py-1 text-[12px] font-black leading-tight tracking-tight shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_6px_16px_-10px_rgba(0,0,0,0.65)] sm:text-[13px] ${meta.chip} ${meta.chipText}`}
                     >
                         {meta.title}
                     </div>
-                    <p className="mt-2 text-[11px] font-semibold leading-snug text-slate-200/85 sm:text-xs">{meta.subtitle}</p>
-                    <p className="mt-1 text-[10px] font-bold text-amber-200/90">탭하여 경기장 입장</p>
+                    <ChampionshipVersusLobbyCardRightStats
+                        compact
+                        meta={meta}
+                        versusRating={versusRating}
+                        tierName={tierName}
+                        tierIconUrl={tierIconUrl}
+                        wins={wins}
+                        losses={losses}
+                        duelTickets={duelTickets}
+                        duelTicketNextAt={duelTicketNextAt}
+                    />
                 </div>
             </button>
         );
@@ -444,15 +621,24 @@ const ChampionshipVersusLobbyCard: React.FC<{
                 <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/50 via-black/15 to-black/72" />
             </div>
             <div
-                className={`flex min-h-0 min-w-[200px] flex-[1.08] flex-col items-center justify-center border-l border-white/10 ${meta.panelFrom} to-black/84 p-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]`}
+                className={`relative flex min-h-0 min-w-[200px] flex-[1.08] flex-col items-center justify-center overflow-hidden border-l border-white/10 ${meta.panelFrom} to-black/88 p-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.09)] before:pointer-events-none before:absolute before:inset-x-4 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent`}
             >
                 <div
-                    className={`mb-2 inline-flex w-full max-w-[16rem] items-center justify-center rounded-lg border px-3 py-2 text-[17px] font-black tracking-tight shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] ${meta.chip} ${meta.chipText}`}
+                    className={`relative mb-2 inline-flex w-full max-w-[16rem] items-center justify-center rounded-xl border px-3 py-2 text-[17px] font-black tracking-tight shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_28px_-14px_rgba(0,0,0,0.7)] ${meta.chip} ${meta.chipText}`}
                 >
                     {meta.title}
                 </div>
-                <p className="max-w-[15rem] text-sm font-medium leading-relaxed text-slate-300">{meta.subtitle}</p>
-                <p className="mt-2 text-xs font-bold text-amber-200/90">경기장 입장</p>
+                <ChampionshipVersusLobbyCardRightStats
+                    compact={false}
+                    meta={meta}
+                    versusRating={versusRating}
+                    tierName={tierName}
+                    tierIconUrl={tierIconUrl}
+                    wins={wins}
+                    losses={losses}
+                    duelTickets={duelTickets}
+                    duelTicketNextAt={duelTicketNextAt}
+                />
             </div>
         </button>
     );
@@ -813,6 +999,7 @@ const TournamentLobby: React.FC = () => {
     const [nativeChampionshipTab, setNativeChampionshipTab] = useState<'stats' | 'arena' | 'shop'>('stats');
     /** PC 챔피언십 로비 좌측: 유저 장비·능력치 / 대표 펫 능력치 */
     const [pcChampionshipLeftAbilityTab, setPcChampionshipLeftAbilityTab] = useState<'user' | 'pet'>('user');
+    const [championshipDuelHistoryOpen, setChampionshipDuelHistoryOpen] = useState(false);
 
     if (!currentUserWithStatus) {
         return (
@@ -968,7 +1155,14 @@ const TournamentLobby: React.FC = () => {
                             >
                                 <img src="/images/button/back.webp" alt="" className="h-9 w-9" />
                             </button>
-                            <h1 className="relative z-[1] min-w-0 truncate text-left text-lg font-bold text-amber-50">챔피언십</h1>
+                            <h1 className="relative z-[1] min-w-0 flex-1 truncate text-left text-lg font-bold text-amber-50">챔피언십</h1>
+                            <button
+                                type="button"
+                                onClick={() => setChampionshipDuelHistoryOpen(true)}
+                                className="relative z-[1] shrink-0 rounded-lg border border-amber-400/45 bg-black/35 px-2 py-1 text-[10px] font-black tracking-wide text-amber-100 shadow-inner ring-1 ring-inset ring-amber-300/15 transition hover:border-amber-300/70 hover:bg-amber-950/40 active:scale-[0.98]"
+                            >
+                                대전정보
+                            </button>
                         </div>
                     </div>
 
@@ -1179,7 +1373,14 @@ const TournamentLobby: React.FC = () => {
                                 >
                                     <img src="/images/button/back.webp" alt="" className="h-10 w-10 sm:h-11 sm:w-11" />
                                 </button>
-                                <h1 className="relative z-[1] min-w-0 truncate text-left text-xl font-bold sm:text-2xl lg:text-3xl">챔피언십</h1>
+                                <h1 className="relative z-[1] min-w-0 flex-1 truncate text-left text-xl font-bold sm:text-2xl lg:text-3xl">챔피언십</h1>
+                                <button
+                                    type="button"
+                                    onClick={() => setChampionshipDuelHistoryOpen(true)}
+                                    className="relative z-[1] shrink-0 rounded-lg border border-amber-400/45 bg-black/35 px-2.5 py-1.5 text-[11px] font-black tracking-wide text-amber-100 shadow-inner ring-1 ring-inset ring-amber-300/15 transition hover:border-amber-300/70 hover:bg-amber-950/40 active:scale-[0.98] sm:text-xs"
+                                >
+                                    대전정보
+                                </button>
                             </div>
                         </div>
                         <div className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden overscroll-y-contain">
@@ -1381,6 +1582,11 @@ const TournamentLobby: React.FC = () => {
                 </aside>
             </div>
             )}
+            <ChampionshipVersusDuelHistoryModal
+                open={championshipDuelHistoryOpen}
+                onClose={() => setChampionshipDuelHistoryOpen(false)}
+                entries={currentUserWithStatus.championshipVersusDuelWeekLog}
+            />
         </div>
     );
 };
