@@ -91,11 +91,11 @@ export type GuildShopItem = {
 
 export const GUILD_SHOP_ITEMS: GuildShopItem[] = [
     // Equipment Boxes
-    { itemId: 'guild_equip_box_1', name: '길드 장비 상자(고급)', description: '고급 등급 장비 1개 획득', cost: 100, image: '/images/Box/EquipmentBox2.webp', type: 'equipment_box', limit: 5, limitType: 'weekly', grade: ItemGrade.Uncommon },
-    { itemId: 'guild_equip_box_2', name: '길드 장비 상자(희귀)', description: '희귀 등급 장비 1개 획득', cost: 300, image: '/images/Box/EquipmentBox3.webp', type: 'equipment_box', limit: 3, limitType: 'weekly', grade: ItemGrade.Rare },
-    { itemId: 'guild_equip_box_3', name: '길드 장비 상자(에픽)', description: '에픽 등급 장비 1개 획득', cost: 1000, image: '/images/Box/EquipmentBox4.webp', type: 'equipment_box', limit: 1, limitType: 'weekly', grade: ItemGrade.Epic },
-    { itemId: 'guild_equip_box_4', name: '길드 장비 상자(전설)', description: '전설 등급 장비 1개 획득', cost: 3000, image: '/images/Box/EquipmentBox5.webp', type: 'equipment_box', limit: 1, limitType: 'monthly', grade: ItemGrade.Legendary },
-    { itemId: 'guild_equip_box_mythic', name: '신화 장비 상자', description: '신화 등급 장비 1개 획득', cost: 10000, image: '/images/Box/EquipmentBox6.webp', type: 'equipment_box', limit: 1, limitType: 'weekly', grade: ItemGrade.Mythic },
+    { itemId: 'guild_equip_box_1', name: '길드 장비 상자(고급)', description: '고급 등급 장비 1개 획득. 상자를 열면 길드 관련 특수 옵션이 반드시 포함됩니다.', cost: 100, image: '/images/Box/EquipmentBox2.webp', type: 'equipment_box', limit: 5, limitType: 'weekly', grade: ItemGrade.Uncommon },
+    { itemId: 'guild_equip_box_2', name: '길드 장비 상자(희귀)', description: '희귀 등급 장비 1개 획득. 상자를 열면 길드 관련 특수 옵션이 반드시 포함됩니다.', cost: 300, image: '/images/Box/EquipmentBox3.webp', type: 'equipment_box', limit: 3, limitType: 'weekly', grade: ItemGrade.Rare },
+    { itemId: 'guild_equip_box_3', name: '길드 장비 상자(에픽)', description: '에픽 등급 장비 1개 획득. 상자를 열면 길드 관련 특수 옵션이 반드시 포함됩니다.', cost: 1000, image: '/images/Box/EquipmentBox4.webp', type: 'equipment_box', limit: 1, limitType: 'weekly', grade: ItemGrade.Epic },
+    { itemId: 'guild_equip_box_4', name: '길드 장비 상자(전설)', description: '전설 등급 장비 1개 획득. 상자를 열면 길드 관련 특수 옵션이 반드시 포함됩니다.', cost: 3000, image: '/images/Box/EquipmentBox5.webp', type: 'equipment_box', limit: 1, limitType: 'monthly', grade: ItemGrade.Legendary },
+    { itemId: 'guild_equip_box_mythic', name: '신화 장비 상자', description: '신화 등급 장비 1개 획득. 상자를 열면 길드 관련 특수 옵션이 반드시 포함됩니다.', cost: 10000, image: '/images/Box/EquipmentBox6.webp', type: 'equipment_box', limit: 1, limitType: 'weekly', grade: ItemGrade.Mythic },
 
     // Materials
     { itemId: '하급 강화석', name: '하급 강화석', description: '장비 강화에 사용되는 기본 재료.', cost: 10, image: '/images/materials/materials1.webp', type: 'material', limit: 100, limitType: 'weekly', grade: ItemGrade.Normal },
@@ -105,10 +105,10 @@ export const GUILD_SHOP_ITEMS: GuildShopItem[] = [
     { itemId: '신비의 강화석', name: '신비의 강화석', description: '장비 강화에 사용되는 고대 재료', cost: 500, image: '/images/materials/materials5.webp', type: 'material', limit: 2, limitType: 'weekly', grade: ItemGrade.Legendary },
 
     // Consumables
-    { itemId: '골드 꾸러미 I', name: '골드 꾸러미 I', description: '10 ~ 500 골드 획득', cost: 20, image: '/images/Box/GoldBox1.webp', type: 'consumable', limit: 10, limitType: 'weekly', grade: ItemGrade.Normal },
-    { itemId: '골드 꾸러미 II', name: '골드 꾸러미 II', description: '100 ~ 1,000 골드 획득', cost: 40, image: '/images/Box/GoldBox2.webp', type: 'consumable', limit: 5, limitType: 'weekly', grade: ItemGrade.Uncommon },
-    { itemId: '골드 꾸러미 III', name: '골드 꾸러미 III', description: '500 ~ 3,000 골드 획득', cost: 60, image: '/images/Box/GoldBox3.webp', type: 'consumable', limit: 3, limitType: 'weekly', grade: ItemGrade.Rare },
-    { itemId: '골드 꾸러미 IV', name: '골드 꾸러미 IV', description: '1,000 ~ 10,000 골드 획득', cost: 80, image: '/images/Box/GoldBox4.webp', type: 'consumable', limit: 1, limitType: 'weekly', grade: ItemGrade.Epic },
+    { itemId: '골드 꾸러미 I', name: '골드 꾸러미 I', description: '10 ~ 500 골드 획득', cost: 50, image: '/images/Box/GoldBox1.webp', type: 'consumable', limit: 10, limitType: 'weekly', grade: ItemGrade.Normal },
+    { itemId: '골드 꾸러미 II', name: '골드 꾸러미 II', description: '100 ~ 1,000 골드 획득', cost: 100, image: '/images/Box/GoldBox2.webp', type: 'consumable', limit: 5, limitType: 'weekly', grade: ItemGrade.Uncommon },
+    { itemId: '골드 꾸러미 III', name: '골드 꾸러미 III', description: '500 ~ 3,000 골드 획득', cost: 250, image: '/images/Box/GoldBox3.webp', type: 'consumable', limit: 3, limitType: 'weekly', grade: ItemGrade.Rare },
+    { itemId: '골드 꾸러미 IV', name: '골드 꾸러미 IV', description: '1,000 ~ 10,000 골드 획득', cost: 500, image: '/images/Box/GoldBox4.webp', type: 'consumable', limit: 1, limitType: 'weekly', grade: ItemGrade.Epic },
     { itemId: '보너스 스탯 +5', name: '보너스 스탯 +5', description: '모든 능력치에 자유롭게 분배할 수 있는 보너스 스탯 포인트를 5개 획득합니다.', cost: 10000, image: '/images/button/statpoint.webp', type: 'consumable', limit: 10, limitType: 'account', grade: ItemGrade.Legendary },
 ];
 

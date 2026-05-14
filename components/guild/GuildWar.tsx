@@ -23,6 +23,8 @@ import {
     ADMIN_USER_ID,
     GUILD_WAR_BOARD_ORDER,
     getGuildWarBoardMode,
+    getGuildWarBoardRuleDisplayLabel,
+    getGuildWarBaseStoneCountByBoardId,
     GUILD_WAR_MAIN_TIME_MINUTES,
     GUILD_WAR_FISCHER_INCREMENT_SECONDS,
     getGuildWarAiBotDisplayName,
@@ -32,6 +34,7 @@ import {
     getGuildWarCaptureTurnLimitByBoardId,
     getGuildWarCaptureBlackTargetByBoardId,
     GUILD_WAR_CAPTURE_AI_TARGET,
+    type GuildWarBoardRuleMode,
 } from '../../constants/index.js';
 import { getTodayKSTDateString } from '../../utils/timeUtils.js';
 import {
@@ -40,6 +43,7 @@ import {
     getGuildWarBotBoardDisplayTally,
 } from '../../shared/utils/guildWarBoardOwner.js';
 import { GUILD_WAR_BOT_GUILD_ID } from '../../shared/constants/auth.js';
+import { SPEED_TIME_PRESSURE_SECONDS_PER_POINT } from '../../shared/constants/speedTimePressure.js';
 import { GuildWarUnifiedScoreboard } from './GuildWarUnifiedScoreboard.js';
 
 const GUILD_WAR_PERSONAL_DAILY_LIMIT = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS;
@@ -55,6 +59,8 @@ const GUILD_WAR_RED_TEAM_BANNER = '/images/guild/guildwar/redteam.webp';
 const GUILD_WAR_MISSILE_ICON = '/images/button/missile.webp';
 const GUILD_WAR_HIDDEN_ICON = '/images/button/hidden.webp';
 const GUILD_WAR_SCAN_ICON = '/images/button/scan.webp';
+const GUILD_WAR_SPEED_ICON = '/images/simbols/simbol3.webp';
+const GUILD_WAR_BASE_ICON = '/images/simbols/simbol4.webp';
 
 /** 서버 `GUILD_WAR_UPDATE` 브로드캐스트 → 대기실 즉시 GET_GUILD_WAR_DATA (hooks/useApp.ts에서 dispatch) */
 const GUILD_WAR_LOBBY_REFRESH_EVENT = 'sudamr:guild-war-update';
@@ -169,7 +175,7 @@ interface Board {
     initialStones?: { black: number; white: number };
     initialStoneCounts: InitialStoneCounts;
     ownerGuildId?: string;
-    gameMode?: 'capture' | 'hidden' | 'missile';
+    gameMode?: GuildWarBoardRuleMode;
     /** 점령 길드 소속 기록 보유자 닉네임 */
     occupierNickname?: string;
     occupierAvatarUrl?: string;
@@ -478,7 +484,7 @@ const GuildWar = () => {
                         },
                         initialStoneCounts,
                         ownerGuildId,
-                        gameMode: getGuildWarBoardMode(boardId),
+                        gameMode: (board.gameMode as GuildWarBoardRuleMode | undefined) ?? getGuildWarBoardMode(boardId),
                         occupierNickname,
                         occupierAvatarUrl: (board as any).occupierAvatarUrl,
                         occupierBorderId: (board as any).occupierBorderId,
@@ -1023,7 +1029,11 @@ const GuildWar = () => {
                                         >
                                             {board.occupierNickname}
                                         </span>
-                                        {board.gameMode === 'capture' || board.gameMode === 'hidden' || board.gameMode === 'missile' ? (
+                                        {board.gameMode === 'capture' ||
+                                        board.gameMode === 'hidden' ||
+                                        board.gameMode === 'missile' ||
+                                        board.gameMode === 'speed' ||
+                                        board.gameMode === 'base' ? (
                                             <span
                                                 className="max-w-[38%] shrink-0 truncate text-right text-[10px] font-bold leading-tight text-amber-200/95 sm:max-w-[42%] sm:text-xs"
                                                 title={
@@ -1071,20 +1081,18 @@ const GuildWar = () => {
                                 </div>
 
                                 {(() => {
+                                    const gm = board.gameMode;
                                     const modeIcon =
-                                        board.gameMode === 'hidden'
+                                        gm === 'hidden'
                                             ? BLACK_HIDDEN_STONE_IMG
-                                            : board.gameMode === 'missile'
+                                            : gm === 'missile'
                                               ? GUILD_WAR_MISSILE_ICON
-                                              : GUILD_WAR_BOARD_IMG;
-                                    const modeLabel =
-                                        board.gameMode === 'capture'
-                                            ? '따내기 바둑'
-                                            : board.gameMode === 'hidden'
-                                              ? '히든 바둑'
-                                              : board.gameMode === 'missile'
-                                                ? '미사일 바둑'
-                                                : '바둑';
+                                              : gm === 'speed'
+                                                ? GUILD_WAR_SPEED_ICON
+                                                : gm === 'base'
+                                                  ? GUILD_WAR_BASE_ICON
+                                                  : GUILD_WAR_BOARD_IMG;
+                                    const modeLabel = getGuildWarBoardRuleDisplayLabel(gm);
                                     return (
                                         <div className="grid shrink-0 grid-cols-2 gap-1.5">
                                             {board.gameMode === 'capture' && (
@@ -1213,7 +1221,9 @@ const GuildWar = () => {
 
                                 {board.gameMode !== 'capture' && (
                                 <div className="shrink-0 rounded-lg border border-slate-600/35 bg-slate-900/45 px-2 py-1.5 sm:px-2.5 sm:py-2">
-                                    <p className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-xs">아이템</p>
+                                    <p className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-xs">
+                                        {board.gameMode === 'hidden' || board.gameMode === 'missile' ? '아이템' : '룰'}
+                                    </p>
                                     {board.gameMode === 'hidden' ? (
                                         <div className="grid grid-cols-2 gap-1.5">
                                             <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/40 px-2 py-1 sm:py-1.5">
@@ -1231,7 +1241,7 @@ const GuildWar = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                    ) : (
+                                    ) : board.gameMode === 'missile' ? (
                                         <div className="grid grid-cols-1 gap-1.5">
                                             <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/40 px-2 py-1 sm:py-1.5">
                                                 <img src={GUILD_WAR_MISSILE_ICON} alt="" className="h-7 w-7 shrink-0 object-contain" />
@@ -1241,7 +1251,15 @@ const GuildWar = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                    )}
+                                    ) : board.gameMode === 'speed' ? (
+                                        <p className="text-center text-[11px] leading-snug text-amber-50/95 sm:text-xs">
+                                            내 시계가 {SPEED_TIME_PRESSURE_SECONDS_PER_POINT}초마다 쌓일 때마다 상대 점수가 1점씩 오릅니다. (PVE 스피드)
+                                        </p>
+                                    ) : board.gameMode === 'base' ? (
+                                        <p className="text-center text-[11px] leading-snug text-amber-50/95 sm:text-xs">
+                                            베이스 돌 {getGuildWarBaseStoneCountByBoardId(board.id)}개를 비밀 배치한 뒤 덤 입찰로 본대국에 진입합니다.
+                                        </p>
+                                    ) : null}
                                 </div>
                                 )}
 

@@ -3,17 +3,33 @@
 import * as db from './db.js';
 import * as types from '../shared/types/index.js';
 import type { WeeklyCompetitor, InventoryItem } from '../shared/types/index.js';
-import { RANKING_TIERS, SEASONAL_TIER_REWARDS, BORDER_POOL, LEAGUE_DATA, LEAGUE_WEEKLY_REWARDS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, SEASONAL_TIER_BORDERS, DAILY_QUESTS, WEEKLY_QUESTS, MONTHLY_QUESTS, TOURNAMENT_DEFINITIONS, BOT_NAMES, AVATAR_POOL, CONSUMABLE_ITEMS } from '../shared/constants';
+import {
+    RANKING_TIERS,
+    SEASONAL_TIER_REWARDS,
+    BORDER_POOL,
+    LEAGUE_DATA,
+    LEAGUE_WEEKLY_REWARDS,
+    SPECIAL_GAME_MODES,
+    PLAYFUL_GAME_MODES,
+    SEASONAL_TIER_BORDERS,
+    DAILY_QUESTS,
+    WEEKLY_QUESTS,
+    MONTHLY_QUESTS,
+    TOURNAMENT_DEFINITIONS,
+    BOT_NAMES,
+    AVATAR_POOL,
+    CONSUMABLE_ITEMS,
+    getSeasonalRankingTierName,
+} from '../shared/constants';
+import { CHAMPIONSHIP_VERSUS_VENUE_KINDS } from '../shared/constants/championshipVersusVenue.js';
+import { RANKED_ELO_BASE_SCORE } from '../shared/constants/rules.js';
 import { randomUUID } from 'crypto';
 import { getKSTDate, getCurrentSeason, getPreviousSeason, SeasonInfo, isDifferentWeekKST, isSameDayKST, getStartOfDayKST, isDifferentDayKST, isDifferentMonthKST, getKSTDay, getKSTHours, getKSTMinutes, getKSTFullYear, getKSTMonth, getKSTDate_UTC, getNextGuildWarMatchDate, getTodayKSTDateString } from '../shared/utils/timeUtils.js';
 import { DEMO_GUILD_WAR, GUILD_WAR_BOT_GUILD_ID } from '../shared/constants/auth.js';
 import {
     GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT,
     GUILD_WAR_MIN_PARTICIPANTS,
-    GUILD_WAR_BOARD_ORDER,
-    getGuildWarBoardMode,
-    getGuildWarCaptureInitialStones,
-    getGuildWarBoardLineSize,
+    buildGuildWarBoardsRecordForNewWar,
 } from '../shared/constants/index.js';
 import { resetAndGenerateQuests } from './gameActions.js';
 import * as tournamentService from './tournamentService.js';
@@ -27,6 +43,7 @@ import { FUNCTION_VIP_DAILY_ACTION_POINT_POTION_NAME } from '../shared/constants
 import { DIAMOND_PACKAGE_DAILY_MAIL_DIAMONDS } from '../shared/constants/cashShopPackages.js';
 import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
 import { guildWarEffectiveEndMs, guildWarIsChronologicallyActive } from './guildWarActiveUtils.js';
+import { aggregateGuildWarBoardTotals } from '../shared/utils/guildWarBoardOwner.js';
 import { readStrategicRankedBlock, readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
 
 let lastSeasonProcessed: SeasonInfo | null = null;
@@ -211,7 +228,7 @@ export function getLastWeeklyLeagueUpdateTimestamp(): number | null {
 
 const processRewardsForSeason = async (season: SeasonInfo) => {
     console.log(`[Scheduler] Processing rewards for ${season.name}...`);
-    /** 시즌 티어·우편 보상 집계: 전략바둑(랭킹전) 모드만 — 놀이바둑 랭킹은 폐지됨 */
+    /** 시즌 티어·우편 보상 집계: 전략바둑(랭킹전) + 챔피언십 대전장(분기 시즌 ELO) — 놀이바둑 랭킹은 폐지됨 */
     const seasonTierRankingModes = SPECIAL_GAME_MODES.map((m) => m.mode);
     const allGameModesForStatReset = [...SPECIAL_GAME_MODES, ...PLAYFUL_GAME_MODES].map((m) => m.mode);
     const rewards = SEASONAL_TIER_REWARDS;
@@ -219,6 +236,7 @@ const processRewardsForSeason = async (season: SeasonInfo) => {
     const allUsers = await db.getAllUsers();
     const tierOrder = RANKING_TIERS.map(t => t.name);
     const now = Date.now();
+    const incomingSeason = getCurrentSeason(now);
 
     // Pre-calculate rankings for all modes to avoid repeated sorting
     const rankingsByMode: Record<string, { user: types.User, rank: number }[]> = {};
@@ -238,8 +256,24 @@ const processRewardsForSeason = async (season: SeasonInfo) => {
         rankingsByMode[mode] = eligibleUsers.map((user, index) => ({ user, rank: index + 1 }));
     }
 
+    const versusRankingsByVenue: Partial<Record<(typeof CHAMPIONSHIP_VERSUS_VENUE_KINDS)[number], { user: types.User; rank: number }[]>> = {};
+    for (const venue of CHAMPIONSHIP_VERSUS_VENUE_KINDS) {
+        const eligibleUsers = allUsers
+            .filter((u) => {
+                const e = u.championshipVersusVenueRatings?.[venue];
+                const played = (e?.seasonWins ?? 0) + (e?.seasonLosses ?? 0);
+                return !!e && played >= 20;
+            })
+            .sort((a, b) => {
+                const ar = a.championshipVersusVenueRatings?.[venue]?.rating ?? RANKED_ELO_BASE_SCORE;
+                const br = b.championshipVersusVenueRatings?.[venue]?.rating ?? RANKED_ELO_BASE_SCORE;
+                return br - ar;
+            });
+        versusRankingsByVenue[venue] = eligibleUsers.map((user, index) => ({ user, rank: index + 1 }));
+    }
+
     for (const user of allUsers) {
-        let bestTierInfo: { tierName: string, mode: types.GameMode } | null = null;
+        let bestTierInfo: { tierName: string; mode?: types.GameMode } | null = null;
         let bestTierRank = Infinity;
 
         // Find user's best tier across all modes (랭킹 집계: 모드당 랭킹전 20판 이상만 eligible)
@@ -273,6 +307,30 @@ const processRewardsForSeason = async (season: SeasonInfo) => {
             if (currentTierIndex >= 0 && currentTierIndex < bestTierRank) {
                 bestTierRank = currentTierIndex;
                 bestTierInfo = { tierName: currentTierName, mode };
+            }
+        }
+
+        if (!user.championshipVersusSeasonHistory) user.championshipVersusSeasonHistory = {};
+        for (const venue of CHAMPIONSHIP_VERSUS_VENUE_KINDS) {
+            const modeRanking = versusRankingsByVenue[venue] ?? [];
+            const userRankInfo = modeRanking.find((r) => r.user.id === user.id);
+            if (!user.championshipVersusSeasonHistory[season.name]) {
+                user.championshipVersusSeasonHistory[season.name] = {};
+            }
+            if (!userRankInfo) {
+                user.championshipVersusSeasonHistory[season.name]![venue] = '미참여';
+                continue;
+            }
+            const entry = userRankInfo.user.championshipVersusVenueRatings?.[venue];
+            const userScore = entry?.rating ?? RANKED_ELO_BASE_SCORE;
+            const userTotalGames = (entry?.seasonWins ?? 0) + (entry?.seasonLosses ?? 0);
+            const currentTierName = getSeasonalRankingTierName(userScore, userRankInfo.rank, userTotalGames);
+            user.championshipVersusSeasonHistory[season.name]![venue] = currentTierName;
+
+            const currentTierIndex = tierOrder.indexOf(currentTierName);
+            if (currentTierIndex >= 0 && currentTierIndex < bestTierRank) {
+                bestTierRank = currentTierIndex;
+                bestTierInfo = { tierName: currentTierName };
             }
         }
 
@@ -334,6 +392,17 @@ const processRewardsForSeason = async (season: SeasonInfo) => {
                         // 기타 모드: 1200점으로 초기화 (기본 동작)
                         user.stats[mode] = { wins: 0, losses: 0, rankingScore: 1200 };
                     }
+                }
+            }
+        }
+
+        if (user.championshipVersusVenueRatings) {
+            for (const venue of CHAMPIONSHIP_VERSUS_VENUE_KINDS) {
+                const e = user.championshipVersusVenueRatings[venue];
+                if (e) {
+                    e.seasonWins = 0;
+                    e.seasonLosses = 0;
+                    e.ratingSeasonKey = incomingSeason.name;
                 }
             }
         }
@@ -2362,6 +2431,9 @@ export async function processGuildWarMatching(
     options?: ProcessGuildWarMatchingOptions,
 ): Promise<void> {
     const now = Date.now();
+    // 큐 소진·신규 매칭 전에 기한이 지난 전쟁을 완료 처리(승패·rewardAvailableAt·히스토리)해야
+    // `activeGuildWars.filter(w => w.status === 'active')`에 좀비 전쟁이 남지 않음
+    await processGuildWarEnd();
     const kstDay = getKSTDay(now);
     const kstHours = getKSTHours(now);
     const kstMinutes = getKSTMinutes(now);
@@ -2514,7 +2586,6 @@ export async function processGuildWarMatching(
     if (DEMO_GUILD_WAR) {
         const { createGuildWar, getOrCreateBotGuildForWar } = await import('./prisma/guildRepository.js');
         const botGuildId = await getOrCreateBotGuildForWar();
-        const boardIds = [...GUILD_WAR_BOARD_ORDER];
         (guilds as Record<string, any>)[botGuildId] = (guilds as Record<string, any>)[botGuildId] || {
             id: botGuildId,
             name: '[시스템]길드전AI',
@@ -2529,21 +2600,7 @@ export async function processGuildWarMatching(
             const guild1ParticipantIds = takePendingParticipantsOrDefault(g);
             delete (g as any).guildWarPendingParticipantIds;
             const dbWar = await createGuildWar(guildId, botGuildId);
-            const boards: Record<string, any> = {};
-            for (const boardId of boardIds) {
-                const gameMode = getGuildWarBoardMode(boardId);
-                boards[boardId] = {
-                    boardSize: getGuildWarBoardLineSize(boardId),
-                    gameMode,
-                    initialStones: [getGuildWarCaptureInitialStones(boardId)],
-                    guild1Stars: 0,
-                    guild2Stars: 0,
-                    guild1BestResult: null,
-                    guild2BestResult: null,
-                    guild1Attempts: 0,
-                    guild2Attempts: 0,
-                };
-            }
+            const boards = buildGuildWarBoardsRecordForNewWar();
             const botDay1Used = 15 + Math.floor(Math.random() * 6);
             const botDay2Used = 5 + Math.floor(Math.random() * 11);
             const war: any = {
@@ -2617,23 +2674,7 @@ export async function processGuildWarMatching(
         const dbWar = await createGuildWar(guild1Id, guild2Id);
         
         // 9개 바둑판 초기화
-        const boards: Record<string, any> = {};
-        const boardIds = [...GUILD_WAR_BOARD_ORDER];
-        
-        for (const boardId of boardIds) {
-            const gameMode = getGuildWarBoardMode(boardId);
-            boards[boardId] = {
-                boardSize: getGuildWarBoardLineSize(boardId),
-                gameMode: gameMode,
-                initialStones: [getGuildWarCaptureInitialStones(boardId)],
-                guild1Stars: 0,
-                guild2Stars: 0,
-                guild1BestResult: null,
-                guild2BestResult: null,
-                guild1Attempts: 0,
-                guild2Attempts: 0,
-            };
-        }
+        const boards = buildGuildWarBoardsRecordForNewWar();
         
         const war: any = {
             id: dbWar.id,
@@ -2681,23 +2722,7 @@ export async function processGuildWarMatching(
             const dbWar = await createGuildWar(remainingGuildId, botGuildId);
             
             // 9개 바둑판 초기화 및 봇 길드 초기 상태 설정
-            const boards: Record<string, any> = {};
-            const boardIds = [...GUILD_WAR_BOARD_ORDER];
-            
-            for (const boardId of boardIds) {
-                const gameMode = getGuildWarBoardMode(boardId);
-                boards[boardId] = {
-                    boardSize: getGuildWarBoardLineSize(boardId),
-                    gameMode: gameMode,
-                    initialStones: [getGuildWarCaptureInitialStones(boardId)],
-                    guild1Stars: 0,
-                    guild2Stars: 0,
-                    guild1BestResult: null,
-                    guild2BestResult: null,
-                    guild1Attempts: 0,
-                    guild2Attempts: 0,
-                };
-            }
+            const boards = buildGuildWarBoardsRecordForNewWar();
             const botDay1Used = 15 + Math.floor(Math.random() * 6);
             const botDay2Used = 5 + Math.floor(Math.random() * 11);
 
@@ -2834,22 +2859,7 @@ export async function createAndStartDemoGuildWar(guildId: string): Promise<{ act
     const maxAttemptsPerGuild = 2;
 
     const dbWar = await createGuildWar(guildId, botGuildId);
-    const boardIds = [...GUILD_WAR_BOARD_ORDER];
-    const boards: Record<string, any> = {};
-    for (const boardId of boardIds) {
-        const gameMode = getGuildWarBoardMode(boardId);
-        boards[boardId] = {
-            boardSize: getGuildWarBoardLineSize(boardId),
-            gameMode: gameMode,
-            initialStones: [getGuildWarCaptureInitialStones(boardId)],
-            guild1Stars: 0,
-            guild2Stars: 0,
-            guild1BestResult: null,
-            guild2BestResult: null,
-            guild1Attempts: 0,
-            guild2Attempts: 0,
-        };
-    }
+    const boards = buildGuildWarBoardsRecordForNewWar();
     const botDay1Used = 15 + Math.floor(Math.random() * 6);
     const botDay2Used = 5 + Math.floor(Math.random() * 11);
 
@@ -2923,27 +2933,8 @@ export async function processGuildWarEnd(): Promise<void> {
         // 종료 시각 경과 여부(ISO 문자열 endTime 대응)
         if (now < guildWarEffectiveEndMs(war)) continue;
         
-        // 결과 계산
-        let guild1Stars = 0;
-        let guild2Stars = 0;
-        let guild1Score = 0;
-        let guild2Score = 0;
-        
-        const boards = war.boards || {};
-        for (const boardId in boards) {
-            const board = boards[boardId];
-            const boardGuild1Stars = board.guild1Stars || 0;
-            const boardGuild2Stars = board.guild2Stars || 0;
-            guild1Stars += boardGuild1Stars;
-            guild2Stars += boardGuild2Stars;
-            
-            if (board.guild1BestResult) {
-                guild1Score += Number(board.guild1BestResult.score ?? 0) || 0;
-            }
-            if (board.guild2BestResult) {
-                guild2Score += Number(board.guild2BestResult.score ?? 0) || 0;
-            }
-        }
+        // 결과 계산 (봇 길드전은 대시보드와 동일 규칙으로 합산 — 기록 없이 도전권만 있을 때도 별·집 반영)
+        const { guild1Stars, guild2Stars, guild1Score, guild2Score } = aggregateGuildWarBoardTotals(war);
         
         // 승패 결정: 별 개수 우선, 같으면 점수
         let winnerId: string;
@@ -3077,22 +3068,7 @@ export async function ensureNamedGuildVsBotGuildWar(guildDisplayName: string): P
     const botGuildId = await getOrCreateBotGuildForWar();
     const dbWar = await createGuildWar(targetGuildId, botGuildId);
 
-    const boards: Record<string, any> = {};
-    const boardIds = [...GUILD_WAR_BOARD_ORDER];
-    for (const boardId of boardIds) {
-        const gameMode = getGuildWarBoardMode(boardId);
-        boards[boardId] = {
-            boardSize: getGuildWarBoardLineSize(boardId),
-            gameMode,
-            initialStones: [getGuildWarCaptureInitialStones(boardId)],
-            guild1Stars: 0,
-            guild2Stars: 0,
-            guild1BestResult: null,
-            guild2BestResult: null,
-            guild1Attempts: 0,
-            guild2Attempts: 0,
-        };
-    }
+    const boards = buildGuildWarBoardsRecordForNewWar();
     const botDay1Used = 15 + Math.floor(Math.random() * 6);
     const botDay2Used = 5 + Math.floor(Math.random() * 11);
 

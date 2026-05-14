@@ -160,7 +160,7 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
     finalAnalysis.scoreDetails.white.hiddenStoneBonus = 0;
     
     // Time bonus (speed unified):
-    // - PVP/AI/싱글 공통: "내가 사용한 시간 10초당 상대 +1점"
+    // - PVP/AI/싱글 공통: 스피드 시간 압박 — 내가 사용한 시간이 `shared/constants/speedTimePressure`의 공통 간격(초)마다 상대 +1점
     // - 피셔 등으로 시간이 회복되어도 누적 사용시간은 감소하지 않는다.
     const isSpeedMode =
         session.mode === types.GameMode.Speed ||

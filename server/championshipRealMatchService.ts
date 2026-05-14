@@ -1,4 +1,14 @@
-import type { BoardState, ChampionshipRealGameEvent, ChampionshipRealGameState, Match, Move, PlayerForTournament, Point, User } from '../shared/types/index.js';
+import type {
+    AnalysisResult,
+    BoardState,
+    ChampionshipRealGameEvent,
+    ChampionshipRealGameState,
+    Match,
+    Move,
+    PlayerForTournament,
+    Point,
+    User,
+} from '../shared/types/index.js';
 import { CoreStat, Player } from '../shared/types/index.js';
 import {
     DEFAULT_CHAMPIONSHIP_REAL_MATCH_RULES,
@@ -26,6 +36,8 @@ export type ChampionshipRealMatchGenerationResult = {
     game: ChampionshipRealGameState;
     winner: PlayerForTournament;
     scorePercent: { player1: number; player2: number };
+    /** 전략바둑 결과창과 동일한 수동 계가 상세 */
+    analysis: AnalysisResult;
 };
 
 function createEmptyBoard(boardSize: number): BoardState {
@@ -386,5 +398,6 @@ export async function generateChampionshipRealMatch(
             player1: (player1Score / totalScore) * 100,
             player2: (player2Score / totalScore) * 100,
         },
+        analysis: scoring,
     };
 }

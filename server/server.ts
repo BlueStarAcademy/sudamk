@@ -1926,20 +1926,21 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         console.error('[MainLoop] Error in tryRunDailyDatabaseBackup:', error?.message);
                     }
                     
+                    // 길드전 종료 처리를 매칭보다 먼저: 기한이 지난 전쟁을 completed·히스토리 반영한 뒤
+                    // activeGuildWars에서 status 필터 시 좀비(active+종료시각 경과)와 신규 전쟁이 동시에 쌓이는 것을 방지
+                    try {
+                        const { processGuildWarEnd } = await import('./scheduledTasks.js');
+                        await processGuildWarEnd();
+                    } catch (error: any) {
+                        console.error('[MainLoop] Error in processGuildWarEnd:', error?.message);
+                    }
+
                     // 길드전 자동 매칭: 정규 창(월·목 23시, 화·금 캐치업) + 큐 잔여 시 즉시 봇 매칭(processGuildWarMatching 내부)
                     try {
                         const { processGuildWarMatching } = await import('./scheduledTasks.js');
                         await processGuildWarMatching();
                     } catch (error: any) {
                         console.error('[MainLoop] Error in processGuildWarMatching:', error?.message);
-                    }
-                    
-                    // Handle guild war end check
-                    try {
-                        const { processGuildWarEnd } = await import('./scheduledTasks.js');
-                        await processGuildWarEnd();
-                    } catch (error: any) {
-                        console.error('[MainLoop] Error in processGuildWarEnd:', error?.message);
                     }
 
                     // 데모 모드: 0시(KST)에 길드전 공격 횟수 회복 (테스트용)

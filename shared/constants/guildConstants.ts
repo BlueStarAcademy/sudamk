@@ -1,7 +1,7 @@
 
 // constants/guildConstants.ts
 import type { GuildMission, GuildResearchProject, GuildBossInfo, GuildBossSkill } from '../types/index.js';
-import { CoreStat, ItemGrade, GuildMemberRole, GuildResearchId, GuildResearchCategory } from '../types/index.js';
+import { CoreStat, ItemGrade, GuildMemberRole, GuildResearchId, GuildResearchCategory, GameMode } from '../types/index.js';
 import type { InventoryItem } from '../types/index.js';
 import { GUILD_BOSS_1_IMG, GUILD_BOSS_2_IMG, GUILD_BOSS_3_IMG, GUILD_BOSS_4_IMG, GUILD_BOSS_5_IMG, BOSS_SKILL_ICON_MAP } from '../../assets.js';
 
@@ -104,13 +104,15 @@ export const GUILD_WAR_CAPTURE_INITIAL_STONES_BY_BOARD_ID: Record<
     'top-right': { ...GUILD_WAR_ARENA_INITIAL_RIGHT },
 };
 
-/** 길드전 따내기(상단) 흑(유저) 턴 제한 — 좌상귀·상변 공통 (우상귀는 {@link getGuildWarCaptureTurnLimitByBoardId}) */
+/** 길드전 따내기 흑(유저) 턴 제한 — 9줄 판 공통 */
 export const GUILD_WAR_CAPTURE_BLACK_TURN_LIMIT = 25;
 
-/** 상단 따내기 칸 턴 제한 표시·START_GUILD_WAR_GAME */
+/** 길드전 따내기 흑(유저) 턴 제한 — 13줄 판 */
+export const GUILD_WAR_CAPTURE_BLACK_TURN_LIMIT_13 = 40;
+
+/** 따내기 칸 턴 제한 표시·START_GUILD_WAR_GAME (9줄 25턴, 13줄 40턴) */
 export function getGuildWarCaptureTurnLimitByBoardId(boardId: string): number {
-    if (boardId === 'top-right') return 30;
-    return GUILD_WAR_CAPTURE_BLACK_TURN_LIMIT;
+    return getGuildWarBoardLineSize(boardId) >= 13 ? GUILD_WAR_CAPTURE_BLACK_TURN_LIMIT_13 : GUILD_WAR_CAPTURE_BLACK_TURN_LIMIT;
 }
 
 /** 길드전 따내기 백(AI) 승리 목표 포획 수 — 상단 3칸 공통 */
@@ -155,17 +157,11 @@ export function getGuildWarScanCountByBoardId(boardId: string): number {
     return GUILD_WAR_SCAN_COUNT;
 }
 
-/** 길드전 미사일·히든: 계가까지 유효 수 기본값 — 칸별은 {@link getGuildWarAutoScoringTurnsByBoardId} */
+/** 길드전: 계가까지 유효 수(수순) — 9줄 60, 13줄 80 (히든·미사일·스피드·베이스 공통) */
 export const GUILD_WAR_DEFAULT_AUTO_SCORING_TURNS = 60;
 
-/**
- * 미사일·히든 경기장: 자동 계가까지 유효 수(수순).
- * 중앙·하변 70, 우변·우하귀 80, 그 외 {@link GUILD_WAR_DEFAULT_AUTO_SCORING_TURNS}.
- */
 export function getGuildWarAutoScoringTurnsByBoardId(boardId: string): number {
-    if (boardId === 'center' || boardId === 'bottom-mid') return 70;
-    if (boardId === 'mid-right' || boardId === 'bottom-right') return 80;
-    return GUILD_WAR_DEFAULT_AUTO_SCORING_TURNS;
+    return getGuildWarBoardLineSize(boardId) >= 13 ? 80 : GUILD_WAR_DEFAULT_AUTO_SCORING_TURNS;
 }
 
 /** 길드 전쟁 경기장 공통: 메인 시계(분) + 피셔 증가(초/수) */
@@ -207,16 +203,110 @@ export function getGuildWarAiBotDisplayName(boardId: string): string {
     return `${getGuildWarBoardDisplayName(boardId)} 봇`;
 }
 
+/** 길드전 한 칸의 룰 종류(전쟁 생성 시 랜덤 배정, `boards[칸].gameMode`에 저장) */
+export type GuildWarBoardRuleMode = 'capture' | 'hidden' | 'missile' | 'speed' | 'base';
+
+const GUILD_WAR_RULE_MODE_POOL: GuildWarBoardRuleMode[] = ['capture', 'hidden', 'missile', 'speed', 'base'];
+
+export function isGuildWarBoardRuleMode(value: unknown): value is GuildWarBoardRuleMode {
+    return (
+        value === 'capture' ||
+        value === 'hidden' ||
+        value === 'missile' ||
+        value === 'speed' ||
+        value === 'base'
+    );
+}
+
 /**
- * 칸별 고정 대국 모드 (서버 매칭·클라 UI·과거 KV 데이터 보정에 동일 적용)
- * - 상단 3칸: 따내기
- * - 중단 3칸: 미사일
- * - 하단 3칸: 히든
+ * 레거시 칸별 기본 모드(구 데이터에 `gameMode` 없을 때 {@link normalizeGuildWarBoardModes} 보정용).
+ * 신규 전쟁은 {@link rollGuildWarBoardRuleModesForNewWar}로 칸마다 무작위 배정한다.
  */
-export function getGuildWarBoardMode(boardId: string): 'capture' | 'hidden' | 'missile' {
+export function getGuildWarBoardMode(boardId: string): GuildWarBoardRuleMode {
     if (boardId === 'top-left' || boardId === 'top-mid' || boardId === 'top-right') return 'capture';
     if (boardId === 'mid-left' || boardId === 'center' || boardId === 'mid-right') return 'missile';
     return 'hidden';
+}
+
+/** 신규 길드전: 9칸에 룰 무작위 배치(스피드·베이스는 최소 1칸씩 포함), 전쟁 종료까지 고정 */
+export function rollGuildWarBoardRuleModesForNewWar(): Record<(typeof GUILD_WAR_BOARD_ORDER)[number], GuildWarBoardRuleMode> {
+    const picks: GuildWarBoardRuleMode[] = ['speed', 'base'];
+    while (picks.length < GUILD_WAR_BOARD_ORDER.length) {
+        picks.push(GUILD_WAR_RULE_MODE_POOL[Math.floor(Math.random() * GUILD_WAR_RULE_MODE_POOL.length)]!);
+    }
+    for (let i = picks.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = picks[i]!;
+        picks[i] = picks[j]!;
+        picks[j] = t;
+    }
+    const out = {} as Record<(typeof GUILD_WAR_BOARD_ORDER)[number], GuildWarBoardRuleMode>;
+    GUILD_WAR_BOARD_ORDER.forEach((id, idx) => {
+        out[id] = picks[idx]!;
+    });
+    return out;
+}
+
+/** 매칭 직후 KV용 9칸 `boards` 객체 생성 */
+export function buildGuildWarBoardsRecordForNewWar(): Record<string, {
+    boardSize: number;
+    gameMode: GuildWarBoardRuleMode;
+    initialStones: ReturnType<typeof getGuildWarCaptureInitialStones>[];
+    guild1Stars: number;
+    guild2Stars: number;
+    guild1BestResult: null;
+    guild2BestResult: null;
+    guild1Attempts: number;
+    guild2Attempts: number;
+}> {
+    const modes = rollGuildWarBoardRuleModesForNewWar();
+    const boards: Record<string, any> = {};
+    for (const boardId of GUILD_WAR_BOARD_ORDER) {
+        boards[boardId] = {
+            boardSize: getGuildWarBoardLineSize(boardId),
+            gameMode: modes[boardId],
+            initialStones: [getGuildWarCaptureInitialStones(boardId)],
+            guild1Stars: 0,
+            guild2Stars: 0,
+            guild1BestResult: null,
+            guild2BestResult: null,
+            guild1Attempts: 0,
+            guild2Attempts: 0,
+        };
+    }
+    return boards;
+}
+
+export function getGuildWarBoardRuleDisplayLabel(mode: GuildWarBoardRuleMode | string | undefined): string {
+    switch (mode) {
+        case 'capture':
+            return '따내기 바둑';
+        case 'hidden':
+            return '히든 바둑';
+        case 'missile':
+            return '미사일 바둑';
+        case 'speed':
+            return '스피드 바둑';
+        case 'base':
+            return '베이스 바둑';
+        default:
+            return '바둑';
+    }
+}
+
+/** 인게임 `GameMode` → 길드전 보드 룰 표기용 */
+export function getGuildWarBoardRuleModeFromGameMode(mode: GameMode | string | undefined): GuildWarBoardRuleMode | undefined {
+    if (mode === GameMode.Capture) return 'capture';
+    if (mode === GameMode.Hidden) return 'hidden';
+    if (mode === GameMode.Missile) return 'missile';
+    if (mode === GameMode.Speed) return 'speed';
+    if (mode === GameMode.Base) return 'base';
+    return undefined;
+}
+
+/** 길드전 베이스 바둑: 판 줄 수별 베이스 돌 개수(9줄 3, 13줄 5) */
+export function getGuildWarBaseStoneCountByBoardId(boardId: string): number {
+    return getGuildWarBoardLineSize(boardId) >= 13 ? 5 : 3;
 }
 
 /** 길드전 KataServer `kataServerLevel` — 좌열 -15 / 중앙열 -10 / 우열 -5 */
@@ -228,7 +318,8 @@ export function getGuildWarKataServerLevelByBoardId(boardId: string): number {
 }
 
 /**
- * activeGuildWars 등: `gameMode`·`boardSize`·`initialStones[0]`를 칸별 규칙과 일치시킴.
+ * activeGuildWars 등: `gameMode`가 비어 있거나 잘못된 경우에만 레거시 칸 규칙으로 보정.
+ * 유효한 `gameMode`는 전쟁 중 유지(랜덤 배정 결과를 덮어쓰지 않음). `boardSize`·`initialStones`는 항상 칸 규칙과 일치.
  * @returns 변경이 있었으면 true (KV 재저장 권장)
  */
 export function normalizeGuildWarBoardModes(war: { boards?: Record<string, any> } | null | undefined): boolean {
@@ -237,10 +328,12 @@ export function normalizeGuildWarBoardModes(war: { boards?: Record<string, any> 
     for (const boardId of GUILD_WAR_BOARD_ORDER) {
         const b = war.boards[boardId];
         if (!b || typeof b !== 'object') continue;
-        const correctMode = getGuildWarBoardMode(boardId);
-        if (b.gameMode !== correctMode) {
-            b.gameMode = correctMode;
-            changed = true;
+        const legacyDefault = getGuildWarBoardMode(boardId);
+        if (!isGuildWarBoardRuleMode(b.gameMode)) {
+            if (b.gameMode !== legacyDefault) {
+                b.gameMode = legacyDefault;
+                changed = true;
+            }
         }
         const correctSize = getGuildWarBoardLineSize(boardId);
         if (Number(b.boardSize) !== correctSize) {
@@ -276,27 +369,13 @@ export const GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT = 5;
 export const GUILD_WAR_STAR_CAPTURE_TIER2_MIN = 3;
 export const GUILD_WAR_STAR_CAPTURE_TIER3_MIN = 5;
 
-/** 승리 시 별: 계가(히든·미사일) 집차이 — 칸 미지정(좌변·좌하귀 등) 시 기본값 */
-export const GUILD_WAR_STAR_SCORE_TIER2_MIN_DIFF = 5;
-export const GUILD_WAR_STAR_SCORE_TIER3_MIN_DIFF = 15;
-
-/** 중앙·하변: ★2/★3 집차이 최소 */
-const GUILD_WAR_STAR_SCORE_DIFF_MID_COL = { tier2: 10, tier3: 20 } as const;
-/** 우변·우하귀 */
-const GUILD_WAR_STAR_SCORE_DIFF_RIGHT_COL = { tier2: 15, tier3: 25 } as const;
-
+/** 승리 시 별: 계가(히든·미사일·스피드·베이스) 집차이 — 9줄 / 13줄 기준 */
 export function getGuildWarStarScoreTier2MinDiff(boardId: string | undefined | null): number {
-    const id = boardId ?? '';
-    if (id === 'center' || id === 'bottom-mid') return GUILD_WAR_STAR_SCORE_DIFF_MID_COL.tier2;
-    if (id === 'mid-right' || id === 'bottom-right') return GUILD_WAR_STAR_SCORE_DIFF_RIGHT_COL.tier2;
-    return GUILD_WAR_STAR_SCORE_TIER2_MIN_DIFF;
+    return getGuildWarBoardLineSize(boardId ?? '') >= 13 ? 15 : 5;
 }
 
 export function getGuildWarStarScoreTier3MinDiff(boardId: string | undefined | null): number {
-    const id = boardId ?? '';
-    if (id === 'center' || id === 'bottom-mid') return GUILD_WAR_STAR_SCORE_DIFF_MID_COL.tier3;
-    if (id === 'mid-right' || id === 'bottom-right') return GUILD_WAR_STAR_SCORE_DIFF_RIGHT_COL.tier3;
-    return GUILD_WAR_STAR_SCORE_TIER3_MIN_DIFF;
+    return getGuildWarBoardLineSize(boardId ?? '') >= 13 ? 25 : 10;
 }
 
 /**
@@ -333,7 +412,7 @@ export function isGuildWarLiveSession(game: {
 
 /** 길드전 상세 패널용 간단 별 규칙 (`shared/utils/guildWarAttemptMetrics`·서버 보드 갱신과 동일 의미) */
 export function getGuildWarStarConditionLines(
-    gameMode: 'capture' | 'hidden' | 'missile' | undefined,
+    gameMode: GuildWarBoardRuleMode | undefined,
     boardId?: string | null
 ): string[] {
     const mode = gameMode ?? 'capture';
@@ -346,13 +425,6 @@ export function getGuildWarStarConditionLines(
             '승리 시',
             `한 번에 ${c2}점 획득하기`,
             `한 번에 ${c3}점 획득하기`,
-        ];
-    }
-    if (mode === 'hidden') {
-        return [
-            '★ 승리시',
-            `★ 집차이 ${t2}집이상`,
-            `★ 집차이 ${t3}집이상`,
         ];
     }
     return [
@@ -466,11 +538,11 @@ export type GuildShopItem = {
 
 export const GUILD_SHOP_ITEMS: GuildShopItem[] = [
     // Equipment Boxes
-    { itemId: 'guild_equip_box_1', name: '길드 장비 상자(고급)', description: '고급 등급 장비 1개 획득', cost: 100, image: '/images/Box/EquipmentBox2.webp', type: 'equipment_box', limit: 5, limitType: 'weekly', grade: ItemGrade.Uncommon },
-    { itemId: 'guild_equip_box_2', name: '길드 장비 상자(희귀)', description: '희귀 등급 장비 1개 획득', cost: 300, image: '/images/Box/EquipmentBox3.webp', type: 'equipment_box', limit: 3, limitType: 'weekly', grade: ItemGrade.Rare },
-    { itemId: 'guild_equip_box_3', name: '길드 장비 상자(에픽)', description: '에픽 등급 장비 1개 획득', cost: 1000, image: '/images/Box/EquipmentBox4.webp', type: 'equipment_box', limit: 1, limitType: 'weekly', grade: ItemGrade.Epic },
-    { itemId: 'guild_equip_box_4', name: '길드 장비 상자(전설)', description: '전설 등급 장비 1개 획득', cost: 3000, image: '/images/Box/EquipmentBox5.webp', type: 'equipment_box', limit: 1, limitType: 'monthly', grade: ItemGrade.Legendary },
-    { itemId: 'guild_equip_box_mythic', name: '신화 장비 상자', description: '신화 등급 장비 1개 획득', cost: 10000, image: '/images/Box/EquipmentBox6.webp', type: 'equipment_box', limit: 1, limitType: 'weekly', grade: ItemGrade.Mythic },
+    { itemId: 'guild_equip_box_1', name: '길드 장비 상자(고급)', description: '고급 등급 장비 1개 획득. 상자를 열면 길드 관련 특수 옵션이 반드시 포함됩니다.', cost: 100, image: '/images/Box/EquipmentBox2.webp', type: 'equipment_box', limit: 5, limitType: 'weekly', grade: ItemGrade.Uncommon },
+    { itemId: 'guild_equip_box_2', name: '길드 장비 상자(희귀)', description: '희귀 등급 장비 1개 획득. 상자를 열면 길드 관련 특수 옵션이 반드시 포함됩니다.', cost: 300, image: '/images/Box/EquipmentBox3.webp', type: 'equipment_box', limit: 3, limitType: 'weekly', grade: ItemGrade.Rare },
+    { itemId: 'guild_equip_box_3', name: '길드 장비 상자(에픽)', description: '에픽 등급 장비 1개 획득. 상자를 열면 길드 관련 특수 옵션이 반드시 포함됩니다.', cost: 1000, image: '/images/Box/EquipmentBox4.webp', type: 'equipment_box', limit: 1, limitType: 'weekly', grade: ItemGrade.Epic },
+    { itemId: 'guild_equip_box_4', name: '길드 장비 상자(전설)', description: '전설 등급 장비 1개 획득. 상자를 열면 길드 관련 특수 옵션이 반드시 포함됩니다.', cost: 3000, image: '/images/Box/EquipmentBox5.webp', type: 'equipment_box', limit: 1, limitType: 'monthly', grade: ItemGrade.Legendary },
+    { itemId: 'guild_equip_box_mythic', name: '신화 장비 상자', description: '신화 등급 장비 1개 획득. 상자를 열면 길드 관련 특수 옵션이 반드시 포함됩니다.', cost: 10000, image: '/images/Box/EquipmentBox6.webp', type: 'equipment_box', limit: 1, limitType: 'weekly', grade: ItemGrade.Mythic },
 
     // Materials
     { itemId: '하급 강화석', name: '하급 강화석', description: '장비 강화에 사용되는 기본 재료.', cost: 10, image: '/images/materials/materials1.webp', type: 'material', limit: 100, limitType: 'weekly', grade: ItemGrade.Normal },
@@ -480,10 +552,10 @@ export const GUILD_SHOP_ITEMS: GuildShopItem[] = [
     { itemId: '신비의 강화석', name: '신비의 강화석', description: '장비 강화에 사용되는 고대 재료', cost: 500, image: '/images/materials/materials5.webp', type: 'material', limit: 2, limitType: 'weekly', grade: ItemGrade.Legendary },
 
     // Consumables
-    { itemId: '골드 꾸러미 I', name: '골드 꾸러미 I', description: '10 ~ 500 골드 획득', cost: 20, image: '/images/Box/GoldBox1.webp', type: 'consumable', limit: 10, limitType: 'weekly', grade: ItemGrade.Normal },
-    { itemId: '골드 꾸러미 II', name: '골드 꾸러미 II', description: '100 ~ 1,000 골드 획득', cost: 40, image: '/images/Box/GoldBox2.webp', type: 'consumable', limit: 5, limitType: 'weekly', grade: ItemGrade.Uncommon },
-    { itemId: '골드 꾸러미 III', name: '골드 꾸러미 III', description: '500 ~ 3,000 골드 획득', cost: 60, image: '/images/Box/GoldBox3.webp', type: 'consumable', limit: 3, limitType: 'weekly', grade: ItemGrade.Rare },
-    { itemId: '골드 꾸러미 IV', name: '골드 꾸러미 IV', description: '1,000 ~ 10,000 골드 획득', cost: 80, image: '/images/Box/GoldBox4.webp', type: 'consumable', limit: 1, limitType: 'weekly', grade: ItemGrade.Epic },
+    { itemId: '골드 꾸러미 I', name: '골드 꾸러미 I', description: '10 ~ 500 골드 획득', cost: 50, image: '/images/Box/GoldBox1.webp', type: 'consumable', limit: 10, limitType: 'weekly', grade: ItemGrade.Normal },
+    { itemId: '골드 꾸러미 II', name: '골드 꾸러미 II', description: '100 ~ 1,000 골드 획득', cost: 100, image: '/images/Box/GoldBox2.webp', type: 'consumable', limit: 5, limitType: 'weekly', grade: ItemGrade.Uncommon },
+    { itemId: '골드 꾸러미 III', name: '골드 꾸러미 III', description: '500 ~ 3,000 골드 획득', cost: 250, image: '/images/Box/GoldBox3.webp', type: 'consumable', limit: 3, limitType: 'weekly', grade: ItemGrade.Rare },
+    { itemId: '골드 꾸러미 IV', name: '골드 꾸러미 IV', description: '1,000 ~ 10,000 골드 획득', cost: 500, image: '/images/Box/GoldBox4.webp', type: 'consumable', limit: 1, limitType: 'weekly', grade: ItemGrade.Epic },
     { itemId: '보너스 스탯 +5', name: '보너스 스탯 +5', description: '모든 능력치에 자유롭게 분배할 수 있는 보너스 스탯 포인트를 5개 획득합니다.', cost: 10000, image: '/images/button/statpoint.webp', type: 'consumable', limit: 10, limitType: 'account', grade: ItemGrade.Legendary },
 ];
 

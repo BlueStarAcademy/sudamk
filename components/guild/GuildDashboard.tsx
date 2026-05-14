@@ -17,7 +17,10 @@ import GuildShopModal from './GuildShopModal.js';
 import { BOSS_SKILL_ICON_MAP } from '../../assets.js';
 import HelpModal from '../HelpModal.js';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from '../QuickAccessSidebar.js';
-import GuildWarRewardModal from './GuildWarRewardModal.js';
+import GuildWarRewardModal, {
+    type GuildWarRewardModalRewards,
+    type GuildWarRewardModalWarResult,
+} from './GuildWarRewardModal.js';
 import GuildWarMatchingModal, { type GuildWarMatchPresentationClient } from './GuildWarMatchingModal.js';
 import { GuildWarUnifiedScoreboard } from './GuildWarUnifiedScoreboard.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
@@ -1074,13 +1077,6 @@ type GuildWarDashboardWarStats = {
         enemyScore: number;
         guildXp?: number;
         researchPoints?: number;
-        rewardPreview?: {
-            guildCoins: { min: number; max: number };
-            guildXp: number;
-            researchPoints: { min: number; max: number };
-            gold: { min: number; max: number };
-            diamonds: { min: number; max: number };
-        };
         rewardClaimed?: boolean;
         rewardClaimable?: boolean;
         rewardAvailableAt?: number;
@@ -1128,7 +1124,11 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
     forceDesktopPanelLayout,
 }) => {
     const { currentUserWithStatus, handlers, guilds, isNativeMobile } = useAppContext();
-    const [showRewardModal, setShowRewardModal] = React.useState(false);
+    const [rewardModalPayload, setRewardModalPayload] = React.useState<{
+        warResult: GuildWarRewardModalWarResult;
+        rewards: GuildWarRewardModalRewards;
+    } | null>(null);
+    const [isClaimingReward, setIsClaimingReward] = React.useState(false);
     const [activeWar, setActiveWar] = React.useState<any>(null);
     const [opponentGuild, setOpponentGuild] = React.useState<any>(null);
     const [canClaimReward, setCanClaimReward] = React.useState(false);
@@ -1437,6 +1437,10 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
     const handleClaimReward = async () => {
         try {
             const result = await handlers.handleAction({ type: 'CLAIM_GUILD_WAR_REWARD' }) as any;
+            if (result == null) {
+                console.warn('[WarPanel] CLAIM_GUILD_WAR_REWARD: empty response (debounce or network)');
+                return undefined;
+            }
             if (result?.error) {
                 alert(result.error);
                 return undefined;
@@ -1453,7 +1457,23 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
             return undefined;
         }
     };
-    
+
+    const requestGuildWarRewardAndShowModal = async () => {
+        if (isClaimed || !canClaimReward || isClaimingReward) return;
+        setIsClaimingReward(true);
+        try {
+            const data = await handleClaimReward();
+            if (data?.warResult && data?.rewards) {
+                setRewardModalPayload({
+                    warResult: data.warResult as GuildWarRewardModalWarResult,
+                    rewards: data.rewards as GuildWarRewardModalRewards,
+                });
+            }
+        } finally {
+            setIsClaimingReward(false);
+        }
+    };
+
     const handleToggleMyWarParticipation = async () => {
         if (!guild?.id || isUpdatingWarParticipation) return;
         setIsUpdatingWarParticipation(true);
@@ -1575,12 +1595,6 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
             </div>
         );
     };
-    const formatRewardRange = (value?: { min: number; max: number } | number) => {
-        if (typeof value === 'number') return value.toLocaleString();
-        if (!value) return '-';
-        return value.min === value.max ? value.min.toLocaleString() : `${value.min.toLocaleString()}~${value.max.toLocaleString()}`;
-    };
-    const lastWarRewardPreview = warStats?.lastOpponent?.rewardPreview;
 
     return (
         <>
@@ -1698,104 +1712,93 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                 직전 길드전
                             </div>
                             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                                <div className={`min-h-0 flex-1 overflow-y-auto ${isMobile ? 'p-2' : 'p-2.5'}`}>
+                                <div
+                                    className={`flex min-h-0 flex-1 flex-col overflow-y-auto ${isMobile ? 'p-2' : 'p-2.5'}`}
+                                >
                                     {warStats?.lastOpponent ? (
-                                        <div className="flex flex-col gap-2">
-                                            <p
-                                                className={`truncate text-center font-semibold text-stone-100 ${isMobile ? 'text-xs' : 'text-sm'}`}
-                                                title={warStats.lastOpponent.name}
-                                            >
-                                                {warStats.lastOpponent.name}
-                                            </p>
-                                            {warStats.lastOpponent.isBotGuild ? (
-                                                <p className="text-center text-[10px] font-semibold text-cyan-200/90 sm:text-xs">
-                                                    AI봇 길드전 결과
-                                                </p>
-                                            ) : null}
-                                            <GuildWarUnifiedScoreboard
-                                                variant="embedded"
-                                                compact
-                                                blueStars={warStats.lastOpponent.ourStars}
-                                                redStars={warStats.lastOpponent.enemyStars}
-                                                blueHouse={warStats.lastOpponent.ourScore}
-                                                redHouse={warStats.lastOpponent.enemyScore}
-                                                hideHouseWhenZero
-                                            />
-                                            <div className="flex flex-wrap items-center justify-center gap-2">
-                                                <span
-                                                    className={`rounded-full border px-2.5 py-0.5 text-xs font-black ${
-                                                        warStats.lastOpponent.isWin
-                                                            ? 'border-emerald-500/40 bg-emerald-950/50 text-emerald-300'
-                                                            : 'border-rose-500/40 bg-rose-950/50 text-rose-300'
-                                                    }`}
+                                        <>
+                                            <div className="flex min-h-0 flex-1 flex-col gap-2">
+                                                <p
+                                                    className={`truncate text-center font-semibold text-stone-100 ${isMobile ? 'text-xs' : 'text-sm'}`}
+                                                    title={warStats.lastOpponent.name}
                                                 >
-                                                    {warStats.lastOpponent.isWin ? '승리' : '패배'}
-                                                </span>
-                                            </div>
-                                            {(warStats as any).myRecordInLastWar != null ? (
-                                                <div className="flex justify-center border-t border-white/10 pt-2">
-                                                    <span className="inline-flex items-center gap-1 rounded-lg border border-amber-400/25 bg-black/35 px-2 py-1 text-[10px] font-bold text-amber-200 sm:text-xs">
-                                                        <img src="/images/guild/guildwar/clearstar.webp" alt="" className="h-3.5 w-3.5" />
-                                                        기여 {((warStats as any).myRecordInLastWar as { contributedStars: number }).contributedStars}
+                                                    {warStats.lastOpponent.name}
+                                                </p>
+                                                {warStats.lastOpponent.isBotGuild ? (
+                                                    <p className="text-center text-[10px] font-semibold text-cyan-200/90 sm:text-xs">
+                                                        AI봇 길드전 결과
+                                                    </p>
+                                                ) : null}
+                                                <GuildWarUnifiedScoreboard
+                                                    variant="embedded"
+                                                    compact
+                                                    blueStars={warStats.lastOpponent.ourStars}
+                                                    redStars={warStats.lastOpponent.enemyStars}
+                                                    blueHouse={warStats.lastOpponent.ourScore}
+                                                    redHouse={warStats.lastOpponent.enemyScore}
+                                                    hideHouseWhenZero
+                                                />
+                                                <div className="flex flex-wrap items-center justify-center gap-2">
+                                                    <span
+                                                        className={`rounded-full border px-2.5 py-0.5 text-xs font-black ${
+                                                            warStats.lastOpponent.isWin
+                                                                ? 'border-emerald-500/40 bg-emerald-950/50 text-emerald-300'
+                                                                : 'border-rose-500/40 bg-rose-950/50 text-rose-300'
+                                                        }`}
+                                                    >
+                                                        {warStats.lastOpponent.isWin ? '승리' : '패배'}
                                                     </span>
                                                 </div>
-                                            ) : null}
-                                        </div>
+                                                {(warStats as any).myRecordInLastWar != null ? (
+                                                    <div className="flex justify-center border-t border-white/10 pt-2">
+                                                        <span className="inline-flex items-center gap-1 rounded-lg border border-amber-400/25 bg-black/35 px-2 py-1 text-[10px] font-bold text-amber-200 sm:text-xs">
+                                                            <img src="/images/guild/guildwar/clearstar.webp" alt="" className="h-3.5 w-3.5" />
+                                                            기여{' '}
+                                                            {
+                                                                (
+                                                                    (warStats as any).myRecordInLastWar as {
+                                                                        contributedStars: number;
+                                                                    }
+                                                                ).contributedStars
+                                                            }
+                                                        </span>
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                            <div className="mt-2 flex shrink-0 justify-center pt-1">
+                                                <button
+                                                    type="button"
+                                                    disabled={isClaimed || !canClaimReward || isClaimingReward}
+                                                    title={
+                                                        isClaimed
+                                                            ? '이미 직전 길드전 보상을 수령했습니다.'
+                                                            : canClaimReward
+                                                              ? '직전 길드전 보상을 받습니다. 다음 길드전이 종료되면 이전 보상은 사라집니다.'
+                                                              : '받을 보상이 없거나 수령 가능 시각이 아닙니다. (전쟁 종료 1시간 후부터 다음 길드전 종료 전까지)'
+                                                    }
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        void requestGuildWarRewardAndShowModal();
+                                                    }}
+                                                    className={
+                                                        canClaimReward && !isClaimed && !isClaimingReward
+                                                            ? guildPanelBtn.reward
+                                                            : guildPanelBtn.disabled
+                                                    }
+                                                >
+                                                    {isClaimingReward
+                                                        ? '처리 중...'
+                                                        : isClaimed
+                                                          ? '보상 수령 완료'
+                                                          : '보상 수령'}
+                                                </button>
+                                            </div>
+                                        </>
                                     ) : (
-                                        <p className={`py-6 text-center text-stone-500 ${isMobile ? 'text-[10px]' : 'text-sm'}`}>기록 없음</p>
+                                        <p className={`py-6 text-center text-stone-500 ${isMobile ? 'text-[10px]' : 'text-sm'}`}>
+                                            기록 없음
+                                        </p>
                                     )}
-                                </div>
-                                <div className="flex shrink-0 flex-col gap-2 border-t border-stone-600/40 px-2 py-2">
-                                    <div className="rounded-lg border border-stone-700/50 bg-black/25 px-2 py-2">
-                                        {lastWarRewardPreview ? (
-                                            <div className="grid grid-cols-2 gap-1.5 text-[10px] font-bold text-stone-200 sm:text-xs">
-                                                <div className="flex items-center gap-1 rounded-md bg-stone-900/60 px-1.5 py-1">
-                                                    <img src="/images/icon/Gold.webp" alt="" className="h-4 w-4 object-contain" />
-                                                    <span>{formatRewardRange(lastWarRewardPreview.gold)}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1 rounded-md bg-stone-900/60 px-1.5 py-1">
-                                                    <img src="/images/icon/Zem.webp" alt="" className="h-4 w-4 object-contain" />
-                                                    <span>{formatRewardRange(lastWarRewardPreview.diamonds)}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1 rounded-md bg-stone-900/60 px-1.5 py-1">
-                                                    <img src="/images/guild/tokken.webp" alt="" className="h-4 w-4 object-contain" />
-                                                    <span>{formatRewardRange(lastWarRewardPreview.guildCoins)}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1 rounded-md bg-stone-900/60 px-1.5 py-1">
-                                                    <img src="/images/guild/button/guildlab.webp" alt="" className="h-4 w-4 object-contain" />
-                                                    <span>{formatRewardRange(lastWarRewardPreview.researchPoints)}</span>
-                                                </div>
-                                                <div className="col-span-2 flex items-center justify-center rounded-md bg-stone-900/60 px-1.5 py-1 text-blue-200">
-                                                    길드 경험치 +{formatRewardRange(lastWarRewardPreview.guildXp)}
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center justify-center gap-3 opacity-40">
-                                                <img src="/images/guild/tokken.webp" alt="" className="h-6 w-6 object-contain grayscale" />
-                                                <img src="/images/guild/button/guildlab.webp" alt="" className="h-6 w-6 object-contain grayscale" />
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex justify-center">
-                                    <button
-                                        type="button"
-                                        disabled={isClaimed || !canClaimReward}
-                                        title={
-                                            isClaimed
-                                                ? '이미 직전 길드전 보상을 수령했습니다.'
-                                                : canClaimReward
-                                                  ? '직전 길드전 보상을 받습니다. 다음 길드전이 종료되면 이전 보상은 사라집니다.'
-                                                  : '받을 보상이 없거나 수령 가능 시각이 아닙니다. (전쟁 종료 1시간 후부터 다음 길드전 종료 전까지)'
-                                        }
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (canClaimReward && !isClaimed) setShowRewardModal(true);
-                                        }}
-                                        className={canClaimReward && !isClaimed ? guildPanelBtn.reward : guildPanelBtn.disabled}
-                                    >
-                                        {isClaimed ? '보상 수령 완료' : '보상 수령'}
-                                    </button>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1816,12 +1819,11 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                     </div>
                 </div>
             </div>
-        {showRewardModal && (
+        {rewardModalPayload && (
             <GuildWarRewardModal
-                onClose={() => setShowRewardModal(false)}
-                onClaim={handleClaimReward}
-                isClaimed={isClaimed}
-                canClaim={canClaimReward && !isClaimed}
+                onClose={() => setRewardModalPayload(null)}
+                warResult={rewardModalPayload.warResult}
+                rewards={rewardModalPayload.rewards}
             />
         )}
         {showMatchingModal && (

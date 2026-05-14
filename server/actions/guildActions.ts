@@ -14,8 +14,9 @@ import {
 } from '../../types/index.js';
 import { containsProfanity } from '../../profanity.js';
 import { createDefaultGuild } from '../initialData.js';
-import { GUILD_CREATION_COST, GUILD_DONATION_DIAMOND_COST, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_DIAMOND_REWARDS, GUILD_DONATION_GOLD_COST, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_GOLD_REWARDS, GUILD_LEAVE_COOLDOWN_MS, GUILD_RESEARCH_PROJECTS, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_SHOP_ITEMS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, GUILD_BOSSES, GUILD_BOSS_DAMAGE_TIERS, GUILD_BOSS_CONTRIBUTION_BY_TIER, GUILD_BOSS_PERSONAL_REWARDS_TIERS, GUILD_WAR_BOT_GUILD_ID, DEMO_GUILD_WAR, GUILD_WAR_MAIN_TIME_MINUTES, GUILD_WAR_FISCHER_INCREMENT_SECONDS, GUILD_WAR_MIN_PARTICIPANTS, GUILD_WAR_MAX_PARTICIPANTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, getGuildWarBoardMode, normalizeGuildWarBoardModes, getGuildWarCaptureInitialStones, getGuildWarBoardLineSize, getGuildWarMissileCountByBoardId, getGuildWarHiddenStoneCountByBoardId, getGuildWarScanCountByBoardId, getGuildWarAutoScoringTurnsByBoardId, getGuildWarCaptureBlackTargetByBoardId, GUILD_WAR_CAPTURE_AI_TARGET, getGuildWarCaptureTurnLimitByBoardId } from '../../shared/constants/index.js';
+import { GUILD_CREATION_COST, GUILD_DONATION_DIAMOND_COST, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_DIAMOND_REWARDS, GUILD_DONATION_GOLD_COST, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_GOLD_REWARDS, GUILD_LEAVE_COOLDOWN_MS, GUILD_RESEARCH_PROJECTS, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_SHOP_ITEMS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, GUILD_BOSSES, GUILD_BOSS_DAMAGE_TIERS, GUILD_BOSS_CONTRIBUTION_BY_TIER, GUILD_BOSS_PERSONAL_REWARDS_TIERS, GUILD_WAR_BOT_GUILD_ID, DEMO_GUILD_WAR, GUILD_WAR_MAIN_TIME_MINUTES, GUILD_WAR_FISCHER_INCREMENT_SECONDS, GUILD_WAR_MIN_PARTICIPANTS, GUILD_WAR_MAX_PARTICIPANTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, getGuildWarBoardMode, normalizeGuildWarBoardModes, getGuildWarCaptureInitialStones, getGuildWarBoardLineSize, getGuildWarMissileCountByBoardId, getGuildWarHiddenStoneCountByBoardId, getGuildWarScanCountByBoardId, getGuildWarAutoScoringTurnsByBoardId, getGuildWarCaptureBlackTargetByBoardId, GUILD_WAR_CAPTURE_AI_TARGET, getGuildWarCaptureTurnLimitByBoardId, isGuildWarBoardRuleMode, getGuildWarBaseStoneCountByBoardId } from '../../shared/constants/index.js';
 import { guildWarKataLevelFromSnapshot } from '../../shared/utils/kataServerRuntimeResolvers.js';
+import { aggregateGuildWarBoardTotals } from '../../shared/utils/guildWarBoardOwner.js';
 import { getKataServerRuntimeSnapshot } from '../kataServerRuntimeStore.js';
 import {
     MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES,
@@ -132,22 +133,22 @@ function dedupeCompletedGuildWars(wars: any[]): any[] {
     });
 }
 
-function getGuildWarRewardRanges(isWinner: boolean, isFriSunWar: boolean): GuildWarRewardRangeBundle {
-    if (isFriSunWar) {
+function getGuildWarRewardRanges(isWinner: boolean, _isFriSunWar: boolean): GuildWarRewardRangeBundle {
+    if (isWinner) {
         return {
-            guildCoins: isWinner ? { min: 150, max: 280 } : { min: 20, max: 70 },
-            guildXp: isWinner ? 15000 : 3500,
-            researchPoints: isWinner ? { min: 1500, max: 4000 } : { min: 200, max: 1200 },
-            gold: isWinner ? { min: 4500, max: 7000 } : { min: 800, max: 1500 },
-            diamonds: isWinner ? { min: 30, max: 70 } : { min: 8, max: 18 },
+            guildCoins: { min: 200, max: 250 },
+            guildXp: 5000,
+            researchPoints: { min: 2000, max: 3000 },
+            gold: { min: 3000, max: 5000 },
+            diamonds: { min: 20, max: 30 },
         };
     }
     return {
-        guildCoins: isWinner ? { min: 100, max: 200 } : { min: 10, max: 50 },
-        guildXp: isWinner ? 10000 : 2000,
-        researchPoints: isWinner ? { min: 1000, max: 3000 } : { min: 100, max: 1000 },
-        gold: isWinner ? { min: 3000, max: 5000 } : { min: 500, max: 1000 },
-        diamonds: isWinner ? { min: 20, max: 50 } : { min: 5, max: 10 },
+        guildCoins: { min: 100, max: 100 },
+        guildXp: 1000,
+        researchPoints: { min: 1000, max: 1000 },
+        gold: { min: 1000, max: 1000 },
+        diamonds: { min: 10, max: 10 },
     };
 }
 
@@ -1907,7 +1908,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             // Regular item handling
             let itemsToAdd: InventoryItem[] = [];
             if (itemToBuy.type === 'equipment_box') {
-                itemsToAdd.push(openGuildGradeBox(itemToBuy.grade));
+                itemsToAdd.push(openGuildGradeBox(itemToBuy.grade, { fromGuildShop: true }));
             } else { // 'material' or 'consumable'
                 const template = [...CONSUMABLE_ITEMS, ...Object.values(MATERIAL_ITEMS)].find(t => t.name === itemToBuy.name);
                 
@@ -2047,7 +2048,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             let itemsToAdd: InventoryItem[] = [];
             for (let i = 0; i < quantity; i++) {
                 if (itemToBuy.type === 'equipment_box') {
-                    itemsToAdd.push(openGuildGradeBox(itemToBuy.grade));
+                    itemsToAdd.push(openGuildGradeBox(itemToBuy.grade, { fromGuildShop: true }));
                 } else { // 'material' or 'consumable'
                     const template = [...CONSUMABLE_ITEMS, ...Object.values(MATERIAL_ITEMS)].find(t => t.name === itemToBuy.name);
                     if (template) {
@@ -2523,9 +2524,23 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const completedWars = completedForGuild;
             let totalWins = 0;
             let totalLosses = 0;
-            let lastOpponent: { name: string; isWin: boolean; ourStars: number; enemyStars: number; ourScore: number; enemyScore: number; guildXp?: number; researchPoints?: number; rewardPreview?: GuildWarRewardRangeBundle; rewardClaimed?: boolean; rewardClaimable?: boolean; rewardAvailableAt?: number; isBotGuild?: boolean } | null = null;
+            let lastOpponent: {
+                name: string;
+                isWin: boolean;
+                ourStars: number;
+                enemyStars: number;
+                ourScore: number;
+                enemyScore: number;
+                guildXp?: number;
+                researchPoints?: number;
+                rewardClaimed?: boolean;
+                rewardClaimable?: boolean;
+                rewardAvailableAt?: number;
+                isBotGuild?: boolean;
+            } | null = null;
             
             for (const w of completedWars) {
+                if (!w?.result?.winnerId) continue;
                 const isGuild1 = w.guild1Id === myGuildId;
                 const won = w.result.winnerId === myGuildId;
                 if (won) totalWins++;
@@ -2545,16 +2560,24 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 const rewardAvailableAt =
                     (lastCompleted as any).rewardAvailableAt ??
                     (parseEpochMs((lastCompleted as any).endTime) ?? 0) + 60 * 60 * 1000;
+                const agg =
+                    lastCompleted.boards && Object.keys(lastCompleted.boards).length > 0
+                        ? aggregateGuildWarBoardTotals(lastCompleted)
+                        : {
+                              guild1Stars: Number(r.guild1Stars ?? 0) || 0,
+                              guild2Stars: Number(r.guild2Stars ?? 0) || 0,
+                              guild1Score: Number(r.guild1Score ?? 0) || 0,
+                              guild2Score: Number(r.guild2Score ?? 0) || 0,
+                          };
                 lastOpponent = {
                     name: opponentGuild?.name ?? (isBotOpponent ? '[시스템] 길드전 AI' : '상대 길드'),
                     isWin,
-                    ourStars: isGuild1 ? (r.guild1Stars ?? 0) : (r.guild2Stars ?? 0),
-                    enemyStars: isGuild1 ? (r.guild2Stars ?? 0) : (r.guild1Stars ?? 0),
-                    ourScore: isGuild1 ? (r.guild1Score ?? 0) : (r.guild2Score ?? 0),
-                    enemyScore: isGuild1 ? (r.guild2Score ?? 0) : (r.guild1Score ?? 0),
+                    ourStars: isGuild1 ? agg.guild1Stars : agg.guild2Stars,
+                    enemyStars: isGuild1 ? agg.guild2Stars : agg.guild1Stars,
+                    ourScore: isGuild1 ? agg.guild1Score : agg.guild2Score,
+                    enemyScore: isGuild1 ? agg.guild2Score : agg.guild1Score,
                     guildXp: (lastCompleted as any).sharedRewards?.guildXp,
                     researchPoints: (lastCompleted as any).sharedRewards?.researchPoints,
-                    rewardPreview: getGuildWarRewardRanges(isWin, (lastCompleted as any).warType === 'fri_sun'),
                     rewardClaimed: guildWarLatestCompletedRewardClaimed,
                     rewardClaimable: guildWarRewardClaimable,
                     rewardAvailableAt,
@@ -2717,6 +2740,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 if (m === GameMode.Capture) return '따내기';
                 if (m === GameMode.Hidden) return '히든';
                 if (m === GameMode.Missile) return '미사일';
+                if (m === GameMode.Speed) return '스피드';
+                if (m === GameMode.Base) return '베이스';
                 return '바둑';
             };
 
@@ -2777,10 +2802,15 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             }
 
             const boardModeLabelByBoardId = (bid: string) => {
-                const m = getGuildWarBoardMode(bid);
+                const b = (warInProgress.boards as any)?.[bid];
+                const m =
+                    b?.gameMode && isGuildWarBoardRuleMode(b.gameMode) ? b.gameMode : getGuildWarBoardMode(bid);
                 if (m === 'capture') return '따내기';
                 if (m === 'missile') return '미사일';
-                return '히든';
+                if (m === 'hidden') return '히든';
+                if (m === 'speed') return '스피드';
+                if (m === 'base') return '베이스';
+                return '바둑';
             };
 
             const aggByBoard = new Map<string, { wins: number; losses: number; draws: number; games: number; stars: number }>();
@@ -2811,7 +2841,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     let boardRecordLine: string | undefined;
                     if (isMyBoardRecord && best) {
                         const st = Number(best.stars ?? 0) || 0;
-                        if (getGuildWarBoardMode(boardId) === 'capture') {
+                        const b = (warInProgress.boards as any)?.[boardId];
+                        const ruleMode =
+                            (b?.gameMode && isGuildWarBoardRuleMode(b.gameMode) ? b.gameMode : getGuildWarBoardMode(boardId));
+                        if (ruleMode === 'capture') {
                             boardRecordLine = `이 칸 직위 최고: ${st}★ · 따낸돌 ${Number(best.captures ?? 0)}개`;
                         } else {
                             boardRecordLine = `이 칸 직위 최고: ${st}★ · 집차이 ${typeof best.scoreDiff === 'number' ? best.scoreDiff : 0}집`;
@@ -2856,13 +2889,11 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             
             let activeWar: any = null;
             let board: any = null;
-            const normalizedBoardMode = getGuildWarBoardMode(boardId);
             
             if (isDemo) {
-                // 데모 모드에서도 보드 ID 기준 모드로 강제
                 board = {
                     boardSize: getGuildWarBoardLineSize(boardId),
-                    gameMode: normalizedBoardMode,
+                    gameMode: getGuildWarBoardMode(boardId),
                     initialStones: [getGuildWarCaptureInitialStones(boardId)],
                 };
             } else {
@@ -2874,7 +2905,6 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 }
                 const { guildWarIsChronologicallyActive } = await import('../guildWarActiveUtils.js');
                 const nowG = Date.now();
-                // 실제 모드: 시계상 진행 중인 전쟁만 (status만 active인 좀비 제외)
                 const activeWars = (await db.getKV<any[]>('activeGuildWars')) || [];
                 activeWar = activeWars.find(
                     (w) =>
@@ -2886,12 +2916,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     return { error: '진행 중인 길드 전쟁이 없습니다.' };
                 }
                 
-                // 바둑판 확인
                 board = activeWar.boards?.[boardId];
                 if (!board) {
                     return { error: '바둑판을 찾을 수 없습니다.' };
                 }
-                board.gameMode = normalizedBoardMode;
                 board.boardSize = getGuildWarBoardLineSize(boardId);
                 board.initialStones = [getGuildWarCaptureInitialStones(boardId)];
 
@@ -2904,6 +2932,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     }
                 }
             }
+
+            const resolvedBoardMode = isGuildWarBoardRuleMode(board?.gameMode)
+                ? board.gameMode
+                : getGuildWarBoardMode(boardId);
             
             // 게임 모드 및 설정
             const { getAiUser, getAiUserForGuildWar, aiUserId } = await import('../aiPlayer.js');
@@ -2911,12 +2943,16 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const { randomUUID } = await import('crypto');
             
             let gameMode: GameMode;
-            if (normalizedBoardMode === 'capture') {
+            if (resolvedBoardMode === 'capture') {
                 gameMode = GameMode.Capture;
-            } else if (normalizedBoardMode === 'hidden') {
+            } else if (resolvedBoardMode === 'hidden') {
                 gameMode = GameMode.Hidden;
-            } else if (normalizedBoardMode === 'missile') {
+            } else if (resolvedBoardMode === 'missile') {
                 gameMode = GameMode.Missile;
+            } else if (resolvedBoardMode === 'speed') {
+                gameMode = GameMode.Speed;
+            } else if (resolvedBoardMode === 'base') {
+                gameMode = GameMode.Base;
             } else {
                 gameMode = GameMode.Standard;
             }
@@ -2927,9 +2963,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     ? getAiUserForGuildWar(gameMode, boardId)
                     : getAiUser(gameMode);
             
-            // 길드전 9칸: AI 난이도 단계는 모드별, Kata `kataServerLevel`은 좌/중/우 열(-30/-28/-25) 고정
             const guildWarKataProfileStep =
-                normalizedBoardMode === 'capture' ? 3 : normalizedBoardMode === 'hidden' ? 7 : 5;
+                resolvedBoardMode === 'capture' ? 3 : resolvedBoardMode === 'hidden' ? 7 : resolvedBoardMode === 'base' ? 6 : 5;
             const guildWarKataServerLevel = guildWarKataLevelFromSnapshot(
                 getKataServerRuntimeSnapshot(),
                 typeof boardId === 'string' ? boardId : '',
@@ -2948,22 +2983,28 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 kataServerLevel: guildWarKataServerLevel,
             };
             
-            // 게임 모드별 추가 설정
-            if (normalizedBoardMode === 'capture') {
+            if (resolvedBoardMode === 'capture') {
                 (gameSettings as any).captureTargetBlack = getGuildWarCaptureBlackTargetByBoardId(boardId);
                 (gameSettings as any).captureTargetWhite = GUILD_WAR_CAPTURE_AI_TARGET;
                 (gameSettings as any).captureTarget = getGuildWarCaptureBlackTargetByBoardId(boardId);
                 (gameSettings as any).blackTurnLimit = getGuildWarCaptureTurnLimitByBoardId(boardId);
-            } else if (normalizedBoardMode === 'hidden') {
+            } else if (resolvedBoardMode === 'hidden') {
                 (gameSettings as any).hiddenStoneCount = getGuildWarHiddenStoneCountByBoardId(boardId);
                 (gameSettings as any).scanCount = getGuildWarScanCountByBoardId(boardId);
-            } else if (normalizedBoardMode === 'missile') {
+            } else if (resolvedBoardMode === 'missile') {
                 (gameSettings as any).missileCount = getGuildWarMissileCountByBoardId(boardId);
+            } else if (resolvedBoardMode === 'base') {
+                (gameSettings as any).baseStones = getGuildWarBaseStoneCountByBoardId(boardId);
             }
-            if (normalizedBoardMode === 'hidden' || normalizedBoardMode === 'missile') {
+
+            if (
+                resolvedBoardMode === 'hidden' ||
+                resolvedBoardMode === 'missile' ||
+                resolvedBoardMode === 'speed' ||
+                resolvedBoardMode === 'base'
+            ) {
                 const autoScoringTurns = getGuildWarAutoScoringTurnsByBoardId(boardId);
                 (gameSettings as any).autoScoringTurns = autoScoringTurns;
-                // strategic.ts / goAiBot 일부 경로는 scoringTurnLimit만 읽음
                 (gameSettings as any).scoringTurnLimit = autoScoringTurns;
             }
             
@@ -2991,11 +3032,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 (game as any).isDemo = true;
             }
 
-            // 길드전 9칸 공통: 초기 랜덤 배치 (열 기준 흑/백/문양 — getGuildWarCaptureInitialStones 와 동일)
             if (
-                normalizedBoardMode === 'capture' ||
-                normalizedBoardMode === 'hidden' ||
-                normalizedBoardMode === 'missile'
+                resolvedBoardMode === 'capture' ||
+                resolvedBoardMode === 'hidden' ||
+                resolvedBoardMode === 'missile'
             ) {
                 const initialCfg = getGuildWarCaptureInitialStones(boardId);
                 const blackPlain = initialCfg.blackPlain;
@@ -3020,7 +3060,6 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     );
                 game.boardState = gwBoard;
 
-                // 문양돌은 싱글/도전의 탑과 동일: 2점(baseStones 베이스돌 5점 규칙과 분리 — UI도 패턴 문양 사용)
                 game.blackPatternStones = blackMarkedPoints.map((p) => ({ ...p }));
                 game.whitePatternStones = whiteMarkedPoints.map((p) => ({ ...p }));
                 game.baseStones = undefined;
@@ -3843,9 +3882,18 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             }
             
             const isWinner = myWar.result?.winnerId === user.guildId;
-            const isFriSunWar = (myWar as any).warType === 'fri_sun'; // 금~일 전쟁은 보상 상향
+            const isFriSunWar = (myWar as any).warType === 'fri_sun';
 
             const rewards = rollGuildWarRewards(isWinner, isFriSunWar);
+            const claimAgg =
+                myWar.boards && Object.keys(myWar.boards).length > 0
+                    ? aggregateGuildWarBoardTotals(myWar)
+                    : {
+                          guild1Stars: Number(myWar.result?.guild1Stars ?? 0) || 0,
+                          guild2Stars: Number(myWar.result?.guild2Stars ?? 0) || 0,
+                          guild1Score: Number(myWar.result?.guild1Score ?? 0) || 0,
+                          guild2Score: Number(myWar.result?.guild2Score ?? 0) || 0,
+                      };
             
             // 최신 사용자 데이터 로드
             const freshUser = await db.getUser(user.id);
@@ -3895,10 +3943,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     updatedUser: freshUser,
                     warResult: {
                         isWinner,
-                        guild1Stars: myWar.result?.guild1Stars || 0,
-                        guild2Stars: myWar.result?.guild2Stars || 0,
-                        guild1Score: myWar.result?.guild1Score || 0,
-                        guild2Score: myWar.result?.guild2Score || 0,
+                        guild1Stars: claimAgg.guild1Stars,
+                        guild2Stars: claimAgg.guild2Stars,
+                        guild1Score: claimAgg.guild1Score,
+                        guild2Score: claimAgg.guild2Score,
                     },
                     rewards: rewards
                 } 

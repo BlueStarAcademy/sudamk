@@ -24,6 +24,7 @@ import { pairSeatMatchesViewerUser, pairTurnSeatIdShortLabel } from '../../share
 import { formatDiceGoSpecialDiceSummary } from '../../shared/utils/diceGoSettings.js';
 import {
     getGuildWarBoardMode,
+    getGuildWarBoardRuleModeFromGameMode,
     getGuildWarStarConditionLines,
     GUILD_WAR_STAR_CAPTURE_TIER2_MIN,
     GUILD_WAR_STAR_CAPTURE_TIER3_MIN,
@@ -705,7 +706,8 @@ const GuildWarStarConditionsPanel: React.FC<{
     const starBodyClass = drawerUi ? 'text-[13px] leading-snug text-gray-200' : 'text-xs text-gray-200';
     if (session.gameCategory !== 'guildwar') return null;
     const boardId = (session as any).guildWarBoardId as string | undefined;
-    const boardMode = boardId ? getGuildWarBoardMode(boardId) : 'capture';
+    const boardMode =
+        getGuildWarBoardRuleModeFromGameMode(session.mode) ?? (boardId ? getGuildWarBoardMode(boardId) : 'capture');
     const lines = getGuildWarStarConditionLines(boardMode, boardId);
 
     const humanEnum = currentUser.id === session.blackPlayerId ? Player.Black : Player.White;

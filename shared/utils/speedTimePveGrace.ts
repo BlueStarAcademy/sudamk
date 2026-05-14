@@ -1,6 +1,6 @@
 import { Player } from '../types/enums.js';
 
-/** PVE 스피드: 유저 턴 진입 직후 10초 막대가 9부터 느껴지는 보정 — 턴당 1초는 상대 시간 보너스 누적에서 제외 */
+/** PVE 스피드: 유저 턴 진입 직후 막대가 끝에서 느껴지는 보정 — 턴당 1초는 상대 시간 보너스 누적에서 제외 */
 export const PVE_SPEED_TIME_PRESSURE_GRACE_SEC = 1;
 
 export type SpeedTimePveGraceSessionShape = {

@@ -94,6 +94,25 @@ export const isDifferentMonthKST = (ts1: number | undefined, ts2: number): boole
 };
 
 
+/** KST 기준 달력 날짜 키 `YYYY-MM-DD` */
+export function formatKstYmd(date: Date | number = Date.now()): string {
+    const d = getKSTDate(date);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+/** 현재 KST 분기 시즌이 끝나는 달력일의 월·일만 `MM:DD` (예: 06:30) */
+export function getCurrentSeasonEndMonthDayKST(date: Date | number = Date.now()): string {
+    const s = getCurrentSeason(date);
+    const monthIndex = s.season * 3;
+    const end = new Date(Date.UTC(s.year, monthIndex, 0));
+    const mm = String(end.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(end.getUTCDate()).padStart(2, '0');
+    return `${mm}:${dd}`;
+}
+
 export const getCurrentSeason = (date: Date | number = Date.now()): SeasonInfo => {
     const d = getKSTDate(date);
     const year = d.getUTCFullYear();
@@ -108,6 +127,34 @@ export const getCurrentSeason = (date: Date | number = Date.now()): SeasonInfo =
     const shortYear = year.toString().slice(-2);
     return { year, season, name: `${shortYear}-${season}시즌` };
 };
+
+/** 다음 분기 시즌이 시작되는 KST 순간(다음 분기 1일 00:00 KST)의 UTC ms */
+export function getNextSeasonStartTimestampKST(date: Date | number = Date.now()): number {
+    const cur = getCurrentSeason(date);
+    let y = cur.year;
+    let month1 = 4;
+    if (cur.season === 1) {
+        month1 = 4;
+    } else if (cur.season === 2) {
+        month1 = 7;
+    } else if (cur.season === 3) {
+        month1 = 10;
+    } else {
+        month1 = 1;
+        y += 1;
+    }
+    return new Date(`${y}-${String(month1).padStart(2, '0')}-01T00:00:00+09:00`).getTime();
+}
+
+/** 현재 시즌 종료(다음 시즌 시작 시점)까지 남은 일·시간 — 정수 일 + 0~23시간 */
+export function getVersusSeasonRemainingDaysHours(date: Date | number = Date.now()): { days: number; hours: number } {
+    const t = typeof date === 'number' ? date : date.getTime();
+    const end = getNextSeasonStartTimestampKST(t);
+    const ms = Math.max(0, end - t);
+    const days = Math.floor(ms / 86400000);
+    const hours = Math.floor((ms % 86400000) / 3600000);
+    return { days, hours };
+}
 
 export const getPreviousSeason = (date: Date | number = Date.now()): SeasonInfo => {
     const d = getKSTDate(date);
@@ -211,6 +258,14 @@ export const getTodayKSTDateString = (date: Date | number = Date.now()): string 
     const m = String(d.getUTCMonth() + 1).padStart(2, '0');
     const day = String(d.getUTCDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
+};
+
+/** KST 기준 연-월 키 `YYYY-MM` — 챔피언십 PVP/펫 랭킹 월간 시즌 구분용 */
+export const getKstYearMonthKey = (date: Date | number = Date.now()): string => {
+    const d = getKSTDate(date);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
 };
 
 export const formatDateTimeKST = (timestamp: number): string => {

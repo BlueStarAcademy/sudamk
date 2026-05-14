@@ -136,7 +136,7 @@ export const resolveSinglePlayerMixedModes = (stage: SinglePlayerStageInfo): Gam
     return [...DEFAULT_MIX];
 };
 
-/** 스테이지에 싱글/AI 스피드 시간 압박(10초당 1점)이 적용되는지 — 믹스+스피드 포함 */
+/** 스테이지에 싱글/AI 스피드 시간 압박(공통 간격당 1점)이 적용되는지 — 믹스+스피드 포함 */
 export const resolveSinglePlayerSpeedTimeMode = (stage: SinglePlayerStageInfo): boolean => {
     const p = stage.strategicRulePreset;
     if (p === 'speed') return true;

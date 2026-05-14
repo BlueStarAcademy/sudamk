@@ -1,5 +1,12 @@
-/** 서버 판정: 상대 보너스 점수 +1 기준(초). 네트워크 왕복 여유를 포함해 11초로 운용한다. */
-export const SPEED_TIME_PRESSURE_SERVER_SECONDS_PER_POINT = 11;
+/**
+ * 스피드 바둑 시간 압박 공통 규칙(초).
+ * 피셔 시계에서 소비된 시간이 이 간격마다 1구간으로 집계되며, 상대 보너스(+1) 판정·UI 진행 막대·도움말에 동일하게 사용한다.
+ * (PVP/PVE·길드전·싱글·모험 공통 — 네트워크 왕복 여유 포함 11초 운용)
+ */
+export const SPEED_TIME_PRESSURE_SECONDS_PER_POINT = 11;
 
-/** UI 연출: 스피드 막대는 초읽기 체감용 10초 주기를 유지한다. */
-export const SPEED_TIME_PRESSURE_UI_BAR_SECONDS = 10;
+/** @deprecated {@link SPEED_TIME_PRESSURE_SECONDS_PER_POINT}와 동일 — 기존 import 호환 */
+export const SPEED_TIME_PRESSURE_SERVER_SECONDS_PER_POINT = SPEED_TIME_PRESSURE_SECONDS_PER_POINT;
+
+/** @deprecated {@link SPEED_TIME_PRESSURE_SECONDS_PER_POINT}와 동일 — 서버 판정과 UI 주기 통일 */
+export const SPEED_TIME_PRESSURE_UI_BAR_SECONDS = SPEED_TIME_PRESSURE_SECONDS_PER_POINT;

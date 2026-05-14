@@ -4,6 +4,7 @@ import {
     QuestReward, DailyQuestData, WeeklyQuestData, MonthlyQuestData, TournamentState, UserWithStatus, EquipmentPreset, GameSettings, CommentaryLine, HomeBoardPost, SinglePlayerStageInfo,
     PairPetMeta,
 } from './entities.js';
+import type { ChampionshipVersusVenueKind } from './entities.js';
 import { GameMode, RPSChoice, Point, Player, UserStatus, TournamentType, InventoryItemType, GameCategory, EquipmentSlot, BoardState, Move, ItemGrade, SinglePlayerLevel } from './enums.js';
 import type { WinReason } from './enums.js';
 import type { ArenaEntranceKey } from '../../constants/arenaEntrance.js';
@@ -648,6 +649,10 @@ export type ServerAction =
     | { type: 'START_DUNGEON_STAGE', payload: { dungeonType: TournamentType; stage: number } }
     | { type: 'COMPLETE_DUNGEON_STAGE', payload: { dungeonType: TournamentType; stage: number } }
     | { type: 'CLAIM_DUNGEON_REWARD', payload: { dungeonType: TournamentType; stage: number } }
+    | { type: 'GET_CHAMPIONSHIP_VERSUS_VENUE_STATE', payload: { venue: ChampionshipVersusVenueKind } }
+    | { type: 'REFRESH_CHAMPIONSHIP_VERSUS_OPPONENT_LIST', payload: { venue: ChampionshipVersusVenueKind } }
+    | { type: 'REPORT_CHAMPIONSHIP_VERSUS_DUEL_RESULT', payload: { venue: ChampionshipVersusVenueKind; opponentUserId: string; won: boolean } }
+    | { type: 'START_CHAMPIONSHIP_VERSUS_KATA_DUEL', payload: { venue: ChampionshipVersusVenueKind; opponentUserId: string } }
     // Single Player
     | { type: 'START_SINGLE_PLAYER_GAME', payload: { stageId: string } }
     | { type: 'CONFIRM_SINGLE_PLAYER_GAME_START', payload: { gameId: string } }
@@ -698,7 +703,7 @@ export type ServerAction =
     | { type: 'CLAIM_GUILD_WAR_REWARD', payload?: never }
     | { type: 'GET_GUILD_WAR_DATA', payload?: never }
     | { type: 'GET_MY_GUILD_WAR_ATTEMPT_LOG', payload?: never }
-    | { type: 'START_GUILD_WAR_GAME', payload: { boardId: string; isDemo?: boolean; gameMode?: 'capture' | 'hidden' | 'missile' } }
+    | { type: 'START_GUILD_WAR_GAME', payload: { boardId: string; isDemo?: boolean; gameMode?: 'capture' | 'hidden' | 'missile' | 'speed' | 'base' } }
     | { type: 'DONATE_TO_GUILD', payload: { amount?: number; itemId?: string } }
     | { type: 'GUILD_DONATE_GOLD', payload?: { count?: number } }
     | { type: 'GUILD_DONATE_DIAMOND', payload?: { count?: number } }

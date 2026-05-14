@@ -1894,7 +1894,11 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         type.startsWith('CLAIM_DUNGEON') ||
         type === 'START_DUNGEON_STAGE' ||
         type === 'COMPLETE_DUNGEON_STAGE' ||
-        type === 'CLAIM_DUNGEON_REWARD') {
+        type === 'CLAIM_DUNGEON_REWARD' ||
+        type === 'GET_CHAMPIONSHIP_VERSUS_VENUE_STATE' ||
+        type === 'REFRESH_CHAMPIONSHIP_VERSUS_OPPONENT_LIST' ||
+        type === 'REPORT_CHAMPIONSHIP_VERSUS_DUEL_RESULT' ||
+        type === 'START_CHAMPIONSHIP_VERSUS_KATA_DUEL') {
         console.log(`[handleAction] Routing ${type} to handleTournamentAction, payload:`, JSON.stringify(payload));
         try {
             const result = await handleTournamentAction(volatileState, action, userData);

@@ -2791,8 +2791,13 @@ export const useApp = () => {
             action.type !== 'REQUEST_SERVER_AI_MOVE' &&
             action.type !== 'GET_GUILD_WAR_DATA' &&
             action.type !== 'GET_MY_GUILD_WAR_ATTEMPT_LOG' &&
+            action.type !== 'GET_CHAMPIONSHIP_VERSUS_VENUE_STATE' &&
+            action.type !== 'REFRESH_CHAMPIONSHIP_VERSUS_OPPONENT_LIST' &&
+            action.type !== 'REPORT_CHAMPIONSHIP_VERSUS_DUEL_RESULT' &&
+            action.type !== 'START_CHAMPIONSHIP_VERSUS_KATA_DUEL' &&
             action.type !== 'COMPLETE_DUNGEON_STAGE' &&
-            action.type !== 'CLAIM_TOURNAMENT_REWARD'
+            action.type !== 'CLAIM_TOURNAMENT_REWARD' &&
+            action.type !== 'CLAIM_GUILD_WAR_REWARD'
         ) {
             const debouncePayload = 'payload' in action ? (action as { payload?: unknown }).payload : undefined;
             const actionKey = `${action.type}_${JSON.stringify(debouncePayload ?? {})}`;

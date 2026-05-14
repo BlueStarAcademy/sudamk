@@ -309,6 +309,8 @@ const AppContent: React.FC = () => {
         championshipVenueType === 'neighborhood' ||
         championshipVenueType === 'national' ||
         championshipVenueType === 'world';
+    const isChampionshipVersusVenueType =
+        championshipVenueType === 'pvp' || championshipVenueType === 'pet' || championshipVenueType === 'petpair';
     const hasChampionshipVenueSession = Boolean(
         currentUserWithStatus &&
             isChampionshipDungeonVenueType &&
@@ -329,7 +331,7 @@ const AppContent: React.FC = () => {
     const hideNativeTopQuickStripForChampionshipArena =
         currentRoute.view === 'tournament' &&
         Boolean(championshipVenueType) &&
-        (hasChampionshipVenueSession || hasPendingChampionshipDungeon);
+        (hasChampionshipVenueSession || hasPendingChampionshipDungeon || isChampionshipVersusVenueType);
 
     /** 네이티브 셸 상단 퀵스트립: 프로필 홈/경기장, 도전의 탑, 전략/놀이/페어 대기실, 길드, 모험, 챔피언십 로비(인게임 제외) — 항상 동일 컴포넌트·동일 슬롯(헤더 바로 아래) */
     const showNativeTopQuickStrip =

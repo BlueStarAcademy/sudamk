@@ -68,7 +68,7 @@ function resolveSpeedTimeBonusForCaptureTarget(game: LiveGameSession): { black: 
         }
     }
 
-    // PVP/일반 믹스: 내가 사용한 시간 10초당 상대 +1점
+    // PVP/일반 믹스: 내가 사용한 시간이 공통 간격(초)마다 상대 +1점
     return {
         black: Math.floor(whiteConsumed / secondsPerPoint),
         white: Math.floor(blackConsumed / secondsPerPoint),

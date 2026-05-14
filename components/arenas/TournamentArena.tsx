@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
 import { TournamentType, UserWithStatus, PlayerForTournament } from '../../types';
+import type { ChampionshipVersusVenueKind } from '../../shared/types/entities.js';
+import ChampionshipVersusVenueArena from './ChampionshipVersusVenueArena.js';
 import { useAppContext } from '../../hooks/useAppContext';
 import { TournamentBracket } from '../TournamentBracket';
 import Button from '../Button';
@@ -58,10 +60,16 @@ class TournamentBracketErrorBoundary extends Component<
 }
 
 interface TournamentArenaProps {
-    type: TournamentType;
+    type: TournamentType | ChampionshipVersusVenueKind;
 }
 
+const isVersusVenue = (t: string): t is ChampionshipVersusVenueKind => t === 'pvp' || t === 'pet' || t === 'petpair';
+
 const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
+    if (isVersusVenue(type)) {
+        return <ChampionshipVersusVenueArena venue={type} />;
+    }
+
     const { currentUserWithStatus, handlers, allUsers, championshipAbilityKataLadder } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const isHandheldViewport = useIsHandheldDevice(1025);

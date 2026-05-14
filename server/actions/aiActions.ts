@@ -20,6 +20,18 @@ function normalizeStrategicAiScoringSettings(game: any): void {
     delete game.settings.autoScoringTurns;
     return;
   }
+  const gc = String((game as any).gameCategory ?? '');
+  if (gc === 'guildwar') {
+    const aut = (game.settings as any)?.autoScoringTurns;
+    const stl = (game.settings as any)?.scoringTurnLimit;
+    if (typeof aut === 'number' && aut > 0) {
+      (game.settings as any).scoringTurnLimit = aut;
+      return;
+    }
+    if (typeof stl === 'number' && stl > 0) {
+      return;
+    }
+  }
   // 모험: 로비 AI 기본값(`getAiScoringTurnLimitByBoardSize`의 11줄=85 등)으로 덮지 않고, 판 크기별 설계 상한으로 고정
   if (preMergePolicy.usesAdventureScoringCap) {
     const rawBs = Number(game.settings?.boardSize ?? game.adventureBoardSize);

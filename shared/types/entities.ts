@@ -527,6 +527,23 @@ export type ExchangeState = {
   history: string[];
 };
 
+/** PVP / 펫 / 펫 페어 챔피언십 경기장(인게임) — 전략바둑 랭킹전과 동일한 분기(KST) 시즌·1200점대 ELO */
+export type ChampionshipVersusVenueKind = 'pvp' | 'pet' | 'petpair';
+
+export type ChampionshipVersusVenueRatingEntry = {
+    /** 시즌 ELO (전략바둑 랭킹전과 동일 기준점 1200, 시즌이 바뀌어도 점수는 유지) */
+    rating: number;
+    /** `getCurrentSeason().name` 과 일치해야 현재 시즌 전적·집계에 포함 */
+    ratingSeasonKey: string;
+    /** 현재 시즌 챔피언십 대전장 대국 승(시즌 종료 시 0으로 리셋) */
+    seasonWins: number;
+    /** 현재 시즌 패 */
+    seasonLosses: number;
+};
+
+/** 직전 시즌 종료 시점의 챔피언십 대전장 티어(전략바둑 시즌 보상과 동일 RANKING_TIERS) */
+export type ChampionshipVersusSeasonHistory = Partial<Record<ChampionshipVersusVenueKind, string>>;
+
 export type User = {
   id: string;
   username: string;
@@ -672,6 +689,18 @@ export type User = {
   championshipShopWeekPurchases?: Record<string, { quantity: number; date: number }>;
   /** 챔피언십 상점 등 전용 재화 */
   champCoins?: number;
+  /** PVP·펫·펫 페어 챔피언십 경기장 분기 시즌 ELO·시즌 전적 */
+  championshipVersusVenueRatings?: Partial<Record<ChampionshipVersusVenueKind, ChampionshipVersusVenueRatingEntry>>;
+  /** 시즌명 → 경기장별 당시 티어(전략바둑 `seasonHistory`와 별도) */
+  championshipVersusSeasonHistory?: Record<string, ChampionshipVersusSeasonHistory>;
+  /** KST `YYYY-MM-DD` — 당일 챔피언십 대전장 상대 목록 무료 새로고침 집계일 */
+  championshipVersusOppRefreshDayKST?: string;
+  /** 당일 무료 새로고침 사용 횟수(날짜 바뀌면 0으로 리셋) */
+  championshipVersusOppRefreshFreeUsed?: number;
+  /** 챔피언십 대전장 결투권(최대 5). 2시간마다 1회복 */
+  championshipVersusDuelTickets?: number;
+  /** 결투권이 최대 미만일 때 다음 1개 충전 시각(ms) */
+  championshipVersusDuelTicketNextAt?: number;
   guildBossAttempts?: number;
   /** KST 기준 마지막 보스전 참여일 'YYYY-MM-DD' (일일 2회 제한용) */
   guildBossLastAttemptDayKST?: string;

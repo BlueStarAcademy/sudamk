@@ -34,9 +34,20 @@ const pickRandom = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length
 type SubOptionDefinition = { type: CoreStat, isPercentage: boolean, range: [number, number] };
 type SpecialSubOptionDefinition = { name: string; isPercentage: boolean; range: [number, number] };
 
+/** 길드 상점 장비 상자 등에서만 전달: 특수/스페셜 보장 규칙 */
+export type EquipmentRollGuarantees = {
+    /** 특수 옵션 중 하나를 반드시 「길드보스전 능력치」(생성 수치 +2~+4%)로 */
+    guaranteeGuildBossBattleSpecial?: boolean;
+    /** 신화 장비: 스페셜 줄을 「보스 보상등급」 또는 「보스 피해5%」 중 하나로 */
+    guaranteeMythicGuildBossSpecial1?: boolean;
+};
 
 /** 상자·합성·토너먼트 등 공통 장비 옵션 생성 (단일 소스) */
-export const generateItemOptions = (grade: ItemGrade, slot: EquipmentSlot): ItemOptions => {
+export const generateItemOptions = (
+    grade: ItemGrade,
+    slot: EquipmentSlot,
+    rollGuarantees?: EquipmentRollGuarantees,
+): ItemOptions => {
     const rules = GRADE_SUB_OPTION_RULES[grade];
     const usedCombatSubTypes: Set<CoreStat> = new Set();
     const usedSpecialSubTypes: Set<SpecialStat> = new Set();
@@ -83,9 +94,29 @@ export const generateItemOptions = (grade: ItemGrade, slot: EquipmentSlot): Item
     const specialSubs: ItemOption[] = [];
     const specialCountRule = rules.specialCount;
     const numSpecialSubs = Array.isArray(specialCountRule) ? getRandomInt(specialCountRule[0], specialCountRule[1]) : specialCountRule;
-    const specialPool = Object.values(SpecialStat);
+    const specialPool = [...Object.values(SpecialStat)] as SpecialStat[];
+    const wantGuildBossSpecial = Boolean(rollGuarantees?.guaranteeGuildBossBattleSpecial && numSpecialSubs > 0);
+    if (wantGuildBossSpecial) {
+        const g = SpecialStat.GuildBossBattleAllStats;
+        const idx = specialPool.indexOf(g);
+        if (idx >= 0) specialPool.splice(idx, 1);
+        usedSpecialSubTypes.add(g);
+        const subDef = SPECIAL_STATS_DATA[g];
+        const value = getRandomInt(subDef.range[0], subDef.range[1]);
+        const range = [subDef.range[0], subDef.range[1]] as [number, number];
+        specialSubs.push({
+            type: g,
+            value,
+            isPercentage: subDef.isPercentage,
+            tier: combatTier,
+            display: formatSpecialSubItemDisplay({ type: g, value, range, enhancements: 0 }, subDef),
+            range,
+            enhancements: 0,
+        });
+    }
+    const extraSpecialRolls = wantGuildBossSpecial ? Math.max(0, numSpecialSubs - 1) : numSpecialSubs;
 
-    for (let i = 0; i < numSpecialSubs; i++) {
+    for (let i = 0; i < extraSpecialRolls; i++) {
         if (specialPool.length === 0) break;
         const subStatType = pickRandom(specialPool);
         specialPool.splice(specialPool.indexOf(subStatType), 1);
@@ -115,11 +146,18 @@ export const generateItemOptions = (grade: ItemGrade, slot: EquipmentSlot): Item
         : mythicCountRule;
     if (numMythicSubs > 0) {
         const mythicPool = mythicStatPoolForItemGrade(grade);
+        const forceBossSpecial1 =
+            grade === ItemGrade.Mythic &&
+            Boolean(rollGuarantees?.guaranteeMythicGuildBossSpecial1);
+        const guildBossMythicPool: MythicStat[] = [MythicStat.GuildBossRewardGradeUp, MythicStat.GuildBossExtraDamage5];
 
         for (let i = 0; i < numMythicSubs; i++) {
-            if (mythicPool.length === 0) break;
-            const subStatType = pickRandom(mythicPool);
-            mythicPool.splice(mythicPool.indexOf(subStatType), 1);
+            if (mythicPool.length === 0 && !forceBossSpecial1) break;
+            const subStatType =
+                forceBossSpecial1 && i === 0 ? pickRandom(guildBossMythicPool) : pickRandom(mythicPool);
+            if (!forceBossSpecial1 || i > 0) {
+                mythicPool.splice(mythicPool.indexOf(subStatType), 1);
+            }
 
             const subDef = MYTHIC_STATS_DATA[subStatType];
             const value = subDef.value([10, 50]);
@@ -138,8 +176,11 @@ export const generateItemOptions = (grade: ItemGrade, slot: EquipmentSlot): Item
 };
 
 
-export const createItemFromTemplate = (template: Omit<InventoryItem, 'id' | 'createdAt' | 'isEquipped' | 'level' | 'options' | 'quantity'>): InventoryItem => {
-    const options = generateItemOptions(template.grade, template.slot!);
+export const createItemFromTemplate = (
+    template: Omit<InventoryItem, 'id' | 'createdAt' | 'isEquipped' | 'level' | 'options' | 'quantity'>,
+    rollGuarantees?: EquipmentRollGuarantees,
+): InventoryItem => {
+    const options = generateItemOptions(template.grade, template.slot!, rollGuarantees);
     const raw: InventoryItem = {
         id: `item-${randomUUID()}`,
         name: template.name,
@@ -274,14 +315,25 @@ export function applyChampionshipVenueStatToEquipmentItem(item: InventoryItem): 
 
 const gradeOrder: ItemGrade[] = [ItemGrade.Normal, ItemGrade.Uncommon, ItemGrade.Rare, ItemGrade.Epic, ItemGrade.Legendary, ItemGrade.Mythic];
 
-export const openGuildGradeBox = (grade: ItemGrade): InventoryItem => {
+export type OpenGuildGradeBoxOpts = {
+    /** 길드 상점 장비 상자에서 열 때만 true — 특수/신화 스페셜 보장 규칙 적용 */
+    fromGuildShop?: boolean;
+};
+
+export const openGuildGradeBox = (grade: ItemGrade, opts?: OpenGuildGradeBoxOpts): InventoryItem => {
     const itemsOfSelectedGrade = EQUIPMENT_POOL.filter(item => item.grade === grade);
     if (itemsOfSelectedGrade.length === 0) {
         const lowerGrade = gradeOrder[gradeOrder.indexOf(grade) - 1] || 'normal';
-        return openGuildGradeBox(lowerGrade);
+        return openGuildGradeBox(lowerGrade, opts);
     }
     const template = itemsOfSelectedGrade[Math.floor(Math.random() * itemsOfSelectedGrade.length)];
-    return createItemFromTemplate(template);
+    const shop = Boolean(opts?.fromGuildShop);
+    return createItemFromTemplate(template, shop
+        ? {
+              guaranteeGuildBossBattleSpecial: true,
+              guaranteeMythicGuildBossSpecial1: grade === ItemGrade.Mythic,
+          }
+        : undefined);
 };
 
 export function openMaterialBox(boxId: 'material_box_1' | 'material_box_2' | 'material_box_3' | 'material_box_4' | 'material_box_5' | 'material_box_6', rolls: number): InventoryItem[] {

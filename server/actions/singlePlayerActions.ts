@@ -708,7 +708,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 game.settings.timeLimit = enforcedMainTimeMinutes;
             }
 
-            // 싱글플레이 스피드: 초기 시간 설정 (유저 사용 시간 10초당 AI +1점 계산용 blackInitialTimeLeft/whiteInitialTimeLeft 보관)
+            // 싱글플레이 스피드: 초기 시간 설정 (유저 사용 시간이 공통 간격(초)마다 AI +1점 계산용 blackInitialTimeLeft/whiteInitialTimeLeft 보관)
             // 비스피드: 시간 제한 없음 (제한시간/초읽기 미적용, 결과까지 소요 시간만 표시)
             if (isSpeedMode) {
                 const initialSec = enforcedMainTimeMinutes * 60;

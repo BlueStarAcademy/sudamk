@@ -1,5 +1,8 @@
 import { getGuildWarBoardMode } from '../constants/guildConstants.js';
 
+/** `shared/constants/auth.ts`의 GUILD_WAR_BOT_GUILD_ID와 동일해야 함 */
+const GUILD_WAR_BOT_GUILD_ID_LITERAL = 'guild-war-bot-guild';
+
 /**
  * 길드전 한 칸(경기장)의 점령 길드 판정 — 양 길드의 최고 기록(`guild1BestResult` vs `guild2BestResult`) 비교.
  * 1) 획득 별 수가 많은 길드
@@ -205,4 +208,47 @@ export function getGuildWarBotBoardDisplayTally(
         occupierCapturesDisplay,
         occupierScoreDiffDisplay,
     };
+}
+
+/**
+ * 길드전 종료·기록 표시용: 9칸 보드에서 길드1/2 별·집(능력치) 합산.
+ * 봇 참전 전(`isBotGuild` 또는 봇 길드 ID)은 UI와 동일하게 `getGuildWarBotBoardDisplayTally`로 합산한다.
+ */
+export function aggregateGuildWarBoardTotals(war: {
+    id?: string;
+    boards?: Record<string, GuildWarBoardAttemptsLike> | null;
+    guild1Id: string;
+    guild2Id: string;
+    isBotGuild?: boolean;
+}): { guild1Stars: number; guild2Stars: number; guild1Score: number; guild2Score: number } {
+    const boards = war.boards || {};
+    const botInvolved =
+        Boolean(war.isBotGuild) ||
+        war.guild1Id === GUILD_WAR_BOT_GUILD_ID_LITERAL ||
+        war.guild2Id === GUILD_WAR_BOT_GUILD_ID_LITERAL;
+    const warId = String(war.id ?? '');
+
+    let guild1Stars = 0;
+    let guild2Stars = 0;
+    let guild1Score = 0;
+    let guild2Score = 0;
+
+    for (const boardId of Object.keys(boards)) {
+        const board = boards[boardId];
+        if (!board || typeof board !== 'object') continue;
+        const tally = getGuildWarBotBoardDisplayTally(board, {
+            warId,
+            boardId,
+            guild1Id: war.guild1Id,
+            guild2Id: war.guild2Id,
+            botGuildId: GUILD_WAR_BOT_GUILD_ID_LITERAL,
+            isBotWar: botInvolved,
+        });
+        guild1Stars += tally.guild1Stars;
+        guild2Stars += tally.guild2Stars;
+        guild1Score += tally.guild1HouseTally;
+        guild2Score += tally.guild2HouseTally;
+    }
+
+    return { guild1Stars, guild2Stars, guild1Score, guild2Score };
 }

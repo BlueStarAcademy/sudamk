@@ -225,7 +225,7 @@ class PlayerProfilePanelErrorBoundary extends Component<
     }
 }
 
-const ChampionshipRealGoBoard: React.FC<{
+export const ChampionshipRealGoBoard: React.FC<{
     match: Match | null;
     currentUser: UserWithStatus;
     tournamentFinished?: boolean;
@@ -514,7 +514,7 @@ const CHAMPIONSHIP_CORE_STATS: CoreStat[] = [
 ];
 
 
-const ChampionshipAbilityPlayerPanel: React.FC<{
+export const ChampionshipAbilityPlayerPanel: React.FC<{
     player: PlayerForTournament | null;
     stats: Record<string, number>;
     match: Match | null;

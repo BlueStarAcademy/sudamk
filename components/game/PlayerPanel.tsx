@@ -30,8 +30,7 @@ import { getAdventureCodexMonsterById } from '../../constants/adventureMonstersC
 import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
 import {
-    SPEED_TIME_PRESSURE_SERVER_SECONDS_PER_POINT,
-    SPEED_TIME_PRESSURE_UI_BAR_SECONDS,
+    SPEED_TIME_PRESSURE_SECONDS_PER_POINT,
 } from '../../shared/constants/speedTimePressure.js';
 import { applyPveSpeedTimePressureGraceToLiveUsedSec } from '../../shared/utils/speedTimePveGrace.js';
 const formatTime = (seconds: number) => {
@@ -270,9 +269,9 @@ interface SinglePlayerPanelProps {
     speedBonusTickProgress?: number | null;
     /** 스피드 시간보너스: 다음 -1점까지 남은 초 */
     speedBonusSecToNextDrop?: number | null;
-    /** 스피드: 10초 단위 막대·카운트(패널 하단). PVP는 양쪽, PVE는 내 패널만 */
+    /** 스피드: 공통 간격(초) 단위 막대·카운트(패널 하단). PVP는 양쪽, PVE는 내 패널만 */
     showSpeedTenSecBar?: boolean;
-    /** 싱글/탑 모바일 2행 헤더: `profile` = 가로 프로필만, `stats` = 시간·점수·스피드 10초 막대(수순 박스는 PlayerPanel 중앙) */
+    /** 싱글/탑 모바일 2행 헤더: `profile` = 가로 프로필만, `stats` = 시간·점수·스피드 진행 막대(수순 박스는 PlayerPanel 중앙) */
     pveMobileLayoutTier?: 'full' | 'profile' | 'stats';
 }
 
@@ -1211,7 +1210,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             : !enforceTime;
     /** PVP 휴먼 대국 + 스피드 */
     const isPvpHumanSpeedLiveBonusUi = !session.isAiGame && !session.isSinglePlayer && isSpeedLiveBonusUi;
-    /** 싱글·탑·길드(AI)·모험 등 PVP가 아닌 스피드 압박 대상 세션(시계·10초 막대 공통) */
+    /** 싱글·탑·길드(AI)·모험 등 PVP가 아닌 스피드 압박 대상 세션(시계·진행 막대 공통) */
     const sessionGameCategory = String(session.gameCategory ?? '');
     const isPveLikeSpeedSession =
         Boolean(session.isAiGame) ||
@@ -1219,7 +1218,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         sessionGameCategory === 'tower' ||
         (sessionGameCategory === 'guildwar' && Boolean(session.isAiGame)) ||
         sessionGameCategory === 'adventure';
-    /** PVP가 아닌 스피드: 내 패널에만 10초 막대·누적(양쪽 AI 막대는 숨김) */
+    /** PVP가 아닌 스피드: 내 패널에만 진행 막대·누적(양쪽 AI 막대는 숨김) */
     const isPveSideSpeedLiveBonusUi = isSpeedLiveBonusUi && !isPvpHumanSpeedLiveBonusUi && isPveLikeSpeedSession;
     const [speedBonusNowMs, setSpeedBonusNowMs] = useState(() => Date.now());
     useEffect(() => {
@@ -1243,7 +1242,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             isAiHiddenItemThinkPresentationForSpeed);
     /**
      * 턴 직후 deadline·클라 시각이 한 프레임 어긋나면 (remaining≈0) stored−remaining이 턴 전체로 폭주해
-     * 10초 막대가 비었다가 차는 것처럼 보인다. turnStartTime 기준 경과로 상한을 둔다.
+     * 진행 막대가 비었다가 차는 것처럼 보인다. turnStartTime 기준 경과로 상한을 둔다.
      */
     const getLiveTurnUsedSecRawForSpeedBonusUi = (playerEnum: Player, storedAtTurnStart: number, currentMainRemaining: number): number => {
         if (!humanLiveSpeedTurnClockActive(playerEnum)) return 0;
@@ -1280,7 +1279,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         const liveTurnUsedSecRaw = getLiveTurnUsedSecRawForSpeedBonusUi(playerEnum, storedAtTurnStart, current);
         const liveTurnUsedSec = applyPveSpeedTimePressureGraceToLiveUsedSec(session as any, playerEnum, liveTurnUsedSecRaw, aiUserId);
         const usedSec = committedUsedSec + liveTurnUsedSec;
-        return Math.floor(usedSec / SPEED_TIME_PRESSURE_SERVER_SECONDS_PER_POINT);
+        return Math.floor(usedSec / SPEED_TIME_PRESSURE_SECONDS_PER_POINT);
     };
     const speedBonusStableRef = useRef<{ gameId: string; byPlayerId: Record<string, number | null> }>({
         gameId: '',
@@ -1340,13 +1339,13 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         const liveTurnUsedSec = applyPveSpeedTimePressureGraceToLiveUsedSec(session as any, playerEnum, liveTurnUsedSecRaw, aiUserId);
         const usedSec = committedUsedSec + liveTurnUsedSec;
         const withinChunk =
-            ((usedSec % SPEED_TIME_PRESSURE_UI_BAR_SECONDS) + SPEED_TIME_PRESSURE_UI_BAR_SECONDS) %
-            SPEED_TIME_PRESSURE_UI_BAR_SECONDS;
-        const secToNextDropRaw = SPEED_TIME_PRESSURE_UI_BAR_SECONDS - withinChunk;
+            ((usedSec % SPEED_TIME_PRESSURE_SECONDS_PER_POINT) + SPEED_TIME_PRESSURE_SECONDS_PER_POINT) %
+            SPEED_TIME_PRESSURE_SECONDS_PER_POINT;
+        const secToNextDropRaw = SPEED_TIME_PRESSURE_SECONDS_PER_POINT - withinChunk;
         const secToNextDrop =
-            secToNextDropRaw <= 0 ? SPEED_TIME_PRESSURE_UI_BAR_SECONDS : Math.ceil(secToNextDropRaw);
+            secToNextDropRaw <= 0 ? SPEED_TIME_PRESSURE_SECONDS_PER_POINT : Math.ceil(secToNextDropRaw);
         return {
-            progress: withinChunk / SPEED_TIME_PRESSURE_UI_BAR_SECONDS,
+            progress: withinChunk / SPEED_TIME_PRESSURE_SECONDS_PER_POINT,
             secToNextDrop,
         };
     };
@@ -1504,7 +1503,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 : Math.max(0, Number(grant.white ?? 0));
         return Math.max(
             0,
-            Math.floor(Math.max(0, liveHumanUsed) / SPEED_TIME_PRESSURE_SERVER_SECONDS_PER_POINT) - g,
+            Math.floor(Math.max(0, liveHumanUsed) / SPEED_TIME_PRESSURE_SECONDS_PER_POINT) - g,
         );
     };
     const leftPanelStoneCaptureDisplay =

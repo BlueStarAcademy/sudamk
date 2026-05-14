@@ -1,6 +1,19 @@
 import { randomUUID } from 'crypto';
 import * as db from '../db.js';
-import { type ServerAction, type User, type VolatileState, TournamentType, PlayerForTournament, InventoryItem, InventoryItemType, TournamentState, LeagueTier, CoreStat, EquipmentSlot } from '../../types/index.js';
+import {
+    type ServerAction,
+    type User,
+    type VolatileState,
+    TournamentType,
+    PlayerForTournament,
+    InventoryItem,
+    InventoryItemType,
+    TournamentState,
+    LeagueTier,
+    CoreStat,
+    EquipmentSlot,
+    type ChampionshipVersusVenueKind,
+} from '../../types/index.js';
 import { ItemGrade } from '../../types/enums.js';
 import * as types from '../../types/index.js';
 import { TOURNAMENT_DEFINITIONS, BASE_TOURNAMENT_REWARDS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, BOT_NAMES, AVATAR_POOL, BORDER_POOL, DUNGEON_STAGE_BOT_STATS, DUNGEON_TYPE_MULTIPLIER, DUNGEON_RANK_REWARD_MULTIPLIER, DUNGEON_DEFAULT_REWARD_MULTIPLIER, DUNGEON_STAGE_BASE_REWARDS_GOLD, DUNGEON_STAGE_BASE_REWARDS_MATERIAL, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT, DUNGEON_STAGE_BASE_SCORE, DUNGEON_RANK_SCORE_BONUS, DUNGEON_DEFAULT_SCORE_BONUS, getDungeonRankRewardNeighborhood, getDungeonRankRewardNational, getDungeonRankRewardWorld, rollDungeonStageChampCoins } from '../../shared/constants';
@@ -2389,6 +2402,132 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                     nextStageWasAlreadyUnlocked: nextStageWasAlreadyUnlocked ?? false,
                     updatedUser: freshUser 
                 } 
+            };
+        }
+
+        case 'GET_CHAMPIONSHIP_VERSUS_VENUE_STATE': {
+            const champGate = await requireArenaEntranceOpen(user.isAdmin, 'championship', user);
+            if (!champGate.ok) return { error: champGate.error };
+            const { venue } = payload as { venue: ChampionshipVersusVenueKind };
+            const {
+                parseVersusVenuePayload,
+                buildChampionshipVersusOpponentList,
+                championshipVersusSelfNeedsRatingPersist,
+                championshipVersusEconomyForClient,
+            } = await import('../championshipVersusVenueService.js');
+            const { ensureChampionshipVersusRatingEntry } = await import('../../shared/utils/championshipVersusElo.js');
+            const v = parseVersusVenuePayload(venue);
+            if (!v) return { error: '유효하지 않은 챔피언십 경기장입니다.' };
+            const needPersist = championshipVersusSelfNeedsRatingPersist(user, v, now);
+            ensureChampionshipVersusRatingEntry(user, v, now);
+            const firstEconomy =
+                user.championshipVersusDuelTickets === undefined || user.championshipVersusOppRefreshDayKST === undefined;
+            const economy = championshipVersusEconomyForClient(user, now);
+            if (needPersist || firstEconomy) {
+                updateUserCache(user);
+                void db.updateUser(user).catch((err) => console.error('[GET_CHAMPIONSHIP_VERSUS_VENUE_STATE] save user failed:', err));
+            }
+            const { myRating, ratingSeasonKey, opponents } = await buildChampionshipVersusOpponentList(user, v, now);
+            return {
+                clientResponse: {
+                    updatedUser: user,
+                    championshipVersusVenue: v,
+                    championshipVersusMyRating: myRating,
+                    championshipVersusRatingSeasonKey: ratingSeasonKey,
+                    championshipVersusRatingMonthKST: ratingSeasonKey,
+                    championshipVersusOpponents: opponents,
+                    ...economy,
+                },
+            };
+        }
+
+        case 'REFRESH_CHAMPIONSHIP_VERSUS_OPPONENT_LIST': {
+            const champGate = await requireArenaEntranceOpen(user.isAdmin, 'championship', user);
+            if (!champGate.ok) return { error: champGate.error };
+            const { venue } = payload as { venue: ChampionshipVersusVenueKind };
+            const { parseVersusVenuePayload, executeChampionshipVersusOpponentListRefresh, championshipVersusEconomyForClient } =
+                await import('../championshipVersusVenueService.js');
+            const v = parseVersusVenuePayload(venue);
+            if (!v) return { error: '유효하지 않은 챔피언십 경기장입니다.' };
+            const refreshed = await executeChampionshipVersusOpponentListRefresh(user, v, now);
+            if (refreshed.error) return { error: refreshed.error };
+            const economy = championshipVersusEconomyForClient(user, now);
+            return {
+                clientResponse: {
+                    updatedUser: user,
+                    championshipVersusVenue: v,
+                    championshipVersusMyRating: refreshed.myRating,
+                    championshipVersusRatingSeasonKey: refreshed.ratingSeasonKey,
+                    championshipVersusRatingMonthKST: refreshed.ratingSeasonKey,
+                    championshipVersusOpponents: refreshed.opponents,
+                    ...economy,
+                },
+            };
+        }
+
+        case 'REPORT_CHAMPIONSHIP_VERSUS_DUEL_RESULT': {
+            const champGate = await requireArenaEntranceOpen(user.isAdmin, 'championship', user);
+            if (!champGate.ok) return { error: champGate.error };
+            const { venue, opponentUserId, won } = payload as {
+                venue: ChampionshipVersusVenueKind;
+                opponentUserId: string;
+                won: boolean;
+            };
+            const { parseVersusVenuePayload, applyChampionshipVersusDuelResult } = await import('../championshipVersusVenueService.js');
+            const v = parseVersusVenuePayload(venue);
+            if (!v) return { error: '유효하지 않은 챔피언십 경기장입니다.' };
+            if (typeof opponentUserId !== 'string' || typeof won !== 'boolean') {
+                return { error: '잘못된 요청입니다.' };
+            }
+            const result = await applyChampionshipVersusDuelResult(user, v, opponentUserId, won, now);
+            if (result.error) return { error: result.error };
+            return {
+                clientResponse: {
+                    updatedUser: result.actor,
+                    championshipVersusDuel: {
+                        opponentUserId,
+                        won,
+                        venue: v,
+                        actorCoinsDelta: result.actorCoinsDelta,
+                        opponentCoinsDelta: result.opponentCoinsDelta,
+                    },
+                },
+            };
+        }
+
+        case 'START_CHAMPIONSHIP_VERSUS_KATA_DUEL': {
+            const champGate = await requireArenaEntranceOpen(user.isAdmin, 'championship', user);
+            if (!champGate.ok) return { error: champGate.error };
+            const { venue, opponentUserId } = payload as {
+                venue: ChampionshipVersusVenueKind;
+                opponentUserId: string;
+            };
+            const { parseVersusVenuePayload, executeChampionshipVersusKataDuel } = await import('../championshipVersusVenueService.js');
+            const v = parseVersusVenuePayload(venue);
+            if (!v) return { error: '유효하지 않은 챔피언십 경기장입니다.' };
+            if (typeof opponentUserId !== 'string' || opponentUserId.length < 1) {
+                return { error: '잘못된 요청입니다.' };
+            }
+            const result = await executeChampionshipVersusKataDuel(user, v, opponentUserId, now);
+            if (result.error) return { error: result.error };
+            const updatedUser = result.actor ? JSON.parse(JSON.stringify(result.actor)) : JSON.parse(JSON.stringify(user));
+            return {
+                clientResponse: {
+                    updatedUser,
+                    championshipVersusKataDuel: {
+                        venue: v,
+                        opponentUserId,
+                        match: result.match,
+                        championshipRealGame: result.championshipRealGame,
+                        analysis: result.analysis,
+                        actorWon: result.actorWon,
+                        actorVenueRatingBefore: result.actorVenueRatingBefore,
+                        actorVenueRatingAfter: result.actorVenueRatingAfter,
+                        actorVenueRatingDelta: result.actorVenueRatingDelta,
+                        champCoinsDelta: result.champCoinsDelta,
+                        guildCoinsDelta: result.guildCoinsDelta,
+                    },
+                },
             };
         }
 

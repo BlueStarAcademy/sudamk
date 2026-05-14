@@ -4972,7 +4972,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                       }
                     : isGuildWarGame
                       ? {
-                            backgroundImage: "url('/images/guild/guildwar/warmap.webp')",
+                            backgroundImage: "url('/images/bg/inguildwar.webp')",
                             backgroundSize: 'cover',
                             backgroundPosition: 'center',
                             backgroundRepeat: 'no-repeat',

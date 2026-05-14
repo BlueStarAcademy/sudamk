@@ -54,6 +54,9 @@ function calculateMissilePath(
     myPlayerEnum: types.Player
 ): { to: types.Point; revealedHiddenStone: types.Point | null } {
     const boardSize = game.settings.boardSize;
+    if (!Number.isFinite(boardSize) || boardSize <= 0) {
+        return { to: { ...from }, revealedHiddenStone: null };
+    }
     const opponentEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
     
     // 방향 벡터 계산
@@ -65,9 +68,17 @@ function calculateMissilePath(
     
     let current = { ...from };
     let revealedHiddenStone: types.Point | null = null;
-    
+    const maxSteps = boardSize * boardSize + 8;
+    let stepGuard = 0;
+
     // 경로를 따라 이동하면서 확인
     while (true) {
+        if (++stepGuard > maxSteps) {
+            console.warn(
+                `[Missile Go] calculateMissilePath: step guard exceeded, aborting path from (${from.x},${from.y}), gameId=${game.id}`,
+            );
+            break;
+        }
         const next = { x: current.x + dir.x, y: current.y + dir.y };
         
         // 보드 범위를 벗어나면 멈춤
@@ -75,7 +86,8 @@ function calculateMissilePath(
             break;
         }
         
-        const stoneAtNext = game.boardState[next.y]?.[next.x];
+        const rawAtNext = game.boardState[next.y]?.[next.x];
+        const stoneAtNext = rawAtNext == null ? types.Player.None : rawAtNext;
         
         // moveHistory도 확인하여 보드 동기화 지연 상태의 돌을 감지
         const moveAtNext = game.moveHistory.find(m => m.x === next.x && m.y === next.y);

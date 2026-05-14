@@ -356,193 +356,105 @@ const RankItem: React.FC<RankItemProps> = ({ user, rank, isMyRankDisplay }) => {
     );
 };
 
-const PetChampionshipComingSoonCard: React.FC<{
-    compactMerged: boolean;
-    mergedInfoPanelStretch?: boolean;
-    /** 데스크톱 2×3 그리드: 셀 높이에 맞춰 카드 세로를 채움 */
-    fillLobbyGridCell?: boolean;
-}> = ({ compactMerged, mergedInfoPanelStretch = false, fillLobbyGridCell = false }) => {
-    if (compactMerged) {
-        return (
-            <div
-                className={`flex w-full overflow-hidden rounded-2xl border border-fuchsia-500/45 bg-gradient-to-br from-violet-950 via-purple-950 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-fuchsia-200/10 ${
-                    mergedInfoPanelStretch
-                        ? fillLobbyGridCell
-                            ? 'h-full min-h-0 w-full min-w-0 shrink-0'
-                            : 'aspect-video max-h-full min-h-0 w-full shrink-0'
-                        : 'h-full min-h-[5rem] max-h-[7.85rem]'
-                }`}
-            >
-                <div className="relative min-h-0 min-w-0 flex-[1.58] overflow-hidden rounded-l-2xl bg-violet-950/90">
-                    <img
-                        src={CHAMPIONSHIP_PET_VENUE_BG_WEBP}
-                        alt=""
-                        className="absolute inset-0 h-full w-full object-cover object-center opacity-85"
-                    />
-                    <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/55 via-violet-950/20 to-black/78" />
-                    <div className="pointer-events-none absolute left-2 top-2 z-10 rounded-md border border-fuchsia-400/45 bg-violet-950/88 px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-fuchsia-100 shadow-md sm:text-[11px]">
-                        Coming Soon
-                    </div>
-                </div>
-                <div className="flex min-h-0 min-w-0 max-w-[42%] flex-1 flex-col items-stretch justify-center border-l border-fuchsia-200/15 bg-gradient-to-b from-violet-950/90 to-black/84 p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-2.5">
-                    <div className="inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-fuchsia-400/40 bg-gradient-to-r from-violet-900/75 via-purple-900/70 to-violet-900/75 px-1.5 py-1 text-[12px] font-black leading-tight tracking-tight text-fuchsia-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:text-[13px]">
-                        펫 챔피언십
-                    </div>
-                    <p className="mt-2 text-[11px] font-semibold leading-snug text-fuchsia-200/80 sm:text-xs">펫 동행 대회·보상 (준비 중)</p>
-                </div>
-            </div>
-        );
-    }
-    return (
-        <div
-            className={`flex w-full overflow-hidden rounded-2xl border border-fuchsia-500/45 bg-gradient-to-br from-violet-950 via-purple-950 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-fuchsia-200/10 ${
-                fillLobbyGridCell ? 'h-full min-h-0' : 'aspect-[2.08/1] max-h-full min-h-0'
-            }`}
-        >
-            <div className="relative min-h-0 min-w-0 flex-[1.52] overflow-hidden rounded-l-2xl bg-violet-950/90">
-                <img
-                    src={CHAMPIONSHIP_PET_VENUE_BG_WEBP}
-                    alt=""
-                    className="absolute inset-0 h-full w-full object-cover object-center opacity-90"
-                />
-                <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/50 via-purple-950/15 to-black/72" />
-                <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-md border border-fuchsia-400/50 bg-violet-950/88 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-fuchsia-50 shadow-md">
-                    Coming Soon
-                </div>
-            </div>
-            <div className="flex min-h-0 min-w-[200px] flex-[1.08] flex-col items-center justify-center border-l border-fuchsia-200/15 bg-gradient-to-b from-violet-950/90 to-black/84 p-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                <div className="mb-2 inline-flex w-full max-w-[16rem] items-center justify-center rounded-lg border border-fuchsia-400/40 bg-gradient-to-r from-violet-900/75 via-purple-900/70 to-violet-900/75 px-3 py-2 text-[17px] font-black tracking-tight text-fuchsia-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
-                    펫 챔피언십
-                </div>
-                <p className="max-w-[15rem] text-sm font-medium leading-relaxed text-fuchsia-200/75">펫과 함께하는 대회와 보상이 열릴 예정입니다.</p>
-            </div>
-        </div>
-    );
+type ChampionshipVersusLobbyKind = 'pvp' | 'pet' | 'petpair';
+
+const CHAMPIONSHIP_VERSUS_LOBBY_META: Record<
+    ChampionshipVersusLobbyKind,
+    { title: string; subtitle: string; image: string; ring: string; border: string; panelFrom: string; chip: string; chipText: string }
+> = {
+    pvp: {
+        title: 'PVP 챔피언십',
+        subtitle: '월간 ELO · 상대 매칭 · 경기장 입장',
+        image: CHAMPIONSHIP_PVP_VENUE_BG_WEBP,
+        ring: 'ring-white/10',
+        border: 'border-slate-500/45',
+        panelFrom: 'from-zinc-900/90',
+        chip: 'border-slate-400/35 bg-gradient-to-r from-slate-900/70 via-zinc-900/65 to-slate-900/70',
+        chipText: 'text-slate-100',
+    },
+    pet: {
+        title: '펫 챔피언십',
+        subtitle: '펫 동행 · 월간 랭킹 · 코인 보상',
+        image: CHAMPIONSHIP_PET_VENUE_BG_WEBP,
+        ring: 'ring-fuchsia-200/10',
+        border: 'border-fuchsia-500/45',
+        panelFrom: 'from-violet-950/90',
+        chip: 'border-fuchsia-400/40 bg-gradient-to-r from-violet-900/75 via-purple-900/70 to-violet-900/75',
+        chipText: 'text-fuchsia-50',
+    },
+    petpair: {
+        title: '펫 페어 챔피언십',
+        subtitle: '페어 대전 · 월간 랭킹 · 코인 보상',
+        image: CHAMPIONSHIP_PET_PAIR_VENUE_BG_WEBP,
+        ring: 'ring-sky-200/10',
+        border: 'border-sky-500/45',
+        panelFrom: 'from-cyan-950/90',
+        chip: 'border-sky-400/40 bg-gradient-to-r from-cyan-900/75 via-sky-900/70 to-cyan-900/75',
+        chipText: 'text-sky-50',
+    },
 };
 
-const PetPairChampionshipComingSoonCard: React.FC<{
+const ChampionshipVersusLobbyCard: React.FC<{
+    kind: ChampionshipVersusLobbyKind;
     compactMerged: boolean;
     mergedInfoPanelStretch?: boolean;
     fillLobbyGridCell?: boolean;
-}> = ({ compactMerged, mergedInfoPanelStretch = false, fillLobbyGridCell = false }) => {
-    if (compactMerged) {
-        return (
-            <div
-                className={`flex w-full overflow-hidden rounded-2xl border border-sky-500/45 bg-gradient-to-br from-slate-950 via-cyan-950 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-sky-200/10 ${
-                    mergedInfoPanelStretch
-                        ? fillLobbyGridCell
-                            ? 'h-full min-h-0 w-full min-w-0 shrink-0'
-                            : 'aspect-video max-h-full min-h-0 w-full shrink-0'
-                        : 'h-full min-h-[5rem] max-h-[7.85rem]'
-                }`}
-            >
-                <div className="relative min-h-0 min-w-0 flex-[1.58] overflow-hidden rounded-l-2xl bg-cyan-950/90">
-                    <img
-                        src={CHAMPIONSHIP_PET_PAIR_VENUE_BG_WEBP}
-                        alt=""
-                        className="absolute inset-0 h-full w-full object-cover object-center opacity-85"
-                    />
-                    <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/55 via-cyan-950/20 to-black/78" />
-                    <div className="pointer-events-none absolute left-2 top-2 z-10 rounded-md border border-sky-400/45 bg-cyan-950/88 px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-sky-100 shadow-md sm:text-[11px]">
-                        Coming Soon
-                    </div>
-                </div>
-                <div className="flex min-h-0 min-w-0 max-w-[42%] flex-1 flex-col items-stretch justify-center border-l border-sky-200/15 bg-gradient-to-b from-cyan-950/90 to-black/84 p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-2.5">
-                    <div className="inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-sky-400/40 bg-gradient-to-r from-cyan-900/75 via-sky-900/70 to-cyan-900/75 px-1.5 py-1 text-[12px] font-black leading-tight tracking-tight text-sky-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:text-[13px]">
-                        펫 페어 챔피언십
-                    </div>
-                    <p className="mt-2 text-[11px] font-semibold leading-snug text-sky-200/80 sm:text-xs">페어·듀오 대전 (준비 중)</p>
-                </div>
-            </div>
-        );
-    }
-    return (
-        <div
-            className={`flex w-full overflow-hidden rounded-2xl border border-sky-500/45 bg-gradient-to-br from-slate-950 via-cyan-950 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-sky-200/10 ${
-                fillLobbyGridCell ? 'h-full min-h-0' : 'aspect-[2.08/1] max-h-full min-h-0'
-            }`}
-        >
-            <div className="relative min-h-0 min-w-0 flex-[1.52] overflow-hidden rounded-l-2xl bg-cyan-950/90">
-                <img
-                    src={CHAMPIONSHIP_PET_PAIR_VENUE_BG_WEBP}
-                    alt=""
-                    className="absolute inset-0 h-full w-full object-cover object-center opacity-90"
-                />
-                <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/50 via-cyan-950/15 to-black/72" />
-                <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-md border border-sky-400/50 bg-cyan-950/88 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-sky-50 shadow-md">
-                    Coming Soon
-                </div>
-            </div>
-            <div className="flex min-h-0 min-w-[200px] flex-[1.08] flex-col items-center justify-center border-l border-sky-200/15 bg-gradient-to-b from-cyan-950/90 to-black/84 p-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                <div className="mb-2 inline-flex w-full max-w-[16rem] items-center justify-center rounded-lg border border-sky-400/40 bg-gradient-to-r from-cyan-900/75 via-sky-900/70 to-cyan-900/75 px-3 py-2 text-[17px] font-black tracking-tight text-sky-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
-                    펫 페어 챔피언십
-                </div>
-                <p className="max-w-[15rem] text-sm font-medium leading-relaxed text-sky-200/75">펫 페어 대전과 보상이 열릴 예정입니다.</p>
-            </div>
-        </div>
-    );
-};
+}> = ({ kind, compactMerged, mergedInfoPanelStretch = false, fillLobbyGridCell = false }) => {
+    const meta = CHAMPIONSHIP_VERSUS_LOBBY_META[kind];
+    const go = () => {
+        window.location.hash = `#/tournament/${kind}`;
+    };
+    const shell = `flex w-full cursor-pointer overflow-hidden rounded-2xl border ${meta.border} bg-gradient-to-br from-slate-950 via-slate-950 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ${meta.ring} transition-transform active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60`;
 
-const PvpChampionshipComingSoonCard: React.FC<{
-    compactMerged: boolean;
-    mergedInfoPanelStretch?: boolean;
-    fillLobbyGridCell?: boolean;
-}> = ({ compactMerged, mergedInfoPanelStretch = false, fillLobbyGridCell = false }) => {
     if (compactMerged) {
         return (
-            <div
-                className={`flex w-full overflow-hidden rounded-2xl border border-slate-500/45 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10 ${
+            <button
+                type="button"
+                onClick={go}
+                className={`${shell} ${
                     mergedInfoPanelStretch
                         ? fillLobbyGridCell
-                            ? 'h-full min-h-0 w-full min-w-0 shrink-0'
-                            : 'aspect-video max-h-full min-h-0 w-full shrink-0'
-                        : 'h-full min-h-[5rem] max-h-[7.85rem]'
+                            ? 'h-full min-h-0 w-full min-w-0 shrink-0 text-left'
+                            : 'aspect-video max-h-full min-h-0 w-full shrink-0 text-left'
+                        : 'h-full min-h-[5rem] max-h-[7.85rem] text-left'
                 }`}
             >
                 <div className="relative min-h-0 min-w-0 flex-[1.58] overflow-hidden rounded-l-2xl bg-slate-950/90">
-                    <img
-                        src={CHAMPIONSHIP_PVP_VENUE_BG_WEBP}
-                        alt=""
-                        className="absolute inset-0 h-full w-full object-cover object-center opacity-80 grayscale-[0.35]"
-                    />
-                    <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/60 via-black/25 to-black/80" />
-                    <div className="pointer-events-none absolute left-2 top-2 z-10 rounded-md border border-slate-400/40 bg-slate-950/85 px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-200 shadow-md sm:text-[11px]">
-                        Coming Soon
-                    </div>
+                    <img src={meta.image} alt="" className="absolute inset-0 h-full w-full object-cover object-center opacity-88" />
+                    <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/55 via-black/20 to-black/78" />
                 </div>
-                <div className="flex min-h-0 min-w-0 max-w-[42%] flex-1 flex-col items-stretch justify-center border-l border-slate-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-2.5">
-                    <div className="inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-slate-400/35 bg-gradient-to-r from-slate-900/70 via-zinc-900/65 to-slate-900/70 px-1.5 py-1 text-[12px] font-black leading-tight tracking-tight text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:text-[13px]">
-                        PVP 챔피언십
+                <div
+                    className={`flex min-h-0 min-w-0 max-w-[42%] flex-1 flex-col items-stretch justify-center border-l border-white/10 ${meta.panelFrom} to-black/84 p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-2.5`}
+                >
+                    <div
+                        className={`inline-flex w-full shrink-0 items-center justify-center rounded-lg border px-1.5 py-1 text-[12px] font-black leading-tight tracking-tight shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:text-[13px] ${meta.chip} ${meta.chipText}`}
+                    >
+                        {meta.title}
                     </div>
-                    <p className="mt-2 text-[11px] font-semibold leading-snug text-slate-400 sm:text-xs">결투 점수 기반 랭킹·대회 (준비 중)</p>
+                    <p className="mt-2 text-[11px] font-semibold leading-snug text-slate-200/85 sm:text-xs">{meta.subtitle}</p>
+                    <p className="mt-1 text-[10px] font-bold text-amber-200/90">탭하여 경기장 입장</p>
                 </div>
-            </div>
+            </button>
         );
     }
     return (
-        <div
-            className={`flex w-full overflow-hidden rounded-2xl border border-slate-500/45 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10 ${
-                fillLobbyGridCell ? 'h-full min-h-0' : 'aspect-[2.08/1] max-h-full min-h-0'
-            }`}
-        >
+        <button type="button" onClick={go} className={`${shell} ${fillLobbyGridCell ? 'h-full min-h-0 text-left' : 'aspect-[2.08/1] max-h-full min-h-0 text-left'}`}>
             <div className="relative min-h-0 min-w-0 flex-[1.52] overflow-hidden rounded-l-2xl bg-slate-950/90">
-                <img
-                    src={CHAMPIONSHIP_PVP_VENUE_BG_WEBP}
-                    alt=""
-                    className="absolute inset-0 h-full w-full object-cover object-center opacity-85 grayscale-[0.25]"
-                />
-                <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
-                <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-md border border-slate-400/45 bg-slate-950/88 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-slate-100 shadow-md">
-                    Coming Soon
-                </div>
+                <img src={meta.image} alt="" className="absolute inset-0 h-full w-full object-cover object-center opacity-90" />
+                <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/50 via-black/15 to-black/72" />
             </div>
-            <div className="flex min-h-0 min-w-[200px] flex-[1.08] flex-col items-center justify-center border-l border-slate-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                <div className="mb-2 inline-flex w-full max-w-[16rem] items-center justify-center rounded-lg border border-slate-400/35 bg-gradient-to-r from-slate-900/70 via-zinc-900/65 to-slate-900/70 px-3 py-2 text-[17px] font-black tracking-tight text-slate-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
-                    PVP 챔피언십
+            <div
+                className={`flex min-h-0 min-w-[200px] flex-[1.08] flex-col items-center justify-center border-l border-white/10 ${meta.panelFrom} to-black/84 p-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]`}
+            >
+                <div
+                    className={`mb-2 inline-flex w-full max-w-[16rem] items-center justify-center rounded-lg border px-3 py-2 text-[17px] font-black tracking-tight shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] ${meta.chip} ${meta.chipText}`}
+                >
+                    {meta.title}
                 </div>
-                <p className="max-w-[15rem] text-sm font-medium leading-relaxed text-slate-400">결투 점수 기반 랭킹과 대회가 열릴 예정입니다.</p>
+                <p className="max-w-[15rem] text-sm font-medium leading-relaxed text-slate-300">{meta.subtitle}</p>
+                <p className="mt-2 text-xs font-bold text-amber-200/90">경기장 입장</p>
             </div>
-        </div>
+        </button>
     );
 };
 
@@ -1203,13 +1115,13 @@ const TournamentLobby: React.FC = () => {
                                         />
                                     </div>
                                     <div className="flex w-full min-w-0 shrink-0 flex-col">
-                                        <PvpChampionshipComingSoonCard compactMerged mergedInfoPanelStretch />
+                                        <ChampionshipVersusLobbyCard kind="pvp" compactMerged mergedInfoPanelStretch />
                                     </div>
                                     <div className="flex w-full min-w-0 shrink-0 flex-col">
-                                        <PetChampionshipComingSoonCard compactMerged mergedInfoPanelStretch />
+                                        <ChampionshipVersusLobbyCard kind="pet" compactMerged mergedInfoPanelStretch />
                                     </div>
                                     <div className="flex w-full min-w-0 shrink-0 flex-col">
-                                        <PetPairChampionshipComingSoonCard compactMerged mergedInfoPanelStretch />
+                                        <ChampionshipVersusLobbyCard kind="petpair" compactMerged mergedInfoPanelStretch />
                                     </div>
                                 </div>
                             </div>
@@ -1419,7 +1331,7 @@ const TournamentLobby: React.FC = () => {
                                         />
                                     </div>
                                     <div className="flex h-full min-h-0 min-w-0 flex-col">
-                                        <PvpChampionshipComingSoonCard compactMerged={false} fillLobbyGridCell />
+                                        <ChampionshipVersusLobbyCard kind="pvp" compactMerged={false} fillLobbyGridCell />
                                     </div>
                                     <div className="flex h-full min-h-0 min-w-0 flex-col">
                                         <TournamentCard
@@ -1436,7 +1348,7 @@ const TournamentLobby: React.FC = () => {
                                         />
                                     </div>
                                     <div className="flex h-full min-h-0 min-w-0 flex-col">
-                                        <PetChampionshipComingSoonCard compactMerged={false} fillLobbyGridCell />
+                                        <ChampionshipVersusLobbyCard kind="pet" compactMerged={false} fillLobbyGridCell />
                                     </div>
                                     <div className="flex h-full min-h-0 min-w-0 flex-col">
                                         <TournamentCard
@@ -1453,7 +1365,7 @@ const TournamentLobby: React.FC = () => {
                                         />
                                     </div>
                                     <div className="flex h-full min-h-0 min-w-0 flex-col">
-                                        <PetPairChampionshipComingSoonCard compactMerged={false} fillLobbyGridCell />
+                                        <ChampionshipVersusLobbyCard kind="petpair" compactMerged={false} fillLobbyGridCell />
                                     </div>
                                 </div>
                         </div>

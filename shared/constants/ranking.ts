@@ -105,3 +105,13 @@ export const SEASONAL_TIER_BORDERS: Record<string, string> = {
     '마스터': 'border_master_season_N',
     '챌린저': 'border_challenger_season_N',
 };
+
+/** 전략바둑 랭킹전·챔피언십 대전장 시즌 티어 산정(점수·랭킹·시즌 대국 수) */
+export function getSeasonalRankingTierName(score: number, rank: number, totalGames: number): string {
+    for (const tier of RANKING_TIERS) {
+        if (tier.threshold(score, rank, totalGames)) {
+            return tier.name;
+        }
+    }
+    return RANKING_TIERS[RANKING_TIERS.length - 1]!.name;
+}
