@@ -51,6 +51,8 @@ import { processMoveClient } from './client/goLogicClient.js';
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from './client/logic/goLogic.js';
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
 import { shouldOpenResultModalByPolicy } from './utils/resultDisplayPolicy.js';
+import { ScoringOverlay } from './components/game/ScoringOverlay.js';
+import { useScoringOverlayPresentation } from './hooks/useScoringOverlayPresentation.js';
 import { consumeSkipGameHashLeaveInterceptOnce, replaceAppHash } from './utils/appUtils.js';
 import { getTowerInGameBackgroundUrl, getTowerSessionFloor } from './utils/towerPreGameDisplay.js';
 import { getAdventureMapWebpPath } from './constants/adventureConstants.js';
@@ -963,6 +965,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     });
     
     const prevGameStatus = usePrevious(gameStatus);
+    const {
+        showScoringOverlay,
+        scoringOverlayCompleted,
+        isScoreBasedPresentation,
+    } = useScoringOverlayPresentation({
+        gameId: session.id,
+        gameStatus,
+        prevGameStatus,
+        winReason: session.winReason ?? undefined,
+    });
+    const showTerritoryOnBoard =
+        showFinalTerritory && (!isScoreBasedPresentation || scoringOverlayCompleted);
 
     useEffect(() => {
         setPostGameSummaryAcknowledged(false);
@@ -1703,7 +1717,17 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             session.winReason === 'capture_limit' &&
             (prevGameStatus === 'playing' || prevGameStatus === 'scoring');
 
-        if (shouldShowModal) {
+        const scoreEndReadyForModal =
+            isScoreBasedPresentation &&
+            scoringOverlayCompleted &&
+            gameStatus === 'ended' &&
+            !showResultModal &&
+            (session.winReason === 'score' || Boolean(currentAnalysisResult));
+
+        const canOpenModalNow =
+            !isScoreBasedPresentation || scoringOverlayCompleted;
+
+        if ((shouldShowModal && canOpenModalNow) || scoreEndReadyForModal) {
             if (shouldDelayCaptureResultModal) {
                 const jc = session.justCaptured;
                 const hiddenFloatLag =
@@ -1717,16 +1741,17 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             } else {
                 setShowResultModal(true);
             }
-            if (gameStatus === 'ended') {
+            if (gameStatus === 'ended' && (!isScoreBasedPresentation || scoringOverlayCompleted)) {
                 setShowFinalTerritory(true);
             }
         }
-        
-        // 계가가 완료되었을 때(analysisResult가 있을 때) 영토 표시 활성화 — scoring 중에는 계가 오버레이·판면 연출 후 ended에서 켠다
-        if (gameStatus === 'ended') {
-            if (currentAnalysisResult) {
-                setShowFinalTerritory(true);
-            }
+
+        if (
+            gameStatus === 'ended' &&
+            currentAnalysisResult &&
+            (!isScoreBasedPresentation || scoringOverlayCompleted)
+        ) {
+            setShowFinalTerritory(true);
         }
     }, [
         gameStatus,
@@ -1740,6 +1765,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         playfulResultModalWaitSummary,
         hasMyGameSummary,
         playfulGameSummaryJustArrived,
+        isScoreBasedPresentation,
+        scoringOverlayCompleted,
+        showResultModal,
     ]);
 
     /** 다른 대국으로 바뀌거나 화면을 떠날 때만 지연 모달 타이머 정리 (이펙트 재실행마다 지우면 모달이 영원히 안 뜸) */
@@ -2861,8 +2889,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             x,
                             y,
                             isHidden: true,
-                            boardState: moveResult.newBoardState,
-                            moveHistory: [...(session.moveHistory || []), { x, y, player: myPlayerEnum }],
+                            boardState: boardStateToUse,
+                            moveHistory: session.moveHistory || [],
+                            hiddenMoves: session.hiddenMoves || {},
+                            humanHiddenStonePoints: (session as any).humanHiddenStonePoints || [],
                         }
                     } as ServerAction))
                         .then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined))
@@ -3288,6 +3318,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     hiddenMovesBeforeMove: session.hiddenMoves || {},
                     // 히든 배치 상태에서는 히든 착수로 처리(타워 21층+ 등)
                     ...(gameStatus === 'hidden_placing' ? { isHidden: true } : {}),
+                    ...(gameStatus === 'hidden_placing'
+                        ? {
+                              serverHiddenPlacementPayload: {
+                                  gameId,
+                                  x,
+                                  y,
+                                  isHidden: true,
+                                  boardState: boardStateToUse,
+                                  moveHistory: session.moveHistory || [],
+                                  hiddenMoves: session.hiddenMoves || {},
+                                  humanHiddenStonePoints: (session as any).humanHiddenStonePoints || [],
+                              },
+                          }
+                        : {}),
                 };
             } else {
                 // 온라인 게임(전략바둑 AI 대국 포함): 서버에서 검증/반영
@@ -3378,6 +3422,22 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined);
                     if (at === 'TOWER_CLIENT_MOVE' || at === 'SINGLE_PLAYER_CLIENT_MOVE') {
                         claimStrategicPetHintBonusIfMatched(x, y, (session.moveHistory?.length || 0) + 1);
+                        const serverHiddenPlacementPayload = (payload as any).serverHiddenPlacementPayload;
+                        if (serverHiddenPlacementPayload) {
+                            void Promise.resolve(
+                                handlers.handleAction({
+                                    type: 'PLACE_STONE',
+                                    payload: serverHiddenPlacementPayload,
+                                } as ServerAction)
+                            )
+                                .then((serverRes) =>
+                                    handleStrategicPetHintActionResult(serverRes as StrategicPetHintActionResult | undefined)
+                                )
+                                .finally(() => {
+                                    pveLocalStonePlacementLockRef.current = false;
+                                });
+                            audioService.stopScanBgm();
+                        }
                     }
                     const hasErr = res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error;
                     if (hasErr) {
@@ -4655,7 +4715,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         myPlayerEnum={myPlayerEnum} 
                                         handleBoardClick={handleBoardClick} 
                                         isItemModeActive={isItemModeActive} 
-                                        showTerritoryOverlay={showFinalTerritory} 
+                                        showTerritoryOverlay={showTerritoryOnBoard} 
                                         isMobile={isMobile}
                                         pendingMove={pendingMoveForBoard}
                                         myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
@@ -4673,8 +4733,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                         boardRuleFlashMessage={boardRuleFlashMessage}
+                                        blockScoringBoardAnalysis={isScoreBasedPresentation && !scoringOverlayCompleted}
                                     />
                                     {boardHydrationOverlayEl}
+                                    {showScoringOverlay && <ScoringOverlay variant="fullscreen" />}
                                 </div>
                             </div>
                             <div className="flex-shrink-0 w-full flex flex-col gap-1">
@@ -4822,7 +4884,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         myPlayerEnum={myPlayerEnum} 
                                         handleBoardClick={handleBoardClick} 
                                         isItemModeActive={isItemModeActive} 
-                                        showTerritoryOverlay={showFinalTerritory} 
+                                        showTerritoryOverlay={showTerritoryOnBoard} 
                                         isMobile={isMobile}
                                         pendingMove={pendingMoveForBoard}
                                         myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
@@ -4838,8 +4900,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                         boardRuleFlashMessage={boardRuleFlashMessage}
+                                        blockScoringBoardAnalysis={isScoreBasedPresentation && !scoringOverlayCompleted}
                                     />
                                     {boardHydrationOverlayEl}
+                                    {showScoringOverlay && <ScoringOverlay variant="fullscreen" />}
                                 </div>
                             </div>
                             <div className="flex-shrink-0 w-full flex flex-col gap-1">
@@ -5051,7 +5115,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                         myPlayerEnum={myPlayerEnum}
                                                         handleBoardClick={handleBoardClick}
                                                         isItemModeActive={isItemModeActive}
-                                                        showTerritoryOverlay={showFinalTerritory}
+                                                        showTerritoryOverlay={showTerritoryOnBoard}
                                                         isMobile={isMobile}
                                                         pendingMove={pendingMoveForBoard}
                                                         myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
@@ -5066,6 +5130,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                                         boardRuleFlashMessage={boardRuleFlashMessage}
+                                                        blockScoringBoardAnalysis={isScoreBasedPresentation && !scoringOverlayCompleted}
                                                     />
                                                     {boardHydrationOverlayEl}
                                                 </div>
@@ -5077,7 +5142,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                 myPlayerEnum={myPlayerEnum}
                                                 handleBoardClick={handleBoardClick}
                                                 isItemModeActive={isItemModeActive}
-                                                showTerritoryOverlay={showFinalTerritory}
+                                                showTerritoryOverlay={showTerritoryOnBoard}
                                                 isMobile={isMobile}
                                                 pendingMove={pendingMoveForBoard}
                                                 myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
@@ -5092,10 +5157,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                 onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
                                                 intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                                 boardRuleFlashMessage={boardRuleFlashMessage}
+                                                blockScoringBoardAnalysis={isScoreBasedPresentation && !scoringOverlayCompleted}
                                             />
                                         )}
                                         {boardHydrationOverlayEl}
                                     </div>
+                                    {showScoringOverlay && <ScoringOverlay variant="fullscreen" />}
                                     {effectivePaused && (
                                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none text-white drop-shadow-lg">
                                             <h2 className="text-3xl font-bold tracking-wide">일시 정지</h2>
@@ -5108,7 +5175,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     )}
                                 </div>
                             </div>
-                            {/* 계가 연출(ScoringOverlay)은 GoGameArena·SinglePlayerArena에서만 표시 — 여기서 중복 마운트하면 이중 애니메이션 발생 */}
+                            {/* 계가 중 5초 스캔 연출 — Game.tsx에서 통합 제어 */}
                         </div>
                         <div className="flex-shrink-0 w-full flex flex-col gap-1">
                             <TurnDisplay

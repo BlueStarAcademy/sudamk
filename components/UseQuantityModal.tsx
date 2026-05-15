@@ -106,12 +106,14 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
             shrinkHeightToContent
             mobileViewportFit
             mobileViewportMaxHeightVh={92}
+            mobileLockViewportHeight
+            bodyNoScroll
             bodyPaddingClassName="p-0 sm:p-0"
             hideFooter
         >
             <>
-                <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain p-3 pb-2 text-slate-100 sm:gap-3 sm:p-4 sm:pb-3">
-                    <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-slate-950/90 to-zinc-950/95 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-4">
+                <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain p-2.5 pb-2 text-slate-100 sm:gap-2.5 sm:p-3 sm:pb-2.5">
+                    <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-slate-950/90 to-zinc-950/95 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-3">
                         <p className="text-center text-xs font-bold tracking-wide text-violet-200/90 sm:text-[11px] sm:font-semibold sm:uppercase sm:tracking-[0.2em] sm:text-violet-200/70">
                             소모품 사용
                         </p>

@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { GameProps, GameStatus, Player, Point, Move, SinglePlayerStageInfo } from '../../types.js';
 import GoBoard from '../GoBoard.js';
-import { ScoringOverlay, SCORING_PROGRESS_DURATION_MS } from '../game/ScoringOverlay.js';
-import { BOARD_SETTLE_BEFORE_SCORING_MS } from '../../shared/constants/boardSettleTiming.js';
 import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js';
 import { resolveSinglePlayerAutoScoringCapForClientSession } from '../../shared/utils/liveSessionSinglePlayerStage.js';
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
@@ -34,6 +32,7 @@ interface SinglePlayerArenaProps extends GameProps {
     onboardingForcedFirstMovePoint?: Point | null;
     intro1TutorialHighlight?: Point | null;
     boardRuleFlashMessage?: string | null;
+    blockScoringBoardAnalysis?: boolean;
 }
 
 const getStageModeLabel = (stage: SinglePlayerStageInfo): string => {
@@ -154,6 +153,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         onboardingForcedFirstMovePoint = null,
         intro1TutorialHighlight = null,
         boardRuleFlashMessage = null,
+        blockScoringBoardAnalysis = false,
         singlePlayerStagesListRevision = 0,
         strategicPetHintBoardOverlay = null,
         strategicPetHintRewardAnimation = null,
@@ -192,51 +192,9 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         baseStones_p2,
         mode,
     } = session;
-    const scoringOverlayStorageKey = `scoringOverlayPlayed_${session.id}`;
-    const [hasPlayedScoringOverlay, setHasPlayedScoringOverlay] = useState<boolean>(() => {
-        try {
-            return sessionStorage.getItem(scoringOverlayStorageKey) === '1';
-        } catch {
-            return false;
-        }
-    });
-    const [showScoringOverlay, setShowScoringOverlay] = useState(false);
     const [stageDescriptionCollapsed, setStageDescriptionCollapsed] = useState(false);
     const arenaFrameRef = useRef<HTMLDivElement | null>(null);
     const [leftGutterWidth, setLeftGutterWidth] = useState(0);
-
-    useEffect(() => {
-        try {
-            setHasPlayedScoringOverlay(sessionStorage.getItem(scoringOverlayStorageKey) === '1');
-        } catch {
-            setHasPlayedScoringOverlay(false);
-        }
-    }, [scoringOverlayStorageKey]);
-
-    useEffect(() => {
-        if (gameStatus === 'scoring' && !hasPlayedScoringOverlay) {
-            setHasPlayedScoringOverlay(true);
-            try {
-                sessionStorage.setItem(scoringOverlayStorageKey, '1');
-            } catch {
-                // ignore storage failure
-            }
-            let hideTimer: ReturnType<typeof setTimeout> | undefined;
-            const showTimer = window.setTimeout(() => {
-                setShowScoringOverlay(true);
-                hideTimer = window.setTimeout(() => {
-                    setShowScoringOverlay(false);
-                }, SCORING_PROGRESS_DURATION_MS);
-            }, BOARD_SETTLE_BEFORE_SCORING_MS);
-            return () => {
-                window.clearTimeout(showTimer);
-                if (hideTimer) window.clearTimeout(hideTimer);
-            };
-        }
-        if (gameStatus !== 'scoring') {
-            setShowScoringOverlay(false);
-        }
-    }, [gameStatus, hasPlayedScoringOverlay, scoringOverlayStorageKey]);
 
     /** 모바일에서 스테이지 두루마리를 펼쳐도, 베이스 사전 단계에서는 판에 놓인 베이스돌을 항상 표시해야 함(그렇지 않으면 배치·덤 UI가 깨져 보임). */
     const basePrePlayStatusesForBoard: readonly GameStatus[] = [
@@ -423,10 +381,6 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
 
     return (
         <div className="relative w-full h-full flex flex-col items-center justify-center">
-            {/* 계가 중: 바둑판 위 오버레이. 착점·따낸 점수 등 안정화 후 표시 */}
-            {gameStatus === 'scoring' && showScoringOverlay && (
-                <ScoringOverlay variant="fullscreen" />
-            )}
             <div
                 className={`relative w-full h-full transition-opacity duration-500 ${
                     isPaused ? 'opacity-0 pointer-events-none' : 'opacity-100'
@@ -555,7 +509,14 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     baseStones_p2={showPlacedBaseStoneArrays ? baseStones_p2 : undefined}
                     baseStonesP1Player={baseStonesP1Player}
                     baseStonesP2Player={baseStonesP2Player}
-                    analysisResult={session.analysisResult?.[currentUser.id] ?? ((gameStatus === 'ended' || (gameStatus === 'scoring' && !showScoringOverlay && session.analysisResult?.['system'])) ? session.analysisResult?.['system'] : null)}
+                    analysisResult={
+                        blockScoringBoardAnalysis
+                            ? null
+                            : session.analysisResult?.[currentUser.id] ??
+                              ((gameStatus === 'ended' || gameStatus === 'scoring')
+                                  ? session.analysisResult?.['system']
+                                  : null)
+                    }
                     showTerritoryOverlay={showTerritoryOverlay}
                     isSinglePlayer={true}
                     onAction={props.onAction}

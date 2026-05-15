@@ -971,13 +971,14 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             let serverMoveHistory = game.moveHistory;
             
             if (
-                game.gameCategory === GameCategory.Tower &&
+                (sessionPolicy.kind === GameCategory.Tower || sessionPolicy.kind === GameCategory.SinglePlayer) &&
                 Array.isArray(clientBoardState) &&
                 clientBoardState.length > 0 &&
-                Array.isArray(clientMoveHistory)
+                Array.isArray(clientMoveHistory) &&
+                isHidden === true
             ) {
-                // 탑은 일반 수가 클라이언트에서 먼저 진행된다. 히든 착수 PLACE_STONE은
-                // 방금 둔 뒤 스냅샷을 우선 사용해야 서버가 오래된 0수/짧은 수순 기준으로 히든 인덱스를 다시 붙이지 않는다.
+                // PVE 히든 착수는 일반 수가 클라이언트에서 먼저 진행된다. 서버는 클릭 당시의
+                // 착수 전 스냅샷에서 다시 한 번 같은 수를 처리해, hiddenMoves 인덱스를 방금 둔 수에 붙인다.
                 serverBoardState = clientBoardState;
                 serverMoveHistory = clientMoveHistory;
                 if (clientHiddenMoves && typeof clientHiddenMoves === 'object') {

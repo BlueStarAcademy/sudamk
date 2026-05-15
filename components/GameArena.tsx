@@ -36,6 +36,7 @@ interface GameArenaProps extends GameProps {
     strategicPetHintBoardOverlay?: { x: number; y: number; message: string; showBubble: boolean } | null;
     strategicPetHintRewardAnimation?: { id: string; x: number; y: number; iconSrc: string; quantityLabel: string } | null;
     boardRuleFlashMessage?: string | null;
+    blockScoringBoardAnalysis?: boolean;
 }
 
 const GameArena: React.FC<GameArenaProps> = (props) => {
@@ -65,6 +66,7 @@ const GameArena: React.FC<GameArenaProps> = (props) => {
         onboardingDemoAnchorPoint,
         onboardingForcedFirstMovePoint,
         intro1TutorialHighlight,
+        blockScoringBoardAnalysis: props.blockScoringBoardAnalysis,
     };
     const { mode } = session;
     const arenaKind = resolveArenaKind(session as any);

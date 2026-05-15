@@ -1,8 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { GameProps, Player, Point, GameStatus, Move, GameMode } from '../../types.js';
 import GoBoard from '../GoBoard.js';
-import { ScoringOverlay, SCORING_PROGRESS_DURATION_MS } from '../game/ScoringOverlay.js';
-import { BOARD_SETTLE_BEFORE_SCORING_MS } from '../../shared/constants/boardSettleTiming.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants/gameModes';
 import { resolveSinglePlayerAutoScoringCapForClientSession } from '../../shared/utils/liveSessionSinglePlayerStage.js';
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
@@ -30,6 +28,8 @@ interface GoGameArenaProps extends GameProps {
     strategicPetHintBoardOverlay?: { x: number; y: number; message: string; showBubble: boolean } | null;
     strategicPetHintRewardAnimation?: { id: string; x: number; y: number; iconSrc: string; quantityLabel: string } | null;
     boardRuleFlashMessage?: string | null;
+    /** Game.tsx 계가 5초 연출이 끝나기 전에는 보드에 영토·계가 분석을 표시하지 않음 */
+    blockScoringBoardAnalysis?: boolean;
 }
 
 function modeIncludesCaptureRule(mode: GameMode, settings: { mixedModes?: GameMode[] }): boolean {
@@ -57,6 +57,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         strategicPetHintBoardOverlay = null,
         strategicPetHintRewardAnimation = null,
         boardRuleFlashMessage = null,
+        blockScoringBoardAnalysis = false,
     } = props;
 
     const { blackPlayerId, whitePlayerId, player1, player2, settings, lastMove, gameStatus, mode, moveHistory, hiddenMoves } = session;
@@ -66,49 +67,6 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         if (typeof x !== 'number' || typeof y !== 'number' || x < 0 || y < 0) return null;
         return { x, y };
     }, [strategicPetHintBoardOverlay]);
-
-    const scoringOverlayStorageKey = `scoringOverlayPlayed_${session.id}`;
-    const [hasPlayedScoringOverlay, setHasPlayedScoringOverlay] = useState<boolean>(() => {
-        try {
-            return sessionStorage.getItem(scoringOverlayStorageKey) === '1';
-        } catch {
-            return false;
-        }
-    });
-    const [showScoringOverlay, setShowScoringOverlay] = useState(false);
-
-    useEffect(() => {
-        try {
-            setHasPlayedScoringOverlay(sessionStorage.getItem(scoringOverlayStorageKey) === '1');
-        } catch {
-            setHasPlayedScoringOverlay(false);
-        }
-    }, [scoringOverlayStorageKey]);
-
-    useEffect(() => {
-        if (gameStatus === 'scoring' && !hasPlayedScoringOverlay) {
-            setHasPlayedScoringOverlay(true);
-            try {
-                sessionStorage.setItem(scoringOverlayStorageKey, '1');
-            } catch {
-                // ignore storage failure
-            }
-            let hideTimer: ReturnType<typeof setTimeout> | undefined;
-            const showTimer = window.setTimeout(() => {
-                setShowScoringOverlay(true);
-                hideTimer = window.setTimeout(() => {
-                    setShowScoringOverlay(false);
-                }, SCORING_PROGRESS_DURATION_MS);
-            }, BOARD_SETTLE_BEFORE_SCORING_MS);
-            return () => {
-                window.clearTimeout(showTimer);
-                if (hideTimer) window.clearTimeout(hideTimer);
-            };
-        }
-        if (gameStatus !== 'scoring') {
-            setShowScoringOverlay(false);
-        }
-    }, [gameStatus, hasPlayedScoringOverlay, scoringOverlayStorageKey]);
 
     const adventureRegionalHeadStartCaptureBonus =
         session.gameCategory === 'adventure'
@@ -307,10 +265,6 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 isAdventureBoardLayout ? 'min-h-0 min-w-0 overflow-hidden' : ''
             }`}
         >
-            {/* 계가 중: 바둑판 위 오버레이. 착점·따낸 점수 등 안정화 후 표시 → 끝나면 영토/결과 표시에 맞춤 */}
-            {gameStatus === 'scoring' && showScoringOverlay && (
-                <ScoringOverlay variant="fullscreen" />
-            )}
             {/* 회전 버튼: 흑/백 입장 전환 (이모지로 표현) */}
             {onToggleBoardRotation && (
                 <button
@@ -383,7 +337,14 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 captures={session.captures}
                 permanentlyRevealedStones={session.permanentlyRevealedStones}
                 isSpectator={props.isSpectator}
-                analysisResult={session.analysisResult?.[props.currentUser.id] ?? ((gameStatus === 'ended' || (gameStatus === 'scoring' && !showScoringOverlay && session.analysisResult?.['system'])) ? session.analysisResult?.['system'] : null)}
+                analysisResult={
+                    blockScoringBoardAnalysis
+                        ? null
+                        : session.analysisResult?.[props.currentUser.id] ??
+                          ((gameStatus === 'ended' || gameStatus === 'scoring')
+                              ? session.analysisResult?.['system']
+                              : null)
+                }
                 showTerritoryOverlay={showTerritoryOverlay}
                 showHintOverlay={false}
                 showLastMoveMarker={showLastMoveMarker}
