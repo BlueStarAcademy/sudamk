@@ -634,6 +634,24 @@ html.sudamr-handheld-real-landscape:not(.sudamr-handheld-portrait-lock) #root > 
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* 축소 비율이 큰 구간에서만 텍스트/아이콘의 래스터 힌트를 강화한다.
+   레이아웃 폭/높이는 유지하므로 좌우 잘림을 만들지 않는다. */
+.sudamr-pc-scaled-canvas-root[data-crisp-mode="1"] {
+    text-rendering: geometricPrecision;
+}
+
+.sudamr-pc-scaled-canvas-root[data-crisp-mode="1"] svg {
+    shape-rendering: geometricPrecision;
+    text-rendering: geometricPrecision;
+}
+
+.sudamr-pc-scaled-canvas-root[data-crisp-mode="1"] img,
+.sudamr-pc-scaled-canvas-root[data-crisp-mode="1"] canvas,
+.sudamr-pc-scaled-canvas-root[data-crisp-mode="1"] [role="img"] {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: high-quality;
+}
+
 input, textarea {
   -webkit-user-select: text;
   -moz-user-select: text;

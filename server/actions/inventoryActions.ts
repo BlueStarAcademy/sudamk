@@ -70,6 +70,7 @@ import { updateQuestProgress } from '../questService.js';
 import { addItemsToInventory as addItemsToInventoryUtil, normalizeInventoryAfterLoad } from '../../utils/inventoryUtils.js';
 import {
     canonicalShopConsumableBoxKey,
+    getItemTemplateByName,
     inventoryStacksMatchConsumableBulkAnchor,
     normalizeBoxItemName,
 } from '../../utils/itemTemplateLookup.js';
@@ -1256,13 +1257,72 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
         }
 
         case 'SELL_ITEM': {
-            const { itemId, quantity } = payload as { itemId: string; quantity?: number };
-            const itemIndex = user.inventory.findIndex(i => i.id === itemId);
+            const payloadSell = payload as { itemId?: string; quantity?: number; itemName?: string };
+            const rawItemId = payloadSell.itemId;
+            const quantity = payloadSell.quantity;
+            const payloadItemName =
+                typeof payloadSell.itemName === 'string' ? payloadSell.itemName.replace(/\s+/g, ' ').trim() : '';
+
+            const resolveSellItemIndex = (): number => {
+                const inv = user.inventory;
+                if (!Array.isArray(inv) || inv.length === 0) return -1;
+                if (rawItemId != null && String(rawItemId).length > 0) {
+                    const sid = String(rawItemId);
+                    let idx = inv.findIndex((i) => i && i.id === sid);
+                    if (idx !== -1) return idx;
+                    idx = inv.findIndex((i) => i && String(i.id) === sid);
+                    if (idx !== -1) return idx;
+                }
+                if (payloadItemName) {
+                    if (isRefinementTicketMaterial(payloadItemName)) {
+                        const want = normalizeRefinementTicketInventoryName(payloadItemName);
+                        const hits: number[] = [];
+                        for (let j = 0; j < inv.length; j++) {
+                            const row = inv[j];
+                            if (!row || typeof row.name !== 'string') continue;
+                            if (isRefinementTicketMaterial(row.name) && normalizeRefinementTicketInventoryName(row.name) === want) {
+                                hits.push(j);
+                            }
+                        }
+                        if (hits.length === 1) return hits[0];
+                        if (hits.length > 1) {
+                            let best = hits[0];
+                            let bestQty = inv[best]?.quantity ?? 1;
+                            for (const h of hits) {
+                                const q = inv[h]?.quantity ?? 1;
+                                if (q > bestQty) {
+                                    best = h;
+                                    bestQty = q;
+                                }
+                            }
+                            return best;
+                        }
+                    }
+                    const tpl = getItemTemplateByName(payloadItemName);
+                    if (tpl?.type === 'material') {
+                        const wantName = tpl.name;
+                        const hits: number[] = [];
+                        for (let j = 0; j < inv.length; j++) {
+                            const row = inv[j];
+                            if (!row || row.type === 'equipment') continue;
+                            const rn = normalizeRefinementTicketInventoryName(row.name || '') || (row.name || '').replace(/\s+/g, ' ').trim();
+                            if (rn === wantName || row.name === wantName) hits.push(j);
+                        }
+                        if (hits.length === 1) return hits[0];
+                    }
+                }
+                return -1;
+            };
+
+            let itemIndex = resolveSellItemIndex();
             if (itemIndex === -1) return { error: '아이템을 찾을 수 없습니다.' };
 
             const item = user.inventory[itemIndex];
             /** 템플릿은 material인데 레거시로 type이 consumable 등인 제련 변경권 — 재료 판매 분기로 통일 */
             const sellAsRefinementMaterial = isRefinementTicketMaterial(item.name);
+            const materialTemplateForRow = getItemTemplateByName((item.name || '').trim());
+            const sellAsMaterialByMaster =
+                item.type !== 'equipment' && materialTemplateForRow?.type === 'material';
             if (item.type === 'material' && isPairPetMaterial(item) && !isPairEggItem(item)) {
                 const slots = normalizePairPetTrainingSlots(user.pairPetTrainingSlots);
                 if (isItemIdInPairTraining(slots, item.id)) {
@@ -1281,7 +1341,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 sellPrice = Math.floor(basePrice * enhancementMultiplier);
                 // 장비는 전체 판매
                 user.inventory.splice(itemIndex, 1);
-            } else if (item.type === 'material' || sellAsRefinementMaterial) {
+            } else if (item.type === 'material' || sellAsRefinementMaterial || sellAsMaterialByMaster) {
                 const nameKey =
                     normalizeRefinementTicketInventoryName(item.name) ||
                     (item.name || '').replace(/\s+/g, ' ').trim();
@@ -1364,6 +1424,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             }
 
             // 선택적 필드만 반환 (메시지 크기 최적화)
+            const { updateUserCache } = await import('../gameCache.js');
+            updateUserCache(user);
             const updatedUser = getSelectiveUserUpdate(user, 'SELL_ITEM');
             
             // DB 업데이트를 비동기로 처리 (응답 지연 최소화)

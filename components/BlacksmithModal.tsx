@@ -103,8 +103,8 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
-    /** 넓은 태블릿 가로 등은 PC 2열 유지, 뷰포트 너비 1025px 미만·네이티브 셸은 스택 레이아웃 */
-    const isCompactViewport = windowWidth < 1025;
+    /** 넓은 태블릿 가로·소형 노트북에서도 PC 2열을 더 오래 유지(스택 전환을 늦춰 체감 크기 확보) */
+    const isCompactViewport = windowWidth < 940;
     const useStackedBlacksmithLayout = isCompactViewport || isNativeMobile;
 
     if (!currentUserWithStatus) return null;
@@ -581,8 +581,9 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                     !modals.isBlacksmithEffectsModalOpen &&
                     !modals.disassemblyResult
                 }
-                initialWidth={1100}
-                initialHeight={useStackedBlacksmithLayout ? 720 : 900}
+                initialWidth={1160}
+                // 데스크톱은 설계 높이를 소폭 낮춰(세로 제약 시) 체감 크기를 키운다.
+                initialHeight={useStackedBlacksmithLayout ? 760 : 860}
                 windowId="blacksmith"
                 zIndex={useStackedBlacksmithLayout ? 120 : 50}
                 variant="store"

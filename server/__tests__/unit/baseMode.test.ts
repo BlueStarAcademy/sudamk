@@ -246,6 +246,80 @@ describe('base mode', () => {
         expect(game.baseStones_p2?.length ?? 0).toBe(2);
     });
 
+    it('lets AI prefer the same color as its placed base stones', () => {
+        const game = makeBaseGame({
+            id: 'sp-base-ai-color-from-placement',
+            isSinglePlayer: true,
+            isAiGame: true,
+            gameCategory: GameCategory.SinglePlayer,
+            player2: makeUser(aiUserId),
+            settings: { boardSize: 9, baseStones: 2, komi: 0.5 } as any,
+        });
+        initializeBase(game, Date.now());
+        game.basePlacementBlackPlayerId = aiUserId;
+        game.basePlacementWhitePlayerId = game.player1.id;
+        game.baseStones_p1 = [{ x: 2, y: 2 }, { x: 2, y: 6 }];
+
+        handleBaseAction(
+            game,
+            { type: 'CONFIRM_BASE_PLACEMENT_COMPLETE', userId: game.player1.id, payload: { gameId: game.id } } as any,
+            game.player1
+        );
+        handleBaseAction(
+            game,
+            { type: 'SUBMIT_BASE_STONE_COLOR_CHOICE', userId: game.player1.id, payload: { gameId: game.id, color: Player.White } } as any,
+            game.player1
+        );
+        updateBaseState(game, Date.now());
+
+        expect(game.gameStatus).toBe('base_game_start_confirmation');
+        expect(game.blackPlayerId).toBe(aiUserId);
+        expect(game.whitePlayerId).toBe(game.player1.id);
+        expect(game.baseKomiBidsSnapshot?.[aiUserId]?.color).toBe(Player.Black);
+    });
+
+    it('uses 5~20 default AI komi bids in same-color base bidding', () => {
+        const game = makeBaseGame({
+            id: 'sp-base-ai-default-komi-range',
+            isSinglePlayer: true,
+            isAiGame: true,
+            gameCategory: GameCategory.SinglePlayer,
+            player2: makeUser(aiUserId),
+            settings: { boardSize: 9, baseStones: 2, komi: 0.5 } as any,
+        });
+        initializeBase(game, Date.now());
+        game.basePlacementBlackPlayerId = aiUserId;
+        game.basePlacementWhitePlayerId = game.player1.id;
+        game.baseStones_p1 = [{ x: 2, y: 2 }, { x: 2, y: 6 }];
+
+        handleBaseAction(
+            game,
+            { type: 'CONFIRM_BASE_PLACEMENT_COMPLETE', userId: game.player1.id, payload: { gameId: game.id } } as any,
+            game.player1
+        );
+        handleBaseAction(
+            game,
+            { type: 'SUBMIT_BASE_STONE_COLOR_CHOICE', userId: game.player1.id, payload: { gameId: game.id, color: Player.Black } } as any,
+            game.player1
+        );
+        updateBaseState(game, Date.now());
+        expect(game.gameStatus).toBe('base_same_color_points_bid');
+
+        handleBaseAction(
+            game,
+            { type: 'UPDATE_KOMI_BID', userId: game.player1.id, payload: { gameId: game.id, bid: { color: Player.Black, komi: 9 } } } as any,
+            game.player1
+        );
+        updateBaseState(game, Date.now());
+
+        const aiBid = game.baseKomiBidsSnapshot?.[aiUserId]?.komi;
+        expect(game.gameStatus).toBe('base_game_start_confirmation');
+        expect(typeof aiBid).toBe('number');
+        expect(aiBid).toBeGreaterThanOrEqual(5);
+        expect(aiBid).toBeLessThanOrEqual(20);
+        expect(aiBid).not.toBe(9);
+    });
+
     it('keeps base markers unless the base stone is actually captured', () => {
         const game = {
             id: 'base-marker-test',

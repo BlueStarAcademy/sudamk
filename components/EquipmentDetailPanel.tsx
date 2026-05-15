@@ -66,6 +66,18 @@ const renderStarDisplay = (stars: number, comfortableTypography?: boolean) => {
     );
 };
 
+function resolveNoWrapTextFontPx(
+    text: string | null | undefined,
+    preferredPx: number,
+    minPx = 7,
+    shrinkStartLength = 10,
+    shrinkPerChar = 0.58,
+): number {
+    const length = Array.from(text ?? '').length;
+    const shrink = Math.max(0, length - shrinkStartLength) * shrinkPerChar;
+    return Math.max(minPx, Math.round(preferredPx - shrink));
+}
+
 export interface EquipmentDetailPanelProps {
     item: InventoryItem;
     /** 가방 상세: 옵션 영역만 스크롤. 획득 팝업: 본문 높이에 맞춰 내부 스크롤 없음 */
@@ -186,7 +198,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                                                 <span className="leading-none">⚡</span>
                                                 {apValue && (
                                                     <span
-                                                        className="mt-0.5 max-w-full truncate font-bold leading-none text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]"
+                                                        className="mt-0.5 max-w-full whitespace-nowrap font-bold leading-none text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]"
                                                         style={{ fontSize: plusFs }}
                                                     >
                                                         +{apValue}
@@ -208,8 +220,12 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                         <div className="ml-2 min-w-0 flex-grow text-right sm:ml-3 md:ml-4">
                             <div className="flex items-baseline justify-end gap-1">
                                 <h3
-                                    className={`max-w-full text-right font-bold leading-tight tracking-tight ${styles.color}`}
-                                    style={{ fontSize: `${bagNamePx}px`, letterSpacing: '-0.02em' }}
+                                    className={`max-w-full whitespace-nowrap text-right font-bold leading-tight tracking-tight ${styles.color}`}
+                                    title={item.name}
+                                    style={{
+                                        fontSize: `${resolveNoWrapTextFontPx(item.name, bagNamePx, 8, 9, 0.62)}px`,
+                                        letterSpacing: '-0.02em',
+                                    }}
                                 >
                                     {item.name}
                                 </h3>
@@ -366,7 +382,10 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                         <div className="flex items-baseline justify-end gap-1">
                             <h3
                                 className={`max-w-full whitespace-nowrap text-right font-bold leading-tight tracking-tight ${styles.color}`}
-                                style={{ fontSize: `${equipNamePx}px`, letterSpacing: '-0.02em' }}
+                                style={{
+                                    fontSize: `${resolveNoWrapTextFontPx(item.name, equipNamePx, 8, 9, 0.62)}px`,
+                                    letterSpacing: '-0.02em',
+                                }}
                             >
                                 {item.name}
                             </h3>

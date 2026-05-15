@@ -31,10 +31,12 @@ import {
     arenaGameRoomIngameInnerNeutralSurfaceClass,
     pveIngameFooterReservedHeightClass,
 } from './arenaGameRoomStyles.js';
+import BaseGameFooterPanel, { BasePlacementControlStrip, isBaseGameFooterPhase } from './BaseGameFooterPanel.js';
 import TowerItemShopModal from '../TowerItemShopModal.js';
 import { pairPetKataPhaseFromTotalPly, pairPetKataPliesRemainingInCurrentPhase } from '../../shared/constants/pairArena.js';
 import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
 import { getPairPetDefinition } from '../../shared/constants/petLobby.js';
+import { resolvePveSeatColors } from '../../utils/pveSeatColors.js';
 
 interface TowerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
     allowPostGameFooterActions?: boolean;
@@ -131,8 +133,11 @@ const TowerControls: React.FC<TowerControlsProps> = ({
         setTowerShopInitialItemId(itemId);
         setTowerItemShopOpen(true);
     };
+    const myUserId = currentUser?.id;
     const floor = getTowerSessionFloor(session);
     const hasPendingRevealResolution = !!session.pendingCapture || !!session.revealAnimationEndTime;
+    const { myPlayerEnum, opponentPlayerEnum } = resolvePveSeatColors(session as any, myUserId);
+    const isMyTurn = myPlayerEnum !== Player.None && session.currentPlayer === myPlayerEnum;
     const stage = TOWER_STAGES.find(s => {
         const stageFloor = parseInt(s.id.replace('tower-', ''));
         return stageFloor === floor;
@@ -145,7 +150,10 @@ const TowerControls: React.FC<TowerControlsProps> = ({
     const inventory = currentUser?.inventory || [];
     const getItemCount = (namesOrIds: readonly string[]): number => countTowerLobbyInventoryQty(inventory, namesOrIds);
     const scanInventoryCount = showMissileAndHiddenForHook ? getItemCount(TOWER_ITEM_SCAN_NAMES) : 0;
-    const sessionScansLeft = (session as any).scans_p1 as number | undefined;
+    const sessionScansLeft =
+        myPlayerEnum === Player.White
+            ? ((session as any).scans_p2 as number | undefined) ?? ((session as any).scans_p1 as number | undefined)
+            : ((session as any).scans_p1 as number | undefined) ?? ((session as any).scans_p2 as number | undefined);
     /** 인벤 또는 세션 중 하나라도 있으면 스캔 시도 가능(경기 중 구매 직후 세션만 늦게 오는 경우) */
     const hasScanStock = scanInventoryCount > 0 || (sessionScansLeft ?? 0) > 0;
     const canScan = React.useMemo(() => {
@@ -155,7 +163,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
         /** 백(봇) 히든: 수순·hiddenMoves로 확정된 칸은 클라 병합/연출 타이밍에 board가 빈칸(None)으로만 올 수 있어 White만 허용하면 스캔 버튼이 꺼진다. 흑이 있는 칸은 제외. */
         const cellIsTowerOpponentHiddenSurface = (x: number, y: number): boolean => {
             const c = board[y]?.[x];
-            return c === Player.White || c === Player.None;
+            return c === opponentPlayerEnum || c === Player.None;
         };
         const uid = currentUser?.id;
         const scannedAiInitialByMe =
@@ -177,7 +185,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
             const moveIndex = parseInt(moveIndexStr, 10);
             if (myRevealed?.includes(moveIndex)) return false;
             const move = session.moveHistory![moveIndex];
-            if (!move || move.player !== Player.White) return false;
+            if (!move || move.player !== opponentPlayerEnum) return false;
             const { x, y } = move;
             const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
             if (!inBounds || !cellIsTowerOpponentHiddenSurface(x, y)) return false;
@@ -192,7 +200,8 @@ const TowerControls: React.FC<TowerControlsProps> = ({
         session.moveHistory,
         session.permanentlyRevealedStones,
         session.revealedHiddenMoves,
-        currentUser?.id,
+        myUserId,
+        opponentPlayerEnum,
         (session as any).aiInitialHiddenStone,
         (session as any).aiInitialHiddenStoneIsPrePlaced,
         (session as any).scannedAiInitialHiddenByUser,
@@ -327,6 +336,40 @@ const TowerControls: React.FC<TowerControlsProps> = ({
             </footer>
         );
     }
+
+    /** 도전의 탑에서도 베이스/믹스(베이스 포함) 사전 단계는 전용 하단 스트립을 사용한다. */
+    if (isBaseGameFooterPhase(session) && currentUser) {
+        const showBasePlacementStrip = session.gameStatus === 'base_placement';
+        return (
+            <footer
+                className={`${arenaGameRoomIngameBottomBarShellClass} flex w-full flex-shrink-0 flex-col items-stretch justify-center ${pveIngameFooterReservedHeightClass(isMobile)}`}
+            >
+                <div className="flex w-full min-w-0 flex-col gap-0.5 py-0.5">
+                    {showBasePlacementStrip ? (
+                        <div className="flex w-full min-w-0 min-h-[2.35rem] flex-row items-center justify-center px-1 min-[1025px]:min-h-[2.1rem] min-[1025px]:px-1.5">
+                            <ArenaControlStrip layout="cluster" className="max-w-full min-w-0" gapClass="gap-1 min-[1025px]:gap-2">
+                                <BasePlacementControlStrip
+                                    session={session}
+                                    currentUser={currentUser}
+                                    onAction={onAction}
+                                    isMobile={isMobile}
+                                    isSinglePlayer
+                                />
+                            </ArenaControlStrip>
+                        </div>
+                    ) : null}
+                    <BaseGameFooterPanel
+                        session={session}
+                        currentUser={currentUser}
+                        onAction={onAction}
+                        isMobile={isMobile}
+                        isSinglePlayer
+                        hideBasePlacementActions={showBasePlacementStrip}
+                    />
+                </div>
+            </footer>
+        );
+    }
     
     const handleRefreshConfirm = () => {
         setRefreshConfirmModal(false);
@@ -384,8 +427,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
     };
 
     const gameStatus = session.gameStatus;
-    const isMyTurn = session.currentPlayer === Player.Black;
-    /** 스캔은 흑(유저) 차례에만 — 백(AI) 차례에는 비활성 (이전: 착수 직후 AI 턴에도 스캔 허용) */
+    /** 스캔은 내 차례에만 사용 가능 */
     const canStartScanTurn = isMyTurn;
     const showTurnAdd = floor <= 20; // 1~20층에서만 턴 추가 아이템 표시
     // 도전의 탑 전체(1~100층)에서 통과 비활성: 1~20층 따내기 턴 제한, 21층+ 자동 계가
@@ -414,7 +456,11 @@ const TowerControls: React.FC<TowerControlsProps> = ({
     // 미사일 (21층+): 배지는 인벤 수; 사용 가능은 인벤 또는 세션 잔여(경기 중 구매 직후 동기 지연 대비)
     const missileCount = showMissileAndHiddenForHook ? getItemCount(TOWER_ITEM_MISSILE_NAMES) : 0;
     const missileMaxCount = (stage as { missileCount?: number } | undefined)?.missileCount ?? (session.settings as { missileCount?: number })?.missileCount ?? 2;
-    const hasMissileStock = missileCount > 0 || (session.missiles_p1 ?? 0) > 0;
+    const myMissilesLeftFromSession =
+        myPlayerEnum === Player.White
+            ? ((session as any).missiles_p2 as number | undefined) ?? (session.missiles_p1 ?? 0)
+            : (session.missiles_p1 ?? 0) ?? ((session as any).missiles_p2 as number | undefined) ?? 0;
+    const hasMissileStock = missileCount > 0 || myMissilesLeftFromSession > 0;
     /** 재고 0이면 경기 중에는 버튼을 막지 않고 탭 시 상점 (턴 추가와 동일) */
     const missileButtonDisabled =
         gameStatus !== 'playing' ||
@@ -439,7 +485,11 @@ const TowerControls: React.FC<TowerControlsProps> = ({
         (stage as { hiddenStoneCount?: number } | undefined)?.hiddenStoneCount ??
         (session.settings as { hiddenStoneCount?: number })?.hiddenStoneCount ??
         2;
-    const hasHiddenStock = hiddenCount > 0 || ((session as any).hidden_stones_p1 ?? 0) > 0;
+    const myHiddenLeftFromSession =
+        myPlayerEnum === Player.White
+            ? ((session as any).hidden_stones_p2 as number | undefined) ?? ((session as any).hidden_stones_p1 ?? 0)
+            : ((session as any).hidden_stones_p1 ?? 0) ?? ((session as any).hidden_stones_p2 as number | undefined) ?? 0;
+    const hasHiddenStock = hiddenCount > 0 || myHiddenLeftFromSession > 0;
     const hiddenButtonDisabled =
         gameStatus !== 'playing' ||
         (hasHiddenStock && (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn));
@@ -483,7 +533,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
 
     const refreshCount = getItemCount(TOWER_ITEM_REFRESH_NAMES);
     const refreshMaxCount = 5;
-    const canUseRefresh = session.moveHistory && session.moveHistory.length === 0 && session.gameStatus === 'playing' && session.currentPlayer === Player.Black;
+    const canUseRefresh = (session.moveHistory?.length ?? 0) === 0 && session.gameStatus === 'playing';
     const refreshButtonDisabled = gameStatus !== 'playing' || (refreshCount > 0 && !canUseRefresh);
 
     const handleRefresh = () => {

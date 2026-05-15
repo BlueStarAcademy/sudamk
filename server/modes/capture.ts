@@ -24,6 +24,14 @@ const randomCaptureBid1To5 = (game: types.LiveGameSession): number => {
     return Math.floor(Math.random() * max) + 1;
 };
 
+const randomCaptureBidForAi = (game: types.LiveGameSession): number => {
+    if (modeIncludesBaseCaptureMix(game.mode, game.settings)) {
+        const max = getCaptureBidMax(game);
+        return Math.floor(Math.random() * max) + 1;
+    }
+    return randomCaptureBid1To5(game);
+};
+
 const isAiLikeParticipantId = (id: string | null | undefined): boolean =>
     id === aiUserId ||
     Boolean(id && (id.startsWith('dungeon-bot-') || id.startsWith('pair-') || id.startsWith('pet-ai-')));
@@ -86,7 +94,7 @@ const maybeAutoSubmitCaptureBids = (game: types.LiveGameSession) => {
             if (hasHuman) return;
             const subjectId = getPairTeamBidSubjectId(game, teamId);
             if (game.bids?.[subjectId] == null) {
-                game.bids![subjectId] = randomCaptureBid1To5(game);
+                game.bids![subjectId] = randomCaptureBidForAi(game);
             }
         });
         return;
@@ -95,7 +103,7 @@ const maybeAutoSubmitCaptureBids = (game: types.LiveGameSession) => {
     if (!game.isAiGame) return;
     for (const player of [game.player1, game.player2]) {
         if (isAiLikeParticipantId(player.id) && game.bids[player.id] == null) {
-            game.bids[player.id] = randomCaptureBid1To5(game);
+            game.bids[player.id] = randomCaptureBidForAi(game);
         }
     }
 };
@@ -136,8 +144,8 @@ export const updateCaptureState = (game: types.LiveGameSession, now: number) => 
 
             if (bothHaveBid || deadlinePassedBid) {
                 if (deadlinePassedBid) {
-                    if (game.bids![p1Id] == null) game.bids![p1Id] = randomCaptureBid1To5(game);
-                    if (game.bids![p2Id] == null) game.bids![p2Id] = randomCaptureBid1To5(game);
+                    if (game.bids![p1Id] == null) game.bids![p1Id] = randomCaptureBidForAi(game);
+                    if (game.bids![p2Id] == null) game.bids![p2Id] = randomCaptureBidForAi(game);
                 }
 
                 const p1Bid = clampCaptureBid(game, game.bids![p1Id]!);

@@ -2,7 +2,14 @@ import React, { useState, useMemo, useEffect } from 'react';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import { InventoryItem, UserWithStatus } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
-import { MATERIAL_SELL_PRICES, CONSUMABLE_SELL_PRICES, gradeBackgrounds, gradeStyles, isRefinementTicketMaterial } from '../constants/items.js';
+import {
+    MATERIAL_SELL_PRICES,
+    CONSUMABLE_SELL_PRICES,
+    gradeBackgrounds,
+    gradeStyles,
+    isRefinementTicketMaterial,
+    normalizeRefinementTicketInventoryName,
+} from '../constants/items.js';
 
 interface SellMaterialBulkModalProps {
     item: InventoryItem;
@@ -10,19 +17,29 @@ interface SellMaterialBulkModalProps {
     onClose: () => void;
     onConfirm: (quantity: number) => void;
     isTopmost?: boolean;
+    viewportPortal?: boolean;
 }
 
-const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({ item, currentUser, onClose, onConfirm, isTopmost }) => {
+const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({
+    item,
+    currentUser,
+    onClose,
+    onConfirm,
+    isTopmost = true,
+    viewportPortal = false,
+}) => {
     const isTicket = isRefinementTicketMaterial(item.name);
+    const normalizedTicketName = normalizeRefinementTicketInventoryName(item.name);
     const totalQuantity = useMemo(() => {
         return currentUser.inventory
             .filter((i) =>
                 isTicket
-                    ? isRefinementTicketMaterial(i.name) && i.name === item.name
+                    ? isRefinementTicketMaterial(i.name) &&
+                      normalizeRefinementTicketInventoryName(i.name) === normalizedTicketName
                     : i.type === item.type && i.name === item.name
             )
             .reduce((sum, i) => sum + (i.quantity || 1), 0);
-    }, [currentUser.inventory, isTicket, item.name, item.type]);
+    }, [currentUser.inventory, isTicket, item.name, item.type, normalizedTicketName]);
 
     const pricePerUnit =
         item.type === 'consumable' && !isTicket
@@ -68,6 +85,7 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({ item, cur
             onClose={onClose}
             windowId="sellMaterialBulk"
             isTopmost={isTopmost}
+            viewportPortal={viewportPortal}
             variant="store"
             initialWidth={460}
             initialHeight={700}

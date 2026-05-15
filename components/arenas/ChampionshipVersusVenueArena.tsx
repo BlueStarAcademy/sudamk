@@ -82,6 +82,7 @@ type OpponentRow = {
     league: LeagueTier;
     userLevel: number;
     rating: number;
+    globalRank?: number;
     wins: number;
     losses: number;
     totalGoPower: number;
@@ -1522,16 +1523,22 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         ],
     );
 
-    /** 장내 티어 점수(ELO) 높은 순 — 동점은 공동 순위(1,1,3…) */
-    const opponentTierScoreRankByUserId = React.useMemo(() => {
+    /** 경기장 시즌 전체 유저 기준 순위(동점 공동 순위). 구 캐시는 목록 내 ELO 순위로 폴백. */
+    const opponentGlobalRankByUserId = React.useMemo(() => {
         const m = new Map<string, number>();
         if (opponents.length === 0) return m;
+        for (const o of opponents) {
+            if (typeof o.globalRank === 'number' && Number.isFinite(o.globalRank) && o.globalRank > 0) {
+                m.set(o.userId, Math.floor(o.globalRank));
+            }
+        }
+        if (m.size === opponents.length) return m;
         const sorted = [...opponents].sort((a, b) => b.rating - a.rating);
         let rank = 1;
         for (let i = 0; i < sorted.length; i++) {
             const row = sorted[i]!;
             if (i > 0 && row.rating < sorted[i - 1]!.rating) rank = i + 1;
-            m.set(row.userId, rank);
+            if (!m.has(row.userId)) m.set(row.userId, rank);
         }
         return m;
     }, [opponents]);
@@ -1625,7 +1632,8 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 !beatenOppId.startsWith('versus-demo-')
                     ? beatenOppId
                     : null;
-            const rewardsPayload: VersusKataActorRewardClientPayload =
+            const cu = currentUserRef.current;
+            const rewardsPayload: VersusKataActorRewardClientPayload | null =
                 kd.versusActorRewards ??
                 (cu
                     ? {
@@ -1649,7 +1657,6 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 champCoinsDelta: typeof kd.champCoinsDelta === 'number' ? kd.champCoinsDelta : 0,
                 rewards: rewardsPayload,
             };
-            const cu = currentUserRef.current;
             if (!beginVersusKataReplay(finalMatch, resultPayload)) {
                 setVersusTerritoryAnalysis(resultPayload.analysis);
                 setCompletedVersusMatch(finalMatch);
@@ -2276,6 +2283,8 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         </main>
     );
 
+    const disableOpponentControls = versusMobileSessionActive;
+
     const opponentSidebarInner = (
         <div className="flex h-full min-h-0 flex-col gap-1.5 overflow-hidden px-1.5 pb-0.5 text-slate-100">
             <div className="shrink-0">{versusSidebarSelfSummary}</div>
@@ -2309,6 +2318,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                     const demoRow = o.userId.startsWith('versus-demo-');
                                     const isSessionBeaten =
                                         CHAMPIONSHIP_VERSUS_VENUE_USE_LIVE_OPPONENT_LIST && beatenOpponentIds.includes(o.userId);
+                                    const isOpponentSelectDisabled = disableOpponentControls || isSessionBeaten;
                                     const oAvatar = AVATAR_POOL.find((a) => a.id === o.avatarId)?.url;
                                     const showPetAux = (venue === 'pet' || venue === 'petpair') && o.representativePet;
                                     const userAvatarSrc = resolvePublicUrl(oAvatar || '/images/profiles/profile1.webp');
@@ -2344,36 +2354,38 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                                 />
                                                 <div
                                                     role="button"
-                                                    tabIndex={isSessionBeaten ? -1 : 0}
+                                                    tabIndex={isOpponentSelectDisabled ? -1 : 0}
                                                     onClick={() => {
-                                                        if (isSessionBeaten) return;
+                                                        if (isOpponentSelectDisabled) return;
                                                         setSelectedId(o.userId);
                                                     }}
                                                     onKeyDown={(e) => {
-                                                        if (isSessionBeaten) return;
+                                                        if (isOpponentSelectDisabled) return;
                                                         if (e.key === 'Enter' || e.key === ' ') {
                                                             e.preventDefault();
                                                             setSelectedId(o.userId);
                                                         }
                                                     }}
                                                     className={`relative z-[1] flex w-full items-center gap-1.5 px-2 py-2 text-left outline-none sm:gap-2 sm:px-2.5 sm:py-2.5 ${
-                                                        isSessionBeaten
+                                                        isOpponentSelectDisabled
                                                             ? 'cursor-not-allowed opacity-95'
                                                             : 'cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400/50'
                                                     }`}
                                                 >
                                                     <span
                                                         className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-amber-400/35 bg-gradient-to-b from-amber-500/25 via-amber-950/40 to-black text-[9px] font-black tabular-nums leading-none text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] ring-1 ring-black/50 sm:h-7 sm:w-7 sm:text-[10px]"
-                                                        title="장내 티어 점수(ELO) 순위"
+                                                        title="전체 유저 기준 순위"
                                                     >
-                                                        {opponentTierScoreRankByUserId.get(o.userId) ?? '—'}
+                                                        {opponentGlobalRankByUserId.get(o.userId) ?? '—'}
                                                     </span>
                                                     <button
                                                         type="button"
+                                                        disabled={disableOpponentControls}
                                                         className="relative z-[2] flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-white/15 bg-slate-950 p-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_2px_8px_rgba(0,0,0,0.5)] ring-1 ring-black/50 transition hover:border-amber-400/45 hover:shadow-[0_0_0_1px_rgba(251,191,36,0.25)] active:scale-[0.96] sm:h-9 sm:w-9"
                                                         title={demoRow ? '프로필' : `${o.nickname} 프로필 보기`}
                                                         aria-label={demoRow ? '프로필' : `${o.nickname} 프로필 보기`}
                                                         onClick={(e) => {
+                                                            if (disableOpponentControls) return;
                                                             e.stopPropagation();
                                                             if (demoRow) setSelectedId(o.userId);
                                                             else handlers.openViewingUser(o.userId);
@@ -2416,7 +2428,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                             <Button
                                 type="button"
                                 colorScheme="none"
-                                disabled={loading}
+                                disabled={loading || disableOpponentControls}
                                 onClick={() => void refreshOpponents({ force: true })}
                                 className="!flex w-full !items-center !justify-center gap-1.5 !rounded-lg !border !border-amber-400/45 !bg-gradient-to-b !from-slate-600/55 !via-slate-900/88 !to-black !py-2 !text-[11px] !font-bold !text-amber-50 !shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_6px_20px_-12px_rgba(0,0,0,0.85)] !ring-1 !ring-inset !ring-white/10 transition hover:!border-amber-300/60 hover:!brightness-110 active:!scale-[0.99] disabled:!opacity-45 sm:!text-xs"
                             >

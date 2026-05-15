@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import GameRankingBoard from './GameRankingBoard.js';
 import RankingList from './waiting-room/RankingList.js';
+import ChampionshipRankingList from './waiting-room/ChampionshipRankingList.js';
 import MobileRankingGuidePanel from './MobileRankingGuidePanel.js';
 import TierInfoModal from './TierInfoModal.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
@@ -15,7 +16,7 @@ import type { MobileRankingGuideVariant } from './MobileRankingGuidePanel.js';
 /** 모바일 랭킹 퀵 모달: 탭당 하나의 랭킹 보드 */
 type RankingMobileTab = 'combat' | 'manner' | 'championship' | 'strategic' | 'pair';
 
-type PcMainTab = 'game' | 'baduk';
+type PcMainTab = 'game' | 'baduk' | 'championship';
 
 interface RankingQuickModalProps {
     onClose: () => void;
@@ -32,15 +33,6 @@ const MOBILE_RANKING_TABS: { id: RankingMobileTab; label: string }[] = [
 
 const PC_MAIN_TAB_BTN =
     'rounded-xl border px-4 py-2 text-sm font-bold tracking-tight transition-all duration-200 sm:px-5 sm:py-2.5 sm:text-base';
-
-const RetiredChampionshipRankingPanel: React.FC = () => (
-    <div className="flex h-full min-h-0 flex-col items-center justify-center rounded-lg border border-amber-400/20 bg-zinc-950/70 p-4 text-center">
-        <div className="text-base font-bold text-amber-100">챔피언십 랭킹 종료</div>
-        <p className="mt-2 max-w-sm text-sm leading-relaxed text-zinc-300">
-            PVE 챔피언십은 일일 도전과 결과 보상 중심으로 개편되었습니다. 추후 PVP 챔피언십에서 결투점수 월간 랭킹이 열릴 예정입니다.
-        </p>
-    </div>
-);
 
 const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmost }) => {
     const isCompactViewport = useIsHandheldDevice(1024);
@@ -187,7 +179,17 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             tabKey: 'championship',
                                             panel: (
                                                 <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
-                                                    <RetiredChampionshipRankingPanel />
+                                                    {currentUserWithStatus ? (
+                                                        <ChampionshipRankingList
+                                                            currentUser={currentUserWithStatus}
+                                                            onViewUser={handlers.openViewingUser}
+                                                            splitStack
+                                                        />
+                                                    ) : (
+                                                        <div className="flex h-full items-center justify-center px-4 text-center text-sm text-zinc-400">
+                                                            로그인 후 챔피언십 랭킹을 확인할 수 있습니다.
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ),
                                         },
@@ -322,6 +324,19 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                             >
                                 바둑랭킹
                             </button>
+                            <button
+                                type="button"
+                                role="tab"
+                                aria-selected={pcMainTab === 'championship'}
+                                onClick={() => setPcMainTab('championship')}
+                                className={`${PC_MAIN_TAB_BTN} ${
+                                    pcMainTab === 'championship'
+                                        ? 'border-violet-300/50 bg-gradient-to-b from-violet-600/90 via-purple-900/78 to-zinc-950/92 text-violet-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-violet-300/28'
+                                        : 'border-white/12 bg-zinc-900/70 text-zinc-300 hover:border-violet-400/38 hover:text-violet-100'
+                                }`}
+                            >
+                                챔피언십랭킹
+                            </button>
                         </div>
 
                         <div className="min-h-0 flex-1 overflow-hidden rounded-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-white/[0.06]">
@@ -343,8 +358,16 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             panelTitle="매너"
                                         />
                                     </div>
+                                </div>
+                            )}
+                            {pcMainTab === 'championship' && (
+                                <div className="flex h-full min-h-0 flex-row gap-2 overflow-hidden p-1.5 sm:gap-3 sm:p-2">
                                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
-                                        <RetiredChampionshipRankingPanel />
+                                        <ChampionshipRankingList
+                                            currentUser={currentUserWithStatus}
+                                            onViewUser={handlers.openViewingUser}
+                                            splitStack
+                                        />
                                     </div>
                                 </div>
                             )}

@@ -14,6 +14,13 @@ import {
 import { modeIncludesBaseCaptureMix, resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 import { PRE_GAME_PVP_COUNTDOWN_MS } from '../../shared/constants/preGameCountdown.js';
 
+const DEFAULT_BASE_AI_KOMI_MIN = 5;
+const DEFAULT_BASE_AI_KOMI_MAX = 20;
+
+const randomBaseAiKomiBid = (): number =>
+    DEFAULT_BASE_AI_KOMI_MIN +
+    Math.floor(Math.random() * (DEFAULT_BASE_AI_KOMI_MAX - DEFAULT_BASE_AI_KOMI_MIN + 1));
+
 /** 메인 루프가 매 틱 호출해도 동일한 값이 나오게 (AI 선호·타임아웃 무작위 흔들림 방지) */
 const pickBlackOrWhiteFromDeterministicSeed = (seed: string): types.Player => {
     let h = 2166136261;
@@ -59,6 +66,19 @@ const getBasePlacementColorForKey = (
         return tempBlackId === playerId ? types.Player.Black : types.Player.White;
     }
     return key === 'baseStones_p1' ? types.Player.Black : types.Player.White;
+};
+
+const getBasePlacementColorForUserId = (
+    game: types.LiveGameSession,
+    userId: string
+): types.Player | null => {
+    if (userId === game.player1.id) {
+        return getBasePlacementColorForKey(game, 'baseStones_p1');
+    }
+    if (userId === game.player2.id) {
+        return getBasePlacementColorForKey(game, 'baseStones_p2');
+    }
+    return null;
 };
 
 /**
@@ -672,7 +692,10 @@ const resolveBaseStoneColorChoicePhase = (game: types.LiveGameSession, now: numb
     if (game.isAiGame && aiId) {
         const humanChoice = game.baseStoneColorChoices[humanId];
         if (humanChoice != null && game.baseStoneColorChoices[aiId] == null) {
-            game.baseStoneColorChoices[aiId] = pickBlackOrWhiteFromDeterministicSeed(`${game.id}:baseAiStonePref:${humanId}:${humanChoice}`);
+            const aiPlacedStoneColor = getBasePlacementColorForUserId(game, aiId);
+            game.baseStoneColorChoices[aiId] =
+                aiPlacedStoneColor ??
+                pickBlackOrWhiteFromDeterministicSeed(`${game.id}:baseAiStonePref:${humanId}:${humanChoice}`);
         }
     }
 
@@ -806,8 +829,8 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
 
             if (bothHaveBid || deadlinePassed) {
                 if (deadlinePassed) {
-                    const fillP1 = { color: lockedSame ?? types.Player.Black, komi: Math.floor(Math.random() * 11) };
-                    const fillP2 = { color: lockedSame ?? types.Player.Black, komi: Math.floor(Math.random() * 11) };
+                    const fillP1 = { color: lockedSame ?? types.Player.Black, komi: randomBaseAiKomiBid() };
+                    const fillP2 = { color: lockedSame ?? types.Player.Black, komi: randomBaseAiKomiBid() };
                     if (!game.komiBids![p1Id]) game.komiBids![p1Id] = fillP1;
                     if (!game.komiBids![p2Id]) game.komiBids![p2Id] = fillP2;
                 }

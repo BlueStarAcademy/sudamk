@@ -7,6 +7,7 @@ import {
     evaluateHiddenScanBoard,
     hasOpponentHiddenScanTargets,
     recordSoftHiddenScanDiscovery,
+    scanInventoryKeyForPlayer,
 } from './hiddenScanShared.js';
 import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
 import { resolveSinglePlayerAutoScoringTurnCap } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
@@ -182,7 +183,7 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
             }
         } else if (currentItemMode === 'scanning') {
             // 스캔 아이템 소멸
-            const scanKey = timedOutPlayerId === game.player1.id ? 'scans_p1' : 'scans_p2';
+            const scanKey = scanInventoryKeyForPlayer(timedOutPlayerEnum);
             const currentScans = game[scanKey] ?? 0;
             if (currentScans > 0) {
                 game[scanKey] = currentScans - 1;
@@ -328,7 +329,7 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
                 console.log(`[handleSinglePlayerHiddenAction] START_SCANNING rejected: Wrong game status - gameStatus=${game.gameStatus}`);
                 return { error: "Not your turn to use an item." };
             }
-            const scanKeyStart = user.id === game.player1.id ? 'scans_p1' : 'scans_p2';
+            const scanKeyStart = scanInventoryKeyForPlayer(myPlayerEnum);
             if ((game[scanKeyStart] ?? 0) <= 0) {
                 console.log(`[handleSinglePlayerHiddenAction] START_SCANNING rejected: No scans left - ${scanKeyStart}=${game[scanKeyStart]}`);
                 return { error: "No scans left." };
@@ -363,7 +364,7 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
             }
             if (game.gameStatus !== 'scanning') return { error: "Not in scanning mode." };
             const { x, y } = payload;
-            const scanKey = user.id === game.player1.id ? 'scans_p1' : 'scans_p2';
+            const scanKey = scanInventoryKeyForPlayer(myPlayerEnum);
             if ((game[scanKey] ?? 0) <= 0) return { error: "No scans left." };
 
             const evalResult = evaluateHiddenScanBoard(game, user.id, x, y);

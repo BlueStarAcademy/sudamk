@@ -12,6 +12,7 @@ import { getGoLogic, processMove } from './goLogic.js';
 import * as types from '../types/index.js';
 import * as summaryService from './summaryService.js';
 import { getCaptureTarget, NO_CAPTURE_TARGET, tryEndGameWhenCaptureTargetReached } from './utils/captureTargets.js';
+import { deferGetGameResultForScoringOverlay } from './utils/deferGetGameResultForScoringOverlay.js';
 import * as db from './db.js';
 import { volatileState } from './state.js';
 import { broadcastToGameParticipants } from './socket.js';
@@ -3054,9 +3055,13 @@ export async function makeGoAiBotMove(
                         }
                         broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
                     }
-                    const { getGameResult } = await import('./gameModes.js');
                     try {
-                        await getGameResult(game);
+                        if (game.isSinglePlayer || (game as any).gameCategory === 'tower') {
+                            deferGetGameResultForScoringOverlay(game.id, 'goAiBot-autoScoring-after-ai');
+                        } else {
+                            const { getGameResult } = await import('./gameModes.js');
+                            await getGameResult(game);
+                        }
                     } catch (scoringError: any) {
                         console.error(`[GoAiBot][${gameType}] Error during auto-scoring for game ${game.id}:`, scoringError?.message);
                         console.error(`[GoAiBot][${gameType}] Scoring error stack:`, scoringError instanceof Error ? scoringError.stack : 'No stack trace');
@@ -3082,9 +3087,13 @@ export async function makeGoAiBotMove(
                         }
                         broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
                     }
-                    const { getGameResult } = await import('./gameModes.js');
                     try {
-                        await getGameResult(game);
+                        if (game.isSinglePlayer || (game as any).gameCategory === 'tower') {
+                            deferGetGameResultForScoringOverlay(game.id, 'goAiBot-forced-autoScoring');
+                        } else {
+                            const { getGameResult } = await import('./gameModes.js');
+                            await getGameResult(game);
+                        }
                     } catch (scoringError: any) {
                         console.error(`[GoAiBot][${gameType}] Error during forced auto-scoring for game ${game.id}:`, scoringError?.message);
                         console.error(`[GoAiBot][${gameType}] Scoring error stack:`, scoringError instanceof Error ? scoringError.stack : 'No stack trace');

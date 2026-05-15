@@ -1017,23 +1017,6 @@ function mergeHumanHiddenStonePointsForSession(
     const mergedPoints = dedupe([...incomingPoints, ...existingPoints]);
     if (mergedPoints.length === 0) return undefined;
 
-    if (isSessionSingleOrTower(incoming)) {
-        const board = incoming.boardState;
-        const playerIdFor = (player: Player | undefined) =>
-            player === Player.Black ? incoming.blackPlayerId : player === Player.White ? incoming.whitePlayerId : undefined;
-        const humanMarkers = mergedPoints.filter((point) => {
-            const cell = board?.[point.y]?.[point.x];
-            if (cell !== Player.Black && cell !== Player.White) {
-                // 슬림/지연 패킷은 boardState가 없거나 늦을 수 있으므로, 잘못된 hiddenMoves로 마커를 버리지 않는다.
-                return !Array.isArray(board) || board.length === 0;
-            }
-            if (point.player !== undefined && point.player !== cell) return false;
-            const ownerId = playerIdFor(cell);
-            return !!ownerId && ownerId !== aiUserId && !ownerId.startsWith('dungeon-bot-') && !ownerId.startsWith('pet-ai-');
-        });
-        return humanMarkers.length > 0 ? humanMarkers : undefined;
-    }
-
     if (!Array.isArray(moveHistory) || !hiddenMoves || Object.keys(hiddenMoves).length === 0) {
         return mergedPoints;
     }
@@ -4017,12 +4000,12 @@ export const useApp = () => {
 
                     if (moveLimit != null && moveLimit > 0) {
                         const currentValidMoves = (game.moveHistory || []).filter((m: any) => m.x !== -1 && m.y !== -1).length;
-                        if (currentValidMoves >= moveLimit) {
+                        const currentScoringTurns = Math.max(currentValidMoves, game.totalTurns ?? 0);
+                        if (currentScoringTurns >= moveLimit) {
                             if (process.env.NODE_ENV === 'development') {
                                 console.warn(`[handleAction] ${actionTypeName} blocked move after turn limit reached`, {
                                     gameId,
-                                    currentValidMoves,
-                                    storedTotalTurns: game.totalTurns,
+                                    currentValidMoves: currentScoringTurns,
                                     moveLimit,
                                     gameStatus: game.gameStatus,
                                 });
@@ -4031,7 +4014,7 @@ export const useApp = () => {
                                 ...currentGames,
                                 [gameId]: {
                                     ...game,
-                                    totalTurns: currentValidMoves,
+                                    totalTurns: currentScoringTurns,
                                     gameStatus: 'scoring' as const,
                                 }
                             };
@@ -5703,6 +5686,7 @@ export const useApp = () => {
                         'EXPAND_INVENTORY',
                         'TOGGLE_EQUIP_ITEM',
                         'UNBIND_EQUIPMENT',
+                        'SELL_ITEM',
                         'MARK_ITEM_EXCHANGE_LISTED',
                         'UNMARK_ITEM_EXCHANGE_LISTED',
                         'MANNER_ACTION',
@@ -8298,6 +8282,11 @@ export const useApp = () => {
                                 const isMissileSelectToAnimating =
                                     existingForThrottle?.gameStatus === 'missile_selecting' &&
                                     game.gameStatus === 'missile_animating';
+                                // playing 등에서 바로 missile_animating으로 올 때도 moveHistory 길이가 같아
+                                // 100ms 쓰로틀에 걸리면 클라가 playing에 고착되어 REQUEST_SERVER_AI_MOVE가 반복된다.
+                                const isMissileAnimatingEntry =
+                                    game.gameStatus === 'missile_animating' &&
+                                    existingForThrottle?.gameStatus !== 'missile_animating';
                                 const isMissileAnimExitToPlaying =
                                     existingForThrottle?.gameStatus === 'missile_animating' &&
                                     game.gameStatus === 'playing';
@@ -8377,6 +8366,7 @@ export const useApp = () => {
                                     !isScanAnimExitToPlaying &&
                                     !isHiddenPlacingExitToPlaying &&
                                     !isMissileSelectToAnimating &&
+                                    !isMissileAnimatingEntry &&
                                     !isMissileAnimExitToPlaying &&
                                     !disconnectStateChanged &&
                                     !isAiHiddenItemPresentationUpdate &&

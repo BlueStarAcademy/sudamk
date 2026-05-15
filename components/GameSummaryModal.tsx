@@ -40,11 +40,7 @@ import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 import { VIP_PLAY_REWARD_SLOT_PREVIEW_IMAGE } from '../shared/constants/vipPlayReward.js';
 import { useResilientImgSrc } from '../hooks/useResilientImgSrc.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
-import {
-    GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX,
-    GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS,
-    GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH,
-} from './game/gameResultModalViewport.js';
+import { useGameResultModalLayout } from './game/useGameResultModalLayout.js';
 import { GoStoneIcon } from './game/arenaRoundEndShared.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { getPairPetDefinition, getPairPetDisplayName } from '../shared/constants/petLobby.js';
@@ -1556,7 +1552,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
 }) => {
     const { winner, player1, player2, blackPlayerId, whitePlayerId, winReason } = session;
     const soundPlayed = useRef(false);
-    const isCompactViewport = useIsHandheldDevice(1025);
+    const isCompactViewport = useIsHandheldDevice(900);
     const { isNativeMobile } = useNativeMobileShell();
     /** 좁은 뷰포트·네이티브 앱에서만 컴팩트 타이포(한 화면 우선). PC·캔버스 넓은 창은 큰 글자 유지 */
     const isMobile = isCompactViewport || isNativeMobile;
@@ -1750,8 +1746,16 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
     const borderUrl = useMemo(() => BORDER_POOL.find((b: BorderInfo) => b.id === currentUser.borderId)?.url, [currentUser.borderId]);
     
     // 모바일 텍스트 크기 조정
-    const mobileTextScale = 1;
-    const mobileImageScale = 1;
+    const {
+        desktopTextScale,
+        mobileTextScale,
+        mobileImageScale,
+        commonWindowProps: commonResultWindowProps,
+    } = useGameResultModalLayout({
+        isMobile,
+        designWidth: isMobile ? 1080 : 1240,
+        designHeight: isMobile ? 920 : 980,
+    });
 
     useEffect(() => {
         if (soundPlayed.current) return;
@@ -2260,17 +2264,12 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             onClose={onConfirm}
             /** 전역 레벨업·콘텐츠 해금 등(document.body)과 같은 z 스택에서 겹치게 — 스케일 캔버스 내부 modal-root에만 두면 가려질 수 있음 */
             viewportPortal
-            initialWidth={1000}
-            /** 내용량에 맞춰 높이를 잡고, maxHeight·뷰포트만으로 상한(한 화면 맞춤) */
-            shrinkHeightToContent
-            pcViewportMaxHeightCss="min(94dvh, calc(100vh - 24px))"
-            uniformPcScale={false}
-            mobileViewportFit
-            mobileLockViewportHeight={isMobile}
-            bodyShrinkToContent
-            mobileViewportMaxHeightVh={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH : 86}
-            mobileViewportMaxHeightCss={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS : undefined}
-            mobileViewportDvhBottomGapPx={isMobile ? GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX : undefined}
+            initialWidth={isMobile ? 1000 : 1140}
+            initialHeight={isMobile ? undefined : 900}
+            /** 모바일만 내용량 기반 높이(데스크톱은 고정 프레임으로 내부 잘림 방지) */
+            shrinkHeightToContent={isMobile}
+            {...commonResultWindowProps}
+            bodyShrinkToContent={isMobile}
             hideFooter={isMobile}
             windowId="game-summary"
             variant="store"
@@ -2297,6 +2296,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                 className={`relative flex min-h-0 flex-col text-on-panel antialiased ${
                     useBodyScrollSizing ? 'w-full overflow-x-hidden' : 'w-full overflow-x-hidden overflow-y-visible'
                 } ${isMobile ? 'min-h-0 flex-1 basis-0 p-1.5 text-xs sm:text-sm min-[390px]:p-2' : 'p-2.5 text-[0.9375rem] min-[1024px]:p-3 min-[1024px]:text-[1rem] min-[1280px]:text-[1.0625rem]'}`}
+                style={!isMobile ? { fontSize: `${14 * desktopTextScale}px` } : undefined}
             >
                 {!isMobile && (
                 <h1
@@ -2681,7 +2681,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                 mobileTextScale={mobileTextScale}
                                 mobileImageScale={mobileImageScale}
                             />
-                            <div className="flex w-full min-h-0 max-h-[min(46vh,22rem)] flex-col items-center overflow-x-hidden overflow-y-auto overscroll-y-contain pr-0.5 [scrollbar-width:thin] min-[1100px]:max-h-[min(50vh,24rem)]">
+                            <div className="flex w-full min-h-0 flex-col items-center overflow-x-hidden overflow-y-visible pr-0.5">
                                 {renderGameContent()}
                             </div>
                         </div>

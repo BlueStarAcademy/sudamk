@@ -2,11 +2,13 @@ import * as types from '../../types/index.js';
 import * as db from '../db.js';
 import { pauseGameTimer, resumeGameTimer } from './shared.js';
 import { runTowerStyleHiddenRevealAnimatingIfDue } from './towerStyleHiddenRevealAnimating.js';
+import { deferGetGameResultForScoringOverlay } from '../utils/deferGetGameResultForScoringOverlay.js';
 import {
     buildHiddenScanAnimation,
     evaluateHiddenScanBoard,
     hasOpponentHiddenScanTargets,
     recordSoftHiddenScanDiscovery,
+    scanInventoryKeyForPlayer,
 } from './hiddenScanShared.js';
 import { aiUserId } from '../aiPlayer.js';
 
@@ -24,6 +26,14 @@ const isTowerAiSeatTurn = (game: types.LiveGameSession): boolean => {
           : null;
     if (!id) return false;
     return id === aiUserId || String(id).startsWith('dungeon-bot-');
+};
+
+const persistAndBroadcastTowerScoringState = async (game: types.LiveGameSession): Promise<void> => {
+    const { updateGameCache } = await import('../gameCache.js');
+    const { broadcastToGameParticipants } = await import('../socket.js');
+    updateGameCache(game);
+    await db.saveGame(game);
+    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
 };
 
 /**
@@ -331,8 +341,9 @@ export const updateTowerPlayerHiddenState = async (game: types.LiveGameSession, 
                             const totalTurns = g.totalTurns ?? validMoves.length;
                             g.totalTurns = totalTurns;
                             if (totalTurns >= autoScoringTurns && g.gameStatus === 'playing') {
-                                const { getGameResult } = await import('../gameModes.js');
-                                await getGameResult(g);
+                                g.gameStatus = 'scoring';
+                                await persistAndBroadcastTowerScoringState(g);
+                                deferGetGameResultForScoringOverlay(g.id, 'towerHiddenRevealAutoScoring');
                             }
                         }
                     }
@@ -344,8 +355,8 @@ export const updateTowerPlayerHiddenState = async (game: types.LiveGameSession, 
                 game.animation = null;
                 game.revealAnimationEndTime = undefined;
                 game.gameStatus = 'scoring';
-                const { getGameResult } = await import('../gameModes.js');
-                await getGameResult(game);
+                await persistAndBroadcastTowerScoringState(game);
+                deferGetGameResultForScoringOverlay(game.id, 'towerHiddenFinalRevealComplete');
             }
             break;
     }
@@ -382,7 +393,7 @@ export const handleTowerPlayerHiddenAction = (volatileState: types.VolatileState
             return {};
         case 'START_SCANNING': {
             if (!isMyTurn) return { error: "Not your turn to use an item." };
-            const scanKeyStart = user.id === game.blackPlayerId ? 'scans_p1' : 'scans_p2';
+            const scanKeyStart = scanInventoryKeyForPlayer(myPlayerEnum);
             if (scanKeyStart === 'scans_p1' && game.player1?.id === user.id) {
                 syncTowerP1ConsumableSessionFromInventory(game, user, 'scan');
             }
@@ -415,7 +426,7 @@ export const handleTowerPlayerHiddenAction = (volatileState: types.VolatileState
             }
             if (game.gameStatus !== 'scanning') return { error: "Not in scanning mode." };
             const { x, y } = payload;
-            const scanKey = user.id === game.blackPlayerId ? 'scans_p1' : 'scans_p2';
+            const scanKey = scanInventoryKeyForPlayer(myPlayerEnum);
             if (scanKey === 'scans_p1' && game.player1?.id === user.id) {
                 syncTowerP1ConsumableSessionFromInventory(game, user, 'scan');
             }

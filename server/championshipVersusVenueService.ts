@@ -136,6 +136,8 @@ export type ChampionshipVersusOpponentRow = {
     /** 계정 레벨 (표시용) */
     userLevel: number;
     rating: number;
+    /** 해당 경기장 시즌 전체 유저 기준 순위(동점 공동 순위) */
+    globalRank?: number;
     wins: number;
     losses: number;
     totalGoPower: number;
@@ -536,6 +538,19 @@ export async function buildChampionshipVersusOpponentList(
         }
     }
 
+    const globalRankByUserId = new Map<string, number>();
+    {
+        const globalRows = [
+            ...candidates.map((c) => ({ userId: c.u.id, rating: c.rating })),
+            { userId: self.id, rating: myRating },
+        ].sort((a, b) => b.rating - a.rating);
+        let rank = 1;
+        for (let i = 0; i < globalRows.length; i++) {
+            if (i > 0 && globalRows[i]!.rating < globalRows[i - 1]!.rating) rank = i + 1;
+            globalRankByUserId.set(globalRows[i]!.userId, rank);
+        }
+    }
+
     const opponents: ChampionshipVersusOpponentRow[] = picked.map(({ u, rating }) => {
         ensureChampionshipVersusRatingEntry(u, venue, now);
         const e = u.championshipVersusVenueRatings![venue]!;
@@ -551,6 +566,7 @@ export async function buildChampionshipVersusOpponentList(
             league: String(u.league ?? ''),
             userLevel: Math.max(1, Math.floor(Number(u.userLevel) || 1)),
             rating,
+            globalRank: globalRankByUserId.get(u.id),
             wins: e.seasonWins,
             losses: e.seasonLosses,
             totalGoPower: 0,

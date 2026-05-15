@@ -31,6 +31,7 @@ import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKi
 import { pairPetKataPhaseFromTotalPly, pairPetKataPliesRemainingInCurrentPhase } from '../../shared/constants/pairArena.js';
 import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
 import { getPairPetDefinition } from '../../shared/constants/petLobby.js';
+import { resolvePveSeatColors } from '../../utils/pveSeatColors.js';
 
 interface SinglePlayerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser' | 'isSpectator'> {
     showResultModal?: boolean;
@@ -195,22 +196,9 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     const myMissilesLeftForRefresh = resolvePveItemCount(session.missiles_p1, missileCountSetting);
     const usedMissileBeforeFirstMove = isMissileOnlyMode && moveCount === 0 && (missileCountSetting - myMissilesLeftForRefresh) > 0;
 
-    // 싱글플레이 베이스바둑: 덤 결정 후 유저가 백이 될 수도 있다. `currentPlayer === Player.Black` 가정은 더이상 통하지 않으므로
-    // 본대국 좌석(`blackPlayerId`/`whitePlayerId`) → 본대국 잠금 좌석 → player1=흑 폴백 순으로 본인 색을 확정한다.
-    const myPlayerEnum: Player = (() => {
-        if (myUserId && session.blackPlayerId === myUserId) return Player.Black;
-        if (myUserId && session.whitePlayerId === myUserId) return Player.White;
-        const lockedBlack = (session as { playingLockedBlackPlayerId?: string | null }).playingLockedBlackPlayerId ?? null;
-        const lockedWhite = (session as { playingLockedWhitePlayerId?: string | null }).playingLockedWhitePlayerId ?? null;
-        if (myUserId && typeof lockedBlack === 'string' && lockedBlack === myUserId) return Player.Black;
-        if (myUserId && typeof lockedWhite === 'string' && lockedWhite === myUserId) return Player.White;
-        // 본대국 좌석/잠금이 비어 있는 사전 단계나 잘못된 동기화 상태: 싱글플레이는 player1=유저=흑 가정으로 폴백.
-        return session.player1?.id === myUserId ? Player.Black : Player.None;
-    })();
+    // 베이스 덤 이후 유저가 백이 되는 케이스를 포함해 PVE 좌석(본인/상대 색)을 공통 규칙으로 계산한다.
+    const { myPlayerEnum, opponentPlayerEnum } = resolvePveSeatColors(session as any, myUserId);
     const isMyTurn = myPlayerEnum !== Player.None && session.currentPlayer === myPlayerEnum;
-    /** 베이스 싱글에서 유저가 백이면 상대(AI)는 흑. 스캔 활성 판정에서 더 이상 `Player.White=상대` 가정을 쓸 수 없으므로
-     * `myPlayerEnum`에서 파생한 색을 사용한다. `myPlayerEnum=None`인 잠깐의 사전 단계는 흑(=폴백) 가정을 유지한다. */
-    const opponentPlayerEnum: Player = myPlayerEnum === Player.White ? Player.Black : Player.White;
     /** 배치변경(돌 재배치)은 첫 수 전이라면 색과 무관하게 허용해야 한다.
      * 베이스에서 유저가 백이 되면 AI(흑)가 먼저 두기 전 단계에 currentPlayer는 Black이라 isMyTurn=false다.
      * 이때까지는 보드 패턴만 다시 섞는 동작이므로 `!isMyTurn`을 비활성 조건에 넣지 않는다. */

@@ -35,6 +35,8 @@ export type PveItemActionClientSync = {
     totalTurns?: number;
 };
 
+type AdventureMonsterBattleModePayload = 'classic' | 'capture' | 'base' | 'hidden' | 'missile' | 'speed';
+
 export type ChatMessage = {
   id: string;
   user: { id: string, nickname: string };
@@ -519,14 +521,14 @@ export type ServerAction =
     | { type: 'SAVE_PRESET', payload: { preset: EquipmentPreset, index: number } }
     | {
           type: 'RECORD_ADVENTURE_MONSTER_DEFEAT';
-          payload: { codexId: string; stageId: string; battleMode: 'classic' | 'capture' | 'base' | 'hidden' | 'missile' };
+          payload: { codexId: string; stageId: string; battleMode: AdventureMonsterBattleModePayload };
       }
     | {
           type: 'START_ADVENTURE_MONSTER_BATTLE';
           payload: {
               codexId: string;
               stageId: string;
-              battleMode: 'classic' | 'capture' | 'base' | 'hidden' | 'missile';
+              battleMode: AdventureMonsterBattleModePayload;
               monsterLevel: number;
               /** 맵 몬스터 인스턴스 id — 판 크기 결정 시드와 동일해야 함 */
               mapMonsterId: string;
@@ -547,7 +549,7 @@ export type ServerAction =
     | { type: 'UNBIND_EQUIPMENT', payload: { itemId: string } }
     | { type: 'MARK_ITEM_EXCHANGE_LISTED'; payload: { itemId: string; listPrice: number; listCurrency: 'gold' | 'diamonds' } }
     | { type: 'UNMARK_ITEM_EXCHANGE_LISTED', payload: { itemId: string } }
-    | { type: 'SELL_ITEM', payload: { itemId: string, quantity?: number } }
+    | { type: 'SELL_ITEM', payload: { itemId: string, quantity?: number, itemName?: string } }
     | { type: 'ENHANCE_ITEM', payload: { itemId: string } }
     | { type: 'DISASSEMBLE_ITEM', payload: { itemIds: string[] } }
     | { type: 'COMBINE_ITEMS', payload: { itemIds: string[], isRandom?: boolean } }

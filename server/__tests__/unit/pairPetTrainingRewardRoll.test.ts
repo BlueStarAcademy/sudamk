@@ -40,7 +40,7 @@ describe('normalizePairPetTrainingSlots + precomputedRewards', () => {
             xpRoll: 5,
             xpGain: 6,
             xpFromSpec: 1,
-            soulDrop: null as const,
+            soulDrop: null,
         };
         const raw = [
             { slotIndex: 0, itemId: 'pet-1', startedAt: now, precomputedRewards: pre },

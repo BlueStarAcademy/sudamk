@@ -1937,12 +1937,11 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         !!hiddenMoves && moveIndex !== -1 && !!hiddenMoves[moveIndex];
                     const isHiddenMove =
                         !isPlainStoneReuseIntersection &&
+                        !!histMove &&
                         (
-                            // 싱글/타워 인간 히든은 좌표 마커가 진실값이다. hiddenMoves 인덱스가 늦은
-                            // 서버 패킷과 섞여도 첫 수가 히든으로 오염되지 않게 인덱스를 믿지 않는다.
                             actualPlayer === myPlayerEnum && hasHumanHiddenPointMarkers
-                                ? !!isHumanHiddenPointMarker
-                                : !!histMove && isHiddenMoveByHistory
+                                ? (!!isHumanHiddenPointMarker || isHiddenMoveByHistory)
+                                : isHiddenMoveByHistory
                         );
                     const isInRevealAnimation =
                         isHiddenRevealStatus &&

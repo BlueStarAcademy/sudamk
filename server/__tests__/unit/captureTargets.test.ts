@@ -94,6 +94,34 @@ describe('capture target winner detection', () => {
         }
     });
 
+    it('uses full valid bid range in AI base+capture mix games', () => {
+        const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+        try {
+            const game = baseGame({
+                gameCategory: GameCategory.Normal,
+                mode: GameMode.Mix,
+                isAiGame: true,
+                settings: { captureTarget: 20, mixedModes: [GameMode.Base, GameMode.Capture] },
+                player1: { id: 'human-user' },
+                player2: { id: aiUserId },
+                bids: { 'human-user': 6, [aiUserId]: null },
+                biddingRound: 1,
+                gameStatus: 'capture_bidding',
+            });
+
+            updateCaptureState(game, Date.now());
+
+            expect(game.bids?.[aiUserId]).toBe(19);
+            expect(game.gameStatus).toBe('capture_reveal');
+            expect(game.effectiveCaptureTargets).toMatchObject({
+                [Player.Black]: 20,
+                [Player.White]: 1,
+            });
+        } finally {
+            randomSpy.mockRestore();
+        }
+    });
+
     it('detects adventure capture target immediately from effective targets', () => {
         const game = baseGame({
             effectiveCaptureTargets: {

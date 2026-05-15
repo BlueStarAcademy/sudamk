@@ -33,6 +33,7 @@ import SinglePlayerGameDescriptionModal from './components/SinglePlayerGameDescr
 import SinglePlayerSidebar from './components/game/SinglePlayerSidebar.js';
 import TowerControls from './components/game/TowerControls.js';
 import TowerSidebar from './components/game/TowerSidebar.js';
+import ScoringOverlay from './components/game/ScoringOverlay.js';
 import GuildWarMissileTowerControls from './components/game/GuildWarMissileTowerControls.js';
 import { MATERIAL_ITEMS } from './constants/items.js';
 
@@ -46,16 +47,16 @@ import GuildWarTowerSidebar from './components/game/GuildWarTowerSidebar.js';
 import PairPetRpsBadge from './components/pair/PairPetRpsBadge.js';
 import { useClientTimer } from './hooks/useClientTimer.js';
 import { useIsHandheldDevice } from './hooks/useIsMobileLayout.js';
+import { useScoringOverlayPresentation } from './hooks/useScoringOverlayPresentation.js';
 import { calculateSimpleAiMove } from './client/goAiBotClient.js';
 import { processMoveClient } from './client/goLogicClient.js';
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from './client/logic/goLogic.js';
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
 import { shouldOpenResultModalByPolicy } from './utils/resultDisplayPolicy.js';
-import { ScoringOverlay } from './components/game/ScoringOverlay.js';
-import { useScoringOverlayPresentation } from './hooks/useScoringOverlayPresentation.js';
 import { consumeSkipGameHashLeaveInterceptOnce, replaceAppHash } from './utils/appUtils.js';
 import { getTowerInGameBackgroundUrl, getTowerSessionFloor } from './utils/towerPreGameDisplay.js';
 import { getAdventureMapWebpPath } from './constants/adventureConstants.js';
+import { TOWER_STAGES } from './constants/towerConstants.js';
 import { InGameModalLayoutProvider } from './contexts/InGameModalLayoutContext.js';
 import {
     getCurrentPairTurnSeat,
@@ -65,6 +66,7 @@ import {
     PAIR_TURN_SEAT_IDS,
 } from './shared/utils/pairGameTurn.js';
 import { resolveArenaSessionPolicy } from './shared/utils/liveSessionArenaKind.js';
+import { resolveSinglePlayerAutoScoringCapForClientSession } from './shared/utils/liveSessionSinglePlayerStage.js';
 import { getPairPetDefinition } from './shared/constants/petLobby.js';
 import { getEquippedPairPetInventoryRow } from './shared/utils/pairEquippedPet.js';
 import { resolvePairPetMetaFromInventoryRow } from './shared/utils/pairPetRoll.js';
@@ -110,6 +112,37 @@ function boardHasAnyPlacedStone(board: Player[][] | undefined | null): boolean {
             Array.isArray(row) &&
             row.some((cell) => cell !== Player.None && cell != null),
     );
+}
+
+function resolveAutoScoringTurnCapForAiGuard(
+    session: LiveGameSession,
+    arenaKind: ReturnType<typeof resolveArenaSessionPolicy>['kind'],
+): number | undefined {
+    if (arenaKind === 'singleplayer') {
+        const cap = resolveSinglePlayerAutoScoringCapForClientSession(session as any);
+        return typeof cap === 'number' && Number.isFinite(cap) && cap > 0 ? cap : undefined;
+    }
+    if (arenaKind === 'tower') {
+        const fromSettings = Number((session.settings as any)?.autoScoringTurns);
+        if (Number.isFinite(fromSettings) && fromSettings > 0) return fromSettings;
+        const stage =
+            session.stageId
+                ? TOWER_STAGES.find((s: any) => s.id === session.stageId)
+                : TOWER_STAGES.find((s: any) => s.id === `tower-${getTowerSessionFloor(session)}`);
+        const fromStage = Number((stage as any)?.autoScoringTurns);
+        return Number.isFinite(fromStage) && fromStage > 0 ? fromStage : undefined;
+    }
+    return undefined;
+}
+
+function hasReachedAutoScoringTurnCapForAiGuard(
+    session: LiveGameSession,
+    arenaKind: ReturnType<typeof resolveArenaSessionPolicy>['kind'],
+): boolean {
+    const cap = resolveAutoScoringTurnCapForAiGuard(session, arenaKind);
+    if (cap == null) return false;
+    const validMoves = (session.moveHistory || []).filter((m) => m && m.x !== -1 && m.y !== -1).length;
+    return validMoves >= cap;
 }
 
 /** 로비 Kata AI·모험·길드전 등 서버 전략바둑 AI 대국 (타워/싱글플 제외) */
@@ -965,18 +998,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     });
     
     const prevGameStatus = usePrevious(gameStatus);
-    const {
-        showScoringOverlay,
-        scoringOverlayCompleted,
-        isScoreBasedPresentation,
-    } = useScoringOverlayPresentation({
-        gameId: session.id,
-        gameStatus,
-        prevGameStatus,
-        winReason: session.winReason ?? undefined,
-    });
-    const showTerritoryOnBoard =
-        showFinalTerritory && (!isScoreBasedPresentation || scoringOverlayCompleted);
 
     useEffect(() => {
         setPostGameSummaryAcknowledged(false);
@@ -1018,6 +1039,24 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const prevMyBaseStoneCountForUnlock = usePrevious(myBaseStoneCountForUnlock);
     const prevAnalysisResult = usePrevious(session.analysisResult?.['system']);
     const sessionPolicy = useMemo(() => resolveArenaSessionPolicy(session), [session]);
+    const {
+        showScoringOverlay,
+        scoringOverlayCompleted,
+        isScoreBasedPresentation,
+    } = useScoringOverlayPresentation({
+        gameId: session.id,
+        gameStatus,
+        prevGameStatus,
+        winReason: session.winReason ?? undefined,
+    });
+    const shouldWaitForScoringOverlay =
+        sessionPolicy.resultDisplayModel === 'waitScoringOverlay' &&
+        isScoreBasedPresentation &&
+        !scoringOverlayCompleted;
+    const blockScoringBoardAnalysis =
+        sessionPolicy.resultDisplayModel === 'waitScoringOverlay' &&
+        isScoreBasedPresentation &&
+        !scoringOverlayCompleted;
     const isSinglePlayer = sessionPolicy.kind === 'singleplayer';
     const onboardingUserPhase = currentUserWithStatus.onboardingTutorialPhase ?? -1;
     const isIntro1SpOnboardingUi =
@@ -1700,7 +1739,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         // 싱글: ended 직후 결과 모달(입문 등 analysisResult 지연 시 빈 화면 방지).
         // scoring 진입 시에는 모달을 절대 열지 않음 — ScoringOverlay 연출을 완료한 뒤 ended에서 모달 표시.
         // 도전의 탑: 따내기 승·패 등 analysisResult 없이 ended 되는 경우가 많아 종료 직후 바로 결과 모달을 연다.
-        const shouldShowModal = shouldOpenResultModalByPolicy({
+        const shouldShowModalByPolicy = shouldOpenResultModalByPolicy({
             session,
             showResultModal,
             gameHasJustEnded,
@@ -1710,6 +1749,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             hasMyGameSummary,
             playfulGameSummaryJustArrived,
         });
+        const shouldShowAfterScoringOverlay =
+            sessionPolicy.resultDisplayModel === 'waitScoringOverlay' &&
+            isScoreBasedPresentation &&
+            scoringOverlayCompleted &&
+            gameStatus === 'ended' &&
+            !postGameSummaryAcknowledged;
+        const shouldShowModal = shouldShowModalByPolicy || shouldShowAfterScoringOverlay;
 
         /** 따내기 승: 계가 연출 직후 ended인 경우(prev scoring)에도 착수·포획 연출 대기 후 모달을 연다 */
         const shouldDelayCaptureResultModal =
@@ -1717,18 +1763,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             session.winReason === 'capture_limit' &&
             (prevGameStatus === 'playing' || prevGameStatus === 'scoring');
 
-        const scoreEndReadyForModal =
-            isScoreBasedPresentation &&
-            scoringOverlayCompleted &&
-            gameStatus === 'ended' &&
-            !showResultModal &&
-            !postGameSummaryAcknowledged &&
-            (session.winReason === 'score' || Boolean(currentAnalysisResult));
-
-        const canOpenModalNow =
-            !isScoreBasedPresentation || scoringOverlayCompleted;
-
-        if (!postGameSummaryAcknowledged && ((shouldShowModal && canOpenModalNow) || scoreEndReadyForModal)) {
+        if (shouldShowModal && !shouldWaitForScoringOverlay) {
             if (shouldDelayCaptureResultModal) {
                 const jc = session.justCaptured;
                 const hiddenFloatLag =
@@ -1736,23 +1771,22 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 const captureWinResultModalDelayMs =
                     CAPTURE_WIN_SCORE_DEBOUNCE_MS + hiddenFloatLag + CAPTURE_WIN_SCORE_FLOAT_CSS_MS;
                 delayedResultModalTimerRef.current = setTimeout(() => {
-                    setShowResultModal((prev) => (postGameSummaryAcknowledged ? prev : true));
+                    setShowResultModal(true);
                     delayedResultModalTimerRef.current = null;
                 }, captureWinResultModalDelayMs);
             } else {
                 setShowResultModal(true);
             }
-            if (gameStatus === 'ended' && (!isScoreBasedPresentation || scoringOverlayCompleted)) {
+            if (gameStatus === 'ended') {
                 setShowFinalTerritory(true);
             }
         }
-
-        if (
-            gameStatus === 'ended' &&
-            currentAnalysisResult &&
-            (!isScoreBasedPresentation || scoringOverlayCompleted)
-        ) {
-            setShowFinalTerritory(true);
+        
+        // 계가가 완료되었을 때(analysisResult가 있을 때) 영토 표시 활성화 — scoring 중에는 계가 오버레이·판면 연출 후 ended에서 켠다
+        if (gameStatus === 'ended' && !shouldWaitForScoringOverlay) {
+            if (currentAnalysisResult) {
+                setShowFinalTerritory(true);
+            }
         }
     }, [
         gameStatus,
@@ -1761,15 +1795,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         prevAnalysisResult,
         isSinglePlayer,
         isTower,
+        sessionPolicy.resultDisplayModel,
+        isScoreBasedPresentation,
+        scoringOverlayCompleted,
+        shouldWaitForScoringOverlay,
+        postGameSummaryAcknowledged,
         session.winReason,
         session.justCaptured,
         playfulResultModalWaitSummary,
         hasMyGameSummary,
         playfulGameSummaryJustArrived,
-        isScoreBasedPresentation,
-        scoringOverlayCompleted,
-        showResultModal,
-        postGameSummaryAcknowledged,
     ]);
 
     /** 다른 대국으로 바뀌거나 화면을 떠날 때만 지연 모달 타이머 정리 (이펙트 재실행마다 지우면 모달이 영원히 안 뜸) */
@@ -1843,6 +1878,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             case 'dice_turn_choice': return session.turnChooserId === currentUser.id;
             case 'scanning': {
                 if (myPlayerEnum === Player.None) return false;
+                // PVE 아이템 모드(scanning)는 아이템 사용 주체 입력을 우선 허용한다.
+                // (서버가 세션 상태/재고를 최종 검증하므로 클라이언트는 스캔 보드 클릭을 막지 않는다.)
+                if (sessionPolicy.matchAxis === 'pve') return true;
                 return myPlayerEnum === currentPlayer;
             }
             case 'missile_selecting': {
@@ -1876,7 +1914,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 return !isSpectator && (currentUser.id === player1.id || currentUser.id === player2.id);
             default: return false;
         }
-    }, [myPlayerEnum, currentPlayer, gameStatus, isSpectator, session, currentUser.id, player1.id, session.settings]);
+    }, [myPlayerEnum, currentPlayer, gameStatus, isSpectator, session, currentUser.id, player1.id, session.settings, sessionPolicy.matchAxis]);
     
     // --- Sound Effects ---
     const prevIsMyTurn = usePrevious(isMyTurn);
@@ -2891,10 +2929,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             x,
                             y,
                             isHidden: true,
-                            boardState: boardStateToUse,
-                            moveHistory: session.moveHistory || [],
-                            hiddenMoves: session.hiddenMoves || {},
-                            humanHiddenStonePoints: (session as any).humanHiddenStonePoints || [],
+                            boardState: moveResult.newBoardState,
+                            moveHistory: [...(session.moveHistory || []), { x, y, player: myPlayerEnum }],
                         }
                     } as ServerAction))
                         .then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined))
@@ -3320,20 +3356,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     hiddenMovesBeforeMove: session.hiddenMoves || {},
                     // 히든 배치 상태에서는 히든 착수로 처리(타워 21층+ 등)
                     ...(gameStatus === 'hidden_placing' ? { isHidden: true } : {}),
-                    ...(gameStatus === 'hidden_placing'
-                        ? {
-                              serverHiddenPlacementPayload: {
-                                  gameId,
-                                  x,
-                                  y,
-                                  isHidden: true,
-                                  boardState: boardStateToUse,
-                                  moveHistory: session.moveHistory || [],
-                                  hiddenMoves: session.hiddenMoves || {},
-                                  humanHiddenStonePoints: (session as any).humanHiddenStonePoints || [],
-                              },
-                          }
-                        : {}),
                 };
             } else {
                 // 온라인 게임(전략바둑 AI 대국 포함): 서버에서 검증/반영
@@ -3424,22 +3446,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined);
                     if (at === 'TOWER_CLIENT_MOVE' || at === 'SINGLE_PLAYER_CLIENT_MOVE') {
                         claimStrategicPetHintBonusIfMatched(x, y, (session.moveHistory?.length || 0) + 1);
-                        const serverHiddenPlacementPayload = (payload as any).serverHiddenPlacementPayload;
-                        if (serverHiddenPlacementPayload) {
-                            void Promise.resolve(
-                                handlers.handleAction({
-                                    type: 'PLACE_STONE',
-                                    payload: serverHiddenPlacementPayload,
-                                } as ServerAction)
-                            )
-                                .then((serverRes) =>
-                                    handleStrategicPetHintActionResult(serverRes as StrategicPetHintActionResult | undefined)
-                                )
-                                .finally(() => {
-                                    pveLocalStonePlacementLockRef.current = false;
-                                });
-                            audioService.stopScanBgm();
-                        }
                     }
                     const hasErr = res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error;
                     if (hasErr) {
@@ -4145,6 +4151,17 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
 
         if (isAiTurn) {
+            if (hasReachedAutoScoringTurnCapForAiGuard(session, sessionPolicy.kind)) {
+                if (import.meta.env.DEV) {
+                    console.log('[Game] Skip AI move: auto-scoring cap already reached', {
+                        gameId: session.id,
+                        arenaKind: sessionPolicy.kind,
+                        validMoves: (session.moveHistory || []).filter((m) => m && m.x !== -1 && m.y !== -1).length,
+                    });
+                }
+                lastAiMoveRef.current = null;
+                return;
+            }
             const moveCount = session.moveHistory?.length ?? 0;
             const aiTurnIndex = Math.floor(moveCount / 2) + 1; // 지금 둘 차례인 백 = 1번째 AI턴(1), 2번째 AI턴(2), ...
             const hiddenStoneCount = session.settings?.hiddenStoneCount ?? 0;
@@ -4274,19 +4291,26 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 const delay = 1000;
                 aiMoveTimeoutRef.current = setTimeout(() => {
                     void (async () => {
-                        const currentMoveHistoryLength = session.moveHistory?.length || 0;
+                        const latestSession = sessionRefForPveAiHiddenFollowup.current as LiveGameSession;
+                        if (hasReachedAutoScoringTurnCapForAiGuard(latestSession, sessionPolicy.kind)) {
+                            lastAiMoveRef.current = null;
+                            aiMoveTimeoutRef.current = null;
+                            return;
+                        }
+                        const live = sessionRefForPveAiHiddenFollowup.current;
+                        const currentMoveHistoryLength = live.moveHistory?.length || 0;
                         if (
-                            session.gameStatus !== 'playing' ||
-                            session.currentPlayer !== currentPlayerAtCalculation ||
-                            session.id !== currentGameId ||
-                            session.gameStatus !== currentGameStatus ||
+                            live.gameStatus !== 'playing' ||
+                            live.currentPlayer !== currentPlayerAtCalculation ||
+                            live.id !== currentGameId ||
+                            live.gameStatus !== currentGameStatus ||
                             currentMoveHistoryLength !== moveHistoryLengthAtCalculation
                         ) {
                             lastAiMoveRef.current = null;
                             aiMoveTimeoutRef.current = null;
                             return;
                         }
-                        const clientSync = buildPveItemActionClientSync(session);
+                        const clientSync = buildPveItemActionClientSync(live);
                         if (!clientSync) {
                             if (process.env.NODE_ENV === 'development') {
                                 console.warn('[Game] PVE server AI: missing clientSync', { gameId: currentGameId });
@@ -4306,7 +4330,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             moveHistoryLength: moveHistoryLengthAtCalculation,
                             player: currentPlayerAtCalculation,
                             timestamp: Date.now(),
-                            revealSig: session.permanentlyRevealedStones?.length ?? 0,
+                            revealSig: live.permanentlyRevealedStones?.length ?? 0,
                         };
                         if (process.env.NODE_ENV === 'development') {
                             console.log('[Game] PVE server AI: REQUEST_SERVER_AI_MOVE', {
@@ -4356,6 +4380,29 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 responseAnimType === 'missile' ||
                                 responseAnimType === 'hidden_missile' ||
                                 responseAnimType === 'ai_thinking';
+                            // 서버는 missile_selecting/animating 등인데 클라가 턴·상태를 한 틱 늦게 보면
+                            // currentPlayer 정합 조건에 안 걸려 잠금이 풀리며 REQUEST_SERVER_AI_MOVE가 반복된다.
+                            const keepLockForAuthoritativeWaiting =
+                                responseGame &&
+                                isServerWaitingState &&
+                                (skippedReason === 'SERVER_AI_WAITING_STATE' ||
+                                    responseStatus === 'missile_animating' ||
+                                    responseStatus === 'missile_selecting' ||
+                                    responseAnimType === 'missile' ||
+                                    responseAnimType === 'hidden_missile');
+                            if (keepLockForAuthoritativeWaiting) {
+                                if (process.env.NODE_ENV === 'development') {
+                                    console.log('[Game] PVE server AI waiting state (authoritative), keeping lock:', {
+                                        gameId: currentGameId,
+                                        skippedReason,
+                                        responseStatus,
+                                        responseAnimType,
+                                        serverPlayer: responseGame.currentPlayer,
+                                        clientExpectedPlayer: currentPlayerAtCalculation,
+                                    });
+                                }
+                                return;
+                            }
                             if (
                                 responseGame &&
                                 Array.isArray(responseGame.moveHistory) &&
@@ -4446,10 +4493,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     const handleCloseResults = useCallback(() => {
         setPostGameSummaryAcknowledged(true);
-        if (delayedResultModalTimerRef.current) {
-            clearTimeout(delayedResultModalTimerRef.current);
-            delayedResultModalTimerRef.current = null;
-        }
         setShowResultModal(false);
         if (!session.analysisResult?.['system']) {
             setShowFinalTerritory(false);
@@ -4721,7 +4764,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         myPlayerEnum={myPlayerEnum} 
                                         handleBoardClick={handleBoardClick} 
                                         isItemModeActive={isItemModeActive} 
-                                        showTerritoryOverlay={showTerritoryOnBoard} 
+                                        showTerritoryOverlay={showFinalTerritory} 
                                         isMobile={isMobile}
                                         pendingMove={pendingMoveForBoard}
                                         myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
@@ -4739,10 +4782,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                         boardRuleFlashMessage={boardRuleFlashMessage}
-                                        blockScoringBoardAnalysis={isScoreBasedPresentation && !scoringOverlayCompleted}
+                                        blockScoringBoardAnalysis={blockScoringBoardAnalysis}
                                     />
                                     {boardHydrationOverlayEl}
-                                    {showScoringOverlay && <ScoringOverlay variant="fullscreen" />}
+                                    {showScoringOverlay && <ScoringOverlay />}
                                 </div>
                             </div>
                             <div className="flex-shrink-0 w-full flex flex-col gap-1">
@@ -4890,7 +4933,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         myPlayerEnum={myPlayerEnum} 
                                         handleBoardClick={handleBoardClick} 
                                         isItemModeActive={isItemModeActive} 
-                                        showTerritoryOverlay={showTerritoryOnBoard} 
+                                        showTerritoryOverlay={showFinalTerritory} 
                                         isMobile={isMobile}
                                         pendingMove={pendingMoveForBoard}
                                         myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
@@ -4906,10 +4949,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                         boardRuleFlashMessage={boardRuleFlashMessage}
-                                        blockScoringBoardAnalysis={isScoreBasedPresentation && !scoringOverlayCompleted}
+                                        blockScoringBoardAnalysis={blockScoringBoardAnalysis}
                                     />
                                     {boardHydrationOverlayEl}
-                                    {showScoringOverlay && <ScoringOverlay variant="fullscreen" />}
+                                    {showScoringOverlay && <ScoringOverlay />}
                                 </div>
                             </div>
                             <div className="flex-shrink-0 w-full flex flex-col gap-1">
@@ -5121,7 +5164,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                         myPlayerEnum={myPlayerEnum}
                                                         handleBoardClick={handleBoardClick}
                                                         isItemModeActive={isItemModeActive}
-                                                        showTerritoryOverlay={showTerritoryOnBoard}
+                                                        showTerritoryOverlay={showFinalTerritory}
                                                         isMobile={isMobile}
                                                         pendingMove={pendingMoveForBoard}
                                                         myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
@@ -5136,9 +5179,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                                         boardRuleFlashMessage={boardRuleFlashMessage}
-                                                        blockScoringBoardAnalysis={isScoreBasedPresentation && !scoringOverlayCompleted}
+                                                        blockScoringBoardAnalysis={blockScoringBoardAnalysis}
                                                     />
                                                     {boardHydrationOverlayEl}
+                                                    {showScoringOverlay && <ScoringOverlay />}
                                                 </div>
                                             </div>
                                         ) : (
@@ -5148,7 +5192,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                 myPlayerEnum={myPlayerEnum}
                                                 handleBoardClick={handleBoardClick}
                                                 isItemModeActive={isItemModeActive}
-                                                showTerritoryOverlay={showTerritoryOnBoard}
+                                                showTerritoryOverlay={showFinalTerritory}
                                                 isMobile={isMobile}
                                                 pendingMove={pendingMoveForBoard}
                                                 myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
@@ -5163,12 +5207,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                 onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
                                                 intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                                 boardRuleFlashMessage={boardRuleFlashMessage}
-                                                blockScoringBoardAnalysis={isScoreBasedPresentation && !scoringOverlayCompleted}
+                                                blockScoringBoardAnalysis={blockScoringBoardAnalysis}
                                             />
                                         )}
                                         {boardHydrationOverlayEl}
+                                        {showScoringOverlay && <ScoringOverlay />}
                                     </div>
-                                    {showScoringOverlay && <ScoringOverlay variant="fullscreen" />}
                                     {effectivePaused && (
                                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none text-white drop-shadow-lg">
                                             <h2 className="text-3xl font-bold tracking-wide">일시 정지</h2>
@@ -5181,7 +5225,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     )}
                                 </div>
                             </div>
-                            {/* 계가 중 5초 스캔 연출 — Game.tsx에서 통합 제어 */}
+                            {/* 계가 연출(ScoringOverlay)은 GoGameArena·SinglePlayerArena에서만 표시 — 여기서 중복 마운트하면 이중 애니메이션 발생 */}
                         </div>
                         <div className="flex-shrink-0 w-full flex flex-col gap-1">
                             <TurnDisplay

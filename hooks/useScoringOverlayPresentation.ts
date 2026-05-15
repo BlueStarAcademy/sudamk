@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { SCORING_PROGRESS_DURATION_MS } from '../components/game/ScoringOverlay.js';
 import { BOARD_SETTLE_BEFORE_SCORING_MS } from '../shared/constants/boardSettleTiming.js';
+import { SCORING_PROGRESS_DURATION_MS } from '../shared/constants/scoringOverlayTiming.js';
 
 /** 계가(집 계산) 종료·연출 대상인지 — 따내기·기권·시간패 등은 제외 */
 export function isScoreBasedScoringPresentation(

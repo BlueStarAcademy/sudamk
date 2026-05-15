@@ -157,11 +157,26 @@ interface DraggableWindowProps {
      */
     pcViewportMaxHeightCss?: string;
 
+    /**
+     * PC(넓은 뷰포트, 네이티브·캔버스 특수 경로 제외)에서 프레임 max-width CSS.
+     * 가방 등 넓은 모달이 기본 `95vw` 상한에 과도하게 줄지 않도록 할 때 사용.
+     */
+    pcViewportMaxWidthCss?: string;
+
     /** 온보딩 스포트라이트: 닫기 버튼에 `data-onboarding-target` 부여 */
     closeButtonDataOnboardingTarget?: string;
 
     /** true면 스케일 캔버스 안 modal-root 대신 실제 브라우저 뷰포트(document.body)에 렌더링 */
     viewportPortal?: boolean;
+
+    /**
+     * 작은 PC 뷰포트에서 자동으로 viewportPortal로 전환할지 여부.
+     * 기본 false: 16:9 캔버스 비율을 유지한 채 모달이 함께 축소되도록 한다.
+     */
+    autoViewportPortalOnSmallDesktop?: boolean;
+
+    /** true면 인게임 보드 프레임 기준 폭/높이 상한을 적용하지 않음 */
+    skipIngameBoardFrameSizeCap?: boolean;
 
 }
 
@@ -196,9 +211,19 @@ function childHasStickyFooterClassName(node: React.ReactNode): boolean {
 function partitionMobileStickyFooter(children: React.ReactNode): { main: React.ReactNode; footer: React.ReactNode | null } {
     const arr = React.Children.toArray(children);
     if (arr.length < 2) return { main: children, footer: null };
-    const last = arr[arr.length - 1];
-    if (childHasStickyFooterClassName(last)) {
-        return { main: <>{arr.slice(0, -1)}</>, footer: last };
+
+    // JSX 줄바꿈/공백이 문자열 노드로 끼어도 마지막 "요소"를 기준으로 스티키 푸터를 분리한다.
+    let lastElementIndex = -1;
+    for (let i = arr.length - 1; i >= 0; i--) {
+        if (React.isValidElement(arr[i])) {
+            lastElementIndex = i;
+            break;
+        }
+    }
+    if (lastElementIndex >= 0 && childHasStickyFooterClassName(arr[lastElementIndex])) {
+        const footer = arr[lastElementIndex]!;
+        const main = arr.filter((_, idx) => idx !== lastElementIndex);
+        return { main: <>{main}</>, footer };
     }
     return { main: children, footer: null };
 }
@@ -358,6 +383,16 @@ function getIngameBoardCenteredDefaultPositionViewportFixed(base: { x: number; y
 // 전역 z-index 카운터: 최상위 모달이 항상 가장 높은 z-index를 가지도록 함
 let globalZIndexCounter = 10000;
 
+/**
+ * 모든 모달은 "현재 보이는 모달들보다 +1"로 생성한다.
+ * `zIndex`가 전달되면 그 값을 최소 기준(floor)으로만 사용한다.
+ */
+function allocateNextModalZIndex(zIndexFloor?: number): number {
+    const floor = Number.isFinite(zIndexFloor as number) ? Number(zIndexFloor) : 0;
+    globalZIndexCounter = Math.max(globalZIndexCounter, floor) + 1;
+    return globalZIndexCounter;
+}
+
 const DraggableWindow: React.FC<DraggableWindowProps> = ({
     title,
     titleContent,
@@ -394,27 +429,23 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     containerExtraClassName,
     footerClassName,
     pcViewportMaxHeightCss,
+    pcViewportMaxWidthCss,
     closeButtonDataOnboardingTarget,
     viewportPortal = false,
+    autoViewportPortalOnSmallDesktop = false,
+    skipIngameBoardFrameSizeCap = false,
 }) => {
-    // isTopmost가 true일 때는 전역 카운터를 사용하여 항상 최상위에 표시
+    // 모든 모달은 생성 시 전역 카운터에서 +1 z-index를 배정받는다.
     const [effectiveZIndex, setEffectiveZIndex] = useState(() => {
-        if (isTopmost) {
-            // 최상위 모달은 전역 카운터를 증가시켜 항상 최상위에 표시
-            globalZIndexCounter += 1;
-            return globalZIndexCounter;
-        }
-        // isTopmost가 false일 때만 전달된 zIndex 사용 (기본값 50)
-        return zIndex ?? 50;
+        return allocateNextModalZIndex(zIndex);
     });
 
-    // isTopmost나 zIndex가 변경될 때 z-index 업데이트
-    useEffect(() => {
+    // `isTopmost === false`일 때도 z를 재배정하면, effect 실행 순서상 가방 등이
+    // 나중에 마운트된 모달(아이템 획득 등)보다 높은 z를 가져가 뒤에 가려질 수 있다.
+    // 전역 스택에서 "맨 위"로 올라갈 때만 카운터를 올린다.
+    useLayoutEffect(() => {
         if (isTopmost) {
-            globalZIndexCounter += 1;
-            setEffectiveZIndex(globalZIndexCounter);
-        } else {
-            setEffectiveZIndex(zIndex ?? 50);
+            setEffectiveZIndex(allocateNextModalZIndex(zIndex));
         }
     }, [isTopmost, zIndex]);
 
@@ -445,6 +476,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     );
     const useReadableSmallPcViewportPortal =
         !viewportPortal &&
+        autoViewportPortalOnSmallDesktop &&
         appModalLayerUsesDesignPixels &&
         !isNativeMobile &&
         !isCompactViewport &&
@@ -457,11 +489,11 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     const designInitialWidth = useMemo(() => {
         const w = initialWidth ?? 800;
-        if (modalLayerUsesDesignPixels && ingameBoardFrame) {
+        if (!skipIngameBoardFrameSizeCap && modalLayerUsesDesignPixels && ingameBoardFrame) {
             return Math.min(w, INGAME_BOARD_FRAME_MAX_WIDTH_PX);
         }
         return w;
-    }, [initialWidth, modalLayerUsesDesignPixels, ingameBoardFrame]);
+    }, [initialWidth, modalLayerUsesDesignPixels, ingameBoardFrame, skipIngameBoardFrameSizeCap]);
 
     const effectiveDefaultPosition = useMemo(() => {
         const base = { x: defaultPosition?.x ?? 0, y: defaultPosition?.y ?? 0 };
@@ -588,7 +620,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
      */
     const resolvedInitialHeight = useMemo(() => {
         if (typeof initialHeight === 'number') {
-            if (modalLayerUsesDesignPixels && ingameBoardFrame) {
+            if (!skipIngameBoardFrameSizeCap && modalLayerUsesDesignPixels && ingameBoardFrame) {
                 return Math.min(initialHeight, INGAME_BOARD_FRAME_MAX_HEIGHT_PX);
             }
             return initialHeight;
@@ -600,11 +632,11 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         if (baseWidth < 700) return undefined;
         const derived = Math.round(baseWidth * 0.72);
         let h = Math.max(520, Math.min(920, derived));
-        if (modalLayerUsesDesignPixels && ingameBoardFrame) {
+        if (!skipIngameBoardFrameSizeCap && modalLayerUsesDesignPixels && ingameBoardFrame) {
             h = Math.min(h, INGAME_BOARD_FRAME_MAX_HEIGHT_PX);
         }
         return h;
-    }, [initialHeight, designInitialWidth, modalLayerUsesDesignPixels, ingameBoardFrame, shrinkHeightToContent]);
+    }, [initialHeight, designInitialWidth, modalLayerUsesDesignPixels, ingameBoardFrame, shrinkHeightToContent, skipIngameBoardFrameSizeCap]);
 
     const nativeClampedWidthPx = useMemo(() => {
         if (!isNativeMobile) return undefined;
@@ -640,6 +672,22 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         const adjustedHeight = Math.max(300, Math.min(baseHeight, baseHeight * viewportRatio));
         return adjustedHeight;
     }, [resolvedInitialHeight, windowHeight, effectiveIsCompactViewport, modalLayerUsesDesignPixels]);
+
+    /**
+     * 인게임 설계 픽셀 레이어에서도 작은 뷰포트에서는 모달 실치수를 강제로 캡한다.
+     * (App scale만으로는 일부 케이스에서 모달이 오히려 커 보이거나 하단이 잘릴 수 있음)
+     */
+    const designPixelCompactWidthPx = useMemo(() => {
+        if (!modalLayerUsesDesignPixels || !effectiveIsCompactViewport) return undefined;
+        const { width: layoutW } = getLayoutViewportSize();
+        return Math.max(260, Math.min(designInitialWidth, Math.floor(layoutW - 8)));
+    }, [modalLayerUsesDesignPixels, effectiveIsCompactViewport, designInitialWidth, windowWidth, windowHeight]);
+
+    const designPixelCompactHeightPx = useMemo(() => {
+        if (!modalLayerUsesDesignPixels || !effectiveIsCompactViewport || !resolvedInitialHeight) return undefined;
+        const { height: layoutH } = getLayoutViewportSize();
+        return Math.max(240, Math.min(resolvedInitialHeight, Math.floor(layoutH - 12)));
+    }, [modalLayerUsesDesignPixels, effectiveIsCompactViewport, resolvedInitialHeight, windowWidth, windowHeight]);
 
     const nativeCappedHeightPx = useMemo(() => {
         if (!isNativeMobile || nativeMaxHeightPx === undefined) return undefined;
@@ -731,7 +779,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         const availableHeight = Math.max(40, (vv?.height ?? windowHeight) - top - bottom);
         const scaleX = availableWidth / baseWidth;
         const scaleY = availableHeight / baseHeight;
-        const scale = Math.min(scaleX, scaleY) * 0.99;
+        const scale = Math.min(scaleX, scaleY);
         return Math.max(0.1, Math.min(0.98, scale));
     }, [useCompactScaleToFitLayout, designInitialWidth, resolvedInitialHeight, uniformDesignH, windowWidth, windowHeight]);
 
@@ -745,7 +793,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         const iw = designInitialWidth;
         const { width: layoutW } = getLayoutViewportSize();
         if (useReadableSmallPcViewportPortal) {
-            return Math.max(320, layoutW - 4);
+            const capW = Math.max(220, layoutW - 4);
+            // 작은 PC 포털 분기에서도 설계 폭보다 커지지 않게 고정 (축소 시 역확대 방지)
+            return Math.max(220, Math.min(iw, capW));
         }
         const capW = isNativeMobile ? layoutW * (NATIVE_MOBILE_MODAL_MAX_WIDTH_VW / 100) : layoutW - 8;
         return Math.max(300, Math.min(iw, capW));
@@ -759,7 +809,10 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const mobileViewportFitHeightPx = useMemo(() => {
         if (!useMobileViewportFitLayout) return undefined;
         if (useReadableSmallPcViewportPortal) {
-            return Math.max(320, getLayoutViewportSize().height - 16);
+            const designH = resolvedInitialHeight ?? 600;
+            const capH = Math.max(220, getLayoutViewportSize().height - 16);
+            // 작은 PC 포털 분기에서도 설계 높이보다 커지지 않게 고정 (축소 시 역확대 방지)
+            return Math.max(220, Math.min(designH, capH));
         }
         const useContentDrivenHeight =
             !mobileLockViewportHeight &&
@@ -895,7 +948,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
             const availH = Math.max(48, (vv?.height ?? window.innerHeight) - top - bottom);
             const w = Math.max(1, el.offsetWidth);
             const h = Math.max(1, el.offsetHeight);
-            const s = Math.min(1, availW / w, availH / h) * 0.99;
+            const s = Math.min(1, availW / w, availH / h);
             setMeasuredCompactFitScale(Math.max(0.08, Math.min(1, Number.isFinite(s) ? s : 1)));
         };
 
@@ -1361,7 +1414,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                           : useCompactScaleToFitLayout
                             ? `${designInitialWidth}px`
                             : effectiveIsCompactViewport
-                              ? `${designInitialWidth}px`
+                              ? `${designPixelCompactWidthPx ?? designInitialWidth}px`
                               : isNativeMobile && nativeClampedWidthPx !== undefined
                                 ? `${nativeClampedWidthPx}px`
                                 : (calculatedWidth ? `${calculatedWidth}px` : `${designInitialWidth}px`),
@@ -1372,7 +1425,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                           : useCompactScaleToFitLayout
                             ? `${designInitialWidth}px`
                             : effectiveIsCompactViewport
-                              ? `${designInitialWidth}px`
+                              ? `${designPixelCompactWidthPx ?? designInitialWidth}px`
                               : isNativeMobile && nativeClampedWidthPx !== undefined
                                 ? `${nativeClampedWidthPx}px`
                                 : (calculatedWidth ? `${calculatedWidth}px` : `${Math.max(600, designInitialWidth)}px`),
@@ -1387,8 +1440,12 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                           : isNativeMobile
                             ? `min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - max(8px, env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px) + 8px)))`
                             : modalLayerUsesDesignPixels
-                              ? undefined
-                              : (effectiveIsCompactViewport ? viewportMaxWidthCss : `min(${viewportMaxWidthCss}, calc(100vw - 40px))`),
+                              ? effectiveIsCompactViewport
+                                ? 'calc(100vw - 8px)'
+                                : undefined
+                              : (effectiveIsCompactViewport
+                                    ? viewportMaxWidthCss
+                                    : (pcViewportMaxWidthCss ?? `min(${viewportMaxWidthCss}, calc(100vw - 40px))`)),
                     height: uniformLayout
                         ? `${uniformDesignH}px`
                         : useMobileViewportFitLayout
@@ -1398,7 +1455,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                           : useCompactScaleToFitLayout
                             ? undefined
                             : effectiveIsCompactViewport
-                              ? (resolvedInitialHeight ? `${resolvedInitialHeight}px` : undefined)
+                              ? (resolvedInitialHeight ? `${designPixelCompactHeightPx ?? resolvedInitialHeight}px` : undefined)
                               : isNativeMobile && nativeCappedHeightPx !== undefined
                                 ? `${nativeCappedHeightPx}px`
                                 : (calculatedHeight ? `${calculatedHeight}px` : (resolvedInitialHeight ? `${resolvedInitialHeight}px` : undefined)),
@@ -1413,10 +1470,12 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                             : isNativeMobile
                               ? `min(${viewportMaxHeightCss}, min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, 100%))`
                               : modalLayerUsesDesignPixels
-                                ? undefined
+                                ? effectiveIsCompactViewport
+                                  ? 'calc(100dvh - 12px)'
+                                  : undefined
                                 : effectiveIsCompactViewport
                                   ? `min(${viewportMaxHeightCss}, min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, calc(100dvh - 24px)))`
-                                  : `min(${viewportMaxHeightCss}, ${pcViewportMaxHeightCss ?? 'calc(100dvh - 12px)'})`,
+                                  : (pcViewportMaxHeightCss ?? `min(${viewportMaxHeightCss}, calc(100dvh - 12px))`),
                     transform: uniformLayout
                         ? `${positionTranslate} scale(${pcUniformScale})`
                         : useMobileViewportFitLayout

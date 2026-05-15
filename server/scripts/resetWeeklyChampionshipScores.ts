@@ -32,7 +32,7 @@ const resetWeeklyChampionshipScores = async () => {
             lastUpdated: Date.now(),
         };
 
-        const ch = user.dailyRankings?.championship;
+        const ch = user.dailyRankings?.championship as { score?: number; rank?: number } | undefined;
         const championshipSnapshotClean =
             (ch?.score ?? 0) === 0 && (ch?.rank ?? 0) === 0;
 

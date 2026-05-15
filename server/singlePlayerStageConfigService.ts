@@ -97,8 +97,8 @@ const normalizeSinglePlayerAiBaseKomiBid = (value: unknown): SinglePlayerAiBaseK
         const k = clampInt(row.komi, 0, 99, 0);
         out.komi = k;
     } else {
-        let lo = clampInt(row.komiMin, 0, 99, 1);
-        let hi = clampInt(row.komiMax, 0, 99, 10);
+        let lo = clampInt(row.komiMin, 0, 99, 5);
+        let hi = clampInt(row.komiMax, 0, 99, 20);
         if (lo > hi) {
             const t = lo;
             lo = hi;

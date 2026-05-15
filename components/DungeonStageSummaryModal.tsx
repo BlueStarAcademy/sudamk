@@ -9,11 +9,7 @@ import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { resolvePublicUrl } from '../utils/publicAssetUrl.js';
 import { formatGoldAmountKoG } from '../shared/utils/walletAmountDisplay.js';
-import {
-    GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX,
-    GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS,
-    GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH,
-} from './game/gameResultModalViewport.js';
+import { useGameResultModalLayout } from './game/useGameResultModalLayout.js';
 
 export interface DungeonStageSummaryModalProps {
     dungeonType: TournamentType;
@@ -61,6 +57,11 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
     const { isNativeMobile } = useNativeMobileShell();
     const isMobile = isCompactViewport || isNativeMobile;
     const [mobileSummaryTab, setMobileSummaryTab] = useState<'thisRun' | 'stageTotals'>('thisRun');
+    const { commonWindowProps: commonResultWindowProps } = useGameResultModalLayout({
+        isMobile,
+        designWidth: 820,
+        designHeight: 760,
+    });
 
     const tournamentName = TOURNAMENT_DEFINITIONS[dungeonType].name;
     const venueHeroImageUrl = resolvePublicUrl(TOURNAMENT_DEFINITIONS[dungeonType].image);
@@ -527,12 +528,8 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
             zIndex={isMobile ? 85 : 70}
             viewportPortal={isMobile}
             modal
-            mobileViewportFit={isMobile}
-            mobileViewportMaxHeightCss={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS : '92dvh'}
-            mobileViewportMaxHeightVh={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH : 92}
-            mobileViewportDvhBottomGapPx={isMobile ? GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX : undefined}
+            {...commonResultWindowProps}
             hideFooter={isMobile}
-            mobileLockViewportHeight={isMobile}
             bodyScrollable={!isMobile}
             bodyNoScroll={isMobile}
             bodyPaddingClassName={isMobile ? '!p-0' : undefined}

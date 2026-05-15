@@ -14,13 +14,21 @@ interface UseQuantityModalProps {
     onClose: () => void;
     onConfirm: (itemId: string, quantity: number, itemName?: string) => Promise<void> | void;
     isTopmost?: boolean;
+    viewportPortal?: boolean;
 }
 
 /** 일괄 판매 모달과 동일 계열의 슬라이더 트랙·썸 (색만 바이올렛 톤) */
 const USE_QUANTITY_RANGE_CLASS =
     'h-3 w-full flex-1 cursor-pointer appearance-none rounded-full bg-slate-800/90 disabled:opacity-40 sm:h-2.5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-gradient-to-b [&::-moz-range-thumb]:from-violet-300 [&::-moz-range-thumb]:to-violet-600 [&::-moz-range-thumb]:shadow-[0_0_14px_rgba(167,139,250,0.55)] sm:[&::-moz-range-thumb]:h-4 sm:[&::-moz-range-thumb]:w-4 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-violet-200/85 [&::-webkit-slider-thumb]:bg-gradient-to-b [&::-webkit-slider-thumb]:from-violet-300 [&::-webkit-slider-thumb]:to-violet-600 [&::-webkit-slider-thumb]:shadow-[0_0_14px_rgba(167,139,250,0.5)] sm:[&::-webkit-slider-thumb]:h-4 sm:[&::-webkit-slider-thumb]:w-4';
 
-const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, onClose, onConfirm, isTopmost }) => {
+const UseQuantityModal: React.FC<UseQuantityModalProps> = ({
+    item,
+    currentUser,
+    onClose,
+    onConfirm,
+    isTopmost,
+    viewportPortal,
+}) => {
     const bundleKey = useMemo(() => resolveCurrencyBundleConsumableKey(item.name), [item.name]);
 
     const totalQuantity = useMemo(() => {
@@ -104,14 +112,14 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
             initialWidth={460}
             initialHeight={560}
             shrinkHeightToContent
-            mobileViewportFit
+            mobileViewportFit={viewportPortal ? true : undefined}
             mobileViewportMaxHeightVh={92}
             bodyPaddingClassName="p-0 sm:p-0"
             hideFooter
+            viewportPortal={viewportPortal}
         >
-            <>
-                <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain p-3 pb-2 text-slate-100 sm:gap-3 sm:p-4 sm:pb-3">
-                    <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-slate-950/90 to-zinc-950/95 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-4">
+            <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain p-3 pb-2 text-slate-100 sm:gap-3 sm:p-4 sm:pb-3">
+                <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-slate-950/90 to-zinc-950/95 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-4">
                         <p className="text-center text-xs font-bold tracking-wide text-violet-200/90 sm:text-[11px] sm:font-semibold sm:uppercase sm:tracking-[0.2em] sm:text-violet-200/70">
                             소모품 사용
                         </p>
@@ -175,12 +183,12 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
                         </div>
                     </div>
 
-                    <div className="relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/35 via-slate-950/55 to-fuchsia-950/25 p-3 shadow-[0_0_40px_-18px_rgba(167,139,250,0.45)] sm:p-3.5">
-                        <div
-                            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(167,139,250,0.18),transparent_55%)]"
-                            aria-hidden
-                        />
-                        <div className="relative space-y-3">
+                <div className="relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/35 via-slate-950/55 to-fuchsia-950/25 p-3 shadow-[0_0_40px_-18px_rgba(167,139,250,0.45)] sm:p-3.5">
+                    <div
+                        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(167,139,250,0.18),transparent_55%)]"
+                        aria-hidden
+                    />
+                    <div className="relative space-y-3">
                             <div className="flex items-baseline justify-between gap-2">
                                 <span className="text-sm font-bold uppercase tracking-wider text-violet-200/80 sm:text-xs sm:text-violet-200/65">사용 수량</span>
                                 <span className="font-mono text-base font-black tabular-nums text-violet-100 sm:text-sm">
@@ -241,37 +249,36 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
                                 <span>1개</span>
                                 <span>{totalQuantity.toLocaleString()}개</span>
                             </div>
-                        </div>
                     </div>
                 </div>
+            </div>
 
-                <div className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} flex gap-2 border-t border-white/[0.08] bg-slate-950/95 p-2.5 sm:gap-3 sm:p-3`}>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="min-h-[44px] flex-1 rounded-xl border border-white/12 bg-slate-800/70 px-3 py-2.5 text-sm font-bold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-all hover:border-slate-500/40 hover:bg-slate-700/80 active:scale-[0.98] sm:min-h-0"
-                    >
-                        취소
-                    </button>
-                    <button
-                        type="button"
-                        onClick={async () => {
-                            if (quantity > 0 && quantity <= totalQuantity) {
-                                try {
-                                    await onConfirm(item.id, quantity, item.name);
-                                } catch (err) {
-                                    console.error('[UseQuantityModal] Failed to confirm:', err);
-                                }
-                                onClose();
+            <div className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} flex gap-2 border-t border-white/[0.08] bg-slate-950/95 p-2.5 sm:gap-3 sm:p-3`}>
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="min-h-[44px] flex-1 rounded-xl border border-white/12 bg-slate-800/70 px-3 py-2.5 text-sm font-bold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-all hover:border-slate-500/40 hover:bg-slate-700/80 active:scale-[0.98] sm:min-h-0"
+                >
+                    취소
+                </button>
+                <button
+                    type="button"
+                    onClick={async () => {
+                        if (quantity > 0 && quantity <= totalQuantity) {
+                            try {
+                                await onConfirm(item.id, quantity, item.name);
+                            } catch (err) {
+                                console.error('[UseQuantityModal] Failed to confirm:', err);
                             }
-                        }}
-                        disabled={quantity === 0 || quantity > totalQuantity || totalQuantity === 0}
-                        className="min-h-[44px] flex-1 rounded-xl border border-violet-400/45 bg-gradient-to-b from-violet-500/95 via-violet-600 to-violet-950 px-3 py-2.5 text-sm font-black text-white shadow-[0_6px_24px_-6px_rgba(139,92,246,0.55),inset_0_1px_0_rgba(255,255,255,0.15)] transition-all hover:border-violet-300/55 hover:from-violet-400 hover:via-violet-500 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none active:scale-[0.98] sm:min-h-0"
-                    >
-                        {quantity.toLocaleString()}개 사용
-                    </button>
-                </div>
-            </>
+                            onClose();
+                        }
+                    }}
+                    disabled={quantity === 0 || quantity > totalQuantity || totalQuantity === 0}
+                    className="min-h-[44px] flex-1 rounded-xl border border-violet-400/45 bg-gradient-to-b from-violet-500/95 via-violet-600 to-violet-950 px-3 py-2.5 text-sm font-black text-white shadow-[0_6px_24px_-6px_rgba(139,92,246,0.55),inset_0_1px_0_rgba(255,255,255,0.15)] transition-all hover:border-violet-300/55 hover:from-violet-400 hover:via-violet-500 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none active:scale-[0.98] sm:min-h-0"
+                >
+                    {quantity.toLocaleString()}개 사용
+                </button>
+            </div>
         </DraggableWindow>
     );
 };

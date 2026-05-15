@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { SCORING_PROGRESS_DURATION_MS } from '../../shared/constants/scoringOverlayTiming.js';
 
-/** 계가 예상 소요 시간(ms). 진행 막대 및 "약 N초 남음"에 사용. 결과 수신 시 연출 즉시 종료됨 */
-export const SCORING_PROGRESS_DURATION_MS = 5_000;
 const SCAN_CYCLE_MS = 5_000; // 좌→우 스캔 1회 주기(진행 시간과 맞춰 한 사이클에 걸치도록)
 
 /** 계가 중 오버레이: 스피너 + 텍스트 + 진행 막대. 결과 수신 시 부모에서 언마운트되어 즉시 종료 */

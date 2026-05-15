@@ -858,7 +858,7 @@ export type StageInfo = {
     };
 };
 
-/** 싱글 베이스바둑: AI가 덤 입찰에서 제시할 색·덤 집. 미지정이면 흑/백 무작위 + 덤 1~10집(기존 동작) */
+/** 싱글 베이스바둑: AI가 덤 입찰에서 제시할 색·덤 집. 미지정이면 흑/백 무작위 + 덤 5~20집 */
 export type SinglePlayerAiBaseKomiBid = {
     color: 'black' | 'white' | 'random';
     komiMode: 'fixed' | 'random';

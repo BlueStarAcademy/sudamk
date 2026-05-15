@@ -1231,14 +1231,14 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                                 singlePlayerAiBaseKomiBid: p.singlePlayerAiBaseKomiBid ?? {
                                                                     color: 'random',
                                                                     komiMode: 'random',
-                                                                    komiMin: 1,
-                                                                    komiMax: 10,
+                                                                    komiMin: 5,
+                                                                    komiMax: 20,
                                                                 },
                                                             };
                                                         });
                                                     }}
                                                 />
-                                                AI 덤 입찰 지정 (미체크 시 흑/백·덤 무작위, 기존과 동일)
+                                                AI 덤 입찰 지정 (미체크 시 흑/백 무작위, 덤 5~20 랜덤)
                                             </label>
                                             {draft.singlePlayerAiBaseKomiBid && (
                                                 <div className="grid grid-cols-2 gap-2 border-t border-zinc-800 pt-2">
@@ -1277,8 +1277,8 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                                             : {
                                                                                   ...cur,
                                                                                   komiMode,
-                                                                                  komiMin: cur.komiMin ?? 1,
-                                                                                  komiMax: cur.komiMax ?? 10,
+                                                                                  komiMin: cur.komiMin ?? 5,
+                                                                                  komiMax: cur.komiMax ?? 20,
                                                                               };
                                                                     return { ...p, singlePlayerAiBaseKomiBid: next };
                                                                 })
@@ -1321,7 +1321,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                                     type="number"
                                                                     min={0}
                                                                     max={99}
-                                                                    value={draft.singlePlayerAiBaseKomiBid.komiMin ?? 1}
+                                                                    value={draft.singlePlayerAiBaseKomiBid.komiMin ?? 5}
                                                                     onChange={(e) =>
                                                                         setDraft((p) => {
                                                                             const cur = p.singlePlayerAiBaseKomiBid;
@@ -1344,7 +1344,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                                     type="number"
                                                                     min={0}
                                                                     max={99}
-                                                                    value={draft.singlePlayerAiBaseKomiBid.komiMax ?? 10}
+                                                                    value={draft.singlePlayerAiBaseKomiBid.komiMax ?? 20}
                                                                     onChange={(e) =>
                                                                         setDraft((p) => {
                                                                             const cur = p.singlePlayerAiBaseKomiBid;

@@ -53,8 +53,8 @@ const uiImages = [
     '/images/bag.webp',
 ];
 
-const dedupePaths = (paths: readonly string[]): string[] =>
-    Array.from(new Set(paths.filter((p) => typeof p === 'string' && p.startsWith('/'))));
+const dedupePaths = (paths: readonly (string | null | undefined)[]): string[] =>
+    Array.from(new Set(paths.filter((p): p is string => typeof p === 'string' && p.startsWith('/'))));
 
 /** 공통 셸: 메인 배경, 상단/퀵 아이콘, 바둑돌 */
 export const ENTRY_BOOT_IMAGE_URLS = dedupePaths([
@@ -273,9 +273,9 @@ export function scheduleRouteImagePrefetch(view: string): void {
         }).catch(() => {});
     };
 
-    if ('requestIdleCallback' in window) {
-        requestIdleCallback(run, { timeout: 8000 });
+    if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(run, { timeout: 8000 });
     } else {
-        window.setTimeout(run, 50);
+        globalThis.setTimeout(run, 50);
     }
 }

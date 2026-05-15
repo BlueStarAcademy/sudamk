@@ -4,12 +4,13 @@
  */
 export function getModalScaleFitPaddingPx(): { horizontal: number; top: number; bottom: number } {
     if (typeof window === 'undefined') {
-        return { horizontal: 24, top: 16, bottom: 48 };
+        return { horizontal: 20, top: 14, bottom: 40 };
     }
 
-    let horizontal = 24;
-    let top = 16;
-    let bottom = 48;
+    // 모달을 조금 더 크게 유지하되(축소 완화), 하단 잘림은 방지하는 안전 여백
+    let horizontal = 20;
+    let top = 14;
+    let bottom = 40;
 
     const vv = window.visualViewport;
     if (vv) {

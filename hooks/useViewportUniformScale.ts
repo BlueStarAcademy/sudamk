@@ -32,7 +32,7 @@ export function useViewportUniformScale(designWidth: number, designHeight: numbe
             availH = Math.max(40, availH);
             const sx = availW / designWidth;
             const sy = availH / designHeight;
-            const s = Math.min(1, sx, sy) * 0.99;
+            const s = Math.min(1, sx, sy);
             setScale(Math.max(0.08, Number.isFinite(s) ? s : 1));
         };
 

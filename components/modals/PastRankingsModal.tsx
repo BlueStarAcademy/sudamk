@@ -6,7 +6,7 @@ import { getCompletedTrackedRankingSeasonsNewestFirst } from '../../utils/timeUt
 import { RANKING_MODAL_SLIM_SCROLL_Y } from '../../shared/constants/rankingModalScrollbar.js';
 
 interface PastRankingsModalProps {
-    info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'pair' };
+    info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'pair' | 'unified' };
     onClose: () => void;
     isTopmost?: boolean;
 }

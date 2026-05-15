@@ -8,6 +8,8 @@ import {
     CONSUMABLE_SELL_PRICES,
     gradeBackgrounds,
     gradeStyles,
+    isRefinementTicketMaterial,
+    normalizeRefinementTicketInventoryName,
 } from '../constants/items.js';
 import { formatGoldAmountKoG } from '../shared/utils/walletAmountDisplay.js';
 
@@ -20,6 +22,8 @@ interface SellItemConfirmModalProps {
     materialSellQuantity?: number;
     /** 동일 화면에 인벤 판매 창 등이 있을 때 창 ID 충돌 방지 */
     windowId?: string;
+    /** 가방·일괄 판매와 동일 — 설계 픽셀 캔버스 안이면 document.body로 포털(클릭·z-index 안정) */
+    viewportPortal?: boolean;
 }
 
 const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({
@@ -29,16 +33,22 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({
     isTopmost,
     materialSellQuantity,
     windowId = 'sellItemConfirm',
+    viewportPortal = false,
 }) => {
-    const materialQty = item.type === 'material' ? Math.max(1, Math.floor(materialSellQuantity ?? 1)) : 1;
+    const isRefinementTicket = isRefinementTicketMaterial(item.name);
+    /** 제련 변경권은 DB에 consumable로 있어도 단일「판매」는 1개만 (일괄 판매와 동일 UX) */
+    const materialQty =
+        item.type === 'material' || isRefinementTicket ? Math.max(1, Math.floor(materialSellQuantity ?? 1)) : 1;
 
     const calculateSellPrice = (): number => {
         if (item.type === 'equipment') {
             const basePrice = ITEM_SELL_PRICES[item.grade] || 0;
             const enhancementMultiplier = Math.pow(1.2, item.stars);
             return Math.floor(basePrice * enhancementMultiplier);
-        } else if (item.type === 'material') {
-            const pricePerUnit = MATERIAL_SELL_PRICES[item.name] || 1;
+        } else if (item.type === 'material' || isRefinementTicket) {
+            const nameKey =
+                normalizeRefinementTicketInventoryName(item.name || '') || (item.name || '').replace(/\s+/g, ' ').trim();
+            const pricePerUnit = (MATERIAL_SELL_PRICES[nameKey] ?? MATERIAL_SELL_PRICES[item.name || '']) || 1;
             return pricePerUnit * materialQty;
         } else if (item.type === 'consumable') {
             const pricePerUnit =
@@ -71,6 +81,7 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({
             shrinkHeightToContent
             mobileViewportFit
             mobileViewportMaxHeightVh={96}
+            viewportPortal={viewportPortal}
             bodyPaddingClassName="p-0 sm:p-0"
         >
             <>
@@ -120,7 +131,7 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({
                                 <p className="mt-2 text-sm leading-snug text-slate-300 sm:mt-1 sm:text-xs sm:text-slate-400">
                                     보유{' '}
                                     <span className="font-semibold text-slate-100">{item.quantity.toLocaleString()}</span>개
-                                    {item.type === 'material' ? (
+                                    {item.type === 'material' || isRefinementTicket ? (
                                         <span className="mt-0.5 block text-slate-400 sm:mt-0 sm:inline sm:text-slate-500">
                                             {' '}
                                             · 이번 판매:{' '}

@@ -1,11 +1,15 @@
 import type { KomiBid, SinglePlayerAiBaseKomiBid } from '../types/entities.js';
 import { Player } from '../types/enums.js';
 
-const legacyRandomKomi = (): number => Math.floor(Math.random() * 10) + 1;
+const DEFAULT_BASE_AI_KOMI_MIN = 5;
+const DEFAULT_BASE_AI_KOMI_MAX = 20;
+const legacyRandomKomi = (): number =>
+    DEFAULT_BASE_AI_KOMI_MIN +
+    Math.floor(Math.random() * (DEFAULT_BASE_AI_KOMI_MAX - DEFAULT_BASE_AI_KOMI_MIN + 1));
 
 /**
  * 싱글 베이스바둑 덤 입찰: AI 입찰값.
- * `cfg`가 없으면 기존 서버 동작(흑/백 50:50, 덤 1~10)과 동일.
+ * `cfg`가 없으면 기본 서버 동작(흑/백 50:50, 덤 5~20)을 사용.
  */
 export const resolveRuntimeAiBaseKomiBid = (cfg: SinglePlayerAiBaseKomiBid | undefined): KomiBid => {
     const color =
@@ -22,8 +26,8 @@ export const resolveRuntimeAiBaseKomiBid = (cfg: SinglePlayerAiBaseKomiBid | und
         const k = Math.floor(Number(cfg.komi));
         komi = Number.isFinite(k) && k >= 0 ? Math.min(99, k) : legacyRandomKomi();
     } else if (cfg?.komiMode === 'random') {
-        const lo = Math.max(0, Math.floor(Number(cfg.komiMin ?? 1)));
-        const hi = Math.max(lo, Math.floor(Number(cfg.komiMax ?? 10)));
+        const lo = Math.max(0, Math.floor(Number(cfg.komiMin ?? DEFAULT_BASE_AI_KOMI_MIN)));
+        const hi = Math.max(lo, Math.floor(Number(cfg.komiMax ?? DEFAULT_BASE_AI_KOMI_MAX)));
         komi = lo + Math.floor(Math.random() * (hi - lo + 1));
     } else {
         komi = legacyRandomKomi();
@@ -54,8 +58,8 @@ export const pickAiKomiValueAvoiding = (
     }
 
     if (cfg?.komiMode === 'random') {
-        const lo = Math.max(0, Math.floor(Number(cfg.komiMin ?? 1)));
-        const hi = Math.max(lo, Math.floor(Number(cfg.komiMax ?? 10)));
+        const lo = Math.max(0, Math.floor(Number(cfg.komiMin ?? DEFAULT_BASE_AI_KOMI_MIN)));
+        const hi = Math.max(lo, Math.floor(Number(cfg.komiMax ?? DEFAULT_BASE_AI_KOMI_MAX)));
         if (hi > lo) {
             for (let i = 0; i < 80; i++) {
                 const v = lo + Math.floor(Math.random() * (hi - lo + 1));
@@ -70,5 +74,5 @@ export const pickAiKomiValueAvoiding = (
         const v = legacyRandomKomi();
         if (v !== avoid) return v;
     }
-    return avoid >= 10 ? 1 : avoid + 1;
+    return avoid >= DEFAULT_BASE_AI_KOMI_MAX ? DEFAULT_BASE_AI_KOMI_MIN : avoid + 1;
 };

@@ -192,8 +192,7 @@ class AiProcessingQueue {
                 return;
             }
 
-            const aiPlayerId = getCurrentPlayerId(game);
-            if (!isAiControlledPlayerId(aiPlayerId)) {
+            if (!isAiControlledTurn(game)) {
                 return;
             }
 

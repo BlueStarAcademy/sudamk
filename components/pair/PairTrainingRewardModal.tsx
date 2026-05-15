@@ -213,6 +213,8 @@ export type PairTrainingRewardModalProps = {
     slotIndex: number;
     slotLabel: string;
     petItem: InventoryItem;
+    /** 서버에서 이미 수령한 결과가 있으면 즉시 완료 화면으로 진입한다. */
+    claimSummary?: PairTrainingClaimClientSummary | null;
     /** true면 마운트 직후 수령 API 호출(확인 문구 생략). false면 「수령할까요?」 후 버튼 수령. */
     autoClaimOnMount?: boolean;
     onClose: () => void;
@@ -224,14 +226,15 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
     slotIndex,
     slotLabel,
     petItem,
+    claimSummary = null,
     autoClaimOnMount = false,
     onClose,
     applyPetAction,
     isBusy,
 }) => {
     const isMobile = useIsHandheldDevice();
-    const [phase, setPhase] = useState<'ready' | 'done'>('ready');
-    const [summary, setSummary] = useState<PairTrainingClaimClientSummary | null>(null);
+    const [phase, setPhase] = useState<'ready' | 'done'>(claimSummary ? 'done' : 'ready');
+    const [summary, setSummary] = useState<PairTrainingClaimClientSummary | null>(claimSummary);
 
     /** 부모가 매 렌더마다 새 함수를 넘기면(예: `applyPetAction` inline) effect 의존성에 넣으면 `isBusy` 토글마다 재수령·실패·모달 닫힘 → ref로 고정 */
     const applyPetActionRef = useRef(applyPetAction);
@@ -280,6 +283,12 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
     };
 
     useLayoutEffect(() => {
+        if (claimSummary) {
+            setSummary(claimSummary);
+            setPhase('done');
+            return;
+        }
+
         setPhase('ready');
         setSummary(null);
         if (!autoClaimOnMount) return;
@@ -328,7 +337,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
         return () => {
             cancelled = true;
         };
-    }, [slotIndex, petItem.id, autoClaimOnMount]);
+    }, [slotIndex, petItem.id, claimSummary, autoClaimOnMount]);
 
     const soulMat = summary?.soulDrop
         ? MATERIAL_ITEMS[summary.soulDrop.materialName as keyof typeof MATERIAL_ITEMS]

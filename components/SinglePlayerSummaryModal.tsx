@@ -28,13 +28,9 @@ import PairPetLevelUpCoreDelta from './pair/PairPetLevelUpCoreDelta.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { getPairPetDefinition, getPairPetDisplayName } from '../shared/constants/petLobby.js';
 import { effectivePairPetGradeFromRow, pairPetShowsGradeUpgradeNeededInsteadOfXp } from '../shared/constants/pairPetGrade.js';
-import {
-    GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX,
-    GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS,
-    GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH,
-} from './game/gameResultModalViewport.js';
 import { RESULT_MODAL_SCORE_MOBILE_PX } from './game/resultModalScoreTypography.js';
 import SpResultRecordPetIdentityRow from './game/SpResultRecordPetIdentityRow.js';
+import { useGameResultModalLayout } from './game/useGameResultModalLayout.js';
 /** 게임 설명 모달과 동일한 패널 박스 */
 const SP_SUMMARY_PANEL_CLASS =
     'relative overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12';
@@ -456,11 +452,15 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             ? (isWinner ? "미션 클리어" : "미션 실패")
             : "게임 결과";
 
-    const isCompactViewport = useIsHandheldDevice(1025);
+    const isCompactViewport = useIsHandheldDevice(900);
     const { isNativeMobile } = useNativeMobileShell();
     const isMobile = isCompactViewport || isNativeMobile;
     const useBodyScrollSizing = modalLayerUsesDesignPixels || isMobile;
-    const mobileTextScale = 1;
+    const { desktopTextScale, mobileTextScale, commonWindowProps: commonResultWindowProps } = useGameResultModalLayout({
+        isMobile,
+        designWidth: 980,
+        designHeight: 860,
+    });
 
     const spResultStep = currentUser.onboardingSpResultTutorialStep;
     const intro1SpResultOnboarding =
@@ -587,12 +587,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             skipSavedPosition
             initialWidth={900}
             initialHeight={780}
-            uniformPcScale={false}
-            mobileViewportFit
-            mobileLockViewportHeight={isMobile}
-            mobileViewportMaxHeightVh={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH : 97}
-            mobileViewportMaxHeightCss={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS : undefined}
-            mobileViewportDvhBottomGapPx={isMobile ? GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX : undefined}
+            {...commonResultWindowProps}
             hideFooter={isMobile}
             modal={!modalLayerUsesDesignPixels}
             closeOnOutsideClick={!modalLayerUsesDesignPixels}
@@ -609,6 +604,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                 } ${isMobile ? 'text-xs sm:text-sm' : 'text-[1.0625rem] min-[1024px]:text-lg min-[1280px]:text-xl'} ${
                     blockSpModalScroll ? 'pointer-events-none' : ''
                 }`}
+                style={!isMobile ? { fontSize: `${14 * desktopTextScale}px` } : undefined}
             >
                 {/* Title */}
                 {(analysisResult || (isEnded && session.winner !== null)) && (

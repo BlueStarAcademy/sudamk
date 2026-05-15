@@ -630,7 +630,26 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             // 도전의 탑 21층+ 히든 착수: 클라이언트가 보낸 boardState/moveHistory 사용 (일반 착수는 클라이언트만 반영하므로 서버와 동기화)
             const payloadBoardState = (payload as any).boardState;
             const payloadMoveHistory = (payload as any).moveHistory;
-            if (game.gameCategory === 'tower' && Array.isArray(payloadBoardState) && payloadBoardState.length > 0 && Array.isArray(payloadMoveHistory)) {
+            if (
+                game.isSinglePlayer &&
+                game.gameStatus === 'hidden_placing' &&
+                Array.isArray(payloadBoardState) &&
+                payloadBoardState.length > 0 &&
+                Array.isArray(payloadMoveHistory)
+            ) {
+                serverBoardState = payloadBoardState;
+                serverMoveHistory = payloadMoveHistory;
+                const clientHiddenMoves = (payload as any).hiddenMoves;
+                if (clientHiddenMoves && typeof clientHiddenMoves === 'object') {
+                    game.hiddenMoves = { ...clientHiddenMoves };
+                }
+                const clientHumanHiddenStonePoints = (payload as any).humanHiddenStonePoints;
+                if (Array.isArray(clientHumanHiddenStonePoints)) {
+                    (game as any).humanHiddenStonePoints = clientHumanHiddenStonePoints.map(
+                        (point: types.Point & { player?: types.Player }) => ({ ...point }),
+                    );
+                }
+            } else if (game.gameCategory === 'tower' && Array.isArray(payloadBoardState) && payloadBoardState.length > 0 && Array.isArray(payloadMoveHistory)) {
                 serverBoardState = payloadBoardState;
                 serverMoveHistory = payloadMoveHistory;
             } else if (

@@ -1,4 +1,8 @@
-import type * as types from '../../types/index.js';
+import * as types from '../../types/index.js';
+
+export function scanInventoryKeyForPlayer(player: types.Player): 'scans_p1' | 'scans_p2' {
+    return player === types.Player.White ? 'scans_p2' : 'scans_p1';
+}
 
 export function isHiddenMoveAtIndex(game: types.LiveGameSession, idx: number): boolean {
     const hm = game.hiddenMoves as Record<string, boolean> | undefined;

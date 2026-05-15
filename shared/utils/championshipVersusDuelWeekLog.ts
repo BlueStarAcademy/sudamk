@@ -21,7 +21,7 @@ export function pruneChampionshipVersusDuelWeekLog(
 }
 
 function newVersusDuelLogId(nowMs: number): string {
-    const c = globalThis.crypto as Crypto | undefined;
+    const c = globalThis.crypto as { randomUUID?: () => string } | undefined;
     if (c && typeof c.randomUUID === 'function') return c.randomUUID();
     return `${nowMs}-${Math.random().toString(36).slice(2, 11)}`;
 }

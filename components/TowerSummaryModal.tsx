@@ -8,8 +8,11 @@ import { AVATAR_POOL, BORDER_POOL } from '../constants/ui.js';
 import { AvatarInfo, BorderInfo } from '../types.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../constants/items.js';
 import { ScoringOverlay } from './game/ScoringOverlay.js';
-import { replaceAppHash } from '../utils/appUtils.js';
-import { arenaPostGameButtonClass, formatArenaRetryLabel, formatTowerNextFooterLabel } from './game/arenaPostGameButtonStyles.js';
+import {
+    arenaPostGameButtonClass,
+    arenaPostGameSingleConfirmFooterClass,
+    arenaPostGameSingleModalConfirmButtonClass,
+} from './game/arenaPostGameButtonStyles.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
@@ -32,13 +35,9 @@ import PairPetLevelUpCoreDelta from './pair/PairPetLevelUpCoreDelta.js';
 import { getPairPetDefinition, getPairPetDisplayName } from '../shared/constants/petLobby.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { effectivePairPetGradeFromRow, pairPetShowsGradeUpgradeNeededInsteadOfXp } from '../shared/constants/pairPetGrade.js';
-import {
-    GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX,
-    GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS,
-    GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH,
-} from './game/gameResultModalViewport.js';
 import { RESULT_MODAL_SCORE_MOBILE_PX } from './game/resultModalScoreTypography.js';
 import SpResultRecordPetIdentityRow from './game/SpResultRecordPetIdentityRow.js';
+import { useGameResultModalLayout } from './game/useGameResultModalLayout.js';
 
 interface TowerSummaryModalProps {
     session: LiveGameSession;
@@ -114,9 +113,10 @@ const ScoreDetailsComponent: React.FC<{
     session: LiveGameSession;
     isMobile?: boolean;
     mobileTextScale?: number;
+    desktopTextScale?: number;
     /** 모바일에서 흑·백을 가로 2열로(도전의 탑 등) */
     compactSideBySideMobile?: boolean;
-}> = ({ analysis, session, isMobile = false, mobileTextScale = 1, compactSideBySideMobile = false }) => {
+}> = ({ analysis, session, isMobile = false, mobileTextScale = 1, desktopTextScale = 1, compactSideBySideMobile = false }) => {
     const { scoreDetails } = analysis;
     const { mode, settings } = session;
     const mx = RESULT_MODAL_SCORE_MOBILE_PX;
@@ -128,9 +128,9 @@ const ScoreDetailsComponent: React.FC<{
     const isHiddenMode = mode === GameMode.Hidden || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Hidden));
 
     const narrow2col = Boolean(isMobile && compactSideBySideMobile);
-    const rowFs = isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined;
-    const headFs = isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined;
-    const totalFs = isMobile ? `${mx.totalRow * mobileTextScale}px` : undefined;
+    const rowFs = `${(isMobile ? mx.dataRow : 13) * (isMobile ? mobileTextScale : desktopTextScale)}px`;
+    const headFs = `${(isMobile ? mx.columnHead : 15) * (isMobile ? mobileTextScale : desktopTextScale)}px`;
+    const totalFs = `${(isMobile ? mx.totalRow : 16) * (isMobile ? mobileTextScale : desktopTextScale)}px`;
     const outerPad = narrow2col ? 'p-1 space-y-1' : isMobile ? 'p-1.5 space-y-1.5' : 'p-2 space-y-1.5';
     const innerPad = narrow2col ? 'p-0.5' : isMobile ? 'p-1' : 'p-1.5';
     const gridGap = narrow2col ? 'gap-1' : 'gap-1.5 sm:gap-2';
@@ -139,17 +139,17 @@ const ScoreDetailsComponent: React.FC<{
         <div className={`${outerPad} ${SP_SUMMARY_INSET_CLASS} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`}>
             <div className={`grid ${narrow2col ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'} ${gridGap}`}>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${innerPad}`}>
-                    <h3 className={`font-bold text-center mb-0.5 ${isMobile && !narrow2col ? 'text-sm' : ''} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`} style={{ fontSize: headFs }}>흑</h3>
+                    <h3 className="mb-0.5 text-center font-bold" style={{ fontSize: headFs }}>흑</h3>
                     <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">영토</span> <span className="tabular-nums">{scoreDetails.black.territory.toFixed(0)}</span></div>
                     <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">따낸</span> <span className="tabular-nums">{scoreDetails.black.liveCaptures ?? 0}</span></div>
                     <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">사석</span> <span className="tabular-nums">{scoreDetails.black.deadStones ?? 0}</span></div>
                     {isBaseMode && <div className="flex justify-between gap-0.5 text-blue-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">베이스</span> <span className="tabular-nums">{scoreDetails.black.baseStoneBonus}</span></div>}
                     {isHiddenMode && <div className="flex justify-between gap-0.5 text-purple-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">히든</span> <span className="tabular-nums">{scoreDetails.black.hiddenStoneBonus}</span></div>}
                     {isSpeedMode && <div className="flex justify-between gap-0.5 text-green-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">시간</span> <span className="tabular-nums">{Math.trunc(Number(scoreDetails.black.timeBonus ?? 0))}</span></div>}
-                    <div className={`flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile && !narrow2col ? 'text-sm' : ''} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`} style={{ fontSize: totalFs }}><span>총점</span> <span className="text-amber-200 tabular-nums">{scoreDetails.black.total.toFixed(1)}</span></div>
+                    <div className="mt-0.5 flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 font-bold" style={{ fontSize: totalFs }}><span>총점</span> <span className="text-amber-200 tabular-nums">{scoreDetails.black.total.toFixed(1)}</span></div>
                 </div>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${innerPad}`}>
-                    <h3 className={`font-bold text-center mb-0.5 ${isMobile && !narrow2col ? 'text-sm' : ''} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`} style={{ fontSize: headFs }}>백</h3>
+                    <h3 className="mb-0.5 text-center font-bold" style={{ fontSize: headFs }}>백</h3>
                     <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">영토</span> <span className="tabular-nums">{scoreDetails.white.territory.toFixed(0)}</span></div>
                     <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">따낸</span> <span className="tabular-nums">{scoreDetails.white.liveCaptures ?? 0}</span></div>
                     <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">사석</span> <span className="tabular-nums">{scoreDetails.white.deadStones ?? 0}</span></div>
@@ -157,22 +157,25 @@ const ScoreDetailsComponent: React.FC<{
                     {isBaseMode && <div className="flex justify-between gap-0.5 text-blue-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">베이스</span> <span className="tabular-nums">{scoreDetails.white.baseStoneBonus}</span></div>}
                     {isHiddenMode && <div className="flex justify-between gap-0.5 text-purple-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">히든</span> <span className="tabular-nums">{scoreDetails.white.hiddenStoneBonus}</span></div>}
                     {isSpeedMode && <div className="flex justify-between gap-0.5 text-green-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">시간</span> <span className="tabular-nums">{Math.trunc(Number(scoreDetails.white.timeBonus ?? 0))}</span></div>}
-                    <div className={`flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile && !narrow2col ? 'text-sm' : ''} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`} style={{ fontSize: totalFs }}><span>총점</span> <span className="text-amber-200 tabular-nums">{scoreDetails.white.total.toFixed(1)}</span></div>
+                    <div className="mt-0.5 flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 font-bold" style={{ fontSize: totalFs }}><span>총점</span> <span className="text-amber-200 tabular-nums">{scoreDetails.white.total.toFixed(1)}</span></div>
                 </div>
             </div>
         </div>
     );
 };
 
-const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentUser, onAction, onClose }) => {
-    const [isProcessing, setIsProcessing] = useState(false);
+const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentUser, onAction: _onAction, onClose }) => {
     const [mobileResultTab, setMobileResultTab] = useState<MobileGameResultTab>('match');
 
     const { modalLayerUsesDesignPixels } = useAppContext();
-    const isCompactViewport = useIsHandheldDevice(1025);
+    const isCompactViewport = useIsHandheldDevice(900);
     const { isNativeMobile } = useNativeMobileShell();
     const isMobile = isCompactViewport || isNativeMobile;
-    const mobileTextScale = 1;
+    const { mobileTextScale, desktopTextScale, commonWindowProps: commonResultWindowProps } = useGameResultModalLayout({
+        isMobile,
+        designWidth: 1000,
+        designHeight: 900,
+    });
     const useBodyScrollSizing = modalLayerUsesDesignPixels || isMobile;
     const isScoring = session.gameStatus === 'scoring';
     const isEnded = session.gameStatus === 'ended';
@@ -186,37 +189,9 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
         const stageFloor = parseInt(s.id.replace('tower-', ''));
         return stageFloor === currentFloor;
     });
-    const nextFloor = currentFloor < 100 ? currentFloor + 1 : null;
-    const nextStage = nextFloor ? TOWER_STAGES.find((s: any) => {
-        const stageFloor = parseInt(s.id.replace('tower-', ''));
-        return stageFloor === nextFloor;
-    }) : null;
     
-    const userTowerFloor = currentUser.towerFloor ?? 0;
-    // 이번 판 최초 클리어 직후 USER_STATUS가 늦으면 잠깐 잠금으로 오인될 수 있어, 종료·승리 상태면 현재 층까지는 클리어로 간주
-    const effectiveClearedFloor = Math.max(userTowerFloor, isEnded && isWinner ? currentFloor : 0);
-    const isCleared = currentFloor <= effectiveClearedFloor;
     // 결과창은 서버가 확정한 실제 지급 내역(summary)만 표시한다.
     const displaySummary = summary;
-    // 다음 층으로 갈 수 있는지 확인: 이번 게임에서 승리했거나, 이미 이 층을 한 번이라도 클리어한 적이 있으면 다음 층 가능
-    // (재도전에서 실패해도 한 번 클리어한 층이면 다음 층으로 진행 가능)
-    const canTryNext = !!nextStage && (isWinner || isCleared);
-    
-    // 이미 클리어·이번 판 승리 시 재도전 ⚡0(towerFloor 반영 지연 포함). 미클리어 패배 시 할인 반영값은 세션 우선
-    const baseRetryApCost = currentStage?.actionPointCost ?? 0;
-    const baseNextFloorApCost = nextStage?.actionPointCost ?? 0;
-    const inferredRetryApCost = isCleared || isWinner ? 0 : baseRetryApCost;
-    // 이미 클리어한 층은 재도전 무료(⚡0). 입장 차감값은 미클리어일 때만 표시(할인·stale 보정).
-    const effectiveRetryActionPointCost =
-        inferredRetryApCost === 0
-            ? 0
-            : session.towerStartActionPointCost === 0
-              ? 0
-              : typeof session.towerStartActionPointCost === 'number'
-                ? session.towerStartActionPointCost
-                : inferredRetryApCost;
-    const isNextFloorAlreadyCleared = nextFloor != null && effectiveClearedFloor >= nextFloor;
-    const effectiveNextFloorActionPointCost = isNextFloorAlreadyCleared ? 0 : baseNextFloorApCost;
 
     const failureReason = useMemo(() => {
         if (isWinner) return null;
@@ -306,53 +281,6 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
         gameDurationRef.current = `${minutes}:${seconds.toString().padStart(2, '0')}`;
     }
     const gameDuration = gameDurationRef.current;
-
-    const handleRetry = async () => {
-        if (isProcessing) return;
-        setIsProcessing(true);
-        try {
-            // onAction이 완료될 때까지 기다림 (gameId 반환 가능)
-            // handleAction에서 이미 라우팅을 업데이트하므로 즉시 모달 닫기 (지연 제거)
-            await onAction({ type: 'START_TOWER_GAME', payload: { floor: currentFloor } });
-            onClose();
-        } catch (error) {
-            console.error('[TowerSummaryModal] Failed to retry floor:', error);
-            window.alert('재도전 시작에 실패했습니다. 잠시 후 다시 시도해주세요.');
-        } finally {
-            setIsProcessing(false);
-        }
-    };
-
-    const handleNextFloor = async () => {
-        if (!canTryNext || !nextStage || !nextFloor || isProcessing) return;
-        setIsProcessing(true);
-        try {
-            // onAction이 완료될 때까지 기다림 (gameId 반환 가능)
-            // handleAction에서 이미 라우팅을 업데이트하므로 즉시 모달 닫기 (지연 제거)
-            await onAction({ type: 'START_TOWER_GAME', payload: { floor: nextFloor } });
-            onClose();
-        } catch (error) {
-            console.error('[TowerSummaryModal] Failed to start next floor:', error);
-            window.alert('다음 층 시작에 실패했습니다. 잠시 후 다시 시도해주세요.');
-        } finally {
-            setIsProcessing(false);
-        }
-    };
-
-    const handleExitToLobby = async () => {
-        if (isProcessing) return;
-        setIsProcessing(true);
-        sessionStorage.setItem('postGameRedirect', '#/tower');
-        replaceAppHash('#/tower');
-        try {
-            // onAction이 완료될 때까지 기다림 (Promise 반환)
-            await onAction({ type: 'LEAVE_AI_GAME', payload: { gameId: session.id } });
-        } catch (error) {
-            console.error('[TowerSummaryModal] Failed to leave AI game:', error);
-        } finally {
-            onClose();
-        }
-    };
 
     const avatarUrl = useMemo(() => AVATAR_POOL.find((a: AvatarInfo) => a.id === currentUser.avatarId)?.url, [currentUser.avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find((b: BorderInfo) => b.id === currentUser.borderId)?.url, [currentUser.borderId]);
@@ -637,14 +565,9 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             windowId="tower-summary-redesigned"
             viewportPortal
             skipSavedPosition
-            initialWidth={840}
-            shrinkHeightToContent
-            uniformPcScale={false}
-            mobileViewportFit
-            mobileLockViewportHeight={isMobile}
-            mobileViewportMaxHeightVh={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH : 97}
-            mobileViewportMaxHeightCss={isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS : undefined}
-            mobileViewportDvhBottomGapPx={isMobile ? GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX : undefined}
+            initialWidth={900}
+            initialHeight={820}
+            {...commonResultWindowProps}
             hideFooter={isMobile}
             bodyPaddingClassName={isMobile ? 'p-2 pb-0 sm:p-3 sm:pb-0' : 'p-3 sm:p-4'}
             modal={!modalLayerUsesDesignPixels}
@@ -659,6 +582,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                           ? 'overflow-x-hidden'
                           : 'overflow-x-hidden overflow-y-visible'
                 } ${PRE_GAME_MODAL_LAYER_CLASS} ${isMobile ? 'text-xs sm:text-sm' : 'text-[1.0625rem] min-[1024px]:text-lg min-[1280px]:text-xl'}`}
+                style={!isMobile ? { fontSize: `${14 * desktopTextScale}px` } : undefined}
             >
                 {/* Title */}
                 {(analysisResult || (isEnded && session.winner !== null)) && (
@@ -680,7 +604,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                             matchLabel="경기 결과"
                             recordLabel="내 정보"
                         />
-                        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-gutter:auto] [scrollbar-width:thin]">
+                        <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-hidden overflow-x-hidden">
                             <MobileResultTabPanelStack
                                 active={mobileResultTab}
                                 matchPanel={
@@ -721,6 +645,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                                 session={session}
                                                 isMobile={isMobile}
                                                 mobileTextScale={mobileTextScale}
+                                                desktopTextScale={desktopTextScale}
                                                 compactSideBySideMobile
                                             />
                                         ) : !isScoring && !isEnded ? (
@@ -781,7 +706,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                             <span className="font-semibold text-zinc-100">{gameDuration}</span>
                                         </div>
                                         {(winReasonText || failureReason) && (
-                                            <p className={`text-[15px] font-semibold leading-snug ${isWinner ? 'text-green-400' : 'text-red-400'}`}>
+                                            <p className={`font-semibold leading-snug ${isWinner ? 'text-green-400' : 'text-red-400'}`} style={{ fontSize: `${13 * desktopTextScale}px` }}>
                                                 {winReasonText || failureReason}
                                             </p>
                                         )}
@@ -798,6 +723,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                         session={session}
                                         isMobile={false}
                                         mobileTextScale={mobileTextScale}
+                                        desktopTextScale={desktopTextScale}
                                     />
                                 ) : !isScoring && !isEnded ? (
                                     <p className="text-center text-gray-400">계가 결과가 없습니다.</p>
@@ -846,64 +772,18 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                             : 'mt-2 !gap-2 !p-3 sm:!gap-3 sm:!p-3.5'
                     }`}
                 >
-                    {isMobile ? (
-                        <div className="grid w-full min-w-0 flex-shrink-0 grid-cols-1 gap-2">
-                            <Button
-                                onClick={() => {
-                                    if (isScoring) return;
-                                    handleClose(session, onClose);
-                                }}
-                                bare
-                                colorScheme="none"
-                                disabled={isScoring}
-                                className={`mx-auto min-w-0 w-full max-w-[220px] justify-center rounded-xl border border-amber-300/35 bg-gradient-to-b from-amber-500/30 via-amber-500/20 to-amber-700/25 px-3 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_8px_20px_-12px_rgba(251,191,36,0.55)] transition-all hover:border-amber-200/55 hover:brightness-110 active:translate-y-px ${isScoring ? '!cursor-not-allowed !opacity-45' : ''}`}
-                            >
-                                확인
-                            </Button>
-                        </div>
-                    ) : (
-                        <div className={`grid w-full min-w-0 flex-shrink-0 grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5`}>
-                            <Button
-                                onClick={() => {
-                                    if (isScoring) return;
-                                    handleClose(session, onClose);
-                                }}
-                                bare
-                                colorScheme="none"
-                                disabled={isScoring}
-                                className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', false, 'modal')} ${isScoring ? '!cursor-not-allowed !opacity-45' : ''}`}
-                            >
-                                확인
-                            </Button>
-                            <Button
-                                onClick={handleNextFloor}
-                                bare
-                                colorScheme="none"
-                                className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', false, 'modal')} ${!canTryNext || isProcessing ? '!cursor-not-allowed !opacity-45' : ''}`}
-                                disabled={!canTryNext || isProcessing}
-                            >
-                                {formatTowerNextFooterLabel(nextFloor, canTryNext, effectiveNextFloorActionPointCost)}
-                            </Button>
-                            <Button
-                                onClick={handleRetry}
-                                bare
-                                colorScheme="none"
-                                className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', false, 'modal')} ${isProcessing ? '!cursor-not-allowed !opacity-45' : ''}`}
-                                disabled={isProcessing}
-                            >
-                                {formatArenaRetryLabel(effectiveRetryActionPointCost)}
-                            </Button>
-                            <Button
-                                onClick={handleExitToLobby}
-                                bare
-                                colorScheme="none"
-                                className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', false, 'modal')} ${isProcessing ? '!cursor-not-allowed !opacity-45' : ''}`}
-                                disabled={isProcessing}
-                            >
-                                대기실로
-                            </Button>
-                        </div>
-                    )}
+                    <div className={`${arenaPostGameSingleConfirmFooterClass} w-full min-w-0 shrink-0`}>
+                        <button
+                            type="button"
+                            className={`${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${arenaPostGameSingleModalConfirmButtonClass} ${isScoring ? '!cursor-not-allowed !opacity-45' : ''}`}
+                            onClick={() => {
+                                if (isScoring) return;
+                                handleClose(session, onClose);
+                            }}
+                        >
+                            확인
+                        </button>
+                    </div>
                 </div>
         </DraggableWindow>
     );

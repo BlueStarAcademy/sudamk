@@ -3,13 +3,14 @@ import { UserWithStatus, InventoryItem, ServerAction, InventoryItemType, ItemGra
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import ResourceActionButton from './ui/ResourceActionButton.js';
-import { emptySlotImages, GRADE_LEVEL_REQUIREMENTS, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES, gradeBackgrounds, gradeStyles, BASE_SLOTS_PER_CATEGORY, EXPANSION_AMOUNT, MAX_EQUIPMENT_SLOTS, MAX_CONSUMABLE_SLOTS, MAX_MATERIAL_SLOTS, ENHANCEMENT_COSTS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, isActionPointConsumable, isConditionPotionConsumable, isTowerOnlyConsumable, isRefinementTicketMaterial } from '../constants/items';
+import { emptySlotImages, GRADE_LEVEL_REQUIREMENTS, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES, gradeBackgrounds, gradeStyles, BASE_SLOTS_PER_CATEGORY, EXPANSION_AMOUNT, MAX_EQUIPMENT_SLOTS, MAX_CONSUMABLE_SLOTS, MAX_MATERIAL_SLOTS, ENHANCEMENT_COSTS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, isActionPointConsumable, isConditionPotionConsumable, isTowerOnlyConsumable, isRefinementTicketMaterial, normalizeRefinementTicketInventoryName } from '../constants/items';
 import { isPairArenaExclusiveBagItem, isPairPetMaterial } from '../shared/constants/petLobby.js';
 
 import { calculateUserEffects } from '../services/effectService.js';
 import { calculateTotalStats } from '../services/statService.js';
 import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposition.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { resolveAspectFittedModalFrame } from '../utils/modalFrameSizing.js';
 import { getLayoutViewportSize } from '../hooks/useIsMobileLayout.js';
 import { ONBOARDING_INTRO1_FAN_ITEM_ID } from '../shared/constants/onboardingTutorial.js';
 import {
@@ -105,6 +106,22 @@ const BAG_SCROLLBAR_Y_CLASS =
 /** PC 가방 등: 옵션 패널 고정 높이(스크롤) — `expandOptionsToFill`이 아닐 때만 사용 */
 function bagPcOptionsBlockHeightPx(scaleFactor: number): number {
     return Math.max(128, Math.round(164 * scaleFactor));
+}
+
+/**
+ * 공통 규칙: 줄바꿈/말줄임 없이 한 줄 유지.
+ * 텍스트 길이가 길수록 폰트만 축소해 한 줄로 표시한다.
+ */
+function resolveNoWrapTextFontPx(
+    text: string | null | undefined,
+    preferredPx: number,
+    minPx = 7,
+    shrinkStartLength = 10,
+    shrinkPerChar = 0.58,
+): number {
+    const length = Array.from(text ?? '').length;
+    const shrink = Math.max(0, length - shrinkStartLength) * shrinkPerChar;
+    return Math.max(minPx, Math.round(preferredPx - shrink));
 }
 
 const getStarDisplayInfo = (stars: number) => {
@@ -272,7 +289,7 @@ const EquipmentSlotDisplay: React.FC<{
                                 <span className="leading-none">⚡</span>
                                 {apValue && (
                                     <span
-                                        className="mt-0.5 max-w-full truncate font-bold leading-none text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]"
+                                        className="mt-0.5 max-w-full whitespace-nowrap font-bold leading-none text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]"
                                         style={{ fontSize: AP_CONSUMABLE_PLUS_FONT_SIZE_CQ }}
                                     >
                                         +{apValue}
@@ -384,6 +401,13 @@ const LocalItemDetailDisplay: React.FC<{
     const imgBox = Math.max(52, Math.round(80 * scaleFactor * detailScaleMultiplier));
     const optionsBlockHeightPx = bagPcOptionsBlockHeightPx(scaleFactor);
     const [compactCompareTab, setCompactCompareTab] = useState<'info' | 'mainSub' | 'special' | 'mythic'>('info');
+    const detailTitleFontPx = resolveNoWrapTextFontPx(
+        title,
+        Math.max(14, Math.round(18 * scaleFactor * mobileTextScale)),
+        9,
+        9,
+        0.72,
+    );
     // item이 없을 때도 "선택 장비" 뷰어와 동일한 구조로 표시
     if (!item) {
         return (
@@ -408,7 +432,7 @@ const LocalItemDetailDisplay: React.FC<{
                     {/* Right: Name */}
                     <div className="min-w-0 flex-grow text-right ml-2">
                         <div className="flex items-baseline justify-end gap-0.5">
-                            <h3 className="font-bold text-tertiary break-words" style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}>{title}</h3>
+                            <h3 className="max-w-full whitespace-nowrap font-bold text-tertiary" title={title} style={{ fontSize: `${detailTitleFontPx}px` }}>{title}</h3>
                         </div>
                     </div>
                 </div>
@@ -660,10 +684,14 @@ const LocalItemDetailDisplay: React.FC<{
         const labelSource = currentOpt ?? selectedOpt;
         const rangeText = labelSource?.range && !labelSource.display.includes('[') ? ` [${labelSource.range[0]}~${labelSource.range[1]}]` : '';
         const isMythicType = !!labelSource && Object.values(MythicStat).includes(labelSource.type as MythicStat);
+        const optionLabelText = `${labelSource?.display ?? String(type)}${rangeText}`;
+        const optionLabelFontPx = resolveNoWrapTextFontPx(optionLabelText, 10, 7, 11, 0.42);
+        const currentValueFontPx = resolveNoWrapTextFontPx(currentOpt ? String(currentOpt.value) : '-', 10, 7, 6, 0.32);
+        const selectedValueFontPx = resolveNoWrapTextFontPx(selectedOpt ? String(selectedOpt.value) : '-', 10, 7, 6, 0.32);
 
         return (
             <div key={String(type)} className="rounded-md bg-black/25 px-1.5 py-1">
-                <div className="truncate text-[10px] font-semibold text-stone-300">
+                <div className="whitespace-nowrap text-[10px] font-semibold text-stone-300" style={{ fontSize: `${optionLabelFontPx}px` }}>
                     {isMythicType && labelSource ? (
                         <>
                             <MythicOptionAbbrev option={labelSource} textClassName="text-orange-300" />
@@ -674,9 +702,9 @@ const LocalItemDetailDisplay: React.FC<{
                     )}
                 </div>
                 <div className="mt-0.5 grid grid-cols-[1fr_auto_1fr] items-center gap-1 text-[10px] tabular-nums">
-                    <span className="truncate text-cyan-200">{currentOpt ? currentOpt.value : '-'}</span>
+                    <span className="whitespace-nowrap text-cyan-200" style={{ fontSize: `${currentValueFontPx}px` }}>{currentOpt ? currentOpt.value : '-'}</span>
                     <span className="text-stone-500">→</span>
-                    <span className="truncate text-amber-200">{selectedOpt ? selectedOpt.value : '-'}</span>
+                    <span className="whitespace-nowrap text-amber-200" style={{ fontSize: `${selectedValueFontPx}px` }}>{selectedOpt ? selectedOpt.value : '-'}</span>
                 </div>
                 <div className={`mt-0.5 text-right text-[10px] font-bold ${deltaCls}`}>
                     {delta > 0 ? `+${delta}` : `${delta}`}
@@ -717,7 +745,7 @@ const LocalItemDetailDisplay: React.FC<{
                         {renderStarDisplay(item.stars)}
                     </div>
                     <div className={`mt-1.5 min-h-0 flex-1 overflow-y-auto rounded-lg bg-gray-900/50 p-2 ${BAG_SCROLLBAR_Y_CLASS}`}>
-                        <h3 className={`break-words font-bold ${styles.color}`} style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
+                        <h3 className={`max-w-full whitespace-nowrap font-bold ${styles.color}`} title={item.name} style={{ fontSize: `${resolveNoWrapTextFontPx(item.name, Math.max(12, Math.round(14 * scaleFactor * mobileTextScale)), 8, 9, 0.62)}px` }}>
                             {item.name}
                         </h3>
                         <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5" style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * mobileTextScale))}px` }}>
@@ -860,7 +888,7 @@ const LocalItemDetailDisplay: React.FC<{
                                         <span className="leading-none">⚡</span>
                                         {apValue && (
                                             <span
-                                                className="mt-0.5 max-w-full truncate font-bold leading-none text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]"
+                                                className="mt-0.5 max-w-full whitespace-nowrap font-bold leading-none text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]"
                                                 style={{ fontSize: `${plusPx}px` }}
                                             >
                                                 +{apValue}
@@ -906,7 +934,7 @@ const LocalItemDetailDisplay: React.FC<{
                 {/* Right: Name & Main Option */}
                 <div className="min-w-0 flex-grow text-right ml-2">
                     <div className="flex items-baseline justify-end gap-0.5">
-                        <h3 className={`font-bold break-words ${styles.color}`} style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}>{item.name}</h3>
+                        <h3 className={`max-w-full whitespace-nowrap font-bold ${styles.color}`} title={item.name} style={{ fontSize: `${resolveNoWrapTextFontPx(item.name, Math.max(12, Math.round(13 * scaleFactor * mobileTextScale)), 8, 9, 0.62)}px` }}>{item.name}</h3>
                     </div>
                     <div className="flex items-center justify-end gap-2 mt-0.5" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
                         <span className={styles.color}>[{styles.name}]</span>
@@ -1094,14 +1122,14 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         typeof window !== 'undefined' ? getLayoutViewportSize().width : 1024,
     );
     const [windowHeight, setWindowHeight] = useState(() =>
-        typeof window !== 'undefined' ? getLayoutViewportSize().height : 768,
+        typeof window !== 'undefined' ? window.innerHeight : 768,
     );
 
     useEffect(() => {
         const sync = () => {
             const { width, height } = getLayoutViewportSize();
             setWindowWidth(width);
-            setWindowHeight(height);
+            setWindowHeight(Math.max(height, window.innerHeight || 0));
         };
         sync();
         window.addEventListener('resize', sync);
@@ -1114,33 +1142,35 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         };
     }, []);
     
-    // PC 가방: 작은 모니터에서는 설계 프레임 자체를 줄여 전체 축소율이 과해지지 않게 한다.
-    const calculatedWidth = useMemo(() => {
-        if (windowWidth < 980) return 960;
-        if (windowWidth < 1180) return 1000;
-        if (windowWidth < 1360) return 1060;
-        return 1120;
-    }, [windowWidth]);
-    
-    // 화면 비율에 따라 높이를 조정하되, 세로가 짧은 모니터에서는 통째 축소보다 내부 스크롤을 우선한다.
-    const calculatedHeight = useMemo(() => {
-        if (windowHeight < 760) return 760;
-        if (windowHeight < 860) return 820;
-        if (windowHeight < 940) return 900;
-        const viewportRatio = windowWidth / Math.max(1, windowHeight);
-        const ratioDelta = (16 / 9) - viewportRatio;
-        const adjusted = 980 + Math.round(ratioDelta * 90);
-        return Math.max(940, Math.min(1080, adjusted));
-    }, [windowWidth, windowHeight]);
+    // 가방 모달은 공통 비율 계산으로 설계 비율(PC 기준)을 유지한다.
+    const bagFrame = useMemo(
+        () =>
+            resolveAspectFittedModalFrame({
+                viewportWidth: windowWidth,
+                viewportHeight: windowHeight,
+                designWidth: 1140,
+                designHeight: 920,
+                widthRatio: 0.9,
+                heightRatio: 0.9,
+                minWidth: 940,
+                maxWidth: 1220,
+                minHeight: 760,
+                maxHeight: 1040,
+            }),
+        [windowWidth, windowHeight],
+    );
+    const calculatedWidth = bagFrame.width;
+    const calculatedHeight = bagFrame.height;
     
     // 작은 PC(예: 1366x768 분할/줌)에서도 모바일형 레이아웃으로 너무 일찍 전환되지 않도록 임계값을 낮춘다.
     const isCompactViewport = useMemo(() => windowWidth < 860, [windowWidth]);
 
     // PC 16:9 설계 캔버스 안이면 내부 scaleFactor를 뷰포트 compact와 중복 적용하지 않음
     const effectiveIsCompactViewport = modalLayerUsesDesignPixels ? false : isCompactViewport;
-    /** 실제 창 너비 기준. 스케일 캔버스 안 모바일에서도 좁은 레이아웃(50/50·8열)에 사용 */
-    const narrowInventoryLayout = isCompactViewport;
-    const useViewportSizedBagModal = modalLayerUsesDesignPixels && (windowWidth < 1280 || windowHeight < 860);
+    /** 16:9 설계 캔버스 안에서는 모바일 재배치로 갈아타지 않고 비율 축소(scale)를 유지 */
+    const narrowInventoryLayout = effectiveIsCompactViewport;
+    // 가방/하위 모달은 캔버스 프레임 상한의 영향을 받지 않도록 브라우저 뷰포트 레이어에 고정 렌더링한다.
+    const useViewportSizedBagModal = true;
     const onboardingPhase = currentUser.onboardingTutorialPhase ?? -1;
     const onboardingPhase9 = onboardingPhase === 9;
     const [bagTutorialStep, setBagTutorialStepState] = useState(() =>
@@ -1188,6 +1218,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         if (!narrowInventoryLayout) return 12;
         return 6;
     }, [narrowInventoryLayout]);
+    const inventoryGridColumns = narrowInventoryLayout ? mobileInventoryColumns : 12;
     // 창 크기에 비례한 스케일 팩터 계산 (기준: 950px 너비)
     // 캔버스 밖 모바일: DraggableWindow가 뷰포트 맞춤이므로 여기서는 PC와 동일 비율(축소 없음)
     const baseWidth = 950;
@@ -1201,9 +1232,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
             const raw = windowWidth / baseWidth;
             return Math.max(0.42, Math.min(0.72, raw));
         }
-        const rawScale = calculatedWidth / baseWidth;
-        return Math.max(0.4, Math.min(1.0, rawScale));
-    }, [calculatedWidth, effectiveIsCompactViewport, modalLayerUsesDesignPixels, narrowInventoryLayout, windowWidth]);
+        // 데스크톱 가방 뷰어는 모달 프레임 비율에 맞춰 본문(텍스트/이미지)도 함께 줄어들게 한다.
+        const desktopFrameScale = bagFrame.scale * 1.04;
+        return Math.max(0.74, Math.min(1.0, desktopFrameScale));
+    }, [calculatedWidth, effectiveIsCompactViewport, modalLayerUsesDesignPixels, narrowInventoryLayout, windowWidth, bagFrame.scale]);
 
     const mobileTextScale = useMemo(() => {
         if (narrowInventoryLayout && modalLayerUsesDesignPixels) return 1.2;
@@ -1211,7 +1243,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     }, [narrowInventoryLayout, modalLayerUsesDesignPixels]);
     /** 350px 설계 폭 대비 기준(950) 비율 — 장착 장비 모달 전용 */
     const mobileEquippedLayoutScale = useMemo(() => MOBILE_EQUIPPED_MODAL_DESIGN_WIDTH / baseWidth, []);
-    const detailTextScale = narrowInventoryLayout ? mobileTextScale : mobileTextScale * 1.3;
+    // 상세 패널 텍스트는 모달 축소 비율을 따르되, PC 가독성을 위해 과도한 축소만 방지한다.
+    const detailTextScale = narrowInventoryLayout
+        ? mobileTextScale
+        : mobileTextScale * Math.max(0.96, Math.min(1.1, 0.92 + bagFrame.scale * 0.16));
     /** PC 상단 밴드 높이: 옵션은 패널 안에서 flex로 채움 — 최소 확보만 합성(인벤에 세로 양보) */
     const desktopBagViewerRowPx = useMemo(() => {
         if (narrowInventoryLayout) return null;
@@ -1226,6 +1261,69 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         return Math.round(Math.min(500, Math.max(284, composed, h * 0.28)));
     }, [narrowInventoryLayout, scaleFactor, detailTextScale, windowHeight]);
     const compareModalTextScale = narrowInventoryLayout ? mobileTextScale : mobileTextScale * 1.35;
+    const inventoryGridGapPx = useMemo(
+        () => Math.max(narrowInventoryLayout ? 2 : 3, Math.round((narrowInventoryLayout ? 3 : 7) * scaleFactor)),
+        [narrowInventoryLayout, scaleFactor],
+    );
+    const inventoryGridViewportRef = useRef<HTMLDivElement | null>(null);
+    const [inventoryGridViewportWidth, setInventoryGridViewportWidth] = useState(0);
+    useEffect(() => {
+        const el = inventoryGridViewportRef.current;
+        if (!el) return;
+        const sync = () => {
+            setInventoryGridViewportWidth(el.clientWidth);
+        };
+        sync();
+        if (typeof ResizeObserver === 'undefined') {
+            window.addEventListener('resize', sync);
+            return () => window.removeEventListener('resize', sync);
+        }
+        const ro = new ResizeObserver(sync);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [inventoryGridColumns, scaleFactor, activeTab]);
+    const inventoryCellSizePx = useMemo(() => {
+        const fallbackWidth = Math.max(
+            260,
+            calculatedWidth - Math.max(24, Math.round(48 * scaleFactor)) - Math.max(6, Math.round(8 * scaleFactor)),
+        );
+        const viewportWidth = inventoryGridViewportWidth > 0 ? inventoryGridViewportWidth : fallbackWidth;
+        const inner = viewportWidth - inventoryGridGapPx * Math.max(0, inventoryGridColumns - 1);
+        return Math.max(14, inner / Math.max(1, inventoryGridColumns));
+    }, [inventoryGridViewportWidth, calculatedWidth, scaleFactor, inventoryGridGapPx, inventoryGridColumns]);
+    const inventoryGridMinHeightPx = useMemo(() => {
+        // 하단 인벤토리는 어떤 축소 구간에서도 최소 2줄 이상이 항상 보이게 유지
+        const minVisibleRows = 2;
+        const bottomPadding = Math.max(12, Math.round(20 * scaleFactor));
+        return Math.max(
+            76,
+            Math.round(
+                inventoryCellSizePx * minVisibleRows +
+                    inventoryGridGapPx * Math.max(0, minVisibleRows - 1) +
+                    bottomPadding,
+            ),
+        );
+    }, [inventoryCellSizePx, inventoryGridGapPx, scaleFactor]);
+    const inventoryBottomSectionMinHeightPx = useMemo(() => {
+        // 탭/정렬 헤더 + 섹션 패딩 + 2줄 그리드 최소 높이를 함께 보장
+        const sectionPadding = Math.max(16, Math.round(22 * scaleFactor));
+        const headerBlock = narrowInventoryLayout
+            ? Math.max(84, Math.round(100 * scaleFactor))
+            : Math.max(42, Math.round(50 * scaleFactor));
+        return Math.round(inventoryGridMinHeightPx + sectionPadding + headerBlock);
+    }, [inventoryGridMinHeightPx, narrowInventoryLayout, scaleFactor]);
+    const inventoryBottomSectionHeightPx = useMemo(() => {
+        // 하단 인벤은 "2줄 보이는 상태"를 유지하는 고정 높이로 운용(내부 스크롤 전제)
+        return Math.max(200, Math.min(300, inventoryBottomSectionMinHeightPx));
+    }, [inventoryBottomSectionMinHeightPx]);
+    const desktopTopSectionHeightPx = useMemo(() => {
+        if (narrowInventoryLayout || desktopBagViewerRowPx == null) return desktopBagViewerRowPx;
+        // 모달 총 높이(90vh)에서 하단 고정 영역을 뺀 나머지를 상단에 배정.
+        // 상단은 스크롤 없이 내용을 보여야 하므로 최소 높이를 높게 보장.
+        const modalBodyBudget = Math.max(460, calculatedHeight - 110);
+        const remaining = modalBodyBudget - inventoryBottomSectionHeightPx;
+        return Math.max(400, Math.min(640, remaining, desktopBagViewerRowPx));
+    }, [narrowInventoryLayout, desktopBagViewerRowPx, calculatedHeight, inventoryBottomSectionHeightPx]);
     const luxuryTabButtonBase = 'rounded-lg border font-semibold tracking-wide transition-all duration-200 shadow-[0_12px_24px_-16px_rgba(15,23,42,0.85)] hover:-translate-y-0.5 active:translate-y-0';
     const getLuxuryTabButtonClass = (isActive: boolean) =>
         isActive
@@ -1566,16 +1664,18 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
             initialHeight={calculatedHeight}
             variant="store"
             bodyScrollable={false}
-            uniformPcScale
-            mobileViewportFit={narrowInventoryLayout || useViewportSizedBagModal}
+            mobileViewportFit={narrowInventoryLayout}
             mobileLockViewportHeight={useViewportSizedBagModal}
-            mobileViewportMaxHeightVh={useViewportSizedBagModal ? 98 : 92}
-            mobileViewportMaxHeightCss={useViewportSizedBagModal ? 'calc(100dvh - 12px)' : undefined}
-            mobileViewportDvhBottomGapPx={useViewportSizedBagModal ? 12 : undefined}
+            mobileViewportMaxHeightVh={92}
+            mobileViewportMaxHeightCss={undefined}
+            mobileViewportDvhBottomGapPx={undefined}
             bodyPaddingClassName={narrowInventoryLayout ? 'p-2 sm:p-3' : undefined}
-            pcViewportMaxHeightCss="min(98vh, 1240px)"
+            uniformPcScale={!narrowInventoryLayout}
+            pcViewportMaxHeightCss="min(94dvh, calc(100dvh - 16px))"
+            pcViewportMaxWidthCss="90vw"
             closeButtonDataOnboardingTarget={inventoryOnboardingCloseTarget}
             viewportPortal={useViewportSizedBagModal}
+            skipIngameBoardFrameSizeCap
         >
             <div 
                 className="flex min-h-0 h-full w-full flex-col overflow-hidden"
@@ -1599,11 +1699,11 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         className="bg-gray-800 mb-2 flex min-h-0 shrink-0 flex-row overflow-hidden rounded-md shadow-inner"
                         style={{
                             padding: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
-                            ...(desktopBagViewerRowPx != null
+                            ...(desktopTopSectionHeightPx != null
                                 ? {
-                                      height: desktopBagViewerRowPx,
-                                      minHeight: desktopBagViewerRowPx,
-                                      maxHeight: desktopBagViewerRowPx,
+                                      height: desktopTopSectionHeightPx,
+                                      minHeight: desktopTopSectionHeightPx,
+                                      maxHeight: desktopTopSectionHeightPx,
                                   }
                                 : {}),
                         }}
@@ -1611,7 +1711,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         <>
                             {/* 데스크톱: 좌 1/3 장착+스탯, 우측 상세 */}
                             <div
-                                className={`flex h-full min-h-0 w-1/3 flex-shrink-0 flex-col overflow-y-auto border-r border-gray-700 ${BAG_SCROLLBAR_Y_CLASS}`}
+                                className="flex h-full min-h-0 w-1/3 flex-shrink-0 flex-col overflow-hidden border-r border-gray-700"
                                 style={{ paddingRight: `${Math.max(12, Math.round(16 * scaleFactor))}px` }}
                                 {...(showObEquippedStatsPreset && !narrowInventoryLayout
                                     ? { 'data-onboarding-target': 'onboarding-inv-equipped-stats-preset' }
@@ -1767,8 +1867,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                         (() => {
                                                             const consumableItem = findConsumableItem(bagPcCmLeftPanelItem.name);
                                                             const isUsable = consumableItem?.usable !== false;
-                                                            const isSellable = consumableItem?.sellable !== false;
                                                             const isRefinementTicket = isRefinementTicketMaterial(bagPcCmLeftPanelItem.name);
+                                                            const isSellable = isRefinementTicket || consumableItem?.sellable !== false;
                                                             const hideBagUse = isConditionPotionConsumable(bagPcCmLeftPanelItem.name);
                                                             const fs = Math.max(12, Math.round(13 * scaleFactor * mobileTextScale));
 
@@ -2026,8 +2126,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                             {selectedItem.type === 'consumable' && (() => {
                                                 const consumableItem = findConsumableItem(selectedItem.name);
                                                 const isUsable = consumableItem?.usable !== false; // 기본값은 true
-                                                const isSellable = consumableItem?.sellable !== false; // 기본값은 true
                                                 const isRefinementTicket = isRefinementTicketMaterial(selectedItem.name);
+                                                const isSellable = isRefinementTicket || consumableItem?.sellable !== false; // 기본값은 true
                                                 const hideBagUse = isConditionPotionConsumable(selectedItem.name);
                                                 const fs = Math.max(12, Math.round(13 * scaleFactor * mobileTextScale));
 
@@ -2170,8 +2270,11 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
 
                 {/* Bottom section: 가방 슬롯 — 부모가 flex-1·min-h-0일 때만 세로 스크롤이 생김(bodyAvoidVerticalStretch 제거로 체인 유지) */}
                 <div
-                    className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-900"
+                    className="flex min-h-0 shrink-0 flex-col overflow-hidden bg-gray-900"
                     style={{
+                        minHeight: `${inventoryBottomSectionHeightPx}px`,
+                        height: `${inventoryBottomSectionHeightPx}px`,
+                        maxHeight: `${inventoryBottomSectionHeightPx}px`,
                         padding: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
                         paddingTop: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
                         paddingBottom: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
@@ -2226,14 +2329,22 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                             </div>
                         )}
                     </div>
-                    <div className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain ${BAG_SCROLLBAR_Y_CLASS}`} style={{ width: '100%', minWidth: 0, paddingRight: `${Math.max(6, Math.round(8 * scaleFactor))}px`, WebkitOverflowScrolling: 'touch' }}>
+                    <div
+                        ref={inventoryGridViewportRef}
+                        className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain ${BAG_SCROLLBAR_Y_CLASS}`}
+                        style={{
+                            width: '100%',
+                            minWidth: 0,
+                            minHeight: `${inventoryGridMinHeightPx}px`,
+                            paddingRight: `${Math.max(6, Math.round(8 * scaleFactor))}px`,
+                            WebkitOverflowScrolling: 'touch',
+                        }}
+                    >
                         <div 
                             className="grid gap-2" 
                             style={{ 
-                                gridTemplateColumns: narrowInventoryLayout
-                                    ? `repeat(${mobileInventoryColumns}, minmax(0, 1fr))`
-                                    : `repeat(12, minmax(0, 1fr))`,
-                                gap: `${Math.max(narrowInventoryLayout ? 2 : 3, Math.round((narrowInventoryLayout ? 3 : 7) * scaleFactor))}px`,
+                                gridTemplateColumns: `repeat(${inventoryGridColumns}, minmax(0, 1fr))`,
+                                gap: `${inventoryGridGapPx}px`,
                                 width: '100%',
                                 minWidth: 0,
                                 paddingBottom: `${Math.max(12, Math.round(20 * scaleFactor))}px`
@@ -2509,8 +2620,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                 (() => {
                                     const consumableItem = findConsumableItem(selectedItem.name);
                                     const isUsable = consumableItem?.usable !== false;
-                                    const isSellable = consumableItem?.sellable !== false;
                                     const isRefinementTicket = isRefinementTicketMaterial(selectedItem.name);
+                                    const isSellable = isRefinementTicket || consumableItem?.sellable !== false;
                                     const hideBagUse = isConditionPotionConsumable(selectedItem.name);
                                     return (
                                         <>
@@ -2653,7 +2764,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                             />
                                                         </div>
                                                         <div className="mt-0.5 text-center leading-tight">
-                                                            <div className="text-[11px] font-semibold leading-snug text-cyan-200 whitespace-normal break-words">
+                                                            <div
+                                                                className="whitespace-nowrap text-cyan-200"
+                                                                style={{ fontSize: `${resolveNoWrapTextFontPx(correspondingEquippedItem?.name ?? '장비 없음', 11, 7, 9, 0.5)}px` }}
+                                                            >
                                                                 {correspondingEquippedItem?.name ?? '장비 없음'}
                                                             </div>
                                                             <div className="text-[11px] leading-snug text-cyan-300/90">
@@ -2674,7 +2788,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                             />
                                                         </div>
                                                         <div className="mt-0.5 text-center leading-tight">
-                                                            <div className="text-[11px] font-semibold leading-snug text-amber-200 whitespace-normal break-words">
+                                                            <div
+                                                                className="whitespace-nowrap text-amber-200"
+                                                                style={{ fontSize: `${resolveNoWrapTextFontPx(selectedItem.name, 11, 7, 9, 0.5)}px` }}
+                                                            >
                                                                 {selectedItem.name}
                                                             </div>
                                                             <div className="text-[11px] leading-snug text-amber-300/90">
@@ -2744,7 +2861,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                                     return (
                                                                         <div key={`${tone}-${String(type)}`} className="rounded-md bg-black/25 px-1.5 py-0.5">
                                                                             <div className="flex items-center justify-between gap-0.5 tabular-nums leading-tight">
-                                                                                <span className={`min-w-0 flex-1 truncate font-semibold ${labelClass}`}>
+                                                                                <span className={`min-w-0 flex-1 whitespace-nowrap font-semibold ${labelClass}`} style={{ fontSize: `${resolveNoWrapTextFontPx(labelSrc?.display ?? String(type), 11, 7, 11, 0.4)}px` }}>
                                                                                     {labelSrc?.display ?? String(type)}
                                                                                 </span>
                                                                                 <span className={tone === 'cyan' ? 'shrink-0 text-cyan-200 text-[11px]' : 'shrink-0 text-amber-200 text-[11px]'}>
@@ -2765,7 +2882,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                             body: React.ReactNode,
                                                         ) => (
                                                             <div className={`flex min-h-0 flex-1 basis-0 flex-col rounded-md border bg-black/20 p-0.5 ${tone === 'cyan' ? 'border-cyan-500/35' : 'border-amber-500/35'}`}>
-                                                                <div className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-0.5 ${BAG_SCROLLBAR_Y_CLASS}`}>
+                                                                <div className={`min-h-0 flex-1 overflow-y-auto overflow-x-auto pr-0.5 ${BAG_SCROLLBAR_Y_CLASS}`}>
                                                                     {!itemRef ? (
                                                                         <p className="text-stone-500">장비 없음</p>
                                                                     ) : (
@@ -2793,10 +2910,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                                         'cyan',
                                                                         currentEquip,
                                                                         <div className="rounded-md bg-black/25 px-1.5 py-0.75 text-[11px] leading-[1.2]">
-                                                                            <span className="block whitespace-normal break-words text-cyan-200">
+                                                                            <span className="block whitespace-nowrap text-cyan-200">
                                                                                 {`착용레벨 : ${currentReq}`}
                                                                             </span>
-                                                                            <span className="mt-0.5 block whitespace-normal break-words text-cyan-200">
+                                                                            <span className="mt-0.5 block whitespace-nowrap text-cyan-200">
                                                                                 {`제련 가능 : ${currentRefine}`}
                                                                             </span>
                                                                         </div>,
@@ -2805,10 +2922,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                                         'amber',
                                                                         selectedEquip,
                                                                         <div className="rounded-md bg-black/25 px-1.5 py-0.75 text-[11px] leading-[1.2]">
-                                                                            <span className="block whitespace-normal break-words text-amber-200">
+                                                                            <span className="block whitespace-nowrap text-amber-200">
                                                                                 {`착용레벨 : ${selectedReq}`}
                                                                             </span>
-                                                                            <span className="mt-0.5 block whitespace-normal break-words text-amber-200">
+                                                                            <span className="mt-0.5 block whitespace-nowrap text-amber-200">
                                                                                 {`제련 가능 : ${selectedRefine}`}
                                                                             </span>
                                                                         </div>,
@@ -2983,6 +3100,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         }
                     }}
                     isTopmost={isTopmost && !isRenameModalOpen && !itemToSell && !itemToSellBulk && !isExpandModalOpen}
+                    viewportPortal={useViewportSizedBagModal}
                 />
             )}
 
@@ -2991,20 +3109,36 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     item={itemToSell}
                     onClose={() => setItemToSell(null)}
                     onConfirm={async () => {
-                        if (itemToSell.type === 'material') {
-                            // 재료는 선택된 슬롯의 수량만 판매 (1개 판매)
-                            await onAction({ type: 'SELL_ITEM', payload: { itemId: itemToSell.id, quantity: 1 } });
+                        const sellOneMaterialOrTicket = async () => {
+                            await onAction({
+                                type: 'SELL_ITEM',
+                                payload: { itemId: itemToSell.id, quantity: 1, itemName: itemToSell.name },
+                            });
+                        };
+                        if (itemToSell.type === 'material' || isRefinementTicketMaterial(itemToSell.name)) {
+                            await sellOneMaterialOrTicket();
                         } else if (itemToSell.type === 'consumable') {
                             // 소모품은 전체 판매 (수량이 있으면 전체 수량 판매)
-                            await onAction({ type: 'SELL_ITEM', payload: { itemId: itemToSell.id, quantity: itemToSell.quantity || 1 } });
+                            await onAction({
+                                type: 'SELL_ITEM',
+                                payload: {
+                                    itemId: itemToSell.id,
+                                    quantity: itemToSell.quantity || 1,
+                                    itemName: itemToSell.name,
+                                },
+                            });
                         } else {
                             // 장비는 전체 판매
-                            await onAction({ type: 'SELL_ITEM', payload: { itemId: itemToSell.id } });
+                            await onAction({ type: 'SELL_ITEM', payload: { itemId: itemToSell.id, itemName: itemToSell.name } });
                         }
                         setItemToSell(null);
                         setSelectedItemId(null);
                     }}
-                    isTopmost={isTopmost && !isRenameModalOpen && !showUseQuantityModal && !itemToSellBulk && !isExpandModalOpen}
+                    // 가방 부모가 전역 스택에서 isTopmost=false일 때(다른 모달이 맨 위로 잡힘)에도
+                    // DraggableWindow의 비-topmost 차단 오버레이가 판매 확정 버튼을 막지 않도록 항상 true.
+                    isTopmost
+                    // 일괄 판매와 동일: 뷰포트 포털로 두어 설계 픽셀 캔버스·transform 아래에서 클릭이 안 먹는 문제 방지
+                    viewportPortal={useViewportSizedBagModal}
                 />
             )}
 
@@ -3017,10 +3151,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         // 같은 이름의 아이템을 모두 찾아서 순차적으로 판매 (재료 또는 소모품).
                         // 변경권은 레거시 consumable 행과 현재 material 행을 같은 재료로 취급한다.
                         const sellBulkAsRefinementTicket = isRefinementTicketMaterial(itemToSellBulk.name);
+                        const targetRefinementTicketName = normalizeRefinementTicketInventoryName(itemToSellBulk.name);
                         const itemsToSell = currentUser.inventory
                             .filter(i =>
                                 sellBulkAsRefinementTicket
-                                    ? isRefinementTicketMaterial(i.name) && i.name === itemToSellBulk.name
+                                    ? isRefinementTicketMaterial(i.name) &&
+                                      normalizeRefinementTicketInventoryName(i.name) === targetRefinementTicketName
                                     : i.type === itemToSellBulk.type && i.name === itemToSellBulk.name
                             )
                             .sort((a, b) => (a.quantity || 0) - (b.quantity || 0)); // 수량이 적은 것부터 정렬
@@ -3031,14 +3167,18 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         for (const item of itemsToSell) {
                             if (remainingQuantity <= 0) break;
                             const sellQty = Math.min(remainingQuantity, item.quantity || 1);
-                            await onAction({ type: 'SELL_ITEM', payload: { itemId: item.id, quantity: sellQty } });
+                            await onAction({
+                                type: 'SELL_ITEM',
+                                payload: { itemId: item.id, quantity: sellQty, itemName: item.name },
+                            });
                             remainingQuantity -= sellQty;
                         }
                         
                         setItemToSellBulk(null);
                         setSelectedItemId(null);
                     }}
-                    isTopmost={isTopmost && !isRenameModalOpen && !showUseQuantityModal && !itemToSell && !isExpandModalOpen}
+                    isTopmost
+                    viewportPortal={useViewportSizedBagModal}
                 />
             )}
 
@@ -3416,7 +3556,7 @@ const InventoryItemCard: React.FC<{
                             <span className="leading-none">⚡</span>
                             {apValue && (
                                 <span
-                                    className="mt-0.5 max-w-full truncate font-bold leading-none text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]"
+                                    className="mt-0.5 max-w-full whitespace-nowrap font-bold leading-none text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]"
                                     style={{ fontSize: AP_CONSUMABLE_PLUS_FONT_SIZE_CQ }}
                                 >
                                     +{apValue}

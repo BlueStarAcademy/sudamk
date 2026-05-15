@@ -360,6 +360,7 @@ const AppContent: React.FC = () => {
     };
     const containerRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(getInitialScale);
+    const useCrispRenderHints = scale < 0.82;
     useLayoutEffect(() => {
         const el = containerRef.current;
         if (!el) return;
@@ -579,6 +580,7 @@ const AppContent: React.FC = () => {
                     >
                     <div
                         className="sudamr-pc-scaled-canvas-root absolute left-0 top-0 flex flex-col"
+                        data-crisp-mode={useCrispRenderHints ? '1' : '0'}
                         style={{
                             width: DESIGN_W,
                             height: DESIGN_H,

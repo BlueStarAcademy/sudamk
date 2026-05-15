@@ -46,6 +46,7 @@ import {
 } from '../../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { bumpGuildWarMaxSingleCapturePointsForPlayer } from '../../shared/utils/guildWarMaxSingleCapturePoints.js';
 import { tryEndGameWhenCaptureTargetReached } from '../utils/captureTargets.js';
+import { deferGetGameResultForScoringOverlay } from '../utils/deferGetGameResultForScoringOverlay.js';
 import {
     syncSpeedTimePressureCaptures,
     shouldRunGoClockAccountingForSession,
@@ -98,6 +99,7 @@ const addSpeedConsumedSeconds = (game: types.LiveGameSession, player: types.Play
     }
     syncSpeedTimePressureCaptures(game, Date.now());
 };
+
 function findLatestMoveIndexAt(
     moveHistory: types.LiveGameSession['moveHistory'] | undefined,
     x: number,
@@ -800,7 +802,11 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                         game.gameStatus = 'scoring';
                         await db.saveGame(game);
                         try {
-                            await getGameResult(game);
+                            if (arenaUsesClientAuthoritativeScoringSnapshot(game)) {
+                                deferGetGameResultForScoringOverlay(game.id, 'blockExtraMoveOverTurnLimit');
+                            } else {
+                                await getGameResult(game);
+                            }
                         } catch (e: any) {
                             console.error(`[handleStandardAction] Failed to auto-trigger scoring while blocking extra move, game ${game.id}:`, e?.message);
                         }
@@ -882,12 +888,16 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 game.gameStatus = 'scoring';
                 await db.saveGame(game);
                 console.log(`[handleStandardAction] Game ${game.id} set to scoring state (0/N reached), calling getGameResult...`);
-                try {
-                    await getGameResult(game);
-                    console.log(`[handleStandardAction] getGameResult completed for game ${game.id}`);
-                } catch (error) {
-                    console.error(`[handleStandardAction] Error in getGameResult for game ${game.id}:`, error);
-                    throw error;
+                if (isClientAuthoritative) {
+                    deferGetGameResultForScoringOverlay(game.id, 'triggerAutoScoring');
+                } else {
+                    try {
+                        await getGameResult(game);
+                        console.log(`[handleStandardAction] getGameResult completed for game ${game.id}`);
+                    } catch (error) {
+                        console.error(`[handleStandardAction] Error in getGameResult for game ${game.id}:`, error);
+                        throw error;
+                    }
                 }
                 return {};
             }
@@ -985,7 +995,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 Array.isArray(clientBoardState) &&
                 clientBoardState.length > 0 &&
                 Array.isArray(clientMoveHistory) &&
-                isHidden === true
+                (isHidden === true || effectiveIsHidden)
             ) {
                 // PVE 히든 착수는 일반 수가 클라이언트에서 먼저 진행된다. 서버는 클릭 당시의
                 // 착수 전 스냅샷에서 다시 한 번 같은 수를 처리해, hiddenMoves 인덱스를 방금 둔 수에 붙인다.
@@ -1688,12 +1698,18 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                         await db.saveGame(game);
                         const { broadcastToGameParticipants } = await import('../socket.js');
                         const gameToBroadcast = { ...game };
-                        delete (gameToBroadcast as any).boardState;
+                        if (!game.isSinglePlayer) {
+                            delete (gameToBroadcast as any).boardState;
+                        }
                         broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
-                        try {
-                            await getGameResult(game);
-                        } catch (scoringError: any) {
-                            console.error(`[handleStandardAction] Error during auto-scoring for game ${game.id}:`, scoringError?.message);
+                        if (arenaUsesClientAuthoritativeScoringSnapshot(game)) {
+                            deferGetGameResultForScoringOverlay(game.id, 'autoScoringAfterUserPlaceStone');
+                        } else {
+                            try {
+                                await getGameResult(game);
+                            } catch (scoringError: any) {
+                                console.error(`[handleStandardAction] Error during auto-scoring for game ${game.id}:`, scoringError?.message);
+                            }
                         }
                         return petHintBonusResult ?? {};
                     }
@@ -1778,7 +1794,11 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                         game.gameStatus = 'scoring';
                         await db.saveGame(game);
                         try {
-                            await getGameResult(game);
+                            if (arenaUsesClientAuthoritativeScoringSnapshot(game)) {
+                                deferGetGameResultForScoringOverlay(game.id, 'blockExtraPassOverTurnLimit');
+                            } else {
+                                await getGameResult(game);
+                            }
                         } catch (e: any) {
                             console.error(`[handleStandardAction] Failed to auto-trigger scoring while blocking extra pass, game ${game.id}:`, e?.message);
                         }
@@ -1823,10 +1843,14 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     game.totalTurns = currentTurnCount;
                     game.gameStatus = 'scoring';
                     await db.saveGame(game);
-                    try {
-                        await getGameResult(game);
-                    } catch (e: any) {
-                        console.error(`[handleStandardAction] getGameResult failed after PASS_TURN scoringTurnLimit for game ${game.id}:`, e?.message);
+                    if (arenaUsesClientAuthoritativeScoringSnapshot(game)) {
+                        deferGetGameResultForScoringOverlay(game.id, 'passTurnScoringTurnLimit');
+                    } else {
+                        try {
+                            await getGameResult(game);
+                        } catch (e: any) {
+                            console.error(`[handleStandardAction] getGameResult failed after PASS_TURN scoringTurnLimit for game ${game.id}:`, e?.message);
+                        }
                     }
                     return {};
                 }
