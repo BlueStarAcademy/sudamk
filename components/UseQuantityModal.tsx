@@ -245,7 +245,9 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
                     </div>
                 </div>
 
-                <div className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} flex gap-2 border-t border-white/[0.08] bg-slate-950/95 p-2.5 sm:gap-3 sm:p-3`}>
+                <div
+                    className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} flex gap-2 border-t border-white/[0.08] bg-slate-950/95 p-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom,0px))] sm:gap-3 sm:p-3 sm:pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]`}
+                >
                     <button
                         type="button"
                         onClick={onClose}

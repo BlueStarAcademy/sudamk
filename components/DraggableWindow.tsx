@@ -1277,6 +1277,13 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     const { main: stickyMain, footer: stickyFooter } = partitionMobileStickyFooter(children);
     const useStickyMobileFooter = isMobileModalShell && !useReadableSmallPcViewportPortal && stickyFooter !== null;
+    /**
+     * 캔버스 내 「읽기 가능한」 좁은 PC 뷰(`useReadableSmallPcViewportPortal`): 기본 `bodyInnerNoFlexGrow`가
+     * `flex-shrink-0`를 켜 본문 박스가 콘텐츠 전체 높이로만 커지고, 창 `max-height`·부모 `overflow-hidden`에
+     * 하단(확인 버튼 등)이 잘리는 경우가 있음 → 세로 스크롤을 쓸 때는 `flex-1 min-h-0`로 스크롤 영역을 확보한다.
+     */
+    const readableViewportScrollBodyFlexFill =
+        useReadableSmallPcViewportPortal && !bodyNoScroll && bodyScrollable;
     /** `bodyNoScroll`이면 본문 스크롤을 끄는데, sticky 푸터 경로만 예외로 켜져 있으면 빈 스크롤 트랙이 생길 수 있음 → 함께 끔(내부에서 스크롤 처리) */
     const scrollRegionAllowsVerticalScroll = (useStickyMobileFooter && !bodyNoScroll) || bodyAllowsVerticalScroll;
     const useSmallPcScaledBodyContent = useReadableSmallPcViewportPortal;
@@ -1499,7 +1506,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     ) : (
                         <div
                             className={`${
-                                bodyInnerNoFlexGrow
+                                bodyInnerNoFlexGrow && !readableViewportScrollBodyFlexFill
                                     ? 'flex w-full min-h-0 flex-shrink-0 flex-col'
                                     : 'flex min-h-0 flex-1 flex-col'
                             } ${bodyScrollOverflowClass} ${bodyPaddingClass} ${bodyScrollClassName ?? ''} ${uniformLayout ? 'antialiased' : ''}${

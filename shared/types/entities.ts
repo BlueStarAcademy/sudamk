@@ -43,11 +43,25 @@ export type PairPetMeta = {
     rpsAttribute?: PairPetRpsAttribute;
 };
 
+/** 수련 시작 시 서버가 확정한 보상(완료 시 재롤 없이 지급). 구버전 세션에는 없음 */
+export type PairPetTrainingPrecomputedRewards = {
+    goldRoll: number;
+    goldGain: number;
+    goldFromSpec: number;
+    xpRoll: number;
+    xpGain: number;
+    xpFromSpec: number;
+    /** 영혼석 특화 +1 반영된 최종 수량. 없음은 `null` */
+    soulDrop: { materialName: string; quantity: number } | null;
+};
+
 /** 페어 펫 수련 슬롯(인덱스 0~4)에 배치된 세션 */
 export type PairPetTrainingSlotState = {
     slotIndex: number;
     itemId: string;
     startedAt: number;
+    /** `PAIR_PET_START_TRAINING` 시 롤·취소 시 폐기 */
+    precomputedRewards?: PairPetTrainingPrecomputedRewards;
 };
 
 /** 부화장 슬롯에 올려둔 알(부화 진행 중) */

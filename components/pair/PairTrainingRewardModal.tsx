@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
@@ -18,14 +18,6 @@ import { effectivePairPetGradeFromRow, pairPetShowsGradeUpgradeNeededInsteadOfXp
 const XP_BAR_BASE_MS = 700;
 const XP_BAR_GAIN_MS = 600;
 
-/**
- * 마운트 직후 자동 수령: React Strict Mode에서 effect가 두 번 실행되면 동일 슬롯으로
- * `PAIR_PET_CLAIM_TRAINING`이 중복 전송되어 첫 요청은 성공·두 번째는 실패할 수 있다.
- * 같은 slotIndex에 대해 진행 중인 Promise를 공유한다.
- */
-const pairTrainingClaimInFlightBySlotIndex = new Map<number, Promise<unknown>>();
-
-/** 대국 결과 모달 `XpBar`와 동일한 애니메이션·레이아웃(펫 수련 보상 전용) */
 const TrainingClaimXpBar: React.FC<{
     initial: number;
     final: number;
@@ -213,8 +205,8 @@ export type PairTrainingRewardModalProps = {
     slotIndex: number;
     slotLabel: string;
     petItem: InventoryItem;
-    /** true면 마운트 직후 수령 API 호출(확인 문구 생략). false면 「수령할까요?」 후 버튼 수령. */
-    autoClaimOnMount?: boolean;
+    /** 부모에서 `PAIR_PET_CLAIM_TRAINING` 완료 후 전달 — 보상 연출만 표시 */
+    claimSummary: PairTrainingClaimClientSummary;
     onClose: () => void;
     applyPetAction: (action: ServerAction) => Promise<unknown>;
     isBusy: boolean;
@@ -224,50 +216,21 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
     slotIndex,
     slotLabel,
     petItem,
-    autoClaimOnMount = false,
+    claimSummary,
     onClose,
     applyPetAction,
     isBusy,
 }) => {
     const isMobile = useIsHandheldDevice();
-    const [phase, setPhase] = useState<'ready' | 'done'>('ready');
-    const [summary, setSummary] = useState<PairTrainingClaimClientSummary | null>(null);
+    const summary = claimSummary;
 
-    /** 부모가 매 렌더마다 새 함수를 넘기면(예: `applyPetAction` inline) effect 의존성에 넣으면 `isBusy` 토글마다 재수령·실패·모달 닫힘 → ref로 고정 */
+    /** 부모가 매 렌더마다 새 함수를 넘기면 `isBusy` 토글마다 재요청 위험 → ref로 고정 */
     const applyPetActionRef = useRef(applyPetAction);
     const onCloseRef = useRef(onClose);
     applyPetActionRef.current = applyPetAction;
     onCloseRef.current = onClose;
 
     const compactRewards = isMobile;
-
-    const handleClaim = async () => {
-        const res = (await applyPetAction({
-            type: 'PAIR_PET_CLAIM_TRAINING',
-            payload: { slotIndex },
-        })) as {
-            error?: string;
-            /** `/api/action`이 `{ success, ...clientResponse }` 평탄화로 보냄 */
-            pairTrainingClaimSummary?: PairTrainingClaimClientSummary;
-            clientResponse?: { pairTrainingClaimSummary?: PairTrainingClaimClientSummary };
-        } | null;
-        if (res?.error) {
-            window.alert(res.error);
-            return;
-        }
-        const s =
-            res?.pairTrainingClaimSummary ??
-            res?.clientResponse?.pairTrainingClaimSummary ??
-            (res as { data?: { pairTrainingClaimSummary?: PairTrainingClaimClientSummary } })?.data
-                ?.pairTrainingClaimSummary;
-        if (!s) {
-            window.alert('보상 정보를 불러오지 못했습니다.');
-            onClose();
-            return;
-        }
-        setSummary(s);
-        setPhase('done');
-    };
 
     /** 수령 직후 슬롯은 비었으므로 같은 슬롯·같은 인벤 행으로 수련 재시작 */
     const handleTrainAgain = async () => {
@@ -279,102 +242,49 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
         onCloseRef.current();
     };
 
-    useLayoutEffect(() => {
-        setPhase('ready');
-        setSummary(null);
-        if (!autoClaimOnMount) return;
-        let cancelled = false;
-
-        let inflight = pairTrainingClaimInFlightBySlotIndex.get(slotIndex);
-        if (!inflight) {
-            inflight = applyPetActionRef.current({
-                type: 'PAIR_PET_CLAIM_TRAINING',
-                payload: { slotIndex },
-            });
-            pairTrainingClaimInFlightBySlotIndex.set(slotIndex, inflight);
-            void inflight.finally(() => {
-                if (pairTrainingClaimInFlightBySlotIndex.get(slotIndex) === inflight) {
-                    pairTrainingClaimInFlightBySlotIndex.delete(slotIndex);
-                }
-            });
-        }
-
-        void inflight.then((raw) => {
-            if (cancelled) return;
-            const res = raw as {
-                error?: string;
-                pairTrainingClaimSummary?: PairTrainingClaimClientSummary;
-                clientResponse?: { pairTrainingClaimSummary?: PairTrainingClaimClientSummary };
-            } | null;
-            if (res?.error) {
-                window.alert(res.error);
-                onCloseRef.current();
-                return;
-            }
-            const s =
-                res?.pairTrainingClaimSummary ??
-                res?.clientResponse?.pairTrainingClaimSummary ??
-                (res as { data?: { pairTrainingClaimSummary?: PairTrainingClaimClientSummary } })?.data
-                    ?.pairTrainingClaimSummary;
-            if (!s) {
-                window.alert('보상 정보를 불러오지 못했습니다.');
-                onCloseRef.current();
-                return;
-            }
-            setSummary(s);
-            setPhase('done');
-        });
-
-        return () => {
-            cancelled = true;
-        };
-    }, [slotIndex, petItem.id, autoClaimOnMount]);
-
-    const soulMat = summary?.soulDrop
+    const soulMat = summary.soulDrop
         ? MATERIAL_ITEMS[summary.soulDrop.materialName as keyof typeof MATERIAL_ITEMS]
         : undefined;
 
     /** 특화 골드 추가분: `goldFromSpecialization`가 없거나 0이어도 `goldBase`·`goldGain`으로 복구 */
-    const goldRollBase = summary && typeof summary.goldBase === 'number' ? summary.goldBase : undefined;
-    const trainingGoldSpecBonus = summary
-        ? typeof summary.goldFromSpecialization === 'number' && summary.goldFromSpecialization > 0
+    const goldRollBase = typeof summary.goldBase === 'number' ? summary.goldBase : undefined;
+    const trainingGoldSpecBonus =
+        typeof summary.goldFromSpecialization === 'number' && summary.goldFromSpecialization > 0
             ? summary.goldFromSpecialization
             : goldRollBase != null
               ? Math.max(0, summary.goldGain - goldRollBase)
-              : 0
-        : 0;
+              : 0;
     const trainingGoldBaseForUi =
-        summary && trainingGoldSpecBonus > 0
+        trainingGoldSpecBonus > 0
             ? goldRollBase != null
                 ? goldRollBase
                 : Math.max(0, summary.goldGain - trainingGoldSpecBonus)
-            : summary?.goldGain ?? 0;
+            : summary.goldGain ?? 0;
 
     /** 펫 XP: `xpFromSpecialization` 키가 빠져도 롤 기준값(`xpBase`)과 총 획득으로 특화분 표시 */
     const totalPetXpGain =
-        summary?.pairPetXp != null
+        summary.pairPetXp != null
             ? summary.pairPetXp.change
-            : typeof summary?.xpGain === 'number'
+            : typeof summary.xpGain === 'number'
               ? summary.xpGain
               : undefined;
-    const xpRollBase = summary && typeof summary.xpBase === 'number' ? summary.xpBase : undefined;
+    const xpRollBase = typeof summary.xpBase === 'number' ? summary.xpBase : undefined;
     const petXpSpecSplitForUi =
-        summary && xpRollBase != null && typeof totalPetXpGain === 'number'
+        xpRollBase != null && typeof totalPetXpGain === 'number'
             ? { base: xpRollBase, spec: Math.max(0, totalPetXpGain - xpRollBase) }
             : undefined;
 
     const showPetGradeUpgradeInsteadOfXp = Boolean(
-        summary &&
-            pairPetShowsGradeUpgradeNeededInsteadOfXp({
-                grade: effectivePairPetGradeFromRow(petItem),
-                petFinalLevel: summary.pairPetLevel?.final,
-                xpChange: summary.pairPetXp?.change,
-            }),
+        pairPetShowsGradeUpgradeNeededInsteadOfXp({
+            grade: effectivePairPetGradeFromRow(petItem),
+            petFinalLevel: summary.pairPetLevel?.final,
+            xpChange: summary.pairPetXp?.change,
+        }),
     );
 
     return (
         <DraggableWindow
-            title={phase === 'ready' ? '수련 보상' : '수련 완료'}
+            title="수련 완료"
             onClose={onClose}
             windowId="pair-training-reward"
             isTopmost
@@ -396,159 +306,123 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
 
                     <div className="mx-auto mb-3 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-xl border border-fuchsia-400/35 bg-black/40 p-1 shadow-inner sm:mb-4 sm:h-[5.75rem] sm:w-[5.75rem] sm:border-fuchsia-400/40">
                         <img
-                            src={phase === 'ready' ? petItem.image : (summary?.petImage ?? petItem.image)}
+                            src={summary.petImage ?? petItem.image}
                             alt=""
                             className="max-h-full max-w-full object-contain"
                             loading="lazy"
                         />
                     </div>
 
-                    {phase === 'ready' && autoClaimOnMount ? (
-                        <div className="mx-auto flex min-h-[5.5rem] max-w-sm flex-col items-center justify-center gap-1.5 py-2 sm:min-h-[6.5rem] sm:gap-2">
-                            <p className="text-center text-xs font-bold leading-snug text-fuchsia-100/90 sm:text-base sm:leading-snug">
-                                펫이 수련을 완료하고 돌아올 준비를 하고 있습니다.
-                            </p>
-                            <p className="text-[0.65rem] font-medium text-slate-500 sm:text-xs">잠시만 기다려 주세요.</p>
-                        </div>
-                    ) : phase === 'ready' ? (
-                        <>
-                            <h3 className="text-sm font-bold leading-snug text-fuchsia-50 sm:text-lg sm:font-black">
-                                <span className="text-white/95">{(petItem.name ?? '펫').replace(/\s+/g, ' ')}</span>
-                                <br />
-                                <span className="text-fuchsia-200/90 sm:text-fuchsia-200/95">수련 보상을 수령할까요?</span>
+                    <>
+                        <div className="mx-auto w-full max-w-md">
+                            <h3 className="text-sm font-bold tracking-tight text-fuchsia-50 sm:text-lg sm:font-black">
+                                {summary.petDisplayName ?? petItem.name}
                             </h3>
-                            <div className="mx-auto mt-4 flex w-full max-w-sm flex-row items-stretch justify-center gap-2 sm:mt-5 sm:gap-3">
-                                <button
-                                    type="button"
-                                    onClick={onClose}
-                                    disabled={isBusy}
-                                    className="min-w-0 flex-1 rounded-full border border-white/15 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-white/25 hover:bg-white/[0.08] disabled:opacity-45 sm:min-w-[8rem] sm:flex-none sm:px-5 sm:py-2.5 sm:text-sm"
-                                >
-                                    닫기
-                                </button>
-                                <Button
-                                    type="button"
-                                    disabled={isBusy}
-                                    onClick={() => void handleClaim()}
-                                    colorScheme="none"
-                                    className="min-w-0 flex-1 !rounded-full !border !border-fuchsia-400/50 !bg-gradient-to-r !from-fuchsia-600 !via-fuchsia-500 !to-violet-600 !px-3 !py-2 !text-xs !font-bold !text-white !shadow-[0_6px_20px_rgba(192,38,211,0.35),inset_0_1px_0_rgba(255,255,255,0.16)] hover:!from-fuchsia-500 hover:!via-fuchsia-400 hover:!to-violet-500 disabled:!opacity-40 sm:!min-w-[8rem] sm:!flex-none sm:!px-6 sm:!py-2.5 sm:!text-sm sm:!font-black sm:!shadow-[0_8px_26px_rgba(192,38,211,0.4),inset_0_1px_0_rgba(255,255,255,0.18)]"
-                                >
-                                    보상 수령
-                                </Button>
-                            </div>
-                        </>
-                    ) : summary ? (
-                        <>
-                            <div className="mx-auto w-full max-w-md">
-                                <h3 className="text-sm font-bold tracking-tight text-fuchsia-50 sm:text-lg sm:font-black">
-                                    {summary.petDisplayName ?? petItem.name}
-                                </h3>
-                                <p className="mt-0.5 text-[0.65rem] font-medium tracking-wide text-slate-500 sm:mt-1 sm:text-sm sm:font-semibold sm:text-slate-400">
-                                    수련 보상이 지급되었습니다.
-                                </p>
-                            </div>
+                            <p className="mt-0.5 text-[0.65rem] font-medium tracking-wide text-slate-500 sm:mt-1 sm:text-sm sm:font-semibold sm:text-slate-400">
+                                수련 보상이 지급되었습니다.
+                            </p>
+                        </div>
 
-                            <div
-                                className={`mx-auto mt-3 flex w-full max-w-md flex-wrap content-center items-center justify-center gap-2 rounded-2xl border border-white/[0.06] bg-gradient-to-b from-zinc-900/50 to-black/35 px-2.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-fuchsia-500/[0.08] sm:mt-4 sm:gap-2.5 sm:px-3 sm:py-3.5 ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS}`}
-                            >
-                                {summary.goldGain > 0 ? (
-                                    <ResultModalGoldCurrencySlot
-                                        amount={trainingGoldBaseForUi}
-                                        understandingBonus={trainingGoldSpecBonus > 0 ? trainingGoldSpecBonus : undefined}
-                                        primaryIsBaseAmount={trainingGoldSpecBonus > 0}
-                                        compact={compactRewards}
-                                    />
-                                ) : null}
-                                {summary.pairPetXp != null ? (
-                                    <div className="flex shrink-0 flex-col items-center justify-center">
-                                        {showPetGradeUpgradeInsteadOfXp ? (
-                                            <ResultModalPetGradeUpgradeNeededSlot density={compactRewards ? 'compact' : 'comfortable'} />
-                                        ) : (
-                                            <ResultModalXpRewardBadge
-                                                variant="pet"
-                                                amount={summary.pairPetXp.change}
-                                                petXpSpecSplit={petXpSpecSplitForUi}
-                                                density={compactRewards ? 'compact' : 'comfortable'}
-                                                title={
-                                                    summary.pairPetXp.change > 0
-                                                        ? petXpSpecSplitForUi && petXpSpecSplitForUi.spec > 0
-                                                            ? `펫 경험치 기본 +${petXpSpecSplitForUi.base.toLocaleString()} (특화 +${petXpSpecSplitForUi.spec.toLocaleString()})`
-                                                            : `펫 경험치 +${summary.pairPetXp.change.toLocaleString()}`
-                                                        : '펫 경험치 변동 없음'
-                                                }
-                                                allowZeroDisplay
-                                            />
-                                        )}
-                                    </div>
-                                ) : null}
-                                {summary.soulDrop && soulMat ? (
-                                    <ResultModalItemRewardSlot
-                                        imageSrc={soulMat.image}
-                                        name={soulMat.name}
-                                        quantity={summary.soulDrop.quantity}
-                                        compact={compactRewards}
-                                        equipmentGrade={(soulMat.grade ?? ItemGrade.Normal) as ItemGrade}
-                                        materialQuantityOnly
-                                    />
-                                ) : null}
-                            </div>
+                        <div
+                            className={`mx-auto mt-3 flex w-full max-w-md flex-wrap content-center items-center justify-center gap-2 rounded-2xl border border-white/[0.06] bg-gradient-to-b from-zinc-900/50 to-black/35 px-2.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-fuchsia-500/[0.08] sm:mt-4 sm:gap-2.5 sm:px-3 sm:py-3.5 ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS}`}
+                        >
+                            {summary.goldGain > 0 ? (
+                                <ResultModalGoldCurrencySlot
+                                    amount={trainingGoldBaseForUi}
+                                    understandingBonus={trainingGoldSpecBonus > 0 ? trainingGoldSpecBonus : undefined}
+                                    primaryIsBaseAmount={trainingGoldSpecBonus > 0}
+                                    compact={compactRewards}
+                                />
+                            ) : null}
+                            {summary.pairPetXp != null ? (
+                                <div className="flex shrink-0 flex-col items-center justify-center">
+                                    {showPetGradeUpgradeInsteadOfXp ? (
+                                        <ResultModalPetGradeUpgradeNeededSlot density={compactRewards ? 'compact' : 'comfortable'} />
+                                    ) : (
+                                        <ResultModalXpRewardBadge
+                                            variant="pet"
+                                            amount={summary.pairPetXp.change}
+                                            petXpSpecSplit={petXpSpecSplitForUi}
+                                            density={compactRewards ? 'compact' : 'comfortable'}
+                                            title={
+                                                summary.pairPetXp.change > 0
+                                                    ? petXpSpecSplitForUi && petXpSpecSplitForUi.spec > 0
+                                                        ? `펫 경험치 기본 +${petXpSpecSplitForUi.base.toLocaleString()} (특화 +${petXpSpecSplitForUi.spec.toLocaleString()})`
+                                                        : `펫 경험치 +${summary.pairPetXp.change.toLocaleString()}`
+                                                    : '펫 경험치 변동 없음'
+                                            }
+                                            allowZeroDisplay
+                                        />
+                                    )}
+                                </div>
+                            ) : null}
+                            {summary.soulDrop && soulMat ? (
+                                <ResultModalItemRewardSlot
+                                    imageSrc={soulMat.image}
+                                    name={soulMat.name}
+                                    quantity={summary.soulDrop.quantity}
+                                    compact={compactRewards}
+                                    equipmentGrade={(soulMat.grade ?? ItemGrade.Normal) as ItemGrade}
+                                    materialQuantityOnly
+                                />
+                            ) : null}
+                        </div>
 
-                            {summary.pairPetLevel && summary.pairPetXp ? (
-                                showPetGradeUpgradeInsteadOfXp ? (
-                                    <div className="mx-auto mt-3 w-full max-w-md space-y-2 sm:mt-4">
-                                        <div className="rounded-xl border border-fuchsia-400/20 bg-gradient-to-b from-fuchsia-950/40 via-zinc-950/30 to-black/40 px-2.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:px-3 sm:py-2.5">
-                                            <p className="text-center text-[0.65rem] font-bold uppercase tracking-[0.12em] text-fuchsia-200/90 sm:text-xs">
-                                                펫 등급강화 필요
-                                            </p>
-                                        </div>
+                        {summary.pairPetLevel && summary.pairPetXp ? (
+                            showPetGradeUpgradeInsteadOfXp ? (
+                                <div className="mx-auto mt-3 w-full max-w-md space-y-2 sm:mt-4">
+                                    <div className="rounded-xl border border-fuchsia-400/20 bg-gradient-to-b from-fuchsia-950/40 via-zinc-950/30 to-black/40 px-2.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:px-3 sm:py-2.5">
+                                        <p className="text-center text-[0.65rem] font-bold uppercase tracking-[0.12em] text-fuchsia-200/90 sm:text-xs">
+                                            펫 등급강화 필요
+                                        </p>
                                     </div>
-                                ) : (
-                                    <div className="mx-auto mt-3 w-full max-w-md space-y-2 sm:mt-4">
-                                        <div className="rounded-xl border border-fuchsia-400/20 bg-gradient-to-b from-fuchsia-950/40 via-zinc-950/30 to-black/40 px-2.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:px-3 sm:py-2.5">
-                                            <p className="mb-1.5 text-center text-[0.6rem] font-bold uppercase tracking-[0.14em] text-fuchsia-200/90 sm:mb-2 sm:text-xs sm:font-black sm:tracking-tight sm:normal-case">
-                                                펫 성장
-                                            </p>
-                                            <TrainingClaimXpBar
-                                                initial={summary.pairPetLevel.progress.initial}
-                                                final={summary.pairPetLevel.progress.final}
-                                                max={Math.max(1, summary.pairPetLevel.progress.max)}
-                                                levelUp={summary.pairPetLevel.initial < summary.pairPetLevel.final}
-                                                xpGain={summary.pairPetXp.change}
-                                                finalLevel={summary.pairPetLevel.final}
-                                                isMobile={isMobile}
-                                            />
-                                        </div>
-                                        <PairPetLevelUpCoreDelta
-                                            delta={summary.pairPetLevelUpCoreBonuses}
-                                            title="추가된 능력치"
-                                            compact={compactRewards}
-                                            className="mx-auto w-full max-w-md"
+                                </div>
+                            ) : (
+                                <div className="mx-auto mt-3 w-full max-w-md space-y-2 sm:mt-4">
+                                    <div className="rounded-xl border border-fuchsia-400/20 bg-gradient-to-b from-fuchsia-950/40 via-zinc-950/30 to-black/40 px-2.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:px-3 sm:py-2.5">
+                                        <p className="mb-1.5 text-center text-[0.6rem] font-bold uppercase tracking-[0.14em] text-fuchsia-200/90 sm:mb-2 sm:text-xs sm:font-black sm:tracking-tight sm:normal-case">
+                                            펫 성장
+                                        </p>
+                                        <TrainingClaimXpBar
+                                            initial={summary.pairPetLevel.progress.initial}
+                                            final={summary.pairPetLevel.progress.final}
+                                            max={Math.max(1, summary.pairPetLevel.progress.max)}
+                                            levelUp={summary.pairPetLevel.initial < summary.pairPetLevel.final}
+                                            xpGain={summary.pairPetXp.change}
+                                            finalLevel={summary.pairPetLevel.final}
+                                            isMobile={isMobile}
                                         />
                                     </div>
-                                )
-                            ) : null}
+                                    <PairPetLevelUpCoreDelta
+                                        delta={summary.pairPetLevelUpCoreBonuses}
+                                        title="추가된 능력치"
+                                        compact={compactRewards}
+                                        className="mx-auto w-full max-w-md"
+                                    />
+                                </div>
+                            )
+                        ) : null}
 
-                            <div className="mx-auto mt-4 flex w-full max-w-sm flex-row items-stretch justify-center gap-2 sm:mt-5 sm:gap-3">
-                                <button
-                                    type="button"
-                                    disabled={isBusy}
-                                    onClick={() => void handleTrainAgain()}
-                                    className="min-w-0 flex-1 rounded-xl border border-violet-400/45 bg-violet-950/35 px-2 py-2 text-[0.65rem] font-bold leading-snug text-violet-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-violet-300/55 hover:bg-violet-900/40 disabled:cursor-not-allowed disabled:opacity-45 sm:px-3 sm:py-2.5 sm:text-sm sm:font-black"
-                                >
-                                    한번 더 수련
-                                </button>
-                                <Button
-                                    type="button"
-                                    colorScheme="none"
-                                    disabled={isBusy}
-                                    className="min-w-0 flex-1 !rounded-xl !border !border-fuchsia-400/40 !bg-gradient-to-b !from-fuchsia-600/85 !via-fuchsia-800/50 !to-zinc-950/90 !py-2 !text-xs !font-bold !tracking-wide !text-fuchsia-50/95 !shadow-[0_10px_28px_rgba(0,0,0,0.35)] hover:!from-fuchsia-500 hover:!via-fuchsia-700/45 hover:!to-zinc-950 disabled:!opacity-45 sm:!py-2.5 sm:!text-sm sm:!font-black sm:!tracking-normal"
-                                    onClick={onClose}
-                                >
-                                    확인
-                                </Button>
-                            </div>
-                        </>
-                    ) : null}
+                        <div className="mx-auto mt-4 flex w-full max-w-sm flex-row items-stretch justify-center gap-2 sm:mt-5 sm:gap-3">
+                            <button
+                                type="button"
+                                disabled={isBusy}
+                                onClick={() => void handleTrainAgain()}
+                                className="min-w-0 flex-1 rounded-xl border border-violet-400/45 bg-violet-950/35 px-2 py-2 text-[0.65rem] font-bold leading-snug text-violet-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-violet-300/55 hover:bg-violet-900/40 disabled:cursor-not-allowed disabled:opacity-45 sm:px-3 sm:py-2.5 sm:text-sm sm:font-black"
+                            >
+                                한번 더 수련
+                            </button>
+                            <Button
+                                type="button"
+                                colorScheme="none"
+                                disabled={isBusy}
+                                className="min-w-0 flex-1 !rounded-xl !border !border-fuchsia-400/40 !bg-gradient-to-b !from-fuchsia-600/85 !via-fuchsia-800/50 !to-zinc-950/90 !py-2 !text-xs !font-bold !tracking-wide !text-fuchsia-50/95 !shadow-[0_10px_28px_rgba(0,0,0,0.35)] hover:!from-fuchsia-500 hover:!via-fuchsia-700/45 hover:!to-zinc-950 disabled:!opacity-45 sm:!py-2.5 sm:!text-sm sm:!font-black sm:!tracking-normal"
+                                onClick={onClose}
+                            >
+                                확인
+                            </Button>
+                        </div>
+                    </>
                 </div>
             </div>
         </DraggableWindow>

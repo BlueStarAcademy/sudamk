@@ -3,6 +3,11 @@ import { BoardState, Point, Player, GameStatus, Move, AnalysisResult, LiveGameSe
 import { WHITE_BASE_STONE_IMG, BLACK_BASE_STONE_IMG, WHITE_HIDDEN_STONE_IMG, BLACK_HIDDEN_STONE_IMG } from '../assets.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 import { modeIncludesBaseCaptureMix } from '../shared/utils/liveSessionArenaKind.js';
+import {
+    BOARD_CAPTURE_FLOAT_DEBOUNCE_MS,
+    BOARD_CAPTURE_FLOAT_HIDDEN_EXTRA_LAG_MS,
+    BOARD_CAPTURE_SCORE_FLOAT_MS,
+} from '../shared/constants/boardSettleTiming.js';
 
 /** 따내기/보너스 점수 플로트: mid(5~9) 기준 폰트 배율 */
 const CAPTURE_SCORE_FLOAT_BASE_EM = 0.92;
@@ -794,17 +799,19 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         if (inHiddenRevealPhase) {
             return;
         }
-        const DEBOUNCE_MS = 48;
+            const DEBOUNCE_MS = BOARD_CAPTURE_FLOAT_DEBOUNCE_MS;
         const t = window.setTimeout(() => {
             const st = String(gameStatus);
             if (st === 'hidden_reveal_animating' || st === 'hidden_final_reveal') {
                 return;
             }
             const list = justCaptured ?? [];
-            const CAPTURE_FLOAT_MS = 2850;
+            const CAPTURE_FLOAT_MS = BOARD_CAPTURE_SCORE_FLOAT_MS;
             const minPts = captureScoreFloatMinPoints;
             /** 미공개 히든 포획(+5): 공개 연출 직후 점수 플로트를 분리 */
-            const hiddenRevealScoreFloatLagMs = list.some((e) => e.wasHidden) ? 450 : 0;
+            const hiddenRevealScoreFloatLagMs = list.some((e) => e.wasHidden)
+                ? BOARD_CAPTURE_FLOAT_HIDDEN_EXTRA_LAG_MS
+                : 0;
 
             const syncJustCapturedSliceStart = () => {
                 const prevCount = processedJustCapturedCountRef.current;

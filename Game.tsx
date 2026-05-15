@@ -1722,8 +1722,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
         }
         
-        // 계가가 완료되었을 때(analysisResult가 있을 때) 영토 표시 활성화
-        if (gameStatus === 'ended' || gameStatus === 'scoring') {
+        // 계가가 완료되었을 때(analysisResult가 있을 때) 영토 표시 활성화 — scoring 중에는 계가 오버레이·판면 연출 후 ended에서 켠다
+        if (gameStatus === 'ended') {
             if (currentAnalysisResult) {
                 setShowFinalTerritory(true);
             }

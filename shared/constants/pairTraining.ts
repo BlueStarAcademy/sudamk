@@ -1,4 +1,4 @@
-import type { PairPetMeta, PairPetTrainingSlotState, User } from '../types/entities.js';
+import type { PairPetMeta, PairPetTrainingPrecomputedRewards, PairPetTrainingSlotState, User } from '../types/entities.js';
 import { isFunctionVipActive } from '../utils/rewardVip.js';
 
 /** 페어 경기장 수련 슬롯 수 (일반 5 + 기능 VIP 전용 1) */
@@ -178,6 +178,51 @@ function parseTrainingStartedAtMs(value: unknown): number {
     return NaN;
 }
 
+/** 수령 시 저장된 롤 재사용 가능 여부(깨진 JSON 방지) */
+export function isValidPairPetTrainingPrecomputedRewards(
+    pre: unknown,
+): pre is PairPetTrainingPrecomputedRewards {
+    if (!pre || typeof pre !== 'object') return false;
+    const o = pre as PairPetTrainingPrecomputedRewards;
+    const keys: (keyof Pick<
+        PairPetTrainingPrecomputedRewards,
+        'goldRoll' | 'goldGain' | 'goldFromSpec' | 'xpRoll' | 'xpGain' | 'xpFromSpec'
+    >)[] = ['goldRoll', 'goldGain', 'goldFromSpec', 'xpRoll', 'xpGain', 'xpFromSpec'];
+    for (const k of keys) {
+        const n = Number(o[k]);
+        if (!Number.isFinite(n) || n < 0) return false;
+    }
+    if (!('soulDrop' in o)) return false;
+    const sd = o.soulDrop;
+    if (sd === null) return true;
+    if (!sd || typeof sd !== 'object') return false;
+    const q = Number(sd.quantity);
+    const m = String(sd.materialName ?? '').trim();
+    return Boolean(m) && Number.isFinite(q) && q >= 1;
+}
+
+function parsePairPetTrainingPrecomputedRewards(
+    raw: unknown,
+): PairPetTrainingPrecomputedRewards | undefined {
+    if (!isValidPairPetTrainingPrecomputedRewards(raw)) return undefined;
+    const o = raw as PairPetTrainingPrecomputedRewards;
+    return {
+        goldRoll: Math.floor(Number(o.goldRoll)),
+        goldGain: Math.floor(Number(o.goldGain)),
+        goldFromSpec: Math.floor(Number(o.goldFromSpec)),
+        xpRoll: Math.floor(Number(o.xpRoll)),
+        xpGain: Math.floor(Number(o.xpGain)),
+        xpFromSpec: Math.floor(Number(o.xpFromSpec)),
+        soulDrop:
+            o.soulDrop === null
+                ? null
+                : {
+                      materialName: String(o.soulDrop.materialName).trim(),
+                      quantity: Math.floor(Number(o.soulDrop.quantity)),
+                  },
+    };
+}
+
 /** DB/JSON 직렬화 등으로 배열이 아닌 `{ "0": {...} }` 형태가 될 수 있음 */
 function pairTrainingSlotsAsArray(
     raw: (PairPetTrainingSlotState | null | undefined)[] | Record<string, unknown> | null | undefined
@@ -211,7 +256,15 @@ export function normalizePairPetTrainingSlots(
         const itemId = String((cell as PairPetTrainingSlotState).itemId ?? '');
         const startedAt = parseTrainingStartedAtMs((cell as PairPetTrainingSlotState).startedAt);
         if (!itemId || !Number.isFinite(startedAt) || startedAt <= 0) continue;
-        out[i] = { slotIndex: i, itemId, startedAt };
+        const pre = parsePairPetTrainingPrecomputedRewards(
+            (cell as PairPetTrainingSlotState).precomputedRewards,
+        );
+        out[i] = {
+            slotIndex: i,
+            itemId,
+            startedAt,
+            ...(pre ? { precomputedRewards: pre } : {}),
+        };
     }
     return out;
 }

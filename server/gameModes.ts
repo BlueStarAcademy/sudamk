@@ -38,10 +38,10 @@ import { modeIncludesCaptureRule } from '../shared/utils/liveSessionArenaKind.js
 import { isAiLobbyManualClockPause } from './modes/shared.js';
 
 // 정확한 계가 결과는 1회만 표시한다는 전제 하에,
-// (특히 히든돌 최종 공개 애니메이션 동안) KataGo 분석을 백그라운드로 미리 시작해
-// scoring 상태에서의 대기 시간을 줄이기 위한 프리컴퓨트 캐시.
-// - UI에는 결과를 미리 보여주지 않음 (ended 전까지 분석 결과 미노출)
-// - 애니메이션 종료 후 getGameResult가 다시 호출될 때 결과를 재사용
+// KataGo 분석을 `scoring` 브로드캐스트·클라이언트 계가 UI보다 앞서 백그라운드로 시작한다.
+// - 히든돌 최종 공개 애니메이션 중 + 일반 계가 직전 `startScoringKataGoPrecomputeIfNeeded`
+// - `runAnalysisWithRetries`는 동일 gameId의 프리컴퓨트 Promise를 재사용
+// - 클라이언트는 연출(착점·따낸 점수·계가 중 오버레이) 후에 영토/결과를 표시
 const scoringPrecompute = new Map<string, { startedAt: number; promise: Promise<types.AnalysisResult> }>();
 const PRECOMPUTE_TTL_MS = 60_000;
 
@@ -52,6 +52,40 @@ function cleanupScoringPrecompute(nowMs: number): void {
             scoringPrecompute.delete(gameId);
         }
     }
+}
+
+/**
+ * 계가 상태 브로드캐스트·UI 연출 전에 KataGo 분석을 백그라운드로 시작한다.
+ * - 히든 최종 공개 애니 중(기존) + 일반 계가 직전(추가) 모두 동일 경로.
+ * - 클라이언트에서 착점/따낸 점수/계가 중 오버레이를 보여주는 동안 서버가 결과를 준비한다.
+ */
+function startScoringKataGoPrecomputeIfNeeded(game: types.LiveGameSession, logLabel: string): void {
+    cleanupScoringPrecompute(Date.now());
+    const existing = scoringPrecompute.get(game.id);
+    const nowMs = Date.now();
+    if (existing && nowMs - existing.startedAt <= PRECOMPUTE_TTL_MS) {
+        return;
+    }
+    scoringPrecompute.delete(game.id);
+    const snapshot = JSON.parse(
+        JSON.stringify({
+            ...game,
+            boardState: game.boardState,
+            moveHistory: game.moveHistory,
+        }),
+    ) as types.LiveGameSession;
+    finalizeHiddenStonesForScoring(snapshot);
+    const scoringLim = getScoringKataGoLimits();
+    const p = analyzeGame(snapshot, {
+        includePolicy: false,
+        includeOwnership: true,
+        maxVisits: scoringLim.maxVisits,
+        maxTimeSec: scoringLim.maxTimeSec,
+    }).catch((e) => {
+        throw e;
+    });
+    scoringPrecompute.set(game.id, { startedAt: nowMs, promise: p });
+    console.log(`[getGameResult] Started KataGo scoring precompute (${logLabel}) for game ${game.id}`);
 }
 
 function shouldDeferScoringForHiddenRevealAnimation(game: types.LiveGameSession, now: number): boolean {
@@ -424,30 +458,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             }
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
 
-            // 정공법: "결과를 바꾸지 않되 더 빨리"를 위해 애니메이션 동안 KataGo 계가 분석을 미리 시작한다.
-            const existing = scoringPrecompute.get(game.id);
-            const nowMs = Date.now();
-            if (!existing || (nowMs - existing.startedAt) > PRECOMPUTE_TTL_MS) {
-                scoringPrecompute.delete(game.id);
-                const snapshot = JSON.parse(JSON.stringify({
-                    ...game,
-                    boardState: game.boardState,
-                    moveHistory: game.moveHistory,
-                })) as types.LiveGameSession;
-                // 실제 계가 직전과 동일한 국면으로 분석해야 함(히든 메타만 있고 칸이 비는 경우 보정)
-                finalizeHiddenStonesForScoring(snapshot);
-                const scoringLim = getScoringKataGoLimits();
-                const p = analyzeGame(snapshot, {
-                    includePolicy: false,
-                    includeOwnership: true,
-                    maxVisits: scoringLim.maxVisits,
-                    maxTimeSec: scoringLim.maxTimeSec,
-                }).catch((e) => {
-                    throw e;
-                });
-                scoringPrecompute.set(game.id, { startedAt: nowMs, promise: p });
-                console.log(`[getGameResult] Started KataGo precompute during hidden_final_reveal for game ${game.id}`);
-            }
+            startScoringKataGoPrecomputeIfNeeded(game, 'hidden_final_reveal');
 
             return game;
         }
@@ -525,6 +536,9 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     const boardStateValid = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0 && game.boardState[0] && Array.isArray(game.boardState[0]) && game.boardState[0].length > 0;
     if (!boardStateValid) {
         console.error(`[getGameResult] ERROR: boardState invalid for game ${game.id}, cannot start analysis`);
+    } else {
+        // 클라이언트 연출(착점·따낸 점수·계가 중 UI)과 병렬로 KataGo 요청을 시작한다. 브로드캐스트는 아래에서 수행.
+        startScoringKataGoPrecomputeIfNeeded(game, 'before_scoring_broadcast');
     }
     
     await db.saveGame(game);
@@ -570,7 +584,8 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     // (필요한 경우에만 ENABLE_MANUAL_SCORING_FALLBACK=true 로 명시적으로 켤 수 있음)
     const ENABLE_MANUAL_SCORING_FALLBACK = String(process.env.ENABLE_MANUAL_SCORING_FALLBACK || '').toLowerCase() === 'true';
     const SCORING_FALLBACK_AFTER_MS = parseInt(process.env.KATAGO_SCORING_FALLBACK_AFTER_MS || '0', 10);
-    // 계가 전용: HTTP/Kata 한도 (연출은 클라이언트 ScoringOverlay 진행 막대와 별개). env로 오버라이드 가능.
+    // 계가 전용: HTTP/Kata 한도. 클라이언트는 `BOARD_SETTLE_BEFORE_SCORING_MS` 후 계가 오버레이를 띄우고,
+    // 오버레이가 끝난 뒤에야 영토(analysis)를 표시한다.
     const scoringLimits = getScoringKataGoLimits();
     let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
 

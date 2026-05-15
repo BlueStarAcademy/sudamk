@@ -957,7 +957,15 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             },
         ) => {
             const src = finalMatch.championshipRealGame;
-            if (!src?.moves?.length) return false;
+            if (!src) return false;
+            const moves = Array.isArray(src.moves) ? src.moves : [];
+            if (moves.length === 0) {
+                setVersusTerritoryAnalysis(resultPayload.analysis);
+                versusKataFinalMatchRef.current = finalMatch;
+                versusKataPendingResultRef.current = resultPayload;
+                finalizeVersusKataReplay(finalMatch);
+                return true;
+            }
             clearVersusKataPlaybackTimers();
             setVersusTerritoryAnalysis(resultPayload.analysis);
             versusKataFinalMatchRef.current = finalMatch;
@@ -970,10 +978,10 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 isFinished: false,
                 championshipRealGame: {
                     ...src,
-                    boardState: championshipReplayBoardAfterMoves(src.boardSize, src.moves, 0),
+                    boardState: championshipReplayBoardAfterMoves(src.boardSize, moves, 0),
                     currentPly: 0,
                     lastMove: null,
-                    moves: [...src.moves],
+                    moves: [...moves],
                     status: 'playing',
                     timeMetrics: {
                         generatedAt: src.timeMetrics?.generatedAt ?? Date.now(),
@@ -989,8 +997,8 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
 
             const tick = () => {
                 versusKataPlyRef.current += 1;
-                const capped = Math.min(versusKataPlyRef.current, src.moves.length);
-                const atScoring = capped >= src.moves.length;
+                const capped = Math.min(versusKataPlyRef.current, moves.length);
+                const atScoring = capped >= moves.length;
 
                 setVersusPlaybackMatch({
                     ...finalMatch,
@@ -999,11 +1007,11 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                         ...src,
                         boardState: atScoring
                             ? src.boardState
-                            : championshipReplayBoardAfterMoves(src.boardSize, src.moves, capped),
-                        currentPly: atScoring ? src.moves.length : capped,
+                            : championshipReplayBoardAfterMoves(src.boardSize, moves, capped),
+                        currentPly: atScoring ? moves.length : capped,
                         lastMove:
-                            capped <= 0 ? null : { x: src.moves[capped - 1]!.x, y: src.moves[capped - 1]!.y },
-                        moves: src.moves,
+                            capped <= 0 ? null : { x: moves[capped - 1]!.x, y: moves[capped - 1]!.y },
+                        moves,
                         status: atScoring ? 'scoring' : 'playing',
                         timeMetrics: {
                             generatedAt: src.timeMetrics?.generatedAt ?? Date.now(),
@@ -1598,12 +1606,15 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                       versusActorRewards?: VersusKataActorRewardClientPayload;
                   }
                 | undefined;
-            if (!kd?.match || !kd.analysis || !kd.versusActorRewards) throw new Error('응답 형식이 올바르지 않습니다.');
+            if (!kd?.match || !kd.analysis) throw new Error('응답 형식이 올바르지 않습니다.');
             const finalMatch = JSON.parse(JSON.stringify(kd.match)) as Match;
             const finalGame =
                 finalMatch.championshipRealGame ??
                 (kd.championshipRealGame ? (JSON.parse(JSON.stringify(kd.championshipRealGame)) as Match['championshipRealGame']) : null);
             if (!finalGame) throw new Error('대국 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+            if (!Array.isArray(finalGame.moves)) {
+                finalGame.moves = [];
+            }
             finalMatch.championshipRealGame = finalGame;
             const actorWon = kd.actorWon === true;
             const beatenOppId = selectedRow.userId;
@@ -1614,13 +1625,29 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 !beatenOppId.startsWith('versus-demo-')
                     ? beatenOppId
                     : null;
+            const rewardsPayload: VersusKataActorRewardClientPayload =
+                kd.versusActorRewards ??
+                (cu
+                    ? {
+                          goldDelta: 0,
+                          userXpDelta: 0,
+                          goldBefore: Number(cu.gold) || 0,
+                          userXpBefore: Number(cu.userXp) || 0,
+                          userLevelBefore: Number(cu.userLevel) || 1,
+                          userLevelAfter: Number(cu.userLevel) || 1,
+                          userXpAfter: Number(cu.userXp) || 0,
+                          overallRecord: { wins: 0, losses: 0 },
+                          vipPlayRewardSlot: { locked: true },
+                      }
+                    : null);
+            if (!rewardsPayload) throw new Error('응답 형식이 올바르지 않습니다.');
             const resultPayload: VersusKataDuelResultPayload = {
                 analysis: kd.analysis,
                 actorVenueRatingBefore: typeof kd.actorVenueRatingBefore === 'number' ? kd.actorVenueRatingBefore : 0,
                 actorVenueRatingAfter: typeof kd.actorVenueRatingAfter === 'number' ? kd.actorVenueRatingAfter : 0,
                 actorVenueRatingDelta: typeof kd.actorVenueRatingDelta === 'number' ? kd.actorVenueRatingDelta : 0,
                 champCoinsDelta: typeof kd.champCoinsDelta === 'number' ? kd.champCoinsDelta : 0,
-                rewards: kd.versusActorRewards,
+                rewards: rewardsPayload,
             };
             const cu = currentUserRef.current;
             if (!beginVersusKataReplay(finalMatch, resultPayload)) {

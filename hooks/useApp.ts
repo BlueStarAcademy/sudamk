@@ -127,6 +127,8 @@ import {
     getClientArenaStateBucket,
     mergeGameUpdateByArena,
 } from '../utils/clientGameMergePolicy.js';
+import { BOARD_SETTLE_BEFORE_SCORING_MS } from '../shared/constants/boardSettleTiming.js';
+import { pickRicherWsBoardSnapshot } from '../utils/deferredWsBoardSnapshot.js';
 import { coerceUserLevelXpFromPayload } from '../shared/utils/userLevelMerge.js';
 import type { LevelUpCelebrationPayload } from '../types/levelUpModal.js';
 import type { MannerGradeChangePayload } from '../types/mannerGradeChangeModal.js';
@@ -2022,6 +2024,8 @@ export const useApp = () => {
     const liveGameGnugoDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
     const singlePlayerKataDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
     const singlePlayerScoringDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); // AI 수 표시 후 계가 전환용
+    /** AI 수 1초 지연 표시 중 WS가 먼저 계가만 오면 state보다 긴 수순·판면을 보존한다 */
+    const pendingDeferredAiBoardSnapshotByGameIdRef = useRef<Record<string, LiveGameSession>>({});
     // 같은 게임의 AI 동기화 요청이 겹치면 턴/보드 병합이 충돌할 수 있어 in-flight 중복을 차단
     const inFlightAiSyncActionRef = useRef<Set<string>>(new Set());
     // 배포 환경 고지연에서 동일 착수 요청이 중복 전송되는 경우(더블탭/재전송) 방지
@@ -3890,7 +3894,7 @@ export const useApp = () => {
                         console.error(`[handleAction] Failed to trigger auto-scoring after hidden reveal:`, err);
                     });
                     delete scoringDelayRef.current[gameId];
-                }, 500);
+                }, BOARD_SETTLE_BEFORE_SCORING_MS);
             }
             return;
         }
@@ -4201,7 +4205,7 @@ export const useApp = () => {
                             console.error(`[handleAction] Failed to trigger auto-scoring on server:`, err);
                         });
                         delete scoringDelayRef.current[gameId];
-                    }, 500);
+                    }, BOARD_SETTLE_BEFORE_SCORING_MS);
                 }
                 
                 // 히든 공개 연출 중에는 updatedGame.captures가 직전 값으로 유지될 수 있어
@@ -8497,48 +8501,54 @@ export const useApp = () => {
                                         
                                         // scoring 상태인 경우 기존 게임의 boardState와 moveHistory 무조건 보존
                                         if (game.gameStatus === 'scoring') {
-                                            if (existingGame) {
+                                            const deferredSnap = pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
+                                            const preserveSource =
+                                                (pickRicherWsBoardSnapshot(existingGame, deferredSnap) ?? existingGame) as
+                                                    | LiveGameSession
+                                                    | undefined;
+                                            if (preserveSource) {
                                                 // 서버에서 보낸 moveHistory가 유효하면 사용, 아니면 기존 것 사용
                                                 const serverMoveHistoryValid = game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0;
-                                                const existingMoveHistoryValid = existingGame.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0;
-                                                const finalMoveHistory = serverMoveHistoryValid ? game.moveHistory : (existingMoveHistoryValid ? existingGame.moveHistory : (game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0 ? game.moveHistory : existingGame.moveHistory));
+                                                const existingMoveHistoryValid = preserveSource.moveHistory && Array.isArray(preserveSource.moveHistory) && preserveSource.moveHistory.length > 0;
+                                                const finalMoveHistory = serverMoveHistoryValid ? game.moveHistory : (existingMoveHistoryValid ? preserveSource.moveHistory : (game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0 ? game.moveHistory : preserveSource.moveHistory));
 
                                                 const serverBoardStateValid = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0 && game.boardState[0] && Array.isArray(game.boardState[0]) && game.boardState[0].length > 0 &&
                                                     game.boardState.some((row: any[]) => row && Array.isArray(row) && row.some((cell: any) => cell !== 0 && cell !== null && cell !== undefined));
-                                                const existingBoardStateValid = existingGame.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0 && existingGame.boardState[0] && Array.isArray(existingGame.boardState[0]) && existingGame.boardState[0].length > 0;
+                                                const existingBoardStateValid = preserveSource.boardState && Array.isArray(preserveSource.boardState) && preserveSource.boardState.length > 0 && preserveSource.boardState[0] && Array.isArray(preserveSource.boardState[0]) && preserveSource.boardState[0].length > 0;
                                                 // IMPORTANT: 계가 화면에서는 포획이 반영된 "실제 boardState"를 유지해야 함.
                                                 // moveHistory로 단순 복원하면 포획을 반영하지 못해 잡힌 돌이 다시 나타날 수 있다.
                                                 let finalBoardState: any;
                                                 if (serverBoardStateValid) {
                                                     finalBoardState = game.boardState;
                                                 } else if (existingBoardStateValid) {
-                                                    finalBoardState = existingGame.boardState;
+                                                    finalBoardState = preserveSource.boardState;
                                                 } else {
-                                                    finalBoardState = game.boardState || existingGame.boardState;
+                                                    finalBoardState = game.boardState || preserveSource.boardState;
                                                 }
 
-                                                const finalTotalTurns = (game.totalTurns !== undefined && game.totalTurns !== null) ? game.totalTurns : (existingGame.totalTurns !== undefined && existingGame.totalTurns !== null ? existingGame.totalTurns : game.totalTurns);
+                                                const finalTotalTurns = (game.totalTurns !== undefined && game.totalTurns !== null) ? game.totalTurns : (preserveSource.totalTurns !== undefined && preserveSource.totalTurns !== null ? preserveSource.totalTurns : game.totalTurns);
                                                 const finalCaptures =
                                                     mergeMonotonicCountRecord(
-                                                        existingGame.captures as LiveGameSession['captures'],
+                                                        preserveSource.captures as LiveGameSession['captures'],
                                                         game.captures as LiveGameSession['captures']
                                                     ) ??
                                                     game.captures ??
-                                                    existingGame.captures;
+                                                    preserveSource.captures;
 
                                                 const preservedGame = {
                                                     ...game,
                                                     boardState: finalBoardState,
                                                     moveHistory: finalMoveHistory,
                                                     totalTurns: finalTotalTurns,
-                                                    blackTimeLeft: (game.blackTimeLeft !== undefined && game.blackTimeLeft !== null && game.blackTimeLeft > 0) ? game.blackTimeLeft : (existingGame.blackTimeLeft !== undefined && existingGame.blackTimeLeft !== null ? existingGame.blackTimeLeft : game.blackTimeLeft),
-                                                    whiteTimeLeft: (game.whiteTimeLeft !== undefined && game.whiteTimeLeft !== null && game.whiteTimeLeft > 0) ? game.whiteTimeLeft : (existingGame.whiteTimeLeft !== undefined && existingGame.whiteTimeLeft !== null ? existingGame.whiteTimeLeft : game.whiteTimeLeft),
+                                                    blackTimeLeft: (game.blackTimeLeft !== undefined && game.blackTimeLeft !== null && game.blackTimeLeft > 0) ? game.blackTimeLeft : (preserveSource.blackTimeLeft !== undefined && preserveSource.blackTimeLeft !== null ? preserveSource.blackTimeLeft : game.blackTimeLeft),
+                                                    whiteTimeLeft: (game.whiteTimeLeft !== undefined && game.whiteTimeLeft !== null && game.whiteTimeLeft > 0) ? game.whiteTimeLeft : (preserveSource.whiteTimeLeft !== undefined && preserveSource.whiteTimeLeft !== null ? preserveSource.whiteTimeLeft : game.whiteTimeLeft),
                                                     captures: finalCaptures,
                                                 };
                                                 updatedGames[gameId] = preservedGame;
                                             } else {
                                                 updatedGames[gameId] = game;
                                             }
+                                            delete pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
                                         } else {
                                             // hidden_placing, scanning, hidden_reveal_animating 등에서는 boardState·permanentlyRevealedStones 보존/병합
                                             const incomingItemPhase = [
@@ -8720,29 +8730,32 @@ export const useApp = () => {
                                                 };
                                             } else if (game.gameStatus === 'hidden_final_reveal' && getSessionArenaKind(game) === 'singleplayer' && existingGame) {
                                                 // 싱글플레이: 서버는 boardState를 보내지 않으므로 기존 보드/수순/공개목록 반드시 보존 (투명해짐·색상 뒤바뀜·계가 안 됨 방지)
+                                                const deferredSnap = pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
+                                                const revealPreserveSource =
+                                                    (pickRicherWsBoardSnapshot(existingGame, deferredSnap) ?? existingGame) as LiveGameSession;
                                                 const serverBoardValid = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0;
                                                 const serverMoveHistoryValid = game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0;
-                                                const boardState = serverBoardValid ? game.boardState : (existingGame.boardState ?? game.boardState);
-                                                const moveHistory = serverMoveHistoryValid ? game.moveHistory : (existingGame.moveHistory ?? game.moveHistory);
+                                                const boardState = serverBoardValid ? game.boardState : (revealPreserveSource.boardState ?? game.boardState);
+                                                const moveHistory = serverMoveHistoryValid ? game.moveHistory : (revealPreserveSource.moveHistory ?? game.moveHistory);
                                                 // 기존에 공개된 돌(내 히든 등) + 서버가 이번에 공개한 돌 합침 (서버만 쓰면 이전 공개가 사라져 투명해짐)
-                                                const existingRevealed = existingGame.permanentlyRevealedStones ?? [];
+                                                const existingRevealed = revealPreserveSource.permanentlyRevealedStones ?? [];
                                                 const serverRevealed = game.permanentlyRevealedStones ?? [];
                                                 const mergedRevealed = [...existingRevealed];
                                                 for (const p of serverRevealed) {
                                                     if (!mergedRevealed.some((r: Point) => r.x === p.x && r.y === p.y))
                                                         mergedRevealed.push(p);
                                                 }
-                                                const hiddenMoves = mergeHiddenMovesByStableHistory(game, existingGame) ?? {};
+                                                const hiddenMoves = mergeHiddenMovesByStableHistory(game, revealPreserveSource) ?? {};
                                                 updatedGames[gameId] = {
                                                     ...game,
                                                     boardState,
                                                     moveHistory,
                                                     hiddenMoves,
                                                     permanentlyRevealedStones: mergedRevealed,
-                                                    animation: game.animation ?? existingGame.animation,
-                                                    revealAnimationEndTime: game.revealAnimationEndTime ?? existingGame.revealAnimationEndTime,
+                                                    animation: game.animation ?? revealPreserveSource.animation,
+                                                    revealAnimationEndTime: game.revealAnimationEndTime ?? revealPreserveSource.revealAnimationEndTime,
                                                     totalTurns: preservedTotalTurns !== undefined ? preservedTotalTurns : game.totalTurns,
-                                                    captures: preservedCaptures ?? game.captures ?? existingGame.captures,
+                                                    captures: preservedCaptures ?? game.captures ?? revealPreserveSource.captures,
                                                     baseStoneCaptures: preservedBaseStoneCaptures,
                                                     hiddenStoneCaptures: preservedHiddenStoneCaptures,
                                                 };
@@ -8865,7 +8878,7 @@ export const useApp = () => {
                                                                         console.error(`[WebSocket][SinglePlayer] Failed to trigger auto-scoring on server:`, err);
                                                                     });
                                                                     delete singlePlayerScoringDelayTimeoutRef.current[gameId];
-                                                                }, 500);
+                                                                }, BOARD_SETTLE_BEFORE_SCORING_MS);
                                                             }
                                                             }
                                                         }
@@ -8994,6 +9007,7 @@ export const useApp = () => {
                                             }
                                             const scheduledAt = Date.now();
                                             const gameToApply = JSON.parse(JSON.stringify(updatedSinglePlayerGame)) as LiveGameSession;
+                                            pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId] = gameToApply;
                                             singlePlayerKataDelayTimeoutRef.current[gameId] = setTimeout(() => {
                                                 let appliedDelayedSnapshot = false;
                                                 const delayedByMs = Math.max(0, Date.now() - scheduledAt);
@@ -9008,6 +9022,7 @@ export const useApp = () => {
                                                     singlePlayerGameSignaturesRef.current[gameId] = stableStringify(shiftedGameToApply);
                                                 }
                                                 delete singlePlayerKataDelayTimeoutRef.current[gameId];
+                                                delete pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
                                             }, 1000);
                                             return currentGames;
                                         }
@@ -9294,19 +9309,37 @@ export const useApp = () => {
                                             mergedGame = { ...mergedGame, totalTurns: validMoves.length };
                                         }
                                         // 서버 계가/종료 브로드캐스트는 boardState·수순을 생략하는 경우가 많음 → 클라 보드/수순 유지 (analysisResult는 서버 페이로드 유지)
-                                        if ((mergedGame.gameStatus === 'scoring' || mergedGame.gameStatus === 'ended' || mergedGame.gameStatus === 'no_contest') && existingGame) {
+                                        const towerDeferredSnap = pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
+                                        const towerPreserveExisting =
+                                            (pickRicherWsBoardSnapshot(existingGame, towerDeferredSnap) ?? existingGame) as
+                                                | typeof existingGame
+                                                | undefined;
+                                        if (
+                                            (mergedGame.gameStatus === 'scoring' ||
+                                                mergedGame.gameStatus === 'ended' ||
+                                                mergedGame.gameStatus === 'no_contest') &&
+                                            towerPreserveExisting
+                                        ) {
                                             const sb = mergedGame.boardState;
                                             const serverBoardOk = Array.isArray(sb) && sb.length > 0 && sb[0] && Array.isArray(sb[0]) && sb[0].length > 0;
-                                            const eb = existingGame.boardState;
+                                            const eb = towerPreserveExisting.boardState;
                                             const exBoardOk = Array.isArray(eb) && eb.length > 0 && eb[0] && Array.isArray(eb[0]) && eb[0].length > 0;
                                             if (!serverBoardOk && exBoardOk) {
-                                                mergedGame = { ...mergedGame, boardState: existingGame.boardState };
+                                                mergedGame = { ...mergedGame, boardState: towerPreserveExisting.boardState };
                                             }
                                             const sm = mergedGame.moveHistory;
-                                            const exm = existingGame.moveHistory;
+                                            const exm = towerPreserveExisting.moveHistory;
                                             if ((!Array.isArray(sm) || sm.length === 0) && Array.isArray(exm) && exm.length > 0) {
-                                                mergedGame = { ...mergedGame, moveHistory: existingGame.moveHistory };
+                                                mergedGame = { ...mergedGame, moveHistory: towerPreserveExisting.moveHistory };
                                             }
+                                        }
+                                        if (
+                                            mergedGame.gameStatus === 'scoring' ||
+                                            mergedGame.gameStatus === 'hidden_final_reveal' ||
+                                            mergedGame.gameStatus === 'ended' ||
+                                            mergedGame.gameStatus === 'no_contest'
+                                        ) {
+                                            delete pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
                                         }
                                         if (
                                             (mergedGame.gameStatus === 'scoring' ||
@@ -9318,7 +9351,10 @@ export const useApp = () => {
                                             clearTimeout(towerGnugoDelayTimeoutRef.current[gameId]!);
                                             delete towerGnugoDelayTimeoutRef.current[gameId];
                                         }
-                                        mergedGame = mergeTowerPveMonotonicCaptureFieldsFromClient(mergedGame, existingGame);
+                                        mergedGame = mergeTowerPveMonotonicCaptureFieldsFromClient(
+                                            mergedGame,
+                                            towerPreserveExisting ?? existingGame,
+                                        );
                                         mergedGame = coerceClassicPveHumanBlackSeatsIfSwapped(mergedGame);
                                         updatedGames[gameId] = mergedGame;
 
@@ -9342,6 +9378,7 @@ export const useApp = () => {
                                                 clearTimeout(towerGnugoDelayTimeoutRef.current[gameId]);
                                             }
                                             const gameToApply = JSON.parse(JSON.stringify(mergedGame)) as LiveGameSession;
+                                            pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId] = gameToApply;
                                             const isScoringInUpdate = gameToApply.gameStatus === 'scoring';
                                             const scheduledAt = Date.now();
                                             towerGnugoDelayTimeoutRef.current[gameId] = setTimeout(() => {
@@ -9371,6 +9408,7 @@ export const useApp = () => {
                                                     lastGameUpdateMoveCountRef.current[gameId] = shiftedGameToApply.moveHistory?.length ?? 0;
                                                     towerGameSignaturesRef.current[gameId] = stableStringify(shiftedGameToApply);
                                                 }
+                                                delete pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
                                             }, 1000);
                                             return currentGames;
                                         }
@@ -9787,9 +9825,22 @@ export const useApp = () => {
                                             game,
                                             existingGame
                                         );
-                                        updatedGames[gameId] = mergeGameUpdateByArena(mergedGame, existingGame, {
+                                        const liveDeferredSnap = pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
+                                        const liveRicherExisting =
+                                            (pickRicherWsBoardSnapshot(existingGame, liveDeferredSnap) ?? existingGame) as
+                                                | typeof existingGame
+                                                | undefined;
+                                        updatedGames[gameId] = mergeGameUpdateByArena(mergedGame, liveRicherExisting, {
                                             source: 'game_update',
                                         });
+                                        if (
+                                            game.gameStatus === 'scoring' ||
+                                            game.gameStatus === 'hidden_final_reveal' ||
+                                            game.gameStatus === 'ended' ||
+                                            game.gameStatus === 'no_contest'
+                                        ) {
+                                            delete pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
+                                        }
 
                                         // 전략바둑 AI(KATA 등) 수: 짧은 지연 후 표시 (바로 두면 연출·턴 표시가 어색함)
                                         // 주사위/도둑 등 놀이바둑은 지연을 쓰지 않음
@@ -9825,6 +9876,7 @@ export const useApp = () => {
                                                 clearTimeout(liveGameGnugoDelayTimeoutRef.current[gameId]);
                                             }
                                             const gameToApply = JSON.parse(JSON.stringify(mergedGame)) as LiveGameSession;
+                                            pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId] = gameToApply;
                                             const scheduledAt = Date.now();
                                             liveGameGnugoDelayTimeoutRef.current[gameId] = setTimeout(() => {
                                                 let appliedDelayedSnapshot = false;
@@ -9840,6 +9892,7 @@ export const useApp = () => {
                                                     liveGameSignaturesRef.current[gameId] = stableStringify(shiftedGameToApply);
                                                 }
                                                 delete liveGameGnugoDelayTimeoutRef.current[gameId];
+                                                delete pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
                                             }, STRATEGIC_AI_MOVE_DELAY_MS);
                                             return currentGames;
                                         }
@@ -9954,6 +10007,7 @@ export const useApp = () => {
                                 clearTimeout(singlePlayerKataDelayTimeoutRef.current[deletedGameId]);
                                 delete singlePlayerKataDelayTimeoutRef.current[deletedGameId];
                             }
+                            delete pendingDeferredAiBoardSnapshotByGameIdRef.current[deletedGameId];
 
                             const removeFromGames = (setter: any, signaturesRef: Record<string, string>) => {
                                 setter((currentGames: Record<string, any>) => {

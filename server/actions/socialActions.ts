@@ -36,6 +36,7 @@ import { aiUserId, getAiUser } from '../aiPlayer.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 import { recordPairPetSoulConvertForAchievements, recordPairPetTrainingClaimForAchievements } from '../pairPetAchievementCounters.js';
 import { repairInProgressGhostPairPetTrainingSessions } from '../utils/repairPairPetTrainingSlots.js';
+import { rollPairPetTrainingRewards } from '../utils/pairPetTrainingRewardRoll.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
 import { initializeGame } from '../gameModes.js';
@@ -100,7 +101,6 @@ import { getEquippedPairPetInventoryRow, reconcileEquippedPairPetInventoryItem }
 import {
     effectivePairRankedApCostForUser,
     effectiveStrategicRankedQueueApCostForUser,
-    trainingSoulBonusQuantityFromMeta,
 } from '../../shared/utils/pairPetArenaApDiscount.js';
 import { getPairPetXpRequirementForLevel } from '../../shared/utils/strategyLevelXp.js';
 import {
@@ -115,6 +115,7 @@ import {
     getPairTrainingSlotDef,
     isItemIdInPairTraining,
     isPairTrainingSlotUnlocked,
+    isValidPairPetTrainingPrecomputedRewards,
     minPetLevelForTrainingSlot,
     normalizePairPetTrainingSlots,
     trainingEndsAt,
@@ -279,10 +280,6 @@ function consumePairSoulstonesFromInventory(inv: InventoryItem[], templateId: st
     return next;
 }
 
-function rollInclusive(min: number, max: number): number {
-    return min + Math.floor(Math.random() * (max - min + 1));
-}
-
 function readPairPetMetaFromRow(row: InventoryItem): PairPetMeta {
     return resolvePairPetMetaFromInventoryRow(row);
 }
@@ -331,37 +328,6 @@ function applyPairPetXp(meta: PairPetMeta, rawGain: number, itemGrade: ItemGrade
             }
         }
     }
-}
-
-function trainingGoldMultiplier(meta: PairPetMeta): number {
-    return meta.specialization.kind === 'trainingGold' ? 1 + meta.specialization.pct / 100 : 1;
-}
-
-function trainingXpMultiplier(meta: PairPetMeta): number {
-    return meta.specialization.kind === 'trainingXp' ? 1 + meta.specialization.pct / 100 : 1;
-}
-
-/** 수련 보상(`PAIR_PET_CLAIM_TRAINING`) 영혼석 추가 지급 1차 판정 — `soulDrop` 특화는 슬롯 기본 확률에 N%p 가산 */
-function trainingSoulChance(meta: PairPetMeta, baseChance: number): number {
-    const extra = meta.specialization.kind === 'soulDrop' ? meta.specialization.pct / 100 : 0;
-    return Math.min(0.999, Math.max(0, baseChance + extra));
-}
-
-function rollSoulDropForSlot(slotIndex: number, meta: PairPetMeta): { materialName: string; quantity: number } | null {
-    const def = getPairTrainingSlotDef(slotIndex);
-    if (!def) return null;
-    const p = trainingSoulChance(meta, def.soulDropChance);
-    if (Math.random() >= p) return null;
-    const table = def.soulTable;
-    const totalW = table.reduce((s, r) => s + r.weight, 0);
-    if (totalW <= 0) return null;
-    let t = Math.random() * totalW;
-    for (const row of table) {
-        t -= row.weight;
-        if (t <= 0) return { materialName: row.materialName, quantity: row.quantity };
-    }
-    const last = table[table.length - 1]!;
-    return { materialName: last.materialName, quantity: last.quantity };
 }
 
 type HandleActionResult = { 
@@ -5193,10 +5159,15 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (meta.level < minLv) {
                 return { error: `이 슬롯은 펫 레벨 ${minLv} 이상만 참여할 수 있습니다.` };
             }
+            const precomputed = rollPairPetTrainingRewards(slotIndex, meta);
+            if (!precomputed) {
+                return { error: '수련 설정을 불러올 수 없습니다.' };
+            }
             user.pairPetTrainingSlots[slotIndex] = {
                 slotIndex,
                 itemId,
                 startedAt: Date.now(),
+                precomputedRewards: precomputed,
             };
             const updatedUser = getSelectiveUserUpdate(user, 'PAIR_PET_START_TRAINING', { includeAll: true });
             await db.updateUser(user);
@@ -5249,23 +5220,22 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             const petIdx = petIdxClaim;
             const metaForBonuses = petIdx >= 0 ? readPairPetMetaFromRow(user.inventory[petIdx]!) : neutralTrainingMeta;
 
-            const goldRoll = rollInclusive(def.goldMin, def.goldMax);
-            const goldMult = trainingGoldMultiplier(metaForBonuses);
-            const goldGain = Math.max(0, Math.floor(goldRoll * goldMult));
-            const goldFromSpec = Math.max(0, goldGain - goldRoll);
+            const usePre =
+                session.precomputedRewards != null &&
+                isValidPairPetTrainingPrecomputedRewards(session.precomputedRewards);
+            const rolled = usePre
+                ? session.precomputedRewards!
+                : rollPairPetTrainingRewards(slotIndex, metaForBonuses);
+            if (!rolled) {
+                return { error: '수련 보상을 계산할 수 없습니다.' };
+            }
+            const { goldRoll, goldGain, goldFromSpec, xpRoll, xpGain, xpFromSpec, soulDrop } = rolled;
 
-            const xpRoll = rollInclusive(def.xpMin, def.xpMax);
-            const xpMult = trainingXpMultiplier(metaForBonuses);
-            const xpGain = Math.max(0, Math.floor(xpRoll * xpMult));
-            const xpFromSpec = Math.max(0, xpGain - xpRoll);
-
-            const soulDrop = rollSoulDropForSlot(slotIndex, metaForBonuses);
             if (soulDrop) {
-                const soulQty = soulDrop.quantity + trainingSoulBonusQuantityFromMeta(metaForBonuses);
                 const soulStack = makePairMaterialStack(
                     soulDrop.materialName,
                     soulTemplateIdFromMaterialName(soulDrop.materialName),
-                    soulQty
+                    soulDrop.quantity
                 );
                 if (!user.inventorySlots) {
                     user.inventorySlots = { equipment: 30, consumable: 30, material: 30 };
@@ -5279,12 +5249,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
 
             user.gold = (user.gold ?? 0) + goldGain;
 
-            const soulDropPublic = soulDrop
-                ? {
-                      materialName: soulDrop.materialName,
-                      quantity: soulDrop.quantity + trainingSoulBonusQuantityFromMeta(metaForBonuses),
-                  }
-                : null;
+            const soulDropPublic = soulDrop;
 
             let pairTrainingClaimSummary: PairTrainingClaimClientSummary;
 

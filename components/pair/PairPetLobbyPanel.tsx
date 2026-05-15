@@ -8,6 +8,8 @@ import PairPetLobbyInfoPetViewer from './PairPetLobbyInfoPetViewer.js';
 import PairPetLobbySoulStoneViewer from './PairPetLobbySoulStoneViewer.js';
 import PairPetSoulConvertModal from './PairPetSoulConvertModal.js';
 import PairTrainingRewardModal from './PairTrainingRewardModal.js';
+import { pairTrainingClaimInFlightBySlotIndex, parsePairTrainingClaimResponse } from './pairTrainingClaimInFlight.js';
+import type { PairTrainingClaimClientSummary } from '../../shared/types/pairTrainingClaim.js';
 import PairPetDetailCardBody from './PairPetDetailCardBody.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
@@ -83,7 +85,7 @@ type InvFilter = 'pet' | 'soul';
 type ShopSkuTab = 'egg' | 'soul';
 type PairExpandCategory = 'pet';
 
-type PairTrainingRewardModalOpen = { slotIndex: number; petItem: InventoryItem; autoClaimOnMount?: boolean };
+type PairTrainingRewardModalOpen = { slotIndex: number; petItem: InventoryItem; claimSummary: PairTrainingClaimClientSummary };
 
 /** 인벤 썸네일 배지: 슬롯에 있으면서 타이머 종료 후 수령 전이면 `claim_ready` */
 function pairTrainingBadgeVariantForItem(currentUser: User, itemId: string): 'in_progress' | 'claim_ready' | undefined {
@@ -499,6 +501,38 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     const [trainingRewardModal, setTrainingRewardModal] = useState<PairTrainingRewardModalOpen | null>(null);
     /** 수련 진행 중 취소 확인 모달(슬롯 인덱스) */
     const [trainingCancelConfirmSlotIndex, setTrainingCancelConfirmSlotIndex] = useState<number | null>(null);
+
+    const openPairTrainingClaimResultModal = useCallback(
+        async (slotIndex: number, petRow: InventoryItem) => {
+            if (isBusy) return;
+            let inflight = pairTrainingClaimInFlightBySlotIndex.get(slotIndex);
+            if (!inflight) {
+                inflight = applyPetAction({ type: 'PAIR_PET_CLAIM_TRAINING', payload: { slotIndex } });
+                pairTrainingClaimInFlightBySlotIndex.set(slotIndex, inflight);
+                void inflight.finally(() => {
+                    if (pairTrainingClaimInFlightBySlotIndex.get(slotIndex) === inflight) {
+                        pairTrainingClaimInFlightBySlotIndex.delete(slotIndex);
+                    }
+                });
+            }
+            try {
+                const raw = await inflight;
+                const { error, summary } = parsePairTrainingClaimResponse(raw);
+                if (error) {
+                    window.alert(error);
+                    return;
+                }
+                if (!summary) {
+                    window.alert('보상 정보를 불러오지 못했습니다.');
+                    return;
+                }
+                setTrainingRewardModal({ slotIndex, petItem: petRow, claimSummary: summary });
+            } catch {
+                window.alert('수련 보상을 받는 중 오류가 발생했습니다.');
+            }
+        },
+        [applyPetAction, isBusy],
+    );
 
     const equippedTid = currentUser.equippedPairPetTemplateId ?? null;
     /** 저장되어 있으면 해당 행만 대표 표시(동종 다마리 구분). 없으면 템플릿 일치 행 전체에 표시(구버전 호환). */
@@ -1588,7 +1622,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                         }}
                                         onClick={() => {
                                             if (unlocked && session && canClaim && petRow && !isBusy) {
-                                                setTrainingRewardModal({ slotIndex: i, petItem: petRow, autoClaimOnMount: true });
+                                                void openPairTrainingClaimResultModal(i, petRow);
                                                 return;
                                             }
                                             if (!useTapTrainingFlow || !unlocked || session || isBusy) return;
@@ -1669,12 +1703,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                             tabIndex={0}
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                if (!isBusy)
-                                                                    setTrainingRewardModal({
-                                                                        slotIndex: i,
-                                                                        petItem: petRow,
-                                                                        autoClaimOnMount: true,
-                                                                    });
+                                                                if (!isBusy) void openPairTrainingClaimResultModal(i, petRow);
                                                             }}
                                                             className="absolute inset-0 flex items-center justify-center rounded-md bg-gradient-to-b from-lime-600/88 via-emerald-800/82 to-zinc-950/90 px-0.5 outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] transition hover:from-lime-500/90 hover:via-emerald-700/85 focus-visible:ring-2 focus-visible:ring-lime-200/90 disabled:opacity-45"
                                                             aria-label="수련 보상 수령"
@@ -2319,12 +2348,11 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
             {trainingRewardModal ? (
                 <PairTrainingRewardModal
-                    key={`ptr-${trainingRewardModal.slotIndex}-${trainingRewardModal.petItem.id}-${trainingRewardModal.autoClaimOnMount === true ? 'ac' : 'm'}`}
+                    key={`ptr-${trainingRewardModal.slotIndex}-${trainingRewardModal.petItem.id}`}
                     slotIndex={trainingRewardModal.slotIndex}
                     slotLabel={getPairTrainingSlotDisplayName(trainingRewardModal.slotIndex)}
                     petItem={trainingRewardModal.petItem}
-                    /** 완료 슬롯 탭 시 확인 없이 수령 — 중복 API는 PairTrainingRewardModal 쪽 in-flight 공유로 방지 */
-                    autoClaimOnMount={trainingRewardModal.autoClaimOnMount === true}
+                    claimSummary={trainingRewardModal.claimSummary}
                     onClose={() => setTrainingRewardModal(null)}
                     applyPetAction={applyPetAction}
                     isBusy={isBusy}

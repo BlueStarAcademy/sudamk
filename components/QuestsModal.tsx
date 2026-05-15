@@ -98,6 +98,41 @@ const getQuestDisplayTitle = (title: string): string => {
     return title;
 };
 
+/** 업적·전체 업적 요약용 진행 막대 (퀘스트 목록 `QuestItem`과 동일 톤) */
+const AchievementProgressBarRow: React.FC<{
+    current: number;
+    target: number;
+    isMobile: boolean;
+    'aria-label'?: string;
+}> = ({ current, target, isMobile, 'aria-label': ariaLabel }) => {
+    const safeTarget = Math.max(0, target);
+    const displayProgress = safeTarget > 0 ? Math.min(Math.max(0, current), safeTarget) : 0;
+    const percentage = safeTarget > 0 ? Math.min(100, (displayProgress / safeTarget) * 100) : 0;
+    return (
+        <div className="mt-2 flex min-w-0 items-center gap-2">
+            <div
+                className="relative h-2.5 min-w-0 flex-1 overflow-hidden rounded-full border border-slate-600/40 bg-slate-950/85 shadow-[inset_0_2px_6px_rgba(0,0,0,0.5)]"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={safeTarget}
+                aria-valuenow={displayProgress}
+                aria-label={ariaLabel}
+            >
+                <div
+                    className="absolute inset-y-0 left-0 overflow-hidden rounded-full shadow-[0_0_10px_rgba(251,191,36,0.28)]"
+                    style={{ width: `${percentage}%` }}
+                >
+                    <div className="h-full w-full rounded-full bg-gradient-to-r from-amber-600 via-amber-400 to-amber-300" />
+                    <div className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-b from-white/[0.22] to-transparent" />
+                </div>
+            </div>
+            <span className={`shrink-0 font-medium tabular-nums text-amber-200/85 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
+                {displayProgress}/{safeTarget}
+            </span>
+        </div>
+    );
+};
+
 const AchievementTrackPanel: React.FC<{
     currentUser: UserWithStatus;
     onAction: (action: ServerAction) => void;
@@ -116,15 +151,39 @@ const AchievementTrackPanel: React.FC<{
         return sum + claimedIndices.length;
     }, 0);
 
+    const overallPct = totalStages > 0 ? Math.min(100, (totalClaimed / totalStages) * 100) : 0;
+
     return (
         <div className={`rounded-2xl border border-slate-400/15 bg-slate-950/75 shadow-[0_20px_56px_-24px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/[0.07] ${isMobile ? 'p-3' : 'p-4'}`}>
-            <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                    <h3 className={`font-bold tracking-tight text-white ${isMobile ? 'text-sm' : 'text-lg'}`}>전체 업적</h3>
+            <div className="mb-4">
+                <div className="flex items-center justify-between gap-3">
+                    <div>
+                        <h3 className={`font-bold tracking-tight text-white ${isMobile ? 'text-sm' : 'text-lg'}`}>전체 업적</h3>
+                    </div>
+                    <span className={`rounded-full border border-amber-400/30 bg-gradient-to-b from-amber-950/90 via-slate-950/95 to-slate-950 px-3 py-1 font-bold tabular-nums text-amber-50 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                        {totalClaimed}/{totalStages}
+                    </span>
                 </div>
-                <span className={`rounded-full border border-amber-400/30 bg-gradient-to-b from-amber-950/90 via-slate-950/95 to-slate-950 px-3 py-1 font-bold tabular-nums text-amber-50 ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                    {totalClaimed}/{totalStages}
-                </span>
+                {totalStages > 0 ? (
+                    <div className="mt-2.5 flex min-w-0 items-center gap-2">
+                        <div
+                            className="relative h-2 min-w-0 flex-1 overflow-hidden rounded-full border border-slate-600/40 bg-slate-950/85 shadow-[inset_0_2px_6px_rgba(0,0,0,0.5)]"
+                            role="progressbar"
+                            aria-valuemin={0}
+                            aria-valuemax={totalStages}
+                            aria-valuenow={totalClaimed}
+                            aria-label="전체 업적 보상 수령 진행"
+                        >
+                            <div
+                                className="absolute inset-y-0 left-0 overflow-hidden rounded-full shadow-[0_0_10px_rgba(251,191,36,0.22)]"
+                                style={{ width: `${overallPct}%` }}
+                            >
+                                <div className="h-full w-full rounded-full bg-gradient-to-r from-amber-600 via-amber-400 to-amber-300" />
+                                <div className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-b from-white/[0.2] to-transparent" />
+                            </div>
+                        </div>
+                    </div>
+                ) : null}
             </div>
             <ul className={`${isMobile ? 'space-y-2' : 'space-y-3'}`}>
                 {ACHIEVEMENT_TRACKS.map((track) => {
@@ -162,12 +221,15 @@ const AchievementTrackPanel: React.FC<{
                                         <span className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${isCleared ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-700/50 text-slate-300'}`}>
                                             {isCleared ? '조건 달성' : '미달성'}
                                         </span>
-                                        {achProgress ? (
-                                            <span className="text-[10px] font-medium tabular-nums text-slate-400 sm:text-[11px]">
-                                                ({achProgress.current}/{achProgress.target})
-                                            </span>
-                                        ) : null}
                                     </div>
+                                    {achProgress ? (
+                                        <AchievementProgressBarRow
+                                            current={achProgress.current}
+                                            target={achProgress.target}
+                                            isMobile={isMobile}
+                                            aria-label={`${track.title} ${stage.title} 진행`}
+                                        />
+                                    ) : null}
                                     {isDetailOpen ? (
                                         <div
                                             role="dialog"

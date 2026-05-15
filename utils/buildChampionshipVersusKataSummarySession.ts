@@ -88,6 +88,7 @@ export function buildChampionshipVersusKataSummarySession(params: {
     const { match, analysis, currentUser, venue, actorVenueRatingBefore, actorVenueRatingAfter, actorVenueRatingDelta, champCoinsDelta, rewards } =
         params;
     const rg = match.championshipRealGame!;
+    const moves = Array.isArray(rg.moves) ? rg.moves : [];
     const p1 = match.players[0]!;
     const p2 = match.players[1]!;
     const player1 = seatUserFromTournament(currentUser, p1);
@@ -197,7 +198,7 @@ export function buildChampionshipVersusKataSummarySession(params: {
         gameStatus: 'ended' as const,
         currentPlayer: Player.None,
         boardState: rg.boardState,
-        moveHistory: [...rg.moves],
+        moveHistory: [...moves],
         captures: { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
         baseStoneCaptures: { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
         hiddenStoneCaptures: { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
