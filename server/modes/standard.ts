@@ -189,7 +189,16 @@ function schedulePairAiTurnIfNeeded(game: types.LiveGameSession, now: number): v
     if (!isPairClassicGame(game.settings, game.mode)) return;
     const seat = getCurrentPairTurnSeat(game.settings);
     if (isPairAiSeat(seat)) {
-        game.aiTurnStartTime = nextAiTurnStartTimeAfterHumanStrategicMove(game, now);
+        const startAt = nextAiTurnStartTimeAfterHumanStrategicMove(game, now);
+        game.aiTurnStartTime = startAt;
+        const delayMs = Math.max(0, startAt - Date.now());
+        setTimeout(() => {
+            void import('../aiProcessingQueue.js')
+                .then(({ aiProcessingQueue }) => aiProcessingQueue.enqueue(game.id))
+                .catch((err: any) =>
+                    console.error(`[schedulePairAiTurnIfNeeded] Failed to enqueue pair AI turn ${game.id}:`, err?.message ?? err)
+                );
+        }, delayMs);
     } else {
         game.aiTurnStartTime = undefined;
     }
@@ -746,6 +755,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
     enforceBaseSeatLockIfDriftedDuringPlay(game);
     const pairClassicGame = isPairClassicGame(game.settings, game.mode);
     const pairCurrentSeat = pairClassicGame ? getCurrentPairTurnSeat(game.settings) : null;
+    const sessionPolicy = resolveArenaSessionPolicy(game);
     const myPlayerEnum = pairCurrentSeat
         ? user.id === pairCurrentSeat.participantId
             ? pairCurrentSeat.player

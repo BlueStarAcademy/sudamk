@@ -1722,12 +1722,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             scoringOverlayCompleted &&
             gameStatus === 'ended' &&
             !showResultModal &&
+            !postGameSummaryAcknowledged &&
             (session.winReason === 'score' || Boolean(currentAnalysisResult));
 
         const canOpenModalNow =
             !isScoreBasedPresentation || scoringOverlayCompleted;
 
-        if ((shouldShowModal && canOpenModalNow) || scoreEndReadyForModal) {
+        if (!postGameSummaryAcknowledged && ((shouldShowModal && canOpenModalNow) || scoreEndReadyForModal)) {
             if (shouldDelayCaptureResultModal) {
                 const jc = session.justCaptured;
                 const hiddenFloatLag =
@@ -1735,7 +1736,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 const captureWinResultModalDelayMs =
                     CAPTURE_WIN_SCORE_DEBOUNCE_MS + hiddenFloatLag + CAPTURE_WIN_SCORE_FLOAT_CSS_MS;
                 delayedResultModalTimerRef.current = setTimeout(() => {
-                    setShowResultModal(true);
+                    setShowResultModal((prev) => (postGameSummaryAcknowledged ? prev : true));
                     delayedResultModalTimerRef.current = null;
                 }, captureWinResultModalDelayMs);
             } else {
@@ -1768,6 +1769,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         isScoreBasedPresentation,
         scoringOverlayCompleted,
         showResultModal,
+        postGameSummaryAcknowledged,
     ]);
 
     /** 다른 대국으로 바뀌거나 화면을 떠날 때만 지연 모달 타이머 정리 (이펙트 재실행마다 지우면 모달이 영원히 안 뜸) */
@@ -4444,6 +4446,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     const handleCloseResults = useCallback(() => {
         setPostGameSummaryAcknowledged(true);
+        if (delayedResultModalTimerRef.current) {
+            clearTimeout(delayedResultModalTimerRef.current);
+            delayedResultModalTimerRef.current = null;
+        }
         setShowResultModal(false);
         if (!session.analysisResult?.['system']) {
             setShowFinalTerritory(false);

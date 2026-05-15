@@ -1561,7 +1561,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
             title="가방"
             onClose={onClose}
             windowId="inventory"
-            isTopmost={isTopmost && !isMobileEquippedModalOpen && !isMobileItemDetailOpen}
+            isTopmost={isTopmost && !isMobileEquippedModalOpen && !isMobileItemDetailOpen && !showUseQuantityModal}
             initialWidth={calculatedWidth}
             initialHeight={calculatedHeight}
             variant="store"
@@ -2970,6 +2970,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                 <UseQuantityModal
                     item={itemToUseBulk}
                     currentUser={currentUser}
+                    viewportPortal={useViewportSizedBagModal}
                     onClose={() => {
                         setShowUseQuantityModal(false);
                         setItemToUseBulk(null);

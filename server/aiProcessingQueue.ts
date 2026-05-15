@@ -11,6 +11,7 @@ import { getCachedGame, updateGameCache } from './gameCache.js';
 import * as db from './db.js';
 import { broadcast } from './socket.js';
 import { cpus } from 'os';
+import { getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame } from '../shared/utils/pairGameTurn.js';
 
 interface QueuedAiTask {
     gameId: string;
@@ -32,10 +33,14 @@ const AI_GO_STALL_RETRY_STATUSES = new Set([
 ]);
 
 function getCurrentPlayerId(game: LiveGameSession): string | undefined {
-    return (game.currentPlayer === Player.Black ? game.blackPlayerId : game.whitePlayerId) ?? undefined;
+    const pairSeat = isPairClassicGame(game.settings, game.mode) ? getCurrentPairTurnSeat(game.settings) : null;
+    return pairSeat?.participantId ?? (game.currentPlayer === Player.Black ? game.blackPlayerId : game.whitePlayerId) ?? undefined;
 }
 
-function isAiControlledPlayerId(playerId: string | undefined): boolean {
+function isAiControlledTurn(game: LiveGameSession): boolean {
+    const pairSeat = isPairClassicGame(game.settings, game.mode) ? getCurrentPairTurnSeat(game.settings) : null;
+    if (pairSeat && isPairAiSeat(pairSeat)) return true;
+    const playerId = getCurrentPlayerId(game);
     return playerId === aiUserId || (playerId != null && String(playerId).startsWith('dungeon-bot-'));
 }
 
@@ -242,8 +247,7 @@ class AiProcessingQueue {
                     return;
                 }
             }
-            const aiPlayerIdAfterDelay = getCurrentPlayerId(game);
-            if (!isAiControlledPlayerId(aiPlayerIdAfterDelay)) {
+            if (!isAiControlledTurn(game)) {
                 return;
             }
             const beforeMoveCount = game.moveHistory?.length ?? 0;
@@ -251,10 +255,9 @@ class AiProcessingQueue {
             // AI 수 처리
             await makeAiMove(game);
             const afterMoveCount = game.moveHistory?.length ?? beforeMoveCount;
-            const currentPlayerIdAfterMove = getCurrentPlayerId(game);
             const stalledOnAiTurn =
                 afterMoveCount <= beforeMoveCount &&
-                isAiControlledPlayerId(currentPlayerIdAfterMove) &&
+                isAiControlledTurn(game) &&
                 AI_GO_STALL_RETRY_STATUSES.has(String(game.gameStatus));
             if (stalledOnAiTurn) {
                 const retryCount = (this.retryCounts.get(gameId) ?? 0) + 1;
@@ -330,9 +333,7 @@ class AiProcessingQueue {
                         'thief_placing',
                     ]);
                     if (!allowedStatuses.has(latest.gameStatus)) return;
-                    const currentPlayerId =
-                        latest.currentPlayer === Player.Black ? latest.blackPlayerId : latest.whitePlayerId;
-                    if (currentPlayerId !== aiUserId) return;
+                    if (!isAiControlledTurn(latest)) return;
                     this.enqueue(gameId);
                 } catch (requeueErr) {
                     console.error(`[AI Queue] Failed to schedule retry for ${gameId}:`, requeueErr);

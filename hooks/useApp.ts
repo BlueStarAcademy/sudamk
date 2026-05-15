@@ -4017,12 +4017,12 @@ export const useApp = () => {
 
                     if (moveLimit != null && moveLimit > 0) {
                         const currentValidMoves = (game.moveHistory || []).filter((m: any) => m.x !== -1 && m.y !== -1).length;
-                        const currentScoringTurns = Math.max(currentValidMoves, game.totalTurns ?? 0);
-                        if (currentScoringTurns >= moveLimit) {
+                        if (currentValidMoves >= moveLimit) {
                             if (process.env.NODE_ENV === 'development') {
                                 console.warn(`[handleAction] ${actionTypeName} blocked move after turn limit reached`, {
                                     gameId,
-                                    currentValidMoves: currentScoringTurns,
+                                    currentValidMoves,
+                                    storedTotalTurns: game.totalTurns,
                                     moveLimit,
                                     gameStatus: game.gameStatus,
                                 });
@@ -4031,7 +4031,7 @@ export const useApp = () => {
                                 ...currentGames,
                                 [gameId]: {
                                     ...game,
-                                    totalTurns: currentScoringTurns,
+                                    totalTurns: currentValidMoves,
                                     gameStatus: 'scoring' as const,
                                 }
                             };

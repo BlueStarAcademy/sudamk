@@ -74,7 +74,7 @@ const ActionPointModal: React.FC<ActionPointModalProps> = ({ currentUser, onClos
                 onClose={onClose}
                 initialWidth={700}
                 initialHeight={500}
-                isTopmost={isTopmost}
+                isTopmost={isTopmost && !showUseQuantityModal}
                 hideFooter
                 bodyNoScroll
             >

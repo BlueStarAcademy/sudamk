@@ -60,6 +60,10 @@ interface DraggableWindowProps {
 
     closeOnOutsideClick?: boolean;
 
+    /**
+     * `modal`일 때: 바깥 클릭 닫기·헤더 드래그 등 **상호작용** 여부. z-index는 `modal`이면 마운트 순으로 자동 부여.
+     * `modal={false}`(플로팅): true이면 z를 전역 단조 증가로 올림(겹침 시 위에 보이게).
+     */
     isTopmost?: boolean;
 
     headerContent?: ReactNode;
@@ -391,8 +395,18 @@ function getIngameBoardCenteredDefaultPositionViewportFixed(base: { x: number; y
     };
 }
 
-// 전역 z-index 카운터: 최상위 모달이 항상 가장 높은 z-index를 가지도록 함
-let globalZIndexCounter = 10000;
+/**
+ * 모달(`modal`): 마운트될 때마다 z가 올라가 뒤에 연 창이 항상 앞에 보이게 함.
+ * backdrop·window가 서로 다른 z를 쓰므로 2칸씩 점유 (다음 모달 backdrop이 이전 window와 동르되지 않도록).
+ */
+let globalModalZStackTop = 10000;
+function takeNextModalWindowZIndex(): number {
+    globalModalZStackTop += 2;
+    return globalModalZStackTop;
+}
+
+/** `modal={false}` 플로팅: isTopmost일 때만 단조 증가, 아니면 `zIndex` prop */
+let globalFloatingZTop = 5000;
 
 const DraggableWindow: React.FC<DraggableWindowProps> = ({
     title,
@@ -433,26 +447,30 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     closeButtonDataOnboardingTarget,
     viewportPortal = false,
 }) => {
-    // isTopmost가 true일 때는 전역 카운터를 사용하여 항상 최상위에 표시
-    const [effectiveZIndex, setEffectiveZIndex] = useState(() => {
+    /** 모달: 마운트 순서대로 항상 위 레이어(새 창이 기존보다 위). isTopmost는 포인터·밖 클릭 닫기 등에만 사용 */
+    const [modalWindowZ] = useState<number | null>(() => (modal ? takeNextModalWindowZIndex() : null));
+
+    const [nonModalZIndex, setNonModalZIndex] = useState(() => {
+        if (modal) return 0;
         if (isTopmost) {
-            // 최상위 모달은 전역 카운터를 증가시켜 항상 최상위에 표시
-            globalZIndexCounter += 1;
-            return globalZIndexCounter;
+            globalFloatingZTop += 1;
+            return globalFloatingZTop;
         }
-        // isTopmost가 false일 때만 전달된 zIndex 사용 (기본값 50)
         return zIndex ?? 50;
     });
 
-    // isTopmost나 zIndex가 변경될 때 z-index 업데이트
     useEffect(() => {
+        if (modal) return;
         if (isTopmost) {
-            globalZIndexCounter += 1;
-            setEffectiveZIndex(globalZIndexCounter);
+            globalFloatingZTop += 1;
+            setNonModalZIndex(globalFloatingZTop);
         } else {
-            setEffectiveZIndex(zIndex ?? 50);
+            setNonModalZIndex(zIndex ?? 50);
         }
-    }, [isTopmost, zIndex]);
+    }, [modal, isTopmost, zIndex]);
+
+    const windowZIndex = modal && modalWindowZ != null ? modalWindowZ : nonModalZIndex;
+    const backdropZIndex = modal && modalWindowZ != null ? modalWindowZ - 1 : nonModalZIndex - 1;
 
     const [position, setPosition] = useState({ x: 0, y: 0 });
 
@@ -604,10 +622,12 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
         // 모바일이 아닐 때는 initialWidth를 최소값으로 보장 (데스크톱에서는 고정 크기 사용)
         if (!effectiveIsCompactViewport) {
-            // 데스크톱: initialWidth를 최대한 보장하되, 화면이 너무 작으면 화면 크기에 맞춤
-            const minWidth = Math.min(designInitialWidth, windowWidth - 40); // 화면에서 40px 여유 공간
-            // initialWidth를 최소한 95% 이상 보장 (90%에서 95%로 증가)
-            return Math.max(designInitialWidth * 0.95, minWidth);
+            // 데스크톱: 설계 폭을 우선하되, 뷰포트를 넘지 않게 맞춤.
+            // 예전 `max(95% 설계, min(설계, vw-40))`는 vw가 설계보다 좁을 때 95%가 min을 이겨
+            // 창이 화면 밖으로 나가 우측이 잘리는 버그가 있었음 → 항상 maxFit으로 상한.
+            const maxFit = Math.max(200, windowWidth - 40);
+            const minWidth = Math.min(designInitialWidth, maxFit);
+            return Math.min(Math.max(designInitialWidth * 0.95, minWidth), maxFit);
         }
         
         // 모바일: 화면 크기에 맞춤
@@ -665,9 +685,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
         // 모바일이 아닐 때는 initialHeight를 최소값으로 보장 (데스크톱에서는 고정 크기 사용)
         if (!effectiveIsCompactViewport) {
-            // 데스크톱: initialHeight를 최소값으로 보장하되, 화면이 너무 작으면 화면 크기에 맞춤
-            const minHeight = Math.min(resolvedInitialHeight, windowHeight - 40); // 화면에서 40px 여유 공간
-            return Math.max(resolvedInitialHeight * 0.9, minHeight); // initialHeight의 90% 이상 보장
+            const maxFit = Math.max(200, windowHeight - 40);
+            const minHeight = Math.min(resolvedInitialHeight, maxFit);
+            return Math.min(Math.max(resolvedInitialHeight * 0.9, minHeight), maxFit);
         }
         
         // 모바일: 화면 크기에 맞춤
@@ -698,9 +718,18 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         useReadableSmallPcViewportPortal ||
         (!modalLayerUsesDesignPixels && (effectiveIsCompactViewport || isNativeMobile));
 
+    /**
+     * 뷰포트 맞춤 셸: `mobileViewportFit`을 켠 경우에는 **넓은 PC**에서도 true로 두어
+     * 설계 픽셀 폭을 유지한 채 `transform: scale`만 쓰는 경로(`useCompactScaleToFitLayout`)로 가지 않게 한다.
+     * (그 경로는 레이아웃 박스가 커서 푸터·버튼이 잘리거나 UI가 깨지는 문제가 있었음.)
+     */
     const useMobileViewportFitLayout =
         wantsMobileViewportFitShell &&
-        (effectiveIsCompactViewport || modalLayerUsesDesignPixels || isNativeMobile || useReadableSmallPcViewportPortal);
+        (mobileViewportFit === true ||
+            effectiveIsCompactViewport ||
+            modalLayerUsesDesignPixels ||
+            isNativeMobile ||
+            useReadableSmallPcViewportPortal);
 
     const useUniformPcScaleLayout = uniformPcScale && !useMobileViewportFitLayout;
 
@@ -752,9 +781,16 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         (bodyAvoidVerticalStretch && useUniformPcScaleLayout) ||
         (Boolean(bodyShrinkToContent) && useMobileViewportFitLayout && (!bodyScrollable || bodyNoScroll));
 
+    /** 컴팩트 스케일 경로: 셸 폭을 뷰포트에 맞춤. 예전엔 width·minWidth가 설계 폭 고정이라 max-width와 충돌해 창이 안 줄어듦 */
+    const compactScaleShellWidthPx = useMemo(() => {
+        if (!useCompactScaleToFitLayout) return undefined;
+        if (!initialWidth) return designInitialWidth;
+        return calculatedWidth ?? designInitialWidth;
+    }, [useCompactScaleToFitLayout, initialWidth, calculatedWidth, designInitialWidth]);
+
     const compactFitScaleEstimate = useMemo(() => {
         if (!useCompactScaleToFitLayout) return 1;
-        const baseWidth = designInitialWidth || 800;
+        const baseWidth = (compactScaleShellWidthPx ?? designInitialWidth) || 800;
         const baseHeight = resolvedInitialHeight || uniformDesignH;
         const { horizontal, top, bottom } = getModalScaleFitPaddingPx();
         const vv = typeof window !== 'undefined' ? window.visualViewport : undefined;
@@ -764,7 +800,15 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         const scaleY = availableHeight / baseHeight;
         const scale = Math.min(scaleX, scaleY) * 0.99;
         return Math.max(0.1, Math.min(0.98, scale));
-    }, [useCompactScaleToFitLayout, designInitialWidth, resolvedInitialHeight, uniformDesignH, windowWidth, windowHeight]);
+    }, [
+        useCompactScaleToFitLayout,
+        compactScaleShellWidthPx,
+        designInitialWidth,
+        resolvedInitialHeight,
+        uniformDesignH,
+        windowWidth,
+        windowHeight,
+    ]);
 
     const [measuredCompactFitScale, setMeasuredCompactFitScale] = useState<number | null>(null);
     const compactFitScale = measuredCompactFitScale ?? compactFitScaleEstimate;
@@ -1371,8 +1415,13 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
             forceBodyScrollForViewportClamp);
 
     const { main: stickyMain, footer: stickyFooter } = stickyLayout;
-    const useStickyMobileFooter =
-        stickyFooter !== null && (useMobileViewportFitLayout || isMobileModalShell);
+    /**
+     * 마지막 자식에 `SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS`가 있으면 항상 분리한다.
+     * 예전에는 `useMobileViewportFitLayout || isMobileModalShell`일 때만 켰는데,
+     * `mobileViewportFit`만 켠 데스크톱에서는 `useMobileViewportFitLayout`이 false·`useCompactScaleToFitLayout`이 true가 되어
+     * 본문이 `overflow-hidden`만 남고 푸터가 창 밖으로 잘림(소모품 사용 등).
+     */
+    const useStickyMobileFooter = stickyFooter !== null;
     /**
      * 캔버스 내 「읽기 가능한」 좁은 PC 뷰(`useReadableSmallPcViewportPortal`): 기본 `bodyInnerNoFlexGrow`가
      * `flex-shrink-0`를 켜 본문 박스가 콘텐츠 전체 높이로만 커지고, 창 `max-height`·부모 `overflow-hidden`에
@@ -1444,7 +1493,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     className={`sudamr-draggable-modal-backdrop${transparentModalBackdrop ? ' sudamr-draggable-modal-backdrop--transparent' : ''} ${
                         modalLayerUsesDesignPixels ? 'absolute' : 'fixed'
                     } inset-0`}
-                    style={{ zIndex: effectiveZIndex - 1, pointerEvents: 'auto' }}
+                    style={{ zIndex: backdropZIndex, pointerEvents: 'auto' }}
                     aria-hidden
                 />
             )}
@@ -1462,7 +1511,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                         : useMobileViewportFitLayout
                           ? `${smallPcShellWidthPx ?? mobileViewportFitWidthPx}px`
                           : useCompactScaleToFitLayout
-                            ? `${designInitialWidth}px`
+                            ? `${compactScaleShellWidthPx ?? designInitialWidth}px`
                             : effectiveIsCompactViewport
                               ? `${designInitialWidth}px`
                               : isNativeMobile && nativeClampedWidthPx !== undefined
@@ -1473,7 +1522,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                         : useMobileViewportFitLayout
                           ? `${smallPcShellWidthPx ?? mobileViewportFitWidthPx}px`
                           : useCompactScaleToFitLayout
-                            ? `${designInitialWidth}px`
+                            ? `${compactScaleShellWidthPx ?? designInitialWidth}px`
                             : effectiveIsCompactViewport
                               ? `${designInitialWidth}px`
                               : isNativeMobile && nativeClampedWidthPx !== undefined
@@ -1533,7 +1582,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     boxShadow: isDragging
                         ? '0 32px 64px -24px rgba(0,0,0,0.58), 0 0 72px -32px rgba(251,191,36,0.14)'
                         : undefined,
-                    zIndex: effectiveZIndex,
+                    zIndex: windowZIndex,
                     pointerEvents: 'auto',
                 }}
             >

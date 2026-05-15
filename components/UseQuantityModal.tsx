@@ -14,6 +14,8 @@ interface UseQuantityModalProps {
     onClose: () => void;
     onConfirm: (itemId: string, quantity: number, itemName?: string) => Promise<void> | void;
     isTopmost?: boolean;
+    /** 가방 등 부모가 `viewportPortal`일 때 동일 타깃에 두어 z-index·캔버스 밖 렌더 불일치 방지 */
+    viewportPortal?: boolean;
 }
 
 function readViewportShort(): boolean {
@@ -33,7 +35,7 @@ function useQuantityRangeClass(dense: boolean): string {
     return 'h-2.5 w-full flex-1 cursor-pointer appearance-none rounded-full bg-slate-800/90 disabled:opacity-40 sm:h-2 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-gradient-to-b [&::-moz-range-thumb]:from-violet-300 [&::-moz-range-thumb]:to-violet-600 [&::-moz-range-thumb]:shadow-[0_0_12px_rgba(167,139,250,0.5)] sm:[&::-moz-range-thumb]:h-4 sm:[&::-moz-range-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-violet-200/85 [&::-webkit-slider-thumb]:bg-gradient-to-b [&::-webkit-slider-thumb]:from-violet-300 [&::-webkit-slider-thumb]:to-violet-600 [&::-webkit-slider-thumb]:shadow-[0_0_12px_rgba(167,139,250,0.45)] sm:[&::-webkit-slider-thumb]:h-4 sm:[&::-webkit-slider-thumb]:w-4';
 }
 
-const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, onClose, onConfirm, isTopmost }) => {
+const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, onClose, onConfirm, isTopmost, viewportPortal }) => {
     const [denseUi, setDenseUi] = useState(readViewportShort);
 
     useEffect(() => {
@@ -137,16 +139,16 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
             windowId="useQuantity"
             isTopmost={isTopmost}
             variant="store"
-            initialWidth={380}
-            initialHeight={440}
+            initialWidth={400}
             shrinkHeightToContent
             mobileViewportFit
-            mobileViewportMaxHeightVh={86}
+            mobileViewportMaxHeightVh={92}
             bodyPaddingClassName="p-0 sm:p-0"
             hideFooter
+            viewportPortal={viewportPortal}
         >
             <>
-                <div className={`flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain text-slate-100 ${padMain}`}>
+                <div className={`flex flex-col text-slate-100 ${padMain}`}>
                     <div className={`border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-slate-950/90 to-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${padCard}`}>
                         <p
                             className={`text-center font-bold tracking-wide text-violet-200/90 ${d ? 'text-[10px]' : 'text-xs sm:text-[11px] sm:font-semibold sm:uppercase sm:tracking-[0.2em] sm:text-violet-200/70'}`}
@@ -196,7 +198,7 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
                             </div>
                         </div>
 
-                        <div className={`mt-2 flex flex-wrap justify-center ${d ? 'gap-1.5' : 'gap-2'}`}>
+                        <div className={`mt-2 flex min-w-0 flex-wrap justify-center ${d ? 'gap-1.5' : 'gap-2'}`}>
                             {[
                                 { label: '1개', q: 1 },
                                 { label: '절반', q: Math.max(1, Math.floor(totalQuantity / 2)) },
@@ -207,10 +209,10 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({ item, currentUser, 
                                     type="button"
                                     disabled={totalQuantity === 0}
                                     onClick={() => setPreset(p.q)}
-                                    className={`rounded-lg border border-white/10 bg-slate-800/60 font-bold text-slate-200 transition-all hover:border-violet-400/40 hover:bg-slate-700/70 disabled:opacity-40 ${
+                                    className={`shrink-0 rounded-lg border border-white/10 bg-slate-800/60 font-bold text-slate-200 transition-all hover:border-violet-400/40 hover:bg-slate-700/70 disabled:opacity-40 ${
                                         d
                                             ? 'min-h-9 min-w-[3.25rem] px-2.5 py-1 text-[11px]'
-                                            : 'min-h-10 min-w-[4rem] px-3 py-1.5 text-xs sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs'
+                                            : 'min-h-10 min-w-[3.75rem] px-2.5 py-1.5 text-xs sm:min-h-0 sm:min-w-[4rem] sm:px-3 sm:py-1.5 sm:text-xs'
                                     }`}
                                 >
                                     {p.label}
