@@ -650,8 +650,18 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
                 game.boardState = clientBoardState;
             }
             if (clientMoveHistory && Array.isArray(clientMoveHistory) && clientMoveHistory.length > 0) {
-                console.log(`[Missile Go] LAUNCH_MISSILE: using client moveHistory for validation, gameId=${game.id}`);
-                game.moveHistory = clientMoveHistory;
+                const serverLen = (game.moveHistory || []).length;
+                const clientLen = clientMoveHistory.length;
+                // 클라 수순이 서버보다 비정상적으로 길면(낙관적 UI·동기화 꼬임) 그대로 덮어
+                // `scoringTurnLimit`이 moveHistory 길이 기준인 전략/페어에서 조기 계가·AI 정지로 이어질 수 있음
+                if (clientLen > serverLen + 1) {
+                    console.warn(
+                        `[Missile Go] LAUNCH_MISSILE: ignoring client moveHistory longer than server (${clientLen} > ${serverLen} + 1), gameId=${game.id}`,
+                    );
+                } else {
+                    console.log(`[Missile Go] LAUNCH_MISSILE: using client moveHistory for validation, gameId=${game.id}`);
+                    game.moveHistory = clientMoveHistory;
+                }
             }
             
             // 미사일 바둑에서는 boardState와 moveHistory를 모두 확인
@@ -788,6 +798,9 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
                     scheduleTowerP1InventorySave(user);
                 }
             }
+
+            // 전략 로비·페어 등은 계가까지 턴이 moveHistory 길이(PASS 포함)와 맞춰야 함 — 클라 동기화 후에도 서버 필드 정합
+            game.totalTurns = (game.moveHistory || []).length;
             
             // 미사일 아이템은 턴을 사용하는 행동이 아니므로 totalTurns를 증가시키지 않음
             

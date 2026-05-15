@@ -98,7 +98,21 @@ export function mergeGameUpdateByArena(
 ): LiveGameSession {
     /** 들어온 패킷이 좌석 잠금을 비운 채 오면 기존 잠금을 살려 두어, 좌석 보호 근거를 잃지 않게 한다. */
     const incomingWithLock = preserveExistingBaseSeatLockAgainstSlimDrop(incoming, existing);
-    const merged = existing ? ({ ...existing, ...incomingWithLock } as LiveGameSession) : incomingWithLock;
+    let merged = existing ? ({ ...existing, ...incomingWithLock } as LiveGameSession) : incomingWithLock;
+    /**
+     * 슬림 GAME_UPDATE는 종료된 연출 필드를 아예 생략하는 경우가 많다.
+     * `{ ...existing, ...incoming }`만 쓰면 로컬의 미사일 비행 `animation`이 `playing` 패킷에도 영구 잔존해
+     * 발사 이펙트가 끝나지 않은 것처럼 보인다(필드 생략 === undefined → 기존 값 유지).
+     */
+    if (existing && incoming.gameStatus === 'playing') {
+        const prevAnim = existing.animation as { type?: string } | null | undefined;
+        const prevWasMissileFlight =
+            prevAnim?.type === 'missile' || prevAnim?.type === 'hidden_missile';
+        const incomingAnim = (incoming as { animation?: LiveGameSession['animation'] }).animation;
+        if (prevWasMissileFlight && incomingAnim === undefined) {
+            merged = { ...merged, animation: null } as LiveGameSession;
+        }
+    }
     /** 본경기·시작 확인 단계로 들어온 패킷이 임시 좌석을 들고 오면 잠금값으로 되돌린다(흑/백 영구 스왑 방지). */
     const seatLocked = coerceBaseSessionPlayingSeatLock(merged);
     return coerceAdventureLiveGameScoringTurnLimit(seatLocked);

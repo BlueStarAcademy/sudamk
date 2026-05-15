@@ -1204,12 +1204,13 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         }
 
         // 미사일 애니메이션 완료 감지
-        // - 멀티플레이: gameStatus === 'missile_animating' 인 경우에만 동작
+        // - 멀티플레이: 기본은 missile_animating. 다만 병합 버그로 playing인데 미사일 애니만 남은 경우도 타이머를 걸어
+        //   MISSILE_ANIMATION_COMPLETE를 보내 서버·다른 클라와 맞춘다(슬림 WS에서 animation 필드 생략 시).
         // - 싱글플레이/도전의 탑: 서버/클라이언트 상태가 약간 어긋나도 애니메이션이 존재하면 항상 완료 타이머를 건다
         const isMissileAnimation = animation && (animation.type === 'missile' || animation.type === 'hidden_missile');
         const shouldTrackMissileAnimation =
             !!isMissileAnimation &&
-            (gameStatus === 'missile_animating' || isSinglePlayer);
+            (gameStatus === 'missile_animating' || gameStatus === 'playing' || isSinglePlayer);
 
         if (shouldTrackMissileAnimation) {
             const now = Date.now();

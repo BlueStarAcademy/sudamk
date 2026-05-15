@@ -367,7 +367,8 @@ function getPairMoveCountDisplay(session: LiveGameSession): { label: string; pri
         return { label: '수순', primary: moveCount };
     }
     if (limit != null && limit > 0) {
-        const scoringTurnProgress = Math.max(moveCount, session.totalTurns ?? 0);
+        // 페어는 서버·클라의 totalTurns가 수순과 잠깐 어긋날 수 있어 moveHistory 길이만 사용(전략 로비와 동일).
+        const scoringTurnProgress = session.settings?.pairGame ? moveCount : Math.max(moveCount, session.totalTurns ?? 0);
         const remaining = Math.max(0, limit - scoringTurnProgress);
         return { label: '계가까지', primary: remaining, secondary: limit };
     }

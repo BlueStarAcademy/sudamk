@@ -2265,11 +2265,12 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             /** 전역 레벨업·콘텐츠 해금 등(document.body)과 같은 z 스택에서 겹치게 — 스케일 캔버스 내부 modal-root에만 두면 가려질 수 있음 */
             viewportPortal
             initialWidth={isMobile ? 1000 : 1140}
-            initialHeight={isMobile ? undefined : 900}
-            /** 모바일만 내용량 기반 높이(데스크톱은 고정 프레임으로 내부 잘림 방지) */
-            shrinkHeightToContent={isMobile}
+            /** 데스크톱도 내용 높이에 맞춰 하단 빈 프레임을 줄임(긴 내용은 pcViewportMaxHeightCss로 스크롤) */
+            initialHeight={undefined}
+            shrinkHeightToContent
             {...commonResultWindowProps}
-            bodyShrinkToContent={isMobile}
+            bodyShrinkToContent
+            bodyAvoidVerticalStretch={!isMobile}
             hideFooter={isMobile}
             windowId="game-summary"
             variant="store"

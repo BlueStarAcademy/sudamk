@@ -2295,8 +2295,12 @@ export async function makeGoAiBotMove(
         (game as any).gameCategory !== 'tower' &&
         (!pairClassicGame || pairHasFixedScoringTurnLimit)
     ) {
-        // 모험/AI 계열은 PASS를 허용하지 않으므로 유효 착수 수만 기준으로 삼는다.
-        const totalTurnsSoFar = (game.moveHistory || []).filter((m) => m && m.x !== -1 && m.y !== -1).length;
+        // 페어·전략 로비의 scoringTurnLimit은 PASS 포함 moveHistory 길이(handleStrategicAction·tryTrigger와 동일).
+        // 그 외(일반 로비 AI 등)는 유효 착수만 센다.
+        const totalTurnsSoFar =
+            pairClassicGame && pairHasFixedScoringTurnLimit
+                ? (game.moveHistory || []).length
+                : (game.moveHistory || []).filter((m) => m && m.x !== -1 && m.y !== -1).length;
         if (totalTurnsSoFar >= scoringTurnLimit) {
             console.log(
                 `[makeGoAiBotMove] Game ${game.id} at or over scoringTurnLimit (${totalTurnsSoFar} >= ${scoringTurnLimit}), triggering getGameResult without making a move`,

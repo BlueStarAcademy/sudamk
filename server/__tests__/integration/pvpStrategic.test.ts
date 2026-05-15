@@ -494,5 +494,34 @@ describe('PVP Strategic mode', () => {
             expect(game.animation?.type).toBe('missile');
             expect(game.gameStatus).toBe('missile_animating');
         });
+
+        it('LAUNCH_MISSILE ignores suspiciously long client moveHistory (prevents scoringTurnLimit corruption)', async () => {
+            const game = makePvpStrategicGame();
+            game.moveHistory = [{ player: Player.Black, x: 4, y: 4 }];
+            game.boardState[4][4] = Player.Black;
+            game.totalTurns = 1;
+            game.missiles_p1 = 2;
+            game.gameStatus = 'missile_selecting';
+            game.itemUseDeadline = Date.now() + 30000;
+            const bogusHistory = Array.from({ length: 48 }, (_, i) => ({
+                player: i % 2 === 0 ? Player.Black : Player.White,
+                x: i % 9,
+                y: (i + 1) % 9,
+            }));
+            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const res = await handleStrategicGameAction(volatileState, game, {
+                type: 'LAUNCH_MISSILE',
+                payload: {
+                    from: { x: 4, y: 4 },
+                    direction: 'up',
+                    boardState: game.boardState,
+                    moveHistory: bogusHistory,
+                },
+                userId: p1.id,
+            } as any, p1);
+            expect(res?.error).toBeUndefined();
+            expect(game.moveHistory.length).toBe(1);
+            expect(game.totalTurns).toBe(1);
+        });
     });
 });
