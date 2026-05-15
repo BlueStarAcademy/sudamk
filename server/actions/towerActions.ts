@@ -144,17 +144,23 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             // 게임 모드 결정
             let gameMode: GameMode;
             const isSpeedMode = stage.timeControl.type === 'fischer';
+            const hasHiddenMode = (stage.hiddenCount ?? 0) > 0;
+            const hasMissileMode = (stage.missileCount ?? 0) > 0;
+            const hasBaseMode = (stage.baseStones ?? 0) > 0;
+            const hasCaptureMode = (stage.blackTurnLimit ?? 0) > 0;
 
-            if (stage.autoScoringTurns && stage.missileCount && stage.hiddenCount) {
-                // 자동계가 + 미사일 + 히든 합쳐진 형태
-                gameMode = GameMode.Mix;
-            } else if (stage.hiddenCount !== undefined) {
-                gameMode = GameMode.Hidden;
-            } else if (stage.missileCount !== undefined) {
-                gameMode = GameMode.Missile;
-            } else if (stage.blackTurnLimit !== undefined || stage.targetScore) {
-                // 따내기 바둑: blackTurnLimit이 있거나 targetScore가 있는 경우
+            if (hasCaptureMode) {
                 gameMode = GameMode.Capture;
+            } else if (hasBaseMode && (hasHiddenMode || hasMissileMode || isSpeedMode)) {
+                gameMode = GameMode.Mix;
+            } else if (hasBaseMode) {
+                gameMode = GameMode.Base;
+            } else if (hasHiddenMode && hasMissileMode) {
+                gameMode = GameMode.Mix;
+            } else if (hasHiddenMode) {
+                gameMode = GameMode.Hidden;
+            } else if (hasMissileMode) {
+                gameMode = GameMode.Missile;
             } else if (isSpeedMode) {
                 gameMode = GameMode.Speed;
             } else {
@@ -190,8 +196,11 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
 
             // Mix 모드인 경우 mixedModes 설정
             const mixedModes: GameMode[] = [];
-            if (stage.autoScoringTurns && stage.missileCount && stage.hiddenCount) {
-                mixedModes.push(GameMode.Missile, GameMode.Hidden);
+            if (gameMode === GameMode.Mix) {
+                if (hasBaseMode) mixedModes.push(GameMode.Base);
+                if (hasMissileMode) mixedModes.push(GameMode.Missile);
+                if (hasHiddenMode) mixedModes.push(GameMode.Hidden);
+                if (isSpeedMode) mixedModes.push(GameMode.Speed);
             }
 
             const game = {
@@ -221,6 +230,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                     hiddenStoneCount: stage.hiddenCount,
                     scanCount: stage.scanCount ?? (stage.hiddenCount ? 2 : 0),
                     missileCount: stage.missileCount,
+                    baseStones: stage.baseStones,
                     mixedModes: mixedModes.length > 0 ? mixedModes : undefined,
                     // 탑은 층별 `kataServerLevel`을 서버 Kata에만 사용한다. 클라 로컬 AI(WASM) 경로를 켜면
                     // 서버가 makeAiMove를 건너뛰어 체감 난이도가 설정과 무관해지므로 항상 비활성화.
@@ -372,9 +382,9 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             if (floor >= 21) {
                 const { initializeTowerPlayerHidden, towerP1ConsumableAllowance, countTowerLobbyInventoryQty } = await import('../modes/towerPlayerHidden.js');
                 const inv = user.inventory || [];
-                const missileCap = (game.settings as any).missileCount ?? 2;
-                const hiddenCap = (game.settings as any).hiddenStoneCount ?? 2;
-                const scanCap = (game.settings as any).scanCount ?? 2;
+                const missileCap = (game.settings as any).missileCount ?? 0;
+                const hiddenCap = (game.settings as any).hiddenStoneCount ?? 0;
+                const scanCap = (game.settings as any).scanCount ?? 0;
                 const aiHiddenCap = floor >= 51 ? Math.max(2, hiddenCap) : hiddenCap;
                 const aiHiddenItemTurns = planTowerAiHiddenTurns(floor, aiHiddenCap);
                 (game as any).missiles_p1 = towerP1ConsumableAllowance(countTowerLobbyInventoryQty(inv, ['미사일', 'missile', 'Missile']), missileCap);

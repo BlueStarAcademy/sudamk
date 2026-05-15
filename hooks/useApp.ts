@@ -977,9 +977,65 @@ function mergeHiddenMovesByStableHistory(
     };
 
     const stable = alignedFromExisting();
-    // 인덱스가 밀릴 때는 기존 정렬(stable)로 인덱스를 맞추되, 중복 인덱스 충돌은 서버(incoming) 값을 우선한다.
-    const merged: NonNullable<LiveGameSession['hiddenMoves']> = { ...(stable ?? {}), ...(incomingSanitized ?? {}) };
+    const incomingRevision = incoming.serverRevision ?? 0;
+    const existingRevision = existing?.serverRevision ?? 0;
+    const incomingMoves = incoming.moveHistory?.length ?? 0;
+    const existingMoves = existing?.moveHistory?.length ?? 0;
+    // 더 최신(리비전/수순이 앞선) 패킷에서만 incoming 충돌 값을 우선한다.
+    // 동급·역행 패킷은 stable 우선으로 인덱스 뒤틀림(예: 초반 흑돌이 히든으로 바뀜)을 완화한다.
+    const preferIncomingOnConflict =
+        incomingRevision > existingRevision || incomingMoves > existingMoves;
+    const merged: NonNullable<LiveGameSession['hiddenMoves']> = preferIncomingOnConflict
+        ? { ...(stable ?? {}), ...(incomingSanitized ?? {}) }
+        : { ...(incomingSanitized ?? {}), ...(stable ?? {}) };
     return sanitizeAgainst(merged, incoming.moveHistory);
+}
+
+function mergeHumanHiddenStonePointsForSession(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined,
+    moveHistory: LiveGameSession['moveHistory'] | undefined,
+    hiddenMoves: LiveGameSession['hiddenMoves'] | undefined
+): Array<Point & { player?: Player }> | undefined {
+    const dedupe = (points: Array<Point & { player?: Player }> | undefined) => {
+        if (!Array.isArray(points) || points.length === 0) return [] as Array<Point & { player?: Player }>;
+        const out: Array<Point & { player?: Player }> = [];
+        const seen = new Set<string>();
+        for (const point of points) {
+            if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) continue;
+            const key = `${point.player ?? '*'}:${point.x}:${point.y}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push(point);
+        }
+        return out;
+    };
+    const incomingPoints = dedupe((incoming as any).humanHiddenStonePoints);
+    const existingPoints = dedupe((existing as any)?.humanHiddenStonePoints);
+    const mergedPoints = dedupe([...incomingPoints, ...existingPoints]);
+    if (mergedPoints.length === 0) return undefined;
+
+    if (!Array.isArray(moveHistory) || !hiddenMoves || Object.keys(hiddenMoves).length === 0) {
+        return mergedPoints;
+    }
+    const hiddenByPlayerPoint = new Set<string>();
+    const hiddenByPoint = new Set<string>();
+    for (const [idxKey, value] of Object.entries(hiddenMoves)) {
+        if (!value) continue;
+        const idx = Number.parseInt(idxKey, 10);
+        const move = Number.isInteger(idx) ? moveHistory[idx] : undefined;
+        if (!move || move.x < 0 || move.y < 0) continue;
+        hiddenByPlayerPoint.add(`${move.player}:${move.x}:${move.y}`);
+        hiddenByPoint.add(`${move.x}:${move.y}`);
+    }
+    if (hiddenByPlayerPoint.size === 0) return undefined;
+    const sanitized = mergedPoints.filter((point) => {
+        if (point.player !== undefined) {
+            return hiddenByPlayerPoint.has(`${point.player}:${point.x}:${point.y}`);
+        }
+        return hiddenByPoint.has(`${point.x}:${point.y}`);
+    });
+    return sanitized.length > 0 ? sanitized : undefined;
 }
 
 const OVERLAY_PRESERVE_GAME_STATUSES = new Set([
@@ -1109,6 +1165,16 @@ function preserveStrategicSessionOverlaysIfIncomingOmitted(
             const mh = mergeHiddenMovesByStableHistory({ ...next, hiddenMoves: existing!.hiddenMoves }, existing);
             if (mh && Object.keys(mh).length > 0) {
                 next = { ...next, hiddenMoves: mh };
+            }
+        }
+        if (
+            !Object.prototype.hasOwnProperty.call(incoming, 'humanHiddenStonePoints') ||
+            !Array.isArray((incoming as any).humanHiddenStonePoints) ||
+            (incoming as any).humanHiddenStonePoints.length === 0
+        ) {
+            const hp = mergeHumanHiddenStonePointsForSession(next, existing, next.moveHistory, next.hiddenMoves);
+            if (Array.isArray(hp) && hp.length > 0) {
+                (next as any).humanHiddenStonePoints = hp;
             }
         }
         if (!Object.prototype.hasOwnProperty.call(incoming, 'permanentlyRevealedStones')) {
@@ -8616,6 +8682,12 @@ export const useApp = () => {
                                                         ? ('hidden_reveal_animating' as const)
                                                         : game.gameStatus;
                                                 const mergedHiddenMoves = mergeHiddenMovesByStableHistory(game, existingGame);
+                                                const mergedHumanHiddenStonePoints = mergeHumanHiddenStonePointsForSession(
+                                                    game,
+                                                    existingGame,
+                                                    finalMoveHistory,
+                                                    mergedHiddenMoves,
+                                                );
                                                 const mergedAiInitialHiddenStone =
                                                     (game as any).aiInitialHiddenStone ?? (existingGame as any)?.aiInitialHiddenStone;
                                                 const mergedAiInitialHiddenStoneIsPrePlaced =
@@ -8626,6 +8698,7 @@ export const useApp = () => {
                                                     boardState: finalBoardState,
                                                     moveHistory: finalMoveHistory,
                                                     hiddenMoves: mergedHiddenMoves,
+                                                    humanHiddenStonePoints: mergedHumanHiddenStonePoints,
                                                     aiInitialHiddenStone: mergedAiInitialHiddenStone,
                                                     aiInitialHiddenStoneIsPrePlaced: mergedAiInitialHiddenStoneIsPrePlaced,
                                                     permanentlyRevealedStones: mergedRevealed,
@@ -8842,6 +8915,12 @@ export const useApp = () => {
                                                         mergedRevealed.push(p);
                                                 }
                                                 const mergedHiddenMovesGeneral = mergeHiddenMovesByStableHistory(game, existingGame);
+                                                const mergedHumanHiddenStonePointsGeneral = mergeHumanHiddenStonePointsForSession(
+                                                    game,
+                                                    existingGame,
+                                                    finalMoveHistory,
+                                                    mergedHiddenMovesGeneral,
+                                                );
                                                 const mergedAiInitialHiddenStoneGeneral =
                                                     (game as any).aiInitialHiddenStone ?? (existingGame as any)?.aiInitialHiddenStone;
                                                 const mergedAiInitialHiddenStoneIsPrePlacedGeneral =
@@ -8854,6 +8933,7 @@ export const useApp = () => {
                                                         boardState: finalBoardState,
                                                         moveHistory: finalMoveHistory,
                                                         hiddenMoves: mergedHiddenMovesGeneral,
+                                                        humanHiddenStonePoints: mergedHumanHiddenStonePointsGeneral,
                                                         aiInitialHiddenStone: mergedAiInitialHiddenStoneGeneral,
                                                         aiInitialHiddenStoneIsPrePlaced: mergedAiInitialHiddenStoneIsPrePlacedGeneral,
                                                         permanentlyRevealedStones: mergedRevealed,
@@ -8866,6 +8946,7 @@ export const useApp = () => {
                                                     updatedGames[gameId] = {
                                                         ...game,
                                                         hiddenMoves: mergedHiddenMovesGeneral,
+                                                        humanHiddenStonePoints: mergedHumanHiddenStonePointsGeneral,
                                                         aiInitialHiddenStone: mergedAiInitialHiddenStoneGeneral,
                                                         aiInitialHiddenStoneIsPrePlaced: mergedAiInitialHiddenStoneIsPrePlacedGeneral,
                                                         permanentlyRevealedStones: mergedRevealed,

@@ -536,6 +536,14 @@ function champCoinRandomInclusive(min: number, max: number): number {
     return lo + Math.floor(Math.random() * (hi - lo + 1));
 }
 
+/** 던전 챔프코인 추가 하향 배율 (현재 지급량의 50%). */
+const DUNGEON_STAGE_CHAMP_COIN_CURRENT_SCALE = 0.5;
+
+function scaleDungeonChampCoinsCurrent(value: number): number {
+    const v = Math.max(0, Math.floor(Number(value) || 0));
+    return Math.max(0, Math.floor(v * DUNGEON_STAGE_CHAMP_COIN_CURRENT_SCALE));
+}
+
 export function getDungeonChampCoinRewardRangeForStage(stage: number): { min: number; max: number } {
     const s = Math.max(1, Math.min(10, Math.floor(stage) || 1));
     return DUNGEON_STAGE_CHAMP_COIN_REWARD_RANGE[s] ?? DUNGEON_STAGE_CHAMP_COIN_REWARD_RANGE[1];
@@ -545,14 +553,17 @@ export function getDungeonChampCoinRewardRangeForStage(stage: number): { min: nu
 export function rollDungeonStageChampCoins(stage: number, wins: number): number {
     const r = getDungeonChampCoinRewardRangeForStage(stage);
     const w = Math.max(0, Math.floor(Number(wins) || 0));
-    return champCoinRandomInclusive(r.min, r.max) + w;
+    const raw = champCoinRandomInclusive(r.min, r.max) + w;
+    return scaleDungeonChampCoinsCurrent(raw);
 }
 
 /** 획득 보상 패널용: 수령 전 `{min}~{max}+승{w}` (w = 승 수, 동일하게 코인에 합산) */
 export function formatDungeonChampCoinRewardPreviewLabel(stage: number, wins: number): string {
     const r = getDungeonChampCoinRewardRangeForStage(stage);
     const w = Math.max(0, Math.floor(Number(wins) || 0));
-    return `${r.min}~${r.max}+승${w}`;
+    const min = scaleDungeonChampCoinsCurrent(r.min + w);
+    const max = scaleDungeonChampCoinsCurrent(r.max + w);
+    return `${min}~${max}`;
 }
 
 // 일일 랭킹 점수: 단계별 기본 점수 (레거시, DUNGEON_STAGE_1_SCORE_BY_TYPE + 배율 사용 권장)

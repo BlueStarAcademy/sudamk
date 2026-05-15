@@ -1926,13 +1926,15 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                             point.y === y &&
                             (point.player === undefined || point.player === actualPlayer)
                         );
+                    const isHiddenMoveByHistory =
+                        !!hiddenMoves && moveIndex !== -1 && !!hiddenMoves[moveIndex];
                     const isHiddenMove =
                         !isPlainStoneReuseIntersection &&
                         !!histMove &&
                         (
                             actualPlayer === myPlayerEnum && hasHumanHiddenPointMarkers
-                                ? !!isHumanHiddenPointMarker
-                                : !!hiddenMoves && moveIndex !== -1 && !!hiddenMoves[moveIndex]
+                                ? (!!isHumanHiddenPointMarker || isHiddenMoveByHistory)
+                                : isHiddenMoveByHistory
                         );
                     const isInRevealAnimation =
                         isHiddenRevealStatus &&

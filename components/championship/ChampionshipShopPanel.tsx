@@ -43,18 +43,25 @@ function weeklyUsedThisWeek(
 
 type SimpleShopProduct = ChampionshipShopEquipmentProduct | Extract<ChampionshipShopMaterialProduct, { tab: 'change' }>;
 
-/** 장비상자 · 변경권 — 주간 한도 없음 */
+/** 장비상자 · 변경권 카드 (주간 한도 있으면 표시/적용) */
 const ChampionshipSimpleShopCard: React.FC<{
     p: SimpleShopProduct;
     mobile: boolean;
     champ: number;
+    purchases: UserWithStatus['championshipShopWeekPurchases'];
+    now: number;
     busyId: string | null;
     onBuy: (productId: string, price: number) => void;
     compact: boolean;
-}> = ({ p, mobile, champ, busyId, onBuy, compact }) => {
+}> = ({ p, mobile, champ, purchases, now, busyId, onBuy, compact }) => {
     const price = p.champCoins;
+    const limit = 'weeklyLimit' in p ? (p.weeklyLimit ?? 0) : 0;
+    const used = limit > 0 ? weeklyUsedThisWeek(purchases, p.id, now) : 0;
+    const remaining = limit > 0 ? Math.max(0, limit - used) : Infinity;
+    const atWeeklyCap = limit > 0 && remaining === 0;
     const canAfford = champ >= price;
-    const disabled = busyId != null || !canAfford;
+    const disabled = busyId != null || !canAfford || atWeeklyCap;
+    const busyHere = busyId === p.id;
     const [showDescription, setShowDescription] = useState(false);
     const imageAnchorRef = useRef<HTMLDivElement>(null);
     const refinedDescription = formatShopItemDescription(p.description);
@@ -69,6 +76,26 @@ const ChampionshipSimpleShopCard: React.FC<{
     const cardH = compact ? CARD_H_COMPACT : CARD_H_DEFAULT;
     const imageTitle =
         p.tab === 'equipment' ? getChampionshipEquipmentBoxShopInfoLineKo(p.boxLevel) : refinedDescription || p.label;
+    const weeklyMuted = disabled || busyHere;
+    const weeklyLine =
+        limit > 0 ? (
+            <span
+                className={`mt-0.5 max-w-full border-t pt-0.5 text-center text-[10px] font-semibold tabular-nums leading-tight tracking-tight sm:text-[11px] ${
+                    weeklyMuted
+                        ? 'border-white/10 text-amber-100/85'
+                        : 'border-violet-950/25 text-violet-950 drop-shadow-[0_0.5px_0_rgba(255,255,255,0.35)]'
+                }`}
+            >
+                (주간 {remaining}/{limit})
+            </span>
+        ) : null;
+
+    const weeklyTitle =
+        limit > 0
+            ? atWeeklyCap
+                ? `주간 남은 구매 0/${limit}회 (이번 주 한도 소진)`
+                : `주간 남은 구매 ${remaining}/${limit}회 (이번 주 ${used}회 구매)`
+            : undefined;
 
     return (
         <div
@@ -137,24 +164,36 @@ const ChampionshipSimpleShopCard: React.FC<{
                 type="button"
                 disabled={disabled}
                 onClick={() => onBuy(p.id, price)}
-                className={`mt-auto box-border flex w-full shrink-0 items-center justify-center gap-1 rounded-lg border px-1.5 text-center font-semibold leading-none transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 disabled:cursor-not-allowed ${BTN_MIN_H} ${
+                title={weeklyTitle}
+                className={`mt-auto box-border flex w-full shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border px-1.5 text-center font-semibold leading-none transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 disabled:cursor-not-allowed ${BTN_MIN_H} ${
                     disabled
                         ? 'border-zinc-600/50 bg-zinc-800/90 text-zinc-500'
                         : 'border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_8px_22px_-12px_rgba(251,191,36,0.75)] hover:from-amber-300 hover:to-amber-500'
                 }`}
             >
-                {busyId === p.id ? (
-                    <span className="text-xs">…</span>
+                {busyHere ? (
+                    <>
+                        <span className="text-xs">…</span>
+                        {weeklyLine}
+                    </>
+                ) : atWeeklyCap ? (
+                    <>
+                        <span className="text-[11px] font-bold">한도</span>
+                        {weeklyLine}
+                    </>
                 ) : (
                     <>
-                        <img
-                            src={specialResourceIcons.champCoins}
-                            alt=""
-                            className="h-4 w-4 shrink-0 object-contain"
-                            loading="lazy"
-                            decoding="async"
-                        />
-                        <span className={`shrink-0 tabular-nums ${mobile ? 'text-[11px]' : 'text-xs sm:text-sm'}`}>{price.toLocaleString()}</span>
+                        <span className={`inline-flex shrink-0 items-center justify-center gap-1 tabular-nums ${!canAfford ? 'opacity-45' : ''}`}>
+                            <img
+                                src={specialResourceIcons.champCoins}
+                                alt=""
+                                className="h-4 w-4 shrink-0 object-contain"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                            <span className={`shrink-0 ${mobile ? 'text-[11px]' : 'text-xs sm:text-sm'}`}>{price.toLocaleString()}</span>
+                        </span>
+                        {weeklyLine}
                     </>
                 )}
             </button>
@@ -329,6 +368,8 @@ function renderShopCard(
             p={p as SimpleShopProduct}
             mobile={ctx.mobile}
             champ={ctx.champ}
+            purchases={ctx.purchases}
+            now={ctx.now}
             busyId={ctx.busyId}
             onBuy={ctx.onBuy}
             compact={ctx.compact}

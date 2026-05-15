@@ -255,9 +255,10 @@ export function ensureChampionshipVersusRatingEntry(
 
 /**
  * 장내 챔피언십(PVP·펫·페어) 대국 승패 챔프 코인 배율.
- * 원래 `rating * 0.15`(승) / `rating * 0.03`(패) 대비 약 50% 수준.
+ * 원래 `rating * 0.15`(승) / `rating * 0.03`(패) 대비 약 25% 수준
+ * (기존 지급량에서 추가 50% 하향 반영).
  */
-const VERSUS_CHAMP_COINS_OUTCOME_SCALE = 0.5;
+const VERSUS_CHAMP_COINS_OUTCOME_SCALE = 0.25;
 
 export function champCoinsForVersusWin(ratingBefore: number): number {
     return Math.max(0, Math.floor(ratingBefore * 0.15 * VERSUS_CHAMP_COINS_OUTCOME_SCALE));

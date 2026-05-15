@@ -14,6 +14,8 @@ export type ChampionshipShopEquipmentProduct = {
     champCoins: number;
     image: string;
     description: string;
+    /** 장비상자 주간 한도(없으면 무제한) */
+    weeklyLimit?: number;
 };
 
 export type ChampionshipShopMaterialProduct = {
@@ -69,6 +71,7 @@ export const CHAMPIONSHIP_SHOP_EQUIPMENT: readonly ChampionshipShopEquipmentProd
         champCoins: 1000,
         image: BOX_IMG(4),
         description: getChampionshipEquipmentBoxShopInfoLineKo(4),
+        weeklyLimit: 5,
     },
     {
         id: 'championship_equip_box_5',
@@ -78,6 +81,7 @@ export const CHAMPIONSHIP_SHOP_EQUIPMENT: readonly ChampionshipShopEquipmentProd
         champCoins: 2000,
         image: BOX_IMG(5),
         description: getChampionshipEquipmentBoxShopInfoLineKo(5),
+        weeklyLimit: 3,
     },
     {
         id: 'championship_equip_box_6',
@@ -87,6 +91,7 @@ export const CHAMPIONSHIP_SHOP_EQUIPMENT: readonly ChampionshipShopEquipmentProd
         champCoins: 5000,
         image: BOX_IMG(6),
         description: getChampionshipEquipmentBoxShopInfoLineKo(6),
+        weeklyLimit: 1,
     },
 ] as const;
 

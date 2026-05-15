@@ -1393,3 +1393,85 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
     },
 ];
 
+type TowerRangeOverride = {
+    timeControl?: SinglePlayerStageInfo['timeControl'];
+    autoScoringTurns?: number;
+    missileCount?: number;
+    hiddenCount?: number;
+    scanCount?: number;
+    baseStones?: number;
+    clearRandomPlacements?: boolean;
+};
+
+const applyTowerRangeOverride = (floorFrom: number, floorTo: number, override: TowerRangeOverride): void => {
+    for (const stage of TOWER_STAGES) {
+        const floor = parseInt(stage.id.replace('tower-', ''), 10);
+        if (!Number.isFinite(floor) || floor < floorFrom || floor > floorTo) continue;
+        if (override.timeControl) stage.timeControl = { ...override.timeControl };
+        if (override.autoScoringTurns !== undefined) stage.autoScoringTurns = override.autoScoringTurns;
+        stage.missileCount = override.missileCount;
+        stage.hiddenCount = override.hiddenCount;
+        stage.scanCount = override.scanCount;
+        stage.baseStones = override.baseStones;
+        if (override.clearRandomPlacements) {
+            stage.placements = {
+                ...stage.placements,
+                black: 0,
+                white: 0,
+                blackPattern: 0,
+                whitePattern: 0,
+            };
+        }
+    }
+};
+
+const TOWER_SPEED_TIME_CONTROL: SinglePlayerStageInfo['timeControl'] = {
+    type: 'fischer',
+    mainTime: 3,
+    increment: 5,
+};
+
+// 21~35층: 스피드 바둑(히든/스캔/미사일 없음)
+applyTowerRangeOverride(21, 35, {
+    timeControl: TOWER_SPEED_TIME_CONTROL,
+    missileCount: undefined,
+    hiddenCount: undefined,
+    scanCount: undefined,
+    baseStones: undefined,
+});
+
+// 36~50층: 미사일 바둑(히든/스캔 없음)
+applyTowerRangeOverride(36, 50, {
+    missileCount: 1,
+    hiddenCount: undefined,
+    scanCount: undefined,
+    baseStones: undefined,
+});
+
+// 51~65층: 히든 바둑(미사일 없음)
+applyTowerRangeOverride(51, 65, {
+    missileCount: undefined,
+    hiddenCount: 1,
+    scanCount: 2,
+    baseStones: undefined,
+});
+
+// 66~80층: 베이스 바둑(히든/스캔/미사일 없음) + 랜덤 초기돌 제거
+applyTowerRangeOverride(66, 80, {
+    missileCount: undefined,
+    hiddenCount: undefined,
+    scanCount: undefined,
+    baseStones: 4,
+    clearRandomPlacements: true,
+});
+
+// 91~100층: 베이스+히든+스캔+미사일+스피드 + 랜덤 초기돌 제거
+applyTowerRangeOverride(91, 100, {
+    timeControl: TOWER_SPEED_TIME_CONTROL,
+    missileCount: 1,
+    hiddenCount: 1,
+    scanCount: 2,
+    baseStones: 5,
+    clearRandomPlacements: true,
+});
+

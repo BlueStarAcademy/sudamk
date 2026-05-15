@@ -988,6 +988,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const strategicPlaceHistoryLenRef = useRef<number | undefined>(undefined);
     /** 같은 히든 공개 WS/복구 패킷이 반복되어도 공개음은 한 번만 재생 */
     const hiddenRevealSoundKeyRef = useRef<string>('');
+    const hiddenRevealSoundPlayedAtRef = useRef<number>(0);
     const prevMoveCount = usePrevious(session.moveHistory?.length);
     const myBaseStoneCountForUnlock = useMemo(() => {
         if (gameStatus !== 'base_placement') return undefined;
@@ -2009,9 +2010,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         .map((s: { point?: { x?: number; y?: number } }) => `${s.point?.x ?? ''},${s.point?.y ?? ''}`)
                         .sort()
                         .join('|');
-                    const key = `${session.id}:${session.moveHistory?.length ?? 0}:${stonesSig}`;
-                    if (!justScanned && key && hiddenRevealSoundKeyRef.current !== key) {
+                    const key = `${session.id}:${stonesSig}`;
+                    const now = Date.now();
+                    const isDuplicateBurst =
+                        hiddenRevealSoundKeyRef.current === key &&
+                        now - hiddenRevealSoundPlayedAtRef.current < 2000;
+                    if (!justScanned && key && !isDuplicateBurst) {
                         hiddenRevealSoundKeyRef.current = key;
+                        hiddenRevealSoundPlayedAtRef.current = now;
                         audioService.revealHiddenStone();
                     }
                     break;

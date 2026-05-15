@@ -189,12 +189,52 @@ export const preloadImages = (urls: string[], options?: PreloadImagesOptions): P
     return Promise.all(Array.from({ length: pool }, () => worker())).then(() => results);
 };
 
+const warmedRouteViews = new Set<string>();
+
+function isConstrainedMobilePrefetchDevice(): boolean {
+    if (typeof window === 'undefined') return false;
+    const nav = navigator as Navigator & {
+        connection?: { saveData?: boolean };
+        deviceMemory?: number;
+    };
+    const shortSide = Math.min(window.innerWidth, window.innerHeight);
+    const hasTouch = (nav.maxTouchPoints ?? 0) > 0;
+    const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches === true;
+    const saveData = nav.connection?.saveData === true;
+    const lowMemory = typeof nav.deviceMemory === 'number' && nav.deviceMemory <= 4;
+    const smallViewport = shortSide <= 768;
+    return saveData || lowMemory || (hasTouch && (smallViewport || coarsePointer));
+}
+
+function clampMobileRoutePrefetchUrls(view: string, urls: readonly string[]): readonly string[] {
+    switch (view) {
+        case 'profile':
+            return urls.slice(0, 36);
+        case 'adventure':
+            return urls.slice(0, 24);
+        case 'lobby':
+        case 'waiting':
+        case 'pair':
+        case 'singleplayer':
+        case 'tower':
+        case 'tournament':
+            return urls.slice(0, 28);
+        case 'guild':
+        case 'guildboss':
+        case 'guildwar':
+            return urls.slice(0, 20);
+        default:
+            return urls.slice(0, 16);
+    }
+}
+
 /**
  * 라우트 전환 직후 UI를 막지 않고, 브라우저 유휴 시에만 해당 화면 관련 이미지를 워밍한다.
  * (진입 게이트로 `preloadImages`를 await 하면 URL이 많은 화면에서 수십 초~수 분 대기가 될 수 있음)
  */
 export function scheduleRouteImagePrefetch(view: string): void {
     if (typeof window === 'undefined') return;
+    if (warmedRouteViews.has(view)) return;
 
     let urls: readonly string[];
     switch (view) {
@@ -222,8 +262,15 @@ export function scheduleRouteImagePrefetch(view: string): void {
             break;
     }
 
+    const constrainedMobile = isConstrainedMobilePrefetchDevice();
+    const selectedUrls = constrainedMobile ? clampMobileRoutePrefetchUrls(view, urls) : urls;
+
     const run = () => {
-        void preloadImages([...urls], { priority: 'low', maxConcurrent: 2 }).catch(() => {});
+        warmedRouteViews.add(view);
+        void preloadImages([...selectedUrls], {
+            priority: 'low',
+            maxConcurrent: constrainedMobile ? 1 : 2,
+        }).catch(() => {});
     };
 
     if ('requestIdleCallback' in window) {

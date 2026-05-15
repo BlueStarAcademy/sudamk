@@ -20,7 +20,11 @@ import {
     CHAMPIONSHIP_VERSUS_OPP_REFRESH_DIAMONDS,
     CHAMPIONSHIP_VERSUS_OPP_REFRESH_FREE_PER_DAY,
 } from '../../shared/constants/championshipVersusVenue.js';
-import { getChampionshipVersusDuelTicketsForVenue, getChampionshipVersusDuelTicketNextAtForVenue } from '../../shared/utils/championshipVersusDuelTickets.js';
+import {
+    getChampionshipVersusDuelTicketsForVenue,
+    getChampionshipVersusDuelTicketsForVenueUi,
+    getChampionshipVersusDuelTicketNextAtForVenue,
+} from '../../shared/utils/championshipVersusDuelTickets.js';
 import { resolvePublicUrl } from '../../utils/publicAssetUrl.js';
 import { calculateTotalStats } from '../../services/statService.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
@@ -105,9 +109,16 @@ type OpponentRow = {
 const championshipFooterButtonBase =
     'rounded-xl border px-4 py-2 text-xs font-black tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_-14px_rgba(0,0,0,0.9)] transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950';
 const championshipFooterExitButton = `${championshipFooterButtonBase} border-rose-400/45 bg-gradient-to-b from-rose-600/88 via-rose-800/90 to-rose-950/95 text-rose-50 hover:brightness-110 focus-visible:ring-rose-400/55`;
-/** `Button` `bare` 전용 — 기본 앰버 스킨과 겹치지 않도록 분리 */
-const championshipVersusStartMatchButtonClass =
-    'group relative isolate flex min-h-[52px] min-w-0 flex-[2.1] basis-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl border border-emerald-200/55 bg-gradient-to-b from-emerald-200/98 via-emerald-600 to-emerald-950 px-3 py-2.5 text-emerald-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.42),inset_0_-14px_32px_rgba(6,78,59,0.5),0_12px_40px_-12px_rgba(16,185,129,0.5),0_0_0_1px_rgba(4,120,87,0.35)] transition-[transform,box-shadow,filter] duration-200 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.5),inset_0_-14px_32px_rgba(6,78,59,0.55),0_16px_48px_-10px_rgba(52,211,153,0.55)] hover:brightness-[1.02] active:scale-[0.985] disabled:cursor-not-allowed disabled:saturate-[0.65] disabled:opacity-40 disabled:shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:min-h-[58px] sm:py-3';
+/** 사이드바 전용 — 데스크톱·모바일 패널에서 세로 공간 절약 */
+const championshipVersusStartMatchButtonSidebarClass =
+    'group relative isolate flex min-h-[42px] min-w-0 flex-[2.1] basis-0 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-xl border border-emerald-200/55 bg-gradient-to-b from-emerald-200/98 via-emerald-600 to-emerald-950 px-2 py-1.5 text-emerald-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.38),inset_0_-10px_24px_rgba(6,78,59,0.45),0_8px_28px_-12px_rgba(16,185,129,0.45)] transition-[transform,box-shadow,filter] duration-200 hover:brightness-[1.02] active:scale-[0.985] disabled:cursor-not-allowed disabled:saturate-[0.65] disabled:opacity-40 disabled:shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:min-h-[44px] sm:px-2.5 sm:py-2';
+
+/** 네이티브 셸 고정 패널: `Header` 모바일 min-h(`clamp(3.5rem,…,4.85rem)`)와 동일 계열 */
+const VERSUS_MOBILE_DRAWER_TOP = 'calc(env(safe-area-inset-top, 0px) + clamp(3.5rem, calc(2.85rem + 2vw), 4.85rem))';
+/** `NativeMobileDock`(h-11+테두리) + 하단 광고(~50px)·여유 — 하단 독·광고에 가리지 않도록 */
+const VERSUS_MOBILE_DRAWER_BOTTOM = 'calc(env(safe-area-inset-bottom, 0px) + 7.5rem)';
+/** 모바일 사이드 열기 탭: 퀵 독 바로 위(드로어 하단 inset + 소간격) */
+const VERSUS_MOBILE_SIDEBAR_OPEN_TAB_BOTTOM = 'calc(env(safe-area-inset-bottom, 0px) + 7.5rem + 0.25rem)';
 
 function resolveVersusPetPortraitPublicUrl(image: string | null | undefined, templateId?: string | null): string | null {
     if (typeof image === 'string' && image.trim().length > 0) return resolvePublicUrl(image);
@@ -802,7 +813,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
     const [loadError, setLoadError] = React.useState<string | null>(null);
     const [selectedId, setSelectedId] = React.useState<string | null>(null);
     const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = React.useState(false);
-    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(true);
     const [duelModalOpen, setDuelModalOpen] = React.useState(false);
     const [lowConditionVersusStartModalOpen, setLowConditionVersusStartModalOpen] = React.useState(false);
     const [lowConditionStartPending, setLowConditionStartPending] = React.useState<null | 'demo' | 'live'>(null);
@@ -884,6 +895,55 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         });
     }, [venue]);
 
+    const finalizeVersusKataReplay = React.useCallback(
+        (fallbackMatch?: Match) => {
+            const done = versusKataFinalMatchRef.current ?? fallbackMatch;
+            const payload = versusKataPendingResultRef.current;
+            const cu = currentUserRef.current;
+            clearVersusKataPlaybackTimers();
+            versusKataFinalMatchRef.current = null;
+            versusKataPendingResultRef.current = null;
+            setVersusPlaybackMatch(null);
+            setVersusReplayActive(false);
+            if (!done?.championshipRealGame) return;
+            setCompletedVersusMatch(done);
+            if (!cu) return;
+            const analysis = payload?.analysis ?? versusTerritoryAnalysis;
+            if (!analysis) return;
+            const rewards: VersusKataActorRewardClientPayload =
+                payload?.rewards ??
+                ({
+                    goldDelta: 0,
+                    userXpDelta: 0,
+                    goldBefore: Number(cu.gold) || 0,
+                    userXpBefore: Number(cu.userXp) || 0,
+                    userLevelBefore: Number(cu.userLevel) || 1,
+                    userLevelAfter: Number(cu.userLevel) || 1,
+                    userXpAfter: Number(cu.userXp) || 0,
+                    overallRecord: { wins: 0, losses: 0 },
+                    vipPlayRewardSlot: { locked: true },
+                } as VersusKataActorRewardClientPayload);
+            try {
+                setVersusSummarySession(
+                    buildChampionshipVersusKataSummarySession({
+                        match: done,
+                        analysis,
+                        currentUser: cu,
+                        venue,
+                        actorVenueRatingBefore: payload?.actorVenueRatingBefore ?? 0,
+                        actorVenueRatingAfter: payload?.actorVenueRatingAfter ?? 0,
+                        actorVenueRatingDelta: payload?.actorVenueRatingDelta ?? 0,
+                        champCoinsDelta: payload?.champCoinsDelta ?? 0,
+                        rewards,
+                    }),
+                );
+            } catch (err) {
+                console.warn('[ChampionshipVersusVenueArena] summary session build failed', err);
+            }
+        },
+        [clearVersusKataPlaybackTimers, venue, versusTerritoryAnalysis],
+    );
+
     const beginVersusKataReplay = React.useCallback(
         (
             finalMatch: Match,
@@ -959,29 +1019,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 if (atScoring) {
                     versusKataPlaybackTimerRef.current = setTimeout(() => {
                         versusKataPlaybackTimerRef.current = null;
-                        const payload = versusKataPendingResultRef.current;
-                        versusKataPendingResultRef.current = null;
-                        const done = versusKataFinalMatchRef.current ?? finalMatch;
-                        versusKataFinalMatchRef.current = null;
-                        setVersusPlaybackMatch(null);
-                        setVersusReplayActive(false);
-                        setCompletedVersusMatch(done);
-                        const cu = currentUserRef.current;
-                        if (payload && cu) {
-                            setVersusSummarySession(
-                                buildChampionshipVersusKataSummarySession({
-                                    match: done,
-                                    analysis: payload.analysis,
-                                    currentUser: cu,
-                                    venue,
-                                    actorVenueRatingBefore: payload.actorVenueRatingBefore,
-                                    actorVenueRatingAfter: payload.actorVenueRatingAfter,
-                                    actorVenueRatingDelta: payload.actorVenueRatingDelta,
-                                    champCoinsDelta: payload.champCoinsDelta,
-                                    rewards: payload.rewards,
-                                }),
-                            );
-                        }
+                        finalizeVersusKataReplay(finalMatch);
                     }, CHAMPIONSHIP_REAL_MATCH_SCORING_DELAY_MS);
                     return;
                 }
@@ -998,8 +1036,19 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             );
             return true;
         },
-        [clearVersusKataPlaybackTimers, venue],
+        [clearVersusKataPlaybackTimers, finalizeVersusKataReplay],
     );
+
+    React.useEffect(() => {
+        const status = versusPlaybackMatch?.championshipRealGame?.status;
+        if (!versusReplayActive || status !== 'scoring') return;
+        const watchdog = window.setTimeout(() => {
+            if (versusPlaybackMatch?.championshipRealGame?.status === 'scoring') {
+                finalizeVersusKataReplay(versusPlaybackMatch);
+            }
+        }, CHAMPIONSHIP_REAL_MATCH_SCORING_DELAY_MS + 1400);
+        return () => window.clearTimeout(watchdog);
+    }, [versusReplayActive, versusPlaybackMatch, finalizeVersusKataReplay]);
 
     /** `useApp`이 매 렌더 새 `handlers` 객체를 만들므로, 의존성에 넣으면 GET이 무한 반복된다. */
     const handleActionRef = React.useRef(handlers.handleAction);
@@ -1313,6 +1362,16 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
     }, [matchForBoard, p1, p2, p1Stats, p2Stats, p1PairSplit, p2PairSplit, p1EquippedPetVisual, p2EquippedPetVisual]);
 
     /** `경기 시작` 이후 서버 기보 수신 전에만 중앙 입장 안내 — 입장 직후부터 표시되면 안 됨 */
+    const versusMobileSessionActive = React.useMemo(
+        () => Boolean(matchForBoard?.championshipRealGame) || kataBusy || versusReplayActive,
+        [matchForBoard?.championshipRealGame, kataBusy, versusReplayActive],
+    );
+
+    React.useEffect(() => {
+        if (!isMobile) return;
+        if (versusMobileSessionActive) setIsMobileSidebarOpen(false);
+    }, [isMobile, versusMobileSessionActive]);
+
     const versusBoardCenterMode =
         matchForBoard?.championshipRealGame != null ? null : kataBusy ? ('players_entering' as const) : null;
 
@@ -1422,7 +1481,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         return t.icon;
     }, [myTierName]);
 
-    const duelTickets = React.useMemo(() => {
+    const duelTicketsRaw = React.useMemo(() => {
         return getChampionshipVersusDuelTicketsForVenue(user, venue);
     }, [
         user.championshipVersusDuelTicketsByVenue,
@@ -1430,6 +1489,30 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         venue,
         user.id,
     ]);
+    const duelTicketNextAt = React.useMemo(
+        () => getChampionshipVersusDuelTicketNextAtForVenue(user, venue),
+        [user.championshipVersusDuelTicketNextAtByVenue, user.championshipVersusDuelTicketNextAt, venue, user.id],
+    );
+    const [duelTicketUiTick, setDuelTicketUiTick] = React.useState(0);
+    React.useEffect(() => {
+        if (duelTicketsRaw >= CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX) return;
+        const id = window.setInterval(() => setDuelTicketUiTick((n) => n + 1), 1000);
+        return () => window.clearInterval(id);
+    }, [duelTicketsRaw, duelTicketNextAt, venue, user.id]);
+    const duelTickets = React.useMemo(
+        () => getChampionshipVersusDuelTicketsForVenueUi(user, venue, Date.now()),
+        [
+            user.championshipVersusDuelTicketsByVenue,
+            user.championshipVersusDuelTickets,
+            user.championshipVersusDuelTicketNextAtByVenue,
+            user.championshipVersusDuelTicketNextAt,
+            venue,
+            user.id,
+            duelTicketsRaw,
+            duelTicketNextAt,
+            duelTicketUiTick,
+        ],
+    );
 
     /** 장내 티어 점수(ELO) 높은 순 — 동점은 공동 순위(1,1,3…) */
     const opponentTierScoreRankByUserId = React.useMemo(() => {
@@ -1505,6 +1588,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             const kd = (res.championshipVersusKataDuel ?? res.clientResponse?.championshipVersusKataDuel) as
                 | {
                       match?: Match;
+                      championshipRealGame?: Match['championshipRealGame'];
                       analysis?: AnalysisResult;
                       actorWon?: boolean;
                       actorVenueRatingBefore?: number;
@@ -1516,6 +1600,11 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 | undefined;
             if (!kd?.match || !kd.analysis || !kd.versusActorRewards) throw new Error('응답 형식이 올바르지 않습니다.');
             const finalMatch = JSON.parse(JSON.stringify(kd.match)) as Match;
+            const finalGame =
+                finalMatch.championshipRealGame ??
+                (kd.championshipRealGame ? (JSON.parse(JSON.stringify(kd.championshipRealGame)) as Match['championshipRealGame']) : null);
+            if (!finalGame) throw new Error('대국 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+            finalMatch.championshipRealGame = finalGame;
             const actorWon = kd.actorWon === true;
             const beatenOppId = selectedRow.userId;
             versusKataSessionBeatOpponentIdRef.current =
@@ -1589,15 +1678,19 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         ? Math.max(0, realGameForCountdown.maxPly - (realGameForCountdown.currentPly ?? 0))
         : maxPlyToScoring;
 
-    const championshipScoringCountdownPanel = (
+    const renderChampionshipScoringCountdownPanel = (showRemainderCaption: boolean) => (
         <div className="flex w-36 shrink-0 flex-col items-center justify-center rounded-lg border-2 border-zinc-600 bg-gradient-to-br from-zinc-800 to-zinc-950 px-3 py-2 text-center shadow-lg">
             <div className="text-[11px] font-bold tracking-wide text-amber-100">계가까지</div>
             <div className="mt-0.5 text-2xl font-black tabular-nums text-white">
                 {remainingPlyToScoring}/{maxPlyToScoring}
             </div>
-            <div className="text-[10px] font-semibold text-slate-400">수 남음</div>
+            {showRemainderCaption ? (
+                <div className="text-[10px] font-semibold text-slate-400">수 남음</div>
+            ) : null}
         </div>
     );
+    const championshipScoringCountdownPanel = renderChampionshipScoringCountdownPanel(true);
+    const championshipScoringCountdownPanelMobile = renderChampionshipScoringCountdownPanel(false);
 
     const championshipPlayerRail =
         matchForBoard && (versusSeatBlack.player || versusSeatWhite.player) ? (
@@ -1682,7 +1775,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 <span className="font-black tracking-wide text-amber-100/95">{seasonName}</span>
                 <span className="mx-1 font-black text-amber-200/55">·</span>
                 <span className="text-slate-200">
-                    시즌 종료까지 {seasonRemaining.days}일 {seasonRemaining.hours}시간 남음
+                    시즌 종료 {seasonRemaining.days}일 {seasonRemaining.hours}시간 남음
                 </span>
             </span>
             <span className="hidden h-8 w-px shrink-0 self-stretch bg-gradient-to-b from-transparent via-slate-500/60 to-transparent sm:block" aria-hidden />
@@ -1722,45 +1815,45 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 }}
                 disabled={!selectedRow || duelTickets < 1 || kataBusy || versusReplayActive || (CHAMPIONSHIP_VERSUS_VENUE_USE_LIVE_OPPONENT_LIST && Boolean(selectedRow && beatenOpponentIds.includes(selectedRow.userId)))}
                 colorScheme="none"
-                className={championshipVersusStartMatchButtonClass}
+                className={championshipVersusStartMatchButtonSidebarClass}
             >
                 <span
                     className="pointer-events-none absolute -left-[20%] top-[-30%] h-[160%] w-[55%] rotate-[18deg] bg-gradient-to-r from-white/35 via-white/[0.07] to-transparent opacity-80 blur-md transition-opacity duration-300 group-hover:opacity-100"
                     aria-hidden
                 />
                 <span
-                    className="pointer-events-none absolute inset-0 rounded-2xl bg-[radial-gradient(120%_80%_at_50%_-20%,rgba(255,255,255,0.35),transparent_55%)]"
+                    className="pointer-events-none absolute inset-0 rounded-xl bg-[radial-gradient(120%_80%_at_50%_-20%,rgba(255,255,255,0.35),transparent_55%)]"
                     aria-hidden
                 />
-                <span className="pointer-events-none absolute inset-x-3 top-0 h-px bg-white/45" aria-hidden />
-                <span className="pointer-events-none absolute inset-px rounded-[15px] ring-1 ring-inset ring-white/15" aria-hidden />
-                <span className="relative flex w-full flex-col items-center gap-1">
+                <span className="pointer-events-none absolute inset-x-2 top-0 h-px bg-white/45" aria-hidden />
+                <span className="pointer-events-none absolute inset-px rounded-[11px] ring-1 ring-inset ring-white/15" aria-hidden />
+                <span className="relative flex w-full flex-col items-center gap-0.5">
                     {kataBusy ? (
                         <>
-                            <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-emerald-100 border-t-transparent sm:h-6 sm:w-6" />
-                            <span className="text-xs font-black tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)] sm:text-sm">
+                            <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-emerald-100 border-t-transparent sm:h-5 sm:w-5" />
+                            <span className="text-[10px] font-black tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)] sm:text-xs">
                                 경기 시작
                             </span>
                         </>
                     ) : (
                         <>
-                            <div className="flex items-center justify-center gap-1.5 leading-none">
+                            <div className="flex items-center justify-center gap-1 leading-none">
                                 <img
                                     src={CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE[venue]}
                                     alt=""
-                                    className="h-4 w-4 shrink-0 object-contain opacity-95 drop-shadow sm:h-5 sm:w-5"
+                                    className="h-3 w-3 shrink-0 object-contain opacity-95 drop-shadow sm:h-3.5 sm:w-3.5"
                                 />
-                                <span className="text-[11px] font-black tabular-nums text-emerald-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] sm:text-xs">
+                                <span className="text-[10px] font-black tabular-nums text-emerald-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] sm:text-[11px]">
                                     {duelTickets}/{CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
                                 </span>
                                 <ChampionshipVersusDuelTicketCountdown
                                     current={duelTickets}
                                     max={CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
-                                    nextAt={getChampionshipVersusDuelTicketNextAtForVenue(user, venue)}
-                                    className="text-[9px] font-mono font-bold tabular-nums text-emerald-100/95 sm:text-[10px]"
+                                    nextAt={duelTicketNextAt}
+                                    className="text-[8px] font-mono font-bold tabular-nums text-emerald-100/95 sm:text-[9px]"
                                 />
                             </div>
-                            <span className="text-[13px] font-black leading-tight tracking-wide text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)] sm:text-base">
+                            <span className="text-[11px] font-black leading-tight tracking-wide text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)] sm:text-xs">
                                 경기 시작
                             </span>
                         </>
@@ -1772,7 +1865,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 bare
                 onClick={() => replaceAppHash('#/tournament')}
                 colorScheme="none"
-                className={`flex min-h-[48px] min-w-[5.5rem] flex-1 basis-0 items-center justify-center !px-3 !py-2.5 !text-sm sm:min-h-[52px] sm:!py-3 sm:!text-base ${championshipFooterExitButton} focus-visible:ring-offset-slate-950`}
+                className={`flex min-h-[40px] min-w-[4.75rem] flex-1 basis-0 items-center justify-center !px-2 !py-2 !text-xs sm:min-h-[42px] sm:!text-sm ${championshipFooterExitButton} focus-visible:ring-offset-slate-950`}
                 title="경기장을 나갑니다."
             >
                 나가기
@@ -1782,63 +1875,63 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
 
     /** 우측 사이드바 상단: 시즌·내 정보·티어·점수·승패 코인 */
     const versusSidebarSelfSummary = (
-        <section className="relative shrink-0 overflow-hidden rounded-xl border border-white/[0.08] bg-gradient-to-br from-slate-800/88 via-slate-950/93 to-black/95 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_28px_-14px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-amber-400/10">
+        <section className="relative shrink-0 overflow-hidden rounded-lg border border-white/12 bg-gradient-to-br from-slate-800/95 via-slate-950/96 to-black/96 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_6px_20px_-12px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-amber-400/15">
             <div
-                className="pointer-events-none absolute inset-0 bg-[radial-gradient(100%_70%_at_50%_-10%,rgba(251,191,36,0.08),transparent_50%)]"
+                className="pointer-events-none absolute inset-0 bg-[radial-gradient(100%_70%_at_50%_-10%,rgba(251,191,36,0.1),transparent_50%)]"
                 aria-hidden
             />
-            <div className="relative space-y-3">
+            <div className="relative space-y-2">
                 <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1 text-center">
-                        <p className="text-[10px] font-semibold tracking-wide text-amber-200/65">시즌</p>
-                        <p className="mt-0.5 text-[11px] font-bold leading-snug text-slate-100">
-                            <span className="font-black text-amber-100">{seasonName}</span>
-                            <span className="mx-1 text-amber-200/45">·</span>
-                            <span className="text-slate-300">
-                                종료까지 {seasonRemaining.days}일 {seasonRemaining.hours}시간
+                        <p className="text-[10px] font-bold tracking-[0.12em] text-amber-200/90">시즌</p>
+                        <p className="mt-0.5 text-[11px] font-bold leading-snug text-slate-50 sm:text-xs">
+                            <span className="font-black text-amber-50">{seasonName}</span>
+                            <span className="mx-0.5 font-black text-amber-200/60">·</span>
+                            <span className="text-slate-200">
+                                종료 {seasonRemaining.days}일 {seasonRemaining.hours}시간
                             </span>
                         </p>
                     </div>
                     <button
                         type="button"
                         onClick={() => setVersusDuelHistoryOpen(true)}
-                        className="shrink-0 rounded-lg border border-amber-400/45 bg-black/40 px-2 py-1 text-[10px] font-black tracking-wide text-amber-100 shadow-inner ring-1 ring-inset ring-amber-300/12 transition hover:border-amber-300/65 hover:bg-amber-950/35 active:scale-[0.98] sm:text-[11px]"
+                        className="shrink-0 rounded-md border border-amber-400/55 bg-black/50 px-2 py-1 text-[10px] font-black tracking-wide text-amber-50 shadow-inner ring-1 ring-inset ring-amber-300/20 transition hover:border-amber-300/80 hover:bg-amber-950/40 active:scale-[0.98] sm:text-[11px]"
                     >
                         대전정보
                     </button>
                 </div>
-                <div className="flex items-center gap-2.5 rounded-lg border border-white/[0.06] bg-zinc-900/85 px-2 py-2 ring-1 ring-inset ring-white/[0.04]">
-                    <Avatar userId={user.id} userName={user.nickname} size={48} avatarUrl={myAvatarUrl} borderUrl={myBorderUrl} />
+                <div className="flex items-center gap-2 rounded-md border border-white/10 bg-zinc-900/92 px-2 py-1.5 ring-1 ring-inset ring-white/[0.06]">
+                    <Avatar userId={user.id} userName={user.nickname} size={40} avatarUrl={myAvatarUrl} borderUrl={myBorderUrl} />
                     <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-black text-white">{user.nickname}</div>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-400">
-                            <span className="font-bold tabular-nums text-amber-100/90">Lv.{user.userLevel ?? 1}</span>
+                        <div className="truncate text-[13px] font-black leading-tight text-white sm:text-sm">{user.nickname}</div>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0 text-[10px] text-slate-300">
+                            <span className="font-bold tabular-nums text-amber-100">Lv.{user.userLevel ?? 1}</span>
                             <span className="text-slate-500">|</span>
-                            <span className="font-semibold text-amber-200/90">{myTierName}</span>
+                            <span className="font-semibold text-amber-200">{myTierName}</span>
                         </div>
                     </div>
-                    <div className="flex shrink-0 flex-col items-center gap-0.5">
+                    <div className="flex shrink-0 flex-col items-center gap-0">
                         <img
                             src={resolvePublicUrl(myTierIconUrl)}
                             alt=""
-                            className="h-9 w-9 object-contain drop-shadow-md sm:h-10 sm:w-10"
+                            className="h-7 w-7 object-contain drop-shadow-md sm:h-8 sm:w-8"
                         />
-                        <span className="text-lg font-black tabular-nums leading-none text-white sm:text-xl">{myRating}</span>
+                        <span className="text-sm font-black tabular-nums leading-none text-white sm:text-base">{myRating}</span>
                     </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                    <div className="flex flex-col gap-1 rounded-lg border border-emerald-400/35 bg-emerald-950/25 px-2 py-1.5 shadow-inner">
-                        <span className="text-[10px] font-black tracking-wide text-emerald-200/90">승리 시</span>
-                        <div className="flex items-center gap-1.5">
-                            <img src={specialResourceIcons.champCoins} alt="" className="h-5 w-5 object-contain" />
-                            <span className="text-base font-black tabular-nums text-emerald-50">{winCoinPreview}</span>
+                <div className="grid grid-cols-2 gap-1.5">
+                    <div className="flex flex-col gap-0.5 rounded-md border border-emerald-400/45 bg-emerald-950/35 px-2 py-1.5 shadow-inner">
+                        <span className="text-[10px] font-black tracking-wide text-emerald-100">승리 시</span>
+                        <div className="flex items-center gap-1">
+                            <img src={specialResourceIcons.champCoins} alt="" className="h-4 w-4 object-contain" />
+                            <span className="text-sm font-black tabular-nums text-emerald-50">{winCoinPreview}</span>
                         </div>
                     </div>
-                    <div className="flex flex-col gap-1 rounded-lg border border-slate-500/45 bg-zinc-950/88 px-2 py-1.5 shadow-inner">
-                        <span className="text-[10px] font-black tracking-wide text-slate-400">패배 시</span>
-                        <div className="flex items-center gap-1.5">
-                            <img src={specialResourceIcons.champCoins} alt="" className="h-5 w-5 object-contain opacity-90" />
-                            <span className="text-base font-black tabular-nums text-slate-100">{lossCoinPreview}</span>
+                    <div className="flex flex-col gap-0.5 rounded-md border border-slate-500/55 bg-zinc-950/90 px-2 py-1.5 shadow-inner">
+                        <span className="text-[10px] font-black tracking-wide text-slate-300">패배 시</span>
+                        <div className="flex items-center gap-1">
+                            <img src={specialResourceIcons.champCoins} alt="" className="h-4 w-4 object-contain opacity-90" />
+                            <span className="text-sm font-black tabular-nums text-slate-50">{lossCoinPreview}</span>
                         </div>
                     </div>
                 </div>
@@ -1847,7 +1940,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
     );
 
     const versusSidebarFooterActions = (
-        <div className="flex w-full shrink-0 gap-2 border-t border-white/[0.08] bg-gradient-to-t from-black/90 via-slate-950/94 to-slate-950/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2.5">
+        <div className="flex w-full shrink-0 gap-2 border-t border-white/12 bg-gradient-to-t from-black/92 via-slate-950/95 to-slate-950 px-2 pb-[max(0.85rem,calc(env(safe-area-inset-bottom,0px)+0.55rem))] pt-2">
             {versusPrimaryActions}
         </div>
     );
@@ -1975,26 +2068,6 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                             {subLabel}
                         </div>
                     ) : null}
-                    <div className="grid grid-cols-3 gap-x-0.5 gap-y-0.5">
-                        {[
-                            CoreStat.Concentration,
-                            CoreStat.ThinkingSpeed,
-                            CoreStat.Judgment,
-                            CoreStat.Calculation,
-                            CoreStat.CombatPower,
-                            CoreStat.Stability,
-                        ].map((stat) => (
-                            <div
-                                key={stat}
-                                className="flex items-baseline justify-between gap-0.5 rounded bg-black/35 px-1 py-0.5 text-[9px] leading-none"
-                            >
-                                <span className="truncate text-slate-400">{stat}</span>
-                                <span className={`text-[10px] font-bold tabular-nums ${valueColor}`}>
-                                    {Math.round(blockStats?.[stat] ?? 0)}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
                     <div className="grid grid-cols-3 gap-0.5">
                         {MOBILE_PHASE_META.map((phase) => {
                             const ply = metaPly(phase);
@@ -2030,7 +2103,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
 
             if (split) {
                 return (
-                    <div className="flex min-w-0 flex-[1.12] flex-col gap-0.5">
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                         {oneBlock(split.userStats, '유저', Boolean(pairSplitTurnHighlight?.user))}
                         {oneBlock(split.petStats, '펫 능력치', Boolean(pairSplitTurnHighlight?.pet))}
                     </div>
@@ -2166,37 +2239,44 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             >
                 {mobileChampionshipPlayerInfoRow}
                 {mobileChampionshipAbilityRow}
+                {matchForBoard && (versusSeatBlack.player || versusSeatWhite.player) ? (
+                    <section className="flex shrink-0 justify-center px-0.5 py-0.5" aria-label="계가까지 남은 수">
+                        {championshipScoringCountdownPanelMobile}
+                    </section>
+                ) : null}
                 {mobileChampionshipBoardSection}
             </div>
         </main>
     );
 
     const opponentSidebarInner = (
-        <div className="flex h-full min-h-0 flex-col gap-2 overflow-hidden px-1.5 pb-0.5 text-slate-100">
+        <div className="flex h-full min-h-0 flex-col gap-1.5 overflow-hidden px-1.5 pb-0.5 text-slate-100">
             <div className="shrink-0">{versusSidebarSelfSummary}</div>
 
-            <div className="shrink-0 border-b border-white/[0.07] px-1 pb-2 pt-0.5">
-                <h3 className="text-center text-[15px] font-black tracking-tight text-white">상대 선수</h3>
+            <div className="shrink-0 border-b border-white/10 px-0.5 pb-1 pt-0">
+                <h3 className="text-center text-sm font-black tracking-wide text-amber-50 drop-shadow-sm sm:text-[15px]">
+                    상대 선수
+                </h3>
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden py-2">
-                    <div className="flex w-full max-w-[17.5rem] flex-col gap-0 overflow-y-auto overflow-x-hidden [scrollbar-color:rgba(148,163,184,0.35)_transparent] [scrollbar-width:thin] sm:max-w-[18.5rem]">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-0.5 py-0.5">
+                    <div className="flex min-h-0 w-full max-w-full flex-1 flex-col gap-0 self-stretch overflow-y-auto overflow-x-hidden overscroll-y-contain px-0.5 py-0.5 [scrollbar-color:rgba(148,163,184,0.45)_rgba(15,23,42,0.5)] [scrollbar-width:thin]">
                         {loading ? (
-                            <div className="flex flex-col items-center justify-center gap-3 py-12 text-slate-400">
+                            <div className="flex flex-col items-center justify-center gap-2 py-6 text-slate-300">
                                 <div className="h-9 w-9 animate-spin rounded-full border-2 border-amber-400/30 border-t-amber-300" />
-                                <span className="text-xs font-medium tracking-wide text-slate-400">매칭 목록 불러오는 중</span>
+                                <span className="text-sm font-semibold tracking-wide">매칭 목록 불러오는 중</span>
                             </div>
                         ) : loadError ? (
-                            <div className="rounded-xl border border-rose-500/35 bg-rose-950/35 px-3 py-3 text-center text-xs leading-relaxed text-rose-100 shadow-inner ring-1 ring-rose-400/15">
+                            <div className="rounded-xl border border-rose-500/40 bg-rose-950/40 px-2 py-2 text-center text-xs leading-relaxed text-rose-50 shadow-inner ring-1 ring-rose-400/20">
                                 {loadError}
                             </div>
                         ) : opponents.length === 0 ? (
-                            <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-8 text-center text-xs text-slate-500 ring-1 ring-inset ring-white/[0.04]">
+                            <div className="rounded-xl border border-white/12 bg-black/35 px-2 py-5 text-center text-xs text-slate-300 ring-1 ring-inset ring-white/[0.06]">
                                 표시할 상대가 없습니다.
                             </div>
                         ) : (
-                            <ul className="flex list-none flex-col gap-2.5 p-0">
+                            <ul className="flex list-none flex-col gap-1.5 p-0">
                                 {opponents.map((o) => {
                                     const selected = (selectedId ?? opponents[0]?.userId) === o.userId;
                                     const demoRow = o.userId.startsWith('versus-demo-');
@@ -2218,7 +2298,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                     return (
                                         <li key={o.userId} className="w-full">
                                             <div
-                                                className={`group relative overflow-hidden rounded-2xl border transition-all duration-200 ${
+                                                className={`group relative overflow-hidden rounded-xl border transition-all duration-200 ${
                                                     isSessionBeaten
                                                         ? 'border-emerald-500/35 bg-gradient-to-br from-emerald-950/40 via-slate-950/88 to-black/92 opacity-[0.72] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-emerald-500/15'
                                                         : selected
@@ -2249,21 +2329,21 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                                             setSelectedId(o.userId);
                                                         }
                                                     }}
-                                                    className={`relative z-[1] flex w-full items-center gap-1.5 px-2.5 py-2.5 text-left outline-none sm:gap-2 sm:px-3 sm:py-3 ${
+                                                    className={`relative z-[1] flex w-full items-center gap-1.5 px-2 py-2 text-left outline-none sm:gap-2 sm:px-2.5 sm:py-2.5 ${
                                                         isSessionBeaten
                                                             ? 'cursor-not-allowed opacity-95'
                                                             : 'cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400/50'
                                                     }`}
                                                 >
                                                     <span
-                                                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-amber-400/35 bg-gradient-to-b from-amber-500/25 via-amber-950/40 to-black text-[10px] font-black tabular-nums leading-none text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] ring-1 ring-black/50 sm:h-8 sm:w-8 sm:text-[11px]"
+                                                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-amber-400/35 bg-gradient-to-b from-amber-500/25 via-amber-950/40 to-black text-[9px] font-black tabular-nums leading-none text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] ring-1 ring-black/50 sm:h-7 sm:w-7 sm:text-[10px]"
                                                         title="장내 티어 점수(ELO) 순위"
                                                     >
                                                         {opponentTierScoreRankByUserId.get(o.userId) ?? '—'}
                                                     </span>
                                                     <button
                                                         type="button"
-                                                        className="relative z-[2] flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-white/15 bg-slate-950 p-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_2px_8px_rgba(0,0,0,0.5)] ring-1 ring-black/50 transition hover:border-amber-400/45 hover:shadow-[0_0_0_1px_rgba(251,191,36,0.25)] active:scale-[0.96] sm:h-11 sm:w-11"
+                                                        className="relative z-[2] flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-white/15 bg-slate-950 p-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_2px_8px_rgba(0,0,0,0.5)] ring-1 ring-black/50 transition hover:border-amber-400/45 hover:shadow-[0_0_0_1px_rgba(251,191,36,0.25)] active:scale-[0.96] sm:h-9 sm:w-9"
                                                         title={demoRow ? '프로필' : `${o.nickname} 프로필 보기`}
                                                         aria-label={demoRow ? '프로필' : `${o.nickname} 프로필 보기`}
                                                         onClick={(e) => {
@@ -2274,26 +2354,26 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                                     >
                                                         <img src={userAvatarSrc} alt="" className="h-full w-full object-cover" loading="lazy" />
                                                     </button>
-                                                    <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/50 p-0.5 shadow-inner ring-1 ring-inset ring-white/[0.05] sm:h-11 sm:w-11">
+                                                    <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-black/50 p-0.5 shadow-inner ring-1 ring-inset ring-white/[0.05] sm:h-9 sm:w-9">
                                                         <img src={tierIcon} alt="" className="h-full w-full object-contain drop-shadow-md" />
                                                     </div>
                                                     <div className="min-w-0 flex-1">
                                                         <div className="flex min-w-0 flex-col gap-0.5">
                                                             <div className="flex min-w-0 items-start gap-1.5">
-                                                                <span className="shrink-0 rounded bg-black/35 px-1 py-0.5 text-[9px] font-black tabular-nums text-amber-100/95 ring-1 ring-amber-400/20 sm:text-[10px]">
+                                                                <span className="shrink-0 rounded bg-black/45 px-1 py-0.5 text-[9px] font-black tabular-nums text-amber-50 ring-1 ring-amber-400/35 sm:text-[10px]">
                                                                     Lv.{o.userLevel}
                                                                 </span>
-                                                                <span className="min-w-0 flex-1 whitespace-normal break-words text-sm font-bold leading-snug tracking-tight text-white group-hover:text-amber-50/95">
+                                                                <span className="min-w-0 flex-1 whitespace-normal break-words text-[13px] font-bold leading-snug tracking-tight text-white group-hover:text-amber-50">
                                                                     {o.nickname}
                                                                 </span>
                                                             </div>
                                                             {showPetAux && petLv != null ? (
-                                                                <span className="whitespace-normal break-words text-[10px] font-semibold leading-snug text-slate-400 sm:text-[11px]">
+                                                                <span className="whitespace-normal break-words text-[10px] font-semibold leading-snug text-slate-300">
                                                                     Lv.{petLv} {o.representativePet!.displayName}
                                                                 </span>
                                                             ) : null}
                                                         </div>
-                                                        <div className="mt-0.5 text-[10.5px] font-semibold tabular-nums text-cyan-200/80 sm:text-[11.5px]">
+                                                        <div className="mt-0.5 text-[10px] font-semibold tabular-nums text-cyan-100 sm:text-[11px]">
                                                             {seasonRecordLabel(o.wins, o.losses)}
                                                         </div>
                                                     </div>
@@ -2305,15 +2385,15 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                             </ul>
                         )}
 
-                        <div className="mt-3 w-full shrink-0 border-t border-white/[0.07] pt-3">
+                        <div className="mt-2 w-full shrink-0 border-t border-white/10 pt-2">
                             <Button
                                 type="button"
                                 colorScheme="none"
                                 disabled={loading}
                                 onClick={() => void refreshOpponents({ force: true })}
-                                className="!flex w-full !items-center !justify-center gap-2 !rounded-xl !border !border-amber-400/30 !bg-gradient-to-b !from-slate-700/50 !via-slate-900/80 !to-black !py-2.5 !text-xs !font-bold !text-amber-50 !shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_8px_24px_-12px_rgba(0,0,0,0.85)] !ring-1 !ring-inset !ring-white/10 transition hover:!border-amber-300/50 hover:!brightness-110 active:!scale-[0.99] disabled:!opacity-45 sm:!py-3 sm:!text-[13px]"
+                                className="!flex w-full !items-center !justify-center gap-1.5 !rounded-lg !border !border-amber-400/45 !bg-gradient-to-b !from-slate-600/55 !via-slate-900/88 !to-black !py-2 !text-[11px] !font-bold !text-amber-50 !shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_6px_20px_-12px_rgba(0,0,0,0.85)] !ring-1 !ring-inset !ring-white/10 transition hover:!border-amber-300/60 hover:!brightness-110 active:!scale-[0.99] disabled:!opacity-45 sm:!text-xs"
                             >
-                                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-amber-300/40 text-[10px] leading-none text-amber-200">
+                                <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-amber-300/40 text-[9px] leading-none text-amber-200">
                                     ↻
                                 </span>
                                 <span>새로고침</span>
@@ -2332,8 +2412,8 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                     </span>
                                 )}
                             </Button>
-                            <div className="mt-2 flex items-center justify-center gap-1">
-                                <span className="text-[10px] font-semibold tracking-wider text-cyan-100/75">배속</span>
+                            <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1">
+                                <span className="text-[10px] font-bold tracking-wide text-cyan-100">배속</span>
                                 {versusPlaybackSpeedChoices.map((speed) => {
                                     const isActive = versusPlaybackSpeed === speed;
                                     const titleBySpeed: Record<string, string> = {
@@ -2348,10 +2428,10 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                             type="button"
                                             onClick={() => setVersusPlaybackSpeed(speed)}
                                             title={titleBySpeed[String(speed)]}
-                                            className={`min-w-[2.4rem] rounded-md border px-1.5 py-0.5 text-[10px] font-black tracking-wider transition ${
+                                            className={`min-w-[2.35rem] rounded border px-1.5 py-0.5 text-[10px] font-black tracking-wider transition ${
                                                 isActive
-                                                    ? 'border-cyan-300/80 bg-cyan-500/25 text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]'
-                                                    : 'border-slate-500/40 bg-slate-900/60 text-slate-300 hover:border-cyan-300/55 hover:text-cyan-100'
+                                                    ? 'border-cyan-200/90 bg-cyan-500/35 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]'
+                                                    : 'border-slate-500/55 bg-slate-900/75 text-slate-200 hover:border-cyan-300/65 hover:bg-slate-800/90 hover:text-cyan-50'
                                             }`}
                                         >
                                             x{speed}
@@ -2406,19 +2486,19 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 {isMobile && (
                     <>
                         <div
-                            className={`fixed right-0 z-50 isolate flex w-[280px] flex-col overflow-hidden border-l border-amber-500/40 bg-gradient-to-b from-slate-800 via-[#1a2436] to-zinc-950 shadow-2xl transition-transform duration-300 ease-in-out before:pointer-events-none before:absolute before:inset-0 before:z-0 before:bg-[radial-gradient(120%_90%_at_100%_0%,rgba(251,191,36,0.1),transparent_55%)] ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
+                            className={`fixed right-0 z-50 isolate flex w-[min(19.5rem,calc(100vw-3rem))] flex-col overflow-hidden border-l border-amber-400/55 bg-gradient-to-b from-slate-800 via-[#1a2436] to-zinc-950 shadow-2xl transition-transform duration-300 ease-in-out before:pointer-events-none before:absolute before:inset-0 before:z-0 before:bg-[radial-gradient(120%_90%_at_100%_0%,rgba(251,191,36,0.12),transparent_55%)] ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
                             style={{
-                                top: 'env(safe-area-inset-top, 0px)',
-                                bottom: 'calc(env(safe-area-inset-bottom, 0px) + 4.5rem)',
+                                top: VERSUS_MOBILE_DRAWER_TOP,
+                                bottom: VERSUS_MOBILE_DRAWER_BOTTOM,
                             }}
                         >
                             <div className="relative z-10 flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-                                <div className="flex shrink-0 items-center justify-between border-b border-slate-700 bg-slate-950/94 px-3 py-2">
-                                    <span className="text-sm font-bold text-amber-100">중계 · 대진표</span>
+                                <div className="flex shrink-0 items-center justify-end border-b border-slate-600/80 bg-slate-900/95 px-2.5 py-2">
+                                    <span className="sr-only">부가 정보 패널</span>
                                     <button
                                         type="button"
                                         onClick={() => setIsMobileSidebarOpen(false)}
-                                        className="rounded-md border border-slate-600 px-2 py-1 text-xs text-slate-200"
+                                        className="rounded-lg border border-slate-500/70 bg-slate-800/90 px-2.5 py-1.5 text-xs font-bold text-slate-100 shadow-sm transition hover:border-slate-400 hover:bg-slate-700/90 active:scale-[0.98]"
                                     >
                                         닫기
                                     </button>
@@ -2431,23 +2511,17 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 )}
             </div>
 
-            {isMobile && !isMobileSidebarOpen ? (
-                <div className="pointer-events-auto fixed bottom-0 left-0 right-0 z-[35] flex gap-2 border-t border-white/10 bg-gradient-to-t from-black/92 via-slate-950/94 to-slate-950/96 px-2 py-2 pb-[max(0.45rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(0,0,0,0.55)]">
-                    {versusPrimaryActions}
-                </div>
-            ) : null}
-
             {isMobile && !isMobileSidebarOpen && (
                 <button
                     type="button"
                     onClick={() => setIsMobileSidebarOpen(true)}
-                    className="fixed top-1/2 right-0 z-30 flex h-24 w-9 -translate-y-1/2 flex-col items-center justify-center gap-0.5 rounded-l-xl border border-r-0 border-amber-300/55 bg-slate-950/94 text-amber-100 shadow-2xl active:translate-x-0.5"
-                    aria-label="중계 및 대진표 열기"
-                    title="중계 및 대진표 열기"
+                    className="fixed right-0 z-[36] flex h-[6.25rem] w-[2.65rem] flex-col items-center justify-center gap-1 rounded-l-2xl border-2 border-r-0 border-amber-200/75 bg-gradient-to-b from-amber-400/95 via-amber-600/92 to-slate-950 text-white shadow-[0_6px_28px_-4px_rgba(245,158,11,0.55),inset_0_1px_0_rgba(255,255,255,0.35)] ring-2 ring-amber-300/35 active:translate-x-0.5"
+                    style={{ bottom: VERSUS_MOBILE_SIDEBAR_OPEN_TAB_BOTTOM }}
+                    aria-label="우측 패널 열기"
+                    title="우측 패널 열기"
                 >
-                    <span className="text-base font-black leading-none">‹</span>
-                    <span className="text-[10px] font-bold leading-tight">중계</span>
-                    <span className="text-[10px] font-bold leading-tight">대진표</span>
+                    <span className="text-2xl font-black leading-none tracking-tight text-white drop-shadow-md">‹</span>
+                    <span className="h-8 w-1 rounded-full bg-white/90 shadow-[0_0_8px_rgba(255,255,255,0.55)]" aria-hidden />
                 </button>
             )}
             {duelModalOpen &&
@@ -2583,12 +2657,15 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                     currentUser={user}
                     currentCondition={myVersusConditionForPotion}
                     onClose={() => setShowConditionPotionModal(false)}
-                    onConfirm={(potionType) => {
-                        void handlers.handleAction({
+                    onConfirm={async (potionType) => {
+                        const result = await handlers.handleAction({
                             type: 'USE_CONDITION_POTION',
                             payload: { versusVenue: venue, potionType },
                         });
-                        setShowConditionPotionModal(false);
+                        if (!(result && typeof result === 'object' && 'error' in result && result.error)) {
+                            setShowConditionPotionModal(false);
+                        }
+                        return result as { error?: string } | void;
                     }}
                     isTopmost={true}
                 />

@@ -263,6 +263,15 @@ const REFINEMENT_TICKET_NAMES = new Set([
     '스페셜 옵션 변경권',
     '신화 옵션 변경권', // 레거시 인벤·우편 호환
 ]);
+const REFINEMENT_TICKET_ALIAS_BY_COMPACT: Record<string, string> = {
+    옵션종류변경권: '옵션 종류 변경권',
+    옵션수치변경권: '옵션 수치 변경권',
+    스페셜옵션변경권: '스페셜 옵션 변경권',
+    신화옵션변경권: '신화 옵션 변경권',
+    optiontypechangeticket: '옵션 종류 변경권',
+    optionvaluechangeticket: '옵션 수치 변경권',
+    mythicoptionchangeticket: '스페셜 옵션 변경권',
+};
 
 export function isActionPointConsumable(name: string | undefined): boolean {
     if (!name) return false;
@@ -294,7 +303,12 @@ export function normalizeRefinementTicketInventoryName(name: string | undefined)
     if (typeof s.normalize === 'function') {
         s = s.normalize('NFKC');
     }
-    return s;
+    if (REFINEMENT_TICKET_NAMES.has(s)) {
+        return s;
+    }
+    const compact = s.replace(/[^0-9A-Za-z가-힣]/g, '').toLowerCase();
+    const aliasResolved = REFINEMENT_TICKET_ALIAS_BY_COMPACT[compact];
+    return aliasResolved || s;
 }
 
 export function isRefinementTicketMaterial(name: string | undefined): boolean {

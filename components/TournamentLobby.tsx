@@ -17,6 +17,7 @@ import {
 } from '../shared/constants/championshipVersusVenue.js';
 import {
     getChampionshipVersusDuelTicketsForVenue,
+    getChampionshipVersusDuelTicketsForVenueUi,
     getChampionshipVersusDuelTicketNextAtForVenue,
 } from '../shared/utils/championshipVersusDuelTickets.js';
 import ChampionshipVersusDuelTicketCountdown from './ChampionshipVersusDuelTicketCountdown.js';
@@ -551,7 +552,7 @@ const ChampionshipVersusLobbyCard: React.FC<{
         const t = RANKING_TIERS.find((x) => x.name === tierName) ?? RANKING_TIERS[RANKING_TIERS.length - 1]!;
         return t.icon;
     }, [tierName]);
-    const duelTickets = useMemo(() => {
+    const duelTicketsRaw = useMemo(() => {
         if (!currentUserWithStatus) return CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX;
         return getChampionshipVersusDuelTicketsForVenue(currentUserWithStatus, kind);
     }, [
@@ -568,6 +569,26 @@ const ChampionshipVersusLobbyCard: React.FC<{
         kind,
         currentUserWithStatus?.championshipVersusDuelTicketNextAtByVenue,
         currentUserWithStatus?.championshipVersusDuelTicketNextAt,
+    ]);
+    const [duelTicketUiTick, setDuelTicketUiTick] = useState(0);
+    useEffect(() => {
+        if (!currentUserWithStatus || duelTicketsRaw >= CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX) return;
+        const id = window.setInterval(() => setDuelTicketUiTick((n) => n + 1), 1000);
+        return () => window.clearInterval(id);
+    }, [currentUserWithStatus, duelTicketsRaw, duelTicketNextAt, kind]);
+    const duelTickets = useMemo(() => {
+        if (!currentUserWithStatus) return CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX;
+        return getChampionshipVersusDuelTicketsForVenueUi(currentUserWithStatus, kind, Date.now());
+    }, [
+        currentUserWithStatus,
+        kind,
+        currentUserWithStatus?.championshipVersusDuelTicketsByVenue,
+        currentUserWithStatus?.championshipVersusDuelTickets,
+        currentUserWithStatus?.championshipVersusDuelTicketNextAtByVenue,
+        currentUserWithStatus?.championshipVersusDuelTicketNextAt,
+        duelTicketsRaw,
+        duelTicketNextAt,
+        duelTicketUiTick,
     ]);
     const go = () => {
         window.location.hash = `#/tournament/${kind}`;
@@ -996,7 +1017,7 @@ const TournamentLobby: React.FC = () => {
     const [enrollingIn, setEnrollingIn] = useState<TournamentType | null>(null);
     const [selectedPreset, setSelectedPreset] = useState(0);
     /** 네이티브·좁은 뷰포트 챔피언십 로비: 능력치 / 경기장 / 상점 */
-    const [nativeChampionshipTab, setNativeChampionshipTab] = useState<'stats' | 'arena' | 'shop'>('stats');
+    const [nativeChampionshipTab, setNativeChampionshipTab] = useState<'stats' | 'arena' | 'shop'>('arena');
     /** PC 챔피언십 로비 좌측: 유저 장비·능력치 / 대표 펫 능력치 */
     const [pcChampionshipLeftAbilityTab, setPcChampionshipLeftAbilityTab] = useState<'user' | 'pet'>('user');
     const [championshipDuelHistoryOpen, setChampionshipDuelHistoryOpen] = useState(false);

@@ -562,12 +562,38 @@ function normalizePairSoulStoneTemplateIds(items: InventoryItem[]): InventoryIte
     return changed ? out : items;
 }
 
+/**
+ * 레거시/비정상 row(수량 0 이하)는 실제로 지급·사용할 수 없고
+ * 슬롯 수 판정만 왜곡하므로 로드 정규화 시 제거한다.
+ */
+function pruneNonPositiveInventoryRows(items: InventoryItem[]): InventoryItem[] {
+    let changed = false;
+    const out = items.filter((it) => {
+        if (!it || typeof it !== 'object') {
+            changed = true;
+            return false;
+        }
+        const qtyRaw = (it as InventoryItem & { quantity?: unknown }).quantity;
+        const qty = qtyRaw == null ? 1 : Number(qtyRaw);
+        if (!Number.isFinite(qty) || qty <= 0) {
+            changed = true;
+            return false;
+        }
+        return true;
+    });
+    return changed ? out : items;
+}
+
 /** DB/소켓 로드 후 인벤 정규화: 장비 수치 → 펫 스택 분리 → 변경권·제련의 부적 합산 */
 export function normalizeInventoryAfterLoad(items: InventoryItem[]): InventoryItem[] {
     return normalizePairPetXpGates(
         consolidateRefinementCharmStacks(
             consolidateRefinementTicketStacks(
-                splitStackedPairPetInstances(mapNormalizeInventoryList(normalizePairSoulStoneTemplateIds(items)))
+                splitStackedPairPetInstances(
+                    mapNormalizeInventoryList(
+                        pruneNonPositiveInventoryRows(normalizePairSoulStoneTemplateIds(items))
+                    )
+                )
             )
         )
     );

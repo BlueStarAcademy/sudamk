@@ -316,6 +316,7 @@ const TowerLobby: React.FC = () => {
                                 p.whitePattern ?? 0,
                                 p.white ?? 0
                             );
+                            const hasBaseMode = (stage.baseStones ?? 0) > 0;
                             
                             // 목표 정보 (툴팁·표시용)
                             const getTargetInfo = () => {
@@ -472,24 +473,31 @@ const TowerLobby: React.FC = () => {
                                                         )}
                                                     </div>
                                                     <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 sm:gap-x-4">
-                                                        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 sm:gap-x-3">
-                                                            <div className="flex items-center gap-1">
-                                                                <img src="/images/single/Black.webp" alt="흑" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
-                                                                <span className="text-amber-200 font-bold tabular-nums">{towerDisplayBlackPlain}</span>
+                                                        {hasBaseMode ? (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <img src="/images/simbols/simbol4.webp" alt="베이스" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
+                                                                <span className="text-sky-300 font-bold">베이스{stage.baseStones}</span>
                                                             </div>
-                                                            <div className="flex items-center gap-1">
-                                                                <img src="/images/single/White.webp" alt="백" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
-                                                                <span className="text-amber-200 font-bold tabular-nums">{towerDisplayWhitePlain}</span>
+                                                        ) : (
+                                                            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 sm:gap-x-3">
+                                                                <div className="flex items-center gap-1">
+                                                                    <img src="/images/single/Black.webp" alt="흑" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
+                                                                    <span className="text-amber-200 font-bold tabular-nums">{towerDisplayBlackPlain}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1">
+                                                                    <img src="/images/single/White.webp" alt="백" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
+                                                                    <span className="text-amber-200 font-bold tabular-nums">{towerDisplayWhitePlain}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1">
+                                                                    <img src="/images/single/BlackDouble.webp" alt="흑 문양" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
+                                                                    <span className="text-amber-200 font-bold tabular-nums">×{stage.placements.blackPattern}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1">
+                                                                    <img src="/images/single/WhiteDouble.webp" alt="백 문양" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
+                                                                    <span className="text-amber-200 font-bold tabular-nums">×{stage.placements.whitePattern}</span>
+                                                                </div>
                                                             </div>
-                                                            <div className="flex items-center gap-1">
-                                                                <img src="/images/single/BlackDouble.webp" alt="흑 문양" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
-                                                                <span className="text-amber-200 font-bold tabular-nums">×{stage.placements.blackPattern}</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-1">
-                                                                <img src="/images/single/WhiteDouble.webp" alt="백 문양" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
-                                                                <span className="text-amber-200 font-bold tabular-nums">×{stage.placements.whitePattern}</span>
-                                                            </div>
-                                                        </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             )}

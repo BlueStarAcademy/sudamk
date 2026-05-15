@@ -555,6 +555,12 @@ export const ChampionshipRealGoBoard: React.FC<{
     );
 };
 
+/** 네이티브 셸 고정 패널: `Header` + 하단 독·광고(`ChampionshipVersusVenueArena`와 동일 계열) */
+const CHAMPIONSHIP_MOBILE_OVERLAY_DRAWER_TOP =
+    'calc(env(safe-area-inset-top, 0px) + clamp(3.5rem, calc(2.85rem + 2vw), 4.85rem))';
+const CHAMPIONSHIP_MOBILE_OVERLAY_DRAWER_BOTTOM = 'calc(env(safe-area-inset-bottom, 0px) + 7.5rem)';
+const CHAMPIONSHIP_MOBILE_SIDEBAR_OPEN_TAB_BOTTOM = 'calc(env(safe-area-inset-bottom, 0px) + 7.5rem + 0.25rem)';
+
 const CHAMPIONSHIP_PHASE_META = [
     { key: 'opening' as const, label: '초반', ply19: 1, ply13: 1, ply9: 1 },
     { key: 'midgame' as const, label: '중반', ply19: 61, ply13: 31, ply9: 15 },
@@ -6459,8 +6465,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         <section
             className={`flex min-h-0 flex-col justify-center rounded-2xl border border-cyan-300/22 shadow-[inset_0_1px_0_rgba(255,255,255,0.075),0_16px_36px_-24px_rgba(0,0,0,0.95)] ring-1 ring-inset ring-cyan-300/10 ${
                 isMobile
-                    ? 'bg-gradient-to-br from-[#27364a]/65 via-[#121a27]/50 to-[#070a10]/60 p-2 backdrop-blur-md'
-                    : 'bg-gradient-to-br from-[#27364a] via-[#121a27] to-[#070a10] p-2.5'
+                    ? 'bg-gradient-to-br from-[#27364a]/96 via-[#121a27]/95 to-[#070a10]/95 p-2'
+                    : 'bg-gradient-to-br from-[#27364a]/96 via-[#121a27]/95 to-[#070a10]/95 p-2.5'
             }`}
         >
             <div className={`text-center font-black tracking-[0.22em] text-cyan-100/85 ${isMobile ? 'mb-1 text-[9px]' : 'mb-1.5 text-[10px]'}`}>
@@ -6469,8 +6475,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             <div
                 className={`flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-500/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.055)] ${
                     isMobile
-                        ? 'min-h-0 bg-gradient-to-b from-black/28 to-slate-950/48 px-2 py-2 backdrop-blur-sm'
-                        : 'min-h-[3.7rem] bg-gradient-to-b from-black/34 to-slate-950/72 px-2.5 py-2.5'
+                        ? 'min-h-0 bg-gradient-to-b from-black/94 to-slate-950/94 px-2 py-2'
+                        : 'min-h-[3.7rem] bg-gradient-to-b from-black/94 to-slate-950/94 px-2.5 py-2.5'
                 }`}
             >
                 {championshipFinished ? (
@@ -6530,7 +6536,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
               };
 
               return (
-                  <div className="flex w-full shrink-0 flex-col gap-1.5 border-t border-cyan-500/35 bg-slate-950/55 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] backdrop-blur-md">
+                  <div className="flex w-full shrink-0 flex-col gap-1.5 border-t border-cyan-500/35 bg-slate-950/92 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
                       {(isTournamentFullyComplete || isUserEliminated) && treatAsClaimed && (
                           <div className="flex w-full flex-row flex-wrap items-stretch gap-2">
                               <div className="min-w-0 flex-1 basis-[calc(50%-0.25rem)]">
@@ -6621,31 +6627,42 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const sgfShowLastMoveOnly = !isSimulating && (tournament.status === 'round_complete' || tournament.status === 'complete' || tournament.status === 'eliminated');
 
     const renderSidebarContent = (compact: boolean) => (
-        <div className="h-full w-full flex flex-col gap-2 rounded-2xl bg-gradient-to-b from-[#1b2230] via-[#0d121c] to-[#05070b] p-2 ring-1 ring-inset ring-slate-500/20" style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-            <div className="shrink-0 rounded-xl border border-amber-400/45 bg-gradient-to-br from-[#3a2810] via-[#1c2330] to-[#07090d] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_14px_36px_-18px_rgba(0,0,0,0.85)] ring-1 ring-inset ring-amber-300/18">
+        <div
+            className={`h-full w-full flex flex-col rounded-2xl bg-gradient-to-b from-[#1b2230] via-[#0d121c] to-[#05070b] ring-1 ring-inset ring-slate-500/20 ${compact ? 'gap-1 p-1' : 'gap-2 p-2'}`}
+            style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}
+        >
+            <div
+                className={`shrink-0 rounded-xl border border-amber-400/45 bg-gradient-to-br from-[#3a2810] via-[#1c2330] to-[#07090d] shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_14px_36px_-18px_rgba(0,0,0,0.85)] ring-1 ring-inset ring-amber-300/18 ${compact ? 'p-2' : 'p-3'}`}
+            >
                 <div className="text-center">
-                    <div className="text-[11px] font-bold tracking-[0.24em] text-amber-200/80">CHAMPIONSHIP ARENA</div>
-                    <div className="mt-1 truncate text-lg font-black text-amber-50 drop-shadow-[0_0_14px_rgba(251,191,36,0.22)]">
+                    <div className={`font-bold tracking-[0.24em] text-amber-200/80 ${compact ? 'text-[10px]' : 'text-[11px]'}`}>CHAMPIONSHIP ARENA</div>
+                    <div
+                        className={`truncate font-black text-amber-50 drop-shadow-[0_0_14px_rgba(251,191,36,0.22)] ${compact ? 'mt-0.5 text-base leading-tight' : 'mt-1 text-lg'}`}
+                    >
                         {TOURNAMENT_DEFINITIONS[tournament.type].name}
                     </div>
                     {resolvedDungeonStageAttempt >= 1 ? (
-                        <div className="mx-auto mt-2 inline-flex rounded-full border border-amber-300/35 bg-amber-500/12 px-3 py-1 text-xs font-bold text-amber-100">
+                        <div
+                            className={`mx-auto inline-flex rounded-full border border-amber-300/35 bg-amber-500/12 font-bold text-amber-100 ${compact ? 'mt-1 px-2 py-0.5 text-[10px]' : 'mt-2 px-3 py-1 text-xs'}`}
+                        >
                             {resolvedDungeonStageAttempt}단계
                         </div>
                     ) : null}
                 </div>
             </div>
-            <div className="grid shrink-0 grid-cols-2 gap-1 rounded-xl border border-slate-600/65 bg-slate-950/88 p-1 shadow-inner">
+            <div
+                className={`grid shrink-0 grid-cols-2 rounded-xl border border-slate-600/65 bg-slate-950/88 shadow-inner ${compact ? 'gap-0.5 p-0.5' : 'gap-1 p-1'}`}
+            >
                 {([
-                    { key: 'commentary' as const, label: '중계내용' },
-                    { key: 'bracket' as const, label: '대진표' },
+                    { key: 'commentary' as const, label: '경기 요약' },
+                    { key: 'bracket' as const, label: '라운드' },
                 ]).map(tab => (
                     <button
                         key={tab.key}
                         type="button"
                         onClick={() => setChampionshipSidebarTab(tab.key)}
                         className={`rounded-lg font-bold transition-all ${
-                            compact ? 'px-2 py-1.5 text-xs' : 'px-3 py-2 text-sm'
+                            compact ? 'px-1.5 py-1 text-[10px]' : 'px-3 py-2 text-sm'
                         } ${
                             championshipSidebarTab === tab.key
                                 ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg'
@@ -6656,16 +6673,16 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     </button>
                 ))}
             </div>
-            <div 
-                className="overflow-y-auto rounded-xl border border-slate-500/55 bg-gradient-to-b from-[#202938] via-[#111824] to-[#070a10] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.075),0_12px_32px_-20px_rgba(0,0,0,0.9)] ring-1 ring-inset ring-white/[0.05]" 
-                style={{ 
-                    flex: '1 1 auto', 
-                    minHeight: 0, 
+            <div
+                className={`overflow-y-auto rounded-xl border border-slate-500/55 bg-gradient-to-b from-[#202938] via-[#111824] to-[#070a10] shadow-[inset_0_1px_0_rgba(255,255,255,0.075),0_12px_32px_-20px_rgba(0,0,0,0.9)] ring-1 ring-inset ring-white/[0.05] ${compact ? 'p-1.5' : 'p-2'}`}
+                style={{
+                    flex: '1 1 auto',
+                    minHeight: 0,
                     maxHeight: '100%',
-                    overflowY: 'auto', 
-                    overflowX: 'hidden', 
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
                     width: '100%',
-                    WebkitOverflowScrolling: 'touch'
+                    WebkitOverflowScrolling: 'touch',
                 }}
             >
             {championshipSidebarTab === 'commentary' ? (
@@ -6958,7 +6975,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const championshipPlayerRail = matchForDisplay && (p1 || p2) ? (
         <div className="flex-shrink-0 w-full flex justify-center">
             <div className="min-w-0 w-full flex-1 px-2 pt-1 min-[1025px]:px-1">
-                <section className="flex min-h-[74px] shrink-0 flex-row items-stretch gap-2 overflow-hidden rounded-lg border-2 border-stone-500 bg-stone-900/92 p-2 shadow-xl">
+                <section className="flex min-h-[74px] shrink-0 flex-row items-stretch gap-2 overflow-hidden rounded-lg border-2 border-stone-500 bg-stone-900/95 p-2 shadow-xl">
                     {renderSimpleChampionshipPlayerCard(p1, 'black')}
                     {championshipScoringCountdownPanel}
                     {renderSimpleChampionshipPlayerCard(p2, 'white')}
@@ -6976,7 +6993,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     const championshipFooterControls = (
         <div className="flex-shrink-0 w-full flex flex-col gap-1">
-            <div className="rounded-2xl border border-amber-300/18 bg-gradient-to-b from-[#283247]/92 via-[#151c2a]/90 to-[#07090f]/92 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_52px_-18px_rgba(0,0,0,0.96)] ring-1 ring-inset ring-white/[0.04]">
+            <div className="rounded-2xl border border-amber-300/18 bg-gradient-to-b from-[#283247]/95 via-[#151c2a]/94 to-[#07090f]/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_52px_-18px_rgba(0,0,0,0.96)] ring-1 ring-inset ring-white/[0.04]">
                 <div className="grid min-h-[168px] grid-cols-[0.7fr_1.3fr] gap-2 overflow-hidden">
                     {renderChampionshipMatchControlPanel()}
                     {finalRewardSection}
@@ -7168,13 +7185,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     const mobileChampionshipPlayerInfoRow =
         matchForDisplay && (p1 || p2) ? (
-            <section className="flex shrink-0 flex-row items-stretch gap-1 rounded-md border border-stone-500/70 bg-stone-900/90 p-1 shadow-md">
+            <section className="flex shrink-0 flex-row items-stretch gap-1 rounded-md border border-stone-500/70 bg-stone-900/95 p-1 shadow-md">
                 {renderMobileChampionshipPureInfoCard(p1, 'left')}
                 {renderMobileChampionshipPureInfoCard(p2, 'right')}
             </section>
         ) : null;
 
-    /** 모바일 전용: 가로 챔피언십 능력치 패널(코어 6개 + 단계별 능력) */
+    /** 모바일 전용: 가로 챔피언십 능력치 패널(초반·중반·종반 단계 능력만 — 코어 6종은 생략) */
     const renderMobileChampionshipAbilityPanel = (
         player: PlayerForTournament | null,
         stats: Record<string, number>,
@@ -7197,20 +7214,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const valueColor = tone === 'black' ? 'text-stone-100' : 'text-slate-50';
 
         return (
-            <div className={`flex min-w-0 flex-1 flex-col gap-1 rounded-md border ${accentTone} p-1`}>
-                <div className="grid grid-cols-3 gap-x-0.5 gap-y-0.5">
-                    {CHAMPIONSHIP_CORE_STATS.map((stat) => (
-                        <div
-                            key={stat}
-                            className="flex items-baseline justify-between gap-0.5 rounded bg-black/35 px-1 py-0.5 text-[9px] leading-none"
-                        >
-                            <span className="truncate text-slate-400">{stat}</span>
-                            <span className={`text-[10px] font-bold tabular-nums ${valueColor}`}>
-                                {Math.round(stats?.[stat] ?? 0)}
-                            </span>
-                        </div>
-                    ))}
-                </div>
+            <div className={`flex min-w-0 flex-1 flex-col gap-0.5 rounded-md border ${accentTone} p-1`}>
                 <div className="grid grid-cols-3 gap-0.5">
                     {CHAMPIONSHIP_PHASE_META.map((phase) => {
                         const ply = championshipPhaseMetaPly(boardSize, phase);
@@ -7313,7 +7317,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     <div className="text-base font-black tabular-nums leading-none text-white">
                         {remainingPly}/{maxPly}
                     </div>
-                    <div className="text-[8px] font-semibold text-slate-400">수 남음</div>
                 </div>
                 {renderScoreCell(p2IsWhite, p2Score, p2IsBlack ? '흑' : p2IsWhite ? '백' : '', 'right')}
             </section>
@@ -7608,14 +7611,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         <div
                             className={`fixed right-0 z-50 flex w-[280px] flex-col overflow-hidden bg-gradient-to-b from-[#222b3b] via-[#111827] to-[#050608] shadow-2xl transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
                             style={{
-                                top: 'env(safe-area-inset-top, 0px)',
-                                /* NativeMobileDock(h-11~12 + 테두리) + 홈 인디케이터 — 하단 퀵 탭 위에서만 패널이 끝나도록 */
-                                bottom: 'calc(env(safe-area-inset-bottom, 0px) + 3.5rem)',
+                                top: CHAMPIONSHIP_MOBILE_OVERLAY_DRAWER_TOP,
+                                bottom: CHAMPIONSHIP_MOBILE_OVERLAY_DRAWER_BOTTOM,
                             }}
                         >
                             <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-                                <div className="flex shrink-0 items-center justify-between border-b border-slate-700 bg-slate-950 px-3 py-2">
-                                    <span className="text-sm font-bold text-amber-100">중계 · 대진표</span>
+                                <div className="flex shrink-0 items-center justify-end border-b border-slate-700 bg-slate-950 px-3 py-2">
+                                    <span className="sr-only">부가 정보 패널</span>
                                     <button
                                         type="button"
                                         onClick={() => setIsMobileSidebarOpen(false)}
@@ -7636,13 +7638,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 <button
                     type="button"
                     onClick={() => setIsMobileSidebarOpen(true)}
-                    className="fixed top-1/2 right-0 z-30 flex h-24 w-9 -translate-y-1/2 flex-col items-center justify-center gap-0.5 rounded-l-xl border border-r-0 border-amber-300/55 bg-slate-950/95 text-amber-100 shadow-2xl active:translate-x-0.5"
-                    aria-label="중계 및 대진표 열기"
-                    title="중계 및 대진표 열기"
+                    className="fixed right-0 z-30 flex h-[6.25rem] w-[2.65rem] flex-col items-center justify-center gap-1 rounded-l-2xl border-2 border-r-0 border-amber-200/75 bg-gradient-to-b from-amber-400/95 via-amber-600/92 to-slate-950 text-white shadow-[0_6px_28px_-4px_rgba(245,158,11,0.55),inset_0_1px_0_rgba(255,255,255,0.35)] ring-2 ring-amber-300/35 active:translate-x-0.5"
+                    style={{ bottom: CHAMPIONSHIP_MOBILE_SIDEBAR_OPEN_TAB_BOTTOM }}
+                    aria-label="우측 패널 열기"
+                    title="우측 패널 열기"
                 >
-                    <span className="text-base font-black leading-none">‹</span>
-                    <span className="text-[10px] font-bold leading-tight">중계</span>
-                    <span className="text-[10px] font-bold leading-tight">대진표</span>
+                    <span className="text-2xl font-black leading-none tracking-tight text-white drop-shadow-md">‹</span>
+                    <span className="h-8 w-1 rounded-full bg-white/90 shadow-[0_0_8px_rgba(255,255,255,0.55)]" aria-hidden />
                 </button>
             )}
 
@@ -7653,8 +7655,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     onClose={() => setShowConditionPotionModal(false)}
                     onConfirm={(potionType) => {
                         if (tournament?.type) {
-                            onAction({ type: 'USE_CONDITION_POTION', payload: { tournamentType: tournament.type, potionType } });
+                            const result = onAction({
+                                type: 'USE_CONDITION_POTION',
+                                payload: { tournamentType: tournament.type, potionType },
+                            });
+                            return Promise.resolve(result as { error?: string } | void);
                         }
+                        return undefined;
                     }}
                     isTopmost={true}
                 />

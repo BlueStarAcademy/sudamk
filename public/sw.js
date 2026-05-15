@@ -30,6 +30,25 @@ const priorityImages = [
   '/images/equipments/Star4.webp',
 ];
 
+// Heavy backgrounds are expensive to keep/update in image cache on mobile/data-saver flows.
+// Keep small UI sprites cacheable, but bypass cache for large scene assets.
+const nonCacheImagePathPrefixes = [
+  '/images/bg/',
+  '/images/monster/',
+  '/images/single/',
+  '/images/tower/',
+  '/images/guild/guildwar/',
+];
+
+function shouldBypassImageCache(request, url) {
+  if (!(request.destination === 'image' || url.pathname.startsWith('/images/'))) {
+    return false;
+  }
+  const saveData = request.headers.get('save-data') === 'on';
+  if (saveData) return true;
+  return nonCacheImagePathPrefixes.some((prefix) => url.pathname.startsWith(prefix));
+}
+
 // Install event - cache resources
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -158,6 +177,20 @@ self.addEventListener('fetch', (event) => {
     );
   } else {
     // 이미지 등 정젝 리소스는 캝시 우선 전략 사용 (GET 요청만)
+    if (shouldBypassImageCache(request, url)) {
+      event.respondWith(
+        fetch(request)
+          .catch(() => caches.match(request, { cacheName: CACHE_NAME }))
+          .then((cachedOrResponse) => {
+            if (cachedOrResponse) return cachedOrResponse;
+            if (request.destination === 'document') {
+              return caches.match('/index.html');
+            }
+          })
+      );
+      return;
+    }
+
     event.respondWith(
       caches.match(request, { cacheName: IMAGE_CACHE_NAME })
         .then((cachedResponse) => {

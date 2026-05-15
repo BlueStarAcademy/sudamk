@@ -22,6 +22,10 @@ const LiveCountdownToMs: React.FC<{
         const tick = () => {
             const ms = Math.max(0, deadlineMs - Date.now());
             const totalSec = Math.floor(ms / 1000);
+            if (totalSec <= 0) {
+                setLabel('');
+                return;
+            }
             setLabel(formatHms(totalSec));
         };
         tick();

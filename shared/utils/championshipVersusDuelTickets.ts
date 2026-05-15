@@ -36,6 +36,24 @@ export function getChampionshipVersusDuelTicketsForVenue(
     return clampChampionshipVersusDuelTicketCount(by?.[venue]);
 }
 
+/**
+ * 서버 스냅샷이 한 박자 늦어도 `nextAt`이 지난 뒤에는 만충처럼 보이게 한다.
+ * (대기실·경기장에서 4/5 (0:00:00)에 고정되는 현상 방지)
+ */
+export function getChampionshipVersusDuelTicketsForVenueUi(
+    user: ChampionshipVersusDuelTicketsPick,
+    venue: ChampionshipVersusVenueKind,
+    nowMs: number = Date.now(),
+): number {
+    const n = getChampionshipVersusDuelTicketsForVenue(user, venue);
+    if (n >= CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX) return n;
+    const nextAt = getChampionshipVersusDuelTicketNextAtForVenue(user, venue);
+    if (typeof nextAt === 'number' && Number.isFinite(nextAt) && nextAt <= nowMs) {
+        return CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX;
+    }
+    return n;
+}
+
 export function getChampionshipVersusDuelTicketNextAtForVenue(
     user: ChampionshipVersusDuelTicketsPick,
     venue: ChampionshipVersusVenueKind,

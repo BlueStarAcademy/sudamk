@@ -43,7 +43,7 @@ const ChampionshipVersusDuelHistoryModal: React.FC<ChampionshipVersusDuelHistory
             onClick={onClose}
         >
             <div
-                className="flex max-h-[min(90dvh,640px)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-amber-400/40 bg-gradient-to-b from-slate-900/98 via-slate-950/98 to-black/98 shadow-2xl ring-1 ring-amber-300/15"
+                className="flex max-h-[min(90dvh,640px)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-amber-400/40 bg-gradient-to-b from-slate-900 via-slate-950 to-black shadow-2xl ring-1 ring-amber-300/15"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex shrink-0 items-center justify-between gap-3 border-b border-amber-500/25 px-4 py-3 sm:px-5">
@@ -62,7 +62,7 @@ const ChampionshipVersusDuelHistoryModal: React.FC<ChampionshipVersusDuelHistory
                         <div className="px-4 py-12 text-center text-sm font-semibold text-slate-500 sm:px-5">저장된 대전 기록이 없습니다.</div>
                     ) : (
                         <table className="w-full min-w-[520px] border-collapse text-left text-[11px] sm:text-xs">
-                            <thead className="sticky top-0 z-[1] bg-slate-950/95 backdrop-blur-sm">
+                            <thead className="sticky top-0 z-[1] bg-slate-950">
                                 <tr className="border-b border-amber-500/20 text-[10px] font-black uppercase tracking-wide text-amber-200/90 sm:text-[11px]">
                                     <th className="whitespace-nowrap px-2 py-2.5 sm:px-3">경기 모드</th>
                                     <th className="whitespace-nowrap px-2 py-2.5 sm:px-3">상대 닉네임</th>
@@ -80,7 +80,7 @@ const ChampionshipVersusDuelHistoryModal: React.FC<ChampionshipVersusDuelHistory
                                     return (
                                         <tr
                                             key={r.id}
-                                            className="border-b border-white/[0.05] odd:bg-black/20 even:bg-white/[0.02] hover:bg-amber-500/[0.06]"
+                                            className="border-b border-white/[0.05] odd:bg-slate-900 even:bg-slate-950 hover:bg-amber-900/30"
                                         >
                                             <td className="max-w-[8.5rem] whitespace-normal break-words px-2 py-2 font-semibold text-slate-100 sm:px-3 sm:py-2.5">
                                                 {championshipVersusDuelVenueModeLabelKo(r.venue)}
