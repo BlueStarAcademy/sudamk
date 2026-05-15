@@ -23,11 +23,11 @@ function sanitizeHiddenMovesWithHumanMarkers(
     hiddenMoves: LiveGameSession['hiddenMoves']
 ): LiveGameSession['hiddenMoves'] {
     const markers = (session as { humanHiddenStonePoints?: Array<{ x: number; y: number; player?: Player }> }).humanHiddenStonePoints;
-    if (!hiddenMoves || !Array.isArray(session.moveHistory) || !Array.isArray(markers) || markers.length === 0) {
+    if (!Array.isArray(session.moveHistory) || !Array.isArray(markers) || markers.length === 0) {
         return hiddenMoves;
     }
     const next: NonNullable<LiveGameSession['hiddenMoves']> = {};
-    for (const [rawIndex, isHidden] of Object.entries(hiddenMoves)) {
+    for (const [rawIndex, isHidden] of Object.entries(hiddenMoves ?? {})) {
         if (!isHidden) continue;
         const index = Number(rawIndex);
         if (!Number.isInteger(index) || index < 0) continue;
@@ -42,6 +42,20 @@ function sanitizeHiddenMovesWithHumanMarkers(
             if (!markerExists) continue;
         }
         next[index] = true;
+    }
+    for (const marker of markers) {
+        for (let i = session.moveHistory.length - 1; i >= 0; i--) {
+            const move = session.moveHistory[i];
+            if (
+                move &&
+                move.x === marker.x &&
+                move.y === marker.y &&
+                (marker.player === undefined || marker.player === move.player)
+            ) {
+                next[i] = true;
+                break;
+            }
+        }
     }
     return Object.keys(next).length > 0 ? next : undefined;
 }

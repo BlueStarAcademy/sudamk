@@ -797,10 +797,10 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         }
         if (modalLayerUsesDesignPixels) {
             const cap = readModalRootDesignCapSize();
-            if (cap) {
-                const ih = resolvedInitialHeight ?? 560;
-                return Math.max(240, Math.min(ih, cap.height));
-            }
+            /** `cap`이 null이면 `innerHeight`로 잡히면 설계 캔버스보다 커져 하단이 잘림 → 인게임 상한으로 폴백 */
+            const designCapH = cap?.height ?? INGAME_BOARD_FRAME_MAX_HEIGHT_PX;
+            const ih = resolvedInitialHeight ?? 560;
+            return Math.max(240, Math.min(ih, designCapH));
         }
         const useContentDrivenHeight =
             !mobileLockViewportHeight &&
@@ -877,15 +877,16 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const canvasViewportContentScale = useMemo(() => {
         if (!modalLayerUsesDesignPixels || !useMobileViewportFitLayout || useReadableSmallPcViewportPortal) return 1;
         const cap = readModalRootDesignCapSize();
-        if (!cap) return 1;
+        const capW = cap?.width ?? INGAME_BOARD_FRAME_MAX_WIDTH_PX;
+        const capH = cap?.height ?? INGAME_BOARD_FRAME_MAX_HEIGHT_PX;
         const shellH = mobileViewportFitHeightPx ?? resolvedInitialHeight ?? 560;
         const headerH = headerShowTitle ? 54 : 42;
         const stickyFooterH = hasStickyChildFooter ? 52 : 0;
         const chromeFooterH = hideFooter ? 0 : 54;
-        const availContentH = cap.height - headerH - stickyFooterH - chromeFooterH - 8;
+        const availContentH = capH - headerH - stickyFooterH - chromeFooterH - 8;
         const designContentH = shellH - headerH - stickyFooterH - chromeFooterH;
         const scaleH = availContentH / Math.max(1, designContentH);
-        const scaleW = cap.width / Math.max(1, designInitialWidth);
+        const scaleW = capW / Math.max(1, designInitialWidth);
         return Math.max(0.48, Math.min(1, scaleW, scaleH));
     }, [
         modalLayerUsesDesignPixels,
@@ -1379,8 +1380,12 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
      */
     const readableViewportScrollBodyFlexFill =
         useReadableSmallPcViewportPortal && !bodyNoScroll && bodyScrollable;
-    /** `bodyNoScroll`이면 본문 스크롤을 끄는데, sticky 푸터 경로만 예외로 켜져 있으면 빈 스크롤 트랙이 생길 수 있음 → 함께 끔(내부에서 스크롤 처리) */
-    const scrollRegionAllowsVerticalScroll = (useStickyMobileFooter && !bodyNoScroll) || bodyAllowsVerticalScroll;
+    /**
+     * sticky 푸터가 있으면 본문 열만 세로 스크롤/클립이 필요(`bodyNoScroll`이어도 본문은 스크롤 가능해야 함).
+     * 예전: `bodyNoScroll`일 때 여기가 false가 되어 래퍼가 `overflow-hidden`만 되고, 내부 flex 비전달로
+     * `UseQuantityModal`의 `overflow-y-auto`가 동작하지 않아 하단 버튼이 통째로 잘림.
+     */
+    const scrollRegionAllowsVerticalScroll = useStickyMobileFooter || bodyAllowsVerticalScroll;
     const useViewportScaledBodyContent =
         useReadableSmallPcViewportPortal ||
         (modalLayerUsesDesignPixels && useMobileViewportFitLayout && !useReadableSmallPcViewportPortal);
@@ -1398,7 +1403,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         const keepDesignFrameHeight = !useReadableSmallPcViewportPortal && (!bodyScrollable || bodyNoScroll);
         return (
             <div
-                className="relative mx-auto max-w-full overflow-visible"
+                className="relative mx-auto min-h-0 max-w-full overflow-visible"
                 style={{
                     width: `${designInitialWidth * scale}px`,
                     height: `${measuredH}px`,

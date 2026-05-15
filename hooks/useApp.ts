@@ -1017,6 +1017,23 @@ function mergeHumanHiddenStonePointsForSession(
     const mergedPoints = dedupe([...incomingPoints, ...existingPoints]);
     if (mergedPoints.length === 0) return undefined;
 
+    if (isSessionSingleOrTower(incoming)) {
+        const board = incoming.boardState;
+        const playerIdFor = (player: Player | undefined) =>
+            player === Player.Black ? incoming.blackPlayerId : player === Player.White ? incoming.whitePlayerId : undefined;
+        const humanMarkers = mergedPoints.filter((point) => {
+            const cell = board?.[point.y]?.[point.x];
+            if (cell !== Player.Black && cell !== Player.White) {
+                // 슬림/지연 패킷은 boardState가 없거나 늦을 수 있으므로, 잘못된 hiddenMoves로 마커를 버리지 않는다.
+                return !Array.isArray(board) || board.length === 0;
+            }
+            if (point.player !== undefined && point.player !== cell) return false;
+            const ownerId = playerIdFor(cell);
+            return !!ownerId && ownerId !== aiUserId && !ownerId.startsWith('dungeon-bot-') && !ownerId.startsWith('pet-ai-');
+        });
+        return humanMarkers.length > 0 ? humanMarkers : undefined;
+    }
+
     if (!Array.isArray(moveHistory) || !hiddenMoves || Object.keys(hiddenMoves).length === 0) {
         return mergedPoints;
     }

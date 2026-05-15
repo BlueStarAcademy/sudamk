@@ -189,6 +189,20 @@ function sanitizeHumanHiddenMoveIndexes(
         }
         next[index] = true;
     }
+    for (const point of humanHiddenStonePoints) {
+        for (let i = moveHistory.length - 1; i >= 0; i--) {
+            const move = moveHistory[i];
+            if (
+                move &&
+                move.x === point.x &&
+                move.y === point.y &&
+                (point.player === undefined || move.player === point.player)
+            ) {
+                next[i] = true;
+                break;
+            }
+        }
+    }
     return next;
 }
 

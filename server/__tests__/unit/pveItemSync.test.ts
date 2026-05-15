@@ -1,11 +1,43 @@
 import { describe, expect, it } from 'vitest';
 import { applyPveItemActionClientSync } from '../../pveItemSync.js';
 import { Player } from '../../../types/index.js';
+import { buildPveItemActionClientSync } from '../../../utils/pveItemClientSync.js';
 
 const emptyBoard = (size: number) =>
     Array.from({ length: size }, () => Array.from({ length: size }, () => Player.None));
 
 describe('PVE item client sync', () => {
+    it('builds human hidden sync from coordinate marker instead of stale hiddenMoves index', () => {
+        const board = emptyBoard(5);
+        board[0][0] = Player.Black;
+        board[1][1] = Player.White;
+        board[2][2] = Player.Black;
+        const session: any = {
+            id: 'pve-human-hidden-marker-authority',
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            blackPlayerId: 'human-1',
+            whitePlayerId: 'ai-player-01',
+            boardState: board,
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 1, y: 1, player: Player.White },
+                { x: 2, y: 2, player: Player.Black },
+            ],
+            currentPlayer: Player.White,
+            gameStatus: 'playing',
+            mode: 'mix',
+            settings: { mixedModes: ['hidden'] },
+            hiddenMoves: { '0': true },
+            humanHiddenStonePoints: [{ x: 2, y: 2, player: Player.Black }],
+        };
+
+        const sync = buildPveItemActionClientSync(session);
+
+        expect(sync?.hiddenMoves).toEqual({ '2': true });
+        expect(sync?.humanHiddenStonePoints).toEqual([{ x: 2, y: 2, player: Player.Black }]);
+    });
+
     it('does not let a same-length client snapshot relocate or erase a confirmed AI stone', () => {
         const board = emptyBoard(5);
         board[2][2] = Player.White;
