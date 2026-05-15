@@ -65,7 +65,7 @@ interface ConditionPotionModalProps {
     currentUser?: User; // Optional: useAppContext에서 가져올 수 있도록
     currentCondition: number;
     onClose: () => void;
-    onConfirm: (potionType: PotionType) => void | Promise<{ error?: string } | void>;
+    onConfirm: (potionType: PotionType) => void;
     onAction?: (action: any) => void;
     isTopmost?: boolean;
 }
@@ -92,7 +92,6 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
     /** HTTP 응답 전에도 보유 수·컨디션 바가 즉시 반응하도록(서버 확정값은 updateTrigger로 동기화) */
     const [optimisticPotionDelta, setOptimisticPotionDelta] = useState<Partial<Record<PotionType, number>>>({});
     const [optimisticConditionAdd, setOptimisticConditionAdd] = useState(0);
-    const [isApplyingPotion, setIsApplyingPotion] = useState(false);
 
     // 상점을 닫고 돌아올 때(구매 직후 포함) 보유 수·골드 UI가 남는 경우 방지
     useEffect(() => {
@@ -163,8 +162,8 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
         return potionCounts[selectedPotionType] > 0;
     }, [selectedPotionType, potionCounts]);
 
-    const handleConfirm = async () => {
-        if (!currentUser || !selectedPotionType || isApplyingPotion) return;
+    const handleConfirm = () => {
+        if (!currentUser || !selectedPotionType) return;
         
         // 0개인 아이템을 선택한 경우 상점 열기
         if (!hasPotion) {
@@ -173,9 +172,7 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
             return;
         }
 
-        const startedAt = Date.now();
         const potion = POTION_TYPES[selectedPotionType];
-        setIsApplyingPotion(true);
         setOptimisticPotionDelta((prev) => ({
             ...prev,
             [selectedPotionType]: (prev[selectedPotionType] ?? 0) - 1,
@@ -184,30 +181,7 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
             setOptimisticConditionAdd((a) => Math.min(100 - currentCondition, a + potion.minRecovery));
         }
 
-        try {
-            const result = await Promise.resolve(onConfirm(selectedPotionType));
-            const hasError =
-                Boolean(result) &&
-                typeof result === 'object' &&
-                'error' in result &&
-                typeof (result as { error?: unknown }).error === 'string' &&
-                Boolean((result as { error?: string }).error);
-
-            if (hasError) {
-                setOptimisticPotionDelta((prev) => ({
-                    ...prev,
-                    [selectedPotionType]: (prev[selectedPotionType] ?? 0) + 1,
-                }));
-                if (currentCondition !== 1000) {
-                    setOptimisticConditionAdd((a) => Math.max(0, a - potion.minRecovery));
-                }
-            }
-        } finally {
-            const elapsed = Date.now() - startedAt;
-            const minFxMs = 450;
-            const remain = Math.max(0, minFxMs - elapsed);
-            setTimeout(() => setIsApplyingPotion(false), remain);
-        }
+        onConfirm(selectedPotionType);
     };
 
     if (!currentUser) {
@@ -369,7 +343,7 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                         <span
                             className={`relative font-black tabular-nums text-amber-100 transition-all duration-300 ${
                                 isNativeMobile ? 'text-xl' : 'text-2xl'
-                            } ${showConditionIncrease ? 'scale-110 text-emerald-300' : ''} ${isApplyingPotion ? 'animate-pulse text-emerald-200' : ''}`}
+                            } ${showConditionIncrease ? 'scale-110 text-emerald-300' : ''}`}
                         >
                             {displayCondition === 1000 ? '—' : displayCondition}
                         </span>
@@ -405,14 +379,14 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                     <button
                         type="button"
                         onClick={handleConfirm}
-                        disabled={!selectedPotionType || isApplyingPotion}
+                        disabled={!selectedPotionType}
                         className={
                             selectedPotionType && !hasPotion
                                 ? `${champBtnAmber} flex-1 min-h-[46px] sm:min-h-[48px]`
                                 : `${champBtnEmerald} flex-1 min-h-[46px] sm:min-h-[48px]`
                         }
                     >
-                        {isApplyingPotion ? '회복 적용 중...' : selectedPotionType && !hasPotion ? '상점으로 이동' : '회복제 사용'}
+                        {selectedPotionType && !hasPotion ? '상점으로 이동' : '회복제 사용'}
                     </button>
                 </div>
             </div>

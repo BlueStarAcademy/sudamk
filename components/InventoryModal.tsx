@@ -1561,7 +1561,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
             title="가방"
             onClose={onClose}
             windowId="inventory"
-            isTopmost={isTopmost && !isMobileEquippedModalOpen && !isMobileItemDetailOpen && !showUseQuantityModal}
+            isTopmost={isTopmost && !isMobileEquippedModalOpen && !isMobileItemDetailOpen}
             initialWidth={calculatedWidth}
             initialHeight={calculatedHeight}
             variant="store"
@@ -1767,9 +1767,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                         (() => {
                                                             const consumableItem = findConsumableItem(bagPcCmLeftPanelItem.name);
                                                             const isUsable = consumableItem?.usable !== false;
-                                                            const isSellable =
-                                                                consumableItem?.sellable !== false ||
-                                                                isRefinementTicketMaterial(bagPcCmLeftPanelItem.name);
+                                                            const isSellable = consumableItem?.sellable !== false;
                                                             const isRefinementTicket = isRefinementTicketMaterial(bagPcCmLeftPanelItem.name);
                                                             const hideBagUse = isConditionPotionConsumable(bagPcCmLeftPanelItem.name);
                                                             const fs = Math.max(12, Math.round(13 * scaleFactor * mobileTextScale));
@@ -2028,9 +2026,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                             {selectedItem.type === 'consumable' && (() => {
                                                 const consumableItem = findConsumableItem(selectedItem.name);
                                                 const isUsable = consumableItem?.usable !== false; // 기본값은 true
-                                                const isSellable =
-                                                    consumableItem?.sellable !== false ||
-                                                    isRefinementTicketMaterial(selectedItem.name); // 기본값은 true
+                                                const isSellable = consumableItem?.sellable !== false; // 기본값은 true
                                                 const isRefinementTicket = isRefinementTicketMaterial(selectedItem.name);
                                                 const hideBagUse = isConditionPotionConsumable(selectedItem.name);
                                                 const fs = Math.max(12, Math.round(13 * scaleFactor * mobileTextScale));
@@ -2513,9 +2509,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                 (() => {
                                     const consumableItem = findConsumableItem(selectedItem.name);
                                     const isUsable = consumableItem?.usable !== false;
-                                    const isSellable =
-                                        consumableItem?.sellable !== false ||
-                                        isRefinementTicketMaterial(selectedItem.name);
+                                    const isSellable = consumableItem?.sellable !== false;
                                     const isRefinementTicket = isRefinementTicketMaterial(selectedItem.name);
                                     const hideBagUse = isConditionPotionConsumable(selectedItem.name);
                                     return (
@@ -2970,7 +2964,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                 <UseQuantityModal
                     item={itemToUseBulk}
                     currentUser={currentUser}
-                    viewportPortal={useViewportSizedBagModal}
                     onClose={() => {
                         setShowUseQuantityModal(false);
                         setItemToUseBulk(null);

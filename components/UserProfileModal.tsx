@@ -8,7 +8,6 @@ import { calculateTotalStats } from '../services/statService.js';
 import MbtiComparisonModal from './MbtiComparisonModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import type { ServerAction } from '../types.js';
-import type { ChampionshipVersusVenueKind } from '../types/entities.js';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
 import {
@@ -18,9 +17,6 @@ import {
 } from '../shared/utils/unifiedRankedStatsMigration.js';
 import PairPetProfilePanel from './pair/PairPetProfilePanel.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
-import { getChampionshipVersusDisplayRating } from '../shared/utils/championshipVersusElo.js';
-import { getSeasonalRankingTierName } from '../shared/constants/ranking.js';
-import { resolvePublicUrl } from '../utils/publicAssetUrl.js';
 
 // Re-using components from Profile.tsx for consistency.
 const getXpRequirementForLevel = (level: number): number => {
@@ -456,34 +452,6 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
         return { tier, score: Math.round(seasonScore) };
     }, [user.dailyRankings?.pair, user.stats]);
 
-    const championshipVenueStrip = useMemo(() => {
-        const rating = getChampionshipVersusDisplayRating(user, 'pvp', Date.now());
-        const wl = (k: ChampionshipVersusVenueKind) => {
-            const e = user.championshipVersusVenueRatings?.[k];
-            return {
-                wins: Math.max(0, Math.floor(Number(e?.seasonWins) || 0)),
-                losses: Math.max(0, Math.floor(Number(e?.seasonLosses) || 0)),
-            };
-        };
-        const p = wl('pvp');
-        const pet = wl('pet');
-        const pr = wl('petpair');
-        const games = Math.max(p.wins + p.losses, pet.wins + pet.losses, pr.wins + pr.losses);
-        const tierName = getSeasonalRankingTierName(rating, 999_999, games);
-        const tier = RANKING_TIERS.find((x) => x.name === tierName) ?? RANKING_TIERS[RANKING_TIERS.length - 1]!;
-        return {
-            rating: Math.round(rating),
-            tierName,
-            tierIcon: tier.icon,
-            tierColor: tier.color,
-            venueSeason: [
-                { label: 'PVP', ...p },
-                { label: '펫', ...pet },
-                { label: '페어', ...pr },
-            ],
-        };
-    }, [user]);
-
     // equipment 필드와 inventory를 매칭하여 장착된 아이템 찾기
     const equippedItems = useMemo(() => {
         const items: InventoryItem[] = [];
@@ -682,66 +650,29 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                         </div>
                     </div>
 
-                    {/* 우상단: 장비 + 능력치 + 챔피언십 요약 */}
+                    {/* 우상단: 장비/능력치 */}
                     <div className="relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-slate-950 p-3 shadow-[0_24px_48px_-24px_rgba(0,0,0,0.75)] ring-1 ring-inset ring-amber-500/[0.07]">
                         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/20 to-transparent" aria-hidden />
-                        <p className="mb-1.5 text-center text-[0.6rem] font-bold uppercase tracking-[0.18em] text-amber-200/70">장비</p>
-                        <div className="flex shrink-0 gap-2 sm:gap-2.5">
-                            <div
-                                className={`mx-auto grid shrink-0 grid-cols-3 gap-1.5 ${isSelfProfile ? 'max-w-[11.5rem] sm:max-w-[12rem]' : 'max-w-[12.25rem] sm:max-w-[12.75rem]'}`}
-                            >
-                                <EquipmentSlotDisplay slot="fan" item={getItemForSlot('fan')} compact largerCompactIcon={!isSelfProfile} onClick={() => getItemForSlot('fan') && onViewItem(getItemForSlot('fan')!, false)} />
-                                <EquipmentSlotDisplay slot="board" item={getItemForSlot('board')} compact largerCompactIcon={!isSelfProfile} onClick={() => getItemForSlot('board') && onViewItem(getItemForSlot('board')!, false)} />
-                                <EquipmentSlotDisplay slot="top" item={getItemForSlot('top')} compact largerCompactIcon={!isSelfProfile} onClick={() => getItemForSlot('top') && onViewItem(getItemForSlot('top')!, false)} />
-                                <EquipmentSlotDisplay slot="bottom" item={getItemForSlot('bottom')} compact largerCompactIcon={!isSelfProfile} onClick={() => getItemForSlot('bottom') && onViewItem(getItemForSlot('bottom')!, false)} />
-                                <EquipmentSlotDisplay slot="bowl" item={getItemForSlot('bowl')} compact largerCompactIcon={!isSelfProfile} onClick={() => getItemForSlot('bowl') && onViewItem(getItemForSlot('bowl')!, false)} />
-                                <EquipmentSlotDisplay slot="stones" item={getItemForSlot('stones')} compact largerCompactIcon={!isSelfProfile} onClick={() => getItemForSlot('stones') && onViewItem(getItemForSlot('stones')!, false)} />
-                            </div>
-                            <div className="min-h-0 min-w-0 flex-1 rounded-lg border border-white/[0.06] bg-black/35 p-2 shadow-inner ring-1 ring-inset ring-white/[0.03]">
-                                <p className="mb-1 text-[0.58rem] font-bold uppercase tracking-[0.12em] text-slate-400/90">능력치</p>
-                                <div className="flex flex-col gap-0.5">
-                                    {Object.values(CoreStat).map((stat) => (
-                                        <div key={stat} className="flex min-w-0 items-center gap-1 text-[0.65rem] leading-tight sm:text-[0.68rem]">
-                                            <span className="truncate font-semibold text-slate-400">{CORE_STATS_DATA[stat]?.name || stat}</span>
-                                            <span className="ml-auto shrink-0 font-mono tabular-nums text-slate-100">{totalStats[stat]}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                        <p className="mb-1 text-center text-[0.6rem] font-bold uppercase tracking-[0.18em] text-amber-200/70">장비</p>
+                        <div
+                            className={`mx-auto mb-2 grid w-full grid-cols-3 gap-1.5 ${isSelfProfile ? 'max-w-[12rem] sm:max-w-[12.5rem]' : 'max-w-[13rem] sm:max-w-[13.75rem]'}`}
+                        >
+                            <EquipmentSlotDisplay slot="fan" item={getItemForSlot('fan')} compact largerCompactIcon={!isSelfProfile} onClick={() => getItemForSlot('fan') && onViewItem(getItemForSlot('fan')!, false)} />
+                            <EquipmentSlotDisplay slot="board" item={getItemForSlot('board')} compact largerCompactIcon={!isSelfProfile} onClick={() => getItemForSlot('board') && onViewItem(getItemForSlot('board')!, false)} />
+                            <EquipmentSlotDisplay slot="top" item={getItemForSlot('top')} compact largerCompactIcon={!isSelfProfile} onClick={() => getItemForSlot('top') && onViewItem(getItemForSlot('top')!, false)} />
+                            <EquipmentSlotDisplay slot="bottom" item={getItemForSlot('bottom')} compact largerCompactIcon={!isSelfProfile} onClick={() => getItemForSlot('bottom') && onViewItem(getItemForSlot('bottom')!, false)} />
+                            <EquipmentSlotDisplay slot="bowl" item={getItemForSlot('bowl')} compact largerCompactIcon={!isSelfProfile} onClick={() => getItemForSlot('bowl') && onViewItem(getItemForSlot('bowl')!, false)} />
+                            <EquipmentSlotDisplay slot="stones" item={getItemForSlot('stones')} compact largerCompactIcon={!isSelfProfile} onClick={() => getItemForSlot('stones') && onViewItem(getItemForSlot('stones')!, false)} />
                         </div>
-                        <div className="mt-2 border-t border-white/[0.07] pt-2">
-                            <div className="flex min-h-0 min-w-0 flex-col rounded-lg border border-fuchsia-400/22 bg-gradient-to-b from-fuchsia-950/22 via-black/40 to-black/55 p-2.5 shadow-inner ring-1 ring-inset ring-white/[0.03]">
-                                <p className="mb-2 text-center text-xs font-black uppercase tracking-wide text-fuchsia-200/90 sm:text-sm">
-                                    챔피언십 경기장
-                                </p>
-                                <div className="flex items-center gap-2.5 rounded-md border border-white/[0.06] bg-black/35 px-2.5 py-2 ring-1 ring-inset ring-white/[0.02]">
-                                    <img
-                                        src={resolvePublicUrl(championshipVenueStrip.tierIcon)}
-                                        alt=""
-                                        title={championshipVenueStrip.tierName}
-                                        className="h-9 w-9 shrink-0 object-contain drop-shadow-sm sm:h-10 sm:w-10"
-                                    />
-                                    <div className="min-w-0 flex-1 text-center">
-                                        <span className="block text-xs font-semibold tracking-tight text-slate-400 sm:text-[13px]">통합 점수</span>
-                                        <span className="mt-0.5 block font-mono text-base font-bold tabular-nums text-fuchsia-100 sm:text-lg">
-                                            {championshipVenueStrip.rating}점
-                                        </span>
-                                        <span className={`mt-0.5 block text-sm font-bold leading-tight sm:text-base ${championshipVenueStrip.tierColor}`}>
-                                            {championshipVenueStrip.tierName}
-                                        </span>
+                        <div className="min-h-0 flex-1 border-t border-white/[0.07] pt-2">
+                            <p className="mb-1 text-center text-[0.6rem] font-bold uppercase tracking-[0.14em] text-slate-400/90">능력치</p>
+                            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 rounded-lg border border-white/[0.06] bg-black/35 p-2 text-[0.68rem] shadow-inner ring-1 ring-inset ring-white/[0.03]">
+                                {Object.entries(totalStats).map(([stat, value]) => (
+                                    <div key={stat} className="flex min-w-0 items-center gap-1.5">
+                                        <span className="truncate font-semibold text-slate-400">{CORE_STATS_DATA[stat as CoreStat]?.name || stat}</span>
+                                        <span className="ml-auto font-mono text-right tabular-nums text-slate-100">{value}</span>
                                     </div>
-                                </div>
-                                <div className="mt-2 flex items-start justify-between gap-2 border-t border-white/[0.06] pt-2">
-                                    <span className="shrink-0 text-xs font-semibold text-slate-500 sm:text-[13px]">시즌 전적</span>
-                                    <div className="flex min-w-0 flex-col items-end gap-1 font-mono text-xs tabular-nums leading-snug text-slate-100/95 sm:text-[13px]">
-                                        {championshipVenueStrip.venueSeason.map((row) => (
-                                            <span key={row.label} className="whitespace-nowrap text-right">
-                                                <span className="text-slate-500">{row.label}</span>{' '}
-                                                <span className="text-slate-200">{row.wins}승 {row.losses}패</span>
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
+                                ))}
                             </div>
                         </div>
                     </div>

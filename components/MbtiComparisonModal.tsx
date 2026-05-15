@@ -240,75 +240,6 @@ const analyzeCompatibility = (myMbti: string | null | undefined, opponentMbti: s
     };
 };
 
-const compatibilityAccent = {
-    'very-good': {
-        score: 'text-emerald-300',
-        label: 'text-emerald-200/90',
-        ring: 'ring-emerald-500/35',
-        glow: 'from-emerald-500/12 via-transparent to-transparent'
-    },
-    good: {
-        score: 'text-teal-300',
-        label: 'text-teal-200/90',
-        ring: 'ring-teal-500/30',
-        glow: 'from-teal-500/10 via-transparent to-transparent'
-    },
-    neutral: {
-        score: 'text-amber-200',
-        label: 'text-amber-100/85',
-        ring: 'ring-amber-400/25',
-        glow: 'from-amber-500/10 via-transparent to-transparent'
-    },
-    bad: {
-        score: 'text-orange-300',
-        label: 'text-orange-200/90',
-        ring: 'ring-orange-500/30',
-        glow: 'from-orange-500/10 via-transparent to-transparent'
-    },
-    'very-bad': {
-        score: 'text-rose-300',
-        label: 'text-rose-200/90',
-        ring: 'ring-rose-500/35',
-        glow: 'from-rose-500/12 via-transparent to-transparent'
-    }
-} as const;
-
-type CompatibilityLevelKey = keyof typeof compatibilityAccent;
-
-const GoStyleStrengthWeaknessGrid: React.FC<{
-    strengths: string[];
-    weaknesses: string[];
-    title?: string;
-}> = ({ strengths, weaknesses, title = '상대 바둑 성향' }) => (
-    <div className="rounded-2xl border border-white/[0.07] bg-gradient-to-b from-slate-900/55 to-slate-950/70 p-3.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] backdrop-blur-sm sm:p-4">
-        <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</h3>
-        <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 min-[420px]:gap-4">
-            <div className="min-w-0 rounded-xl border border-emerald-500/15 bg-emerald-950/25 px-3 py-2.5 sm:px-3.5 sm:py-3">
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-400/90">강점</p>
-                <ul className="space-y-1.5">
-                    {strengths.map((s, i) => (
-                        <li key={i} className="flex gap-2 text-[13px] leading-snug text-slate-200/95">
-                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400/80" aria-hidden />
-                            <span>{s}</span>
-                        </li>
-                    ))}
-                </ul>
-            </div>
-            <div className="min-w-0 rounded-xl border border-rose-500/15 bg-rose-950/20 px-3 py-2.5 sm:px-3.5 sm:py-3">
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-300/90">약점</p>
-                <ul className="space-y-1.5">
-                    {weaknesses.map((w, i) => (
-                        <li key={i} className="flex gap-2 text-[13px] leading-snug text-slate-200/95">
-                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400/75" aria-hidden />
-                            <span>{w}</span>
-                        </li>
-                    ))}
-                </ul>
-            </div>
-        </div>
-    </div>
-);
-
 const MbtiComparisonModal: React.FC<MbtiComparisonModalProps> = ({ opponentUser, onClose, isTopmost }) => {
     const { currentUserWithStatus } = useAppContext();
 
@@ -321,38 +252,34 @@ const MbtiComparisonModal: React.FC<MbtiComparisonModalProps> = ({ opponentUser,
         const opponentStyle = MBTI_GO_STYLES[opponentUser.mbti];
         if (opponentStyle) {
             return (
-                <DraggableWindow title="상대 분석" onClose={onClose} windowId="mbti-comparison" initialWidth={620} initialHeight={480} isTopmost={isTopmost}>
-                    <div className="space-y-4 p-4">
-                        <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-slate-900/90 via-slate-900/60 to-zinc-950/95 p-4 shadow-lg ring-1 ring-white/[0.04]">
-                            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(244,63,94,0.12),transparent)]" />
-                            <div className="relative flex flex-wrap items-center gap-3 min-[480px]:flex-nowrap min-[480px]:justify-between">
-                                <div className="flex min-w-0 flex-1 items-center gap-3">
-                                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500/25 to-rose-950/40 text-lg font-bold tracking-tight text-rose-100 ring-1 ring-rose-400/25">
-                                        {opponentUser.mbti}
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">상대 MBTI</p>
-                                        <p className="truncate text-base font-semibold tracking-tight text-slate-100">{opponentStyle.style}</p>
-                                    </div>
+                <DraggableWindow title="상대 분석" onClose={onClose} windowId="mbti-comparison" initialWidth={500} initialHeight={520} isTopmost={isTopmost}>
+                    <div className="p-4 space-y-4">
+                        <div className="bg-gray-800/50 rounded-lg p-3">
+                            <p className="text-xs text-gray-400 mb-1">상대의 MBTI</p>
+                            <p className="text-xl font-bold text-red-400">{opponentUser.mbti}</p>
+                            <p className="text-sm text-gray-300 mt-1">{opponentStyle.style}</p>
+                            <p className="text-xs text-gray-400 mt-1">{opponentStyle.playStyle}</p>
+                        </div>
+                        <div className="bg-gray-800/50 rounded-lg p-4">
+                            <h3 className="text-sm font-bold text-white mb-2">상대할 때 참고</h3>
+                            <div className="space-y-2">
+                                <div>
+                                    <p className="text-xs font-semibold text-green-300 mb-1">강점</p>
+                                    <ul className="list-disc list-inside text-xs text-gray-300 space-y-0.5">
+                                        {opponentStyle.strengths.map((s, i) => <li key={i}>{s}</li>)}
+                                    </ul>
                                 </div>
-                                <div className="hidden h-10 w-px shrink-0 bg-gradient-to-b from-transparent via-white/15 to-transparent min-[480px]:block" aria-hidden />
-                                <div className="w-full min-[480px]:w-auto min-[480px]:max-w-[52%] min-[480px]:flex-1">
-                                    <p className="text-[11px] leading-relaxed text-slate-400/95">{opponentStyle.playStyle}</p>
+                                <div>
+                                    <p className="text-xs font-semibold text-red-300 mb-1">약점</p>
+                                    <ul className="list-disc list-inside text-xs text-gray-300 space-y-0.5">
+                                        {opponentStyle.weaknesses.map((w, i) => <li key={i}>{w}</li>)}
+                                    </ul>
                                 </div>
                             </div>
                         </div>
-
-                        <GoStyleStrengthWeaknessGrid strengths={opponentStyle.strengths} weaknesses={opponentStyle.weaknesses} title="상대할 때 참고 · 바둑 성향" />
-
-                        <p className="text-center text-[11px] leading-relaxed text-slate-500">나의 MBTI를 설정하면 상대와의 상성 점수·비교 분석을 함께 볼 수 있습니다.</p>
-                        <div className="flex justify-center pt-0.5">
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="rounded-xl border border-white/10 bg-white/[0.06] px-6 py-2.5 text-sm font-semibold text-slate-100 shadow-sm transition hover:bg-white/[0.1] hover:border-white/15 active:scale-[0.99]"
-                            >
-                                닫기
-                            </button>
+                        <p className="text-xs text-gray-500 text-center">MBTI를 설정하면 상대와의 상성 분석도 볼 수 있습니다.</p>
+                        <div className="flex justify-center">
+                            <button onClick={onClose} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">확인</button>
                         </div>
                     </div>
                 </DraggableWindow>
@@ -372,9 +299,8 @@ const MbtiComparisonModal: React.FC<MbtiComparisonModalProps> = ({ opponentUser,
                             : 'MBTI 정보를 불러올 수 없습니다.'}
                     </p>
                     <button
-                        type="button"
                         onClick={onClose}
-                        className="rounded-xl border border-white/10 bg-white/[0.06] px-5 py-2 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.1]"
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
                     >
                         확인
                     </button>
@@ -389,9 +315,8 @@ const MbtiComparisonModal: React.FC<MbtiComparisonModalProps> = ({ opponentUser,
                 <div className="p-4 text-center">
                     <p className="text-gray-300 mb-4">MBTI 정보를 분석할 수 없습니다.</p>
                     <button
-                        type="button"
                         onClick={onClose}
-                        className="rounded-xl border border-white/10 bg-white/[0.06] px-5 py-2 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.1]"
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
                     >
                         확인
                     </button>
@@ -400,72 +325,98 @@ const MbtiComparisonModal: React.FC<MbtiComparisonModalProps> = ({ opponentUser,
         );
     }
 
-    const accent = compatibilityAccent[analysis.compatibilityLevel as CompatibilityLevelKey];
+    const compatibilityColor = {
+        'very-good': 'text-green-400',
+        'good': 'text-green-300',
+        'neutral': 'text-yellow-300',
+        'bad': 'text-orange-300',
+        'very-bad': 'text-red-400'
+    }[analysis.compatibilityLevel];
+
+    const compatibilityBgColor = {
+        'very-good': 'bg-green-900/30 border-green-500/50',
+        'good': 'bg-green-800/30 border-green-400/50',
+        'neutral': 'bg-yellow-900/30 border-yellow-500/50',
+        'bad': 'bg-orange-900/30 border-orange-500/50',
+        'very-bad': 'bg-red-900/30 border-red-500/50'
+    }[analysis.compatibilityLevel];
 
     return (
-        <DraggableWindow title="MBTI 바둑성향 비교" onClose={onClose} windowId="mbti-comparison" initialWidth={720} initialHeight={720} isTopmost={isTopmost}>
-            <div className="max-h-[min(720px,78vh)] space-y-4 overflow-y-auto p-4 [scrollbar-gutter:stable]">
-                {/* 상성 점수 + 나/상대 MBTI — 한 줄 레이아웃 */}
-                <div
-                    className={`relative overflow-hidden rounded-2xl border border-white/[0.07] bg-gradient-to-br from-slate-900/85 via-slate-900/55 to-zinc-950/95 p-1 shadow-lg ring-1 ring-inset ${accent.ring}`}
-                >
-                    <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${accent.glow}`} />
-                    <div className="relative flex flex-col divide-y divide-white/[0.06] min-[560px]:flex-row min-[560px]:divide-x min-[560px]:divide-y-0">
-                        <div className="flex shrink-0 flex-col items-center justify-center px-3 py-3.5 min-[560px]:w-[132px] min-[560px]:py-4">
-                            <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">상성</span>
-                            <span className={`mt-1 text-3xl font-bold tabular-nums tracking-tight ${accent.score}`}>{analysis.compatibilityScore}</span>
-                            <span className="text-[10px] text-slate-500">점</span>
-                            <span className={`mt-1.5 text-center text-[11px] font-medium leading-tight ${accent.label}`}>{analysis.compatibilityText}</span>
+        <DraggableWindow title="MBTI 바둑성향 비교" onClose={onClose} windowId="mbti-comparison" initialWidth={700} initialHeight={800} isTopmost={isTopmost}>
+            <div className="p-4 space-y-4 overflow-y-auto" style={{ maxHeight: '750px' }}>
+                {/* 상성 점수 */}
+                <div className={`p-4 rounded-lg border-2 ${compatibilityBgColor}`}>
+                    <div className="text-center">
+                        <p className="text-sm text-gray-400 mb-1">상성 점수</p>
+                        <p className={`text-3xl font-bold ${compatibilityColor} mb-2`}>
+                            {analysis.compatibilityScore}점
+                        </p>
+                        <p className={`text-lg font-semibold ${compatibilityColor}`}>
+                            {analysis.compatibilityText}
+                        </p>
+                    </div>
+                </div>
+
+                {/* MBTI 정보 */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-800/50 rounded-lg p-3">
+                        <p className="text-xs text-gray-400 mb-1">나의 MBTI</p>
+                        <p className="text-xl font-bold text-blue-400 mb-2">{currentUserWithStatus.mbti}</p>
+                        <p className="text-sm text-gray-300 mb-2">{analysis.myStyle.style}</p>
+                        <p className="text-xs text-gray-400">{analysis.myStyle.playStyle}</p>
+                    </div>
+                    <div className="bg-gray-800/50 rounded-lg p-3">
+                        <p className="text-xs text-gray-400 mb-1">상대의 MBTI</p>
+                        <p className="text-xl font-bold text-red-400 mb-2">{opponentUser.mbti}</p>
+                        <p className="text-sm text-gray-300 mb-2">{analysis.opponentStyle.style}</p>
+                        <p className="text-xs text-gray-400">{analysis.opponentStyle.playStyle}</p>
+                    </div>
+                </div>
+
+                {/* 상대의 바둑성향 상세 */}
+                <div className="bg-gray-800/50 rounded-lg p-4">
+                    <h3 className="text-lg font-bold text-white mb-3">상대의 바둑성향</h3>
+                    <div className="space-y-3">
+                        <div>
+                            <p className="text-sm font-semibold text-green-300 mb-1">강점</p>
+                            <ul className="list-disc list-inside text-xs text-gray-300 space-y-1">
+                                {analysis.opponentStyle.strengths.map((strength, idx) => (
+                                    <li key={idx}>{strength}</li>
+                                ))}
+                            </ul>
                         </div>
-
-                        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 px-3 py-3 min-[560px]:flex-row min-[560px]:items-stretch min-[560px]:gap-0 min-[560px]:px-0 min-[560px]:py-0">
-                            <div className="flex min-w-0 flex-1 flex-col justify-center border-white/[0.06] px-2 py-2 min-[560px]:border-r min-[560px]:px-4 min-[560px]:py-3.5">
-                                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">나</span>
-                                <div className="mt-1 flex flex-wrap items-baseline gap-2">
-                                    <span className="rounded-lg bg-gradient-to-br from-sky-500/20 to-indigo-950/40 px-2.5 py-0.5 text-xl font-bold tabular-nums tracking-tight text-sky-100 ring-1 ring-sky-400/20">
-                                        {currentUserWithStatus.mbti}
-                                    </span>
-                                    <span className="text-sm font-medium text-slate-200/95">{analysis.myStyle.style}</span>
-                                </div>
-                                <p className="mt-2 text-[11px] leading-relaxed text-slate-400/95">{analysis.myStyle.playStyle}</p>
-                            </div>
-
-                            <div className="flex min-w-0 flex-1 flex-col justify-center px-2 py-2 min-[560px]:px-4 min-[560px]:py-3.5">
-                                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">상대</span>
-                                <div className="mt-1 flex flex-wrap items-baseline gap-2">
-                                    <span className="rounded-lg bg-gradient-to-br from-rose-500/22 to-rose-950/35 px-2.5 py-0.5 text-xl font-bold tabular-nums tracking-tight text-rose-50 ring-1 ring-rose-400/22">
-                                        {opponentUser.mbti}
-                                    </span>
-                                    <span className="text-sm font-medium text-slate-200/95">{analysis.opponentStyle.style}</span>
-                                </div>
-                                <p className="mt-2 text-[11px] leading-relaxed text-slate-400/95">{analysis.opponentStyle.playStyle}</p>
-                            </div>
+                        <div>
+                            <p className="text-sm font-semibold text-red-300 mb-1">약점</p>
+                            <ul className="list-disc list-inside text-xs text-gray-300 space-y-1">
+                                {analysis.opponentStyle.weaknesses.map((weakness, idx) => (
+                                    <li key={idx}>{weakness}</li>
+                                ))}
+                            </ul>
                         </div>
                     </div>
                 </div>
 
-                <GoStyleStrengthWeaknessGrid strengths={analysis.opponentStyle.strengths} weaknesses={analysis.opponentStyle.weaknesses} />
-
+                {/* 조심해야 할 부분 */}
                 {analysis.warnings.length > 0 && (
-                    <div className="rounded-2xl border border-rose-500/18 bg-rose-950/18 p-3.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.03)] backdrop-blur-sm sm:p-4">
-                        <h3 className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-200/90">조심할 포인트</h3>
+                    <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-4">
+                        <h3 className="text-lg font-bold text-red-300 mb-3 flex items-center gap-2">
+                            <span>⚠️</span>
+                            <span>조심해야 할 부분</span>
+                        </h3>
                         <ul className="space-y-2">
                             {analysis.warnings.map((warning, idx) => (
-                                <li key={idx} className="flex gap-2.5 text-[13px] leading-snug text-slate-200/95">
-                                    <span className="mt-0.5 shrink-0 font-mono text-[11px] text-rose-400/80">—</span>
+                                <li key={idx} className="text-sm text-gray-200 flex items-start gap-2">
+                                    <span className="text-red-400 mt-0.5">•</span>
                                     <span>{warning}</span>
                                 </li>
                             ))}
                         </ul>
                         {analysis.opponentStyle.strengths.length > 0 && (
-                            <div className="mt-3 border-t border-white/[0.06] pt-3">
-                                <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">상대 강점</p>
-                                <div className="flex flex-wrap gap-1.5">
+                            <div className="mt-3 pt-3 border-t border-red-500/30">
+                                <p className="text-xs text-gray-400 mb-2">상대의 강점을 주의하세요:</p>
+                                <div className="flex flex-wrap gap-2">
                                     {analysis.opponentStyle.strengths.map((strength, idx) => (
-                                        <span
-                                            key={idx}
-                                            className="rounded-lg border border-rose-500/15 bg-rose-950/30 px-2 py-0.5 text-[11px] font-medium text-rose-100/90"
-                                        >
+                                        <span key={idx} className="px-2 py-1 bg-red-800/50 rounded text-xs text-red-200">
                                             {strength}
                                         </span>
                                     ))}
@@ -475,26 +426,27 @@ const MbtiComparisonModal: React.FC<MbtiComparisonModalProps> = ({ opponentUser,
                     </div>
                 )}
 
+                {/* 공략 방법 */}
                 {analysis.strategies.length > 0 && (
-                    <div className="rounded-2xl border border-sky-500/18 bg-sky-950/15 p-3.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.03)] backdrop-blur-sm sm:p-4">
-                        <h3 className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-200/90">공략 작전</h3>
+                    <div className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-4">
+                        <h3 className="text-lg font-bold text-blue-300 mb-3 flex items-center gap-2">
+                            <span>💡</span>
+                            <span>공략 작전</span>
+                        </h3>
                         <ul className="space-y-2">
                             {analysis.strategies.map((strategy, idx) => (
-                                <li key={idx} className="flex gap-2.5 text-[13px] leading-snug text-slate-200/95">
-                                    <span className="mt-0.5 shrink-0 font-mono text-[11px] text-sky-400/85">—</span>
+                                <li key={idx} className="text-sm text-gray-200 flex items-start gap-2">
+                                    <span className="text-blue-400 mt-0.5">•</span>
                                     <span>{strategy}</span>
                                 </li>
                             ))}
                         </ul>
                         {analysis.opponentStyle.weaknesses.length > 0 && (
-                            <div className="mt-3 border-t border-white/[0.06] pt-3">
-                                <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">활용할 약점</p>
-                                <div className="flex flex-wrap gap-1.5">
+                            <div className="mt-3 pt-3 border-t border-blue-500/30">
+                                <p className="text-xs text-gray-400 mb-2">상대의 약점을 활용하세요:</p>
+                                <div className="flex flex-wrap gap-2">
                                     {analysis.opponentStyle.weaknesses.map((weakness, idx) => (
-                                        <span
-                                            key={idx}
-                                            className="rounded-lg border border-sky-500/15 bg-sky-950/30 px-2 py-0.5 text-[11px] font-medium text-sky-100/90"
-                                        >
+                                        <span key={idx} className="px-2 py-1 bg-blue-800/50 rounded text-xs text-blue-200">
                                             {weakness}
                                         </span>
                                     ))}
@@ -504,27 +456,24 @@ const MbtiComparisonModal: React.FC<MbtiComparisonModalProps> = ({ opponentUser,
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
+                {/* 차이점과 유사점 */}
+                <div className="grid grid-cols-2 gap-4">
                     {analysis.differences.length > 0 && (
-                        <div className="rounded-2xl border border-amber-500/15 bg-amber-950/12 p-3.5 backdrop-blur-sm">
-                            <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-200/85">차이</h3>
-                            <ul className="space-y-1.5">
+                        <div className="bg-yellow-900/30 border border-yellow-500/50 rounded-lg p-3">
+                            <h3 className="text-sm font-bold text-yellow-300 mb-2">차이점</h3>
+                            <ul className="space-y-1">
                                 {analysis.differences.map((diff, idx) => (
-                                    <li key={idx} className="text-[12px] leading-snug text-slate-300/95">
-                                        {diff}
-                                    </li>
+                                    <li key={idx} className="text-xs text-gray-300">• {diff}</li>
                                 ))}
                             </ul>
                         </div>
                     )}
                     {analysis.similarities.length > 0 && (
-                        <div className="rounded-2xl border border-emerald-500/15 bg-emerald-950/12 p-3.5 backdrop-blur-sm">
-                            <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-200/85">공통</h3>
-                            <ul className="space-y-1.5">
+                        <div className="bg-green-900/30 border border-green-500/50 rounded-lg p-3">
+                            <h3 className="text-sm font-bold text-green-300 mb-2">유사점</h3>
+                            <ul className="space-y-1">
                                 {analysis.similarities.map((sim, idx) => (
-                                    <li key={idx} className="text-[12px] leading-snug text-slate-300/95">
-                                        {sim}
-                                    </li>
+                                    <li key={idx} className="text-xs text-gray-300">• {sim}</li>
                                 ))}
                             </ul>
                         </div>

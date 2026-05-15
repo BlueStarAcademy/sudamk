@@ -13,8 +13,6 @@ import {
 } from '../shared/utils/bagItemDetailHelpers.js';
 import { resolveBagItemAcquireLines } from '../shared/utils/itemAcquireSourceLines.js';
 import { equipmentDetailGradeStyles } from './EquipmentDetailPanel.js';
-import { StandardEquipmentBoxShopDescription } from './shopImageDescriptionPopover.js';
-import { parseStandardEquipmentBoxLevel } from '../shared/constants/shopLootTables.js';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
@@ -152,15 +150,7 @@ const PurchaseModalItemShowcase: React.FC<{ preview: InventoryItem; shopBadge?: 
                             </div>
                             <div className="mt-1.5 rounded-lg border border-white/[0.06] bg-black/30 p-2.5 ring-1 ring-inset ring-white/[0.03]">
                                 <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 sm:text-[11px]">설명</p>
-                                {parseStandardEquipmentBoxLevel(preview.id) != null ? (
-                                    <StandardEquipmentBoxShopDescription
-                                        itemId={preview.id}
-                                        textClassName="mt-1 text-xs leading-snug text-slate-200/95 sm:text-[13px] sm:leading-snug"
-                                        fallback={<p className="mt-1 text-xs leading-snug text-slate-200/95 sm:text-[13px] sm:leading-snug">{desc}</p>}
-                                    />
-                                ) : (
-                                    <p className="mt-1 text-xs leading-snug text-slate-200/95 sm:text-[13px] sm:leading-snug">{desc}</p>
-                                )}
+                                <p className="mt-1 text-xs leading-snug text-slate-200/95 sm:text-[13px] sm:leading-snug">{desc}</p>
                             </div>
                         </div>
                     </div>

@@ -8,8 +8,6 @@ import {
     CONSUMABLE_SELL_PRICES,
     gradeBackgrounds,
     gradeStyles,
-    isRefinementTicketMaterial,
-    normalizeRefinementTicketInventoryName,
 } from '../constants/items.js';
 import { formatGoldAmountKoG } from '../shared/utils/walletAmountDisplay.js';
 
@@ -40,21 +38,14 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({
             const enhancementMultiplier = Math.pow(1.2, item.stars);
             return Math.floor(basePrice * enhancementMultiplier);
         } else if (item.type === 'material') {
-            const nameKey =
-                normalizeRefinementTicketInventoryName(item.name) || (item.name || '');
-            const pricePerUnit = (MATERIAL_SELL_PRICES[nameKey] ?? MATERIAL_SELL_PRICES[item.name || '']) || 1;
+            const pricePerUnit = MATERIAL_SELL_PRICES[item.name] || 1;
             return pricePerUnit * materialQty;
         } else if (item.type === 'consumable') {
-            const isTicket = isRefinementTicketMaterial(item.name);
-            const ticketKey = isTicket
-                ? normalizeRefinementTicketInventoryName(item.name) || (item.name || '').trim()
-                : '';
-            const pricePerUnit = isTicket
-                ? MATERIAL_SELL_PRICES[ticketKey] ?? MATERIAL_SELL_PRICES[item.name || ''] ?? 1
-                : CONSUMABLE_SELL_PRICES[item.name] ??
-                  CONSUMABLE_SELL_PRICES[item.name?.replace('골드꾸러미', '골드 꾸러미')] ??
-                  CONSUMABLE_SELL_PRICES[item.name?.replace('골드 꾸러미', '골드꾸러미')] ??
-                  0;
+            const pricePerUnit =
+                CONSUMABLE_SELL_PRICES[item.name] ??
+                CONSUMABLE_SELL_PRICES[item.name?.replace('골드꾸러미', '골드 꾸러미')] ??
+                CONSUMABLE_SELL_PRICES[item.name?.replace('골드 꾸러미', '골드꾸러미')] ??
+                0;
             const quantity = item.quantity || 1;
             return pricePerUnit * quantity;
         }
