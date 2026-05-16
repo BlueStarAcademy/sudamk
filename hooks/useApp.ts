@@ -129,7 +129,10 @@ import {
     mergeGameUpdateByArena,
 } from '../utils/clientGameMergePolicy.js';
 import { BOARD_SETTLE_BEFORE_SCORING_MS } from '../shared/constants/boardSettleTiming.js';
-import { pickRicherWsBoardSnapshot } from '../utils/deferredWsBoardSnapshot.js';
+import { markPveBoardSettledForScoring } from '../shared/utils/pveScoringBoardSettleSignal.js';
+
+const pveAutoScoringScheduledStorageKey = (gameId: string) => `pveAutoScoringScheduled:${gameId}`;
+import { pickRicherWsBoardSnapshot, resolvePveScoringBoardAndMoveHistory } from '../utils/deferredWsBoardSnapshot.js';
 import { coerceUserLevelXpFromPayload } from '../shared/utils/userLevelMerge.js';
 import type { LevelUpCelebrationPayload } from '../types/levelUpModal.js';
 import type { MannerGradeChangePayload } from '../types/mannerGradeChangeModal.js';
@@ -3901,7 +3904,18 @@ export const useApp = () => {
                 if (scoringDelayRef.current[gameId] != null) {
                     clearTimeout(scoringDelayRef.current[gameId]);
                 }
+                try {
+                    sessionStorage.setItem(pveAutoScoringScheduledStorageKey(gameId), '1');
+                } catch {
+                    /* ignore */
+                }
                 scoringDelayRef.current[gameId] = setTimeout(() => {
+                    try {
+                        sessionStorage.removeItem(pveAutoScoringScheduledStorageKey(gameId));
+                    } catch {
+                        /* ignore */
+                    }
+                    markPveBoardSettledForScoring(gameId);
                     if (!postRevealAutoScoringRef.current?.isHiddenMode) {
                         updateGameState(prev => {
                             const g = prev[gameId];
@@ -4077,78 +4091,53 @@ export const useApp = () => {
                     
                         if (totalTurns > 0 && autoScoringTurns != null && autoScoringTurns > 0) {
                             try {
-                                const nextPlayerEnum = updateResult.updatedGame.currentPlayer;
-                                const isNextTurnAi = gameType === 'singleplayer' &&
-                                    ((nextPlayerEnum === Player.White && updateResult.updatedGame.whitePlayerId === aiUserId) ||
-                                     (nextPlayerEnum === Player.Black && updateResult.updatedGame.blackPlayerId === aiUserId));
                                 const remainingTurns = Math.max(0, autoScoringTurns - totalTurns);
                                 // 자동계가: 남은 턴이 0 이하(0/N 도달)이면 반드시 계가 트리거
                                 if (remainingTurns <= 0) {
                                     updateResult.updatedGame.totalTurns = totalTurns;
                                     const status = updateResult.updatedGame.gameStatus;
                                     if (status === 'playing' || status === 'hidden_placing') {
-                                        // 다음 차례가 AI면, AI가 실제 착수한 뒤 서버가 계가를 트리거함 → 계가 직전에 유저 소요시간만 서버에 한 번 전달
-                                        if (isNextTurnAi) {
-                                            console.log(
-                                                `[handleAction] ${actionTypeName} - Next turn is AI; syncing state and time for server scoring: totalTurns=${totalTurns}, autoScoringTurns=${autoScoringTurns}`
-                                            );
-                                            const g = updateResult.updatedGame as LiveGameSession;
-                                            handleAction({
-                                                type: 'PLACE_STONE',
-                                                payload: {
-                                                    gameId,
-                                                    syncTimeAndStateForScoring: true,
-                                                    moveHistory: g.moveHistory || [],
-                                                    boardState: g.boardState,
-                                                    totalTurns: g.totalTurns ?? totalTurns,
-                                                    blackTimeLeft: g.blackTimeLeft,
-                                                    whiteTimeLeft: g.whiteTimeLeft,
-                                                    captures: g.captures,
-                                                    hiddenMoves: g.hiddenMoves ?? undefined,
-                                                    permanentlyRevealedStones: Array.isArray(g.permanentlyRevealedStones) ? g.permanentlyRevealedStones : undefined,
-                                                }
-                                            } as unknown as ServerAction);
-                                        } else {
-                                            // 마지막 착수가 화면에 보이도록, scoring 전환/서버 요청은 짧게 지연시켜 1프레임 이상 렌더를 보장
-                                            shouldTriggerAutoScoring = true;
-                                            const gameTypeLabel = gameType === 'singleplayer' ? 'SinglePlayer' : 'AiGame';
-                                            console.log(
-                                                `[handleAction] ${actionTypeName} - Auto-scoring triggered at ${updateResult.updatedGame.totalTurns} turns (${gameTypeLabel}, stageId: ${game.stageId || 'N/A'}) - delaying scoring transition`
-                                            );
+                                        // 0/N 도달 시 다음 차례가 AI여도 추가 착수는 없음(백이 마지막 수를 둔 경우 등).
+                                        // syncTimeAndStateForScoring으로 즉시 계가하면 서버가 한 수 짧은 판으로 덮어 마지막 돌이 사라질 수 있다.
+                                        shouldTriggerAutoScoring = true;
+                                        const gameTypeLabel = gameType === 'singleplayer' ? 'SinglePlayer' : 'AiGame';
+                                        console.log(
+                                            `[handleAction] ${actionTypeName} - Auto-scoring triggered at ${updateResult.updatedGame.totalTurns} turns (${gameTypeLabel}, stageId: ${game.stageId || 'N/A'}) - delaying scoring transition`
+                                        );
 
-                                            // 게임 상태를 보존 (빈 boardState/moveHistory 방지)
-                                            const preservedBoardState = updateResult.updatedGame.boardState && updateResult.updatedGame.boardState.length > 0
+                                        const preservedBoardState =
+                                            updateResult.updatedGame.boardState && updateResult.updatedGame.boardState.length > 0
                                                 ? updateResult.updatedGame.boardState
                                                 : (game.boardState || updateResult.updatedGame.boardState);
-                                            const preservedMoveHistory = updateResult.updatedGame.moveHistory && updateResult.updatedGame.moveHistory.length > 0
+                                        const preservedMoveHistory =
+                                            updateResult.updatedGame.moveHistory && updateResult.updatedGame.moveHistory.length > 0
                                                 ? updateResult.updatedGame.moveHistory
                                                 : (game.moveHistory || updateResult.updatedGame.moveHistory);
-                                            const preservedTotalTurns = updateResult.updatedGame.totalTurns ?? game.totalTurns;
-                                            const preservedBlackTimeLeft = updateResult.updatedGame.blackTimeLeft ?? game.blackTimeLeft;
-                                            const preservedWhiteTimeLeft = updateResult.updatedGame.whiteTimeLeft ?? game.whiteTimeLeft;
-                                            const preservedCaptures = updateResult.updatedGame.captures ?? game.captures;
-                                            const preservedHiddenMoves = updateResult.updatedGame.hiddenMoves ?? game.hiddenMoves;
-                                            const preservedPermanentlyRevealedStones = updateResult.updatedGame.permanentlyRevealedStones ?? game.permanentlyRevealedStones;
+                                        const preservedTotalTurns = updateResult.updatedGame.totalTurns ?? game.totalTurns;
+                                        const preservedBlackTimeLeft = updateResult.updatedGame.blackTimeLeft ?? game.blackTimeLeft;
+                                        const preservedWhiteTimeLeft = updateResult.updatedGame.whiteTimeLeft ?? game.whiteTimeLeft;
+                                        const preservedCaptures = updateResult.updatedGame.captures ?? game.captures;
+                                        const preservedHiddenMoves = updateResult.updatedGame.hiddenMoves ?? game.hiddenMoves;
+                                        const preservedPermanentlyRevealedStones =
+                                            updateResult.updatedGame.permanentlyRevealedStones ?? game.permanentlyRevealedStones;
 
-                                            autoScoringPreservedState = {
-                                                boardState: preservedBoardState,
-                                                moveHistory: preservedMoveHistory,
-                                                totalTurns: preservedTotalTurns,
-                                                blackTimeLeft: preservedBlackTimeLeft,
-                                                whiteTimeLeft: preservedWhiteTimeLeft,
-                                                captures: preservedCaptures,
-                                                hiddenMoves: preservedHiddenMoves,
-                                                permanentlyRevealedStones: preservedPermanentlyRevealedStones,
-                                            };
+                                        autoScoringPreservedState = {
+                                            boardState: preservedBoardState,
+                                            moveHistory: preservedMoveHistory,
+                                            totalTurns: preservedTotalTurns,
+                                            blackTimeLeft: preservedBlackTimeLeft,
+                                            whiteTimeLeft: preservedWhiteTimeLeft,
+                                            captures: preservedCaptures,
+                                            hiddenMoves: preservedHiddenMoves,
+                                            permanentlyRevealedStones: preservedPermanentlyRevealedStones,
+                                        };
 
-                                            // 즉시 상태에는 보드/히스토리만 확정 반영하고, gameStatus는 playing 유지
-                                            updateResult.updatedGame.boardState = preservedBoardState;
-                                            updateResult.updatedGame.moveHistory = preservedMoveHistory;
-                                            updateResult.updatedGame.totalTurns = preservedTotalTurns;
-                                            updateResult.updatedGame.blackTimeLeft = preservedBlackTimeLeft;
-                                            updateResult.updatedGame.whiteTimeLeft = preservedWhiteTimeLeft;
-                                            updateResult.updatedGame.captures = preservedCaptures;
-                                        }
+                                        updateResult.updatedGame.boardState = preservedBoardState;
+                                        updateResult.updatedGame.moveHistory = preservedMoveHistory;
+                                        updateResult.updatedGame.totalTurns = preservedTotalTurns;
+                                        updateResult.updatedGame.blackTimeLeft = preservedBlackTimeLeft;
+                                        updateResult.updatedGame.whiteTimeLeft = preservedWhiteTimeLeft;
+                                        updateResult.updatedGame.captures = preservedCaptures;
                                     }
                                 }
                             } catch (err) {
@@ -4209,7 +4198,18 @@ export const useApp = () => {
                     if (scoringDelayRef.current[gameId] != null) {
                         clearTimeout(scoringDelayRef.current[gameId]);
                     }
+                    try {
+                        sessionStorage.setItem(pveAutoScoringScheduledStorageKey(gameId), '1');
+                    } catch {
+                        /* ignore */
+                    }
                     scoringDelayRef.current[gameId] = setTimeout(() => {
+                        try {
+                            sessionStorage.removeItem(pveAutoScoringScheduledStorageKey(gameId));
+                        } catch {
+                            /* ignore */
+                        }
+                        markPveBoardSettledForScoring(gameId);
                         if (!isHiddenMode) {
                             updateGameState(prev => {
                                 const g = prev[gameId];
@@ -8534,24 +8534,8 @@ export const useApp = () => {
                                                     | LiveGameSession
                                                     | undefined;
                                             if (preserveSource) {
-                                                // 서버에서 보낸 moveHistory가 유효하면 사용, 아니면 기존 것 사용
-                                                const serverMoveHistoryValid = game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0;
-                                                const existingMoveHistoryValid = preserveSource.moveHistory && Array.isArray(preserveSource.moveHistory) && preserveSource.moveHistory.length > 0;
-                                                const finalMoveHistory = serverMoveHistoryValid ? game.moveHistory : (existingMoveHistoryValid ? preserveSource.moveHistory : (game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0 ? game.moveHistory : preserveSource.moveHistory));
-
-                                                const serverBoardStateValid = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0 && game.boardState[0] && Array.isArray(game.boardState[0]) && game.boardState[0].length > 0 &&
-                                                    game.boardState.some((row: any[]) => row && Array.isArray(row) && row.some((cell: any) => cell !== 0 && cell !== null && cell !== undefined));
-                                                const existingBoardStateValid = preserveSource.boardState && Array.isArray(preserveSource.boardState) && preserveSource.boardState.length > 0 && preserveSource.boardState[0] && Array.isArray(preserveSource.boardState[0]) && preserveSource.boardState[0].length > 0;
-                                                // IMPORTANT: 계가 화면에서는 포획이 반영된 "실제 boardState"를 유지해야 함.
-                                                // moveHistory로 단순 복원하면 포획을 반영하지 못해 잡힌 돌이 다시 나타날 수 있다.
-                                                let finalBoardState: any;
-                                                if (serverBoardStateValid) {
-                                                    finalBoardState = game.boardState;
-                                                } else if (existingBoardStateValid) {
-                                                    finalBoardState = preserveSource.boardState;
-                                                } else {
-                                                    finalBoardState = game.boardState || preserveSource.boardState;
-                                                }
+                                                const { boardState: finalBoardState, moveHistory: finalMoveHistory } =
+                                                    resolvePveScoringBoardAndMoveHistory(game, preserveSource);
 
                                                 const finalTotalTurns = (game.totalTurns !== undefined && game.totalTurns !== null) ? game.totalTurns : (preserveSource.totalTurns !== undefined && preserveSource.totalTurns !== null ? preserveSource.totalTurns : game.totalTurns);
                                                 const finalCaptures =
@@ -8876,6 +8860,11 @@ export const useApp = () => {
                                                                 if (singlePlayerScoringDelayTimeoutRef.current[gameId] != null) {
                                                                     clearTimeout(singlePlayerScoringDelayTimeoutRef.current[gameId]);
                                                                 }
+                                                                try {
+                                                                    sessionStorage.setItem(pveAutoScoringScheduledStorageKey(gameId), '1');
+                                                                } catch {
+                                                                    /* ignore */
+                                                                }
                                                                 updatedGames[gameId] = {
                                                                     ...game,
                                                                     gameStatus: 'playing' as const,
@@ -8889,6 +8878,12 @@ export const useApp = () => {
                                                                     whiteTimeLeft: preservedWhiteTimeLeft,
                                                                 };
                                                                 singlePlayerScoringDelayTimeoutRef.current[gameId] = setTimeout(() => {
+                                                                    try {
+                                                                        sessionStorage.removeItem(pveAutoScoringScheduledStorageKey(gameId));
+                                                                    } catch {
+                                                                        /* ignore */
+                                                                    }
+                                                                    markPveBoardSettledForScoring(gameId);
                                                                     if (!isHiddenModeWs) {
                                                                         setSinglePlayerGames(prev => {
                                                                             const g = prev[gameId];
@@ -9347,18 +9342,15 @@ export const useApp = () => {
                                                 mergedGame.gameStatus === 'no_contest') &&
                                             towerPreserveExisting
                                         ) {
-                                            const sb = mergedGame.boardState;
-                                            const serverBoardOk = Array.isArray(sb) && sb.length > 0 && sb[0] && Array.isArray(sb[0]) && sb[0].length > 0;
-                                            const eb = towerPreserveExisting.boardState;
-                                            const exBoardOk = Array.isArray(eb) && eb.length > 0 && eb[0] && Array.isArray(eb[0]) && eb[0].length > 0;
-                                            if (!serverBoardOk && exBoardOk) {
-                                                mergedGame = { ...mergedGame, boardState: towerPreserveExisting.boardState };
-                                            }
-                                            const sm = mergedGame.moveHistory;
-                                            const exm = towerPreserveExisting.moveHistory;
-                                            if ((!Array.isArray(sm) || sm.length === 0) && Array.isArray(exm) && exm.length > 0) {
-                                                mergedGame = { ...mergedGame, moveHistory: towerPreserveExisting.moveHistory };
-                                            }
+                                            const towerScoringResolved = resolvePveScoringBoardAndMoveHistory(
+                                                mergedGame,
+                                                towerPreserveExisting,
+                                            );
+                                            mergedGame = {
+                                                ...mergedGame,
+                                                boardState: towerScoringResolved.boardState,
+                                                moveHistory: towerScoringResolved.moveHistory,
+                                            };
                                         }
                                         if (
                                             mergedGame.gameStatus === 'scoring' ||

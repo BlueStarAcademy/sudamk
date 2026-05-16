@@ -1,35 +1,6 @@
 import * as types from '../../types/index.js';
-import { GameCategory } from '../../types/enums.js';
-import {
-    advancePairTurn,
-    getCurrentPairTurnSeat,
-    isPairAiSeat,
-    isPairClassicGame,
-} from '../../shared/utils/pairGameTurn.js';
-import { PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS } from '../constants/pveStrategicAiSchedule.js';
-
-const STRATEGIC_GO_SERVER_AI_MODES: types.GameMode[] = [
-    types.GameMode.Standard,
-    types.GameMode.Capture,
-    types.GameMode.Speed,
-    types.GameMode.Base,
-    types.GameMode.Hidden,
-    types.GameMode.Missile,
-    types.GameMode.Mix,
-];
-
-function nextAiTurnStartTimeAfterHumanStrategicMove(game: types.LiveGameSession, now: number): number {
-    const isGo = STRATEGIC_GO_SERVER_AI_MODES.includes(game.mode);
-    if (
-        game.isAiGame &&
-        !game.isSinglePlayer &&
-        isGo &&
-        (game.gameCategory === GameCategory.Adventure || game.gameCategory === GameCategory.GuildWar)
-    ) {
-        return now + PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS;
-    }
-    return now;
-}
+import { advancePairTurn, isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
+import { schedulePairAiTurnIfNeeded } from './pairAiTurnSchedule.js';
 
 /**
  * 페어 클래식: hidden_reveal_animating에서 pendingCapture 해소 후
@@ -53,10 +24,5 @@ export function applyPairTurnAfterHiddenRevealCaptureResolved(
         }
     }
 
-    const seat = getCurrentPairTurnSeat(game.settings);
-    if (isPairAiSeat(seat)) {
-        game.aiTurnStartTime = nextAiTurnStartTimeAfterHumanStrategicMove(game, now);
-    } else {
-        game.aiTurnStartTime = undefined;
-    }
+    schedulePairAiTurnIfNeeded(game, now);
 }

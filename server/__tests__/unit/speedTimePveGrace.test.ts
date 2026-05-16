@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { GameCategory, GameMode, Player } from '../../../types/index.js';
 import { aiUserId } from '../../aiPlayer.js';
-import { getSpeedTimePressureConsumptionSnapshot } from '../../utils/speedTimePressureLiveCaptures.js';
+import {
+    getSpeedTimeBonusPointsDesired,
+    getSpeedTimePressureConsumptionSnapshot,
+} from '../../../shared/utils/speedTimePressureSessionSync.js';
 
-describe('PVE speed time pressure grace (1s per human live turn)', () => {
-    it('subtracts 1s from live human consumption snapshot in adventure speed', () => {
+describe('speed time pressure consumption (10s scoring / 11s bar)', () => {
+    it('counts live human consumption without PVE grace on server snapshot', () => {
         const nowMs = 1_000_000;
         const session = {
             gameCategory: GameCategory.Adventure,
@@ -20,11 +23,11 @@ describe('PVE speed time pressure grace (1s per human live turn)', () => {
             isAiGame: true,
         } as any;
 
-        const snap = getSpeedTimePressureConsumptionSnapshot(session, nowMs);
-        expect(snap.blackConsumed).toBe(0);
+        const snap = getSpeedTimePressureConsumptionSnapshot(session, nowMs, aiUserId);
+        expect(snap.blackConsumed).toBe(1);
     });
 
-    it('still counts full live used after 1s wall (grace exhausted)', () => {
+    it('grants first AI bonus at 10s human consumption', () => {
         const nowMs = 1_000_000;
         const session = {
             gameCategory: GameCategory.Adventure,
@@ -35,16 +38,17 @@ describe('PVE speed time pressure grace (1s per human live turn)', () => {
             whitePlayerId: aiUserId,
             blackTimeLeft: 300,
             whiteTimeLeft: 300,
-            turnDeadline: nowMs + 298_000,
+            turnDeadline: nowMs + 290_000,
             settings: { __speedBonusConsumedSec: { black: 0, white: 0 } },
             isAiGame: true,
         } as any;
 
-        const snap = getSpeedTimePressureConsumptionSnapshot(session, nowMs);
-        expect(snap.blackConsumed).toBe(1);
+        const bonus = getSpeedTimeBonusPointsDesired(session, nowMs, aiUserId);
+        expect(bonus.whiteBonus).toBe(1);
+        expect(bonus.blackBonus).toBe(0);
     });
 
-    it('does not apply grace to PVP human speed', () => {
+    it('PVP speed uses full live consumption without grace', () => {
         const nowMs = 1_000_000;
         const session = {
             gameCategory: GameCategory.Normal,
@@ -60,7 +64,7 @@ describe('PVE speed time pressure grace (1s per human live turn)', () => {
             isAiGame: false,
         } as any;
 
-        const snap = getSpeedTimePressureConsumptionSnapshot(session, nowMs);
+        const snap = getSpeedTimePressureConsumptionSnapshot(session, nowMs, aiUserId);
         expect(snap.blackConsumed).toBe(1);
     });
 });

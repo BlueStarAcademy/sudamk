@@ -32,7 +32,7 @@ import {
     getSpeedTimeBonusPointsDesired,
     getSpeedTimePressureConsumptionSnapshot,
     isSessionSpeedTimePressureMode,
-    SPEED_TIME_PRESSURE_SECONDS_PER_POINT,
+    SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT,
 } from './utils/speedTimePressureLiveCaptures.js';
 import { modeIncludesCaptureRule } from '../shared/utils/liveSessionArenaKind.js';
 import { isAiLobbyManualClockPause } from './modes/shared.js';
@@ -214,7 +214,7 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
         finalAnalysis.scoreDetails.black.timeBonus = Math.max(0, desired.blackBonus - gb);
         finalAnalysis.scoreDetails.white.timeBonus = Math.max(0, desired.whiteBonus - gw);
         console.log(
-            `[finalizeAnalysisResult] Speed time bonus (unified): committedBlack=${committedBlackConsumed}, committedWhite=${committedWhiteConsumed}, liveBlackTurnUsed=${liveBlackTurnUsed}, liveWhiteTurnUsed=${liveWhiteTurnUsed}, blackConsumed=${blackConsumed}, whiteConsumed=${whiteConsumed}, desiredBlack=${desired.blackBonus}, desiredWhite=${desired.whiteBonus}, grantedBlack=${gb}, grantedWhite=${gw}, timeBonusBlack=${finalAnalysis.scoreDetails.black.timeBonus}, timeBonusWhite=${finalAnalysis.scoreDetails.white.timeBonus} (secPerPoint=${SPEED_TIME_PRESSURE_SECONDS_PER_POINT})`,
+            `[finalizeAnalysisResult] Speed time bonus (unified): committedBlack=${committedBlackConsumed}, committedWhite=${committedWhiteConsumed}, liveBlackTurnUsed=${liveBlackTurnUsed}, liveWhiteTurnUsed=${liveWhiteTurnUsed}, blackConsumed=${blackConsumed}, whiteConsumed=${whiteConsumed}, desiredBlack=${desired.blackBonus}, desiredWhite=${desired.whiteBonus}, grantedBlack=${gb}, grantedWhite=${gw}, timeBonusBlack=${finalAnalysis.scoreDetails.black.timeBonus}, timeBonusWhite=${finalAnalysis.scoreDetails.white.timeBonus} (secPerPoint=${SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT})`,
         );
     } else {
         finalAnalysis.scoreDetails.black.timeBonus = 0;
@@ -1623,14 +1623,17 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             }
 
             // 게임 상태 업데이트 후 AI 턴 처리 (애니메이션 완료로 턴이 전환되었을 수 있음)
-            const pairSeatForAi =
-                isPairClassicGame(game.settings, game.mode) ? getCurrentPairTurnSeat(game.settings) : null;
+            const pairClassicForAi = isPairClassicGame(game.settings, game.mode);
+            const pairSeatForAi = pairClassicForAi ? getCurrentPairTurnSeat(game.settings) : null;
             const isPairAiTurn = Boolean(pairSeatForAi && isPairAiSeat(pairSeatForAi));
             const currentPlayerIdForAi = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
             const isAiPlayerTurn = currentPlayerIdForAi === aiUserId ||
                 (currentPlayerIdForAi && String(currentPlayerIdForAi).startsWith('dungeon-bot-'));
+            // 페어: 좌석(흑1/백1/흑2/백2) 기준만. blackPlayerId===aiUserId 레거시 판정은 백1(유저) 차례에도 AI 턴으로 오인해 턴이 꼬인다.
             const isAiTurn = !isManuallyPaused && game.currentPlayer !== types.Player.None &&
-                (isPairAiTurn || ((game.isAiGame || isAiPlayerTurn) && isAiPlayerTurn));
+                (pairClassicForAi
+                    ? isPairAiTurn
+                    : isPairAiTurn || ((game.isAiGame || isAiPlayerTurn) && isAiPlayerTurn));
 
             // 알까기: 배치→공격 전환 직후에는 즉시 공격하지 않고 딜레이 예약만 건다.
             const didAlkkagiTriggerAiAttack = (game as any).alkkagiTriggerAiAttack === true &&
@@ -1663,6 +1666,10 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 (game.gameStatus === 'playing' || playfulPlacementStatuses.includes(game.gameStatus) || playfulPlayingStatuses.includes(game.gameStatus));
 
             if (canProcessAiTurn && !didAlkkagiTriggerAiAttack) {
+                // 페어 4인 수순: aiProcessingQueue 단일 경로만 사용 (메인루프와 이중 디스패치 방지)
+                if (pairClassicForAi) {
+                    return game;
+                }
                 const dispatchingAt = Number((game as any)._aiMoveDispatchingAt ?? 0);
                 if ((game as any)._aiMoveDispatching && dispatchingAt > 0 && now - dispatchingAt > 8_000) {
                     // 드문 예외 경로에서 finally 미도달 시 디스패치 락이 고착되는 현상 복구

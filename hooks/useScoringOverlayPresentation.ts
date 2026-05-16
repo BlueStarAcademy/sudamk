@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { BOARD_SETTLE_BEFORE_SCORING_MS } from '../shared/constants/boardSettleTiming.js';
 import { SCORING_PROGRESS_DURATION_MS } from '../shared/constants/scoringOverlayTiming.js';
+import { consumePveBoardSettledForScoring } from '../shared/utils/pveScoringBoardSettleSignal.js';
 
 /** 계가(집 계산) 종료·연출 대상인지 — 따내기·기권·시간패 등은 제외 */
 export function isScoreBasedScoringPresentation(
@@ -68,10 +69,16 @@ export function useScoringOverlayPresentation(params: {
 
         sequenceStartedRef.current = true;
 
+        const boardAlreadySettled =
+            gameStatus === 'scoring' &&
+            (prevGameStatus === 'playing' || prevGameStatus === 'hidden_final_reveal') &&
+            consumePveBoardSettledForScoring(gameId);
         const settleMs =
-            prevGameStatus === 'playing' || prevGameStatus === 'hidden_final_reveal'
-                ? BOARD_SETTLE_BEFORE_SCORING_MS
-                : 0;
+            boardAlreadySettled
+                ? 0
+                : prevGameStatus === 'playing' || prevGameStatus === 'hidden_final_reveal'
+                  ? BOARD_SETTLE_BEFORE_SCORING_MS
+                  : 0;
 
         const showTimer = setTimeout(() => {
             setShowScoringOverlay(true);

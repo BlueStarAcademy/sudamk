@@ -5,9 +5,7 @@ import { UserWithStatus } from '../types.js';
 import type { ServerAction } from '../types/api.js';
 import Button from './Button.js';
 import ConfirmModal from './ConfirmModal.js';
-import Avatar from './Avatar.js';
 import { calculateUserEffects } from '../services/effectService.js';
-import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import { GUILD_BOSS_MAX_ATTEMPTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS } from '../shared/constants/guildConstants.js';
 import {
     CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX,
@@ -353,27 +351,20 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
 
     if (!currentUserWithStatus) return null;
 
-    const { handleLogout, openProfileEditModal, openMailbox, openSettingsModal, handleAction } = handlers;
-    const { actionPoints, gold, diamonds, guildCoins, champCoins, isAdmin, avatarId, borderId, mbti, userLevel, guildId } = currentUserWithStatus;
+    const { handleLogout, openMailbox, openSettingsModal, handleAction } = handlers;
+    const { actionPoints, gold, diamonds, guildCoins, champCoins, isAdmin, guildId } = currentUserWithStatus;
     const todayKstBoss = getTodayKSTDateString();
     const guildBossUsedToday =
         guildId && currentUserWithStatus.guildBossLastAttemptDayKST === todayKstBoss
             ? (currentUserWithStatus.guildBossAttemptsUsedToday ?? 0)
             : 0;
     const guildBossRemaining = guildId ? Math.max(0, GUILD_BOSS_MAX_ATTEMPTS - guildBossUsedToday) : 0;
-    const combinedUserLevel = (() => {
-        const n = Number(userLevel);
-        return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
-    })();
     // actionPoints가 없으면 기본값 사용
     const safeActionPoints = actionPoints || { current: 0, max: 30 };
     // gold와 diamonds가 없으면 기본값 사용
     const safeGold = (gold !== undefined && gold !== null) ? gold : 0;
     const safeDiamonds = (diamonds !== undefined && diamonds !== null) ? diamonds : 0;
     
-    const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === avatarId)?.url, [avatarId]);
-    const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === borderId)?.url, [borderId]);
-
     const mobileAdditionalResources = useMemo(
         () => [
             {
@@ -560,37 +551,6 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                           : 'min-h-[clamp(3.5rem,calc(2.85rem+2vw),4.85rem)] flex-wrap gap-2 p-2.5 sm:flex-nowrap sm:gap-3 sm:p-3'
                 }`}
             >
-                {!isMobile && (
-                <div
-                    className={`flex min-w-0 flex-shrink-0 cursor-pointer items-center gap-2 sm:gap-3 ${dense ? 'max-w-[min(48%,14rem)]' : ''} relative`}
-                    onClick={openProfileEditModal}
-                >
-                     <Avatar
-                        userId={currentUserWithStatus.id}
-                        userName={currentUserWithStatus.nickname}
-                        avatarUrl={avatarUrl}
-                        borderUrl={borderUrl}
-                        size={dense ? 36 : compact ? 32 : 40}
-                        className="z-0"
-                    />
-                     <p
-                        className={`shrink-0 whitespace-nowrap font-extrabold tabular-nums tracking-tight text-amber-200 drop-shadow-[0_0_10px_rgba(251,191,36,0.35)] ${
-                            dense ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
-                        }`}
-                     >
-                        Lv.{combinedUserLevel}
-                     </p>
-                     <h1
-                        className={`min-w-0 flex-1 truncate font-bold text-primary ${dense ? 'text-sm leading-tight sm:text-base' : 'text-base sm:text-lg'}`}
-                     >
-                        {currentUserWithStatus.nickname}
-                     </h1>
-                     {!mbti && (
-                        <span className="absolute top-0 right-0 z-20 h-2 w-2 rounded-full bg-red-500" aria-hidden />
-                     )}
-                </div>
-                )}
-
                     <div
                         className={`flex min-w-0 items-center justify-end gap-0.5 sm:w-auto sm:gap-2 ${
                             isMobile

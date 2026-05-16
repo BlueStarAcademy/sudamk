@@ -15,6 +15,10 @@ import {
 import { getTowerSessionFloor } from '../utils/towerPreGameDisplay.js';
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../shared/utils/baseHiddenMoveIndex.js';
 import { mixGoClearHiddenItemPhaseTimers, mixGoSessionHasHiddenItems } from '../shared/utils/mixGoRules.js';
+import {
+    applySpeedTimePressureAfterClientMove,
+    isSessionSpeedTimePressureMode,
+} from '../shared/utils/speedTimePressureSessionSync.js';
 
 export type GameType = 'tower' | 'singleplayer';
 
@@ -290,6 +294,22 @@ export function updateGameStateAfterMove(
         }
     }
 
+    let speedSyncedSettings = game.settings ? ({ ...game.settings } as LiveGameSession['settings']) : game.settings;
+    let speedSyncedCaptures: LiveGameSession['captures'] = game.captures
+        ? ({ ...game.captures } as LiveGameSession['captures'])
+        : ({ [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 } as LiveGameSession['captures']);
+
+    if (!isPass && isSessionSpeedTimePressureMode(game)) {
+        const speedScratch: LiveGameSession = {
+            ...game,
+            settings: speedSyncedSettings,
+            captures: speedSyncedCaptures,
+        };
+        applySpeedTimePressureAfterClientMove(speedScratch, movePlayer, now, aiUserId);
+        speedSyncedSettings = speedScratch.settings;
+        speedSyncedCaptures = speedScratch.captures as LiveGameSession['captures'];
+    }
+
     let updatedBlackTimeLeft = game.blackTimeLeft;
     let updatedWhiteTimeLeft = game.whiteTimeLeft;
     let updatedBlackByoyomiPeriodsLeft = game.blackByoyomiPeriodsLeft ?? game.settings?.byoyomiCount ?? 0;
@@ -387,7 +407,7 @@ export function updateGameStateAfterMove(
     let consumedPatternSlice: { consumedPatternIntersections?: Point[] | null } = {
         consumedPatternIntersections: game.consumedPatternIntersections ? [...game.consumedPatternIntersections] : undefined,
     };
-    const updatedCaptures = { ...(game.captures || {}) };
+    const updatedCaptures = { ...(speedSyncedCaptures || {}) };
     const updatedHiddenStoneCaptures = { ...(game.hiddenStoneCaptures || {}) } as typeof game.hiddenStoneCaptures;
     const updatedBaseStoneCaptures = {
         [Player.None]: game.baseStoneCaptures?.[Player.None] ?? 0,
@@ -510,6 +530,7 @@ export function updateGameStateAfterMove(
 
     const updatedGame: LiveGameSession = {
         ...game,
+        settings: speedSyncedSettings,
         boardState: newBoardState,
         koInfo: finalKoInfo,
         lastMove: { x, y },

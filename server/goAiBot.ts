@@ -2646,11 +2646,8 @@ export async function makeGoAiBotMove(
         }
         const nextSeat = advancePairTurn(game.settings);
         game.currentPlayer = nextSeat?.player ?? opponentPlayerEnum;
-        if (nextSeat && isPairAiSeat(nextSeat)) {
-            game.aiTurnStartTime = now;
-        } else {
-            game.aiTurnStartTime = undefined;
-        }
+        const { schedulePairAiTurnIfNeeded } = await import('./utils/pairAiTurnSchedule.js');
+        schedulePairAiTurnIfNeeded(game, now);
         return;
     }
 
@@ -3187,20 +3184,18 @@ export async function makeGoAiBotMove(
             game.turnStartTime = undefined;
         }
         
-        // AI가 수를 두고 턴을 넘겼으므로, 다음 사용자 턴이 시작됨
-        // aiTurnStartTime은 undefined로 설정하여 다음 AI 턴까지 대기
-        // (사용자가 수를 두면 standard.ts의 PLACE_STONE에서 aiTurnStartTime이 설정됨)
-        const { aiUserId } = await import('./aiPlayer.js');
-        const nextPairSeat = pairCurrentSeat ? getCurrentPairTurnSeat(game.settings) : null;
-        const nextPlayerId = nextPairSeat?.participantId ?? (game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId);
-        if ((nextPairSeat && isPairAiSeat(nextPairSeat)) || nextPlayerId === aiUserId) {
-            // 다음 턴도 AI인 경우 (히든 돌 공개 후 재턴 등)
-            game.aiTurnStartTime = now;
-            console.log(`[makeGoAiBotMove] Next turn is also AI, setting aiTurnStartTime to now: ${now}, game ${game.id}`);
+        if (pairCurrentSeat) {
+            const { schedulePairAiTurnIfNeeded } = await import('./utils/pairAiTurnSchedule.js');
+            schedulePairAiTurnIfNeeded(game, now);
         } else {
-            // 다음 턴이 사용자인 경우
-            game.aiTurnStartTime = undefined;
-            console.log(`[makeGoAiBotMove] Turn switched to user after AI move, clearing aiTurnStartTime, game ${game.id}`);
+            const { aiUserId } = await import('./aiPlayer.js');
+            const nextPlayerId =
+                game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+            if (nextPlayerId === aiUserId) {
+                game.aiTurnStartTime = now;
+            } else {
+                game.aiTurnStartTime = undefined;
+            }
         }
     } else {
         // 히든 돌 공개 직후 AI 재턴: 플래그 제거 (다음 AI 수부터는 정상적으로 턴 넘김)

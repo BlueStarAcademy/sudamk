@@ -71,6 +71,7 @@ import {
 } from '../utils/arenaTurnPolicy.js';
 import { modeIncludesBaseRule } from '../../shared/utils/liveSessionArenaKind.js';
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../../shared/utils/baseHiddenMoveIndex.js';
+import { schedulePairAiTurnIfNeeded as enqueuePairAiTurnIfNeeded } from '../utils/pairAiTurnSchedule.js';
 import {
     mixGoClearHiddenItemPhaseTimers,
     mixGoHiddenInventoryKeyForPlayer,
@@ -188,22 +189,7 @@ function nextAiTurnStartTimeAfterHumanStrategicMove(game: types.LiveGameSession,
 }
 
 function schedulePairAiTurnIfNeeded(game: types.LiveGameSession, now: number): void {
-    if (!isPairClassicGame(game.settings, game.mode)) return;
-    const seat = getCurrentPairTurnSeat(game.settings);
-    if (isPairAiSeat(seat)) {
-        const startAt = nextAiTurnStartTimeAfterHumanStrategicMove(game, now);
-        game.aiTurnStartTime = startAt;
-        const delayMs = Math.max(0, startAt - Date.now());
-        setTimeout(() => {
-            void import('../aiProcessingQueue.js')
-                .then(({ aiProcessingQueue }) => aiProcessingQueue.enqueue(game.id))
-                .catch((err: any) =>
-                    console.error(`[schedulePairAiTurnIfNeeded] Failed to enqueue pair AI turn ${game.id}:`, err?.message ?? err)
-                );
-        }, delayMs);
-    } else {
-        game.aiTurnStartTime = undefined;
-    }
+    enqueuePairAiTurnIfNeeded(game, now);
 }
 
 function advancePairTurnAfterAction(game: types.LiveGameSession, now: number): void {

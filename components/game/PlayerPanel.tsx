@@ -30,8 +30,10 @@ import { getAdventureCodexMonsterById } from '../../constants/adventureMonstersC
 import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
 import {
-    SPEED_TIME_PRESSURE_SECONDS_PER_POINT,
-} from '../../shared/constants/speedTimePressure.js';
+    getSpeedTimePressureBarProgress,
+    getSpeedTimePressureBonusPointsFromConsumedSec,
+    getSpeedTimePressureUiCountdownSeconds,
+} from '../../shared/utils/speedTimePressureDisplay.js';
 import { applyPveSpeedTimePressureGraceToLiveUsedSec } from '../../shared/utils/speedTimePveGrace.js';
 const formatTime = (seconds: number) => {
     if (seconds < 0) seconds = 0;
@@ -1277,9 +1279,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 : Math.max(0, Number(session.whiteTimeLeft ?? 0));
         const current = Math.max(0, Number(currentMainTimeLeft) || 0);
         const liveTurnUsedSecRaw = getLiveTurnUsedSecRawForSpeedBonusUi(playerEnum, storedAtTurnStart, current);
-        const liveTurnUsedSec = applyPveSpeedTimePressureGraceToLiveUsedSec(session as any, playerEnum, liveTurnUsedSecRaw, aiUserId);
-        const usedSec = committedUsedSec + liveTurnUsedSec;
-        return Math.floor(usedSec / SPEED_TIME_PRESSURE_SECONDS_PER_POINT);
+        const usedSec = committedUsedSec + liveTurnUsedSecRaw;
+        return getSpeedTimePressureBonusPointsFromConsumedSec(usedSec);
     };
     const speedBonusStableRef = useRef<{ gameId: string; byPlayerId: Record<string, number | null> }>({
         gameId: '',
@@ -1336,17 +1337,16 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 : Math.max(0, Number(session.whiteTimeLeft ?? 0));
         const current = Math.max(0, Number(currentMainTimeLeft) || 0);
         const liveTurnUsedSecRaw = getLiveTurnUsedSecRawForSpeedBonusUi(playerEnum, storedAtTurnStart, current);
-        const liveTurnUsedSec = applyPveSpeedTimePressureGraceToLiveUsedSec(session as any, playerEnum, liveTurnUsedSecRaw, aiUserId);
-        const usedSec = committedUsedSec + liveTurnUsedSec;
-        const withinChunk =
-            ((usedSec % SPEED_TIME_PRESSURE_SECONDS_PER_POINT) + SPEED_TIME_PRESSURE_SECONDS_PER_POINT) %
-            SPEED_TIME_PRESSURE_SECONDS_PER_POINT;
-        const secToNextDropRaw = SPEED_TIME_PRESSURE_SECONDS_PER_POINT - withinChunk;
-        const secToNextDrop =
-            secToNextDropRaw <= 0 ? SPEED_TIME_PRESSURE_SECONDS_PER_POINT : Math.ceil(secToNextDropRaw);
+        const liveTurnUsedSecForBar = applyPveSpeedTimePressureGraceToLiveUsedSec(
+            session as any,
+            playerEnum,
+            liveTurnUsedSecRaw,
+            aiUserId,
+        );
+        const usedSecForBar = committedUsedSec + liveTurnUsedSecForBar;
         return {
-            progress: withinChunk / SPEED_TIME_PRESSURE_SECONDS_PER_POINT,
-            secToNextDrop,
+            progress: getSpeedTimePressureBarProgress(usedSecForBar),
+            secToNextDrop: getSpeedTimePressureUiCountdownSeconds(usedSecForBar),
         };
     };
     const humanSpeedBonusTick = humanSide
@@ -1473,8 +1473,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 : Math.max(0, Number(session.whiteTimeLeft ?? 0));
         const current = Math.max(0, Number(liveMainTime) || 0);
         const liveTurnUsedSecRaw = getLiveTurnUsedSecRawForSpeedBonusUi(playerEnum, storedAtTurnStart, current);
-        const liveTurnUsedSec = applyPveSpeedTimePressureGraceToLiveUsedSec(session as any, playerEnum, liveTurnUsedSecRaw, aiUserId);
-        return committedUsedSec + liveTurnUsedSec;
+        return committedUsedSec + liveTurnUsedSecRaw;
     };
     const humanCumulativeUsedSecForAiSpeed =
         humanSide && isPveSideSpeedLiveBonusUi
@@ -1501,21 +1500,34 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             playerEnum === Player.Black
                 ? Math.max(0, Number(grant.black ?? 0))
                 : Math.max(0, Number(grant.white ?? 0));
-        return Math.max(
-            0,
-            Math.floor(Math.max(0, liveHumanUsed) / SPEED_TIME_PRESSURE_SECONDS_PER_POINT) - g,
-        );
+        return Math.max(0, getSpeedTimePressureBonusPointsFromConsumedSec(liveHumanUsed) - g);
     };
-    const leftPanelStoneCaptureDisplay =
+    const speedCaptureDisplayMaxRef = useRef<{ gameId: string; byEnum: Partial<Record<Player, number>> }>({
+        gameId: '',
+        byEnum: {},
+    });
+    if (speedCaptureDisplayMaxRef.current.gameId !== session.id) {
+        speedCaptureDisplayMaxRef.current = { gameId: session.id, byEnum: {} };
+    }
+    const stabilizeSpeedCaptureDisplay = (playerEnum: Player, raw: number): number => {
+        if (!isSpeedLiveBonusUi) return raw;
+        const prev = speedCaptureDisplayMaxRef.current.byEnum[playerEnum];
+        const next = prev != null ? Math.max(prev, raw) : raw;
+        speedCaptureDisplayMaxRef.current.byEnum[playerEnum] = next;
+        return next;
+    };
+    const leftPanelStoneCaptureDisplayRaw =
         leftCaptureHeadStartFlatBonus != null
             ? Math.max(0, (captures[leftPlayerEnum] ?? 0) - leftCaptureHeadStartFlatBonus) +
                   liveSpeedTimePressureCaptureBonusDelta(leftPlayerEnum)
             : leftPlayerScore + liveSpeedTimePressureCaptureBonusDelta(leftPlayerEnum);
-    const rightPanelStoneCaptureDisplay =
+    const rightPanelStoneCaptureDisplayRaw =
         rightCaptureHeadStartFlatBonus != null
             ? Math.max(0, (captures[rightPlayerEnum] ?? 0) - rightCaptureHeadStartFlatBonus) +
                   liveSpeedTimePressureCaptureBonusDelta(rightPlayerEnum)
             : rightPlayerScore + liveSpeedTimePressureCaptureBonusDelta(rightPlayerEnum);
+    const leftPanelStoneCaptureDisplay = stabilizeSpeedCaptureDisplay(leftPlayerEnum, leftPanelStoneCaptureDisplayRaw);
+    const rightPanelStoneCaptureDisplay = stabilizeSpeedCaptureDisplay(rightPlayerEnum, rightPanelStoneCaptureDisplayRaw);
 
     const turnDuration = getTurnDuration(mode, session.gameStatus, settings);
     const blackRemainingMonotonicRef = useRef<{ gameId: string; value: number | null }>({ gameId: '', value: null });

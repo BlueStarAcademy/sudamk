@@ -43,7 +43,7 @@ import {
     getGuildWarBotBoardDisplayTally,
 } from '../../shared/utils/guildWarBoardOwner.js';
 import { GUILD_WAR_BOT_GUILD_ID } from '../../shared/constants/auth.js';
-import { SPEED_TIME_PRESSURE_SECONDS_PER_POINT } from '../../shared/constants/speedTimePressure.js';
+import { SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT } from '../../shared/constants/speedTimePressure.js';
 import { GuildWarUnifiedScoreboard } from './GuildWarUnifiedScoreboard.js';
 
 const GUILD_WAR_PERSONAL_DAILY_LIMIT = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS;
@@ -1253,7 +1253,7 @@ const GuildWar = () => {
                                         </div>
                                     ) : board.gameMode === 'speed' ? (
                                         <p className="text-center text-[11px] leading-snug text-amber-50/95 sm:text-xs">
-                                            내 시계가 {SPEED_TIME_PRESSURE_SECONDS_PER_POINT}초마다 쌓일 때마다 상대 점수가 1점씩 오릅니다. (PVE 스피드)
+                                            내 시계가 {SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT}초마다 쌓일 때마다 상대 점수가 1점씩 오릅니다. (PVE 스피드)
                                         </p>
                                     ) : board.gameMode === 'base' ? (
                                         <p className="text-center text-[11px] leading-snug text-amber-50/95 sm:text-xs">

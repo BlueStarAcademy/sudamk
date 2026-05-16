@@ -133,7 +133,9 @@ export const transitionToPlaying = (game: types.LiveGameSession, now: number) =>
         if (pairSeat) {
             game.currentPlayer = pairSeat.player;
         }
-        game.aiTurnStartTime = isPairAiSeat(pairSeat) ? now : undefined;
+        void import('../utils/pairAiTurnSchedule.js').then(({ schedulePairAiTurnIfNeeded }) =>
+            schedulePairAiTurnIfNeeded(game, now),
+        );
     }
     game.turnStartTime = now;
     // 게임 시작 시간 설정 (처음 playing 상태로 전환될 때만)

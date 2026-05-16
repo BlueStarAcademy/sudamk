@@ -2,6 +2,7 @@ import type { LiveGameSession } from '../../types/index.js';
 import { Player } from '../../types/index.js';
 import { GameCategory, GameMode } from '../../types/enums.js';
 import * as summaryService from '../summaryService.js';
+import { getSpeedTimePressureBonusPointsFromConsumedSec } from '../../shared/utils/speedTimePressureDisplay.js';
 import { getSpeedTimePressureConsumptionSnapshot } from './speedTimePressureLiveCaptures.js';
 
 export const NO_CAPTURE_TARGET = 999;
@@ -53,7 +54,6 @@ function resolveSpeedTimeBonusForCaptureTarget(game: LiveGameSession): { black: 
 
     const nowMs = Date.now();
     const { blackConsumed, whiteConsumed } = getSpeedTimePressureConsumptionSnapshot(game, nowMs);
-    const secondsPerPoint = 10;
 
     if (game.isAiGame) {
         // AI전: 유저 소모 시간만 AI 보너스로 반영.
@@ -61,17 +61,17 @@ function resolveSpeedTimeBonusForCaptureTarget(game: LiveGameSession): { black: 
         const humanPlayer =
             humanId && humanId === game.blackPlayerId ? Player.Black : humanId && humanId === game.whitePlayerId ? Player.White : Player.None;
         if (humanPlayer === Player.Black) {
-            return { black: 0, white: Math.floor(blackConsumed / secondsPerPoint) };
+            return { black: 0, white: getSpeedTimePressureBonusPointsFromConsumedSec(blackConsumed) };
         }
         if (humanPlayer === Player.White) {
-            return { black: Math.floor(whiteConsumed / secondsPerPoint), white: 0 };
+            return { black: getSpeedTimePressureBonusPointsFromConsumedSec(whiteConsumed), white: 0 };
         }
     }
 
     // PVP/일반 믹스: 내가 사용한 시간이 공통 간격(초)마다 상대 +1점
     return {
-        black: Math.floor(whiteConsumed / secondsPerPoint),
-        white: Math.floor(blackConsumed / secondsPerPoint),
+        black: getSpeedTimePressureBonusPointsFromConsumedSec(whiteConsumed),
+        white: getSpeedTimePressureBonusPointsFromConsumedSec(blackConsumed),
     };
 }
 

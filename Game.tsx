@@ -3877,6 +3877,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             boardState.every((row: any) => Array.isArray(row) && row.length === boardSize);
         if (!boardStateValid) return;
 
+        try {
+            if (sessionStorage.getItem(`pveAutoScoringScheduled:${sessionWithRestoredPatternStones.id}`)) {
+                return;
+            }
+        } catch {
+            /* ignore */
+        }
+
         const recoveryKey = `${sessionWithRestoredPatternStones.id}:${totalTurns}:${autoScoringTurns}`;
         if (towerAutoScoringRecoveryKeyRef.current === recoveryKey) return;
         towerAutoScoringRecoveryKeyRef.current = recoveryKey;

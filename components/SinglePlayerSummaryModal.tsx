@@ -7,6 +7,7 @@ import { getSinglePlayerStages, AVATAR_POOL, BORDER_POOL } from '../constants';
 import { getItemTemplateByName } from '../utils/itemTemplateLookup.js';
 import { ItemGrade } from '../types/enums.js';
 import { resolveLiveSessionSinglePlayerStageRow } from '../shared/utils/liveSessionSinglePlayerStage.js';
+import { formatScoreDetailNumber, hasRenderableScoreDetails } from '../shared/utils/scoreDetailsGuards.js';
 import { ScoringOverlay } from './game/ScoringOverlay.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
@@ -112,11 +113,11 @@ const getXpRequirementForLevel = (level: number): number => {
 
 // 계가 결과 표시 컴포넌트 (GameSummaryModal에서 가져옴)
 const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveGameSession, isMobile?: boolean, mobileTextScale?: number }> = ({ analysis, session, isMobile = false, mobileTextScale = 1 }) => {
-    const { scoreDetails } = analysis;
     const { mode, settings } = session;
     const mx = RESULT_MODAL_SCORE_MOBILE_PX;
 
-    if (!scoreDetails) return <p className={`text-center text-zinc-500 ${isMobile ? 'text-sm' : ''}`} style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}>점수 정보가 없습니다.</p>;
+    if (!hasRenderableScoreDetails(analysis)) return <p className={`text-center text-zinc-500 ${isMobile ? 'text-sm' : ''}`} style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}>점수 정보가 없습니다.</p>;
+    const scoreDetails = analysis.scoreDetails!;
     
     const isSpeedMode = mode === GameMode.Speed || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Speed));
     const isBaseMode = mode === GameMode.Base || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base));
@@ -127,24 +128,24 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
             <div className={`grid gap-1.5 sm:gap-2 ${isMobile ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${isMobile ? 'p-1' : 'p-1.5'}`}>
                     <h3 className={`font-bold text-center mb-0.5 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined }}>흑</h3>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>영토:</span> <span>{scoreDetails.black.territory.toFixed(0)}</span></div>
+                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>영토:</span> <span>{formatScoreDetailNumber(scoreDetails.black.territory, 0)}</span></div>
                     <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>따낸 돌:</span> <span>{scoreDetails.black.liveCaptures ?? 0}</span></div>
                     <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>사석:</span> <span>{scoreDetails.black.deadStones ?? 0}</span></div>
                     {isBaseMode && <div className="flex justify-between text-blue-300" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>베이스 보너스:</span> <span>{scoreDetails.black.baseStoneBonus}</span></div>}
                     {isHiddenMode && <div className="flex justify-between text-purple-300" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>히든 보너스:</span> <span>{scoreDetails.black.hiddenStoneBonus}</span></div>}
                     {isSpeedMode && <div className="flex justify-between text-green-300" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>시간 보너스:</span> <span>{Math.trunc(Number(scoreDetails.black.timeBonus ?? 0))}</span></div>}
-                    <div className={`flex justify-between border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.totalRow * mobileTextScale}px` : undefined }}><span>총점:</span> <span className="text-amber-200">{scoreDetails.black.total.toFixed(1)}</span></div>
+                    <div className={`flex justify-between border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.totalRow * mobileTextScale}px` : undefined }}><span>총점:</span> <span className="text-amber-200">{formatScoreDetailNumber(scoreDetails.black.total, 1)}</span></div>
                 </div>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${isMobile ? 'p-1' : 'p-1.5'}`}>
                     <h3 className={`font-bold text-center mb-0.5 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined }}>백</h3>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>영토:</span> <span>{scoreDetails.white.territory.toFixed(0)}</span></div>
+                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>영토:</span> <span>{formatScoreDetailNumber(scoreDetails.white.territory, 0)}</span></div>
                     <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>따낸 돌:</span> <span>{scoreDetails.white.liveCaptures ?? 0}</span></div>
                     <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>사석:</span> <span>{scoreDetails.white.deadStones ?? 0}</span></div>
                     <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>덤:</span> <span>{scoreDetails.white.komi}</span></div>
                     {isBaseMode && <div className="flex justify-between text-blue-300" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>베이스 보너스:</span> <span>{scoreDetails.white.baseStoneBonus}</span></div>}
                     {isHiddenMode && <div className="flex justify-between text-purple-300" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>히든 보너스:</span> <span>{scoreDetails.white.hiddenStoneBonus}</span></div>}
                     {isSpeedMode && <div className="flex justify-between text-green-300" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>시간 보너스:</span> <span>{Math.trunc(Number(scoreDetails.white.timeBonus ?? 0))}</span></div>}
-                    <div className={`flex justify-between border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.totalRow * mobileTextScale}px` : undefined }}><span>총점:</span> <span className="text-amber-200">{scoreDetails.white.total.toFixed(1)}</span></div>
+                    <div className={`flex justify-between border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.totalRow * mobileTextScale}px` : undefined }}><span>총점:</span> <span className="text-amber-200">{formatScoreDetailNumber(scoreDetails.white.total, 1)}</span></div>
                 </div>
             </div>
         </div>
@@ -157,6 +158,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     const isScoring = session.gameStatus === 'scoring';
     const isEnded = session.gameStatus === 'ended';
     const analysisResult = session.analysisResult?.['system'];
+    const renderableScoreDetails = hasRenderableScoreDetails(analysisResult);
     const summary = session.summary?.[currentUser.id];
 
     const stagesList = getSinglePlayerStages();
@@ -446,9 +448,9 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     );
 
     // 계가 결과가 없으면 "계가 중..." 표시, 있으면 승리/실패 판단
-    const modalTitle = (!analysisResult && isScoring)
+    const modalTitle = (!renderableScoreDetails && isScoring)
         ? "계가 중..." 
-        : (analysisResult) 
+        : renderableScoreDetails 
             ? (isWinner ? "미션 클리어" : "미션 실패")
             : "게임 결과";
 
@@ -678,14 +680,14 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                                 )}
                                             </div>
                                         )}
-                                        {isScoring && !analysisResult && (
+                                        {isScoring && !renderableScoreDetails && (
                                             <div className="flex min-h-[100px] flex-shrink-0 flex-col items-center justify-center">
                                                 <ScoringOverlay variant="inline" />
                                             </div>
                                         )}
-                                        {(isScoring && analysisResult) || (isEnded && analysisResult) ? (
+                                        {(isScoring && renderableScoreDetails) || (isEnded && renderableScoreDetails) ? (
                                             <ScoreDetailsComponent
-                                                analysis={analysisResult}
+                                                analysis={analysisResult!}
                                                 session={session}
                                                 isMobile={isMobile}
                                                 mobileTextScale={mobileTextScale}
@@ -836,14 +838,14 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                         )}
                                     </div>
                                 )}
-                                {isScoring && !analysisResult && (
+                                {isScoring && !renderableScoreDetails && (
                                     <div className="flex min-h-[200px] flex-1 flex-col items-center justify-center">
                                         <ScoringOverlay variant="inline" />
                                     </div>
                                 )}
-                                {(isScoring && analysisResult) || (isEnded && analysisResult) ? (
+                                {(isScoring && renderableScoreDetails) || (isEnded && renderableScoreDetails) ? (
                                     <ScoreDetailsComponent
-                                        analysis={analysisResult}
+                                        analysis={analysisResult!}
                                         session={session}
                                         isMobile={false}
                                         mobileTextScale={mobileTextScale}

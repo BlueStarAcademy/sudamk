@@ -3,12 +3,13 @@ import { UserWithStatus, GameMode, EquipmentSlot, InventoryItem, ItemGrade, Serv
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, LEAGUE_DATA, CORE_STATS_DATA, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, emptySlotImages, TOURNAMENT_DEFINITIONS, GRADE_LEVEL_REQUIREMENTS, RANKING_TIERS, getSinglePlayerStages } from '../constants';
 import { STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, PAIR_GO_LOBBY_IMG, TOURNAMENT_LOBBY_IMG, SINGLE_PLAYER_LOBBY_IMG, TOWER_CHALLENGE_LOBBY_IMG } from '../assets.js';
 import Avatar from './Avatar.js';
-import ProfileAvatarStatusMarkers from './ProfileAvatarStatusMarkers.js';
+import ProfileHomeIdentityHeader from './profile/ProfileHomeIdentityHeader.js';
+import ProfileMannerSeal from './profile/ProfileMannerSeal.js';
 import UserNicknameText from './UserNicknameText.js';
 import Button from './Button.js';
 import DetailedStatsModal from './DetailedStatsModal.js';
 import ProfileEditModal from './ProfileEditModal.js';
-import { getMannerScore, getMannerRank, getMannerStyle } from '../services/manner.js';
+import { getMannerScore, getMannerRank } from '../services/manner.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
@@ -1021,7 +1022,6 @@ const Profile: React.FC<ProfileProps> = () => {
     
     const totalMannerScore = getMannerScore(currentUserWithStatus);
     const mannerRank = getMannerRank(totalMannerScore);
-    const mannerStyle = getMannerStyle(totalMannerScore);
     
     const { coreStatBonuses, specialStatBonuses, mythicStatBonuses } = useMemo(() => calculateUserEffects(currentUserWithStatus), [currentUserWithStatus]);
     
@@ -1636,7 +1636,7 @@ const Profile: React.FC<ProfileProps> = () => {
         >
             <div className={`flex min-h-0 min-w-0 w-full flex-1 flex-row items-stretch ${nh ? 'gap-2' : ch ? 'gap-1' : 'gap-1.5 sm:gap-2'}`}>
                 <div
-                    className={`flex shrink-0 flex-col items-center justify-center gap-0.5 self-stretch ${
+                    className={`relative flex shrink-0 flex-col items-center justify-center gap-0.5 self-stretch ${
                         readableHome
                             ? ch
                                 ? 'w-[7rem] min-w-[6.5rem] max-w-[7.5rem]'
@@ -1644,49 +1644,35 @@ const Profile: React.FC<ProfileProps> = () => {
                             : 'w-[9.5rem] min-w-[8.75rem] max-w-[10.25rem]'
                     }`}
                 >
-                    <div className="relative">
-                        <ProfileAvatarStatusMarkers user={currentUserWithStatus} compact={ch} />
-                        <Avatar
-                            userId={currentUserWithStatus.id}
-                            userName={nickname}
-                            size={readableHome ? (ch ? 62 : 78) : 82}
-                            avatarUrl={avatarUrl}
-                            borderUrl={borderUrl}
-                            className="z-0"
-                        />
-                        <button
-                            onClick={handlers.openProfileEditModal}
-                            className={`absolute bottom-0 right-0 z-10 flex items-center justify-center rounded-full border-2 border-primary bg-secondary transition-transform hover:scale-110 hover:bg-tertiary active:scale-95 ${ch ? 'h-7 w-7 p-0.5' : 'h-8 w-8 p-1'}`}
-                            title="프로필 수정"
-                        >
-                            <span className={ch ? 'text-xs' : 'text-sm'}>✏️</span>
-                            {!currentUserWithStatus.mbti && (
-                                <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500"></span>
-                            )}
-                        </button>
+                    <div className="relative rounded-full bg-gradient-to-br from-amber-200/70 via-amber-500/35 to-zinc-600/60 p-[3px] shadow-[0_10px_32px_-8px_rgba(0,0,0,0.55),0_0_28px_rgba(251,191,36,0.18)]">
+                        <div className="relative rounded-full bg-zinc-950/90 p-[2px]">
+                            <Avatar
+                                userId={currentUserWithStatus.id}
+                                userName={nickname}
+                                size={readableHome ? (ch ? 62 : 78) : 82}
+                                avatarUrl={avatarUrl}
+                                borderUrl={borderUrl}
+                                className="z-0"
+                            />
+                            <button
+                                onClick={handlers.openProfileEditModal}
+                                className={`absolute bottom-0 right-0 z-10 flex items-center justify-center rounded-full border-2 border-primary bg-secondary transition-transform hover:scale-110 hover:bg-tertiary active:scale-95 ${ch ? 'h-7 w-7 p-0.5' : 'h-8 w-8 p-1'}`}
+                                title="프로필 수정"
+                            >
+                                <span className={ch ? 'text-xs' : 'text-sm'}>✏️</span>
+                                {!currentUserWithStatus.mbti && (
+                                    <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500"></span>
+                                )}
+                            </button>
+                        </div>
                     </div>
                     <div className={`w-full min-w-0 px-0.5 ${readableHome ? (ch ? 'mt-1 sm:mt-1' : 'mt-1.5 sm:mt-2') : 'mt-2 sm:mt-2'}`}>
                         <div
-                            className={`w-full min-w-[6.25em] rounded-lg border border-amber-500/40 bg-gradient-to-b from-zinc-800 to-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_6px_20px_rgba(0,0,0,0.5)] sm:rounded-xl ${
+                            className={`w-full min-w-[6.25em] rounded-xl border border-indigo-400/35 bg-gradient-to-b from-indigo-950/90 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_6px_20px_rgba(0,0,0,0.45)] ${
                                 readableHome ? (ch ? 'px-1.5 py-1 sm:px-2 sm:py-1.5' : 'px-2 py-1.5 sm:px-2.5 sm:py-2') : 'px-1.5 py-1 sm:px-2'
                             }`}
                         >
-                            <UserNicknameText
-                                user={{
-                                    nickname,
-                                    isAdmin: currentUserWithStatus.isAdmin,
-                                    staffNicknameDisplayEligibility: currentUserWithStatus.staffNicknameDisplayEligibility,
-                                }}
-                                as="h2"
-                                title={nickname}
-                                style={{
-                                    fontSize: nh ? 'clamp(0.8rem, 2.1vw, 0.95rem)' : ch ? 'clamp(0.72rem, 1.9vw, 0.88rem)' : undefined,
-                                }}
-                                className={`w-full min-w-0 truncate text-center font-extrabold leading-tight tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] ${
-                                    readableHome ? (ch ? 'text-sm sm:text-sm' : 'text-base sm:text-lg') : 'text-sm sm:text-base'
-                                }`}
-                            />
-                            <div className={`flex justify-center ${readableHome ? (ch ? 'mt-1 sm:mt-1' : 'mt-1.5 sm:mt-2') : 'mt-1 sm:mt-1'}`}>
+                            <div className="flex justify-center">
                                 <span
                                     className={`inline-flex max-w-full items-center gap-x-1.5 whitespace-nowrap rounded-md border border-indigo-400/45 bg-indigo-950 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:gap-x-2 ${
                                         readableHome
@@ -1711,98 +1697,27 @@ const Profile: React.FC<ProfileProps> = () => {
                     </div>
                 </div>
 
-                <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col justify-center gap-1 self-stretch">
-                    <div className="flex w-full min-w-0 flex-col gap-1">
-                        <div
-                            className={`flex w-full min-w-0 flex-col gap-1 rounded-lg border border-zinc-600/90 bg-gradient-to-br from-zinc-800 to-zinc-950 p-1 pl-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${nh ? '' : 'sm:p-1 sm:pl-1.5 sm:gap-0.5'}`}
-                        >
-                            <div className="flex min-w-0 items-center gap-1.5">
-                                <CombinedLevelBadge level={combinedLevel} compact={nh || ch} />
-                                <div className="flex min-w-0 flex-1 flex-col justify-center space-y-0.5">
-                                    <XpBar
-                                        bumpText={nh && !ch}
-                                        dense={ch}
-                                        level={currentUserWithStatus.userLevel}
-                                        currentXp={currentUserWithStatus.userXp}
-                                        label="EXP"
-                                        colorClass="bg-gradient-to-r from-blue-500 to-cyan-400"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                        <div
-                            className={`w-full min-w-0 overflow-hidden rounded-lg border border-amber-500/35 bg-gradient-to-b from-zinc-800/90 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_10px_30px_-18px_rgba(0,0,0,0.65)] ${ch ? 'p-2 sm:p-2.5' : nh ? 'p-2' : 'p-2 sm:p-2.5'}`}
-                        >
-                            <div className={`mb-1.5 flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 ${ch ? 'mb-1' : ''}`}>
-                                <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
-                                    <span
-                                        className="shrink-0 font-bold text-amber-100/95"
-                                        style={{
-                                            fontSize: nh
-                                                ? 'clamp(0.75rem, 1.65vw, 0.875rem)'
-                                                : ch
-                                                  ? 'clamp(0.68rem, 1.35vw, 0.78rem)'
-                                                  : 'clamp(0.75rem, 1.45vw, 0.875rem)',
-                                        }}
-                                    >
-                                        매너 등급
-                                    </span>
-                                    <span
-                                        className={`inline-flex max-w-[min(100%,11rem)] shrink items-center justify-center rounded border border-amber-400/45 bg-black/35 px-2 py-0.5 font-bold leading-none shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:max-w-[14rem] sm:px-2.5 sm:py-1 ${mannerRank.color}`}
-                                        style={{
-                                            fontSize: nh
-                                                ? 'clamp(0.68rem, 1.5vw, 0.8rem)'
-                                                : ch
-                                                  ? 'clamp(0.65rem, 1.3vw, 0.75rem)'
-                                                  : readableHome
-                                                    ? 'clamp(0.75rem, 1.45vw, 0.88rem)'
-                                                    : 'clamp(0.68rem, 1.4vw, 0.8rem)',
-                                        }}
-                                        title={`${totalMannerScore}점 · ${mannerRank.rank}`}
-                                    >
-                                        <span className="min-w-0 truncate">{mannerRank.rank}</span>
-                                    </span>
-                                </div>
-                                <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-                                    <span
-                                        className="whitespace-nowrap font-bold tabular-nums text-amber-100/95"
-                                        style={{
-                                            fontSize: nh
-                                                ? 'clamp(0.75rem, 1.65vw, 0.875rem)'
-                                                : ch
-                                                  ? 'clamp(0.7rem, 1.4vw, 0.82rem)'
-                                                  : readableHome
-                                                    ? 'clamp(0.82rem, 1.6vw, 0.95rem)'
-                                                    : 'clamp(0.75rem, 1.45vw, 0.875rem)',
-                                        }}
-                                        title={`${totalMannerScore}점 (${mannerRank.rank})`}
-                                    >
-                                        {totalMannerScore}점
-                                    </span>
-                                    <Button
-                                        type="button"
-                                        onClick={() => setShowMannerRankModal(true)}
-                                        colorScheme="none"
-                                        className={`!shrink-0 !whitespace-nowrap rounded-md border border-amber-500/55 bg-gradient-to-b from-zinc-700 to-zinc-800 !font-semibold !leading-none !text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_2px_6px_rgba(0,0,0,0.35)] hover:border-amber-400/70 hover:from-zinc-600 hover:to-zinc-700 hover:!text-white ${
-                                            readableHome
-                                                ? ch
-                                                    ? '!px-1.5 !py-0.5 !text-[10px] sm:!text-[11px]'
-                                                    : '!px-2 !py-1 !text-xs sm:!text-sm'
-                                                : '!px-1.5 !py-0.5 !text-[9px] sm:!px-2 sm:!py-0.5 sm:!text-[10px]'
-                                        }`}
-                                        title="매너 등급 정보"
-                                    >
-                                        등급 정보
-                                    </Button>
-                                </div>
-                            </div>
-                            <div
-                                className={`w-full rounded-full border border-color bg-tertiary/50 ${readableHome ? (ch ? 'h-1.5' : 'h-2') : 'h-1.5 sm:h-2'}`}
-                            >
-                                <div className={`${mannerStyle.colorClass} h-full rounded-full`} style={{ width: `${mannerStyle.percentage}%` }} />
-                            </div>
-                        </div>
-                    </div>
+                <div className={`flex min-h-0 min-w-0 w-full flex-1 flex-col justify-end ${ch ? 'gap-0.5' : 'gap-1'}`}>
+                    <ProfileHomeIdentityHeader
+                        user={currentUserWithStatus}
+                        level={combinedLevel}
+                        nickname={nickname}
+                        isAdmin={currentUserWithStatus.isAdmin}
+                        staffNicknameDisplayEligibility={currentUserWithStatus.staffNicknameDisplayEligibility}
+                        compact={ch}
+                        denseNative={nh}
+                        userLevel={currentUserWithStatus.userLevel}
+                        userXp={currentUserWithStatus.userXp}
+                        xpDense={ch}
+                        xpBumpText={nh && !ch}
+                    />
+                    <ProfileMannerSeal
+                        score={totalMannerScore}
+                        rank={mannerRank.rank}
+                        rankColorClass={mannerRank.color}
+                        compact={ch}
+                        onOpenInfo={() => setShowMannerRankModal(true)}
+                    />
                 </div>
             </div>
 
@@ -1825,7 +1740,6 @@ const Profile: React.FC<ProfileProps> = () => {
         currentUserWithStatus,
         handlers,
         mannerRank,
-        mannerStyle,
         totalMannerScore,
         combinedLevel,
         nickname,

@@ -18,3 +18,57 @@ export function pickRicherWsBoardSnapshot(
     if (!client) return pendingDeferred;
     return wsSessionMoveHistoryLen(pendingDeferred) > wsSessionMoveHistoryLen(client) ? pendingDeferred : client;
 }
+
+function isSubstantiveBoardState(boardState: LiveGameSession['boardState'] | undefined): boolean {
+    return !!(
+        boardState &&
+        Array.isArray(boardState) &&
+        boardState.length > 0 &&
+        boardState[0] &&
+        Array.isArray(boardState[0]) &&
+        boardState[0].length > 0 &&
+        boardState.some(
+            (row) => row && Array.isArray(row) && row.some((cell) => cell !== 0 && cell !== null && cell !== undefined),
+        )
+    );
+}
+
+/**
+ * PVE 계가 GAME_UPDATE: 서버가 한 수 짧은 수순/보드를내도 클라(마지막 인간 착수 반영)를 우선한다.
+ */
+export function resolvePveScoringBoardAndMoveHistory(
+    server: LiveGameSession,
+    client: LiveGameSession,
+): {
+    boardState: LiveGameSession['boardState'];
+    moveHistory: LiveGameSession['moveHistory'];
+} {
+    const serverMhLen = wsSessionMoveHistoryLen(server);
+    const clientMhLen = wsSessionMoveHistoryLen(client);
+    const serverBoardOk = isSubstantiveBoardState(server.boardState);
+    const clientBoardOk = isSubstantiveBoardState(client.boardState);
+
+    let moveHistory: LiveGameSession['moveHistory'];
+    if (clientMhLen > serverMhLen) {
+        moveHistory = client.moveHistory;
+    } else if (serverMhLen > clientMhLen) {
+        moveHistory = server.moveHistory;
+    } else if (serverMhLen > 0) {
+        moveHistory = server.moveHistory;
+    } else {
+        moveHistory = client.moveHistory ?? server.moveHistory;
+    }
+
+    let boardState: LiveGameSession['boardState'];
+    if (clientMhLen > serverMhLen && clientBoardOk) {
+        boardState = client.boardState;
+    } else if (serverBoardOk) {
+        boardState = server.boardState;
+    } else if (clientBoardOk) {
+        boardState = client.boardState;
+    } else {
+        boardState = server.boardState ?? client.boardState;
+    }
+
+    return { boardState, moveHistory };
+}

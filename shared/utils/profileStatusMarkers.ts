@@ -38,6 +38,10 @@ export function getVipProfileMarkerLabel(user: User): VipProfileMarkerLabel | nu
     return null;
 }
 
+export function hasProfileStatusMarkers(user: User): boolean {
+    return getVipProfileMarkerLabel(user) != null || getActiveDiamondPackageRoman(user) != null;
+}
+
 export function getActiveDiamondPackageRoman(user: User): 'I' | 'II' | 'III' | null {
     const now = Date.now();
     if ((user.diamondPackageExpiresAt ?? 0) <= now) return null;

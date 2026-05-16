@@ -22,6 +22,7 @@ import {
 } from './game/PreGameDescriptionLayout.js';
 import { StrategyXpResultBar } from './game/StrategyXpResultBar.js';
 import { getTowerSessionFloor, isTowerHumanWinnerFromSession } from '../utils/towerPreGameDisplay.js';
+import { formatScoreDetailNumber, hasRenderableScoreDetails } from '../shared/utils/scoreDetailsGuards.js';
 import { ResultModalXpRewardBadge, ResultModalPetGradeUpgradeNeededSlot } from './game/ResultModalXpRewardBadge.js';
 import {
     ResultModalGoldCurrencySlot,
@@ -117,12 +118,14 @@ const ScoreDetailsComponent: React.FC<{
     /** 모바일에서 흑·백을 가로 2열로(도전의 탑 등) */
     compactSideBySideMobile?: boolean;
 }> = ({ analysis, session, isMobile = false, mobileTextScale = 1, desktopTextScale = 1, compactSideBySideMobile = false }) => {
-    const { scoreDetails } = analysis;
     const { mode, settings } = session;
     const mx = RESULT_MODAL_SCORE_MOBILE_PX;
 
-    if (!scoreDetails) return <p className={`text-center text-zinc-500 ${isMobile ? 'text-sm' : ''}`} style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}>점수 정보가 없습니다.</p>;
-    
+    if (!hasRenderableScoreDetails(analysis)) {
+        return <p className={`text-center text-zinc-500 ${isMobile ? 'text-sm' : ''}`} style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}>점수 정보가 없습니다.</p>;
+    }
+    const scoreDetails = analysis.scoreDetails!;
+
     const isSpeedMode = mode === GameMode.Speed || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Speed));
     const isBaseMode = mode === GameMode.Base || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base));
     const isHiddenMode = mode === GameMode.Hidden || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Hidden));
@@ -140,24 +143,24 @@ const ScoreDetailsComponent: React.FC<{
             <div className={`grid ${narrow2col ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'} ${gridGap}`}>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${innerPad}`}>
                     <h3 className="mb-0.5 text-center font-bold" style={{ fontSize: headFs }}>흑</h3>
-                    <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">영토</span> <span className="tabular-nums">{scoreDetails.black.territory.toFixed(0)}</span></div>
+                    <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">영토</span> <span className="tabular-nums">{formatScoreDetailNumber(scoreDetails.black.territory, 0)}</span></div>
                     <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">따낸</span> <span className="tabular-nums">{scoreDetails.black.liveCaptures ?? 0}</span></div>
                     <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">사석</span> <span className="tabular-nums">{scoreDetails.black.deadStones ?? 0}</span></div>
                     {isBaseMode && <div className="flex justify-between gap-0.5 text-blue-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">베이스</span> <span className="tabular-nums">{scoreDetails.black.baseStoneBonus}</span></div>}
                     {isHiddenMode && <div className="flex justify-between gap-0.5 text-purple-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">히든</span> <span className="tabular-nums">{scoreDetails.black.hiddenStoneBonus}</span></div>}
                     {isSpeedMode && <div className="flex justify-between gap-0.5 text-green-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">시간</span> <span className="tabular-nums">{Math.trunc(Number(scoreDetails.black.timeBonus ?? 0))}</span></div>}
-                    <div className="mt-0.5 flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 font-bold" style={{ fontSize: totalFs }}><span>총점</span> <span className="text-amber-200 tabular-nums">{scoreDetails.black.total.toFixed(1)}</span></div>
+                    <div className="mt-0.5 flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 font-bold" style={{ fontSize: totalFs }}><span>총점</span> <span className="text-amber-200 tabular-nums">{formatScoreDetailNumber(scoreDetails.black.total, 1)}</span></div>
                 </div>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${innerPad}`}>
                     <h3 className="mb-0.5 text-center font-bold" style={{ fontSize: headFs }}>백</h3>
-                    <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">영토</span> <span className="tabular-nums">{scoreDetails.white.territory.toFixed(0)}</span></div>
+                    <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">영토</span> <span className="tabular-nums">{formatScoreDetailNumber(scoreDetails.white.territory, 0)}</span></div>
                     <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">따낸</span> <span className="tabular-nums">{scoreDetails.white.liveCaptures ?? 0}</span></div>
                     <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">사석</span> <span className="tabular-nums">{scoreDetails.white.deadStones ?? 0}</span></div>
                     <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">덤</span> <span className="tabular-nums">{scoreDetails.white.komi}</span></div>
                     {isBaseMode && <div className="flex justify-between gap-0.5 text-blue-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">베이스</span> <span className="tabular-nums">{scoreDetails.white.baseStoneBonus}</span></div>}
                     {isHiddenMode && <div className="flex justify-between gap-0.5 text-purple-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">히든</span> <span className="tabular-nums">{scoreDetails.white.hiddenStoneBonus}</span></div>}
                     {isSpeedMode && <div className="flex justify-between gap-0.5 text-green-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">시간</span> <span className="tabular-nums">{Math.trunc(Number(scoreDetails.white.timeBonus ?? 0))}</span></div>}
-                    <div className="mt-0.5 flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 font-bold" style={{ fontSize: totalFs }}><span>총점</span> <span className="text-amber-200 tabular-nums">{scoreDetails.white.total.toFixed(1)}</span></div>
+                    <div className="mt-0.5 flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 font-bold" style={{ fontSize: totalFs }}><span>총점</span> <span className="text-amber-200 tabular-nums">{formatScoreDetailNumber(scoreDetails.white.total, 1)}</span></div>
                 </div>
             </div>
         </div>
@@ -180,6 +183,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     const isScoring = session.gameStatus === 'scoring';
     const isEnded = session.gameStatus === 'ended';
     const analysisResult = session.analysisResult?.['system'];
+    const renderableScoreDetails = hasRenderableScoreDetails(analysisResult);
     const summary = session.summary?.[currentUser.id];
     
     // 계가 결과가 있으면 점수를 기반으로 승리/실패 판단, 없으면 session.winner 사용 (`towerPreGameDisplay`와 인게임 푸터 동일)
@@ -441,9 +445,9 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     };
 
     // 계가 결과가 없으면 "계가 중..." 표시, 있으면 승리/실패 판단
-    const modalTitle = (!analysisResult && isScoring)
+    const modalTitle = (!renderableScoreDetails && isScoring)
         ? "계가 중..." 
-        : (analysisResult) 
+        : renderableScoreDetails 
             ? (isWinner ? "층 클리어" : "층 실패")
             : "게임 결과";
 
@@ -634,14 +638,14 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                                 )}
                                             </div>
                                         )}
-                                        {isScoring && !analysisResult && (
+                                        {isScoring && !renderableScoreDetails && (
                                             <div className="flex min-h-[100px] flex-shrink-0 flex-col items-center justify-center">
                                                 <ScoringOverlay variant="inline" />
                                             </div>
                                         )}
-                                        {(isScoring && analysisResult) || (isEnded && analysisResult) ? (
+                                        {(isScoring && renderableScoreDetails) || (isEnded && renderableScoreDetails) ? (
                                             <ScoreDetailsComponent
-                                                analysis={analysisResult}
+                                                analysis={analysisResult!}
                                                 session={session}
                                                 isMobile={isMobile}
                                                 mobileTextScale={mobileTextScale}
@@ -712,14 +716,14 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                         )}
                                     </div>
                                 )}
-                                {isScoring && !analysisResult && (
+                                {isScoring && !renderableScoreDetails && (
                                     <div className="flex min-h-[200px] flex-1 flex-col items-center justify-center">
                                         <ScoringOverlay variant="inline" />
                                     </div>
                                 )}
-                                {(isScoring && analysisResult) || (isEnded && analysisResult) ? (
+                                {(isScoring && renderableScoreDetails) || (isEnded && renderableScoreDetails) ? (
                                     <ScoreDetailsComponent
-                                        analysis={analysisResult}
+                                        analysis={analysisResult!}
                                         session={session}
                                         isMobile={false}
                                         mobileTextScale={mobileTextScale}
