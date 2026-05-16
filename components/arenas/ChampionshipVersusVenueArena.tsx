@@ -113,8 +113,8 @@ const championshipFooterButtonBase =
     'rounded-xl border px-4 py-2 text-xs font-black tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_-14px_rgba(0,0,0,0.9)] transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950';
 const championshipFooterPrimaryButton = `${championshipFooterButtonBase} border-emerald-300/45 bg-gradient-to-b from-emerald-400/95 via-emerald-600/90 to-emerald-950/95 text-slate-950 hover:brightness-110 focus-visible:ring-emerald-400/55`;
 const championshipFooterExitButton = `${championshipFooterButtonBase} border-rose-400/45 bg-gradient-to-b from-rose-600/88 via-rose-800/90 to-rose-950/95 text-rose-50 hover:brightness-110 focus-visible:ring-rose-400/55`;
-const championshipVersusStartMatchButtonFooterClass = `${championshipFooterPrimaryButton} !flex min-h-[40px] min-w-[7.5rem] flex-1 basis-0 items-center justify-center !px-3 !py-2 sm:min-h-[42px]`;
-const championshipVersusExitButtonFooterClass = `${championshipFooterExitButton} !flex min-h-[40px] min-w-[4.75rem] flex-1 basis-0 items-center justify-center !px-3 !py-2 sm:min-h-[42px]`;
+const championshipVersusStartMatchButtonFooterClass = `${championshipFooterPrimaryButton} !flex min-h-[42px] w-[10.5rem] shrink-0 items-center justify-center !px-3 !py-2.5 sm:min-h-[44px] sm:w-[11.5rem]`;
+const championshipVersusExitButtonFooterClass = `${championshipFooterExitButton} !flex min-h-[42px] w-[5.25rem] shrink-0 items-center justify-center !px-3 !py-2.5 sm:min-h-[44px] sm:w-[5.75rem]`;
 
 /** 네이티브 셸 고정 패널: `Header` 모바일 min-h(`clamp(3.5rem,…,4.85rem)`)와 동일 계열 */
 const VERSUS_MOBILE_DRAWER_TOP = 'calc(env(safe-area-inset-top, 0px) + clamp(3.5rem, calc(2.85rem + 2vw), 4.85rem))';
@@ -1987,8 +1987,8 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             Boolean(selectedRow && beatenOpponentIds.includes(selectedRow.userId)));
 
     const versusChampionshipPlaybackSpeedSelector = (
-        <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1">
-            <span className="text-[10px] font-semibold tracking-wider text-cyan-100/75">배속</span>
+        <div className="mb-1.5 flex flex-wrap items-center justify-center gap-1.5">
+            <span className="text-[10px] font-semibold tracking-wider text-cyan-100">배속</span>
             {versusPlaybackSpeedChoices.map((speed) => {
                 const isActive = versusPlaybackSpeed === speed;
                 const titleBySpeed: Record<string, string> = {
@@ -2018,26 +2018,25 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
 
     const versusChampionshipBoardFooterPanel = (
         <section
-            className={`flex min-h-0 flex-col justify-center rounded-2xl border border-cyan-300/22 shadow-[inset_0_1px_0_rgba(255,255,255,0.075),0_16px_36px_-24px_rgba(0,0,0,0.95)] ring-1 ring-inset ring-cyan-300/10 ${
+            className={`flex min-h-0 flex-col justify-center rounded-2xl border border-cyan-400/35 bg-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_16px_36px_-24px_rgba(0,0,0,0.95)] ring-1 ring-inset ring-cyan-400/20 ${
                 isMobile
-                    ? 'bg-gradient-to-br from-[#27364a]/96 via-[#121a27]/95 to-[#070a10]/95 p-2'
-                    : 'bg-gradient-to-br from-[#27364a]/96 via-[#121a27]/95 to-[#070a10]/95 p-2.5'
+                    ? 'bg-gradient-to-br from-[#2a3d56] via-[#141c2b] to-[#070a10] p-2'
+                    : 'bg-gradient-to-br from-[#2a3d56] via-[#141c2b] to-[#070a10] p-2.5'
             }`}
             aria-label="경기 제어"
         >
             <div
-                className={`text-center font-black tracking-[0.22em] text-cyan-100/85 ${isMobile ? 'mb-1 text-[9px]' : 'mb-1.5 text-[10px]'}`}
+                className={`text-center font-black tracking-[0.22em] text-cyan-100 ${isMobile ? 'mb-1 text-[9px]' : 'mb-1.5 text-[10px]'}`}
             >
                 MATCH CONTROL
             </div>
             <div
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-500/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.055)] ${
-                    isMobile
-                        ? 'min-h-0 bg-gradient-to-b from-black/94 to-slate-950/94 px-2 py-2'
-                        : 'min-h-[3.7rem] bg-gradient-to-b from-black/94 to-slate-950/94 px-2.5 py-2.5'
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-600/50 bg-[#0c1018] shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${
+                    isMobile ? 'min-h-0 px-2 py-2' : 'min-h-[3.7rem] px-2.5 py-2.5'
                 }`}
             >
-                <div className="flex w-full max-w-full flex-wrap items-stretch justify-center gap-2">
+                {versusChampionshipPlaybackSpeedSelector}
+                <div className="flex flex-wrap items-center justify-center gap-2">
                     <Button
                         type="button"
                         bare
@@ -2086,7 +2085,6 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                         나가기
                     </Button>
                 </div>
-                {versusChampionshipPlaybackSpeedSelector}
             </div>
         </section>
     );
@@ -2168,7 +2166,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 <div className={`relative min-h-0 w-full min-w-0 flex-1 ${championshipBoardHostClipClass}`}>
                     <div className="absolute inset-0 flex min-h-0 flex-col">
                         <div className={`relative flex h-full w-full min-h-0 min-w-0 flex-col ${championshipBoardHostClipClass}`}>
-                            <div className={`flex min-h-0 w-full flex-1 items-center justify-center transition-opacity duration-500 ${championshipBoardHostClipClass}`}>
+                            <div className={`flex min-h-0 w-full flex-1 items-stretch justify-center transition-opacity duration-500 ${championshipBoardHostClipClass}`}>
                                 <div className="flex h-full w-full min-w-0 items-stretch justify-center gap-1.5 px-1 py-1">
                                     <ChampionshipAbilityPlayerPanel
                                         player={versusSeatBlack.player}
@@ -2426,7 +2424,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
 
     const mobileChampionshipAbilityRow =
         matchForBoard && (versusSeatBlack.player || versusSeatWhite.player) ? (
-            <section className="flex shrink-0 flex-row items-stretch gap-1 rounded-md border border-slate-700/45 bg-gradient-to-b from-[#111827]/88 to-[#070b12]/90 p-1 shadow-md">
+            <section className="flex shrink-0 flex-row items-stretch gap-1 overflow-hidden rounded-md border border-slate-700/45 bg-gradient-to-b from-[#111827]/88 to-[#070b12]/90 p-1 shadow-md">
                 {renderMobileChampionshipAbilityPanel(
                     versusSeatBlack.player,
                     versusSeatBlack.stats,
@@ -2667,13 +2665,13 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                             </ul>
                         )}
 
-                        <div className="mt-2 w-full shrink-0 border-t border-white/10 pt-2">
+                        <div className="mt-2 flex w-full shrink-0 justify-center border-t border-white/10 pt-2">
                             <Button
                                 type="button"
                                 colorScheme="none"
                                 disabled={loading || disableOpponentControls}
                                 onClick={() => void refreshOpponents({ force: true })}
-                                className="!flex w-full !items-center !justify-center gap-1.5 !rounded-lg !border !border-amber-400/45 !bg-gradient-to-b !from-slate-600/55 !via-slate-900/88 !to-black !py-2 !text-[11px] !font-bold !text-amber-50 !shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_6px_20px_-12px_rgba(0,0,0,0.85)] !ring-1 !ring-inset !ring-white/10 transition hover:!border-amber-300/60 hover:!brightness-110 active:!scale-[0.99] disabled:!opacity-45 sm:!text-xs"
+                                className="!flex !w-auto !min-w-[8.5rem] !max-w-[11.5rem] !items-center !justify-center gap-1.5 !rounded-lg !border !border-amber-400/45 !bg-gradient-to-b !from-slate-600 !via-slate-900 !to-black !px-4 !py-3 !text-[11px] !font-bold !leading-snug !text-amber-50 !shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_6px_20px_-12px_rgba(0,0,0,0.85)] !ring-1 !ring-inset !ring-white/10 transition hover:!border-amber-300/60 hover:!brightness-110 active:!scale-[0.99] disabled:!opacity-45 sm:!min-h-[44px] sm:!text-xs"
                             >
                                 <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-amber-300/40 text-[9px] leading-none text-amber-200">
                                     ↻

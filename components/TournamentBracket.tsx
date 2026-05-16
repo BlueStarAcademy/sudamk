@@ -655,18 +655,26 @@ export const ChampionshipAbilityPlayerPanel: React.FC<{
             : 'border-amber-300/45 bg-gradient-to-r from-amber-700/24 to-slate-900/50 ring-1 ring-amber-300/22';
     };
 
-    const phaseRowLabelClass = (phaseKey: (typeof CHAMPIONSHIP_PHASE_META)[number]['key']): string => {
-        if (activePhaseKey !== phaseKey) return 'font-bold text-slate-500';
-        if (phaseKey === 'opening') return 'font-bold text-cyan-100';
-        if (phaseKey === 'midgame') return 'font-bold text-fuchsia-100';
-        return 'font-bold text-amber-100';
+    const phaseRowLabelClass = (
+        phaseKey: (typeof CHAMPIONSHIP_PHASE_META)[number]['key'],
+        density: 'normal' | 'compact' = 'normal',
+    ): string => {
+        const size = density === 'compact' ? 'text-[10px]' : 'text-[12px]';
+        if (activePhaseKey !== phaseKey) return `font-bold ${size} text-slate-500`;
+        if (phaseKey === 'opening') return `font-bold ${size} text-cyan-100`;
+        if (phaseKey === 'midgame') return `font-bold ${size} text-fuchsia-100`;
+        return `font-bold ${size} text-amber-100`;
     };
 
-    const phaseRowValueClass = (phaseKey: (typeof CHAMPIONSHIP_PHASE_META)[number]['key']): string => {
-        if (activePhaseKey !== phaseKey) return 'text-base font-black tabular-nums text-slate-500';
-        if (phaseKey === 'opening') return 'text-base font-black tabular-nums text-cyan-50';
-        if (phaseKey === 'midgame') return 'text-base font-black tabular-nums text-fuchsia-50';
-        return 'text-base font-black tabular-nums text-amber-50';
+    const phaseRowValueClass = (
+        phaseKey: (typeof CHAMPIONSHIP_PHASE_META)[number]['key'],
+        density: 'normal' | 'compact' = 'normal',
+    ): string => {
+        const size = density === 'compact' ? 'text-[11px]' : 'text-base';
+        if (activePhaseKey !== phaseKey) return `${size} font-black tabular-nums text-slate-500`;
+        if (phaseKey === 'opening') return `${size} font-black tabular-nums text-cyan-50`;
+        if (phaseKey === 'midgame') return `${size} font-black tabular-nums text-fuchsia-50`;
+        return `${size} font-black tabular-nums text-amber-50`;
     };
 
     const phaseBadgeClass =
@@ -684,11 +692,12 @@ export const ChampionshipAbilityPlayerPanel: React.FC<{
         density: 'normal' | 'compact' = 'normal',
     ) => {
         const gridGap = density === 'compact' ? 'gap-x-1.5 gap-y-1' : 'gap-x-2 gap-y-1.5';
-        const pad = density === 'compact' ? 'p-2' : 'p-2.5';
+        const pad = density === 'compact' ? 'p-1.5' : 'p-2.5';
         const statText = density === 'compact' ? 'text-[10px]' : 'text-[11px]';
         const valText = density === 'compact' ? 'text-[11px]' : 'text-[12px]';
-        const phasePad = density === 'compact' ? 'px-2 py-1.5' : 'px-2.5 py-2';
+        const phasePad = density === 'compact' ? 'px-1.5 py-1' : 'px-2.5 py-2';
         const phaseLabel = density === 'compact' ? 'text-[11px]' : 'text-[12px]';
+        const phaseStackGap = density === 'compact' ? 'space-y-1' : 'space-y-2';
         return (
             <>
                 <div className={`grid shrink-0 grid-cols-2 ${gridGap} rounded-lg border bg-gradient-to-b ${pad} text-[11px] leading-tight shadow-lg ${statCardTone}`}>
@@ -713,7 +722,7 @@ export const ChampionshipAbilityPlayerPanel: React.FC<{
                 </div>
 
                 <div className={`shrink-0 rounded-lg border bg-gradient-to-b ${pad} shadow-lg ${statCardTone}`}>
-                    <div className="space-y-2">
+                    <div className={phaseStackGap}>
                         {CHAMPIONSHIP_PHASE_META.map((phase) => {
                             const ply = championshipPhaseMetaPly(boardSize, phase);
                             /** 페어 분할 시 스냅샷은 좌석 통합 스탯 기준이라 유저·펫에 동일 적용됨 → 각 블록 코어로만 KATA 산출 */
@@ -737,9 +746,9 @@ export const ChampionshipAbilityPlayerPanel: React.FC<{
                                     key={phase.key}
                                     className={`rounded-lg border ${phasePad} shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${phaseRowActiveClass(phase.key)}`}
                                 >
-                                    <div className={`flex items-center justify-between gap-2 ${phaseLabel}`}>
-                                        <span className={phaseRowLabelClass(phase.key)}>{phase.label}</span>
-                                        <span className={phaseRowValueClass(phase.key)}>{computed.abilityScore}</span>
+                                    <div className={`flex items-center justify-between gap-1.5 ${phaseLabel}`}>
+                                        <span className={phaseRowLabelClass(phase.key, density)}>{phase.label}</span>
+                                        <span className={phaseRowValueClass(phase.key, density)}>{computed.abilityScore}</span>
                                     </div>
                                 </div>
                             );
@@ -750,6 +759,7 @@ export const ChampionshipAbilityPlayerPanel: React.FC<{
         );
     };
 
+    const isSplitPairPanel = Boolean(splitPairAbilities);
     const splitUserTurnRing = pairSplitTurnHighlight?.user
         ? 'ring-2 ring-amber-400/88 shadow-[0_0_22px_-6px_rgba(245,158,11,0.48)] ring-inset rounded-lg'
         : '';
@@ -759,7 +769,11 @@ export const ChampionshipAbilityPlayerPanel: React.FC<{
 
     return (
         <aside
-            className={`flex h-fit max-h-full w-[165px] shrink-0 flex-col gap-2 self-start overflow-hidden rounded-xl border-2 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_42px_-22px_rgba(0,0,0,0.9)] xl:w-[185px] ${
+            className={`flex shrink-0 flex-col overflow-hidden rounded-xl border-2 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_42px_-22px_rgba(0,0,0,0.9)] ${
+                isSplitPairPanel
+                    ? 'h-full min-h-0 max-h-full w-[165px] gap-1.5 xl:w-[185px]'
+                    : 'h-fit max-h-full w-[165px] gap-2 self-start xl:w-[185px]'
+            } ${
                 tone === 'black'
                     ? 'border-zinc-600 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950'
                     : 'border-slate-500 bg-gradient-to-b from-slate-600 via-slate-700 to-slate-900'
@@ -778,15 +792,15 @@ export const ChampionshipAbilityPlayerPanel: React.FC<{
             </div>
 
             {splitPairAbilities ? (
-                <div className="flex min-h-0 flex-col gap-2 overflow-y-auto">
-                    <div className={`min-h-0 space-y-2 ${splitUserTurnRing}`}>
-                        <div className="shrink-0 text-center text-[10px] font-black uppercase tracking-wide text-amber-100/95">
+                <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
+                    <div className={`flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden ${splitUserTurnRing}`}>
+                        <div className="shrink-0 text-center text-[9px] font-black uppercase tracking-wide text-amber-100/95">
                             {splitPairAbilities.userBlockTitle}
                         </div>
                         {renderCoreAndPhaseBlock(splitPairAbilities.userStats, 'user', 'compact')}
                     </div>
-                    <div className={`min-h-0 space-y-2 pt-0.5 ${splitPetTurnRing}`}>
-                        <div className="shrink-0 border-t border-white/10 pt-1 text-center text-[10px] font-black uppercase tracking-wide text-sky-200/95">
+                    <div className={`flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden border-t border-white/10 pt-0.5 ${splitPetTurnRing}`}>
+                        <div className="shrink-0 pt-0.5 text-center text-[9px] font-black uppercase tracking-wide text-sky-200/95">
                             {splitPairAbilities.petBlockTitle}
                         </div>
                         {renderCoreAndPhaseBlock(splitPairAbilities.petStats, 'pet', 'compact')}
