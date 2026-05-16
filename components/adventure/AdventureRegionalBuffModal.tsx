@@ -22,13 +22,13 @@ const AdventureRegionalBuffModal: React.FC<{
             title={`${stage.title} · 지역 효과`}
             onClose={onClose}
             windowId={`adventure-regional-buff-${stageId}`}
-            initialWidth={500}
-            initialHeight={760}
+            initialWidth={600}
+            shrinkHeightToContent
             isTopmost={isTopmost}
             variant="store"
             bodyNoScroll
         >
-            <div className="p-1 sm:p-1.5">
+            <div className="p-2">
                 <AdventureRegionalBuffPanel
                     profile={profile}
                     stageRows={stageRows}

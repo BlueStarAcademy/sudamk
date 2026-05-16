@@ -12,6 +12,7 @@ import { getAdventureHuntingScore } from '../../shared/utils/adventureHuntingSco
 import { getTopAdventureCodexMonsterByWins } from '../../utils/adventureTopCodexMonster.js';
 import { useRanking } from '../../hooks/useRanking.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import AdventureTopHuntedMonsterPanel from './AdventureTopHuntedMonsterPanel.js';
 
 const AdventureProfilePanel: React.FC<{
     profile: AdventureProfile | null | undefined;
@@ -132,36 +133,15 @@ const AdventureProfilePanel: React.FC<{
         </div>
     );
 
+    const topHuntedMonsterPanel = (
+        <AdventureTopHuntedMonsterPanel monster={topCodexMonster} compact={compact} />
+    );
+
     const understandingBody = (
         <div className="relative min-w-0">
             <p className={labelCls}>몬스터 이해도</p>
             <div className="mt-2 flex items-start gap-3">
                 <div className="min-w-0 flex-1">
-                    {topCodexMonster ? (
-                        <div
-                            className={`mb-2 flex items-center gap-2 rounded-md border border-violet-400/25 bg-violet-950/25 px-2 py-1.5 ${
-                                compact ? 'text-[11px]' : 'text-xs sm:text-sm'
-                            }`}
-                        >
-                            <img
-                                src={topCodexMonster.imageWebp}
-                                alt=""
-                                className={`shrink-0 rounded-md border border-white/10 bg-black/40 object-contain ${
-                                    compact ? 'h-9 w-9' : 'h-11 w-11'
-                                }`}
-                                draggable={false}
-                            />
-                            <div className="min-w-0 flex-1">
-                                <p className={`font-semibold text-violet-200/90 ${compact ? 'text-[10px]' : 'text-[11px]'}`}>
-                                    가장 많이 사냥한 몬스터
-                                </p>
-                                <p className="truncate font-bold text-zinc-100">{topCodexMonster.name}</p>
-                                <p className="tabular-nums text-zinc-400">
-                                    승리 {topCodexMonster.wins.toLocaleString()}회 · 도감 Lv.{topCodexMonster.comprehensionLevel}
-                                </p>
-                            </div>
-                        </div>
-                    ) : null}
                     <div
                         className={`grid grid-cols-1 gap-1.5 sm:grid-cols-2 ${
                             compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
@@ -228,6 +208,13 @@ const AdventureProfilePanel: React.FC<{
                     </div>
                 ) : null}
             </div>
+        </div>
+    );
+
+    const understandingWithTopMonster = (
+        <div className="flex min-w-0 flex-col gap-2.5 sm:gap-3">
+            {understandingBody}
+            {topHuntedMonsterPanel}
         </div>
     );
 
@@ -343,7 +330,7 @@ const AdventureProfilePanel: React.FC<{
                             {mobileTab === 'understanding' ? (
                                 <div className="h-full w-full min-w-0 rounded-xl border border-amber-400/30 bg-gradient-to-br from-zinc-950/98 via-zinc-950/92 to-black/95 px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                                     <div className="h-full w-full min-w-0 rounded-lg border border-white/10 bg-black/35 px-2 py-1.5">
-                                        {understandingBody}
+                                        {understandingWithTopMonster}
                                     </div>
                                 </div>
                             ) : (
@@ -359,7 +346,7 @@ const AdventureProfilePanel: React.FC<{
                             compact ? 'px-3 py-2.5' : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
                         }`}
                     >
-                        {understandingBody}
+                        {understandingWithTopMonster}
                     </div>
                 )}
             </div>

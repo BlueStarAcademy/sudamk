@@ -275,8 +275,8 @@ const AdventureRegionalBuffPanel: React.FC<{
                           : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
                 }`}
             >
-                <div className="flex items-center justify-between gap-2">
-                    <p className={labelCls}>지역 탐험도</p>
+                <div className={`flex items-center gap-2 ${embeddedInModal ? 'justify-end' : 'justify-between'}`}>
+                    {!embeddedInModal ? <p className={labelCls}>지역 탐험도</p> : null}
                     <button
                         type="button"
                         onClick={() => setShowHelpModal(true)}
@@ -321,6 +321,7 @@ const AdventureRegionalBuffPanel: React.FC<{
 
                 <div className={embeddedInModal ? 'mt-2 space-y-2' : 'mt-2.5 space-y-2.5'}>
                     {understandingRow && (
+                        <div className={embeddedInModal ? 'grid grid-cols-[minmax(0,1fr)_10.5rem] gap-2' : undefined}>
                         <div
                             className={`min-w-0 rounded-lg border border-white/8 bg-black/25 ${
                                 panelCompact ? 'px-2.5 py-2' : 'px-3 py-2.5 sm:px-3.5'
@@ -331,7 +332,13 @@ const AdventureRegionalBuffPanel: React.FC<{
                                     panelCompact ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
                                 }`}
                             >
-                                <span className="min-w-0 truncate font-bold text-zinc-100">{understandingRow.title}</span>
+                                <span
+                                    className={`min-w-0 font-bold text-zinc-100 ${
+                                        embeddedInModal ? 'whitespace-nowrap' : 'truncate'
+                                    }`}
+                                >
+                                    {understandingRow.title}
+                                </span>
                                 <span className="shrink-0 rounded-md border border-fuchsia-500/30 bg-fuchsia-950/30 px-1.5 py-0.5 text-[11px] font-bold text-fuchsia-100 sm:text-xs lg:text-sm">
                                     {understandingRow.tierLabel}
                                 </span>
@@ -350,19 +357,37 @@ const AdventureRegionalBuffPanel: React.FC<{
                                 XP ({(understandingRow.xpInTier ?? understandingRow.xp).toLocaleString()}/
                                 {(understandingRow.xpNeedInTier ?? understandingRow.xpGoal).toLocaleString()})
                             </p>
-                            <p
-                                className={`mt-1 font-semibold tabular-nums text-amber-200/90 ${
-                                    panelCompact ? 'text-[10px] sm:text-[11px]' : 'text-[11px] sm:text-xs'
-                                }`}
-                            >
-                                강화 포인트 {remainingPts.toLocaleString()} / {grantPts.toLocaleString()}
-                            </p>
+                            {!embeddedInModal ? (
+                                <p
+                                    className={`mt-1 font-semibold tabular-nums text-amber-200/90 ${
+                                        panelCompact ? 'text-[10px] sm:text-[11px]' : 'text-[11px] sm:text-xs'
+                                    }`}
+                                >
+                                    강화 포인트 {remainingPts.toLocaleString()} / {grantPts.toLocaleString()}
+                                </p>
+                            ) : null}
+                        </div>
+                        {embeddedInModal ? (
+                            <div className="flex min-w-0 flex-col justify-center rounded-lg border border-amber-500/35 bg-gradient-to-br from-amber-950/45 via-amber-950/20 to-zinc-950/85 px-3 py-2.5">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-300/85">
+                                    강화 포인트
+                                </p>
+                                <p className="mt-1 flex items-baseline gap-1 tabular-nums">
+                                    <span className="text-2xl font-black leading-none text-amber-100">
+                                        {remainingPts.toLocaleString()}
+                                    </span>
+                                    <span className="text-sm font-semibold text-zinc-500">
+                                        / {grantPts.toLocaleString()}
+                                    </span>
+                                </p>
+                            </div>
+                        ) : null}
                         </div>
                     )}
 
                     <div
-                        className={`mt-2 flex min-h-0 w-full min-w-0 flex-col ${
-                            embeddedInModal ? 'gap-1' : 'gap-1.5 sm:gap-2'
+                        className={`${embeddedInModal ? '' : 'mt-2'} flex min-h-0 w-full min-w-0 flex-col ${
+                            embeddedInModal ? 'gap-1.5' : 'gap-1.5 sm:gap-2'
                         }`}
                     >
                         {!stageChapterUnlocked ? (
@@ -390,7 +415,11 @@ const AdventureRegionalBuffPanel: React.FC<{
                                         }`}
                                     >
                                         <span className="shrink-0 text-base leading-none sm:text-lg" aria-hidden>🔒</span>
-                                        <p className="min-w-0 flex-1 truncate font-bold text-zinc-500">
+                                        <p
+                                            className={`min-w-0 flex-1 font-bold text-zinc-500 ${
+                                                embeddedInModal ? 'whitespace-nowrap' : 'truncate'
+                                            }`}
+                                        >
                                             슬롯 {slotIndex + 1} 잠김 · {tierLabel} 이상
                                         </p>
                                     </div>
@@ -405,8 +434,10 @@ const AdventureRegionalBuffPanel: React.FC<{
                             return (
                                 <div
                                     key={slotIndex}
-                                    className={`relative flex w-full cursor-pointer items-center gap-2 rounded-md border px-2.5 transition-all duration-300 ${
-                                        embeddedInModal ? 'min-h-[2.85rem] py-2' : 'min-h-[3.25rem] py-2.5'
+                                    className={`relative flex w-full cursor-pointer rounded-md border px-2.5 transition-all duration-300 ${
+                                        embeddedInModal
+                                            ? 'flex-wrap gap-x-2 gap-y-2 py-2.5'
+                                            : 'min-h-[3.25rem] items-center gap-2 py-2.5'
                                     } ${
                                         isFlashing
                                             ? 'border-amber-300/80 bg-amber-500/15 shadow-[0_0_20px_rgba(251,191,36,0.45)]'
@@ -416,15 +447,29 @@ const AdventureRegionalBuffPanel: React.FC<{
                                     }`}
                                 >
                                     {isSpinning ? (
-                                        <p className="min-w-0 flex-1 animate-pulse font-semibold leading-snug text-amber-100/95">
+                                        <p
+                                            className={`animate-pulse font-semibold leading-snug text-amber-100/95 ${
+                                                embeddedInModal
+                                                    ? 'w-full basis-full whitespace-nowrap'
+                                                    : 'min-w-0 flex-1'
+                                            }`}
+                                        >
                                             {rouletteLabel ?? '효과 선택 중...'}
                                         </p>
                                     ) : isEmptyUnlockedSlot ? (
-                                        <p className="min-w-0 flex-1 font-semibold leading-snug text-amber-100/95">
+                                        <p
+                                            className={`font-semibold leading-snug text-amber-100/95 ${
+                                                embeddedInModal ? 'w-full basis-full whitespace-nowrap' : 'min-w-0 flex-1'
+                                            }`}
+                                        >
                                             🔓 사용 가능
                                         </p>
                                     ) : (
-                                        <p className="min-w-0 flex-1 font-semibold leading-snug text-cyan-100/95">
+                                        <p
+                                            className={`font-semibold leading-snug text-cyan-100/95 ${
+                                                embeddedInModal ? 'w-full basis-full whitespace-nowrap' : 'min-w-0 flex-1'
+                                            }`}
+                                        >
                                             {labelRegionalSpecialtyBuffEntry(e!)}
                                         </p>
                                     )}
