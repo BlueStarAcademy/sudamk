@@ -124,7 +124,7 @@ const AdventureProfilePanel: React.FC<{
                 <div className="flex flex-col items-center justify-center rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-center">
                     <p className={statLabelCls}>내 순위</p>
                     <p className={`mt-0.5 text-amber-200 ${statValueCls}`}>
-                        {adventureRankLoading ? '…' : adventureRank != null ? `${adventureRank}위` : 'N/A'}
+                        {adventureRankLoading ? '…' : adventureRank != null ? `${adventureRank}위` : '-'}
                     </p>
                 </div>
             </div>
