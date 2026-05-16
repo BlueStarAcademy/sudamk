@@ -16,9 +16,8 @@ import {
     CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE,
 } from '../shared/constants/championshipVersusVenue.js';
 import {
-    getChampionshipVersusDuelTicketsForVenue,
-    getChampionshipVersusDuelTicketsForVenueUi,
-    getChampionshipVersusDuelTicketNextAtForVenue,
+    computeChampionshipVersusDuelTicketStateForVenue,
+    hasPersistedVersusDuelTicketsByVenue,
 } from '../shared/utils/championshipVersusDuelTickets.js';
 import ChampionshipVersusDuelTicketCountdown from './ChampionshipVersusDuelTicketCountdown.js';
 import Avatar from './Avatar.js';
@@ -552,33 +551,12 @@ const ChampionshipVersusLobbyCard: React.FC<{
         const t = RANKING_TIERS.find((x) => x.name === tierName) ?? RANKING_TIERS[RANKING_TIERS.length - 1]!;
         return t.icon;
     }, [tierName]);
-    const duelTicketsRaw = useMemo(() => {
-        if (!currentUserWithStatus) return CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX;
-        return getChampionshipVersusDuelTicketsForVenue(currentUserWithStatus, kind);
-    }, [
-        currentUserWithStatus,
-        kind,
-        currentUserWithStatus?.championshipVersusDuelTicketsByVenue,
-        currentUserWithStatus?.championshipVersusDuelTickets,
-    ]);
-    const duelTicketNextAt = useMemo(() => {
-        if (!currentUserWithStatus) return undefined;
-        return getChampionshipVersusDuelTicketNextAtForVenue(currentUserWithStatus, kind);
-    }, [
-        currentUserWithStatus,
-        kind,
-        currentUserWithStatus?.championshipVersusDuelTicketNextAtByVenue,
-        currentUserWithStatus?.championshipVersusDuelTicketNextAt,
-    ]);
     const [duelTicketUiTick, setDuelTicketUiTick] = useState(0);
-    useEffect(() => {
-        if (!currentUserWithStatus || duelTicketsRaw >= CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX) return;
-        const id = window.setInterval(() => setDuelTicketUiTick((n) => n + 1), 1000);
-        return () => window.clearInterval(id);
-    }, [currentUserWithStatus, duelTicketsRaw, duelTicketNextAt, kind]);
-    const duelTickets = useMemo(() => {
-        if (!currentUserWithStatus) return CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX;
-        return getChampionshipVersusDuelTicketsForVenueUi(currentUserWithStatus, kind, Date.now());
+    const duelTicketState = useMemo(() => {
+        if (!currentUserWithStatus) {
+            return { tickets: CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX, nextAt: undefined as number | undefined };
+        }
+        return computeChampionshipVersusDuelTicketStateForVenue(currentUserWithStatus, kind, Date.now());
     }, [
         currentUserWithStatus,
         kind,
@@ -586,10 +564,15 @@ const ChampionshipVersusLobbyCard: React.FC<{
         currentUserWithStatus?.championshipVersusDuelTickets,
         currentUserWithStatus?.championshipVersusDuelTicketNextAtByVenue,
         currentUserWithStatus?.championshipVersusDuelTicketNextAt,
-        duelTicketsRaw,
-        duelTicketNextAt,
         duelTicketUiTick,
     ]);
+    const duelTickets = duelTicketState.tickets;
+    const duelTicketNextAt = duelTicketState.nextAt;
+    useEffect(() => {
+        if (!currentUserWithStatus || duelTickets >= CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX) return;
+        const id = window.setInterval(() => setDuelTicketUiTick((n) => n + 1), 1000);
+        return () => window.clearInterval(id);
+    }, [currentUserWithStatus, duelTickets, duelTicketNextAt, kind]);
     const go = () => {
         window.location.hash = `#/tournament/${kind}`;
     };
@@ -1021,6 +1004,16 @@ const TournamentLobby: React.FC = () => {
     /** PC 챔피언십 로비 좌측: 유저 장비·능력치 / 대표 펫 능력치 */
     const [pcChampionshipLeftAbilityTab, setPcChampionshipLeftAbilityTab] = useState<'user' | 'pet'>('user');
     const [championshipDuelHistoryOpen, setChampionshipDuelHistoryOpen] = useState(false);
+
+    /** 경기장별 결투권이 DB에 없으면 서버와 동일 규칙으로 한 번 동기화(대기실 5/5 오표시 방지) */
+    useEffect(() => {
+        const u = currentUserWithStatus;
+        if (!u || hasPersistedVersusDuelTicketsByVenue(u)) return;
+        void handlers.handleAction({
+            type: 'GET_CHAMPIONSHIP_VERSUS_VENUE_STATE',
+            payload: { venue: 'pvp' },
+        });
+    }, [currentUserWithStatus?.id, handlers]);
 
     if (!currentUserWithStatus) {
         return (

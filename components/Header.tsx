@@ -19,10 +19,7 @@ import { useAppContext } from '../hooks/useAppContext.js';
 import { resourceIcons, ResourceIconKey, specialResourceIcons, SpecialResourceIconKey } from './resourceIcons.js';
 import ChampionshipVersusDuelTicketCountdown from './ChampionshipVersusDuelTicketCountdown.js';
 import LiveCountdownToMs from './LiveCountdownToMs.js';
-import {
-    getChampionshipVersusDuelTicketsForVenue,
-    getChampionshipVersusDuelTicketNextAtForVenue,
-} from '../shared/utils/championshipVersusDuelTickets.js';
+import { computeChampionshipVersusDuelTicketStateForVenue } from '../shared/utils/championshipVersusDuelTickets.js';
 
 const RESOURCE_LABEL: Record<ResourceIconKey, string> = {
     gold: '골드',
@@ -496,8 +493,11 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                 ) : null}
             </div>
             {CHAMPIONSHIP_VERSUS_VENUE_KINDS.map((vk) => {
-                const cur = getChampionshipVersusDuelTicketsForVenue(currentUserWithStatus, vk);
-                const nextAt = getChampionshipVersusDuelTicketNextAtForVenue(currentUserWithStatus, vk);
+                const { tickets: cur, nextAt } = computeChampionshipVersusDuelTicketStateForVenue(
+                    currentUserWithStatus,
+                    vk,
+                    Date.now(),
+                );
                 return (
                     <div
                         key={vk}

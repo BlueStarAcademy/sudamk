@@ -21,11 +21,7 @@ import {
     CHAMPIONSHIP_VERSUS_OPP_REFRESH_DIAMONDS,
     CHAMPIONSHIP_VERSUS_OPP_REFRESH_FREE_PER_DAY,
 } from '../../shared/constants/championshipVersusVenue.js';
-import {
-    getChampionshipVersusDuelTicketsForVenue,
-    getChampionshipVersusDuelTicketsForVenueUi,
-    getChampionshipVersusDuelTicketNextAtForVenue,
-} from '../../shared/utils/championshipVersusDuelTickets.js';
+import { computeChampionshipVersusDuelTicketStateForVenue } from '../../shared/utils/championshipVersusDuelTickets.js';
 import { resolvePublicUrl } from '../../utils/publicAssetUrl.js';
 import { calculateTotalStats } from '../../services/statService.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
@@ -1608,26 +1604,9 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         return t.icon;
     }, [myTierName]);
 
-    const duelTicketsRaw = React.useMemo(() => {
-        return getChampionshipVersusDuelTicketsForVenue(user, venue);
-    }, [
-        user.championshipVersusDuelTicketsByVenue,
-        user.championshipVersusDuelTickets,
-        venue,
-        user.id,
-    ]);
-    const duelTicketNextAt = React.useMemo(
-        () => getChampionshipVersusDuelTicketNextAtForVenue(user, venue),
-        [user.championshipVersusDuelTicketNextAtByVenue, user.championshipVersusDuelTicketNextAt, venue, user.id],
-    );
     const [duelTicketUiTick, setDuelTicketUiTick] = React.useState(0);
-    React.useEffect(() => {
-        if (duelTicketsRaw >= CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX) return;
-        const id = window.setInterval(() => setDuelTicketUiTick((n) => n + 1), 1000);
-        return () => window.clearInterval(id);
-    }, [duelTicketsRaw, duelTicketNextAt, venue, user.id]);
-    const duelTickets = React.useMemo(
-        () => getChampionshipVersusDuelTicketsForVenueUi(user, venue, Date.now()),
+    const duelTicketState = React.useMemo(
+        () => computeChampionshipVersusDuelTicketStateForVenue(user, venue, Date.now()),
         [
             user.championshipVersusDuelTicketsByVenue,
             user.championshipVersusDuelTickets,
@@ -1635,11 +1614,16 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             user.championshipVersusDuelTicketNextAt,
             venue,
             user.id,
-            duelTicketsRaw,
-            duelTicketNextAt,
             duelTicketUiTick,
         ],
     );
+    const duelTickets = duelTicketState.tickets;
+    const duelTicketNextAt = duelTicketState.nextAt;
+    React.useEffect(() => {
+        if (duelTickets >= CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX) return;
+        const id = window.setInterval(() => setDuelTicketUiTick((n) => n + 1), 1000);
+        return () => window.clearInterval(id);
+    }, [duelTickets, duelTicketNextAt, venue, user.id]);
 
     /** 경기장 시즌 전체 유저 기준 순위(동점 공동 순위). 구 캐시는 목록 내 ELO 순위로 폴백. */
     const opponentGlobalRankByUserId = React.useMemo(() => {
