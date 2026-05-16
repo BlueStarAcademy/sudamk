@@ -12,6 +12,7 @@ import {
     isIntersectionRecordedAsBaseStone,
     removeCapturedBaseStoneMarkersFromSession,
 } from '../../shared/utils/removeCapturedBaseStoneMarkers.js';
+import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../../shared/utils/baseHiddenMoveIndex.js';
 import { applyPreserveDiscovererTurnIfPending } from './hiddenRevealPreserve.js';
 import { tryEndGameWhenCaptureTargetReached } from '../utils/captureTargets.js';
 
@@ -102,14 +103,13 @@ export const runTowerStyleHiddenRevealAnimatingIfDue = async (
         for (const stone of cap.stones) {
             game.boardState[stone.y][stone.x] = types.Player.None;
             const isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
-            let moveIndex = -1;
-            for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
-                const m = game.moveHistory![i];
-                if (m.x === stone.x && m.y === stone.y && m.player === opponentP) {
-                    moveIndex = i;
-                    break;
-                }
-            }
+            const moveIndex = findLatestMoveIndexAtExcludingRecordedBaseStones(
+                game.moveHistory,
+                stone.x,
+                stone.y,
+                opponentP,
+                game,
+            );
             const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
             const wasAiInitialHidden =
                 (game as any).aiInitialHiddenStone &&

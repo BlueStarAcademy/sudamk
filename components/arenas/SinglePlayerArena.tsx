@@ -33,6 +33,7 @@ interface SinglePlayerArenaProps extends GameProps {
     intro1TutorialHighlight?: Point | null;
     boardRuleFlashMessage?: string | null;
     blockScoringBoardAnalysis?: boolean;
+    itemAimIntroBoardBlocked?: boolean;
 }
 
 const getStageModeLabel = (stage: SinglePlayerStageInfo): string => {
@@ -157,6 +158,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         singlePlayerStagesListRevision = 0,
         strategicPetHintBoardOverlay = null,
         strategicPetHintRewardAnimation = null,
+        itemAimIntroBoardBlocked = false,
     } = props;
 
     const strategicPetHintDotOverlay = useMemo(() => {
@@ -476,7 +478,8 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                         (isBoardLocked && gameStatus !== 'missile_selecting') ||
                         isBoardDisabledDueToTurnLimit ||
                         isMissileAnimating ||
-                        mobileStageScrollExpanded
+                        mobileStageScrollExpanded ||
+                        itemAimIntroBoardBlocked
                     }
                     stoneColor={myPlayerEnum}
                     winningLine={winningLine}

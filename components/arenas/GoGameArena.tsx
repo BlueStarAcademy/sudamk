@@ -30,6 +30,7 @@ interface GoGameArenaProps extends GameProps {
     boardRuleFlashMessage?: string | null;
     /** Game.tsx 계가 5초 연출이 끝나기 전에는 보드에 영토·계가 분석을 표시하지 않음 */
     blockScoringBoardAnalysis?: boolean;
+    itemAimIntroBoardBlocked?: boolean;
 }
 
 function modeIncludesCaptureRule(mode: GameMode, settings: { mixedModes?: GameMode[] }): boolean {
@@ -58,6 +59,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         strategicPetHintRewardAnimation = null,
         boardRuleFlashMessage = null,
         blockScoringBoardAnalysis = false,
+        itemAimIntroBoardBlocked = false,
     } = props;
 
     const { blackPlayerId, whitePlayerId, player1, player2, settings, lastMove, gameStatus, mode, moveHistory, hiddenMoves } = session;
@@ -312,7 +314,12 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 gameId={session.id}
                 lastMove={displayLastMove}
                 lastTurnStones={session.lastTurnStones}
-                isBoardDisabled={props.isSpectator || (!isMyTurn && gameStatus !== 'base_placement') || isBoardDisabledDueToTurnLimit}
+                isBoardDisabled={
+                    props.isSpectator ||
+                    (!isMyTurn && gameStatus !== 'base_placement') ||
+                    isBoardDisabledDueToTurnLimit ||
+                    itemAimIntroBoardBlocked
+                }
                 stoneColor={myPlayerEnum}
                 winningLine={session.winningLine}
                 mode={session.mode}

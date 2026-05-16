@@ -2,6 +2,7 @@ import type { LiveGameSession } from '../types/index.js';
 import type { Point } from '../types/index.js';
 import { Player } from '../types/index.js';
 import { isIntersectionRecordedAsBaseStone } from './removeCapturedBaseStoneMarkers.js';
+import { findLatestMoveIndexAtExcludingRecordedBaseStones } from './baseHiddenMoveIndex.js';
 
 export type WeightedJustCapturedEntry = {
     point: Point;
@@ -57,14 +58,13 @@ export function buildWeightedJustCapturedForStones(
             if (isPattern) {
                 points = 2;
             } else {
-                let moveIndex = -1;
-                for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
-                    const m = game.moveHistory![i];
-                    if (m.x === stone.x && m.y === stone.y && m.player === opponent) {
-                        moveIndex = i;
-                        break;
-                    }
-                }
+                const moveIndex = findLatestMoveIndexAtExcludingRecordedBaseStones(
+                    game.moveHistory,
+                    stone.x,
+                    stone.y,
+                    opponent,
+                    game,
+                );
                 const wasHiddenMove = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
                 const wasAiInitialHidden =
                     !!(game as any).aiInitialHiddenStone &&

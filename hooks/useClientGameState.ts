@@ -13,6 +13,7 @@ import {
     removeCapturedBaseStoneMarkersFromSession,
 } from '../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { getTowerSessionFloor } from '../utils/towerPreGameDisplay.js';
+import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../shared/utils/baseHiddenMoveIndex.js';
 
 export type GameType = 'tower' | 'singleplayer';
 
@@ -69,16 +70,10 @@ const findMoveIndexAt = (
     moveHistory: LiveGameSession['moveHistory'] | undefined,
     x: number,
     y: number,
-    player?: Player
+    player?: Player,
+    baseCtx?: Pick<LiveGameSession, 'baseStones' | 'baseStones_p1' | 'baseStones_p2' | 'gameStatus'>,
 ): number => {
-    const moves = moveHistory || [];
-    for (let i = moves.length - 1; i >= 0; i--) {
-        const m = moves[i];
-        if (m.x === x && m.y === y && (player === undefined || m.player === player)) {
-            return i;
-        }
-    }
-    return -1;
+    return findLatestMoveIndexAtExcludingRecordedBaseStones(moveHistory, x, y, player, baseCtx);
 };
 
 const getNeighbors = (x: number, y: number, boardSize: number): Point[] => {
@@ -96,7 +91,8 @@ const collectCaptureAdjacentHiddenStones = (
     movePlayer: Player,
     moveHistory: LiveGameSession['moveHistory'] | undefined,
     hiddenMoves: { [moveIndex: number]: boolean },
-    permanentlyRevealedStones: Point[] | undefined
+    permanentlyRevealedStones: Point[] | undefined,
+    baseCtx?: Pick<LiveGameSession, 'baseStones' | 'baseStones_p1' | 'baseStones_p2' | 'gameStatus'>,
 ): { point: Point; player: Player }[] => {
     if (capturedStones.length === 0) {
         return [];
@@ -109,7 +105,7 @@ const collectCaptureAdjacentHiddenStones = (
         for (const neighbor of getNeighbors(capturedStone.x, capturedStone.y, boardState.length)) {
             if (boardState[neighbor.y]?.[neighbor.x] !== movePlayer) continue;
 
-            const moveIndex = findMoveIndexAt(moveHistory, neighbor.x, neighbor.y, movePlayer);
+            const moveIndex = findMoveIndexAt(moveHistory, neighbor.x, neighbor.y, movePlayer, baseCtx);
             const isHiddenStone = moveIndex !== -1 && !!hiddenMoves[moveIndex];
             const key = `${neighbor.x},${neighbor.y}`;
             if (!isHiddenStone || seen.has(key) || hasPoint(permanentlyRevealedStones, neighbor)) continue;
@@ -361,14 +357,15 @@ export function updateGameStateAfterMove(
                 movePlayer,
                 newMoveHistory,
                 updatedHiddenMoves,
-                game.permanentlyRevealedStones
+                game.permanentlyRevealedStones,
+                game,
             )
             : [];
 
     const capturedHiddenStones: { point: Point; player: Player }[] = [];
     if (revealModeActive && capturedStones.length > 0) {
         for (const stone of capturedStones) {
-            const moveIndex = findMoveIndexAt(baseMoveHistory, stone.x, stone.y, opponentPlayer);
+            const moveIndex = findMoveIndexAt(baseMoveHistory, stone.x, stone.y, opponentPlayer, game);
             const wasHiddenMove = moveIndex !== -1 && !!baseHiddenMoves?.[moveIndex];
             const wasAiInitialHidden =
                 (gameType === 'singleplayer' || gameType === 'tower') &&
@@ -426,7 +423,7 @@ export function updateGameStateAfterMove(
             const isPatternStone = opponentPlayer === Player.Black
                 ? !!updatedBlackPatternStones?.some(p => isSamePoint(p, stone))
                 : !!updatedWhitePatternStones?.some(p => isSamePoint(p, stone));
-            const moveIndex = findMoveIndexAt(baseMoveHistory, stone.x, stone.y, opponentPlayer);
+            const moveIndex = findMoveIndexAt(baseMoveHistory, stone.x, stone.y, opponentPlayer, game);
             const wasHiddenMove = moveIndex !== -1 && !!baseHiddenMoves?.[moveIndex];
             const wasAiInitialHidden =
                 (gameType === 'singleplayer' || gameType === 'tower') &&

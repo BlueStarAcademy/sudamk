@@ -1,6 +1,7 @@
 import { GameCategory, GameMode } from '../types/enums.js';
 import type { GameSettings, LiveGameSession } from '../types/entities.js';
 import { aiUserId } from '../constants/auth.js';
+import { mixGoIsMixWithEverySubMode, mixGoOrPureModeIncludes } from './mixGoRules.js';
 
 export type ArenaKind = 'normal' | 'singleplayer' | 'tower' | 'adventure' | 'guildwar';
 export type ArenaStateBucket = 'liveGames' | 'singlePlayerGames' | 'towerGames';
@@ -50,21 +51,31 @@ export type ArenaSessionPolicy = {
 const hasNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
 
 export function modeIncludesCaptureRule(mode: unknown, settings: Pick<GameSettings, 'mixedModes'> | null | undefined): boolean {
-    return mode === GameMode.Capture || (mode === GameMode.Mix && Boolean(settings?.mixedModes?.includes?.(GameMode.Capture)));
+    return mixGoOrPureModeIncludes(mode, settings?.mixedModes, GameMode.Capture);
 }
 
 export function modeIncludesBaseRule(mode: unknown, settings: Pick<GameSettings, 'mixedModes'> | null | undefined): boolean {
-    return mode === GameMode.Base || (mode === GameMode.Mix && Boolean(settings?.mixedModes?.includes?.(GameMode.Base)));
+    return mixGoOrPureModeIncludes(mode, settings?.mixedModes, GameMode.Base);
 }
 
 export function modeIncludesHiddenRule(mode: unknown, settings: Pick<GameSettings, 'mixedModes'> | null | undefined): boolean {
-    return mode === GameMode.Hidden || (mode === GameMode.Mix && Boolean(settings?.mixedModes?.includes?.(GameMode.Hidden)));
+    return mixGoOrPureModeIncludes(mode, settings?.mixedModes, GameMode.Hidden);
+}
+
+export function modeIncludesSpeedRule(mode: unknown, settings: Pick<GameSettings, 'mixedModes'> | null | undefined): boolean {
+    return mixGoOrPureModeIncludes(mode, settings?.mixedModes, GameMode.Speed);
+}
+
+export function modeIncludesMissileRule(mode: unknown, settings: Pick<GameSettings, 'mixedModes'> | null | undefined): boolean {
+    return mixGoOrPureModeIncludes(mode, settings?.mixedModes, GameMode.Missile);
+}
+
+export function modeIncludesStandardRule(mode: unknown, settings: Pick<GameSettings, 'mixedModes'> | null | undefined): boolean {
+    return mixGoOrPureModeIncludes(mode, settings?.mixedModes, GameMode.Standard);
 }
 
 export function modeIncludesBaseCaptureMix(mode: unknown, settings: Pick<GameSettings, 'mixedModes'> | null | undefined): boolean {
-    return mode === GameMode.Mix &&
-        Boolean(settings?.mixedModes?.includes?.(GameMode.Base)) &&
-        Boolean(settings?.mixedModes?.includes?.(GameMode.Capture));
+    return mixGoIsMixWithEverySubMode(mode, settings?.mixedModes, [GameMode.Base, GameMode.Capture]);
 }
 
 export function isAdventureSessionLike(session: SessionLike | null | undefined): boolean {

@@ -5,6 +5,7 @@ import { processMove } from '../goLogic.js';
 import { enforceBaseSeatLockIfDriftedDuringPlay, resumeGameTimer, pauseGameTimer } from './shared.js';
 import { applyMissileCaptureProcessResult } from '../../shared/utils/missileLandingCapture.js';
 import { recordPatternStoneConsumed, stripPatternStonesAtConsumedIntersections } from '../../shared/utils/patternStoneConsume.js';
+import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../../shared/utils/baseHiddenMoveIndex.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -101,7 +102,13 @@ function calculateSinglePlayerMissilePath(
             // moveHistory에 상대방 돌이 있으면 멈춤 (AI가 착점했지만 boardState에 반영되지 않은 경우)
             if (isOpponentMoveAtNext) {
                 // 히든 돌인지 확인
-                const moveIndex = game.moveHistory.findIndex(m => m.x === next.x && m.y === next.y);
+                const moveIndex = findLatestMoveIndexAtExcludingRecordedBaseStones(
+                    game.moveHistory,
+                    next.x,
+                    next.y,
+                    opponentEnum,
+                    game,
+                );
                 const isHiddenStone = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
                 const isPermanentlyRevealed = game.permanentlyRevealedStones?.some(p => p.x === next.x && p.y === next.y);
                 
@@ -137,7 +144,13 @@ function calculateSinglePlayerMissilePath(
         // 상대방 돌인 경우
         if (stoneAtNext === opponentEnum) {
             // 히든 돌인지 확인
-            const moveIndex = game.moveHistory.findIndex(m => m.x === next.x && m.y === next.y);
+            const moveIndex = findLatestMoveIndexAtExcludingRecordedBaseStones(
+                game.moveHistory,
+                next.x,
+                next.y,
+                opponentEnum,
+                game,
+            );
             const isHiddenStone = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
             const isPermanentlyRevealed = game.permanentlyRevealedStones?.some(p => p.x === next.x && p.y === next.y);
             
@@ -160,7 +173,13 @@ function calculateSinglePlayerMissilePath(
     }
     
     // 도착지점에 상대방의 히든 돌이 있는지 확인
-    const finalMoveIndex = game.moveHistory.findIndex(m => m.x === current.x && m.y === current.y);
+    const finalMoveIndex = findLatestMoveIndexAtExcludingRecordedBaseStones(
+        game.moveHistory,
+        current.x,
+        current.y,
+        opponentEnum,
+        game,
+    );
     const finalStone = game.boardState[current.y]?.[current.x];
     const isFinalHiddenStone = 
         finalStone === opponentEnum &&
@@ -190,11 +209,7 @@ function findLatestOwnedMoveIndexAt(
     point: types.Point,
     player: types.Player
 ): number {
-    for (let i = game.moveHistory.length - 1; i >= 0; i--) {
-        const m = game.moveHistory[i];
-        if (m.x === point.x && m.y === point.y && m.player === player) return i;
-    }
-    return -1;
+    return findLatestMoveIndexAtExcludingRecordedBaseStones(game.moveHistory, point.x, point.y, player, game);
 }
 
 function relocateMissileStoneMetadata(

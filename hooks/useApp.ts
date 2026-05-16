@@ -118,6 +118,7 @@ import { isClientAdmin } from '../utils/clientAdmin.js';
 import { processMoveClient } from '../client/goLogicClient.js';
 import { applyMissileCaptureProcessResult } from '../shared/utils/missileLandingCapture.js';
 import { isIntersectionRecordedAsBaseStone } from '../shared/utils/removeCapturedBaseStoneMarkers.js';
+import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../shared/utils/baseHiddenMoveIndex.js';
 import { buildWeightedJustCapturedForStones } from '../shared/utils/sumWeightedCapturePointsForCapturedStones.js';
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from '../client/logic/goLogic.js';
 import { normalizeInventoryAfterLoad } from '../utils/inventoryUtils.js';
@@ -3766,14 +3767,13 @@ export const useApp = () => {
                         boardState[stone.y][stone.x] = Player.None;
                     }
 
-                    let moveIndex = -1;
-                    for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
-                        const m = game.moveHistory?.[i];
-                        if (m?.x === stone.x && m?.y === stone.y && m?.player === opponentPlayer) {
-                            moveIndex = i;
-                            break;
-                        }
-                    }
+                    const moveIndex = findLatestMoveIndexAtExcludingRecordedBaseStones(
+                        game.moveHistory,
+                        stone.x,
+                        stone.y,
+                        opponentPlayer,
+                        game,
+                    );
                     const wasHiddenMove = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
                     const wasAiInitialHidden = !!aiInitialHiddenStone && aiInitialHiddenStone.x === stone.x && aiInitialHiddenStone.y === stone.y;
                     const wasRevealedHidden = !!game.permanentlyRevealedStones?.some(

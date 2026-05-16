@@ -1696,7 +1696,21 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                                     // 연속 착수: 다음 수는 즉시 메인루프에 맡기지 않고 일정 간격 후에만 스케줄 (버스트 방지)
                                     game.aiTurnStartTime = Date.now() + PLAYFUL_AI_BATCH_STONE_INTERVAL_MS;
                                 } else {
-                                    game.aiTurnStartTime = undefined;
+                                    // makeGoAiBotMove가 이미 다음 AI 턴용으로 aiTurnStartTime을 잡았을 수 있다.
+                                    // 여기서 무조건 undefined로 덮으면 페어(4인 수순)·레거시 연속 AI 턴과
+                                    // aiProcessingQueue 경로가 경쟁하며 스케줄이 꼬일 수 있다.
+                                    const pairClassicPost = isPairClassicGame(game.settings, game.mode);
+                                    const nextSeatPost = pairClassicPost ? getCurrentPairTurnSeat(game.settings) : null;
+                                    const nextLegacyId =
+                                        game.currentPlayer === types.Player.Black
+                                            ? game.blackPlayerId
+                                            : game.whitePlayerId;
+                                    const nextActorId = nextSeatPost?.participantId ?? nextLegacyId;
+                                    const nextNeedsServerAi =
+                                        Boolean(nextSeatPost && isPairAiSeat(nextSeatPost)) ||
+                                        nextActorId === aiUserId ||
+                                        Boolean(nextActorId && String(nextActorId).startsWith('dungeon-bot-'));
+                                    game.aiTurnStartTime = nextNeedsServerAi ? Date.now() : undefined;
                                     if (!game.turnStartTime) game.turnStartTime = Date.now();
                                 }
                             } else {

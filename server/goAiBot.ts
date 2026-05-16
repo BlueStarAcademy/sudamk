@@ -47,6 +47,7 @@ import {
     isIntersectionRecordedAsBaseStone,
     removeCapturedBaseStoneMarkersFromSession,
 } from '../shared/utils/removeCapturedBaseStoneMarkers.js';
+import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../shared/utils/baseHiddenMoveIndex.js';
 import {
     adventureKataLevelFromSnapshot,
     guildWarKataLevelFromSnapshot,
@@ -533,13 +534,14 @@ const collectContributingHiddenStones = (
             const isCurrentMove = neighbor.x === move.x && neighbor.y === move.y;
             let isHiddenStone = isCurrentMove ? isCurrentMoveHidden : false;
             if (!isCurrentMove) {
-                for (let i = game.moveHistory.length - 1; i >= 0; i--) {
-                    const historyMove = game.moveHistory[i];
-                    if (historyMove.x === neighbor.x && historyMove.y === neighbor.y) {
-                        isHiddenStone = !!game.hiddenMoves?.[i];
-                        break;
-                    }
-                }
+                const moveIndex = findLatestMoveIndexAtExcludingRecordedBaseStones(
+                    game.moveHistory,
+                    neighbor.x,
+                    neighbor.y,
+                    aiPlayerEnum,
+                    game,
+                );
+                isHiddenStone = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
             }
 
             const key = `${neighbor.x},${neighbor.y}`;
@@ -581,18 +583,13 @@ const applyAiCaptureOutcome = (
 
         const capturedHiddenStones: { point: Point; player: Player }[] = [];
         for (const capturedStone of result.capturedStones) {
-            let moveIndex = -1;
-            for (let i = game.moveHistory.length - 1; i >= 0; i--) {
-                const historyMove = game.moveHistory[i];
-                if (
-                    historyMove.x === capturedStone.x &&
-                    historyMove.y === capturedStone.y &&
-                    historyMove.player === opponentPlayerEnum
-                ) {
-                    moveIndex = i;
-                    break;
-                }
-            }
+            const moveIndex = findLatestMoveIndexAtExcludingRecordedBaseStones(
+                game.moveHistory,
+                capturedStone.x,
+                capturedStone.y,
+                opponentPlayerEnum,
+                game,
+            );
             if (moveIndex !== -1 && game.hiddenMoves?.[moveIndex]) {
                 const isPermanentlyRevealed = game.permanentlyRevealedStones?.some(
                     point => point.x === capturedStone.x && point.y === capturedStone.y
@@ -669,18 +666,13 @@ const applyAiCaptureOutcome = (
     let guildWarCapturePointsThisMove = 0;
 
     for (const stone of result.capturedStones) {
-        let moveIndex = -1;
-        for (let i = game.moveHistory.length - 1; i >= 0; i--) {
-            const historyMove = game.moveHistory[i];
-            if (
-                historyMove.x === stone.x &&
-                historyMove.y === stone.y &&
-                historyMove.player === opponentPlayerEnum
-            ) {
-                moveIndex = i;
-                break;
-            }
-        }
+        const moveIndex = findLatestMoveIndexAtExcludingRecordedBaseStones(
+            game.moveHistory,
+            stone.x,
+            stone.y,
+            opponentPlayerEnum,
+            game,
+        );
         const wasHiddenMove = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
         const wasAiInitialHidden = !!aiInitialHiddenStone && aiInitialHiddenStone.x === stone.x && aiInitialHiddenStone.y === stone.y;
         const wasRevealedHidden = !!game.permanentlyRevealedStones?.some(
@@ -1301,14 +1293,7 @@ function getLatestMoveIndexAt(
     y: number,
     player?: Player
 ): number {
-    const history = game.moveHistory || [];
-    for (let i = history.length - 1; i >= 0; i--) {
-        const m = history[i];
-        if (!m || m.x !== x || m.y !== y) continue;
-        if (player != null && m.player !== player) continue;
-        return i;
-    }
-    return -1;
+    return findLatestMoveIndexAtExcludingRecordedBaseStones(game.moveHistory, x, y, player, game);
 }
 
 function isCurrentUnrevealedHiddenStoneAt(

@@ -12,6 +12,7 @@ import {
     isIntersectionRecordedAsBaseStone,
     removeCapturedBaseStoneMarkersFromSession,
 } from '../../shared/utils/removeCapturedBaseStoneMarkers.js';
+import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../../shared/utils/baseHiddenMoveIndex.js';
 import { useAiInitialHiddenCellTracking, useTowerStyleHiddenRevealAnimatingResolution } from './hiddenRevealPolicy.js';
 import { applyPreserveDiscovererTurnIfPending } from './hiddenRevealPreserve.js';
 import { runTowerStyleHiddenRevealAnimatingIfDue } from './towerStyleHiddenRevealAnimating.js';
@@ -230,14 +231,13 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                         const isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
                         // 같은 좌표에 공격자 착수가 이어지면(히든 따내기) 마지막 수만 보면 hiddenMoves가 없다.
                         // 제거되는 돌의 주인(상대)이 둔 수순을 찾아야 히든 여부를 맞출 수 있다.
-                        let moveIndex = -1;
-                        for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
-                            const m = game.moveHistory![i];
-                            if (m.x === stone.x && m.y === stone.y && m.player === opponentPlayerEnum) {
-                                moveIndex = i;
-                                break;
-                            }
-                        }
+                        const moveIndex = findLatestMoveIndexAtExcludingRecordedBaseStones(
+                            game.moveHistory,
+                            stone.x,
+                            stone.y,
+                            opponentPlayerEnum,
+                            game,
+                        );
                         const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
                         const wasAiInitialHidden =
                             useAiInitialHiddenCellTracking(game) &&

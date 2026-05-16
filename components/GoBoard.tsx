@@ -2,12 +2,16 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { BoardState, Point, Player, GameStatus, Move, AnalysisResult, LiveGameSession, User, AnimationData, GameMode, RecommendedMove, ServerAction } from '../types.js';
 import { WHITE_BASE_STONE_IMG, BLACK_BASE_STONE_IMG, WHITE_HIDDEN_STONE_IMG, BLACK_HIDDEN_STONE_IMG } from '../assets.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
-import { modeIncludesBaseCaptureMix } from '../shared/utils/liveSessionArenaKind.js';
+import { modeIncludesBaseCaptureMix, modeIncludesMissileRule } from '../shared/utils/liveSessionArenaKind.js';
 import {
     BOARD_CAPTURE_FLOAT_DEBOUNCE_MS,
     BOARD_CAPTURE_FLOAT_HIDDEN_EXTRA_LAG_MS,
     BOARD_CAPTURE_SCORE_FLOAT_MS,
 } from '../shared/constants/boardSettleTiming.js';
+import {
+    findLatestMoveIndexAtExcludingRecordedBaseStones,
+    type BaseStoneOverlayContext,
+} from '../shared/utils/baseHiddenMoveIndex.js';
 
 /** 따내기/보너스 점수 플로트: mid(5~9) 기준 폰트 배율 */
 const CAPTURE_SCORE_FLOAT_BASE_EM = 0.92;
@@ -529,31 +533,26 @@ const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boo
     );
 };
 
-/** `Game.tsx` findLatestMoveIndexAt와 동일: 같은 좌표 재착수 시 판에 있는 돌 색과 맞는 수순만 히든 판별에 사용 */
-function lastMoveIndexAtForHiddenClassify(moveHistory: Move[], x: number, y: number, player?: Player): number {
-    for (let i = moveHistory.length - 1; i >= 0; i--) {
-        const m = moveHistory[i];
-        if (m.x === x && m.y === y && (player === undefined || m.player === player)) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-/** 미사일로 움직이는 출발 칸 돌의 히든 표시 방식 (내 시점 기준 스캔 목록 사용) */
 function classifyMissileFromStone(
     from: Point,
     moveHistory: Move[] | undefined,
     hiddenMoves: { [moveIndex: number]: boolean } | undefined,
     permanentlyRevealedStones: Point[] | undefined,
     myRevealedStones: Point[] | undefined,
-    myRevealedMoveIndices?: readonly number[] | undefined,
+    myRevealedMoveIndices: readonly number[] | undefined,
     stonePlayer?: Player,
     /** LAUNCH 직후 from 칸이 비어 있어도, 본인이 쏜 내 히든돌 비행은 항상 보이게 한다 */
     viewerPlayer?: Player,
+    baseHiddenCtx?: BaseStoneOverlayContext | null,
 ): 'normal' | 'unrevealed_hidden' | 'scan_only_hidden' | 'revealed_hidden' {
     if (!moveHistory?.length || !hiddenMoves) return 'normal';
-    const moveIndex = lastMoveIndexAtForHiddenClassify(moveHistory, from.x, from.y, stonePlayer);
+    const moveIndex = findLatestMoveIndexAtExcludingRecordedBaseStones(
+        moveHistory,
+        from.x,
+        from.y,
+        stonePlayer,
+        baseHiddenCtx,
+    );
     if (
         viewerPlayer !== undefined &&
         stonePlayer !== undefined &&
@@ -696,6 +695,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         canPlaceMoreBaseStones,
         boardRuleFlashMessage = null,
     } = props;
+    const baseHiddenMoveCtx = useMemo<BaseStoneOverlayContext>(
+        () => ({ baseStones, baseStones_p1, baseStones_p2, gameStatus }),
+        [baseStones, baseStones_p1, baseStones_p2, gameStatus],
+    );
     /** 미사일 완료 타이머: 부모가 자주 리렌더되어도 setTimeout이 매번 취소되지 않도록 onAction은 ref로만 읽는다. */
     const onActionRef = useRef(onAction);
     onActionRef.current = onAction;
@@ -703,9 +706,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     const isHiddenRevealStatus =
         gameStatus === 'hidden_reveal_animating' || gameStatus === 'hidden_final_reveal';
     const effectiveNewlyRevealed = isHiddenRevealStatus ? newlyRevealed : undefined;
-    const isMissileSupportedMode =
-        mode === GameMode.Missile ||
-        (mode === GameMode.Mix && Array.isArray(mixedModes) && mixedModes.includes(GameMode.Missile));
+    const isMissileSupportedMode = modeIncludesMissileRule(mode, { mixedModes });
     const isMissileSelectingActive = isMissileSupportedMode && gameStatus === 'missile_selecting';
     const [captureScoreFloats, setCaptureScoreFloats] = useState<
         { id: string; point: Point; label: string; points: number }[]
@@ -1924,7 +1925,15 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     const isLast = !!(isSingleLastMove || isMultiLastMove);
                     const isMyJustPlacedStone = !!lastMove && lastMove.x === x && lastMove.y === y && actualPlayer === myPlayerEnum;
                     
-                    const moveIndex = moveHistory ? lastMoveIndexAtForHiddenClassify(moveHistory, x, y, actualPlayer) : -1;
+                    const moveIndex = moveHistory
+                        ? findLatestMoveIndexAtExcludingRecordedBaseStones(
+                              moveHistory,
+                              x,
+                              y,
+                              actualPlayer,
+                              baseHiddenMoveCtx,
+                          )
+                        : -1;
                     const histMove = moveIndex >= 0 && moveHistory ? moveHistory[moveIndex] : undefined;
                     const hasHumanHiddenPointMarkers = Array.isArray(humanHiddenStonePoints) && humanHiddenStonePoints.length > 0;
                     const isHumanHiddenPointMarker =
@@ -2194,6 +2203,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                     myRevealedMoveIndices,
                                     fromStonePlayer,
                                     isSpectator ? undefined : myPlayerEnum,
+                                    baseHiddenMoveCtx,
                                 );
                                 // 완전 비공개 히든: 날아가는 돌·불꽃 없음 (발사음은 Game.tsx에서 1회)
                                 if (fromKind === 'unrevealed_hidden') {

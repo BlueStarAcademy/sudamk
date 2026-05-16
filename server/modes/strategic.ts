@@ -41,22 +41,16 @@ import {
     syncSpeedTimePressureCaptures,
     shouldRunGoClockAccountingForSession,
 } from '../utils/speedTimePressureLiveCaptures.js';
+import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../../shared/utils/baseHiddenMoveIndex.js';
 
 /** `Game.tsx` findLatestMoveIndexAt와 동일 — 상대 히든 판별 시 같은 좌표의 과거 수와 혼동하지 않도록 */
 function findLatestMoveIndexAt(
-    moveHistory: types.LiveGameSession['moveHistory'] | undefined,
+    game: types.LiveGameSession,
     x: number,
     y: number,
     player?: types.Player,
 ): number {
-    const moves = moveHistory || [];
-    for (let i = moves.length - 1; i >= 0; i--) {
-        const move = moves[i];
-        if (move.x === x && move.y === y && (player === undefined || move.player === player)) {
-            return i;
-        }
-    }
-    return -1;
+    return findLatestMoveIndexAtExcludingRecordedBaseStones(game.moveHistory, x, y, player, game);
 }
 
 const ADVENTURE_ENCOUNTER_FROZEN_MS_KEY = 'adventureEncounterFrozenHumanMsRemaining';
@@ -699,7 +693,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 game.moveHistory = serverMoveHistory;
             }
 
-            const moveIndexAtTarget = findLatestMoveIndexAt(game.moveHistory, x, y, opponentPlayerEnum);
+            const moveIndexAtTarget = findLatestMoveIndexAt(game, x, y, opponentPlayerEnum);
             const aiInitialHiddenCellTracking = useAiInitialHiddenCellTracking(game);
             const isAiInitialHiddenStone =
                 aiInitialHiddenCellTracking &&
@@ -951,13 +945,8 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                         const isCurrentMove = neighbor.x === x && neighbor.y === y;
                         let isHiddenStone = isCurrentMove ? isHidden : false;
                         if (!isCurrentMove) {
-                            for (let i = game.moveHistory.length - 1; i >= 0; i--) {
-                                const moveAtIndex = game.moveHistory[i];
-                                if (moveAtIndex.x === neighbor.x && moveAtIndex.y === neighbor.y) {
-                                    isHiddenStone = !!game.hiddenMoves?.[i];
-                                    break;
-                                }
-                            }
+                            const moveIndex = findLatestMoveIndexAt(game, neighbor.x, neighbor.y, myPlayerEnum);
+                            isHiddenStone = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
                         }
                         const key = `${neighbor.x},${neighbor.y}`;
                         if (isHiddenStone && !seen.has(key) && (!game.permanentlyRevealedStones || !game.permanentlyRevealedStones.some(p => p.x === neighbor.x && p.y === neighbor.y))) {
@@ -971,14 +960,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             const capturedHiddenStones: { point: types.Point; player: types.Player }[] = [];
             if (result.capturedStones.length > 0) {
                 for (const capturedStone of result.capturedStones) {
-                    let moveIndex = -1;
-                    for (let i = game.moveHistory.length - 1; i >= 0; i--) {
-                        const moveAtIndex = game.moveHistory[i];
-                        if (moveAtIndex.x === capturedStone.x && moveAtIndex.y === capturedStone.y) {
-                            moveIndex = i;
-                            break;
-                        }
-                    }
+                    const moveIndex = findLatestMoveIndexAt(game, capturedStone.x, capturedStone.y, opponentPlayerEnum);
                     if (moveIndex !== -1 && game.hiddenMoves?.[moveIndex]) {
                         const isPermanentlyRevealed = game.permanentlyRevealedStones?.some(p => p.x === capturedStone.x && p.y === capturedStone.y);
                         if (!isPermanentlyRevealed) {

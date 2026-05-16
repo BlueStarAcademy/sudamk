@@ -7,6 +7,7 @@ import {
 } from './patternStoneConsume.js';
 import { bumpGuildWarMaxSingleCapturePointsForPlayer } from './guildWarMaxSingleCapturePoints.js';
 import { isIntersectionRecordedAsBaseStone } from './removeCapturedBaseStoneMarkers.js';
+import { findLatestMoveIndexAtExcludingRecordedBaseStones } from './baseHiddenMoveIndex.js';
 
 export type MissileCaptureProcessResult = {
     isValid: boolean;
@@ -82,7 +83,13 @@ export function applyMissileCaptureProcessResult(
             }
         } else {
             isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
-            const moveIndex = game.moveHistory.findIndex((m) => m.x === stone.x && m.y === stone.y);
+            const moveIndex = findLatestMoveIndexAtExcludingRecordedBaseStones(
+                game.moveHistory,
+                stone.x,
+                stone.y,
+                capturedPlayerEnum,
+                game,
+            );
             const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
             wasHiddenForJustCaptured = wasHidden;
 

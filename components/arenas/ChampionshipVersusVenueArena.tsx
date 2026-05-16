@@ -1370,10 +1370,14 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             : { player: p2, stats: p2Stats, pairSplit: p2PairSplit, petVisual: p2EquippedPetVisual };
     }, [matchForBoard, p1, p2, p1Stats, p2Stats, p1PairSplit, p2PairSplit, p1EquippedPetVisual, p2EquippedPetVisual]);
 
-    /** `경기 시작` 이후 서버 기보 수신 전에만 중앙 입장 안내 — 입장 직후부터 표시되면 안 됨 */
+    /**
+     * 모바일에서 상대 목록·프로필·경기 시작 등을 잠글 때 사용.
+     * 종료 판(`completedVersusMatch`)만 남은 상태는 연속 대전(다른 상대 선택 후 즉시 시작)을 위해 세션 활성로 보지 않는다.
+     * 실제 진행 중: 서버 대국 수신·기보 재생·계가 연출.
+     */
     const versusMobileSessionActive = React.useMemo(
-        () => Boolean(matchForBoard?.championshipRealGame) || kataBusy || versusReplayActive,
-        [matchForBoard?.championshipRealGame, kataBusy, versusReplayActive],
+        () => Boolean(versusPlaybackMatch) || kataBusy || versusReplayActive,
+        [versusPlaybackMatch, kataBusy, versusReplayActive],
     );
 
     React.useEffect(() => {

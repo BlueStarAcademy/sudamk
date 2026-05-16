@@ -37,11 +37,9 @@ import ScoringOverlay from './components/game/ScoringOverlay.js';
 import GuildWarMissileTowerControls from './components/game/GuildWarMissileTowerControls.js';
 import { MATERIAL_ITEMS } from './constants/items.js';
 
-function modeIncludesCaptureRule(mode: GameMode, settings: { mixedModes?: GameMode[] }): boolean {
-    return mode === GameMode.Capture || (mode === GameMode.Mix && Boolean(settings.mixedModes?.includes(GameMode.Capture)));
-}
 import { getEffectivePairLobbyOwnerId } from './shared/utils/effectivePairLobbyOwnerId.js';
 import { resolveBasePlacementSeatColors } from './shared/utils/basePlacementSeatColors.js';
+import { findLatestMoveIndexAtExcludingRecordedBaseStones } from './shared/utils/baseHiddenMoveIndex.js';
 import GuildWarHiddenTowerControls from './components/game/GuildWarHiddenTowerControls.js';
 import GuildWarTowerSidebar from './components/game/GuildWarTowerSidebar.js';
 import PairPetRpsBadge from './components/pair/PairPetRpsBadge.js';
@@ -65,7 +63,7 @@ import {
     pairSeatMatchesViewerUser,
     PAIR_TURN_SEAT_IDS,
 } from './shared/utils/pairGameTurn.js';
-import { resolveArenaSessionPolicy } from './shared/utils/liveSessionArenaKind.js';
+import { modeIncludesCaptureRule, resolveArenaSessionPolicy } from './shared/utils/liveSessionArenaKind.js';
 import { resolveSinglePlayerAutoScoringCapForClientSession } from './shared/utils/liveSessionSinglePlayerStage.js';
 import { getPairPetDefinition } from './shared/constants/petLobby.js';
 import { getEquippedPairPetInventoryRow } from './shared/utils/pairEquippedPet.js';
@@ -595,19 +593,12 @@ const PairIngameTopPanel: React.FC<{
 const isSamePoint = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
 
 const findLatestMoveIndexAt = (
-    moveHistory: LiveGameSession['moveHistory'] | undefined,
+    session: Pick<LiveGameSession, 'moveHistory' | 'baseStones' | 'baseStones_p1' | 'baseStones_p2' | 'gameStatus'>,
     x: number,
     y: number,
     player?: Player,
 ): number => {
-    const moves = moveHistory || [];
-    for (let i = moves.length - 1; i >= 0; i--) {
-        const move = moves[i];
-        if (move.x === x && move.y === y && (player === undefined || move.player === player)) {
-            return i;
-        }
-    }
-    return -1;
+    return findLatestMoveIndexAtExcludingRecordedBaseStones(session.moveHistory, x, y, player, session);
 };
 
 const isUnrevealedUserHiddenStoneAt = (game: LiveGameSession, x: number, y: number): boolean => {
@@ -931,8 +922,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const [boardRuleFlashMessage, setBoardRuleFlashMessage] = useState<string | null>(null);
     const boardRuleFlashClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const hiddenPlacementDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const itemAimIntroUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const itemAimIntroBlockUntilRef = useRef<number>(0);
     const itemAimIntroModeRef = useRef<'hidden_placing' | 'scanning' | 'missile_selecting' | null>(null);
+    const [itemAimIntroBoardBlocked, setItemAimIntroBoardBlocked] = useState(false);
     const flashBoardRuleMessage = useCallback((message: string, durationMs = 3500) => {
         if (boardRuleFlashClearRef.current) clearTimeout(boardRuleFlashClearRef.current);
         setBoardRuleFlashMessage(message);
@@ -2044,27 +2037,46 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [gameStatus, prevGameStatus]);
 
     useEffect(() => {
+        const clearIntroUnlockTimer = () => {
+            if (itemAimIntroUnlockTimerRef.current) {
+                clearTimeout(itemAimIntroUnlockTimerRef.current);
+                itemAimIntroUnlockTimerRef.current = null;
+            }
+        };
+        const scheduleIntroBoardUnlock = () => {
+            clearIntroUnlockTimer();
+            setItemAimIntroBoardBlocked(true);
+            itemAimIntroUnlockTimerRef.current = setTimeout(() => {
+                itemAimIntroUnlockTimerRef.current = null;
+                setItemAimIntroBoardBlocked(false);
+            }, HIDDEN_PLACEMENT_DELAY_MS);
+        };
         if (gameStatus === 'hidden_placing' && prevGameStatus !== 'hidden_placing') {
             itemAimIntroModeRef.current = 'hidden_placing';
             itemAimIntroBlockUntilRef.current = Date.now() + HIDDEN_PLACEMENT_DELAY_MS;
+            scheduleIntroBoardUnlock();
             flashBoardRuleMessage(HIDDEN_PLACEMENT_DELAY_MESSAGE, HIDDEN_PLACEMENT_DELAY_MS - 250);
             return;
         }
         if (gameStatus === 'scanning' && prevGameStatus !== 'scanning') {
             itemAimIntroModeRef.current = 'scanning';
             itemAimIntroBlockUntilRef.current = Date.now() + HIDDEN_PLACEMENT_DELAY_MS;
+            scheduleIntroBoardUnlock();
             flashBoardRuleMessage(SCAN_TARGET_DELAY_MESSAGE, HIDDEN_PLACEMENT_DELAY_MS - 250);
             return;
         }
         if (gameStatus === 'missile_selecting' && prevGameStatus !== 'missile_selecting') {
             itemAimIntroModeRef.current = 'missile_selecting';
             itemAimIntroBlockUntilRef.current = Date.now() + HIDDEN_PLACEMENT_DELAY_MS;
+            scheduleIntroBoardUnlock();
             flashBoardRuleMessage(MISSILE_DIRECTION_DELAY_MESSAGE, HIDDEN_PLACEMENT_DELAY_MS - 250);
             return;
         }
         if (gameStatus !== 'hidden_placing' && gameStatus !== 'scanning' && gameStatus !== 'missile_selecting') {
             itemAimIntroModeRef.current = null;
             itemAimIntroBlockUntilRef.current = 0;
+            clearIntroUnlockTimer();
+            setItemAimIntroBoardBlocked(false);
         }
     }, [gameStatus, prevGameStatus, flashBoardRuleMessage]);
 
@@ -2580,6 +2592,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     useEffect(() => () => {
         if (boardRuleFlashClearRef.current) clearTimeout(boardRuleFlashClearRef.current);
         if (hiddenPlacementDelayTimerRef.current) clearTimeout(hiddenPlacementDelayTimerRef.current);
+        if (itemAimIntroUnlockTimerRef.current) clearTimeout(itemAimIntroUnlockTimerRef.current);
     }, []);
 
     const isItemModeActive = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating'].includes(gameStatus);
@@ -2719,7 +2732,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
                 const stoneAtTarget = boardStateToUse[y][x];
-                const moveIndexAtTarget = findLatestMoveIndexAt(session.moveHistory, x, y, opponentPlayerEnum);
+                const moveIndexAtTarget = findLatestMoveIndexAt(session, x, y, opponentPlayerEnum);
                 const isHiddenTarget = stoneAtTarget === opponentPlayerEnum &&
                     moveIndexAtTarget !== -1 &&
                     !!session.hiddenMoves?.[moveIndexAtTarget] &&
@@ -2820,7 +2833,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
                 const stoneAtTarget = boardStateToUse[y][x];
-                const moveIndexAtTarget = findLatestMoveIndexAt(session.moveHistory, x, y, opponentPlayerEnum);
+                const moveIndexAtTarget = findLatestMoveIndexAt(session, x, y, opponentPlayerEnum);
                 const isHiddenTarget =
                     stoneAtTarget === opponentPlayerEnum &&
                     moveIndexAtTarget !== -1 &&
@@ -2859,7 +2872,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
                 const stoneAtTarget = boardStateToUse[y][x];
-                const moveIndexAtTarget = findLatestMoveIndexAt(session.moveHistory, x, y, opponentPlayerEnum);
+                const moveIndexAtTarget = findLatestMoveIndexAt(session, x, y, opponentPlayerEnum);
                 const isHiddenTarget = stoneAtTarget === opponentPlayerEnum &&
                     moveIndexAtTarget !== -1 &&
                     !!session.hiddenMoves?.[moveIndexAtTarget] &&
@@ -2981,7 +2994,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 // 싱글플레이/도전의 탑에서 AI 돌 위에 착점하는 것 차단
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
                 const stoneAtTarget = boardStateToUse[y][x];
-                const moveIndexAtTarget = findLatestMoveIndexAt(session.moveHistory, x, y, opponentPlayerEnum);
+                const moveIndexAtTarget = findLatestMoveIndexAt(session, x, y, opponentPlayerEnum);
                 const isHiddenTarget = stoneAtTarget === opponentPlayerEnum &&
                     moveIndexAtTarget !== -1 &&
                     !!session.hiddenMoves?.[moveIndexAtTarget] &&
@@ -3080,7 +3093,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             let isOpponentHiddenRevealOnline = false;
             if ((gameStatus === 'playing' || gameStatus === 'hidden_placing') && boardStateForOnline && session.moveHistory) {
                 const st = boardStateForOnline[y][x];
-                const mi = findLatestMoveIndexAt(session.moveHistory, x, y, opponentEnumOnline);
+                const mi = findLatestMoveIndexAt(session, x, y, opponentEnumOnline);
                 isOpponentHiddenRevealOnline =
                     st === opponentEnumOnline &&
                     mi !== -1 &&
@@ -3366,7 +3379,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 let isOpponentHiddenReveal = false;
                 if ((gameStatus === 'playing' || gameStatus === 'hidden_placing') && boardStateToUse && session.moveHistory) {
                     const stoneAtTarget = boardStateToUse[y][x];
-                    const moveIndexAtTarget = findLatestMoveIndexAt(session.moveHistory, x, y, opponentPlayerEnum);
+                    const moveIndexAtTarget = findLatestMoveIndexAt(session, x, y, opponentPlayerEnum);
                     isOpponentHiddenReveal =
                         stoneAtTarget === opponentPlayerEnum &&
                         moveIndexAtTarget !== -1 &&
@@ -4784,6 +4797,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                         boardRuleFlashMessage={boardRuleFlashMessage}
                                         blockScoringBoardAnalysis={blockScoringBoardAnalysis}
+                                        itemAimIntroBoardBlocked={itemAimIntroBoardBlocked}
                                     />
                                     {boardHydrationOverlayEl}
                                     {showScoringOverlay && <ScoringOverlay />}
@@ -4951,6 +4965,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                         boardRuleFlashMessage={boardRuleFlashMessage}
                                         blockScoringBoardAnalysis={blockScoringBoardAnalysis}
+                                        itemAimIntroBoardBlocked={itemAimIntroBoardBlocked}
                                     />
                                     {boardHydrationOverlayEl}
                                     {showScoringOverlay && <ScoringOverlay />}
@@ -5181,6 +5196,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                                         boardRuleFlashMessage={boardRuleFlashMessage}
                                                         blockScoringBoardAnalysis={blockScoringBoardAnalysis}
+                                                        itemAimIntroBoardBlocked={itemAimIntroBoardBlocked}
                                                     />
                                                     {boardHydrationOverlayEl}
                                                     {showScoringOverlay && <ScoringOverlay />}
@@ -5209,6 +5225,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                 intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                                 boardRuleFlashMessage={boardRuleFlashMessage}
                                                 blockScoringBoardAnalysis={blockScoringBoardAnalysis}
+                                                itemAimIntroBoardBlocked={itemAimIntroBoardBlocked}
                                             />
                                         )}
                                         {boardHydrationOverlayEl}

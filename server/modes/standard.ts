@@ -70,6 +70,7 @@ import {
     resolveArenaTurnLimitState,
 } from '../utils/arenaTurnPolicy.js';
 import { modeIncludesBaseRule } from '../../shared/utils/liveSessionArenaKind.js';
+import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../../shared/utils/baseHiddenMoveIndex.js';
 
 function modeIncludesCaptureRule(game: types.LiveGameSession): boolean {
     return game.mode === types.GameMode.Capture ||
@@ -101,19 +102,12 @@ const addSpeedConsumedSeconds = (game: types.LiveGameSession, player: types.Play
 };
 
 function findLatestMoveIndexAt(
-    moveHistory: types.LiveGameSession['moveHistory'] | undefined,
+    game: types.LiveGameSession,
     x: number,
     y: number,
     player?: types.Player,
 ): number {
-    const moves = moveHistory || [];
-    for (let i = moves.length - 1; i >= 0; i--) {
-        const move = moves[i];
-        if (move.x === x && move.y === y && (player === undefined || move.player === player)) {
-            return i;
-        }
-    }
-    return -1;
+    return findLatestMoveIndexAtExcludingRecordedBaseStones(game.moveHistory, x, y, player, game);
 }
 
 const STRATEGIC_GO_SERVER_AI_MODES: types.GameMode[] = [
@@ -220,11 +214,9 @@ function advancePairTurnAfterAction(game: types.LiveGameSession, now: number): v
 function updatePairOrderRevealState(game: types.LiveGameSession, now: number): void {
     if (game.gameStatus !== 'pair_order_reveal' || !isPairClassicGame(game.settings, game.mode)) return;
     if (pairOrderRevealNeedsConfirmation(game.settings)) return;
-    const firstSeat = getCurrentPairTurnSeat(game.settings);
+    // `transitionToPlaying`가 sync 후 `getCurrentPairTurnSeat`로 currentPlayer를 맞춘다.
+    // 여기서 sync 이전 스냅샷의 firstSeat로 덮어쓰면 턴·AI 스케줄이 어긋날 수 있다.
     transitionToPlaying(game, now);
-    if (firstSeat) {
-        game.currentPlayer = firstSeat.player;
-    }
     schedulePairAiTurnIfNeeded(game, now);
 }
 
@@ -1066,7 +1058,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 !game.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
 
             // 클라 Game.tsx findLatestMoveIndexAt와 동일: 같은 좌표 재착수 시 상대의 최근 수만 히든 판별에 사용
-            const moveIndexAtTarget = findLatestMoveIndexAt(game.moveHistory, x, y, opponentPlayerEnum);
+            const moveIndexAtTarget = findLatestMoveIndexAt(game, x, y, opponentPlayerEnum);
             const isTargetHiddenOpponentStone =
                 (stoneAtTarget === opponentPlayerEnum &&
                     moveIndexAtTarget !== -1 &&
@@ -1332,7 +1324,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     const isCurrentMove = nx === x && ny === y;
                     let isHiddenStone = isCurrentMove ? effectiveIsHidden : false;
                     if (!isCurrentMove) {
-                        const moveIndex = findLatestMoveIndexAt(game.moveHistory, nx, ny, myPlayerEnum);
+                        const moveIndex = findLatestMoveIndexAt(game, nx, ny, myPlayerEnum);
                         isHiddenStone = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
                         if (!isHiddenStone && aiInitialHiddenCellTracking && (game as any).aiInitialHiddenStone) {
                             const aiHidden = (game as any).aiInitialHiddenStone;
@@ -1351,7 +1343,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             const capturedHiddenStones: { point: types.Point; player: types.Player }[] = [];
             if (result.capturedStones.length > 0) {
                 for (const capturedStone of result.capturedStones) {
-                    const moveIndex = findLatestMoveIndexAt(game.moveHistory, capturedStone.x, capturedStone.y, opponentPlayerEnum);
+                    const moveIndex = findLatestMoveIndexAt(game, capturedStone.x, capturedStone.y, opponentPlayerEnum);
                     if (moveIndex !== -1 && game.hiddenMoves?.[moveIndex]) {
                         const isPermanentlyRevealed = game.permanentlyRevealedStones?.some(p => p.x === capturedStone.x && p.y === capturedStone.y);
                         if (!isPermanentlyRevealed) {
