@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { Player } from '../../../shared/types/enums.js';
 import type { Match, Round, TournamentState } from '../../../shared/types/entities.js';
 import {
+    findActiveChampionshipUserMatch,
     isSameActiveSimulatingMatchSlot,
     mergeChampionshipTournamentPreserveLostRealGame,
     mergeResolvedRoundsPreserveChampionshipPlayback,
+    repairTournamentSimulatingPointer,
 } from '../../../shared/utils/championshipTournamentPreserve.js';
 
 const mkMatch = (id: string, extra: Partial<Match> = {}): Match => ({
@@ -128,5 +131,55 @@ describe('championshipTournamentPreserve', () => {
         const out = mergeChampionshipTournamentPreserveLostRealGame(base, patch);
         expect(out?.rounds[0]?.matches[0]?.id).toBe('m-new');
         expect((out?.rounds[0]?.matches[0]?.championshipRealGame?.moves ?? []).length).toBe(0);
+    });
+
+    it('findActiveChampionshipUserMatch returns in-progress real game without sim pointer', () => {
+        const userId = 'u1';
+        const rounds: Round[] = [
+            {
+                id: 1,
+                name: '8강',
+                matches: [
+                    mkMatch('m1', {
+                        isUserMatch: true,
+                        players: [{ id: userId, nickname: 'me' } as any, { id: 'bot', nickname: 'bot' } as any],
+                        championshipRealGame: {
+                            boardSize: 19,
+                            moves: [{ x: 3, y: 3, player: Player.Black, actorId: userId }],
+                            currentPly: 0,
+                            status: 'playing',
+                        } as any,
+                    }),
+                ],
+            },
+        ];
+        const state = mkState(rounds, null);
+        const found = findActiveChampionshipUserMatch(state, userId);
+        expect(found?.id).toBe('m1');
+    });
+
+    it('repairTournamentSimulatingPointer restores currentSimulatingMatch', () => {
+        const userId = 'u1';
+        const rounds: Round[] = [
+            {
+                id: 1,
+                name: '8강',
+                matches: [
+                    mkMatch('m1', {
+                        isUserMatch: true,
+                        players: [{ id: userId, nickname: 'me' } as any, { id: 'bot', nickname: 'bot' } as any],
+                        championshipRealGame: {
+                            boardSize: 19,
+                            moves: [{ x: 3, y: 3, player: Player.Black, actorId: userId }],
+                            currentPly: 0,
+                            status: 'playing',
+                        } as any,
+                    }),
+                ],
+            },
+        ];
+        const state = mkState(rounds, null);
+        const repaired = repairTournamentSimulatingPointer(state, userId);
+        expect(repaired.currentSimulatingMatch).toEqual({ roundIndex: 0, matchIndex: 0 });
     });
 });

@@ -24,6 +24,7 @@ import {
     CHAMPIONSHIP_SCORING_VEIL_DURATION_MS,
     type ChampionshipPlaybackSpeed,
 } from '../hooks/useTournamentSimulation.js';
+import { findActiveChampionshipUserMatch } from '../shared/utils/championshipTournamentPreserve.js';
 import {
     TOURNAMENT_DEFINITIONS,
     CONSUMABLE_ITEMS,
@@ -5892,7 +5893,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     // 경기 종료 화면 유지 로직
     const matchForDisplay = useMemo(() => {
         if (isSimulating) {
-            return currentSimMatch;
+            if (currentSimMatch) return currentSimMatch;
+            return findActiveChampionshipUserMatch(displayTournament, currentUser?.id);
         }
         
         // round_complete 상태일 때는 마지막 완료된 경기 화면을 그대로 유지
@@ -5959,7 +5961,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             return anyUserMatch;
         }
         return safeRounds[0]?.matches[0] || null;
-    }, [isSimulating, currentSimMatch, tournament.status, tournament.nextRoundStartTime, tournament.type, safeRounds, lastFinishedUserMatch, pendingRoundSwitchTo]);
+    }, [isSimulating, currentSimMatch, displayTournament, currentUser?.id, tournament.status, tournament.nextRoundStartTime, tournament.type, safeRounds, lastFinishedUserMatch, pendingRoundSwitchTo]);
 
     useEffect(() => {
         if (!championshipAwaitingKataLoad) return;

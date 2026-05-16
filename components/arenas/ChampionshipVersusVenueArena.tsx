@@ -330,6 +330,67 @@ function writeChampionshipVersusBeatenSession(uid: string, venue: ChampionshipVe
     }
 }
 
+type PersistedVersusActiveDuel = {
+    userId: string;
+    venue: ChampionshipVersusVenueKind;
+    opponentUserId: string;
+    finalMatch: Match;
+    resultPayload: {
+        analysis: AnalysisResult;
+        actorVenueRatingBefore: number;
+        actorVenueRatingAfter: number;
+        actorVenueRatingDelta: number;
+        champCoinsDelta: number;
+        rewards: VersusKataActorRewardClientPayload;
+    };
+    resumePly: number;
+    savedAt: number;
+};
+
+const VERSUS_ACTIVE_DUEL_MAX_AGE_MS = 2 * 60 * 60 * 1000;
+
+function championshipVersusActiveDuelSessionKey(uid: string, venue: ChampionshipVersusVenueKind): string {
+    return `cvv:activeDuel:${CHAMPIONSHIP_VERSUS_SESSION_CACHE_VER}:${uid}:${venue}`;
+}
+
+function readChampionshipVersusActiveDuelSession(
+    uid: string,
+    venue: ChampionshipVersusVenueKind,
+): PersistedVersusActiveDuel | null {
+    if (typeof window === 'undefined') return null;
+    try {
+        const raw = window.sessionStorage.getItem(championshipVersusActiveDuelSessionKey(uid, venue));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as PersistedVersusActiveDuel;
+        if (parsed.userId !== uid || parsed.venue !== venue) return null;
+        if (!parsed.finalMatch?.championshipRealGame?.moves?.length) return null;
+        return parsed;
+    } catch {
+        return null;
+    }
+}
+
+function writeChampionshipVersusActiveDuelSession(payload: PersistedVersusActiveDuel): void {
+    if (typeof window === 'undefined') return;
+    try {
+        window.sessionStorage.setItem(
+            championshipVersusActiveDuelSessionKey(payload.userId, payload.venue),
+            JSON.stringify(payload),
+        );
+    } catch {
+        /* ignore */
+    }
+}
+
+function clearChampionshipVersusActiveDuelSession(uid: string, venue: ChampionshipVersusVenueKind): void {
+    if (typeof window === 'undefined') return;
+    try {
+        window.sessionStorage.removeItem(championshipVersusActiveDuelSessionKey(uid, venue));
+    } catch {
+        /* ignore */
+    }
+}
+
 /** 서버·세션 캐시에서 복원한 raw 행을 화면용 `OpponentRow`로 맞춘다. */
 function normalizeVersusOpponentRowsFromRaw(rows: unknown[]): OpponentRow[] {
     return rows.map((raw, i) => {
@@ -838,6 +899,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
     const [beatenOpponentIds, setBeatenOpponentIds] = React.useState<string[]>([]);
     /** 전원 격파 직후 `location.reload`가 React Strict Mode 등으로 이중 호출되는 것을 막는다. */
     const versusAllOpponentsBeatenReloadRef = React.useRef(false);
+    const versusDuelRestoreAttemptedRef = React.useRef(false);
     const [versusDuelHistoryOpen, setVersusDuelHistoryOpen] = React.useState(false);
 
     const versusPlaybackSpeedRef = React.useRef<ChampionshipPlaybackSpeed>(versusPlaybackSpeed);
@@ -914,6 +976,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             const done = versusKataFinalMatchRef.current ?? fallbackMatch;
             const payload = versusKataPendingResultRef.current;
             const cu = currentUserRef.current;
+            if (cu) clearChampionshipVersusActiveDuelSession(cu.id, venue);
             clearVersusKataPlaybackTimers();
             versusKataFinalMatchRef.current = null;
             versusKataPendingResultRef.current = null;
@@ -958,17 +1021,28 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         [clearVersusKataPlaybackTimers, venue, versusTerritoryAnalysis],
     );
 
+    const persistVersusActiveDuel = React.useCallback(
+        (opponentUserId: string, finalMatch: Match, resultPayload: VersusKataDuelResultPayload, resumePly: number) => {
+            const cu = currentUserRef.current;
+            if (!cu) return;
+            writeChampionshipVersusActiveDuelSession({
+                userId: cu.id,
+                venue,
+                opponentUserId,
+                finalMatch,
+                resultPayload,
+                resumePly,
+                savedAt: Date.now(),
+            });
+        },
+        [venue],
+    );
+
     const beginVersusKataReplay = React.useCallback(
         (
             finalMatch: Match,
-            resultPayload: {
-                analysis: AnalysisResult;
-                actorVenueRatingBefore: number;
-                actorVenueRatingAfter: number;
-                actorVenueRatingDelta: number;
-                champCoinsDelta: number;
-                rewards: VersusKataActorRewardClientPayload;
-            },
+            resultPayload: VersusKataDuelResultPayload,
+            options?: { resumeFromPly?: number; opponentUserId?: string },
         ) => {
             const src = finalMatch.championshipRealGame;
             if (!src) return false;
@@ -983,20 +1057,28 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             clearVersusKataPlaybackTimers();
             setVersusTerritoryAnalysis(resultPayload.analysis);
             versusKataFinalMatchRef.current = finalMatch;
-            versusKataPlyRef.current = 0;
+            const resumeFromPly = Math.max(0, Math.min(options?.resumeFromPly ?? 0, moves.length));
+            versusKataPlyRef.current = resumeFromPly;
             versusKataPendingResultRef.current = resultPayload;
             setVersusReplayActive(true);
 
-            const initial: Match = {
+            const opponentUserId = options?.opponentUserId ?? '';
+            if (opponentUserId) {
+                persistVersusActiveDuel(opponentUserId, finalMatch, resultPayload, resumeFromPly);
+            }
+
+            const buildPlaybackMatch = (capped: number, atScoring: boolean): Match => ({
                 ...finalMatch,
                 isFinished: false,
                 championshipRealGame: {
                     ...src,
-                    boardState: championshipReplayBoardAfterMoves(src.boardSize, moves, 0),
-                    currentPly: 0,
-                    lastMove: null,
-                    moves: [...moves],
-                    status: 'playing',
+                    boardState: atScoring
+                        ? src.boardState
+                        : championshipReplayBoardAfterMoves(src.boardSize, moves, capped),
+                    currentPly: atScoring ? moves.length : capped,
+                    lastMove: capped <= 0 ? null : { x: moves[capped - 1]!.x, y: moves[capped - 1]!.y },
+                    moves,
+                    status: atScoring ? 'scoring' : 'playing',
                     timeMetrics: {
                         generatedAt: src.timeMetrics?.generatedAt ?? Date.now(),
                         generationMs: src.timeMetrics?.generationMs ?? 0,
@@ -1006,37 +1088,27 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                         scoringCompletedAt: src.timeMetrics?.scoringCompletedAt,
                     },
                 },
-            };
-            setVersusPlaybackMatch(initial);
+            });
+
+            setVersusPlaybackMatch(buildPlaybackMatch(resumeFromPly, resumeFromPly >= moves.length));
+
+            if (resumeFromPly >= moves.length) {
+                versusKataPlaybackTimerRef.current = setTimeout(() => {
+                    versusKataPlaybackTimerRef.current = null;
+                    finalizeVersusKataReplay(finalMatch);
+                }, CHAMPIONSHIP_REAL_MATCH_SCORING_DELAY_MS);
+                return true;
+            }
 
             const tick = () => {
                 versusKataPlyRef.current += 1;
                 const capped = Math.min(versusKataPlyRef.current, moves.length);
                 const atScoring = capped >= moves.length;
 
-                setVersusPlaybackMatch({
-                    ...finalMatch,
-                    isFinished: false,
-                    championshipRealGame: {
-                        ...src,
-                        boardState: atScoring
-                            ? src.boardState
-                            : championshipReplayBoardAfterMoves(src.boardSize, moves, capped),
-                        currentPly: atScoring ? moves.length : capped,
-                        lastMove:
-                            capped <= 0 ? null : { x: moves[capped - 1]!.x, y: moves[capped - 1]!.y },
-                        moves,
-                        status: atScoring ? 'scoring' : 'playing',
-                        timeMetrics: {
-                            generatedAt: src.timeMetrics?.generatedAt ?? Date.now(),
-                            generationMs: src.timeMetrics?.generationMs ?? 0,
-                            playbackStartedAt: src.timeMetrics?.playbackStartedAt,
-                            playbackCompletedAt: src.timeMetrics?.playbackCompletedAt,
-                            scoringStartedAt: src.timeMetrics?.scoringStartedAt,
-                            scoringCompletedAt: src.timeMetrics?.scoringCompletedAt,
-                        },
-                    },
-                });
+                setVersusPlaybackMatch(buildPlaybackMatch(capped, atScoring));
+                if (opponentUserId) {
+                    persistVersusActiveDuel(opponentUserId, finalMatch, resultPayload, capped);
+                }
 
                 if (atScoring) {
                     versusKataPlaybackTimerRef.current = setTimeout(() => {
@@ -1058,8 +1130,34 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             );
             return true;
         },
-        [clearVersusKataPlaybackTimers, finalizeVersusKataReplay],
+        [clearVersusKataPlaybackTimers, finalizeVersusKataReplay, persistVersusActiveDuel],
     );
+
+    /** 새로고침·다른 화면 복귀 시 진행 중 장내 카타 대국 재생 복구 */
+    React.useEffect(() => {
+        if (versusDuelRestoreAttemptedRef.current) return;
+        const uid = currentUserWithStatus?.id;
+        if (!uid || kataBusy || versusPlaybackMatch || versusReplayActive) return;
+        const saved = readChampionshipVersusActiveDuelSession(uid, venue);
+        if (!saved) return;
+        if (Date.now() - saved.savedAt > VERSUS_ACTIVE_DUEL_MAX_AGE_MS) {
+            clearChampionshipVersusActiveDuelSession(uid, venue);
+            return;
+        }
+        versusDuelRestoreAttemptedRef.current = true;
+        setSelectedId(saved.opponentUserId);
+        beginVersusKataReplay(saved.finalMatch, saved.resultPayload, {
+            resumeFromPly: saved.resumePly,
+            opponentUserId: saved.opponentUserId,
+        });
+    }, [
+        beginVersusKataReplay,
+        currentUserWithStatus?.id,
+        kataBusy,
+        venue,
+        versusPlaybackMatch,
+        versusReplayActive,
+    ]);
 
     React.useEffect(() => {
         const status = versusPlaybackMatch?.championshipRealGame?.status;
@@ -1286,7 +1384,10 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         setVersusReplayActive(false);
         setLowConditionVersusStartModalOpen(false);
         setLowConditionStartPending(null);
-    }, [venue, clearVersusKataPlaybackTimers, flushVersusSessionBeatMarkRef]);
+        versusDuelRestoreAttemptedRef.current = false;
+        const uid = currentUserWithStatus?.id;
+        if (uid) clearChampionshipVersusActiveDuelSession(uid, venue);
+    }, [venue, clearVersusKataPlaybackTimers, flushVersusSessionBeatMarkRef, currentUserWithStatus?.id]);
 
     const p1 = React.useMemo(() => userToTournamentPlayer(user, venue), [user, venue]);
     const p2Seed = selectedRow ? opponents.indexOf(selectedRow) + 1 : 1;
@@ -1611,6 +1712,8 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         setVersusTerritoryAnalysis(null);
         clearVersusKataPlaybackTimers();
         versusKataSessionBeatOpponentIdRef.current = null;
+        const cuStart = currentUserRef.current;
+        if (cuStart) clearChampionshipVersusActiveDuelSession(cuStart.id, venue);
         try {
             const res = (await handleActionKataRef.current({
                 type: 'START_CHAMPIONSHIP_VERSUS_KATA_DUEL',
@@ -1674,7 +1777,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 champCoinsDelta: typeof kd.champCoinsDelta === 'number' ? kd.champCoinsDelta : 0,
                 rewards: rewardsPayload,
             };
-            if (!beginVersusKataReplay(finalMatch, resultPayload)) {
+            if (!beginVersusKataReplay(finalMatch, resultPayload, { opponentUserId: selectedRow.userId })) {
                 setVersusTerritoryAnalysis(resultPayload.analysis);
                 setCompletedVersusMatch(finalMatch);
                 if (cu) {

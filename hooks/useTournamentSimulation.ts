@@ -3,7 +3,10 @@ import { BoardState, Player, TournamentState, User } from '../types';
 import { useAppContext } from './useAppContext';
 import { runClientSimulationStep, SeededRandom } from '../utils/tournamentSimulation';
 import { processMoveClient } from '../client/goLogicClient';
-import { mergeResolvedRoundsPreserveChampionshipPlayback } from '../shared/utils/championshipTournamentPreserve.js';
+import {
+    mergeResolvedRoundsPreserveChampionshipPlayback,
+    repairTournamentSimulatingPointer,
+} from '../shared/utils/championshipTournamentPreserve.js';
 
 const TOTAL_GAME_DURATION = 50;
 // 챔피언십 실대국 중계 배속별 수당 간격(ms).
@@ -248,17 +251,21 @@ const markChampionshipRealAnimationDoneOnce = (userId: string, type: TournamentS
 };
 
 const resolveInitialTournament = (tournament: TournamentState | null, currentUser: User | null): TournamentState | null => {
-    if (!currentUser || !tournament?.type) return tournament;
+    if (!tournament?.type) return tournament;
+    const repairedIncoming = currentUser
+        ? repairTournamentSimulatingPointer(tournament, currentUser.id)
+        : tournament;
+    if (!currentUser) return repairedIncoming;
 
-    const persisted = readPersistedSimulation(currentUser.id, tournament.type);
-    if (!persisted) return tournament;
+    const persisted = readPersistedSimulation(currentUser.id, repairedIncoming.type);
+    if (!persisted) return repairedIncoming;
 
     const persistedMatchKey = persisted.matchKey;
-    const incomingMatchKey = getMatchKey(tournament);
+    const incomingMatchKey = getMatchKey(repairedIncoming);
 
-    if (tournament.status !== 'round_in_progress') {
-        clearPersistedSimulation(currentUser.id, tournament.type);
-        return tournament;
+    if (repairedIncoming.status !== 'round_in_progress') {
+        clearPersistedSimulation(currentUser.id, repairedIncoming.type);
+        return repairedIncoming;
     }
 
     // 이미 이 매치에서 수순 재생을 끝낸 경우: 중간 ply 세션 복원으로 다시 애니메이션하지 않도록 서버 스냅샷을 쓴다.
@@ -266,24 +273,36 @@ const resolveInitialTournament = (tournament: TournamentState | null, currentUse
         persisted.tournament.status === 'round_in_progress' &&
         persistedMatchKey &&
         persistedMatchKey === incomingMatchKey &&
-        readChampionshipRealAnimationDoneKeys(currentUser.id, tournament.type).has(incomingMatchKey)
+        readChampionshipRealAnimationDoneKeys(currentUser.id, repairedIncoming.type).has(incomingMatchKey)
     ) {
-        clearPersistedSimulation(currentUser.id, tournament.type);
-        return tournament;
+        clearPersistedSimulation(currentUser.id, repairedIncoming.type);
+        return repairedIncoming;
     }
 
-    if (persisted.tournament.status === 'round_in_progress' &&
+    const persistedRepaired = repairTournamentSimulatingPointer(persisted.tournament, currentUser.id);
+    const persistedSim = persistedRepaired.currentSimulatingMatch;
+    const persistedGame =
+        persistedSim &&
+        persistedRepaired.rounds[persistedSim.roundIndex]?.matches[persistedSim.matchIndex]?.championshipRealGame;
+    const persistedRealMidPlayback =
+        !!persistedGame?.moves?.length &&
+        ((persistedGame.currentPly ?? 0) > 0 || (persistedRepaired.timeElapsed || 0) > 0);
+
+    if (
+        persistedRepaired.status === 'round_in_progress' &&
         persistedMatchKey &&
         persistedMatchKey === incomingMatchKey &&
-        (persisted.tournament.timeElapsed || 0) >= (tournament.timeElapsed || 0)) {
-        return persisted.tournament;
+        (persisted.rngState !== null || persistedRealMidPlayback) &&
+        (persistedRepaired.timeElapsed || 0) >= (repairedIncoming.timeElapsed || 0)
+    ) {
+        return persistedRepaired;
     }
 
     if (persistedMatchKey && persistedMatchKey !== incomingMatchKey) {
-        clearPersistedSimulation(currentUser.id, tournament.type);
+        clearPersistedSimulation(currentUser.id, repairedIncoming.type);
     }
 
-    return tournament;
+    return repairedIncoming;
 };
 
 export const useTournamentSimulation = (
@@ -329,13 +348,17 @@ export const useTournamentSimulation = (
     // Update local tournament state when tournament prop changes
     useEffect(() => {
         const resolvedTournament = resolveInitialTournament(tournament, currentUser);
+        const resolvedWithPointer =
+            resolvedTournament && currentUser
+                ? repairTournamentSimulatingPointer(resolvedTournament, currentUser.id)
+                : resolvedTournament;
 
-        if (!resolvedTournament) {
+        if (!resolvedWithPointer) {
             setLocalTournament(null);
             return;
         }
 
-        const matchKey = getMatchKey(resolvedTournament);
+        const matchKey = getMatchKey(resolvedWithPointer);
         const prevStableMatchKey = currentMatchKeyRef.current;
         // WS/USER_UPDATE가 잠깐 currentSimulatingMatch를 빼면 getMatchKey가 null이 되어
         // 여기서 전부 리셋되면 실대국 중계가 처음부터 무한 반복처럼 보인다.
@@ -345,18 +368,18 @@ export const useTournamentSimulation = (
             matchKey == null &&
             typeof prevStableMatchKey === 'string' &&
             prevStableMatchKey.startsWith('real:') &&
-            (resolvedTournament.status === 'round_in_progress' ||
+            (resolvedWithPointer.status === 'round_in_progress' ||
                 (pendingRealMatchCompletion &&
-                    (resolvedTournament.status === 'bracket_ready' ||
-                        resolvedTournament.status === 'round_complete')));
+                    (resolvedWithPointer.status === 'bracket_ready' ||
+                        resolvedWithPointer.status === 'round_complete')));
 
         // If match changed, reset simulation state
         if (matchKey !== prevStableMatchKey && !skipResetForFlakyRealMatchKey) {
             console.log('[useTournamentSimulation] Match changed, resetting simulation state', {
                 prevKey: prevStableMatchKey,
                 newKey: matchKey,
-                status: resolvedTournament.status,
-                hasSeed: !!resolvedTournament.simulationSeed
+                status: resolvedWithPointer.status,
+                hasSeed: !!resolvedWithPointer.simulationSeed
             });
 
             if (simulationIntervalRef.current) {
@@ -389,21 +412,21 @@ export const useTournamentSimulation = (
         }
 
         setLocalTournament(prev => {
-            if (!prev) return resolvedTournament;
+            if (!prev) return resolvedWithPointer;
 
             const prevK = getMatchKey(prev);
-            const resK = getMatchKey(resolvedTournament);
+            const resK = getMatchKey(resolvedWithPointer);
             if (
                 resK == null &&
                 typeof prevK === 'string' &&
                 prevK.startsWith('real:') &&
-                resolvedTournament.status === 'round_in_progress' &&
+                resolvedWithPointer.status === 'round_in_progress' &&
                 prev.status === 'round_in_progress' &&
                 prev.currentSimulatingMatch
             ) {
                 const sim = prev.currentSimulatingMatch;
                 const prevMatch = prev.rounds[sim.roundIndex]?.matches[sim.matchIndex];
-                const serverMatch = resolvedTournament.rounds[sim.roundIndex]?.matches[sim.matchIndex];
+                const serverMatch = resolvedWithPointer.rounds[sim.roundIndex]?.matches[sim.matchIndex];
                 const prevId = prevMatch?.id;
                 const serverId = serverMatch?.id;
                 const idsAlign = prevId == null || serverId == null || prevId === serverId;
@@ -413,7 +436,7 @@ export const useTournamentSimulation = (
                     !!serverMatch && !serverMatch.isFinished && idsAlign;
                 if (canRestoreFlakySimPointer) {
                     const patchedResolved = {
-                        ...resolvedTournament,
+                        ...resolvedWithPointer,
                         currentSimulatingMatch: prev.currentSimulatingMatch,
                     };
                     const mergedRounds = mergeResolvedRoundsPreserveChampionshipPlayback(prev, patchedResolved);
@@ -424,52 +447,52 @@ export const useTournamentSimulation = (
                         currentMatchScores: prev.currentMatchScores,
                         currentMatchCommentary: prev.currentMatchCommentary,
                         lastScoreIncrement: prev.lastScoreIncrement,
-                        players: resolvedTournament.players,
+                        players: resolvedWithPointer.players,
                     };
                 }
             }
 
             if (prev.status === 'round_in_progress' &&
-                resolvedTournament.status === 'round_in_progress' &&
-                getMatchKey(prev) === getMatchKey(resolvedTournament)) {
+                resolvedWithPointer.status === 'round_in_progress' &&
+                getMatchKey(prev) === getMatchKey(resolvedWithPointer)) {
                 const sim = prev.currentSimulatingMatch;
                 const prevGame =
                     sim &&
                     prev.rounds[sim.roundIndex]?.matches[sim.matchIndex]?.championshipRealGame;
                 const resolvedGame =
                     sim &&
-                    resolvedTournament.rounds[sim.roundIndex]?.matches[sim.matchIndex]?.championshipRealGame;
+                    resolvedWithPointer.rounds[sim.roundIndex]?.matches[sim.matchIndex]?.championshipRealGame;
                 const playbackClientAhead =
                     !!prevGame?.moves?.length &&
                     !!resolvedGame?.moves?.length &&
                     prevGame.moves.length === resolvedGame.moves.length &&
                     ((prevGame.currentPly || 0) > (resolvedGame.currentPly || 0) ||
-                        ((prev.timeElapsed || 0) > (resolvedTournament.timeElapsed || 0) &&
+                        ((prev.timeElapsed || 0) > (resolvedWithPointer.timeElapsed || 0) &&
                             (prevGame.currentPly || 0) >= (resolvedGame.currentPly || 0)));
                 const usePrevClientState =
-                    (prev.timeElapsed || 0) > (resolvedTournament.timeElapsed || 0) || playbackClientAhead;
+                    (prev.timeElapsed || 0) > (resolvedWithPointer.timeElapsed || 0) || playbackClientAhead;
                 if (usePrevClientState) {
                     const rounds = playbackClientAhead
-                        ? mergeResolvedRoundsPreserveChampionshipPlayback(prev, resolvedTournament)
-                        : resolvedTournament.rounds;
+                        ? mergeResolvedRoundsPreserveChampionshipPlayback(prev, resolvedWithPointer)
+                        : resolvedWithPointer.rounds;
                     const prevMatch =
                         sim && prev.rounds[sim.roundIndex]?.matches[sim.matchIndex];
                     const useServerPlayers = !!prevMatch?.championshipRealGame?.moves?.length;
                     return {
-                        ...resolvedTournament,
+                        ...resolvedWithPointer,
                         rounds,
                         timeElapsed: prev.timeElapsed,
                         currentMatchScores: prev.currentMatchScores,
                         currentMatchCommentary: prev.currentMatchCommentary,
                         lastScoreIncrement: prev.lastScoreIncrement,
                         players: useServerPlayers
-                            ? resolvedTournament.players
-                            : mergeResolvedPlayersKeepPrevSimStats(prev.players, resolvedTournament.players),
+                            ? resolvedWithPointer.players
+                            : mergeResolvedPlayersKeepPrevSimStats(prev.players, resolvedWithPointer.players),
                     };
                 }
             }
 
-            return resolvedTournament;
+            return resolvedWithPointer;
         });
     }, [tournament, currentUser]);
 
@@ -478,9 +501,23 @@ export const useTournamentSimulation = (
         if (!currentUser || !localTournament) return;
 
         const matchKey = getMatchKey(localTournament);
-        if (localTournament.status === 'round_in_progress' && matchKey && rngRef.current) {
-            persistSimulation(currentUser.id, localTournament, rngRef.current.getState());
-            return;
+        const sim = localTournament.currentSimulatingMatch;
+        const activeMatch =
+            sim != null ? localTournament.rounds[sim.roundIndex]?.matches[sim.matchIndex] : null;
+        const realGame = activeMatch?.championshipRealGame;
+        const realMidPlayback =
+            !!realGame?.moves?.length &&
+            ((realGame.currentPly ?? 0) > 0 || (localTournament.timeElapsed || 0) > 0);
+
+        if (localTournament.status === 'round_in_progress' && matchKey) {
+            if (rngRef.current) {
+                persistSimulation(currentUser.id, localTournament, rngRef.current.getState());
+                return;
+            }
+            if (realMidPlayback) {
+                persistSimulation(currentUser.id, localTournament, null);
+                return;
+            }
         }
 
         clearPersistedSimulation(currentUser.id, localTournament.type);
@@ -495,6 +532,7 @@ export const useTournamentSimulation = (
         localTournament?.currentMatchScores?.player1,
         localTournament?.currentMatchScores?.player2,
         localTournament?.currentMatchCommentary?.length,
+        localTournament?.rounds,
     ]);
 
     // Main simulation effect

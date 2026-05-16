@@ -1,5 +1,45 @@
 import type { Match, TournamentState } from '../types/index.js';
 
+/** `round_in_progress`인데 `currentSimulatingMatch`가 비어 있을 때 표시·재생할 유저 실대국 매치 */
+export function findActiveChampionshipUserMatch(
+    tournament: TournamentState | null | undefined,
+    userId?: string,
+): Match | null {
+    if (!tournament || tournament.status !== 'round_in_progress') return null;
+    for (const round of tournament.rounds ?? []) {
+        for (const match of round.matches ?? []) {
+            if (!match?.isUserMatch || match.isFinished) continue;
+            if (!match.championshipRealGame?.moves?.length) continue;
+            if (userId && !match.players?.some((p) => p?.id === userId)) continue;
+            return match;
+        }
+    }
+    return null;
+}
+
+/** 서버/저장 스냅샷에 시뮬 포인터가 빠진 경우 클라이언트 재생·보드 표시 복구 */
+export function repairTournamentSimulatingPointer(
+    tournament: TournamentState,
+    userId?: string,
+): TournamentState {
+    if (tournament.status !== 'round_in_progress' || tournament.currentSimulatingMatch) {
+        return tournament;
+    }
+    const active = findActiveChampionshipUserMatch(tournament, userId);
+    if (!active) return tournament;
+    for (let roundIndex = 0; roundIndex < tournament.rounds.length; roundIndex++) {
+        const round = tournament.rounds[roundIndex];
+        if (!round?.matches) continue;
+        for (let matchIndex = 0; matchIndex < round.matches.length; matchIndex++) {
+            const match = round.matches[matchIndex];
+            if (match?.id === active.id) {
+                return { ...tournament, currentSimulatingMatch: { roundIndex, matchIndex } };
+            }
+        }
+    }
+    return tournament;
+}
+
 /** 같은 슬롯의 진행 중 매치인지 (실대국 기보 유실 복구 판별용) */
 export function isSameActiveSimulatingMatchSlot(prev: TournamentState, resolved: TournamentState): boolean {
     const a = prev.currentSimulatingMatch;
