@@ -27,21 +27,8 @@ import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
 const REGIONAL_SPECIALTY_SLOT_COUNT = 5 as const;
 
-/** `AdventureProfilePanel`의 지역 탐험도(XP·티어) 행 — 탭 선택 시 같은 지역의 특화 효과와 함께 표시 */
-export type AdventureStageUnderstandingRow = {
-    id: string;
-    title: string;
-    xp: number;
-    /** 표시용 분모 — 다음 티어까지 필요한 누적 XP(정복 등급은 최종 구간 기준 1000) */
-    xpGoal: number;
-    /** 현재 티어 구간 내 XP(있으면 XP 표기에 사용) */
-    xpInTier?: number;
-    /** 현재 티어 구간 목표 XP(있으면 분모에 사용) */
-    xpNeedInTier?: number;
-    tier: number;
-    prog: number;
-    tierLabel: string;
-};
+export type { AdventureStageUnderstandingRow } from '../../utils/adventureStageUnderstandingRows.js';
+import type { AdventureStageUnderstandingRow } from '../../utils/adventureStageUnderstandingRows.js';
 
 const GoldCostInline: React.FC<{ text: string }> = ({ text }) => (
     <span className="inline-flex items-center gap-0.5 tabular-nums">
@@ -61,9 +48,11 @@ const AdventureRegionalBuffPanel: React.FC<{
     /** 버튼 비활성·표시용 보유 골드 */
     userGold?: number;
     compact?: boolean;
+    /** 지정 시 해당 지역만 표시(탭 숨김) — 챕터 카드 모달용 */
+    singleStageId?: string;
     /** 생략 시 앱 컨텍스트의 유저 레벨·이해도로 지역 잠금을 판별합니다. */
     chapterUnlockCtx?: AdventureChapterUnlockContext;
-}> = ({ profile, stageRows, userGold = 0, compact = false, chapterUnlockCtx: chapterUnlockCtxProp }) => {
+}> = ({ profile, stageRows, userGold = 0, compact = false, singleStageId, chapterUnlockCtx: chapterUnlockCtxProp }) => {
     const { handlers, currentUserWithStatus } = useAppContext();
     const chapterUnlockCtx = useMemo<AdventureChapterUnlockContext>(
         () =>
@@ -79,7 +68,12 @@ const AdventureRegionalBuffPanel: React.FC<{
             currentUserWithStatus?.adventureProfile?.understandingXpByStage,
         ],
     );
-    const [tabIdx, setTabIdx] = useState(0);
+    const singleStageIdx = useMemo(() => {
+        if (!singleStageId) return -1;
+        const idx = ADVENTURE_STAGES.findIndex((s) => s.id === singleStageId);
+        return idx >= 0 ? idx : 0;
+    }, [singleStageId]);
+    const [tabIdx, setTabIdx] = useState(singleStageIdx >= 0 ? singleStageIdx : 0);
     const [showHelpModal, setShowHelpModal] = useState(false);
     const [rouletteLabelBySlot, setRouletteLabelBySlot] = useState<Record<number, string>>({});
     const [spinningSlots, setSpinningSlots] = useState<Record<number, boolean>>({});
@@ -89,9 +83,10 @@ const AdventureRegionalBuffPanel: React.FC<{
     const flashTimeoutRefs = useRef<Record<number, ReturnType<typeof setTimeout> | undefined>>({});
     /** 동기적으로 연타·다중 슬롯 중복 요청 차단 (스핀 상태 커밋 전까지) */
     const regionalRerollLockedRef = useRef(false);
-    const stage = ADVENTURE_STAGES[tabIdx] ?? ADVENTURE_STAGES[0]!;
+    const activeIdx = singleStageIdx >= 0 ? singleStageIdx : tabIdx;
+    const stage = ADVENTURE_STAGES[activeIdx] ?? ADVENTURE_STAGES[0]!;
     const stageId = stage.id;
-    const understandingRow = stageRows[tabIdx] ?? stageRows[0];
+    const understandingRow = stageRows[activeIdx] ?? stageRows[0];
     const stageChapterUnlocked = isAdventureStageUnlocked(stageId, chapterUnlockCtx);
 
     const p = useMemo(() => normalizeAdventureProfile(profile), [profile]);
@@ -284,35 +279,37 @@ const AdventureRegionalBuffPanel: React.FC<{
                     </button>
                 </div>
 
-                <div
-                    className={`mt-2 flex flex-wrap gap-1 border-b border-white/10 pb-2 ${
-                        compact ? '' : 'sm:gap-1.5'
-                    }`}
-                    role="tablist"
-                    aria-label="지역 탐험도 탭"
-                >
-                    {ADVENTURE_STAGES.map((s, i) => {
-                        const tabUnlocked = isAdventureStageUnlocked(s.id, chapterUnlockCtx);
-                        return (
-                            <button
-                                key={s.id}
-                                type="button"
-                                role="tab"
-                                aria-selected={i === tabIdx}
-                                onClick={() => setTabIdx(i)}
-                                className={`rounded-md border px-2 py-1 text-[11px] font-bold transition-colors sm:text-xs ${
-                                    i === tabIdx
-                                        ? 'border-amber-400/60 bg-amber-500/15 text-amber-100'
-                                        : 'border-white/10 bg-black/25 text-zinc-400 hover:border-white/20 hover:text-zinc-200'
-                                }`}
-                            >
-                                <span className="tabular-nums">{String(i + 1).padStart(2, '0')}</span>
-                                {!tabUnlocked ? <span aria-hidden> 🔒</span> : null}
-                                {!compact && <span className="ml-1 hidden sm:inline">{s.title}</span>}
-                            </button>
-                        );
-                    })}
-                </div>
+                {!singleStageId ? (
+                    <div
+                        className={`mt-2 flex flex-wrap gap-1 border-b border-white/10 pb-2 ${
+                            compact ? '' : 'sm:gap-1.5'
+                        }`}
+                        role="tablist"
+                        aria-label="지역 탐험도 탭"
+                    >
+                        {ADVENTURE_STAGES.map((s, i) => {
+                            const tabUnlocked = isAdventureStageUnlocked(s.id, chapterUnlockCtx);
+                            return (
+                                <button
+                                    key={s.id}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={i === tabIdx}
+                                    onClick={() => setTabIdx(i)}
+                                    className={`rounded-md border px-2 py-1 text-[11px] font-bold transition-colors sm:text-xs ${
+                                        i === tabIdx
+                                            ? 'border-amber-400/60 bg-amber-500/15 text-amber-100'
+                                            : 'border-white/10 bg-black/25 text-zinc-400 hover:border-white/20 hover:text-zinc-200'
+                                    }`}
+                                >
+                                    <span className="tabular-nums">{String(i + 1).padStart(2, '0')}</span>
+                                    {!tabUnlocked ? <span aria-hidden> 🔒</span> : null}
+                                    {!compact && <span className="ml-1 hidden sm:inline">{s.title}</span>}
+                                </button>
+                            );
+                        })}
+                    </div>
+                ) : null}
 
                 <div className="mt-2.5 space-y-2.5">
                     {understandingRow && (
