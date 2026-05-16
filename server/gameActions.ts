@@ -53,6 +53,29 @@ const gameActionQueues = new Map<string, Promise<unknown>>();
 const ALKKAGI_AI_FIRST_ATTACK_DELAY_MS = 2000;
 const VERBOSE_ACTION_LOGS = process.env.DEBUG_ACTION_LOGS === '1' || process.env.LOG_ACTIONS === '1';
 
+/** 놀이바둑(대기실 AI·PVE): 클라 착수 전용 PVE 게이트에서 삼키면 안 되는 서버 검증 액션 */
+export const PLAYFUL_SERVER_ACTION_TYPES = new Set<string>([
+    'OMOK_PLACE_STONE',
+    'SUBMIT_RPS_CHOICE',
+    'DICE_READY_FOR_TURN_ROLL',
+    'DICE_CHOOSE_TURN',
+    'DICE_CONFIRM_START',
+    'DICE_ROLL',
+    'DICE_PLACE_STONE',
+    'DICE_PLACE_STONES_BATCH',
+    'CONFIRM_THIEF_ROLE',
+    'THIEF_ROLL_DICE',
+    'THIEF_PLACE_STONE',
+    'CONFIRM_ALKKAGI_START',
+    'ALKKAGI_PLACE_STONE',
+    'ALKKAGI_FLICK_STONE',
+    'USE_ALKKAGI_ITEM',
+    'CONFIRM_CURLING_START',
+    'CURLING_FLICK_STONE',
+    'USE_CURLING_ITEM',
+    'CONFIRM_ROUND_END',
+]);
+
 async function runGameActionSerial<T>(gameId: string, task: () => Promise<T>): Promise<T> {
     const previous = gameActionQueues.get(gameId) ?? Promise.resolve();
     const nextTask = previous.catch(() => undefined).then(task);
@@ -1524,6 +1547,9 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             ]);
             const shouldHandleBaseFlowOnStrategicPve =
                 pveStrategicBaseFlow && baseFlowServerActionTypes.has(type);
+            const isPlayfulMode = PLAYFUL_GAME_MODES.some((m) => m.mode === game.mode);
+            const shouldHandlePlayfulOnServer =
+                isPlayfulMode && PLAYFUL_SERVER_ACTION_TYPES.has(type);
             // 펫 힌트/힌트 보너스는 아래 `handleStrategicGameAction`으로 넘긴다.
             // 페어 AI전·기타 `matchAxis !== 'pvp'`(mixed_pair 등)도 이 블록에 들어오는데,
             // `CONFIRM_COLOR_START`를 여기서 삼키면 페어 순서 확인(pair_order_reveal)·니기리 확인 등이 서버에 영원히 안 붙는다.
@@ -1535,7 +1561,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 type !== 'REQUEST_STRATEGIC_PET_HINT' &&
                 type !== 'CLAIM_STRATEGIC_PET_HINT_BONUS' &&
                 !shouldHandlePlaceStoneOnServer &&
-                !shouldHandleBaseFlowOnStrategicPve
+                !shouldHandleBaseFlowOnStrategicPve &&
+                !shouldHandlePlayfulOnServer
             ) {
                 return {};
             }
@@ -1867,6 +1894,27 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     clientResponse: {
                         ...(typeof (baseResult as any).clientResponse === 'object' ? (baseResult as any).clientResponse : {}),
                         ...httpSnap.clientResponse,
+                    },
+                };
+            }
+
+            if (
+                !(result as any)?.error &&
+                PLAYFUL_GAME_MODES.some((m) => m.mode === game.mode) &&
+                PLAYFUL_SERVER_ACTION_TYPES.has(type)
+            ) {
+                const baseResult =
+                    result && typeof result === 'object' && !Array.isArray(result) ? (result as Record<string, unknown>) : {};
+                const boardClone =
+                    game.boardState && Array.isArray(game.boardState)
+                        ? game.boardState.map((row: number[]) => [...row])
+                        : game.boardState;
+                return {
+                    ...baseResult,
+                    clientResponse: {
+                        ...(typeof (baseResult as any).clientResponse === 'object' ? (baseResult as any).clientResponse : {}),
+                        gameId: game.id,
+                        game: { ...game, boardState: boardClone },
                     },
                 };
             }

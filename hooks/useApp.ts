@@ -5021,13 +5021,14 @@ export const useApp = () => {
                         revertPveResignOptimistic();
                         return { error: errorMessage } as HandleActionResult;
                     }
-                    // 장시간 유휴 후 주사위바둑 상태가 어긋난 경우:
-                    // DICE_ROLL 400을 받으면 서버 상태를 1회 동기화한 뒤 자동 재시도한다.
+                    // 장시간 유휴 후 주사위/도둑 상태가 어긋난 경우:
+                    // 굴림 400을 받으면 서버 상태를 1회 동기화한 뒤 자동 재시도한다.
                     const isDiceRollOutOfSync =
-                        action.type === 'DICE_ROLL' &&
+                        (action.type === 'DICE_ROLL' || action.type === 'THIEF_ROLL_DICE') &&
                         res.status === 400 &&
                         typeof errorMessage === 'string' &&
-                        (/Not in dice rolling phase/i.test(errorMessage) || /Not your turn to roll/i.test(errorMessage));
+                        (/Not in dice rolling phase/i.test(errorMessage) ||
+                            /Not your turn to roll/i.test(errorMessage));
                     const hasRetriedAfterSync = !!(action as { payload?: { __diceRollRetriedAfterSync?: boolean } }).payload
                         ? !!(action as { payload?: { __diceRollRetriedAfterSync?: boolean } }).payload?.__diceRollRetriedAfterSync
                         : false;
@@ -5040,7 +5041,10 @@ export const useApp = () => {
                             } as ServerAction);
                             if (!(syncResult as any)?.error) {
                                 const synced = liveGamesRef.current[payloadGameId];
-                                if (synced?.mode === GameMode.Dice) {
+                                const rollModeOk =
+                                    (action.type === 'DICE_ROLL' && synced?.mode === GameMode.Dice) ||
+                                    (action.type === 'THIEF_ROLL_DICE' && synced?.mode === GameMode.Thief);
+                                if (rollModeOk && synced) {
                                     const me = currentUserRef.current.id;
                                     const myPlayerEnum =
                                         synced.blackPlayerId === me
@@ -5049,7 +5053,10 @@ export const useApp = () => {
                                               ? Player.White
                                               : Player.None;
                                     const isMyTurnAfterSync = myPlayerEnum !== Player.None && synced.currentPlayer === myPlayerEnum;
-                                    if (synced.gameStatus === 'dice_rolling' && isMyTurnAfterSync) {
+                                    const rollingStatusOk =
+                                        (action.type === 'DICE_ROLL' && synced.gameStatus === 'dice_rolling') ||
+                                        (action.type === 'THIEF_ROLL_DICE' && synced.gameStatus === 'thief_rolling');
+                                    if (rollingStatusOk && isMyTurnAfterSync) {
                                         revertPvpDicePlaceSnapshot();
                                         rollbackTowerAddTurnOptimistic();
                                         revertPveResignOptimistic();
@@ -6274,12 +6281,22 @@ export const useApp = () => {
                         }
                     }
                 }
-                // 주사위 굴리기: HTTP 응답에 game 있으면 즉시 반영 (두 번째 턴부터 굴리기 애니가 안 나오는 버그 방지)
-                const rollGameId = (action.type === 'DICE_ROLL') ? ((action.payload as any)?.gameId || game?.id) : null;
-                if (game && rollGameId && action.type === 'DICE_ROLL' && !isSessionSingleOrTower(game)) {
+                // 주사위/도둑 굴리기: HTTP 응답에 game 있으면 즉시 반영 (두 번째 턴부터 굴리기 애니가 안 나오는 버그 방지)
+                const rollGameId =
+                    action.type === 'DICE_ROLL' || action.type === 'THIEF_ROLL_DICE'
+                        ? ((action.payload as any)?.gameId || game?.id)
+                        : null;
+                if (
+                    game &&
+                    rollGameId &&
+                    (action.type === 'DICE_ROLL' || action.type === 'THIEF_ROLL_DICE') &&
+                    !isSessionSingleOrTower(game)
+                ) {
+                    const rollMergeSource =
+                        action.type === 'THIEF_ROLL_DICE' ? 'http_thief_roll_dice' : 'http_dice_roll';
                     setLiveGames(currentGames => {
                         const existing = currentGames[rollGameId];
-                        if (shouldIgnoreOutdatedPlayfulUpdate(game, existing, { source: 'http_dice_roll' })) {
+                        if (shouldIgnoreOutdatedPlayfulUpdate(game, existing, { source: rollMergeSource })) {
                             return currentGames;
                         }
                         const next = existing ? { ...existing, ...game, boardState: game.boardState && Array.isArray(game.boardState) ? game.boardState.map((row: number[]) => [...row]) : game.boardState } : game;
