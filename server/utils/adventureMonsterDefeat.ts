@@ -16,7 +16,10 @@ import {
 import { normalizeAdventureProfile } from '../../utils/adventureUnderstanding.js';
 import { applyRegionalSpecialtyBuffTierGrants } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import * as effectService from '../effectService.js';
-import { bumpAdventureHuntingScoreOnDefeat } from '../../shared/utils/adventureHuntingScore.js';
+import {
+    bumpAdventureHuntingScoreOnDefeat,
+    reduceAdventureHuntingScoreOnLoss,
+} from '../../shared/utils/adventureHuntingScore.js';
 import { bumpAdventureMapKeyProgressOnMonsterDefeat } from './adventureMapKeysAndTreasure.js';
 
 const ALLOWED_MODES = new Set(['classic', 'capture', 'base', 'hidden', 'missile', 'speed']);
@@ -126,12 +129,12 @@ export async function applyAdventureMonsterDefeatToProfile(
     }
 }
 
-/** 플레이어 패배 시: 도감/보상 없이 맵에서만 다음 출현까지 숨김(승리 시 처치 억제와 동일한 스케줄) */
-export function applyAdventureMonsterMapSuppressAfterPlayerLoss(
+/** 플레이어 패배 시: 맵 억제, 모드별 패배·놓침 전적, 사냥 점수 감점 */
+export function applyAdventureMonsterBattleLossToProfile(
     user: User,
-    params: { codexId: string; stageId: string },
+    params: { codexId: string; stageId: string; battleMode?: string | null; monsterLevel?: number },
 ): void {
-    const { codexId, stageId } = params;
+    const { codexId, stageId, battleMode, monsterLevel } = params;
     const prev = normalizeAdventureProfile(user.adventureProfile);
     const isBoss = isAdventureChapterBossCodexId(codexId);
     const at = Date.now();
@@ -141,8 +144,38 @@ export function applyAdventureMonsterMapSuppressAfterPlayerLoss(
     const suppressKey = adventureMapSuppressKey(stageId, codexId);
     const adventureMapSuppressUntilByKey = { ...(prev.adventureMapSuppressUntilByKey ?? {}) };
     adventureMapSuppressUntilByKey[suppressKey] = suppressUntil;
-    user.adventureProfile = {
+
+    let nextProfile: AdventureProfile = {
         ...prev,
         adventureMapSuppressUntilByKey,
+        lastPlayedStageId: stageId,
     };
+
+    if (battleMode && ALLOWED_MODES.has(battleMode)) {
+        const missedByMode = { ...(prev.monstersMissedByMode ?? {}) };
+        missedByMode[battleMode] = (missedByMode[battleMode] ?? 0) + 1;
+        nextProfile = {
+            ...nextProfile,
+            monstersMissedByMode: missedByMode,
+            monstersMissedTotal: (prev.monstersMissedTotal ?? 0) + 1,
+        };
+    }
+
+    const parsedMonsterLevel =
+        typeof monsterLevel === 'number' && Number.isFinite(monsterLevel)
+            ? parseAdventureMonsterLevel(monsterLevel)
+            : null;
+    if (parsedMonsterLevel != null) {
+        nextProfile = reduceAdventureHuntingScoreOnLoss(nextProfile, parsedMonsterLevel);
+    }
+
+    user.adventureProfile = nextProfile;
+}
+
+/** @deprecated `applyAdventureMonsterBattleLossToProfile` 사용 */
+export function applyAdventureMonsterMapSuppressAfterPlayerLoss(
+    user: User,
+    params: { codexId: string; stageId: string },
+): void {
+    applyAdventureMonsterBattleLossToProfile(user, params);
 }

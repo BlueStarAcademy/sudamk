@@ -13,6 +13,10 @@ import { getTopAdventureCodexMonsterByWins } from '../../utils/adventureTopCodex
 import { useRanking } from '../../hooks/useRanking.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import AdventureTopHuntedMonsterPanel from './AdventureTopHuntedMonsterPanel.js';
+import {
+    formatAdventureModeWinLossRecord,
+    getAdventureBattleRecordSummary,
+} from '../../utils/adventureBattleRecord.js';
 
 const AdventureProfilePanel: React.FC<{
     profile: AdventureProfile | null | undefined;
@@ -30,6 +34,7 @@ const AdventureProfilePanel: React.FC<{
     const codexBreakdown = useMemo(() => getAdventureCodexCompletionBreakdown(profile), [profile]);
     const huntingScore = useMemo(() => getAdventureHuntingScore(profile).score, [profile]);
     const topCodexMonster = useMemo(() => getTopAdventureCodexMonsterByWins(profile), [profile]);
+    const battleRecord = useMemo(() => getAdventureBattleRecordSummary(profile), [profile]);
     const { rankings: adventureRankings, loading: adventureRankLoading } = useRanking('adventure');
     const [mobileTab, setMobileTab] = useState<'understanding' | 'codex'>('understanding');
 
@@ -50,6 +55,43 @@ const AdventureProfilePanel: React.FC<{
     const codexOpenBtnClass = `w-full rounded-lg border border-violet-400/40 bg-violet-950/60 font-bold text-violet-100 shadow-sm transition-colors hover:border-amber-400/45 hover:bg-violet-900/55 active:scale-[0.99] ${
         compact ? 'px-2 py-1 text-[11px] sm:text-xs' : 'px-2.5 py-1.5 text-xs sm:text-sm'
     }`;
+
+    const adventureBattleRecordPanel = (
+        <div
+            className={`w-full min-w-0 rounded-xl border border-cyan-500/30 bg-gradient-to-br from-cyan-950/35 via-zinc-950/80 to-zinc-950/95 ${
+                compact ? 'px-3 py-2.5' : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
+            }`}
+        >
+            <p className={labelCls}>모험 전적</p>
+            <div className={`mt-2 grid grid-cols-2 gap-2 ${compact ? 'text-xs' : 'text-sm sm:text-base'}`}>
+                <div className="rounded-lg border border-emerald-500/25 bg-emerald-950/25 px-2.5 py-2 text-center">
+                    <p className={`font-semibold text-zinc-400 ${compact ? 'text-[10px]' : 'text-xs'}`}>잡은 몬스터</p>
+                    <p className={`mt-0.5 font-black tabular-nums text-emerald-200 ${compact ? 'text-base' : 'text-lg'}`}>
+                        {battleRecord.caught.toLocaleString()}
+                    </p>
+                </div>
+                <div className="rounded-lg border border-rose-500/25 bg-rose-950/20 px-2.5 py-2 text-center">
+                    <p className={`font-semibold text-zinc-400 ${compact ? 'text-[10px]' : 'text-xs'}`}>놓친 몬스터</p>
+                    <p className={`mt-0.5 font-black tabular-nums text-rose-200 ${compact ? 'text-base' : 'text-lg'}`}>
+                        {battleRecord.missed.toLocaleString()}
+                    </p>
+                </div>
+            </div>
+            <div className={`mt-2.5 space-y-1 ${compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'}`}>
+                {battleRecord.byMode.map((row) => (
+                    <div
+                        key={row.mode}
+                        className="flex items-center justify-between gap-2 rounded-md border border-white/8 bg-black/25 px-2.5 py-1.5"
+                    >
+                        <span className="shrink-0 font-semibold text-zinc-300">{row.label}</span>
+                        <span className="shrink-0 whitespace-nowrap font-bold tabular-nums text-cyan-100/95">
+                            {formatAdventureModeWinLossRecord(row.wins, row.losses, row.winRatePercent)}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
 
     const adventureHuntingStatsPanel = (
         <div
@@ -304,6 +346,7 @@ const AdventureProfilePanel: React.FC<{
                 }`}
             >
                 {adventureHuntingStatsPanel}
+                {adventureBattleRecordPanel}
 
                 {mobileJournalSplit ? (
                     <>

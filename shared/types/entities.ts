@@ -449,6 +449,9 @@ export type AdventureProfile = {
   /** 몬스터(대국 룰 타입)별 처치 수 */
   monstersDefeatedByMode?: Partial<Record<string, number>>;
   monstersDefeatedTotal?: number;
+  /** 몬스터(대국 룰 타입)별 패배(놓침) 수 */
+  monstersMissedByMode?: Partial<Record<string, number>>;
+  monstersMissedTotal?: number;
   /** 스테이지(지역)별 이해도 XP — 누적 시 티어 상승 */
   understandingXpByStage?: Partial<Record<string, number>>;
   /** 도감 몬스터별 누적 승리 수(이해도 경험치) — `codexId` 키 */

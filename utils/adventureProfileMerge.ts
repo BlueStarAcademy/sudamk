@@ -76,6 +76,13 @@ export function mergeAdventureProfileForPersistence(
         mergedByMode[mode] = Math.max(prevN, nextN);
     }
 
+    const mergedMissedByMode = { ...(prev.monstersMissedByMode ?? {}) } as Record<string, number>;
+    for (const [mode, n] of Object.entries(next.monstersMissedByMode ?? {})) {
+        const prevN = Math.max(0, Math.floor(mergedMissedByMode[mode] ?? 0));
+        const nextN = Math.max(0, Math.floor(n ?? 0));
+        mergedMissedByMode[mode] = Math.max(prevN, nextN);
+    }
+
     const mergedRegionalSpecialtyBuffsByStageId: Record<string, unknown> = {
         ...(prev.regionalSpecialtyBuffsByStageId ?? {}),
     };
@@ -109,6 +116,8 @@ export function mergeAdventureProfileForPersistence(
     if (nextHunt.score > prevHunt.score) {
         huntingScoreTotal = nextHunt.score;
         huntingScoreReachedAt = next.huntingScoreReachedAt ?? prev.huntingScoreReachedAt;
+    } else if (nextHunt.score < prevHunt.score) {
+        huntingScoreTotal = nextHunt.score;
     } else if (nextHunt.score === prevHunt.score && nextHunt.score > 0) {
         const prevAt = prev.huntingScoreReachedAt ?? Number.MAX_SAFE_INTEGER;
         const nextAt = next.huntingScoreReachedAt ?? Number.MAX_SAFE_INTEGER;
@@ -126,6 +135,11 @@ export function mergeAdventureProfileForPersistence(
         monstersDefeatedTotal: Math.max(
             Math.max(0, Math.floor(prev.monstersDefeatedTotal ?? 0)),
             Math.max(0, Math.floor(next.monstersDefeatedTotal ?? 0)),
+        ),
+        monstersMissedByMode: mergedMissedByMode,
+        monstersMissedTotal: Math.max(
+            Math.max(0, Math.floor(prev.monstersMissedTotal ?? 0)),
+            Math.max(0, Math.floor(next.monstersMissedTotal ?? 0)),
         ),
         uniqueMonsterIdsCaught: mergedUniqueMonsterIdsCaught,
         huntingScoreTotal,

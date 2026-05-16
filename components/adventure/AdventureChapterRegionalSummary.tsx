@@ -25,8 +25,15 @@ const AdventureChapterRegionalSummary: React.FC<{
             </span>
 
             <div className="min-w-0 flex-1">
+                <p
+                    className={`text-right font-mono tabular-nums text-zinc-500 ${
+                        compact ? 'text-[8px]' : 'text-[9px] sm:text-[10px]'
+                    }`}
+                >
+                    {xpCurrent.toLocaleString()}/{xpGoal.toLocaleString()}
+                </p>
                 <div
-                    className={`overflow-hidden rounded-full bg-zinc-800/90 ring-1 ring-inset ring-white/5 ${
+                    className={`mt-0.5 overflow-hidden rounded-full bg-zinc-800/90 ring-1 ring-inset ring-white/5 ${
                         compact ? 'h-1.5' : 'h-2'
                     }`}
                 >
@@ -35,13 +42,6 @@ const AdventureChapterRegionalSummary: React.FC<{
                         style={{ width: `${Math.max(4, row.prog)}%` }}
                     />
                 </div>
-                <p
-                    className={`mt-0.5 text-right font-mono tabular-nums text-zinc-500 ${
-                        compact ? 'text-[8px]' : 'text-[9px] sm:text-[10px]'
-                    }`}
-                >
-                    {xpCurrent.toLocaleString()}/{xpGoal.toLocaleString()}
-                </p>
             </div>
 
             <button

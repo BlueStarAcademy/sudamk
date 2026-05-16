@@ -41,6 +41,8 @@ export function normalizeAdventureProfile(p: AdventureProfile | null | undefined
         return {
             monstersDefeatedByMode: {},
             monstersDefeatedTotal: 0,
+            monstersMissedByMode: {},
+            monstersMissedTotal: 0,
             understandingXpByStage: {},
             codexDefeatCounts: {},
             codexDefeatCountReachedAtByCodexId: {},
@@ -60,6 +62,10 @@ export function normalizeAdventureProfile(p: AdventureProfile | null | undefined
     return {
         monstersDefeatedByMode: { ...(p.monstersDefeatedByMode ?? {}) },
         monstersDefeatedTotal: p.monstersDefeatedTotal ?? 0,
+        monstersMissedByMode: { ...(p.monstersMissedByMode ?? {}) },
+        monstersMissedTotal: p.monstersMissedTotal ?? 0,
+        huntingScoreTotal: p.huntingScoreTotal,
+        huntingScoreReachedAt: p.huntingScoreReachedAt,
         understandingXpByStage: { ...(p.understandingXpByStage ?? {}) },
         codexDefeatCounts: { ...(p.codexDefeatCounts ?? {}) },
         codexDefeatCountReachedAtByCodexId: { ...(p.codexDefeatCountReachedAtByCodexId ?? {}) },

@@ -16,6 +16,13 @@ import {
     type AdventureChapterUnlockContext,
 } from '../../utils/adventureChapterUnlock.js';
 
+/** 프로필 홈 경기장(`Profile.tsx` lobbyGridShell)과 동일 — 2열·3행 */
+const ADVENTURE_CHAPTER_GRID_DESKTOP =
+    'grid h-full min-h-0 w-full content-center grid-cols-2 grid-rows-[repeat(3,minmax(0,15rem))] gap-2.5 overflow-hidden lg:grid-rows-[repeat(3,minmax(0,17.5rem))] lg:gap-3 [&>*]:min-h-0 [&>*]:min-w-0';
+
+const ADVENTURE_CHAPTER_GRID_MOBILE =
+    'grid min-h-0 min-w-0 flex-1 grid-cols-2 grid-rows-[repeat(3,minmax(0,1fr))] gap-1 overflow-hidden py-0 [&>*]:min-h-0 [&>*]:min-w-0';
+
 const STAGE_CARD_RINGS: readonly string[] = [
     'ring-emerald-400/40',
     'ring-sky-400/40',
@@ -105,11 +112,7 @@ const AdventureLobby: React.FC = () => {
                 }
             >
                 <ol
-                    className={
-                        mobileFillViewportCards
-                            ? 'grid min-h-0 min-w-0 flex-1 gap-0.5 overflow-hidden py-0 [grid-template-rows:repeat(5,minmax(0,1fr))]'
-                            : 'flex h-full min-h-0 flex-col gap-2 sm:gap-2.5 lg:gap-3'
-                    }
+                    className={mobileFillViewportCards ? ADVENTURE_CHAPTER_GRID_MOBILE : ADVENTURE_CHAPTER_GRID_DESKTOP}
                 >
                     {ADVENTURE_STAGES.map((stage, i) => {
                         const ringClass = STAGE_CARD_RINGS[i] ?? STAGE_CARD_RINGS[0];
@@ -135,19 +138,15 @@ const AdventureLobby: React.FC = () => {
                                     aria-label={
                                         unlocked ? `${stage.title} 맵으로 입장` : `${stage.title} 잠김: ${blockers.join(', ')}`
                                     }
-                                    className={`group flex w-full flex-row overflow-hidden rounded-xl border text-left shadow-[0_18px_44px_-22px_rgba(0,0,0,0.92)] ring-1 transition-[border-color,box-shadow,filter] duration-200 sm:rounded-2xl ${ringClass} ${
-                                        mobileFillViewportCards
-                                            ? 'h-full min-h-0 max-h-full min-w-0 flex-1'
-                                            : 'h-full min-h-0 min-w-0'
-                                    } ${
+                                    className={`group flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-xl border text-left shadow-[0_18px_44px_-22px_rgba(0,0,0,0.92)] ring-1 transition-[border-color,box-shadow,filter] duration-200 sm:rounded-2xl ${ringClass} ${
                                         unlocked
                                             ? 'cursor-pointer border-white/14 hover:border-amber-400/30 hover:shadow-[0_22px_52px_-22px_rgba(251,191,36,0.2)]'
                                             : 'cursor-not-allowed border-zinc-700/50 opacity-95'
                                     }`}
                                 >
                                     <div
-                                        className={`relative min-h-0 shrink-0 overflow-hidden ${
-                                            mobileFillViewportCards ? 'w-[34%]' : 'w-[32%] sm:w-[30%] lg:w-[28%]'
+                                        className={`relative min-h-[2.75rem] shrink-0 overflow-hidden sm:min-h-[3.25rem] ${
+                                            mobileFillViewportCards ? 'basis-[38%]' : 'basis-[40%] lg:basis-[42%]'
                                         }`}
                                     >
                                         <img
@@ -161,12 +160,12 @@ const AdventureLobby: React.FC = () => {
                                             draggable={false}
                                         />
                                         <div
-                                            className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-black/10 to-black/35"
+                                            className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"
                                             aria-hidden
                                         />
                                         {!unlocked && (
                                             <div
-                                                className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center bg-black/20"
+                                                className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center bg-black/25"
                                                 aria-hidden
                                             >
                                                 <div className="flex flex-col items-center gap-1 rounded-full border border-amber-400/35 bg-zinc-950/55 p-1.5 shadow-[0_8px_28px_rgba(0,0,0,0.55)] ring-2 ring-amber-500/15 backdrop-blur-[2px] sm:p-2">
@@ -176,39 +175,33 @@ const AdventureLobby: React.FC = () => {
                                                 </div>
                                             </div>
                                         )}
+                                        <div className="absolute inset-x-0 bottom-0 flex min-w-0 items-end gap-1 px-1.5 pb-1 sm:px-2 sm:pb-1.5">
+                                            <span
+                                                className={`shrink-0 rounded-md border border-white/25 bg-black/55 font-mono font-bold tabular-nums text-amber-100/95 shadow-sm backdrop-blur-[2px] ${
+                                                    mobileFillViewportCards
+                                                        ? 'px-1 py-0.5 text-[8px]'
+                                                        : 'px-1.5 py-0.5 text-[9px] sm:text-[10px]'
+                                                }`}
+                                            >
+                                                CH.{String(stage.stageIndex).padStart(2, '0')}
+                                            </span>
+                                            <h3
+                                                className={`min-w-0 flex-1 truncate font-black leading-tight text-white drop-shadow-sm ${
+                                                    mobileFillViewportCards ? 'text-[10px]' : 'text-xs sm:text-sm'
+                                                }`}
+                                            >
+                                                {stage.title}
+                                            </h3>
+                                        </div>
                                     </div>
-                                    <div
-                                        className={`flex min-h-0 min-w-0 flex-1 flex-col ${
-                                            mobileFillViewportCards ? 'gap-0' : 'gap-0.5'
-                                        }`}
-                                    >
+                                    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-gradient-to-br from-zinc-950/98 to-zinc-900/85">
                                         <div
-                                            className={`min-h-0 min-w-0 flex-1 overflow-hidden bg-gradient-to-br from-zinc-950/95 to-zinc-900/80 ${
-                                                mobileFillViewportCards ? 'px-1.5 py-1' : 'px-2 py-1.5 sm:px-2.5 sm:py-2'
+                                            className={`min-h-0 flex-1 overflow-hidden ${
+                                                mobileFillViewportCards ? 'px-1.5 py-1' : 'px-2 py-1.5 sm:px-2.5'
                                             }`}
                                         >
-                                            <div className="flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-0.5">
-                                                <span
-                                                    className={`shrink-0 rounded-md border border-white/25 bg-black/50 font-mono font-bold tabular-nums text-amber-100/95 shadow-sm backdrop-blur-[2px] ${
-                                                        mobileFillViewportCards
-                                                            ? 'px-1.5 py-0.5 text-[8px]'
-                                                            : 'px-1.5 py-0.5 text-[9px] sm:px-2 sm:py-0.5 sm:text-[10px] sm:px-2.5 sm:py-1 sm:text-xs lg:text-sm'
-                                                    }`}
-                                                >
-                                                    CH.{String(stage.stageIndex).padStart(2, '0')}
-                                                </span>
-                                                <h3
-                                                    className={`min-w-0 flex-1 font-black leading-tight text-white ${
-                                                        mobileFillViewportCards
-                                                            ? 'text-[10px]'
-                                                            : 'text-xs sm:text-sm lg:text-base'
-                                                    }`}
-                                                >
-                                                    {stage.title}
-                                                </h3>
-                                            </div>
                                             <p
-                                                className={`mt-0.5 min-w-0 text-zinc-300/95 ${
+                                                className={`min-w-0 text-zinc-300/95 ${
                                                     mobileFillViewportCards
                                                         ? 'line-clamp-2 text-[8px] leading-snug'
                                                         : 'line-clamp-2 text-[9px] leading-snug sm:text-[10px] sm:line-clamp-3 lg:text-xs'

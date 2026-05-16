@@ -55,7 +55,7 @@ import { CoreStat, ItemGrade } from '../types/enums.js';
 import { enrichPairRoomsForClientPayload } from './utils/pairRoomClientPayload.js';
 import {
     applyAdventureMonsterDefeatToProfile,
-    applyAdventureMonsterMapSuppressAfterPlayerLoss,
+    applyAdventureMonsterBattleLossToProfile,
 } from './utils/adventureMonsterDefeat.js';
 import { normalizeAdventureProfile, sumAdventureUnderstandingGoldBonusPercent } from '../utils/adventureUnderstanding.js';
 import {
@@ -1869,9 +1869,11 @@ const processPlayerSummary = async (
         typeof game.adventureStageId === 'string';
 
     if (isAdventureLoss) {
-        applyAdventureMonsterMapSuppressAfterPlayerLoss(updatedPlayer, {
+        applyAdventureMonsterBattleLossToProfile(updatedPlayer, {
             codexId: game.adventureMonsterCodexId!,
             stageId: game.adventureStageId!,
+            battleMode: resolvedAdventureBattleMode,
+            monsterLevel: game.adventureMonsterLevel,
         });
     }
 

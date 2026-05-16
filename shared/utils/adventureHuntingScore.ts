@@ -30,3 +30,18 @@ export function bumpAdventureHuntingScoreOnDefeat(
         huntingScoreReachedAt: atMs,
     };
 }
+
+/** 몬스터에게 패배 시 사냥 점수에서 해당 몬스터 레벨만큼 차감(0 미만 불가) */
+export function reduceAdventureHuntingScoreOnLoss(
+    profile: AdventureProfile,
+    monsterLevel: number,
+): AdventureProfile {
+    const level = Math.max(1, Math.min(50, Math.floor(monsterLevel)));
+    const prev = getAdventureHuntingScore(profile);
+    const nextScore = Math.max(0, prev.score - level);
+    return {
+        ...profile,
+        huntingScoreTotal: nextScore,
+        ...(nextScore <= 0 ? { huntingScoreReachedAt: undefined } : {}),
+    };
+}
