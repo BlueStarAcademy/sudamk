@@ -288,11 +288,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
             )}
             {/* 바둑판은 항상 정사각형으로, 주어진 공간 안에 맞춰 축소/확대 */}
             <div className="relative flex h-full max-h-full w-full max-w-full min-h-0 min-w-0 items-center justify-center overflow-hidden">
-                <div
-                    className={`aspect-square h-full max-h-full w-full max-w-full min-h-0 min-w-0 overflow-hidden ${
-                        isAdventureBoardLayout ? 'shrink-0' : ''
-                    }`}
-                >
+                <div className="relative aspect-square h-full max-h-full w-full max-w-full min-h-0 min-w-0 shrink-0 overflow-hidden">
                 <GoBoard
                 boardState={boardStateForDisplay}
                 boardSize={settings.boardSize}
@@ -362,7 +358,8 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 currentUser={props.currentUser}
                 blackPlayerNickname={blackPlayer?.nickname || '흑'}
                 whitePlayerNickname={whitePlayer?.nickname || '백'}
-                    isItemModeActive={isItemModeActive || showBoardGlow}
+                    isItemModeActive={isItemModeActive}
+                    showBoardGlow={showBoardGlow}
                 animation={session.animation}
                 isMobile={isMobile}
                 isRotated={isBoardRotated}
@@ -377,12 +374,6 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 canPlaceMoreBaseStones={canPlaceMoreBaseStones}
                 />
                 </div>
-                {showBoardGlow && (
-                    <div
-                        className="pointer-events-none absolute inset-0 z-[8] rounded-lg ring-[6px] ring-amber-300/95 shadow-[0_0_38px_rgba(251,191,36,0.8),0_0_74px_rgba(244,114,182,0.52),inset_0_0_24px_rgba(251,191,36,0.18)] animate-[pulse_1.05s_cubic-bezier(0.4,0,0.2,1)_infinite]"
-                        aria-hidden
-                    />
-                )}
             </div>
         </div>
     );

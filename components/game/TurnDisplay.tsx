@@ -544,8 +544,9 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     }, [isItemMode, session.itemUseDeadline, isPaused, session.gameStatus, onAction, session.id]);
 
     const isSinglePlayer = session.isSinglePlayer;
+    /** 아이템·히든·계가 안내 등 상태 전환 시 높이가 변하면 flex-1 바둑판 영역이 흔들린다 — 최대 변형 높이로 고정 */
     const baseClasses = `flex-shrink-0 rounded-lg flex flex-col items-center justify-center border shadow-inner ${
-        isMobile ? 'min-h-[2.15rem] px-1.5 py-0.5' : 'min-h-[2.65rem] py-1.5 px-2.5 min-[1025px]:min-h-[2.85rem] min-[1025px]:px-3'
+        isMobile ? 'min-h-[2.65rem] px-1.5 py-0.5' : 'min-h-[3.05rem] py-1.5 px-2.5 min-[1025px]:min-h-[3.05rem] min-[1025px]:px-3'
     }`;
     const themeClasses = isSinglePlayer
         ? 'bg-stone-800/85 backdrop-blur-sm border-stone-600/55'
@@ -612,7 +613,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
 
     if (boardRuleFlashMessage) {
         return wrapContent(
-            `${baseClasses} ${themeClasses} ${isMobile ? 'gap-0.5 px-2 min-h-[2.05rem]' : 'gap-1 px-3 min-h-[2.45rem]'} border-2 border-amber-400/55`,
+            `${baseClasses} ${themeClasses} ${isMobile ? 'gap-0.5 px-2' : 'gap-1 px-3'} border-2 border-amber-400/55`,
             <div
                 className={`w-full overflow-hidden flex-shrink-0 relative flex items-center justify-center ${isMobile ? 'min-h-[1rem]' : 'min-h-[1.25rem]'}`}
             >
@@ -640,7 +641,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                   : AI_HIDDEN_ITEM_MESSAGE;
         // AI/몬스터 히든 연출: 전광판에 대형 안내(바둑판 테두리 반짝임과 병행)
         return wrapContent(
-            `${baseClasses} ${themeClasses} border-[3px] border-fuchsia-400/75 shadow-[0_0_28px_rgba(217,70,239,0.35)] ${isMobile ? 'gap-0.5 px-2 min-h-[2.65rem]' : 'gap-1 px-3 min-h-[3.05rem]'}`,
+            `${baseClasses} ${themeClasses} border-[3px] border-fuchsia-400/75 shadow-[0_0_28px_rgba(217,70,239,0.35)] ${isMobile ? 'gap-0.5 px-2' : 'gap-1 px-3'}`,
             <div
                 className={`w-full flex-shrink-0 overflow-hidden flex items-center justify-center ${
                     isMobile ? 'min-h-[1.65rem] py-0.5' : 'min-h-[1.9rem]'

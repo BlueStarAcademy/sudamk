@@ -631,6 +631,8 @@ interface GoBoardProps {
   whitePlayerNickname: string;
   animation?: AnimationData | null;
   isItemModeActive: boolean;
+  /** AI 히든 연출 등: prism과 별도로 황금 테두리 글로우(레이아웃에 영향 없는 오버레이) */
+  showBoardGlow?: boolean;
   sgf?: string;
   isMobile?: boolean;
   isSinglePlayer?: boolean;
@@ -679,7 +681,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         newlyRevealed,
         isSpectator,
         analysisResult, showTerritoryOverlay = false, showHintOverlay = false, currentUser, blackPlayerNickname, whitePlayerNickname,
-        currentPlayer, isItemModeActive, animation, mode, mixedModes, justCaptured, permanentlyRevealedStones, onAction, gameId,
+        currentPlayer, isItemModeActive, showBoardGlow = false, animation, mode, mixedModes, justCaptured, permanentlyRevealedStones, onAction, gameId,
         showLastMoveMarker, blackPatternStones, whitePatternStones, consumedPatternIntersections,
         aiInitialHiddenStone = undefined,
         isSinglePlayer = false, isRotated = false, pendingMove = null,
@@ -1731,12 +1733,18 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     
     return (
         <div 
-            className={`relative z-20 w-full h-full min-h-0 shadow-2xl rounded-lg overflow-hidden p-0 border-4 bg-transparent go-board-panel ${isItemModeActive ? 'prism-border' : 'border-gray-800'} ${gameStatus === 'scanning' ? 'cursor-scan' : ''}`}
+            className={`relative z-20 w-full h-full min-h-0 shadow-2xl rounded-lg overflow-hidden p-0 border-4 border-gray-800 bg-transparent go-board-panel ${gameStatus === 'scanning' ? 'cursor-scan' : ''}`}
             style={{ 
                 backgroundImage: 'none', 
                 backgroundColor: 'transparent',
             }}
         >
+            {isItemModeActive && (
+                <div className="go-board-panel-fx go-board-panel-fx--prism" aria-hidden />
+            )}
+            {showBoardGlow && !isItemModeActive && (
+                <div className="go-board-panel-fx go-board-panel-fx--glow" aria-hidden />
+            )}
             <div className="w-full h-full min-h-0">
                 <svg
                     ref={svgRef}
