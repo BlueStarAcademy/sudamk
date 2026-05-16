@@ -59,6 +59,22 @@ describe('championship real match policy', () => {
         expect(championshipKataLevelFromAbilityScore(140)).toBe(-30);
     });
 
+    it('userOnly (PVP versus) resolves kata level with phase from levelInfo', () => {
+        const stats = statsFor(200);
+        const result = resolveChampionshipVersusKataForPly({
+            ply: 1,
+            boardSize: 19,
+            rules: CHAMPIONSHIP_REAL_MATCH_RULES_19,
+            config: { mode: 'userOnly', userLadder: CHAMPIONSHIP_ABILITY_KATA_LADDER },
+            actorUserId: 'pvp-user',
+            actorStats: stats,
+            seat: null,
+        });
+        expect(result.phase).toBe('opening');
+        expect(Number.isFinite(result.kataLevel)).toBe(true);
+        expect(Number.isFinite(result.abilityScore)).toBe(true);
+    });
+
     it('petpair split uses user ladder for user seat and pair-pet ladder for pet seat', () => {
         const userCore = statsFor(500);
         const petSix = { concentration: 70, thinkingSpeed: 70, judgment: 70, calculation: 70, combatPower: 70, stability: 70 };

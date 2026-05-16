@@ -1,9 +1,6 @@
 import { CoreStat } from '../types/enums.js';
 import type { ChampionshipAbilityKataLadderRow, ChampionshipKataPhase, ChampionshipRealMatchRules } from '../constants/championshipRealMatch.js';
-import {
-    championshipKataLevelForPly,
-    championshipKataPhaseFromPly,
-} from '../constants/championshipRealMatch.js';
+import { championshipKataLevelForPly } from '../constants/championshipRealMatch.js';
 import type { PairPetAbilityKataLadderRow, PairPetCoreStatsSix, PairPetKataPhase } from '../constants/pairArena.js';
 import {
     DEFAULT_PAIR_PET_ABILITY_KATA_LADDER,
@@ -73,9 +70,8 @@ export function resolveChampionshipVersusKataForPly(params: {
 
     if (config.mode === 'petPairSplit' && seat?.kind === 'user') {
         const userCore = config.userCoreByUserId[actorUserId] ?? actorStats;
-        const phase = championshipKataPhaseFromPly(ply, rules);
         const levelInfo = championshipKataLevelForPly(ply, userCore as Partial<Record<CoreStat, number>>, rules, config.userLadder);
-        return { kataLevel: levelInfo.kataLevel, abilityScore: levelInfo.abilityScore, phase };
+        return { kataLevel: levelInfo.kataLevel, abilityScore: levelInfo.abilityScore, phase: levelInfo.phase };
     }
 
     const userLadder = config.mode === 'userOnly' ? config.userLadder : config.userLadder;
@@ -85,7 +81,7 @@ export function resolveChampionshipVersusKataForPly(params: {
         rules,
         userLadder,
     );
-    return { kataLevel: levelInfo.kataLevel, abilityScore: levelInfo.abilityScore, phase };
+    return { kataLevel: levelInfo.kataLevel, abilityScore: levelInfo.abilityScore, phase: levelInfo.phase };
 }
 
 /** UI 패널: 블록별(유저/펫) 구간 능력치·KATA 표시 */
