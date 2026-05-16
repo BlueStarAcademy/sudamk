@@ -14,7 +14,7 @@ import { RANKING_MODAL_SLIM_SCROLL_X, RANKING_MODAL_SLIM_SCROLL_Y } from '../sha
 import type { MobileRankingGuideVariant } from './MobileRankingGuidePanel.js';
 
 /** 모바일 랭킹 퀵 모달: 탭당 하나의 랭킹 보드 */
-type RankingMobileTab = 'combat' | 'manner' | 'championship' | 'strategic' | 'pair';
+type RankingMobileTab = 'combat' | 'manner' | 'adventure' | 'championship' | 'strategic' | 'pair';
 
 type PcMainTab = 'game' | 'baduk' | 'championship';
 
@@ -26,6 +26,7 @@ interface RankingQuickModalProps {
 const MOBILE_RANKING_TABS: { id: RankingMobileTab; label: string }[] = [
     { id: 'combat', label: '바둑능력' },
     { id: 'manner', label: '매너' },
+    { id: 'adventure', label: '모험' },
     { id: 'championship', label: '챔피언십' },
     { id: 'strategic', label: '전략바둑' },
     { id: 'pair', label: '페어바둑' },
@@ -51,6 +52,8 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                 return 'game-combat';
             case 'manner':
                 return 'game-manner';
+            case 'adventure':
+                return 'game-adventure';
             case 'strategic':
                 return 'baduk-strategic';
             case 'pair':
@@ -171,6 +174,19 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                                         mobileSplitLarge
                                                         hideInlineGuide
                                                         panelTitle="매너"
+                                                    />
+                                                </div>
+                                            ),
+                                        },
+                                        {
+                                            tabKey: 'adventure',
+                                            panel: (
+                                                <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
+                                                    <GameRankingBoard
+                                                        lockedTab="adventure"
+                                                        mobileSplitLarge
+                                                        hideInlineGuide
+                                                        panelTitle="모험"
                                                     />
                                                 </div>
                                             ),
@@ -356,6 +372,14 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             mobileSplitLarge
                                             hideInlineGuide
                                             panelTitle="매너"
+                                        />
+                                    </div>
+                                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
+                                        <GameRankingBoard
+                                            lockedTab="adventure"
+                                            mobileSplitLarge
+                                            hideInlineGuide
+                                            panelTitle="모험"
                                         />
                                     </div>
                                 </div>

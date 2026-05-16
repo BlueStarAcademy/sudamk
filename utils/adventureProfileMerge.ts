@@ -1,4 +1,5 @@
 import type { AdventureProfile } from '../types/entities.js';
+import { getAdventureHuntingScore } from '../shared/utils/adventureHuntingScore.js';
 import { normalizeAdventureProfile } from './adventureUnderstanding.js';
 
 /**
@@ -71,6 +72,19 @@ export function mergeAdventureProfileForPersistence(
         new Set([...(prev.uniqueMonsterIdsCaught ?? []), ...(next.uniqueMonsterIdsCaught ?? [])]),
     );
 
+    const prevHunt = getAdventureHuntingScore(prev);
+    const nextHunt = getAdventureHuntingScore(next);
+    let huntingScoreTotal = prevHunt.score;
+    let huntingScoreReachedAt = prev.huntingScoreReachedAt;
+    if (nextHunt.score > prevHunt.score) {
+        huntingScoreTotal = nextHunt.score;
+        huntingScoreReachedAt = next.huntingScoreReachedAt ?? prev.huntingScoreReachedAt;
+    } else if (nextHunt.score === prevHunt.score && nextHunt.score > 0) {
+        const prevAt = prev.huntingScoreReachedAt ?? Number.MAX_SAFE_INTEGER;
+        const nextAt = next.huntingScoreReachedAt ?? Number.MAX_SAFE_INTEGER;
+        huntingScoreReachedAt = Math.min(prevAt, nextAt);
+    }
+
     return {
         ...prev,
         ...next,
@@ -83,6 +97,8 @@ export function mergeAdventureProfileForPersistence(
             Math.max(0, Math.floor(next.monstersDefeatedTotal ?? 0)),
         ),
         uniqueMonsterIdsCaught: mergedUniqueMonsterIdsCaught,
+        huntingScoreTotal,
+        huntingScoreReachedAt,
         regionalSpecialtyBuffsByStageId:
             mergedRegionalSpecialtyBuffsByStageId as AdventureProfile['regionalSpecialtyBuffsByStageId'],
         regionalBuffEnhancePointsByStageId: mergedRegionalBuffEnhancePointsByStageId,

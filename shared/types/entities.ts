@@ -453,6 +453,10 @@ export type AdventureProfile = {
   understandingXpByStage?: Partial<Record<string, number>>;
   /** 도감 몬스터별 누적 승리 수(이해도 경험치) — `codexId` 키 */
   codexDefeatCounts?: Partial<Record<string, number>>;
+  /** 사냥 점수 — 처치한 몬스터 레벨의 누적 합(모험 랭킹) */
+  huntingScoreTotal?: number;
+  /** 현재 `huntingScoreTotal`에 마지막으로 도달한 시각(ms). 동점 시 먼저 달성한 순 */
+  huntingScoreReachedAt?: number;
   /** 도감 연동용 고유 몬스터 ID(추후) */
   uniqueMonsterIdsCaught?: string[];
   lastPlayedStageId?: string | null;

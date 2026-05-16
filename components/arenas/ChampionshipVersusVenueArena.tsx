@@ -516,10 +516,10 @@ const VersusRailPetMini: React.FC<{
     isTurnToMove?: boolean;
 }> = ({ tone, imageUrl, name, level, compact = false, isTurnToMove = false }) => {
     const toneBorder = isTurnToMove
-        ? 'border-2 border-amber-400/90 shadow-[0_0_18px_-5px_rgba(245,158,11,0.45)] ring-1 ring-inset ring-amber-200/20'
+        ? 'box-border border-2 border-amber-400/90 shadow-[0_0_18px_-5px_rgba(245,158,11,0.45)] ring-1 ring-inset ring-amber-200/20'
         : tone === 'black'
-          ? 'border-zinc-600 bg-gradient-to-b from-zinc-800 to-zinc-950'
-          : 'border-slate-500 bg-gradient-to-b from-slate-600 via-slate-700 to-slate-900';
+          ? 'box-border border-2 border-zinc-600 ring-1 ring-inset ring-transparent bg-gradient-to-b from-zinc-800 to-zinc-950'
+          : 'box-border border-2 border-slate-500 ring-1 ring-inset ring-transparent bg-gradient-to-b from-slate-600 via-slate-700 to-slate-900';
     const box = compact ? 'w-[3.35rem] px-1 py-1' : 'w-[4.75rem] px-1.5 py-1.5';
     const imgBox = compact ? 'h-9 w-9' : 'h-11 w-11';
     return (
@@ -584,10 +584,10 @@ const VersusRailPlayerCard: React.FC<{
             ? 'bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 text-stone-100 shadow-lg'
             : 'bg-gradient-to-br from-slate-600 via-slate-700 to-slate-900 text-slate-50 shadow-lg';
     const toneBorder = isTurnToMove
-        ? 'border-2 border-amber-400/90 shadow-[0_0_24px_-6px_rgba(245,158,11,0.5)] ring-1 ring-inset ring-amber-200/25'
+        ? 'box-border border-2 border-amber-400/90 shadow-[0_0_24px_-6px_rgba(245,158,11,0.5)] ring-1 ring-inset ring-amber-200/25'
         : tone === 'black'
-          ? 'border-2 border-zinc-600'
-          : 'border-2 border-slate-500';
+          ? 'box-border border-2 border-zinc-600 ring-1 ring-inset ring-transparent'
+          : 'box-border border-2 border-slate-500 ring-1 ring-inset ring-transparent';
     const mutedText = tone === 'black' ? 'text-slate-400' : 'text-slate-300';
     const strongText = tone === 'black' ? 'text-stone-50' : 'text-slate-50';
     const rawCondition = player?.condition;
@@ -758,10 +758,10 @@ const VersusMobilePureInfoCard: React.FC<{
             ? 'bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 text-stone-100'
             : 'bg-gradient-to-br from-slate-600 via-slate-700 to-slate-900 text-slate-50';
     const toneBorder = isTurnToMove
-        ? 'border-2 border-amber-400/90 shadow-[0_0_18px_-5px_rgba(245,158,11,0.45)] ring-1 ring-inset ring-amber-200/20'
+        ? 'box-border border-2 border-amber-400/90 shadow-[0_0_18px_-5px_rgba(245,158,11,0.45)] ring-1 ring-inset ring-amber-200/20'
         : side === 'left'
-          ? 'border border-zinc-600'
-          : 'border border-slate-500';
+          ? 'box-border border-2 border-zinc-600 ring-1 ring-inset ring-transparent'
+          : 'box-border border-2 border-slate-500 ring-1 ring-inset ring-transparent';
     const mutedText = side === 'left' ? 'text-slate-400' : 'text-slate-300';
     const strongText = side === 'left' ? 'text-stone-50' : 'text-slate-50';
     const isRightSide = side === 'right';
@@ -1844,18 +1844,14 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         ? Math.max(0, realGameForCountdown.maxPly - (realGameForCountdown.currentPly ?? 0))
         : maxPlyToScoring;
 
-    const renderChampionshipScoringCountdownPanel = (showRemainderCaption: boolean) => (
+    const championshipScoringCountdownPanel = (
         <div className="flex w-36 shrink-0 flex-col items-center justify-center rounded-lg border-2 border-zinc-600 bg-gradient-to-br from-zinc-800 to-zinc-950 px-3 py-2 text-center shadow-lg">
             <div className="text-[11px] font-bold tracking-wide text-amber-100">계가까지</div>
             <div className="mt-0.5 text-2xl font-black tabular-nums text-white">
                 {remainingPlyToScoring}/{maxPlyToScoring}
             </div>
-            {showRemainderCaption ? (
-                <div className="text-[10px] font-semibold text-slate-400">수 남음</div>
-            ) : null}
         </div>
     );
-    const championshipScoringCountdownPanel = renderChampionshipScoringCountdownPanel(true);
 
     const championshipPlayerRail =
         matchForBoard && (versusSeatBlack.player || versusSeatWhite.player) ? (
@@ -2167,7 +2163,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                     <div className="absolute inset-0 flex min-h-0 flex-col">
                         <div className={`relative flex h-full w-full min-h-0 min-w-0 flex-col ${championshipBoardHostClipClass}`}>
                             <div className={`flex min-h-0 w-full flex-1 items-stretch justify-center transition-opacity duration-500 ${championshipBoardHostClipClass}`}>
-                                <div className="flex h-full w-full min-w-0 items-stretch justify-center gap-1.5 px-1 py-1">
+                                <div className="flex h-full w-full min-w-0 items-stretch justify-center gap-1.5 px-1 py-1 [&>*]:shrink-0">
                                     <ChampionshipAbilityPlayerPanel
                                         player={versusSeatBlack.player}
                                         stats={versusSeatBlack.stats}
@@ -2271,6 +2267,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 tone === 'black'
                     ? 'border-zinc-600 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950'
                     : 'border-slate-500 bg-gradient-to-br from-slate-600 via-slate-700 to-slate-900';
+            const accentIdleBorder = tone === 'black' ? 'border-zinc-600' : 'border-slate-500';
             const valueColor = tone === 'black' ? 'text-stone-100' : 'text-slate-50';
             const boardSize = matchForBoard?.championshipRealGame?.boardSize ?? versusBoardSizeForUi;
             const metaPly = (phase: (typeof MOBILE_PHASE_META)[number]) =>
@@ -2278,8 +2275,10 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
 
             const oneBlock = (blockStats: Record<string, number>, subLabel: string | null, turnHighlight = false) => (
                 <div
-                    className={`flex min-w-0 flex-1 flex-col gap-0.5 rounded-md border ${accentTone} p-1 ${
-                        turnHighlight ? 'ring-2 ring-amber-400/88 shadow-[0_0_14px_-4px_rgba(245,158,11,0.42)] ring-inset' : ''
+                    className={`box-border flex min-w-0 flex-1 flex-col gap-0.5 rounded-md border-2 p-1 ring-2 ring-inset ${accentTone} ${
+                        turnHighlight
+                            ? 'border-amber-400/88 shadow-[0_0_14px_-4px_rgba(245,158,11,0.42)] ring-amber-400/88'
+                            : `${accentIdleBorder} ring-transparent`
                     }`}
                 >
                     {subLabel ? (

@@ -5,6 +5,7 @@ import { RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScr
 export type MobileRankingGuideVariant =
     | 'game-combat'
     | 'game-manner'
+    | 'game-adventure'
     | 'baduk-strategic'
     | 'baduk-pair';
 
@@ -51,6 +52,18 @@ const GUIDE: Record<MobileRankingGuideVariant, GuideSections> = {
         },
         cta: '경기장으로',
         hash: '#/profile/arena',
+    },
+    'game-adventure': {
+        how: {
+            title: '점수 올리는 방법',
+            body: '모험 맵에서 몬스터를 처치할 때마다 해당 몬스터 레벨만큼 사냥 점수가 누적됩니다. 점수가 같으면 먼저 달성한 유저가 상위에 표시됩니다.',
+        },
+        where: {
+            title: '점수가 오르는 곳',
+            body: '모험 → 지역 맵에서 몬스터와 대국해 승리하세요.',
+        },
+        cta: '모험으로',
+        hash: '#/adventure',
     },
     'baduk-strategic': {
         how: {

@@ -7,6 +7,7 @@ import Avatar from './Avatar.js';
 import UserNicknameText from './UserNicknameText.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import { calculateTotalStats } from '../services/statService.js';
+import { getAdventureHuntingScore } from '../shared/utils/adventureHuntingScore.js';
 import MobileRankingGuidePanel from './MobileRankingGuidePanel.js';
 
 const IS_DEV = import.meta.env.DEV;
@@ -130,7 +131,7 @@ interface GameRankingBoardProps {
     /** 모바일 랭킹 퀵 모달에서는 가이드를 별도 팁 모달로 표시 */
     hideInlineGuide?: boolean;
     /** 상위 UI에서 탭을 나눌 때: 내부 탭 바 숨김·랭킹 종류 고정 */
-    lockedTab?: 'combat' | 'manner';
+    lockedTab?: 'combat' | 'manner' | 'adventure';
     /** 랭킹 모달 다열 배치 시 헤더 문구(기본: 게임 랭킹) */
     panelTitle?: string;
 }
@@ -146,10 +147,11 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({
     const rowDense = Boolean(dense && !mobileSplitLarge);
     const wide = Boolean(mobileSplitLarge);
     const { currentUserWithStatus, handlers } = useAppContext();
-    const [freeTab, setFreeTab] = useState<'combat' | 'manner'>('combat');
+    const [freeTab, setFreeTab] = useState<'combat' | 'manner' | 'adventure'>('combat');
     const activeTab = lockedTab ?? freeTab;
 
-    const rankingType = activeTab === 'combat' ? 'combat' : 'manner';
+    const rankingType =
+        activeTab === 'combat' ? 'combat' : activeTab === 'adventure' ? 'adventure' : 'manner';
     const { rankings: rankingEntries, loading, error } = useRanking(rankingType);
 
     const rankings = useMemo(() => {
@@ -212,6 +214,8 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({
         if (activeTab === 'combat') {
             const totalStats = calculateTotalStats(currentUserWithStatus);
             value = Object.values(totalStats).reduce((acc, val) => acc + val, 0);
+        } else if (activeTab === 'adventure') {
+            value = getAdventureHuntingScore(currentUserWithStatus.adventureProfile).score;
         } else {
             value = currentUserWithStatus.mannerScore;
         }
@@ -253,6 +257,19 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({
                         }`}
                     >
                         바둑능력
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setFreeTab('adventure')}
+                        className={`flex-1 rounded-lg font-semibold transition-all ${
+                            wide ? 'py-1.5 text-[11px]' : rowDense ? 'py-0.5 text-[7px]' : 'py-1.5 text-xs'
+                        } ${
+                            activeTab === 'adventure'
+                                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-500/25'
+                                : 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'
+                        }`}
+                    >
+                        모험
                     </button>
                     <button
                         type="button"
@@ -337,7 +354,15 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({
                 </div>
                 {wide && !hideInlineGuide && (
                     <div className="flex min-h-0 flex-[3] flex-col overflow-hidden">
-                        <MobileRankingGuidePanel variant={activeTab === 'combat' ? 'game-combat' : 'game-manner'} />
+                        <MobileRankingGuidePanel
+                            variant={
+                                activeTab === 'combat'
+                                    ? 'game-combat'
+                                    : activeTab === 'adventure'
+                                      ? 'game-adventure'
+                                      : 'game-manner'
+                            }
+                        />
                     </div>
                 )}
             </div>

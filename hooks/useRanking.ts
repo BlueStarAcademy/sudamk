@@ -21,7 +21,7 @@ export interface RankingResponse {
     cached: boolean;
 }
 
-export function useRanking(type: 'strategic' | 'pair' | 'championship' | 'combat' | 'manner', limit?: number, offset?: number, season?: boolean) {
+export function useRanking(type: 'strategic' | 'pair' | 'championship' | 'combat' | 'manner' | 'adventure', limit?: number, offset?: number, season?: boolean) {
     const [rankings, setRankings] = useState<RankingEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);

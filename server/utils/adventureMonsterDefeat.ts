@@ -16,6 +16,7 @@ import {
 import { normalizeAdventureProfile } from '../../utils/adventureUnderstanding.js';
 import { applyRegionalSpecialtyBuffTierGrants } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import * as effectService from '../effectService.js';
+import { bumpAdventureHuntingScoreOnDefeat } from '../../shared/utils/adventureHuntingScore.js';
 import { bumpAdventureMapKeyProgressOnMonsterDefeat } from './adventureMapKeysAndTreasure.js';
 
 const ALLOWED_MODES = new Set(['classic', 'capture', 'base', 'hidden', 'missile', 'speed']);
@@ -53,9 +54,9 @@ export function parseAdventureMonsterLevel(raw: unknown): number | null {
 
 export async function applyAdventureMonsterDefeatToProfile(
     user: User,
-    params: { codexId: string; stageId: string; battleMode: string },
+    params: { codexId: string; stageId: string; battleMode: string; monsterLevel?: number },
 ): Promise<void> {
-    const { codexId, stageId, battleMode } = params;
+    const { codexId, stageId, battleMode, monsterLevel } = params;
     const prev = normalizeAdventureProfile(user.adventureProfile);
     const counts = { ...(prev.codexDefeatCounts ?? {}) };
     counts[codexId] = (counts[codexId] ?? 0) + 1;
@@ -74,6 +75,10 @@ export async function applyAdventureMonsterDefeatToProfile(
     const understandingXpAfter = uxp[stageId]!;
 
     const defeatAt = Date.now();
+    const parsedMonsterLevel =
+        typeof monsterLevel === 'number' && Number.isFinite(monsterLevel)
+            ? parseAdventureMonsterLevel(monsterLevel)
+            : null;
     const isBoss = isAdventureChapterBossCodexId(codexId);
     const mapDwellMult = getRegionalMapMonsterDwellMultiplierForStage(prev, stageId);
     const mapOffMult = getRegionalMapMonsterRespawnOffMultiplierForStage(prev, stageId);
@@ -99,6 +104,9 @@ export async function applyAdventureMonsterDefeatToProfile(
         lastPlayedStageId: stageId,
         adventureMapSuppressUntilByKey,
     } as AdventureProfile;
+    if (parsedMonsterLevel != null) {
+        nextProfile = bumpAdventureHuntingScoreOnDefeat(nextProfile, parsedMonsterLevel, defeatAt);
+    }
     nextProfile = applyRegionalSpecialtyBuffTierGrants(
         nextProfile,
         stageId,

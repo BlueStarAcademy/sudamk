@@ -1894,6 +1894,7 @@ const processPlayerSummary = async (
             codexId: advCodexId,
             stageId: advStageId,
             battleMode: resolvedAdventureBattleMode!,
+            monsterLevel: game.adventureMonsterLevel,
         });
         const nextProf = normalizeAdventureProfile(updatedPlayer.adventureProfile);
         const xpAfter = Math.max(0, Math.floor((nextProf.understandingXpByStage ?? {})[advStageId] ?? 0));

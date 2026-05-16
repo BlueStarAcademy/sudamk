@@ -639,20 +639,25 @@ export const ChampionshipAbilityPlayerPanel: React.FC<{
             ? 'border-zinc-600/80 from-zinc-800 via-zinc-900 to-zinc-950'
             : 'border-slate-500/80 from-slate-600 via-slate-700 to-slate-900';
     const phaseRowActiveClass = (phaseKey: (typeof CHAMPIONSHIP_PHASE_META)[number]['key']): string => {
-        if (activePhaseKey !== phaseKey) return tone === 'black' ? 'border-zinc-700/50 bg-zinc-950/90' : 'border-slate-600/50 bg-slate-950/88';
+        const idleRing = 'ring-1 ring-inset ring-transparent';
+        if (activePhaseKey !== phaseKey) {
+            return tone === 'black'
+                ? `border-zinc-700/50 bg-zinc-950/90 ${idleRing}`
+                : `border-slate-600/50 bg-slate-950/88 ${idleRing}`;
+        }
         if (phaseKey === 'opening') {
             return tone === 'black'
-                ? 'border-cyan-300/55 bg-gradient-to-r from-cyan-600/28 to-sky-900/35 ring-1 ring-cyan-400/25'
-                : 'border-cyan-300/45 bg-gradient-to-r from-cyan-700/22 to-slate-900/50 ring-1 ring-cyan-300/20';
+                ? 'border-cyan-300/55 bg-gradient-to-r from-cyan-600/28 to-sky-900/35 ring-1 ring-inset ring-cyan-400/25'
+                : 'border-cyan-300/45 bg-gradient-to-r from-cyan-700/22 to-slate-900/50 ring-1 ring-inset ring-cyan-300/20';
         }
         if (phaseKey === 'midgame') {
             return tone === 'black'
-                ? 'border-fuchsia-300/50 bg-gradient-to-r from-fuchsia-600/26 to-indigo-950/38 ring-1 ring-fuchsia-400/22'
-                : 'border-fuchsia-300/45 bg-gradient-to-r from-fuchsia-700/24 to-slate-900/48 ring-1 ring-fuchsia-300/20';
+                ? 'border-fuchsia-300/50 bg-gradient-to-r from-fuchsia-600/26 to-indigo-950/38 ring-1 ring-inset ring-fuchsia-400/22'
+                : 'border-fuchsia-300/45 bg-gradient-to-r from-fuchsia-700/24 to-slate-900/48 ring-1 ring-inset ring-fuchsia-300/20';
         }
         return tone === 'black'
-            ? 'border-amber-300/50 bg-gradient-to-r from-amber-600/26 to-orange-950/38 ring-1 ring-amber-400/25'
-            : 'border-amber-300/45 bg-gradient-to-r from-amber-700/24 to-slate-900/50 ring-1 ring-amber-300/22';
+            ? 'border-amber-300/50 bg-gradient-to-r from-amber-600/26 to-orange-950/38 ring-1 ring-inset ring-amber-400/25'
+            : 'border-amber-300/45 bg-gradient-to-r from-amber-700/24 to-slate-900/50 ring-1 ring-inset ring-amber-300/22';
     };
 
     const phaseRowLabelClass = (
@@ -761,18 +766,18 @@ export const ChampionshipAbilityPlayerPanel: React.FC<{
 
     const isSplitPairPanel = Boolean(splitPairAbilities);
     const splitUserTurnRing = pairSplitTurnHighlight?.user
-        ? 'ring-2 ring-amber-400/88 shadow-[0_0_22px_-6px_rgba(245,158,11,0.48)] ring-inset rounded-lg'
-        : '';
+        ? 'ring-2 ring-amber-400/88 shadow-[0_0_16px_-6px_rgba(245,158,11,0.42)] ring-inset rounded-lg'
+        : 'ring-2 ring-transparent ring-inset rounded-lg';
     const splitPetTurnRing = pairSplitTurnHighlight?.pet
-        ? 'ring-2 ring-amber-400/88 shadow-[0_0_22px_-6px_rgba(245,158,11,0.48)] ring-inset rounded-lg'
-        : '';
+        ? 'ring-2 ring-amber-400/88 shadow-[0_0_16px_-6px_rgba(245,158,11,0.42)] ring-inset rounded-lg'
+        : 'ring-2 ring-transparent ring-inset rounded-lg';
 
     return (
         <aside
             className={`flex shrink-0 flex-col overflow-hidden rounded-xl border-2 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_42px_-22px_rgba(0,0,0,0.9)] ${
                 isSplitPairPanel
-                    ? 'h-full min-h-0 max-h-full w-[165px] gap-1.5 xl:w-[185px]'
-                    : 'h-fit max-h-full w-[165px] gap-2 self-start xl:w-[185px]'
+                    ? 'h-full min-h-0 max-h-full w-[165px] min-w-[165px] max-w-[165px] gap-1.5 xl:w-[185px] xl:min-w-[185px] xl:max-w-[185px]'
+                    : 'h-fit max-h-full w-[165px] min-w-[165px] max-w-[165px] gap-2 self-start xl:w-[185px] xl:min-w-[185px] xl:max-w-[185px]'
             } ${
                 tone === 'black'
                     ? 'border-zinc-600 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950'
@@ -6878,14 +6883,14 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 ? 'bg-gradient-to-br from-zinc-900/92 to-black/95 text-stone-100 shadow-lg'
                 : 'bg-gradient-to-br from-slate-600/90 via-slate-700/92 to-slate-950/95 text-slate-50 shadow-lg';
         const toneBorder = isCurrentUser
-            ? 'border-2 border-amber-400/90 shadow-[0_0_24px_-6px_rgba(245,158,11,0.5)] ring-1 ring-inset ring-amber-200/25'
+            ? 'box-border border-2 border-amber-400/90 shadow-[0_0_24px_-6px_rgba(245,158,11,0.5)] ring-1 ring-inset ring-amber-200/25'
             : isWhite
-              ? 'border-2 border-slate-500/90'
+              ? 'box-border border-2 border-slate-500/90 ring-1 ring-inset ring-transparent'
               : isBlackStone
-                ? 'border-2 border-stone-600/55'
+                ? 'box-border border-2 border-stone-600/55 ring-1 ring-inset ring-transparent'
                 : tone === 'black'
-                  ? 'border-2 border-stone-500/45'
-                  : 'border-2 border-slate-400/40';
+                  ? 'box-border border-2 border-stone-500/45 ring-1 ring-inset ring-transparent'
+                  : 'box-border border-2 border-slate-400/40 ring-1 ring-inset ring-transparent';
         const mutedText = isWhite ? 'text-slate-700' : 'text-slate-300';
         const strongText = isWhite ? 'text-slate-950' : 'text-slate-50';
         const chipClass = isWhite ? 'bg-slate-900/10 text-slate-800' : 'bg-white/10 text-slate-200';
@@ -6996,7 +7001,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             <div className="mt-0.5 text-2xl font-black tabular-nums text-white">
                 {remainingPlyToScoring ?? '-'}/{maxPlyToScoring}
             </div>
-            <div className="text-[10px] font-semibold text-slate-400">수 남음</div>
         </div>
     );
 
@@ -7037,8 +7041,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 <div className={`relative min-h-0 w-full min-w-0 flex-1 ${championshipBoardHostClipClass}`}>
                     <div className="absolute inset-0 flex min-h-0 flex-col">
                         <div className={`relative flex h-full w-full min-h-0 min-w-0 flex-col ${championshipBoardHostClipClass}`}>
-                            <div className={`flex min-h-0 w-full flex-1 items-center justify-center transition-opacity duration-500 ${championshipBoardHostClipClass}`}>
-                                <div className="flex h-full w-full min-w-0 items-stretch justify-center gap-1.5 px-1 py-1">
+                            <div className={`flex min-h-0 w-full flex-1 items-stretch justify-center transition-opacity duration-500 ${championshipBoardHostClipClass}`}>
+                                <div className="flex h-full w-full min-w-0 items-stretch justify-center gap-1.5 px-1 py-1 [&>*]:shrink-0">
                                     <ChampionshipAbilityPlayerPanel
                                         player={p1}
                                         stats={p1Stats as Record<string, number>}
@@ -7122,14 +7126,14 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 ? 'bg-gradient-to-br from-zinc-900/92 to-black/95 text-stone-100'
                 : 'bg-gradient-to-br from-slate-600/90 via-slate-700/92 to-slate-950/95 text-slate-50';
         const toneBorder = isCurrentUser
-            ? 'border-2 border-amber-400/90 shadow-[0_0_18px_-5px_rgba(245,158,11,0.45)] ring-1 ring-inset ring-amber-200/20'
+            ? 'box-border border-2 border-amber-400/90 shadow-[0_0_18px_-5px_rgba(245,158,11,0.45)] ring-1 ring-inset ring-amber-200/20'
             : isWhitePlayer
-              ? 'border-2 border-slate-400/85'
+              ? 'box-border border-2 border-slate-400/85 ring-1 ring-inset ring-transparent'
               : isBlackPlayer
-                ? 'border-2 border-stone-600/55'
+                ? 'box-border border-2 border-stone-600/55 ring-1 ring-inset ring-transparent'
                 : side === 'left'
-                  ? 'border-2 border-stone-500/45'
-                  : 'border-2 border-slate-400/40';
+                  ? 'box-border border-2 border-stone-500/45 ring-1 ring-inset ring-transparent'
+                  : 'box-border border-2 border-slate-400/40 ring-1 ring-inset ring-transparent';
         const mutedText = isWhitePlayer ? 'text-slate-700' : 'text-slate-300';
         const strongText = isWhitePlayer ? 'text-slate-950' : 'text-slate-50';
         const chipClass = isWhitePlayer ? 'bg-slate-900/12 text-slate-800' : 'bg-white/12 text-slate-100';

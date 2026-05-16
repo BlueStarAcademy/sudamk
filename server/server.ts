@@ -2905,6 +2905,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         championship: [],
                         combat: [],
                         manner: [],
+                        adventure: [],
                         strategicSeason: [],
                         pairSeason: [],
                         timestamp: Date.now()
@@ -2952,6 +2953,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         break;
                     case 'manner':
                         rankings = Array.isArray(cache?.manner) ? cache.manner : [];
+                        break;
+                    case 'adventure':
+                        rankings = Array.isArray(cache?.adventure) ? cache.adventure : [];
                         break;
                     default:
                         return res.status(400).json({ error: 'Invalid ranking type' });

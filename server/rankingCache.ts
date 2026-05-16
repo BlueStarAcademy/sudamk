@@ -6,6 +6,7 @@ import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants/index.js';
 import { RANKED_ELO_BASE_SCORE } from '../shared/constants/rules.js';
 import { readStrategicRankedBlock, readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
 import { pickChampionshipVersusSeasonRankingStats } from '../shared/utils/championshipVersusElo.js';
+import { getAdventureHuntingScore } from '../shared/utils/adventureHuntingScore.js';
 import type { User } from '../types/index.js';
 
 interface RankingEntry {
@@ -29,6 +30,7 @@ interface RankingCache {
     championship: RankingEntry[];
     combat: RankingEntry[];
     manner: RankingEntry[];
+    adventure: RankingEntry[];
     strategicSeason: RankingEntry[]; // 시즌별 티어 랭킹
     pairSeason: RankingEntry[]; // 페어 시즌 랭킹
     timestamp: number;
@@ -114,6 +116,7 @@ export async function buildRankingCache(): Promise<RankingCache> {
                     championship: [],
                     combat: [],
                     manner: [],
+                    adventure: [],
                     strategicSeason: [],
                     pairSeason: [],
                     timestamp: now
@@ -131,7 +134,7 @@ export async function buildRankingCache(): Promise<RankingCache> {
                 });
             
             // 병렬로 여러 랭킹 계산
-            const [strategicRankings, pairRankings, championshipRankings, mannerRankings, combatRankings, strategicSeasonRankings, pairSeasonRankings] = await Promise.all([
+            const [strategicRankings, pairRankings, championshipRankings, mannerRankings, combatRankings, adventureRankings, strategicSeasonRankings, pairSeasonRankings] = await Promise.all([
                 Promise.resolve(calculateStrategicUnifiedRanking(allUsers)).catch((err) => {
                     console.error('[RankingCache] Error calculating strategic rankings:', err);
                     return [];
@@ -149,6 +152,10 @@ export async function buildRankingCache(): Promise<RankingCache> {
                     return [];
                 }),
                 combatUsersPromise,
+                Promise.resolve(calculateAdventureRankings(allUsers)).catch((err) => {
+                    console.error('[RankingCache] Error calculating adventure rankings:', err);
+                    return [];
+                }),
                 Promise.resolve(calculateStrategicSeasonRanking(allUsers)).catch((err) => {
                     console.error('[RankingCache] Error calculating strategic season rankings:', err);
                     return [];
@@ -165,6 +172,7 @@ export async function buildRankingCache(): Promise<RankingCache> {
                 championship: championshipRankings || [],
                 combat: combatRankings || [],
                 manner: mannerRankings || [],
+                adventure: adventureRankings || [],
                 strategicSeason: strategicSeasonRankings || [],
                 pairSeason: pairSeasonRankings || [],
                 timestamp: now
@@ -227,6 +235,7 @@ export async function buildRankingCache(): Promise<RankingCache> {
                 championship: [],
                 combat: [],
                 manner: [],
+                adventure: [],
                 strategicSeason: [],
                 pairSeason: [],
                 timestamp: errorNow
@@ -275,6 +284,41 @@ function calculateChampionshipRankings(allUsers: any[]): RankingEntry[] {
         return a.losses - b.losses;
     });
     return rankings.slice(0, 100).map((entry, index) => ({ ...entry, rank: index + 1 }));
+}
+
+/** 모험 사냥 점수(처치 몬스터 레벨 합) — 동점 시 `huntingScoreReachedAt` 이른 순 */
+function calculateAdventureRankings(allUsers: any[]): RankingEntry[] {
+    const rows: Array<{ entry: RankingEntry; reachedAt: number }> = [];
+
+    for (const user of allUsers) {
+        if (!user || !user.id) continue;
+        const hunt = getAdventureHuntingScore(user.adventureProfile);
+        if (hunt.score <= 0) continue;
+
+        rows.push({
+            reachedAt: hunt.reachedAt,
+            entry: {
+                id: user.id,
+                nickname: user.nickname || user.username,
+                avatarId: user.avatarId,
+                borderId: user.borderId,
+                rank: 0,
+                score: hunt.score,
+                totalGames: 0,
+                wins: 0,
+                losses: 0,
+                league: user.league,
+                userLevel: Math.max(1, Math.floor(Number(user.userLevel) || 1)),
+            },
+        });
+    }
+
+    rows.sort((a, b) => {
+        if (b.entry.score !== a.entry.score) return b.entry.score - a.entry.score;
+        return a.reachedAt - b.reachedAt;
+    });
+
+    return rows.map((row, index) => ({ ...row.entry, rank: index + 1 }));
 }
 
 // 매너 랭킹 계산 (별도 함수로 분리)
@@ -505,6 +549,7 @@ export async function getUserRankings(userId: string): Promise<{
     championship?: { rank: number; score: number; totalPlayers: number };
     combat?: { rank: number; score: number; totalPlayers: number };
     manner?: { rank: number; score: number; totalPlayers: number };
+    adventure?: { rank: number; score: number; totalPlayers: number };
 }> {
     const cache = await buildRankingCache();
     
@@ -522,7 +567,8 @@ export async function getUserRankings(userId: string): Promise<{
         pair: findRank(cache.pair, userId),
         championship: findRank(cache.championship, userId),
         combat: findRank(cache.combat, userId),
-        manner: findRank(cache.manner, userId)
+        manner: findRank(cache.manner, userId),
+        adventure: findRank(cache.adventure, userId),
     };
 }
 
