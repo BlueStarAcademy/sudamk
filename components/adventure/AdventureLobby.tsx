@@ -180,34 +180,34 @@ const AdventureLobby: React.FC = () => {
                                                 </div>
                                             </div>
                                         )}
-                                        <div className="absolute inset-x-0 bottom-0 flex min-w-0 flex-col gap-0.5 px-1.5 pb-1 sm:px-2 sm:pb-1.5">
-                                            <p
-                                                className={`line-clamp-1 min-w-0 text-zinc-100/95 drop-shadow-sm ${
-                                                    mobileScrollableList
-                                                        ? 'text-[9px] leading-snug'
-                                                        : 'text-[9px] leading-snug sm:text-[10px]'
-                                                }`}
-                                            >
-                                                {stage.lobbyStoryLine}
-                                            </p>
-                                            <div className="flex min-w-0 items-end gap-1">
+                                        <div className="absolute inset-x-0 bottom-0 flex min-w-0 flex-col gap-1 px-1.5 pb-1 sm:gap-1.5 sm:px-2 sm:pb-1.5">
+                                            <div className="flex min-w-0 items-end gap-1.5">
                                                 <span
                                                     className={`shrink-0 rounded-md border border-white/25 bg-black/55 font-mono font-bold tabular-nums text-amber-100/95 shadow-sm backdrop-blur-[2px] ${
                                                         mobileScrollableList
-                                                            ? 'px-1.5 py-0.5 text-[9px]'
-                                                            : 'px-1.5 py-0.5 text-[9px] sm:text-[10px]'
+                                                            ? 'px-1.5 py-0.5 text-[10px]'
+                                                            : 'px-2 py-0.5 text-[10px] sm:text-[11px]'
                                                     }`}
                                                 >
                                                     CH.{String(stage.stageIndex).padStart(2, '0')}
                                                 </span>
                                                 <h3
                                                     className={`min-w-0 flex-1 truncate font-black leading-tight text-white drop-shadow-sm ${
-                                                        mobileScrollableList ? 'text-xs' : 'text-xs sm:text-sm'
+                                                        mobileScrollableList ? 'text-sm' : 'text-sm sm:text-base'
                                                     }`}
                                                 >
                                                     {stage.title}
                                                 </h3>
                                             </div>
+                                            <p
+                                                className={`line-clamp-2 min-w-0 text-zinc-100/95 drop-shadow-sm ${
+                                                    mobileScrollableList
+                                                        ? 'text-[10px] leading-snug'
+                                                        : 'text-[11px] leading-snug sm:text-xs'
+                                                }`}
+                                            >
+                                                {stage.lobbyStoryLine}
+                                            </p>
                                             {!unlocked && conditionLines.length > 0 ? (
                                                 <p
                                                     className={`line-clamp-1 min-w-0 font-semibold leading-snug ${

@@ -19,7 +19,7 @@ const AdventureRegionalBuffModal: React.FC<{
 
     return (
         <DraggableWindow
-            title={`${stage.title} · 지역 효과`}
+            title={`CH.${String(stage.stageIndex).padStart(2, '0')} ${stage.title} · 지역 효과`}
             onClose={onClose}
             windowId={`adventure-regional-buff-${stageId}`}
             initialWidth={600}
