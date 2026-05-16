@@ -59,6 +59,53 @@ export function championshipCapturesAtPly(
  * 챔피언십 실대국 기보 재생 중 `ply`수까지 둔 직후 판·따내기로 한국식 집 점수를 계산한다.
  * (`shared/utils/manualScoring` — 서버 `generateChampionshipRealMatch`와 동일 경로)
  */
+export type ChampionshipPanelScoreKind = 'captures' | 'final';
+
+type ChampionshipRealGameScoreSource = {
+    boardSize: number;
+    moves?: Array<{ x: number; y: number; player: Player }>;
+    currentPly?: number;
+    status?: string;
+    finalScore?: { black: number; white: number } | null;
+};
+
+/**
+ * 챔피언십 인게임 경기장 상단 점수 패널용: 기보 재생·계가 연출 중에는 따낸 돌 수,
+ * 종료 후에는 서버 확정 집 점수를 반환한다.
+ */
+export function resolveChampionshipPanelScores(
+    rg: ChampionshipRealGameScoreSource | null | undefined,
+    options: { isPlaybackActive: boolean },
+): { black: number; white: number; kind: ChampionshipPanelScoreKind } | null {
+    if (!rg?.moves?.length) return null;
+    const ply = rg.currentPly ?? 0;
+    const showAuthoritativeFinal = rg.status === 'finished';
+
+    if (
+        options.isPlaybackActive ||
+        rg.status === 'scoring' ||
+        (rg.status === 'playing' && ply > 0)
+    ) {
+        if (ply <= 0) return null;
+        const cap = championshipCapturesAtPly(rg.boardSize, rg.moves, Math.min(ply, rg.moves.length));
+        if (!cap) return null;
+        return { black: cap.black, white: cap.white, kind: 'captures' };
+    }
+
+    if (showAuthoritativeFinal && rg.finalScore) {
+        return { black: rg.finalScore.black, white: rg.finalScore.white, kind: 'final' };
+    }
+    return null;
+}
+
+export function formatChampionshipPanelScoreDisplay(
+    score: number | null | undefined,
+    kind: ChampionshipPanelScoreKind | null | undefined,
+): string {
+    if (score == null || kind == null) return '-';
+    return kind === 'captures' ? String(Math.round(score)) : score.toFixed(1);
+}
+
 export function championshipAreaScoresAtPly(
     boardSize: number,
     moves: Array<{ x: number; y: number; player: Player }>,

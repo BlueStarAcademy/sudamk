@@ -61,7 +61,10 @@ import {
 import type { PairPetAbilityKataLadderRow } from '../shared/constants/pairArena.js';
 import { DEFAULT_PAIR_PET_ABILITY_KATA_LADDER } from '../shared/constants/pairArena.js';
 import { resolveChampionshipVersusPhaseAbilityDisplay } from '../shared/utils/championshipVersusKataResolve.js';
-import { championshipCapturesAtPly } from '../utils/championshipLiveScores.js';
+import {
+    formatChampionshipPanelScoreDisplay,
+    resolveChampionshipPanelScores,
+} from '../utils/championshipLiveScores.js';
 import { replaceAppHash } from '../utils/appUtils.js';
 
 /** 서버 inferDungeonStageAttempt와 동일 — currentStageAttempt 누락 시에도 보상 버튼·COMPLETE_DUNGEON_STAGE 단계 일치 */
@@ -6826,33 +6829,21 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         </div>
     );
 
-    const championshipPanelScores = useMemo((): { black: number; white: number; kind: 'captures' | 'final' } | null => {
-        const rg = matchForDisplay?.championshipRealGame;
-        if (!rg?.moves?.length) return null;
-        const ply = rg.currentPly ?? 0;
-        const simming = displayTournament?.status === 'round_in_progress';
-        const showAuthoritativeFinal = rg.status === 'finished';
-
-        if (simming || rg.status === 'scoring' || (rg.status === 'playing' && ply > 0)) {
-            if (ply <= 0) return null;
-            const cap = championshipCapturesAtPly(rg.boardSize, rg.moves, Math.min(ply, rg.moves.length));
-            if (!cap) return null;
-            return { black: cap.black, white: cap.white, kind: 'captures' };
-        }
-
-        if (showAuthoritativeFinal && rg.finalScore) {
-            return { black: rg.finalScore.black, white: rg.finalScore.white, kind: 'final' };
-        }
-        return null;
-    }, [
-        displayTournament?.status,
-        matchForDisplay?.championshipRealGame?.status,
-        matchForDisplay?.championshipRealGame?.boardSize,
-        matchForDisplay?.championshipRealGame?.moves,
-        matchForDisplay?.championshipRealGame?.currentPly,
-        matchForDisplay?.championshipRealGame?.finalScore?.black,
-        matchForDisplay?.championshipRealGame?.finalScore?.white,
-    ]);
+    const championshipPanelScores = useMemo(
+        () =>
+            resolveChampionshipPanelScores(matchForDisplay?.championshipRealGame, {
+                isPlaybackActive: displayTournament?.status === 'round_in_progress',
+            }),
+        [
+            displayTournament?.status,
+            matchForDisplay?.championshipRealGame?.status,
+            matchForDisplay?.championshipRealGame?.boardSize,
+            matchForDisplay?.championshipRealGame?.moves,
+            matchForDisplay?.championshipRealGame?.currentPly,
+            matchForDisplay?.championshipRealGame?.finalScore?.black,
+            matchForDisplay?.championshipRealGame?.finalScore?.white,
+        ],
+    );
 
     const renderSimpleChampionshipPlayerCard = (player: PlayerForTournament | null, tone: 'black' | 'white') => {
         const avatarUrl = player ? AVATAR_POOL.find((a) => a.id === player.avatarId)?.url : undefined;
@@ -6908,9 +6899,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                   : null
             : null;
         const scoreKind = championshipPanelScores?.kind;
-        const scoreMetricLabel = scoreKind === 'captures' ? '따낸 돌' : scoreKind === 'final' ? '집' : '점수';
-        const scoreDisplayText =
-            scoreValue == null ? '-' : scoreKind === 'captures' ? String(Math.round(scoreValue)) : scoreValue.toFixed(1);
+        const scoreDisplayText = formatChampionshipPanelScoreDisplay(scoreValue, scoreKind);
         /** 인게임 던전: `players[].wins`는 이번 단계 누적이 아닐 수 있어, 라운드 종료 대국 기준으로 표시 */
         const dungeonRunRecord =
             tournament.currentStageAttempt != null && player?.id
@@ -6927,7 +6916,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 }`}
             >
                 <span className={`text-[10px] font-bold leading-none ${isWhite ? 'text-slate-700' : 'text-gray-300'}`}>
-                    {scoreMetricLabel}
+                    점수
                 </span>
                 <span className="mt-1 text-xl font-black leading-none tabular-nums">{scoreDisplayText}</span>
             </div>
@@ -7306,7 +7295,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             : null;
 
         const mobileScoreKind = championshipPanelScores?.kind;
-        const mobileScoreSubLabel = mobileScoreKind === 'captures' ? '따낸 돌' : mobileScoreKind === 'final' ? '집' : '점수';
 
         const renderScoreCell = (
             isWhite: boolean,
@@ -7318,8 +7306,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 ? 'border-slate-500/85 bg-gradient-to-br from-slate-100 to-slate-300 text-slate-950'
                 : 'border-gray-600 bg-gradient-to-br from-gray-800/92 to-black/94 text-white';
             const labelColor = isWhite ? 'text-slate-700' : 'text-gray-300';
-            const scoreText =
-                score == null ? '-' : mobileScoreKind === 'captures' ? String(Math.round(score)) : score.toFixed(1);
+            const scoreText = formatChampionshipPanelScoreDisplay(score, mobileScoreKind);
             return (
                 <div
                     className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md border-2 px-2 py-1 ${cellTone} ${
@@ -7327,7 +7314,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     }`}
                 >
                     <span className={`max-w-[4.5rem] text-center text-[8px] font-bold leading-tight tracking-wide ${labelColor}`}>
-                        {colorLabel ? `${colorLabel} ${mobileScoreSubLabel}` : mobileScoreSubLabel}
+                        {colorLabel ? `${colorLabel} 점수` : '점수'}
                     </span>
                     <span className="text-base font-black leading-none tabular-nums">{scoreText}</span>
                 </div>

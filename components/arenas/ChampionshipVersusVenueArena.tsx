@@ -58,6 +58,10 @@ import {
 import { championshipVersusBoardRulesForActorStrategicTier } from '../../shared/utils/championshipVersusTier.js';
 import { champCoinsForVersusLoss, champCoinsForVersusWin } from '../../shared/utils/championshipVersusElo.js';
 import { flushChampionshipVersusDeferredLevelUp } from '../../utils/championshipVersusLevelUpDeferral.js';
+import {
+    formatChampionshipPanelScoreDisplay,
+    resolveChampionshipPanelScores,
+} from '../../utils/championshipLiveScores.js';
 
 function readVersusPlaybackSpeedFromStorage(): ChampionshipPlaybackSpeed {
     if (typeof window === 'undefined') return 1;
@@ -107,10 +111,10 @@ type OpponentRow = {
 
 const championshipFooterButtonBase =
     'rounded-xl border px-4 py-2 text-xs font-black tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_-14px_rgba(0,0,0,0.9)] transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950';
+const championshipFooterPrimaryButton = `${championshipFooterButtonBase} border-emerald-300/45 bg-gradient-to-b from-emerald-400/95 via-emerald-600/90 to-emerald-950/95 text-slate-950 hover:brightness-110 focus-visible:ring-emerald-400/55`;
 const championshipFooterExitButton = `${championshipFooterButtonBase} border-rose-400/45 bg-gradient-to-b from-rose-600/88 via-rose-800/90 to-rose-950/95 text-rose-50 hover:brightness-110 focus-visible:ring-rose-400/55`;
-/** 사이드바 전용 — 데스크톱·모바일 패널에서 세로 공간 절약 */
-const championshipVersusStartMatchButtonSidebarClass =
-    'group relative isolate flex min-h-[42px] min-w-0 flex-[2.1] basis-0 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-xl border border-emerald-200/55 bg-gradient-to-b from-emerald-200/98 via-emerald-600 to-emerald-950 px-2 py-1.5 text-emerald-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.38),inset_0_-10px_24px_rgba(6,78,59,0.45),0_8px_28px_-12px_rgba(16,185,129,0.45)] transition-[transform,box-shadow,filter] duration-200 hover:brightness-[1.02] active:scale-[0.985] disabled:cursor-not-allowed disabled:saturate-[0.65] disabled:opacity-40 disabled:shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:min-h-[44px] sm:px-2.5 sm:py-2';
+const championshipVersusStartMatchButtonFooterClass = `${championshipFooterPrimaryButton} !flex min-h-[40px] min-w-[7.5rem] flex-1 basis-0 items-center justify-center !px-3 !py-2 sm:min-h-[42px]`;
+const championshipVersusExitButtonFooterClass = `${championshipFooterExitButton} !flex min-h-[40px] min-w-[4.75rem] flex-1 basis-0 items-center justify-center !px-3 !py-2 sm:min-h-[42px]`;
 
 /** 네이티브 셸 고정 패널: `Header` 모바일 min-h(`clamp(3.5rem,…,4.85rem)`)와 동일 계열 */
 const VERSUS_MOBILE_DRAWER_TOP = 'calc(env(safe-area-inset-top, 0px) + clamp(3.5rem, calc(2.85rem + 2vw), 4.85rem))';
@@ -554,6 +558,8 @@ const VersusRailPlayerCard: React.FC<{
     portraitSrcOverride?: string | null;
     /** 표시 이름(유저 닉네임 등) — 없으면 player.nickname */
     primaryLineOverride?: string | null;
+    scoreValue?: number | null;
+    scoreKind?: 'captures' | 'final' | null;
 }> = ({
     player,
     tone,
@@ -564,6 +570,8 @@ const VersusRailPlayerCard: React.FC<{
     isTurnToMove = false,
     portraitSrcOverride = null,
     primaryLineOverride = null,
+    scoreValue = null,
+    scoreKind = null,
 }) => {
     const avatarUrl = player ? AVATAR_POOL.find((a) => a.id === player.avatarId)?.url : undefined;
     const borderUrl = player ? BORDER_POOL.find((b) => b.id === player.borderId)?.url : undefined;
@@ -604,7 +612,9 @@ const VersusRailPlayerCard: React.FC<{
             }`}
         >
             <span className={`text-[10px] font-bold leading-none ${tone === 'black' ? 'text-zinc-400' : 'text-slate-300'}`}>점수</span>
-            <span className="mt-1 text-xl font-black leading-none tabular-nums">-</span>
+            <span className="mt-1 text-xl font-black leading-none tabular-nums">
+                {formatChampionshipPanelScoreDisplay(scoreValue, scoreKind)}
+            </span>
         </div>
     );
     const recordWins = player?.wins ?? 0;
@@ -1490,6 +1500,24 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         [versusPlaybackMatch, kataBusy, versusReplayActive],
     );
 
+    const versusPanelScores = React.useMemo(
+        () =>
+            resolveChampionshipPanelScores(matchForBoard?.championshipRealGame, {
+                isPlaybackActive: Boolean(versusPlaybackMatch) || versusReplayActive,
+            }),
+        [
+            versusPlaybackMatch,
+            versusReplayActive,
+            matchForBoard?.championshipRealGame?.status,
+            matchForBoard?.championshipRealGame?.boardSize,
+            matchForBoard?.championshipRealGame?.moves,
+            matchForBoard?.championshipRealGame?.currentPly,
+            matchForBoard?.championshipRealGame?.finalScore?.black,
+            matchForBoard?.championshipRealGame?.finalScore?.white,
+        ],
+    );
+    const versusPanelScoreKind = versusPanelScores?.kind ?? null;
+
     React.useEffect(() => {
         if (!isMobile) return;
         if (versusMobileSessionActive) setIsMobileSidebarOpen(false);
@@ -1828,7 +1856,6 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         </div>
     );
     const championshipScoringCountdownPanel = renderChampionshipScoringCountdownPanel(true);
-    const championshipScoringCountdownPanelMobile = renderChampionshipScoringCountdownPanel(false);
 
     const championshipPlayerRail =
         matchForBoard && (versusSeatBlack.player || versusSeatWhite.player) ? (
@@ -1845,6 +1872,8 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                     canUseConditionPotion={canUseVersusConditionPotion && versusSeatBlack.player.id === user.id}
                                     onOpenConditionPotion={() => setShowConditionPotionModal(true)}
                                     isTurnToMove={versusChampionshipTurnUi.blackUser}
+                                    scoreValue={versusPanelScores?.black ?? null}
+                                    scoreKind={versusPanelScoreKind}
                                 />
                                 {versusSeatBlack.petVisual ? (
                                     <VersusRailPetMini
@@ -1866,6 +1895,8 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                 onOpenConditionPotion={() => setShowConditionPotionModal(true)}
                                 portraitSrcOverride={venue === 'pet' ? versusSeatBlack.petVisual?.url ?? null : null}
                                 isTurnToMove={versusChampionshipTurnUi.blackUser}
+                                scoreValue={versusPanelScores?.black ?? null}
+                                scoreKind={versusPanelScoreKind}
                             />
                         )}
                         {championshipScoringCountdownPanel}
@@ -1879,6 +1910,8 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                     canUseConditionPotion={canUseVersusConditionPotion && versusSeatWhite.player.id === user.id}
                                     onOpenConditionPotion={() => setShowConditionPotionModal(true)}
                                     isTurnToMove={versusChampionshipTurnUi.whiteUser}
+                                    scoreValue={versusPanelScores?.white ?? null}
+                                    scoreKind={versusPanelScoreKind}
                                 />
                                 {versusSeatWhite.petVisual ? (
                                     <VersusRailPetMini
@@ -1900,6 +1933,8 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                 onOpenConditionPotion={() => setShowConditionPotionModal(true)}
                                 portraitSrcOverride={venue === 'pet' ? versusSeatWhite.petVisual?.url ?? null : null}
                                 isTurnToMove={versusChampionshipTurnUi.whiteUser}
+                                scoreValue={versusPanelScores?.white ?? null}
+                                scoreKind={versusPanelScoreKind}
                             />
                         )}
                     </section>
@@ -1943,72 +1978,121 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         </div>
     );
 
-    const versusPrimaryActions = (
-        <>
-            <Button
-                type="button"
-                bare
-                onClick={() => {
-                    openVersusKataDuelStartFlow();
-                }}
-                disabled={!selectedRow || duelTickets < 1 || kataBusy || versusReplayActive || (CHAMPIONSHIP_VERSUS_VENUE_USE_LIVE_OPPONENT_LIST && Boolean(selectedRow && beatenOpponentIds.includes(selectedRow.userId)))}
-                colorScheme="none"
-                className={championshipVersusStartMatchButtonSidebarClass}
+    const versusStartMatchDisabled =
+        !selectedRow ||
+        duelTickets < 1 ||
+        kataBusy ||
+        versusReplayActive ||
+        (CHAMPIONSHIP_VERSUS_VENUE_USE_LIVE_OPPONENT_LIST &&
+            Boolean(selectedRow && beatenOpponentIds.includes(selectedRow.userId)));
+
+    const versusChampionshipPlaybackSpeedSelector = (
+        <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1">
+            <span className="text-[10px] font-semibold tracking-wider text-cyan-100/75">배속</span>
+            {versusPlaybackSpeedChoices.map((speed) => {
+                const isActive = versusPlaybackSpeed === speed;
+                const titleBySpeed: Record<string, string> = {
+                    '0.5': '3초에 한 수',
+                    '1': '1.5초에 한 수',
+                    '2': '1초에 한 수',
+                    '3': '0.5초에 한 수',
+                };
+                return (
+                    <button
+                        key={speed}
+                        type="button"
+                        onClick={() => setVersusPlaybackSpeed(speed)}
+                        title={titleBySpeed[String(speed)]}
+                        className={`min-w-[2.4rem] rounded-md border px-1.5 py-0.5 text-[10px] font-black tracking-wider transition ${
+                            isActive
+                                ? 'border-cyan-300/80 bg-cyan-500/25 text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]'
+                                : 'border-slate-500/40 bg-slate-900/60 text-slate-300 hover:border-cyan-300/55 hover:text-cyan-100'
+                        }`}
+                    >
+                        x{speed}
+                    </button>
+                );
+            })}
+        </div>
+    );
+
+    const versusChampionshipBoardFooterPanel = (
+        <section
+            className={`flex min-h-0 flex-col justify-center rounded-2xl border border-cyan-300/22 shadow-[inset_0_1px_0_rgba(255,255,255,0.075),0_16px_36px_-24px_rgba(0,0,0,0.95)] ring-1 ring-inset ring-cyan-300/10 ${
+                isMobile
+                    ? 'bg-gradient-to-br from-[#27364a]/96 via-[#121a27]/95 to-[#070a10]/95 p-2'
+                    : 'bg-gradient-to-br from-[#27364a]/96 via-[#121a27]/95 to-[#070a10]/95 p-2.5'
+            }`}
+            aria-label="경기 제어"
+        >
+            <div
+                className={`text-center font-black tracking-[0.22em] text-cyan-100/85 ${isMobile ? 'mb-1 text-[9px]' : 'mb-1.5 text-[10px]'}`}
             >
-                <span
-                    className="pointer-events-none absolute -left-[20%] top-[-30%] h-[160%] w-[55%] rotate-[18deg] bg-gradient-to-r from-white/35 via-white/[0.07] to-transparent opacity-80 blur-md transition-opacity duration-300 group-hover:opacity-100"
-                    aria-hidden
-                />
-                <span
-                    className="pointer-events-none absolute inset-0 rounded-xl bg-[radial-gradient(120%_80%_at_50%_-20%,rgba(255,255,255,0.35),transparent_55%)]"
-                    aria-hidden
-                />
-                <span className="pointer-events-none absolute inset-x-2 top-0 h-px bg-white/45" aria-hidden />
-                <span className="pointer-events-none absolute inset-px rounded-[11px] ring-1 ring-inset ring-white/15" aria-hidden />
-                <span className="relative flex w-full flex-col items-center gap-0.5">
-                    {kataBusy ? (
-                        <>
-                            <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-emerald-100 border-t-transparent sm:h-5 sm:w-5" />
-                            <span className="text-[10px] font-black tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)] sm:text-xs">
+                MATCH CONTROL
+            </div>
+            <div
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-500/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.055)] ${
+                    isMobile
+                        ? 'min-h-0 bg-gradient-to-b from-black/94 to-slate-950/94 px-2 py-2'
+                        : 'min-h-[3.7rem] bg-gradient-to-b from-black/94 to-slate-950/94 px-2.5 py-2.5'
+                }`}
+            >
+                <div className="flex w-full max-w-full flex-wrap items-stretch justify-center gap-2">
+                    <Button
+                        type="button"
+                        bare
+                        onClick={() => {
+                            openVersusKataDuelStartFlow();
+                        }}
+                        disabled={versusStartMatchDisabled}
+                        colorScheme="none"
+                        className={championshipVersusStartMatchButtonFooterClass}
+                    >
+                        {kataBusy ? (
+                            <span className="inline-flex items-center gap-2">
+                                <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-emerald-950/30 border-t-emerald-950" />
                                 경기 시작
                             </span>
-                        </>
-                    ) : (
-                        <>
-                            <div className="flex items-center justify-center gap-1 leading-none">
-                                <img
-                                    src={CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE[venue]}
-                                    alt=""
-                                    className="h-3 w-3 shrink-0 object-contain opacity-95 drop-shadow sm:h-3.5 sm:w-3.5"
-                                />
-                                <span className="text-[10px] font-black tabular-nums text-emerald-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] sm:text-[11px]">
-                                    {duelTickets}/{CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
+                        ) : (
+                            <span className="inline-flex flex-col items-center gap-0.5 sm:flex-row sm:gap-2">
+                                <span className="inline-flex items-center gap-1 leading-none">
+                                    <img
+                                        src={CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE[venue]}
+                                        alt=""
+                                        className="h-3.5 w-3.5 shrink-0 object-contain"
+                                    />
+                                    <span className="text-[11px] font-black tabular-nums sm:text-xs">
+                                        {duelTickets}/{CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
+                                    </span>
+                                    <ChampionshipVersusDuelTicketCountdown
+                                        current={duelTickets}
+                                        max={CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
+                                        nextAt={duelTicketNextAt}
+                                        className="text-[9px] font-mono font-bold tabular-nums text-emerald-950/80"
+                                    />
                                 </span>
-                                <ChampionshipVersusDuelTicketCountdown
-                                    current={duelTickets}
-                                    max={CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
-                                    nextAt={duelTicketNextAt}
-                                    className="text-[8px] font-mono font-bold tabular-nums text-emerald-100/95 sm:text-[9px]"
-                                />
-                            </div>
-                            <span className="text-[11px] font-black leading-tight tracking-wide text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)] sm:text-xs">
-                                경기 시작
+                                <span>경기 시작</span>
                             </span>
-                        </>
-                    )}
-                </span>
-            </Button>
-            <Button
-                type="button"
-                bare
-                onClick={() => replaceAppHash('#/tournament')}
-                colorScheme="none"
-                className={`flex min-h-[40px] min-w-[4.75rem] flex-1 basis-0 items-center justify-center !px-2 !py-2 !text-xs sm:min-h-[42px] sm:!text-sm ${championshipFooterExitButton} focus-visible:ring-offset-slate-950`}
-                title="경기장을 나갑니다."
-            >
-                나가기
-            </Button>
-        </>
+                        )}
+                    </Button>
+                    <Button
+                        type="button"
+                        bare
+                        onClick={() => replaceAppHash('#/tournament')}
+                        colorScheme="none"
+                        className={championshipVersusExitButtonFooterClass}
+                        title="경기장을 나갑니다."
+                    >
+                        나가기
+                    </Button>
+                </div>
+                {versusChampionshipPlaybackSpeedSelector}
+            </div>
+        </section>
+    );
+
+    const versusChampionshipFooterControls = (
+        <div className="w-full shrink-0 px-1 pb-1 pt-0.5 lg:px-0 lg:pb-0">{versusChampionshipBoardFooterPanel}</div>
     );
 
     /** 우측 사이드바 상단: 시즌·내 정보·티어·점수·승패 코인 */
@@ -2075,12 +2159,6 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 </div>
             </div>
         </section>
-    );
-
-    const versusSidebarFooterActions = (
-        <div className="flex w-full shrink-0 gap-2 border-t border-white/12 bg-gradient-to-t from-black/92 via-slate-950/95 to-slate-950 px-2 pb-[max(0.85rem,calc(env(safe-area-inset-bottom,0px)+0.55rem))] pt-2">
-            {versusPrimaryActions}
-        </div>
     );
 
     const championshipMainGameRoom = (
@@ -2170,6 +2248,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                         </div>
                     </div>
                 </div>
+                {versusChampionshipFooterControls}
             </div>
         </main>
     );
@@ -2369,6 +2448,49 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             </section>
         ) : null;
 
+    const mobileChampionshipScoreCountdownRow = (() => {
+        const realGame = matchForBoard?.championshipRealGame;
+        if (!realGame) return null;
+        const remainingPly = Math.max(0, (realGame.maxPly ?? 0) - (realGame.currentPly ?? 0));
+        const maxPly = realGame.maxPly ?? maxPlyToScoring;
+        const blackScore = versusPanelScores?.black ?? null;
+        const whiteScore = versusPanelScores?.white ?? null;
+        const mobileScoreKind = versusPanelScoreKind;
+
+        const renderScoreCell = (isWhite: boolean, score: number | null, colorLabel: string, side: 'left' | 'right') => {
+            const cellTone = isWhite
+                ? 'border-slate-500/85 bg-gradient-to-br from-slate-100 to-slate-300 text-slate-950'
+                : 'border-zinc-600 bg-gradient-to-br from-zinc-800/92 to-black/94 text-white';
+            const labelColor = isWhite ? 'text-slate-700' : 'text-zinc-300';
+            const scoreText = formatChampionshipPanelScoreDisplay(score, mobileScoreKind);
+            return (
+                <div
+                    className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md border-2 px-2 py-1 ${cellTone} ${
+                        side === 'right' ? 'flex-row-reverse' : ''
+                    }`}
+                >
+                    <span className={`max-w-[4.5rem] text-center text-[8px] font-bold leading-tight tracking-wide ${labelColor}`}>
+                        {colorLabel ? `${colorLabel} 점수` : '점수'}
+                    </span>
+                    <span className="text-base font-black leading-none tabular-nums">{scoreText}</span>
+                </div>
+            );
+        };
+
+        return (
+            <section className="flex shrink-0 flex-row items-stretch gap-1">
+                {renderScoreCell(false, blackScore, '흑', 'left')}
+                <div className="flex w-[36%] shrink-0 flex-col items-center justify-center rounded-md border-2 border-amber-400/55 bg-gradient-to-br from-zinc-800/92 to-black/94 px-1 py-0.5 text-center">
+                    <div className="text-[9px] font-bold tracking-wide text-amber-100">계가까지</div>
+                    <div className="text-base font-black tabular-nums leading-none text-white">
+                        {remainingPly}/{maxPly}
+                    </div>
+                </div>
+                {renderScoreCell(true, whiteScore, '백', 'right')}
+            </section>
+        );
+    })();
+
     const mobileChampionshipBoardSection = (
         <div
             className={`relative flex min-h-[min(22dvh,260px)] w-full min-w-0 flex-1 items-center justify-center rounded-md bg-transparent p-1 ${championshipBoardHostClipClass}`}
@@ -2395,12 +2517,11 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             >
                 {mobileChampionshipPlayerInfoRow}
                 {mobileChampionshipAbilityRow}
-                {matchForBoard && (versusSeatBlack.player || versusSeatWhite.player) ? (
-                    <section className="flex shrink-0 justify-center px-0.5 py-0.5" aria-label="계가까지 남은 수">
-                        {championshipScoringCountdownPanelMobile}
-                    </section>
-                ) : null}
+                {mobileChampionshipScoreCountdownRow}
                 {mobileChampionshipBoardSection}
+                <div className="w-full shrink-0 min-h-0 max-h-[min(30vh,280px)] overflow-y-auto overflow-x-hidden pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
+                    {versusChampionshipBoardFooterPanel}
+                </div>
             </div>
         </main>
     );
@@ -2573,39 +2694,11 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                     </span>
                                 )}
                             </Button>
-                            <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1">
-                                <span className="text-[10px] font-bold tracking-wide text-cyan-100">배속</span>
-                                {versusPlaybackSpeedChoices.map((speed) => {
-                                    const isActive = versusPlaybackSpeed === speed;
-                                    const titleBySpeed: Record<string, string> = {
-                                        '0.5': '3초에 한 수',
-                                        '1': '1.5초에 한 수',
-                                        '2': '1초에 한 수',
-                                        '3': '0.5초에 한 수',
-                                    };
-                                    return (
-                                        <button
-                                            key={speed}
-                                            type="button"
-                                            onClick={() => setVersusPlaybackSpeed(speed)}
-                                            title={titleBySpeed[String(speed)]}
-                                            className={`min-w-[2.35rem] rounded border px-1.5 py-0.5 text-[10px] font-black tracking-wider transition ${
-                                                isActive
-                                                    ? 'border-cyan-200/90 bg-cyan-500/35 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]'
-                                                    : 'border-slate-500/55 bg-slate-900/75 text-slate-200 hover:border-cyan-300/65 hover:bg-slate-800/90 hover:text-cyan-50'
-                                            }`}
-                                        >
-                                            x{speed}
-                                        </button>
-                                    );
-                                })}
-                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {versusSidebarFooterActions}
         </div>
     );
 
