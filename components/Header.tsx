@@ -55,51 +55,23 @@ const MOBILE_HEADER_MAIL_ICON = 'h-[clamp(1rem,3.65vw,1.28rem)] w-[clamp(1rem,3.
 const MOBILE_HEADER_SETTINGS_ICON = 'text-[clamp(0.95rem,3.55vw,1.28rem)]';
 const MOBILE_HEADER_POWER_ICON = 'h-[clamp(1.18rem,4.15vw,1.62rem)] w-[clamp(1.18rem,4.15vw,1.62rem)]';
 
-const getVipHeaderLabel = (user: UserWithStatus): '보상VIP' | '기능VIP' | 'VVIP' | null => {
-    const now = Date.now();
-    const anyUser = user as unknown as Record<string, unknown>;
-    const readExpiry = (keys: string[]): number => {
-        for (const key of keys) {
-            const value = anyUser[key];
-            if (typeof value === 'number' && Number.isFinite(value)) return value;
-        }
-        return 0;
-    };
-    const readText = (keys: string[]): string => {
-        for (const key of keys) {
-            const value = anyUser[key];
-            if (typeof value === 'string' && value.trim()) return value.trim().toLowerCase();
-        }
-        return '';
-    };
+/** 모바일 헤더: 참여권·재화 드롭다운 ▼ 버튼 (크기·내부 아이콘 통일) */
+const MOBILE_HEADER_CHEVRON_BTN =
+    'flex h-[clamp(1.45rem,4.8vw,1.85rem)] w-[clamp(1.45rem,4.8vw,1.85rem)] shrink-0 touch-manipulation items-center justify-center rounded-full border border-tertiary/40 bg-tertiary/60 shadow-inner transition-all hover:bg-tertiary/80 active:scale-95';
+const MOBILE_HEADER_CHEVRON_ICON =
+    'text-[clamp(0.44rem,1.9vw,0.62rem)] text-primary transition-transform duration-200';
 
-    const typedVip = readText(['vipType', 'activeVipType', 'vipTier']);
-    if (typedVip.includes('vvip')) return 'VVIP';
-    if (typedVip.includes('function')) return '기능VIP';
-    if (typedVip.includes('reward')) return '보상VIP';
-
-    const vvipExpiresAt = readExpiry(['vvipExpiresAt', 'vvipEndAt', 'vvipUntil']);
-    const rewardVipExpiresAt = readExpiry(['rewardVipExpiresAt', 'rewardVipEndAt', 'rewardVipUntil']);
-    const functionVipExpiresAt = readExpiry(['functionVipExpiresAt', 'functionVipEndAt', 'functionVipUntil']);
-
-    if (vvipExpiresAt > now) return 'VVIP';
-    const rewardActive = rewardVipExpiresAt > now;
-    const functionActive = functionVipExpiresAt > now;
-    if (rewardActive && functionActive) return 'VVIP';
-    if (functionActive) return '기능VIP';
-    if (rewardActive) return '보상VIP';
-    return null;
-};
-
-const getActiveDiamondPackageRoman = (user: UserWithStatus): 'I' | 'II' | 'III' | null => {
-    const now = Date.now();
-    if ((user.diamondPackageExpiresAt ?? 0) <= now) return null;
-    const t = user.activeDiamondPackageTier;
-    if (t === 1) return 'I';
-    if (t === 2) return 'II';
-    if (t === 3) return 'III';
-    return null;
-};
+/** 모바일 헤더 드롭다운 팝오버 행 (참여권·재화 동일) */
+const MOBILE_HEADER_POPOVER_ROW =
+    'flex items-center gap-[clamp(0.18rem,0.95vw,0.3rem)] px-[clamp(0.65rem,2.2vw,0.85rem)] py-1 transition-colors hover:bg-secondary sm:px-3 sm:py-1.5';
+const MOBILE_HEADER_POPOVER_ICON_SHELL =
+    'flex h-[clamp(1.28rem,4.6vw,1.625rem)] w-[clamp(1.28rem,4.6vw,1.625rem)] shrink-0 items-center justify-center rounded-full bg-primary';
+const MOBILE_HEADER_POPOVER_ICON_IMG =
+    'h-[clamp(0.82rem,3.2vw,1.05rem)] w-[clamp(0.82rem,3.2vw,1.05rem)] shrink-0 object-contain';
+const MOBILE_HEADER_POPOVER_VALUE =
+    'min-w-0 font-bold tabular-nums leading-none tracking-tight text-primary whitespace-nowrap text-[clamp(0.34rem,calc(0.03rem+2.05vw),0.82rem)]';
+const MOBILE_HEADER_POPOVER_COUNTDOWN =
+    'shrink-0 font-mono font-bold tabular-nums text-amber-200/95 text-[clamp(0.34rem,calc(0.03rem+2.05vw),0.82rem)] leading-none';
 
 const ResourceDisplay = memo<{
     icon: ResourceIconKey;
@@ -393,9 +365,6 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
         const n = Number(userLevel);
         return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
     })();
-    const vipHeaderLabel = getVipHeaderLabel(currentUserWithStatus);
-    const diamondPackageRoman = getActiveDiamondPackageRoman(currentUserWithStatus);
-
     // actionPoints가 없으면 기본값 사용
     const safeActionPoints = actionPoints || { current: 0, max: 30 };
     // gold와 diamonds가 없으면 기본값 사용
@@ -405,20 +374,23 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === avatarId)?.url, [avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === borderId)?.url, [borderId]);
 
-    const mobileAdditionalResources = useMemo(() => {
-        const base: {
-            key: string;
-            icon: string;
-            label: string;
-            value: number;
-            ratio?: { remaining: number; max: number };
-        }[] = [
-            { key: 'diamonds', icon: resourceIcons.diamonds, label: RESOURCE_LABEL.diamonds, value: safeDiamonds },
-            { key: 'guildCoins', icon: specialResourceIcons.guildCoins, label: SPECIAL_RESOURCE_LABEL.guildCoins, value: guildCoins ?? 0 },
-            { key: 'champCoins', icon: specialResourceIcons.champCoins, label: SPECIAL_RESOURCE_LABEL.champCoins, value: champCoins ?? 0 },
-        ];
-        return base;
-    }, [guildCoins, champCoins, safeDiamonds]);
+    const mobileAdditionalResources = useMemo(
+        () => [
+            {
+                key: 'guildCoins',
+                icon: specialResourceIcons.guildCoins,
+                label: SPECIAL_RESOURCE_LABEL.guildCoins,
+                value: guildCoins ?? 0,
+            },
+            {
+                key: 'champCoins',
+                icon: specialResourceIcons.champCoins,
+                label: SPECIAL_RESOURCE_LABEL.champCoins,
+                value: champCoins ?? 0,
+            },
+        ],
+        [guildCoins, champCoins],
+    );
 
     const specialResourcesPopoverPanel = (
         <div className="w-max max-w-[min(18rem,calc(100vw-1rem))] rounded-lg border border-color bg-primary py-1.5 shadow-2xl sm:py-2">
@@ -441,31 +413,23 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
             ).map((resource) => (
                 <div
                     key={resource.key}
-                    className={`flex items-center px-[clamp(0.65rem,2.2vw,0.85rem)] py-1 transition-colors hover:bg-secondary sm:px-3 sm:py-1.5 ${
-                        isMobile ? 'gap-[clamp(0.18rem,0.95vw,0.3rem)]' : 'gap-[clamp(0.35rem,1.5vw,0.5rem)] sm:gap-2'
-                    }`}
+                    className={isMobile ? MOBILE_HEADER_POPOVER_ROW : 'flex items-center gap-[clamp(0.35rem,1.5vw,0.5rem)] px-[clamp(0.65rem,2.2vw,0.85rem)] py-1 transition-colors hover:bg-secondary sm:gap-2 sm:px-3 sm:py-1.5'}
                 >
-                    <div className={`${isMobile ? 'h-[clamp(1.28rem,4.6vw,1.625rem)] w-[clamp(1.28rem,4.6vw,1.625rem)]' : ''} flex shrink-0 items-center justify-center rounded-full bg-primary`}>
+                    <div className={isMobile ? MOBILE_HEADER_POPOVER_ICON_SHELL : 'flex shrink-0 items-center justify-center rounded-full bg-primary'}>
                         <img
                             src={resource.icon}
                             alt={resource.label}
-                            className={`shrink-0 object-contain ${
+                            className={
                                 isMobile
-                                    ? 'h-[clamp(0.82rem,3.2vw,1.05rem)] w-[clamp(0.82rem,3.2vw,1.05rem)]'
-                                    : 'h-[clamp(1rem,3.5vw,1.35rem)] w-[clamp(1rem,3.5vw,1.35rem)] sm:h-5 sm:w-5'
-                            }`}
+                                    ? MOBILE_HEADER_POPOVER_ICON_IMG
+                                    : 'h-[clamp(1rem,3.5vw,1.35rem)] w-[clamp(1rem,3.5vw,1.35rem)] shrink-0 object-contain sm:h-5 sm:w-5'
+                            }
                             loading="lazy"
                             decoding="async"
                         />
                     </div>
-                    <span className={`min-w-0 font-bold tabular-nums text-primary whitespace-nowrap ${
-                        isMobile
-                            ? 'text-[clamp(0.34rem,calc(0.03rem+2.05vw),0.82rem)] leading-none tracking-tight'
-                            : 'text-[clamp(0.75rem,calc(0.55rem+1.6vw),0.875rem)] sm:text-sm'
-                    }`}>
-                        {resource.ratio != null
-                            ? `${resource.ratio.remaining}/${resource.ratio.max}`
-                            : resource.value.toLocaleString()}
+                    <span className={isMobile ? MOBILE_HEADER_POPOVER_VALUE : 'min-w-0 font-bold tabular-nums whitespace-nowrap text-primary text-[clamp(0.75rem,calc(0.55rem+1.6vw),0.875rem)] sm:text-sm'}>
+                        {resource.value.toLocaleString()}
                     </span>
                 </div>
             ))}
@@ -477,23 +441,15 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
     const participationTicketsPopoverPanel = (
         <div className="w-max max-w-[min(20rem,calc(100vw-1rem))] rounded-lg border border-color bg-primary py-1.5 shadow-2xl sm:py-2">
             <div
-                className={`flex min-w-0 items-center gap-2 px-[clamp(0.65rem,2.2vw,0.85rem)] py-1.5 sm:gap-2.5 sm:px-3 sm:py-2 ${
-                    isMobile ? '' : ''
-                }`}
+                className={isMobile ? MOBILE_HEADER_POPOVER_ROW : 'flex min-w-0 items-center gap-2 px-[clamp(0.65rem,2.2vw,0.85rem)] py-1.5 sm:gap-2.5 sm:px-3 sm:py-2'}
             >
                 <div
-                    className={`${
-                        isMobile ? 'h-[clamp(1.28rem,4.6vw,1.625rem)] w-[clamp(1.28rem,4.6vw,1.625rem)]' : 'h-8 w-8'
-                    } flex shrink-0 items-center justify-center rounded-full bg-primary`}
+                    className={isMobile ? MOBILE_HEADER_POPOVER_ICON_SHELL : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary'}
                 >
                     <img
                         src={GUILD_BOSS_TICKET_IMG}
                         alt=""
-                        className={`shrink-0 object-contain ${
-                            isMobile
-                                ? 'h-[clamp(0.82rem,3.2vw,1.05rem)] w-[clamp(0.82rem,3.2vw,1.05rem)]'
-                                : 'h-5 w-5 sm:h-6 sm:w-6'
-                        }`}
+                        className={isMobile ? MOBILE_HEADER_POPOVER_ICON_IMG : 'h-5 w-5 shrink-0 object-contain sm:h-6 sm:w-6'}
                         loading="lazy"
                         decoding="async"
                     />
@@ -502,9 +458,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                     className={`min-w-0 font-bold tabular-nums whitespace-nowrap ${
                         guildId ? 'text-primary' : 'text-slate-500'
                     } ${
-                        isMobile
-                            ? 'text-[clamp(0.75rem,calc(0.55rem+1.9vw),0.9rem)]'
-                            : 'text-sm sm:text-base'
+                        isMobile ? MOBILE_HEADER_POPOVER_VALUE : 'text-sm sm:text-base'
                     }`}
                 >
                     {guildId ? `${guildBossRemaining}/${GUILD_BOSS_MAX_ATTEMPTS}` : '—/—'}
@@ -513,27 +467,21 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                     <LiveCountdownToMs
                         deadlineMs={kstMidnightDeadlineMs}
                         className={`shrink-0 font-mono font-bold tabular-nums text-amber-200/95 ${
-                            isMobile ? 'text-[clamp(0.62rem,calc(0.42rem+1.6vw),0.78rem)]' : 'text-xs sm:text-sm'
+                            isMobile ? MOBILE_HEADER_POPOVER_COUNTDOWN : 'text-xs sm:text-sm'
                         }`}
                     />
                 ) : null}
             </div>
             <div
-                className={`flex min-w-0 items-center gap-2 px-[clamp(0.65rem,2.2vw,0.85rem)] py-1.5 sm:gap-2.5 sm:px-3 sm:py-2`}
+                className={isMobile ? MOBILE_HEADER_POPOVER_ROW : 'flex min-w-0 items-center gap-2 px-[clamp(0.65rem,2.2vw,0.85rem)] py-1.5 sm:gap-2.5 sm:px-3 sm:py-2'}
             >
                 <div
-                    className={`${
-                        isMobile ? 'h-[clamp(1.28rem,4.6vw,1.625rem)] w-[clamp(1.28rem,4.6vw,1.625rem)]' : 'h-8 w-8'
-                    } flex shrink-0 items-center justify-center rounded-full bg-primary`}
+                    className={isMobile ? MOBILE_HEADER_POPOVER_ICON_SHELL : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary'}
                 >
                     <img
                         src={GUILD_WAR_TICKET_IMG}
                         alt=""
-                        className={`shrink-0 object-contain ${
-                            isMobile
-                                ? 'h-[clamp(0.82rem,3.2vw,1.05rem)] w-[clamp(0.82rem,3.2vw,1.05rem)]'
-                                : 'h-5 w-5 sm:h-6 sm:w-6'
-                        }`}
+                        className={isMobile ? MOBILE_HEADER_POPOVER_ICON_IMG : 'h-5 w-5 shrink-0 object-contain sm:h-6 sm:w-6'}
                         loading="lazy"
                         decoding="async"
                     />
@@ -542,9 +490,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                     className={`min-w-0 font-bold tabular-nums whitespace-nowrap ${
                         guildId ? 'text-primary' : 'text-slate-500'
                     } ${
-                        isMobile
-                            ? 'text-[clamp(0.75rem,calc(0.55rem+1.9vw),0.9rem)]'
-                            : 'text-sm sm:text-base'
+                        isMobile ? MOBILE_HEADER_POPOVER_VALUE : 'text-sm sm:text-base'
                     }`}
                 >
                     {guildId ? `${guildWarTickets.remaining}/${guildWarTickets.max}` : '—/—'}
@@ -553,7 +499,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                     <LiveCountdownToMs
                         deadlineMs={kstMidnightDeadlineMs}
                         className={`shrink-0 font-mono font-bold tabular-nums text-amber-200/95 ${
-                            isMobile ? 'text-[clamp(0.62rem,calc(0.42rem+1.6vw),0.78rem)]' : 'text-xs sm:text-sm'
+                            isMobile ? MOBILE_HEADER_POPOVER_COUNTDOWN : 'text-xs sm:text-sm'
                         }`}
                     />
                 ) : null}
@@ -564,30 +510,22 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                 return (
                     <div
                         key={vk}
-                        className={`flex min-w-0 items-center gap-2 px-[clamp(0.65rem,2.2vw,0.85rem)] py-1.5 sm:gap-2.5 sm:px-3 sm:py-2`}
+                        className={isMobile ? MOBILE_HEADER_POPOVER_ROW : 'flex min-w-0 items-center gap-2 px-[clamp(0.65rem,2.2vw,0.85rem)] py-1.5 sm:gap-2.5 sm:px-3 sm:py-2'}
                     >
                         <div
-                            className={`${
-                                isMobile ? 'h-[clamp(1.28rem,4.6vw,1.625rem)] w-[clamp(1.28rem,4.6vw,1.625rem)]' : 'h-8 w-8'
-                            } flex shrink-0 items-center justify-center rounded-full bg-primary`}
+                            className={isMobile ? MOBILE_HEADER_POPOVER_ICON_SHELL : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary'}
                         >
                             <img
                                 src={CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE[vk]}
                                 alt=""
-                                className={`shrink-0 object-contain ${
-                                    isMobile
-                                        ? 'h-[clamp(0.82rem,3.2vw,1.05rem)] w-[clamp(0.82rem,3.2vw,1.05rem)]'
-                                        : 'h-5 w-5 sm:h-6 sm:w-6'
-                                }`}
+                                className={isMobile ? MOBILE_HEADER_POPOVER_ICON_IMG : 'h-5 w-5 shrink-0 object-contain sm:h-6 sm:w-6'}
                                 loading="lazy"
                                 decoding="async"
                             />
                         </div>
                         <span
-                            className={`min-w-0 font-bold tabular-nums text-primary whitespace-nowrap ${
-                                isMobile
-                                    ? 'text-[clamp(0.75rem,calc(0.55rem+1.9vw),0.9rem)]'
-                                    : 'text-sm sm:text-base'
+                            className={`min-w-0 font-bold tabular-nums whitespace-nowrap text-primary ${
+                                isMobile ? MOBILE_HEADER_POPOVER_VALUE : 'text-sm sm:text-base'
                             }`}
                         >
                             {`${cur}/${CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}`}
@@ -598,7 +536,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                                 max={CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
                                 nextAt={nextAt}
                                 className={`shrink-0 font-mono font-bold tabular-nums text-amber-200/95 ${
-                                    isMobile ? 'text-[clamp(0.62rem,calc(0.42rem+1.6vw),0.78rem)]' : 'text-xs sm:text-sm'
+                                    isMobile ? MOBILE_HEADER_POPOVER_COUNTDOWN : 'text-xs sm:text-sm'
                                 }`}
                             />
                         ) : null}
@@ -622,41 +560,11 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                           : 'min-h-[clamp(3.5rem,calc(2.85rem+2vw),4.85rem)] flex-wrap gap-2 p-2.5 sm:flex-nowrap sm:gap-3 sm:p-3'
                 }`}
             >
-                {isMobile && (vipHeaderLabel || diamondPackageRoman) && (
-                    <div className="mr-auto flex shrink-0 flex-wrap items-center gap-1">
-                        {vipHeaderLabel ? (
-                            <div className="shrink-0 rounded-full border border-amber-300/50 bg-gradient-to-r from-amber-500/35 to-yellow-300/20 px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-amber-100 shadow-[0_8px_20px_-14px_rgba(251,191,36,0.85)]">
-                                {vipHeaderLabel}
-                            </div>
-                        ) : null}
-                        {diamondPackageRoman ? (
-                            <div className="flex shrink-0 items-center gap-0.5 rounded-full border border-cyan-400/45 bg-gradient-to-r from-cyan-600/35 to-sky-500/25 px-1.5 py-0.5 text-[10px] font-extrabold tabular-nums tracking-wide text-cyan-100 shadow-[0_8px_20px_-14px_rgba(34,211,238,0.55)]">
-                                <img src="/images/icon/Zem.webp" alt="" className="h-3 w-3 shrink-0 object-contain" />
-                                <span>{diamondPackageRoman}</span>
-                            </div>
-                        ) : null}
-                    </div>
-                )}
                 {!isMobile && (
                 <div
                     className={`flex min-w-0 flex-shrink-0 cursor-pointer items-center gap-2 sm:gap-3 ${dense ? 'max-w-[min(48%,14rem)]' : ''} relative`}
                     onClick={openProfileEditModal}
                 >
-                     {(vipHeaderLabel || diamondPackageRoman) && (
-                        <div className="absolute -left-1 -top-2 z-20 flex flex-wrap items-center gap-1">
-                            {vipHeaderLabel ? (
-                                <span className="rounded-full border border-amber-300/50 bg-gradient-to-r from-amber-500/40 to-yellow-300/20 px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-amber-100 shadow-[0_8px_20px_-14px_rgba(251,191,36,0.85)]">
-                                    {vipHeaderLabel}
-                                </span>
-                            ) : null}
-                            {diamondPackageRoman ? (
-                                <span className="flex items-center gap-0.5 rounded-full border border-cyan-400/45 bg-gradient-to-r from-cyan-600/40 to-sky-500/25 px-1.5 py-0.5 text-[10px] font-extrabold tabular-nums tracking-wide text-cyan-100 shadow-[0_8px_20px_-14px_rgba(34,211,238,0.55)]">
-                                    <img src="/images/icon/Zem.webp" alt="" className="h-3.5 w-3.5 shrink-0 object-contain" />
-                                    {diamondPackageRoman}
-                                </span>
-                            ) : null}
-                        </div>
-                     )}
                      <Avatar
                         userId={currentUserWithStatus.id}
                         userName={currentUserWithStatus.nickname}
@@ -753,18 +661,18 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                                 setIsSpecialResourcesOpen(false);
                             }}
                             aria-expanded={isParticipationTicketsOpen}
-                            className={`flex flex-shrink-0 items-center justify-center rounded-full border border-tertiary/40 bg-tertiary/60 shadow-inner transition-all hover:bg-tertiary/80 active:scale-95 ${
+                            className={`${
                                 isMobile
-                                    ? 'h-[clamp(1.45rem,4.8vw,1.85rem)] w-[clamp(1.45rem,4.8vw,1.85rem)] touch-manipulation'
-                                    : dense
-                                      ? 'h-7 w-7'
-                                      : 'h-7 w-7 sm:h-8 sm:w-8'
+                                    ? MOBILE_HEADER_CHEVRON_BTN
+                                    : `flex flex-shrink-0 items-center justify-center rounded-full border border-tertiary/40 bg-tertiary/60 shadow-inner transition-all hover:bg-tertiary/80 active:scale-95 ${
+                                          dense ? 'h-7 w-7' : 'h-7 w-7 sm:h-8 sm:w-8'
+                                      }`
                             } ${isParticipationTicketsOpen ? 'bg-tertiary/80' : ''}`}
                             title="길드·챔피언십 참여권"
                         >
                             <span
-                                className={`text-primary transition-transform duration-200 ${
-                                    isMobile ? 'text-[clamp(0.44rem,1.9vw,0.62rem)]' : 'text-xs sm:text-sm'
+                                className={`${
+                                    isMobile ? MOBILE_HEADER_CHEVRON_ICON : 'text-xs text-primary transition-transform duration-200 sm:text-sm'
                                 } ${isParticipationTicketsOpen ? 'rotate-180' : ''}`}
                                 aria-hidden
                             >
@@ -788,6 +696,16 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                                         className="h-[clamp(1.45rem,4.8vw,1.85rem)]"
                                     />
                                 </div>
+                                <div className="min-w-0 shrink-0 overflow-hidden">
+                                    <ResourceDisplay
+                                        icon="diamonds"
+                                        value={safeDiamonds}
+                                        dense={dense}
+                                        fluid
+                                        fluidShrinkToFit
+                                        className="h-[clamp(1.45rem,4.8vw,1.85rem)]"
+                                    />
+                                </div>
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -795,13 +713,13 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                                         setIsParticipationTicketsOpen(false);
                                     }}
                                     aria-expanded={isSpecialResourcesOpen}
-                                    className={`flex h-[clamp(1.45rem,4.8vw,1.85rem)] w-[clamp(1.45rem,4.8vw,1.85rem)] shrink-0 touch-manipulation items-center justify-center rounded-full border border-tertiary/40 bg-tertiary/60 transition-all hover:bg-tertiary/80 active:scale-95 ${
+                                    className={`${MOBILE_HEADER_CHEVRON_BTN} ${
                                         isSpecialResourcesOpen ? 'bg-tertiary/80' : ''
                                     }`}
-                                    title="다른 재화"
+                                    title="길드 코인·챔프 코인"
                                 >
                                     <span
-                                        className={`text-[clamp(0.44rem,1.9vw,0.62rem)] text-primary transition-transform duration-200 ${
+                                        className={`${MOBILE_HEADER_CHEVRON_ICON} ${
                                             isSpecialResourcesOpen ? 'rotate-180' : ''
                                         }`}
                                         aria-hidden

@@ -53,9 +53,13 @@ import {
     CHAMPIONSHIP_ABILITY_KATA_LADDER,
     CHAMPIONSHIP_SIMULATION_PHASE_STAT_WEIGHTS,
     championshipKataLevelForPly,
+    DEFAULT_CHAMPIONSHIP_REAL_MATCH_RULES,
     resolveChampionshipDungeonPlaybackSpeedChoices,
     type ChampionshipAbilityKataLadderRow,
 } from '../shared/constants/championshipRealMatch.js';
+import type { PairPetAbilityKataLadderRow } from '../shared/constants/pairArena.js';
+import { DEFAULT_PAIR_PET_ABILITY_KATA_LADDER } from '../shared/constants/pairArena.js';
+import { resolveChampionshipVersusPhaseAbilityDisplay } from '../shared/utils/championshipVersusKataResolve.js';
 import { championshipCapturesAtPly } from '../utils/championshipLiveScores.js';
 import { replaceAppHash } from '../utils/appUtils.js';
 
@@ -592,6 +596,10 @@ export const ChampionshipAbilityPlayerPanel: React.FC<{
     tone: 'black' | 'white';
     sideLabel: string;
     abilityKataLadder: readonly ChampionshipAbilityKataLadderRow[];
+    /** 페어 펫 KATA 사다리(펫 챔피언십·페어 챔피언십 펫 블록) */
+    pairPetAbilityKataLadder?: readonly PairPetAbilityKataLadderRow[];
+    /** 단일 블록일 때 유저/펫 KATA 구분(펫 챔피언십은 `pet`) */
+    singleBlockStatKind?: 'user' | 'pet';
     /** 페어 챔피언십: 유저·펫 능력치를 각각 KATA 사다리로 표시 */
     splitPairAbilities?: {
         userBlockTitle: string;
@@ -609,6 +617,8 @@ export const ChampionshipAbilityPlayerPanel: React.FC<{
     tone,
     sideLabel,
     abilityKataLadder,
+    pairPetAbilityKataLadder = DEFAULT_PAIR_PET_ABILITY_KATA_LADDER,
+    singleBlockStatKind = 'user',
     splitPairAbilities,
     pairSplitTurnHighlight = null,
 }) => {
@@ -664,7 +674,11 @@ export const ChampionshipAbilityPlayerPanel: React.FC<{
                 ? 'border-amber-400/50 bg-amber-950/50 text-amber-100'
                 : 'border-white/15 bg-black/28 text-slate-300';
 
-    const renderCoreAndPhaseBlock = (blockStats: Record<string, number>, density: 'normal' | 'compact' = 'normal') => {
+    const renderCoreAndPhaseBlock = (
+        blockStats: Record<string, number>,
+        statKind: 'user' | 'pet',
+        density: 'normal' | 'compact' = 'normal',
+    ) => {
         const gridGap = density === 'compact' ? 'gap-x-1.5 gap-y-1' : 'gap-x-2 gap-y-1.5';
         const pad = density === 'compact' ? 'p-2' : 'p-2.5';
         const statText = density === 'compact' ? 'text-[10px]' : 'text-[11px]';
@@ -704,7 +718,16 @@ export const ChampionshipAbilityPlayerPanel: React.FC<{
                                     ? realGame?.phaseStatsByPlayerId?.[player.id]?.[phase.key]
                                     : undefined;
                             const computed =
-                                fromSnapshot ?? championshipKataLevelForPly(ply, blockStats as any, undefined, abilityKataLadder);
+                                fromSnapshot ??
+                                resolveChampionshipVersusPhaseAbilityDisplay({
+                                    boardSize,
+                                    ply,
+                                    blockStats,
+                                    statKind,
+                                    rules: DEFAULT_CHAMPIONSHIP_REAL_MATCH_RULES,
+                                    userLadder: abilityKataLadder,
+                                    pairPetLadder: pairPetAbilityKataLadder,
+                                });
                             return (
                                 <div
                                     key={phase.key}
@@ -756,18 +779,18 @@ export const ChampionshipAbilityPlayerPanel: React.FC<{
                         <div className="shrink-0 text-center text-[10px] font-black uppercase tracking-wide text-amber-100/95">
                             {splitPairAbilities.userBlockTitle}
                         </div>
-                        {renderCoreAndPhaseBlock(splitPairAbilities.userStats, 'compact')}
+                        {renderCoreAndPhaseBlock(splitPairAbilities.userStats, 'user', 'compact')}
                     </div>
                     <div className={`min-h-0 space-y-2 pt-0.5 ${splitPetTurnRing}`}>
                         <div className="shrink-0 border-t border-white/10 pt-1 text-center text-[10px] font-black uppercase tracking-wide text-sky-200/95">
                             {splitPairAbilities.petBlockTitle}
                         </div>
-                        {renderCoreAndPhaseBlock(splitPairAbilities.petStats, 'compact')}
+                        {renderCoreAndPhaseBlock(splitPairAbilities.petStats, 'pet', 'compact')}
                     </div>
                 </div>
             ) : (
                 <>
-                    {renderCoreAndPhaseBlock(stats, 'normal')}
+                    {renderCoreAndPhaseBlock(stats, singleBlockStatKind, 'normal')}
                 </>
             )}
         </aside>

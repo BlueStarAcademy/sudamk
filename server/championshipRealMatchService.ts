@@ -25,6 +25,10 @@ import { calculateScoreManually } from '../shared/utils/manualScoring.js';
 import { generateKataServerMoveCandidateDetails, isKataServerAvailable } from './kataServerService.js';
 import { buildChampionshipResultContract } from './utils/resultContract.js';
 import { buildChampionshipVersusPetPairTurnOrder } from '../shared/utils/pairGameTurn.js';
+import {
+    resolveChampionshipVersusKataForPly,
+    type ChampionshipVersusKataConfig,
+} from '../shared/utils/championshipVersusKataResolve.js';
 
 type KoInfo = { point: Point; turn: number } | null;
 
@@ -169,7 +173,8 @@ function chooseMistakeMove(board: BoardState, bestMove: Point, player: Player, k
 function buildPhaseStats(
     player: PlayerForTournament,
     rules: ChampionshipRealMatchRules,
-    abilityKataLadder: ReturnType<typeof getChampionshipAbilityKataLadder>,
+    boardSize: number,
+    kataConfig: ChampionshipVersusKataConfig,
 ) {
     const result: Record<ChampionshipKataPhase, { abilityScore: number; kataLevel: number }> = {
         opening: { abilityScore: 0, kataLevel: -30 },
@@ -178,7 +183,15 @@ function buildPhaseStats(
     };
     for (const phase of Object.keys(result) as ChampionshipKataPhase[]) {
         const ply = rules.phasePly[phase].from;
-        const levelInfo = championshipKataLevelForPly(ply, player.stats, rules, abilityKataLadder);
+        const levelInfo = resolveChampionshipVersusKataForPly({
+            ply,
+            boardSize,
+            rules,
+            config: kataConfig,
+            actorUserId: player.id,
+            actorStats: player.stats as Record<string, number>,
+            seat: kataConfig.mode === 'petPairSplit' ? { kind: 'user' } : null,
+        });
         result[phase] = { abilityScore: levelInfo.abilityScore, kataLevel: levelInfo.kataLevel };
     }
     return result;
@@ -229,6 +242,8 @@ export type GenerateChampionshipRealMatchOptions = {
     petPairDuel?: {
         petDisplayNameByUserId: Record<string, string>;
     } | null;
+    /** 유저/펫 KATA 사다리 분리 — 미지정 시 유저(관리자) 사다리만 적용 */
+    kataConfig?: ChampionshipVersusKataConfig;
 };
 
 export async function generateChampionshipRealMatch(
@@ -243,7 +258,8 @@ export async function generateChampionshipRealMatch(
         throw new Error('챔피언십 실제 대국 선수 정보가 올바르지 않습니다.');
     }
 
-    const abilityKataLadder = getChampionshipAbilityKataLadder();
+    const kataConfig: ChampionshipVersusKataConfig =
+        options?.kataConfig ?? { mode: 'userOnly', userLadder: getChampionshipAbilityKataLadder() };
 
     const p1 = players.find(p => p.id === match.players[0]!.id);
     const p2 = players.find(p => p.id === match.players[1]!.id);
@@ -291,7 +307,15 @@ export async function generateChampionshipRealMatch(
         const seat = usePairSeats ? pairTurnOrder![(ply - 1) % 4]! : null;
         const color = usePairSeats ? (seat!.player as Player.Black | Player.White) : ply % 2 === 1 ? Player.Black : Player.White;
         const actor = playerByColor[color];
-        const levelInfo = championshipKataLevelForPly(ply, actor.stats, rules, abilityKataLadder);
+        const levelInfo = resolveChampionshipVersusKataForPly({
+            ply,
+            boardSize,
+            rules,
+            config: kataConfig,
+            actorUserId: actor.id,
+            actorStats: actor.stats as Record<string, number>,
+            seat: usePairSeats ? seat : null,
+        });
         const candidates = legalCandidates(boardState, color, koInfo, moves.length);
         let chosen =
             (await chooseMoveByKataServer({
@@ -437,8 +461,8 @@ export async function generateChampionshipRealMatch(
         winnerId: winner.id,
         events,
         phaseStatsByPlayerId: {
-            [black.id]: buildPhaseStats(black, rules, abilityKataLadder),
-            [white.id]: buildPhaseStats(white, rules, abilityKataLadder),
+            [black.id]: buildPhaseStats(black, rules, boardSize, kataConfig),
+            [white.id]: buildPhaseStats(white, rules, boardSize, kataConfig),
         },
         timeMetrics: {
             generatedAt: startedAt,

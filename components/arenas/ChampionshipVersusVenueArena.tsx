@@ -7,9 +7,10 @@ import { AVATAR_POOL, BORDER_POOL } from '../../constants';
 import { getChampionshipArenaBackgroundUrl } from '../../shared/constants/tournaments.js';
 import {
     CHAMPIONSHIP_ABILITY_KATA_LADDER,
-    championshipKataLevelForPly,
     resolveChampionshipVersusPlaybackSpeedChoices,
 } from '../../shared/constants/championshipRealMatch.js';
+import { DEFAULT_PAIR_PET_ABILITY_KATA_LADDER } from '../../shared/constants/pairArena.js';
+import { resolveChampionshipVersusPhaseAbilityDisplay } from '../../shared/utils/championshipVersusKataResolve.js';
 import { getSeasonalRankingTierName, RANKING_TIERS } from '../../shared/constants/ranking.js';
 import { RANKED_ELO_BASE_SCORE } from '../../shared/constants/rules.js';
 import {
@@ -60,6 +61,7 @@ import {
 } from '../../hooks/useTournamentSimulation.js';
 import { championshipVersusBoardRulesForActorStrategicTier } from '../../shared/utils/championshipVersusTier.js';
 import { champCoinsForVersusLoss, champCoinsForVersusWin } from '../../shared/utils/championshipVersusElo.js';
+import { flushChampionshipVersusDeferredLevelUp } from '../../utils/championshipVersusLevelUpDeferral.js';
 
 function readVersusPlaybackSpeedFromStorage(): ChampionshipPlaybackSpeed {
     if (typeof window === 'undefined') return 1;
@@ -800,7 +802,10 @@ const MOBILE_PHASE_META = [
 ];
 
 const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKind }> = ({ venue }) => {
-    const { currentUserWithStatus, handlers } = useAppContext();
+    const { currentUserWithStatus, handlers, championshipAbilityKataLadder, kataServerRuntimeConfig } = useAppContext();
+    const versusUserAbilityKataLadder = championshipAbilityKataLadder ?? CHAMPIONSHIP_ABILITY_KATA_LADDER;
+    const versusPairPetAbilityKataLadder =
+        kataServerRuntimeConfig?.pairPet?.abilityKataLadder ?? DEFAULT_PAIR_PET_ABILITY_KATA_LADDER;
     const currentUserRef = React.useRef<UserWithStatus | null>(null);
     currentUserRef.current = currentUserWithStatus ?? null;
     const { isNativeMobile } = useNativeMobileShell();
@@ -881,6 +886,14 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             clearVersusKataPlaybackTimers();
         };
     }, [clearVersusKataPlaybackTimers]);
+
+    React.useEffect(() => {
+        if (versusSummarySession) {
+            flushChampionshipVersusDeferredLevelUp();
+        }
+    }, [versusSummarySession]);
+
+    React.useEffect(() => () => flushChampionshipVersusDeferredLevelUp(), []);
 
     const flushVersusSessionBeatMarkRef = React.useCallback(() => {
         const bid = versusKataSessionBeatOpponentIdRef.current;
@@ -1999,7 +2012,9 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                         currentPhase={versusChampionshipAbilityPhase}
                                         tone="black"
                                         sideLabel={venue === 'petpair' ? '페어 능력치' : '챔피언십 능력치'}
-                                        abilityKataLadder={CHAMPIONSHIP_ABILITY_KATA_LADDER}
+                                        abilityKataLadder={versusUserAbilityKataLadder}
+                                        pairPetAbilityKataLadder={versusPairPetAbilityKataLadder}
+                                        singleBlockStatKind={venue === 'pet' ? 'pet' : 'user'}
                                         splitPairAbilities={
                                             versusSeatBlack.pairSplit
                                                 ? {
@@ -2041,7 +2056,9 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                         currentPhase={versusChampionshipAbilityPhase}
                                         tone="white"
                                         sideLabel={venue === 'petpair' ? '페어 능력치' : '챔피언십 능력치'}
-                                        abilityKataLadder={CHAMPIONSHIP_ABILITY_KATA_LADDER}
+                                        abilityKataLadder={versusUserAbilityKataLadder}
+                                        pairPetAbilityKataLadder={versusPairPetAbilityKataLadder}
+                                        singleBlockStatKind={venue === 'pet' ? 'pet' : 'user'}
                                         splitPairAbilities={
                                             versusSeatWhite.pairSplit
                                                 ? {
@@ -2113,13 +2130,19 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                 !split && player?.id
                                     ? matchForBoard?.championshipRealGame?.phaseStatsByPlayerId?.[player.id]?.[phase.key]
                                     : undefined;
-                            const level = championshipKataLevelForPly(
-                                ply,
-                                blockStats as any,
-                                undefined,
-                                CHAMPIONSHIP_ABILITY_KATA_LADDER,
-                            );
-                            const computed = fromSnapshot ?? level;
+                            const statKind: 'user' | 'pet' =
+                                split?.petStats === blockStats ? 'pet' : split?.userStats === blockStats ? 'user' : venue === 'pet' ? 'pet' : 'user';
+                            const computed =
+                                fromSnapshot ??
+                                resolveChampionshipVersusPhaseAbilityDisplay({
+                                    boardSize,
+                                    ply,
+                                    blockStats,
+                                    statKind,
+                                    rules: versusKataRulesPreview,
+                                    userLadder: versusUserAbilityKataLadder,
+                                    pairPetLadder: versusPairPetAbilityKataLadder,
+                                });
                             const isActive = activePhaseKey === phase.key;
                             return (
                                 <div
@@ -2149,7 +2172,15 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             }
             return oneBlock(stats, null, false);
         },
-        [matchForBoard, versusBoardSizeForUi, versusChampionshipAbilityPhase],
+        [
+            matchForBoard,
+            versusBoardSizeForUi,
+            versusChampionshipAbilityPhase,
+            versusUserAbilityKataLadder,
+            versusPairPetAbilityKataLadder,
+            versusKataRulesPreview,
+            venue,
+        ],
     );
 
     const mobileChampionshipPlayerInfoRow =
@@ -2705,9 +2736,6 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                             type: 'USE_CONDITION_POTION',
                             payload: { versusVenue: venue, potionType },
                         });
-                        if (!(result && typeof result === 'object' && 'error' in result && result.error)) {
-                            setShowConditionPotionModal(false);
-                        }
                         return result as { error?: string } | void;
                     }}
                     isTopmost={true}

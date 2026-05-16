@@ -2,8 +2,7 @@ import React from 'react';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { formatDateTimeKST, getGuildWarTypeFromMatchTime } from '../../utils/timeUtils.js';
-
-const GUILD_WAR_DURATION_MS = { tue_wed: 47 * 60 * 60 * 1000, fri_sun: 71 * 60 * 60 * 1000 };
+import { GUILD_WAR_DURATION_MS_BY_TYPE } from '../../shared/utils/guildWarSchedule.js';
 
 export type GuildWarMatchPresentationClient = {
     badge: string;
@@ -50,8 +49,8 @@ const GuildWarMatchingModal: React.FC<GuildWarMatchingModalProps> = ({
         warStartTime != null
             ? (() => {
                   const type = getGuildWarTypeFromMatchTime(warStartTime);
-                  const warEndTime = warStartTime + GUILD_WAR_DURATION_MS[type];
-                  const periodLabel = type === 'tue_wed' ? '화·수 47시간' : '금·토·일 71시간';
+                  const warEndTime = warStartTime + GUILD_WAR_DURATION_MS_BY_TYPE[type];
+                  const periodLabel = type === 'tue_wed' ? '화 0시 ~ 수 23시' : '목 0시 ~ 일 23시';
                   return { start: warStartTime, end: warEndTime, periodLabel };
               })()
             : null;

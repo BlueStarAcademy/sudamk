@@ -3,6 +3,7 @@ import { UserWithStatus, GameMode, EquipmentSlot, InventoryItem, ItemGrade, Serv
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, LEAGUE_DATA, CORE_STATS_DATA, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, emptySlotImages, TOURNAMENT_DEFINITIONS, GRADE_LEVEL_REQUIREMENTS, RANKING_TIERS, getSinglePlayerStages } from '../constants';
 import { STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, PAIR_GO_LOBBY_IMG, TOURNAMENT_LOBBY_IMG, SINGLE_PLAYER_LOBBY_IMG, TOWER_CHALLENGE_LOBBY_IMG } from '../assets.js';
 import Avatar from './Avatar.js';
+import ProfileAvatarStatusMarkers from './ProfileAvatarStatusMarkers.js';
 import UserNicknameText from './UserNicknameText.js';
 import Button from './Button.js';
 import DetailedStatsModal from './DetailedStatsModal.js';
@@ -1644,6 +1645,7 @@ const Profile: React.FC<ProfileProps> = () => {
                     }`}
                 >
                     <div className="relative">
+                        <ProfileAvatarStatusMarkers user={currentUserWithStatus} compact={ch} />
                         <Avatar
                             userId={currentUserWithStatus.id}
                             userName={nickname}

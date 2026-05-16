@@ -14,6 +14,7 @@ import {
 } from '../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { getTowerSessionFloor } from '../utils/towerPreGameDisplay.js';
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../shared/utils/baseHiddenMoveIndex.js';
+import { mixGoClearHiddenItemPhaseTimers, mixGoSessionHasHiddenItems } from '../shared/utils/mixGoRules.js';
 
 export type GameType = 'tower' | 'singleplayer';
 
@@ -119,9 +120,7 @@ const collectCaptureAdjacentHiddenStones = (
 };
 
 const isHiddenModeActive = (game: LiveGameSession, hiddenMoves: { [moveIndex: number]: boolean }) =>
-    game.mode === GameMode.Hidden ||
-    (game.mode === GameMode.Mix && game.settings?.mixedModes?.includes(GameMode.Hidden)) ||
-    ((game.settings as any)?.hiddenStoneCount ?? 0) > 0 ||
+    mixGoSessionHasHiddenItems(game.mode, game.settings as any) ||
     Object.keys(hiddenMoves).length > 0 ||
     !!(game as any).aiInitialHiddenStone;
 
@@ -543,6 +542,7 @@ export function updateGameStateAfterMove(
 
     if ((gameType === 'tower' || gameType === 'singleplayer') && isHidden && isHumanPveHiddenMove(game, movePlayer)) {
         (updatedGame as any).gameStatus = 'playing';
+        mixGoClearHiddenItemPhaseTimers(updatedGame);
         updatedGame.humanHiddenStonePoints = upsertHumanHiddenStonePoint(
             game.humanHiddenStonePoints,
             { x, y },
@@ -561,6 +561,7 @@ export function updateGameStateAfterMove(
 
     if ((gameType === 'singleplayer' || gameType === 'tower') && isHidden && !isHumanPveHiddenMove(game, movePlayer)) {
         (updatedGame as any).gameStatus = 'playing';
+        mixGoClearHiddenItemPhaseTimers(updatedGame);
         (updatedGame as any).aiInitialHiddenStone = { x, y };
         (updatedGame as any).aiInitialHiddenStoneIsPrePlaced = false;
         const aiHiddenKey = getHiddenInventoryKeyForPlayer(movePlayer);

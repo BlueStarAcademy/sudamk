@@ -71,6 +71,12 @@ import {
 } from '../utils/arenaTurnPolicy.js';
 import { modeIncludesBaseRule } from '../../shared/utils/liveSessionArenaKind.js';
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../../shared/utils/baseHiddenMoveIndex.js';
+import {
+    mixGoClearHiddenItemPhaseTimers,
+    mixGoHiddenInventoryKeyForPlayer,
+    mixGoHiddenUsedKeyForPlayer,
+    mixGoPveHiddenPlacementAlreadyCommitted,
+} from '../../shared/utils/mixGoRules.js';
 
 function modeIncludesCaptureRule(game: types.LiveGameSession): boolean {
     return game.mode === types.GameMode.Capture ||
@@ -209,6 +215,110 @@ function advancePairTurnAfterAction(game: types.LiveGameSession, now: number): v
         game.currentPlayer = nextSeat.player;
         schedulePairAiTurnIfNeeded(game, now);
     }
+}
+
+/** PVE: 클라가 이미 반영한 히든 착수에 대한 PLACE_STONE 동기화 — processMove 없이 턴·재고·playing만 맞춘다. */
+async function finalizePveHiddenPlacementFromAuthoritativeClient(
+    game: types.LiveGameSession,
+    now: number,
+    user: types.User,
+    myPlayerEnum: types.Player,
+    opponentPlayerEnum: types.Player,
+    x: number,
+    y: number,
+    pairCurrentSeat: ReturnType<typeof getCurrentPairTurnSeat>,
+): Promise<types.HandleActionResult> {
+    const hiddenKey = mixGoHiddenInventoryKeyForPlayer(myPlayerEnum);
+    const currentHidden = game[hiddenKey] ?? game.settings.hiddenStoneCount ?? 0;
+    if (currentHidden > 0) {
+        game[hiddenKey] = currentHidden - 1;
+        const usedKey = mixGoHiddenUsedKeyForPlayer(myPlayerEnum);
+        game[usedKey] = (game[usedKey] || 0) + 1;
+    }
+    if (!game.hiddenMoves) game.hiddenMoves = {};
+    const moveIndex = game.moveHistory.length - 1;
+    game.hiddenMoves[moveIndex] = true;
+    const humanHiddenStonePoints = ((game as any).humanHiddenStonePoints ?? []) as Array<
+        types.Point & { player?: types.Player }
+    >;
+    (game as any).humanHiddenStonePoints = [
+        ...humanHiddenStonePoints.filter((point) => !(point.x === x && point.y === y && point.player === myPlayerEnum)),
+        { x, y, player: myPlayerEnum },
+    ];
+
+    const petHintBonusResult = await (async () => {
+        const { handleStrategicPetHintBonusClaim } = await import('../strategicPetHintAction.js');
+        return handleStrategicPetHintBonusClaim(game, user, {
+            x,
+            y,
+            expectedMoveHistoryLength: game.moveHistory.length,
+        });
+    })();
+
+    if (await tryEndGameWhenCaptureTargetReached(game, myPlayerEnum)) {
+        return petHintBonusResult ?? {};
+    }
+
+    if (pairCurrentSeat) {
+        advancePairTurnAfterAction(game, now);
+    } else {
+        game.currentPlayer = opponentPlayerEnum;
+    }
+    game.missileUsedThisTurn = false;
+    game.gameStatus = 'playing';
+    mixGoClearHiddenItemPhaseTimers(game);
+
+    if (shouldRunGoClockAccountingForSession(game)) {
+        const nextPlayer = game.currentPlayer;
+        const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+        const nextByoyomiKey = nextPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
+        const isFischer = isFischerStyleTimeControl(game as any);
+        const isNextInByoyomi =
+            game[nextTimeKey] <= 0 && game.settings.byoyomiCount > 0 && game[nextByoyomiKey] > 0 && !isFischer;
+        game.turnDeadline = isNextInByoyomi
+            ? now + game.settings.byoyomiTime * 1000
+            : now + game[nextTimeKey] * 1000;
+        game.turnStartTime = now;
+    } else {
+        game.turnDeadline = undefined;
+        game.turnStartTime = undefined;
+    }
+
+    const autoScoringTurns = await resolveArenaFixedScoringTurnLimit(game);
+    if (autoScoringTurns != null && autoScoringTurns > 0) {
+        game.totalTurns = getArenaTurnCount(game);
+        if (game.totalTurns >= autoScoringTurns) {
+            game.gameStatus = 'scoring';
+            await db.saveGame(game);
+            const { broadcastToGameParticipants } = await import('../socket.js');
+            const gameToBroadcast = { ...game };
+            if (!game.isSinglePlayer) {
+                delete (gameToBroadcast as any).boardState;
+            }
+            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+            try {
+                await getGameResult(game);
+            } catch (scoringError: any) {
+                console.error(`[finalizePveHiddenPlacementFromAuthoritativeClient] getGameResult failed:`, scoringError?.message);
+            }
+            return petHintBonusResult ?? {};
+        }
+        await db.saveGame(game);
+    }
+
+    if (pairCurrentSeat) {
+        schedulePairAiTurnIfNeeded(game, now);
+    } else if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
+        const currentPlayerId =
+            game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+        if (currentPlayerId === aiUserId) {
+            game.aiTurnStartTime = nextAiTurnStartTimeAfterHumanStrategicMove(game, now);
+        } else {
+            game.aiTurnStartTime = undefined;
+        }
+    }
+
+    return petHintBonusResult ?? {};
 }
 
 function updatePairOrderRevealState(game: types.LiveGameSession, now: number): void {
@@ -1035,6 +1145,13 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             const stoneAtTarget = serverBoardState[y][x];
             
             // 싱글플레이/도전의 탑/길드전/AI 대국은 서버 boardState를 우선 사용한다.
+            const usedPveClientHiddenAuthoritativeSync =
+                (sessionPolicy.kind === GameCategory.Tower || sessionPolicy.kind === GameCategory.SinglePlayer) &&
+                Array.isArray(clientBoardState) &&
+                clientBoardState.length > 0 &&
+                Array.isArray(clientMoveHistory) &&
+                (isHidden === true || effectiveIsHidden);
+
             if (
                 game.isSinglePlayer ||
                 game.gameCategory === GameCategory.Tower ||
@@ -1043,6 +1160,22 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             ) {
                 game.boardState = serverBoardState;
                 game.moveHistory = serverMoveHistory;
+            }
+
+            if (
+                usedPveClientHiddenAuthoritativeSync &&
+                mixGoPveHiddenPlacementAlreadyCommitted(game, x, y, myPlayerEnum)
+            ) {
+                return await finalizePveHiddenPlacementFromAuthoritativeClient(
+                    game,
+                    now,
+                    user,
+                    myPlayerEnum,
+                    opponentPlayerEnum,
+                    x,
+                    y,
+                    pairCurrentSeat,
+                );
             }
             // PVP: 클라이언트 boardState를 덮어쓰지 않으므로 game.boardState는 캐시(서버) 상태 유지.
             // 낙관적 업데이트로 이미 둔 수를 보내면 finalStoneCheck에서 거절되어 턴이 안 넘어가는 버그 방지.

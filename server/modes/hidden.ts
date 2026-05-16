@@ -24,6 +24,11 @@ import {
     recordSoftHiddenScanDiscovery,
 } from './hiddenScanShared.js';
 import { isStrategicAiGoSession } from '../../shared/utils/strategicBoardItemTurn.js';
+import {
+    mixGoClearHiddenItemPhaseTimers,
+    mixGoOrPureModeIncludes,
+    mixGoShouldUnstickHiddenItemSelectionPhase,
+} from '../../shared/utils/mixGoRules.js';
 import { getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
 import { applyPairTurnAfterHiddenRevealCaptureResolved } from '../utils/pairTurnAfterHiddenRevealAnim.js';
 
@@ -39,7 +44,7 @@ const resolveEffectiveFischerIncrement = (game: types.LiveGameSession): number =
 };
 
 export const initializeHidden = (game: types.LiveGameSession) => {
-    const isHiddenMode = game.mode === types.GameMode.Hidden || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
+    const isHiddenMode = mixGoOrPureModeIncludes(game.mode, game.settings?.mixedModes, types.GameMode.Hidden);
     if (isHiddenMode) {
         game.scans_p1 = (game.settings.scanCount || 0);
         game.scans_p2 = (game.settings.scanCount || 0);
@@ -51,6 +56,12 @@ export const initializeHidden = (game: types.LiveGameSession) => {
 export const updateHiddenState = async (game: types.LiveGameSession, now: number) => {
     const isStrategicAiGame = isStrategicAiGoSession(game);
     const isItemMode = ['hidden_placing', 'scanning'].includes(game.gameStatus);
+
+    if (mixGoShouldUnstickHiddenItemSelectionPhase(game)) {
+        game.gameStatus = 'playing';
+        mixGoClearHiddenItemPhaseTimers(game);
+        return;
+    }
 
     // 스캔 연출 중인데 아이템 마감만 남은 경우(AI 대국 등 resumeGameTimer 실패로 deadline 잔존): 본경기로 복구
     if (game.gameStatus === 'scanning_animating' && game.itemUseDeadline && now > game.itemUseDeadline) {
@@ -66,17 +77,6 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                 game.pausedTurnTimeLeft = undefined;
             }
         }
-        return;
-    }
-
-    // 방어 로직: 아이템 모드인데 deadline이 없으면 상태가 영구 고착될 수 있다.
-    // (스캔 비활성/일반 착수 히든 오인 등의 연쇄 버그 방지)
-    if (isItemMode && !game.itemUseDeadline) {
-        game.gameStatus = 'playing';
-        game.itemUseDeadline = undefined;
-        game.turnDeadline = undefined;
-        game.turnStartTime = undefined;
-        game.pausedTurnTimeLeft = undefined;
         return;
     }
 

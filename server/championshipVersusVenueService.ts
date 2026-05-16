@@ -48,6 +48,9 @@ import {
     championshipVersusBoardRulesForActorStrategicTier,
     championshipVersusTierBandIndexForTierName,
 } from '../shared/utils/championshipVersusTier.js';
+import type { ChampionshipVersusKataConfig } from '../shared/utils/championshipVersusKataResolve.js';
+import { getChampionshipAbilityKataLadder } from './championshipAbilityKataStore.js';
+import { getKataServerRuntimeSnapshot } from './kataServerRuntimeStore.js';
 import { assignChampionshipCondition, generateChampionshipRealMatch } from './championshipRealMatchService.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { resolvePairPetMetaFromInventoryRow } from '../shared/utils/pairPetRoll.js';
@@ -57,6 +60,7 @@ import { getPairPetDisplayName } from '../shared/constants/petLobby.js';
 import { ItemGrade } from '../types/enums.js';
 import {
     championshipVersusAbilitySnapshotFromCoreStats,
+    championshipVersusAbilitySnapshotFromPairPetCoreStats,
     mergeChampionshipVersusPairUserPetCoreStats,
     pairPetCoreStatsSixToCoreRecord,
 } from '../shared/utils/championshipVersusKataParticipantStats.js';
@@ -448,7 +452,7 @@ function representativePetSnapshotFromUser(u: User): ChampionshipVersusRepresent
     const grade = effectivePairPetGradeFromRow(row) ?? ItemGrade.Normal;
     const six = computePairPetKataCoreStatsSixFromMeta(meta, grade);
     const coreStats = pairPetCoreStatsSixToCoreRecord(six);
-    const snap = championshipVersusAbilitySnapshotFromCoreStats(coreStats);
+    const snap = championshipVersusAbilitySnapshotFromPairPetCoreStats(coreStats);
     return {
         displayName: getPairPetDisplayName(row),
         image: typeof row.image === 'string' && row.image.length > 0 ? row.image : null,
@@ -579,7 +583,7 @@ export async function buildChampionshipVersusOpponentList(
         if (venue === 'pvp') {
             listSnap = userSnap;
         } else if (venue === 'pet' && rep) {
-            listSnap = championshipVersusAbilitySnapshotFromCoreStats(rep.coreStats);
+            listSnap = championshipVersusAbilitySnapshotFromPairPetCoreStats(rep.coreStats);
         } else if (venue === 'petpair' && rep) {
             const merged = mergeChampionshipVersusPairUserPetCoreStats(userSnap.coreStats, rep.coreStats);
             listSnap = championshipVersusAbilitySnapshotFromCoreStats(merged);
@@ -943,10 +947,33 @@ export async function executeChampionshipVersusKataDuel(
         finalScore: null,
     };
 
+    const userLadder = getChampionshipAbilityKataLadder();
+    const pairPetLadder = getKataServerRuntimeSnapshot().pairPet.abilityKataLadder;
+    let kataConfig: ChampionshipVersusKataConfig;
+    if (venue === 'pet') {
+        kataConfig = { mode: 'petOnly', pairPetLadder };
+    } else if (venue === 'petpair') {
+        const aSix = pairPetKataStatsSixFromEquippedUser(actor)!;
+        const oSix = pairPetKataStatsSixFromEquippedUser(opponent)!;
+        kataConfig = {
+            mode: 'petPairSplit',
+            userLadder,
+            pairPetLadder,
+            userCoreByUserId: {
+                [actor.id]: calculateTotalStats(actor, 'championshipVenue') as Record<string, number>,
+                [opponent.id]: calculateTotalStats(opponent, 'championshipVenue') as Record<string, number>,
+            },
+            petSixByUserId: { [actor.id]: aSix, [opponent.id]: oSix },
+        };
+    } else {
+        kataConfig = { mode: 'userOnly', userLadder };
+    }
+
     let generation: Awaited<ReturnType<typeof generateChampionshipRealMatch>>;
     try {
         if (venue === 'petpair') {
             generation = await generateChampionshipRealMatch(match, [p1, p2], actor, rules, {
+                kataConfig,
                 petPairDuel: {
                     petDisplayNameByUserId: {
                         [actor.id]: getPairPetDisplayName(getEquippedPairPetInventoryRow(actor)!),
@@ -955,7 +982,7 @@ export async function executeChampionshipVersusKataDuel(
                 },
             });
         } else {
-            generation = await generateChampionshipRealMatch(match, [p1, p2], actor, rules);
+            generation = await generateChampionshipRealMatch(match, [p1, p2], actor, rules, { kataConfig });
         }
     } catch (err: any) {
         console.error('[executeChampionshipVersusKataDuel] generateChampionshipRealMatch failed:', err?.message || err);

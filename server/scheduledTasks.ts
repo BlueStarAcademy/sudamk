@@ -43,6 +43,13 @@ import { FUNCTION_VIP_DAILY_ACTION_POINT_POTION_NAME } from '../shared/constants
 import { DIAMOND_PACKAGE_DAILY_MAIL_DIAMONDS } from '../shared/constants/cashShopPackages.js';
 import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
 import { guildWarEffectiveEndMs, guildWarIsChronologicallyActive } from './guildWarActiveUtils.js';
+import {
+    inferGuildWarRoundTypeFromMatchKst,
+    resolveGuildWarStartEndTimes,
+    isGuildWarPrimeMatchWindowKst,
+    isGuildWarCatchUpMatchWindowKst,
+    type GuildWarRoundType,
+} from '../shared/utils/guildWarSchedule.js';
 import { aggregateGuildWarBoardTotals } from '../shared/utils/guildWarBoardOwner.js';
 import { readStrategicRankedBlock, readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
 
@@ -2396,7 +2403,7 @@ export async function processTowerRankingRewards(): Promise<void> {
     console.log(`[TowerRankingReward] Sent monthly rewards to ${rewardCount} users`);
 }
 
-// 길드전 매칭: 월·목 23:00~23:59 KST 짝 매칭 + 화·금 0:00~0:59 캐치업. 비데모에서는 짝 길드끼리 매칭 후 홀수 1팀만 봇과 매칭.
+// 길드전 매칭: 월·수 23:00~23:59 KST 연출·짝 매칭 + 화·목 0:00~0:59 캐치업. 전쟁 개시는 화·목 0:00 KST(스케줄 고정). 비데모에서는 짝 길드끼리 매칭 후 홀수 1팀만 봇과 매칭.
 // 예약 시간 외 매칭 큐가 있으면 매 분(메인 루프)에서 동일 규칙으로 처리(짝·홀수 봇). 데모만 큐 전체를 봇과 즉시 매칭.
 /** `processGuildWarMatching` 두 번째 인자 — `GUILD_WAR_MATCH_TEST_MODE=1` 일 때만 test 옵션이 적용된다. */
 export type ProcessGuildWarMatchingOptions = {
@@ -2417,9 +2424,8 @@ export async function processGuildWarMatching(
     const kstDay = getKSTDay(now);
     const kstHours = getKSTHours(now);
     const kstMinutes = getKSTMinutes(now);
-    const isPrimeMatchWindow = (kstDay === 1 || kstDay === 4) && kstHours === 23 && kstMinutes < 60; // 월·목 23:00~23:59
-    const isCatchUpWindow =
-        (kstDay === 2 || kstDay === 5) && kstHours === 0 && kstMinutes < 60; // 화·금 0:00~0:59
+    const isPrimeMatchWindow = isGuildWarPrimeMatchWindowKst(now);
+    const isCatchUpWindow = isGuildWarCatchUpMatchWindowKst(now);
     const inScheduledWindow = isPrimeMatchWindow || isCatchUpWindow;
 
     const bootstrapOnce = await consumeGuildWarBootstrapMatchOnce();
@@ -2518,15 +2524,14 @@ export async function processGuildWarMatching(
         }
     }
 
-    let warType: 'tue_wed' | 'fri_sun' = (kstDay === 1 || kstDay === 2) ? 'tue_wed' : 'fri_sun'; // 월·화(캐치업)→화수 전쟁, 목·금(캐치업)→금일 전쟁
+    let warType: GuildWarRoundType = inferGuildWarRoundTypeFromMatchKst(now);
     if (bootstrapOnce) {
-        // 다음 화요일 정규 라운드(화수 기간)와 맞추기 위해 1회 부트스트랩은 항상 화수 전쟁 타입·47시간으로 진행
         warType = 'tue_wed';
     }
     if (testBulk && options?.testWarTypeOverride) {
         warType = options.testWarTypeOverride;
     }
-    const durationMs = warType === 'tue_wed' ? 47 * 60 * 60 * 1000 : 71 * 60 * 60 * 1000;
+    const { startTime: scheduledStartTime, endTime: scheduledEndTime } = resolveGuildWarStartEndTimes(warType, now);
 
     const sanitizedQueue = [...new Set(matchingQueue)].filter((guildId) => {
         const guild = guilds[guildId];
@@ -2547,7 +2552,7 @@ export async function processGuildWarMatching(
 
     console.log(
         `[GuildWarMatch] Processing guild war matching${force ? ' (forced)' : instantQueueDrain ? ' (instant-queue)' : ''}${bootstrapOnce ? ' (bootstrap)' : ''}${testBulk ? ' (TEST)' : ''} ` +
-            `(${instantQueueDrain ? 'instant' : isCatchUpWindow ? 'catch-up' : 'prime'}, ${warType}, ${warType === 'tue_wed' ? '47h' : '71h'}, ${maxAttemptsPerGuild} tickets), queue=${matchOrder.length}, DEMO=${DEMO_GUILD_WAR}`,
+            `(${instantQueueDrain ? 'instant' : isCatchUpWindow ? 'catch-up' : 'prime'}, ${warType}, start=${new Date(scheduledStartTime).toISOString()}, end=${new Date(scheduledEndTime).toISOString()}, ${maxAttemptsPerGuild} tickets), queue=${matchOrder.length}, DEMO=${DEMO_GUILD_WAR}`,
     );
 
     if (matchOrder.length === 0) {
@@ -2588,8 +2593,8 @@ export async function processGuildWarMatching(
                 guild1Id: guildId,
                 guild2Id: botGuildId,
                 status: 'active',
-                startTime: now,
-                endTime: now + durationMs,
+                startTime: scheduledStartTime,
+                endTime: scheduledEndTime,
                 warType,
                 maxAttemptsPerGuild,
                 guild1TotalAttempts: 0,
@@ -2661,8 +2666,8 @@ export async function processGuildWarMatching(
             guild1Id: guild1Id,
             guild2Id: guild2Id,
             status: 'active',
-            startTime: now,
-            endTime: now + durationMs,
+            startTime: scheduledStartTime,
+            endTime: scheduledEndTime,
             warType,
             maxAttemptsPerGuild,
             guild1TotalAttempts: 0,
@@ -2711,8 +2716,8 @@ export async function processGuildWarMatching(
                 guild1Id: remainingGuildId,
                 guild2Id: botGuildId,
                 status: 'active',
-                startTime: now,
-                endTime: now + durationMs,
+                startTime: scheduledStartTime,
+                endTime: scheduledEndTime,
                 warType,
                 maxAttemptsPerGuild,
                 guild1TotalAttempts: 0,
@@ -2834,8 +2839,8 @@ export async function createAndStartDemoGuildWar(guildId: string): Promise<{ act
     const botGuildId = await getOrCreateBotGuildForWar();
 
     const now = Date.now();
-    const warType = 'tue_wed';
-    const durationMs = 47 * 60 * 60 * 1000;
+    const warType: GuildWarRoundType = 'tue_wed';
+    const { startTime: scheduledStartTime, endTime: scheduledEndTime } = resolveGuildWarStartEndTimes(warType, now);
     const maxAttemptsPerGuild = 2;
 
     const dbWar = await createGuildWar(guildId, botGuildId);
@@ -2848,8 +2853,8 @@ export async function createAndStartDemoGuildWar(guildId: string): Promise<{ act
         guild1Id: guildId,
         guild2Id: botGuildId,
         status: 'active',
-        startTime: now,
-        endTime: now + durationMs,
+        startTime: scheduledStartTime,
+        endTime: scheduledEndTime,
         warType,
         maxAttemptsPerGuild,
         guild1TotalAttempts: 0,
@@ -3028,9 +3033,8 @@ export async function ensureNamedGuildVsBotGuildWar(guildDisplayName: string): P
         return;
     }
 
-    const kstDay = getKSTDay(now);
-    const warType: 'tue_wed' | 'fri_sun' = (kstDay === 1 || kstDay === 2) ? 'tue_wed' : 'fri_sun';
-    const durationMs = warType === 'tue_wed' ? 47 * 60 * 60 * 1000 : 71 * 60 * 60 * 1000;
+    const warType = inferGuildWarRoundTypeFromMatchKst(now);
+    const { startTime: scheduledStartTime, endTime: scheduledEndTime } = resolveGuildWarStartEndTimes(warType, now);
     const maxAttemptsPerGuild = 0;
 
     const { takePendingParticipantsOrDefault } = await import('./guildWarParticipants.js');
@@ -3057,8 +3061,8 @@ export async function ensureNamedGuildVsBotGuildWar(guildDisplayName: string): P
         guild1Id: targetGuildId,
         guild2Id: botGuildId,
         status: 'active',
-        startTime: now,
-        endTime: now + durationMs,
+        startTime: scheduledStartTime,
+        endTime: scheduledEndTime,
         warType,
         maxAttemptsPerGuild,
         guild1TotalAttempts: 0,

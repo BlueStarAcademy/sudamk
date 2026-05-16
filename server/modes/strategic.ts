@@ -36,6 +36,7 @@ import { isHiddenMoveIndexSoftRevealedByAnyPlayer } from './hiddenScanShared.js'
 import { PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS } from '../constants/pveStrategicAiSchedule.js';
 import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
 import { resolveSinglePlayerAutoScoringTurnCap } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
+import { mixGoTreatMoveAsHiddenPlacement } from '../../shared/utils/mixGoRules.js';
 import { tryEndGameWhenCaptureTargetReached } from '../utils/captureTargets.js';
 import {
     syncSpeedTimePressureCaptures,
@@ -607,8 +608,11 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             const inHiddenItemPlacement = game.gameStatus === 'hidden_placing';
             // 히든 아이템을 눌렀더라도, 이미 영구 공개된 자리는 일반돌로 취급(히든 재생성 방지).
             // hidden_placing에서는 클라 isHidden 누락·타이머 경합이 있어도 반드시 히든 소모로 처리한다.
-            const isHidden =
-                !isTargetPermanentlyRevealed && (!!isHiddenRequested || inHiddenItemPlacement);
+            const isHidden = mixGoTreatMoveAsHiddenPlacement(
+                game.gameStatus,
+                isHiddenRequested,
+                isTargetPermanentlyRevealed,
+            );
             const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : (myPlayerEnum === types.Player.White ? types.Player.Black : types.Player.None);
             const isStrategicAiGame =
                 !!game.isAiGame &&

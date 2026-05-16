@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CoreStat } from '../../../shared/types/index.js';
 import {
+    CHAMPIONSHIP_ABILITY_KATA_LADDER,
     CHAMPIONSHIP_REAL_MATCH_RULES_19,
     CHAMPIONSHIP_REAL_MATCH_RULES_9,
     resolveChampionshipDungeonPlaybackSpeedChoices,
@@ -12,6 +13,8 @@ import {
     championshipKataLevelForPly,
     championshipMistakeChancePercent,
 } from '../../../shared/constants/championshipRealMatch.js';
+import { DEFAULT_PAIR_PET_ABILITY_KATA_LADDER } from '../../../shared/constants/pairArena.js';
+import { resolveChampionshipVersusKataForPly } from '../../../shared/utils/championshipVersusKataResolve.js';
 
 const statsFor = (value: number): Record<CoreStat, number> => ({
     [CoreStat.Concentration]: value,
@@ -28,6 +31,63 @@ describe('championship real match policy', () => {
         expect(championshipKataAbilityScore('opening', s)).toBe(200);
         expect(championshipKataAbilityScore('midgame', s)).toBe(200);
         expect(championshipKataAbilityScore('endgame', s)).toBe(200);
+    });
+
+    it('pet championship uses pair-pet KATA ladder (140 vs 100 are not both -30)', () => {
+        const stats140 = statsFor(70);
+        const stats100 = statsFor(50);
+        const petConfig = { mode: 'petOnly' as const, pairPetLadder: DEFAULT_PAIR_PET_ABILITY_KATA_LADDER };
+        const r140 = resolveChampionshipVersusKataForPly({
+            ply: 1,
+            boardSize: 19,
+            rules: CHAMPIONSHIP_REAL_MATCH_RULES_19,
+            config: petConfig,
+            actorUserId: 'a',
+            actorStats: stats140,
+            seat: null,
+        });
+        const r100 = resolveChampionshipVersusKataForPly({
+            ply: 1,
+            boardSize: 19,
+            rules: CHAMPIONSHIP_REAL_MATCH_RULES_19,
+            config: petConfig,
+            actorUserId: 'b',
+            actorStats: stats100,
+            seat: null,
+        });
+        expect(r140.kataLevel).toBeGreaterThan(r100.kataLevel);
+        expect(championshipKataLevelFromAbilityScore(140)).toBe(-30);
+    });
+
+    it('petpair split uses user ladder for user seat and pair-pet ladder for pet seat', () => {
+        const userCore = statsFor(500);
+        const petSix = { concentration: 70, thinkingSpeed: 70, judgment: 70, calculation: 70, combatPower: 70, stability: 70 };
+        const splitConfig = {
+            mode: 'petPairSplit' as const,
+            userLadder: CHAMPIONSHIP_ABILITY_KATA_LADDER,
+            pairPetLadder: DEFAULT_PAIR_PET_ABILITY_KATA_LADDER,
+            userCoreByUserId: { u1: userCore },
+            petSixByUserId: { u1: petSix },
+        };
+        const userTurn = resolveChampionshipVersusKataForPly({
+            ply: 1,
+            boardSize: 19,
+            rules: CHAMPIONSHIP_REAL_MATCH_RULES_19,
+            config: splitConfig,
+            actorUserId: 'u1',
+            actorStats: userCore,
+            seat: { kind: 'user' },
+        });
+        const petTurn = resolveChampionshipVersusKataForPly({
+            ply: 2,
+            boardSize: 19,
+            rules: CHAMPIONSHIP_REAL_MATCH_RULES_19,
+            config: splitConfig,
+            actorUserId: 'u1',
+            actorStats: {},
+            seat: { kind: 'pet' },
+        });
+        expect(userTurn.kataLevel).not.toBe(petTurn.kataLevel);
     });
 
     it('maps ability score boundaries without level zero', () => {

@@ -1,10 +1,12 @@
 import { CoreStat } from '../types/enums.js';
 import type { PairPetCoreStatsSix } from '../constants/pairArena.js';
+import { pairPetKataAbilityScore } from '../constants/pairArena.js';
 import {
     CHAMPIONSHIP_ABILITY_KATA_LADDER,
     championshipKataLevelForPly,
     CHAMPIONSHIP_REAL_MATCH_RULES_19,
 } from '../constants/championshipRealMatch.js';
+import { coreStatsRecordToPairPetSix } from './championshipVersusKataResolve.js';
 
 const VERSUS_PAIR_CORE_STAT_CAP = 1500;
 
@@ -49,6 +51,24 @@ export type ChampionshipVersusAbilitySnapshot = {
     midgameAbility: number;
     endgameAbility: number;
 };
+
+/** 펫 6코어 — 페어 펫 KATA 가중치(표시용 구간 능력치 점수) */
+export function championshipVersusAbilitySnapshotFromPairPetCoreStats(
+    stats: Record<string, number>,
+): ChampionshipVersusAbilitySnapshot {
+    const six = coreStatsRecordToPairPetSix(stats);
+    let sum = 0;
+    for (const k of Object.keys(stats)) {
+        sum += Number(stats[k]) || 0;
+    }
+    return {
+        totalGoPower: Math.round(sum),
+        coreStats: { ...stats },
+        openingAbility: pairPetKataAbilityScore('opening', six),
+        midgameAbility: pairPetKataAbilityScore('midgame', six),
+        endgameAbility: pairPetKataAbilityScore('endgame', six),
+    };
+}
 
 export function championshipVersusAbilitySnapshotFromCoreStats(stats: Record<string, number>): ChampionshipVersusAbilitySnapshot {
     const rules = CHAMPIONSHIP_REAL_MATCH_RULES_19;

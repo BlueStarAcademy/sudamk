@@ -13,6 +13,14 @@ import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigServic
 import { resolveSinglePlayerAutoScoringTurnCap } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 import { aiUserId } from '../aiPlayer.js';
 import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
+import {
+    mixGoClearHiddenItemPhaseTimers,
+    mixGoHiddenInventoryKeyForPlayer,
+    mixGoHiddenUsedKeyForPlayer,
+    mixGoOrPureModeIncludes,
+    mixGoSessionHasHiddenItems,
+    mixGoShouldUnstickHiddenItemSelectionPhase,
+} from '../../shared/utils/mixGoRules.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -31,13 +39,13 @@ const isAiSeatTurn = (game: types.LiveGameSession): boolean => {
 };
 
 const hiddenInventoryKeyForPlayer = (player: types.Player): 'hidden_stones_p1' | 'hidden_stones_p2' =>
-    player === types.Player.White ? 'hidden_stones_p2' : 'hidden_stones_p1';
+    mixGoHiddenInventoryKeyForPlayer(player);
 
 const hiddenUsedKeyForPlayer = (player: types.Player): 'hidden_stones_used_p1' | 'hidden_stones_used_p2' =>
-    player === types.Player.White ? 'hidden_stones_used_p2' : 'hidden_stones_used_p1';
+    mixGoHiddenUsedKeyForPlayer(player);
 
 export const initializeSinglePlayerHidden = (game: types.LiveGameSession) => {
-    const isHiddenMode = game.mode === types.GameMode.Hidden || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
+    const isHiddenMode = mixGoOrPureModeIncludes(game.mode, game.settings?.mixedModes, types.GameMode.Hidden);
     const disableAiHiddenItemsByStageSetting =
         game.isSinglePlayer &&
         isHiddenMode &&
@@ -143,6 +151,30 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
     }
 
     const isItemMode = ['hidden_placing', 'scanning'].includes(game.gameStatus);
+
+    if (mixGoShouldUnstickHiddenItemSelectionPhase(game)) {
+        const stuckStatus = game.gameStatus;
+        const stuckPlayer = game.currentPlayer;
+        console.warn(
+            `[updateSinglePlayerHiddenState] Recovering stuck item phase (missing itemUseDeadline): status=${stuckStatus}, gameId=${game.id}`,
+        );
+        game.gameStatus = 'playing';
+        mixGoClearHiddenItemPhaseTimers(game);
+        if (stuckStatus === 'hidden_placing' && stuckPlayer !== types.Player.None) {
+            const hiddenKey = hiddenInventoryKeyForPlayer(stuckPlayer);
+            const currentHidden = game[hiddenKey] ?? 0;
+            if (currentHidden > 0) {
+                game[hiddenKey] = currentHidden - 1;
+                const usedKey = hiddenUsedKeyForPlayer(stuckPlayer);
+                game[usedKey] = (game[usedKey] || 0) + 1;
+            }
+        }
+        if (stuckPlayer !== types.Player.None) {
+            resumeGameTimer(game, now, stuckPlayer);
+        }
+        (game as any)._itemTimeoutStateChanged = true;
+        return;
+    }
 
     if (game.gameStatus === 'scanning_animating' && game.itemUseDeadline && now > game.itemUseDeadline) {
         game.animation = null;
@@ -337,11 +369,7 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
             // 싱글플레이 전용: 상대(AI) 미공개 히든이 있으면 스캔 모드 진입. 없으면 거절.
             // (PVP는 server/modes/hidden.ts에서 동일 검사 적용)
             const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
-            const isMixWithHidden =
-                game.mode === types.GameMode.Mix &&
-                Array.isArray((game.settings as any)?.mixedModes) &&
-                (game.settings as any).mixedModes.includes(types.GameMode.Hidden);
-            const stageAllowsHiddenStones = ((game.settings as any)?.hiddenStoneCount ?? 0) > 0 || isMixWithHidden;
+            const stageAllowsHiddenStones = mixGoSessionHasHiddenItems(game.mode, game.settings as any);
             const opponentHasUnrevealedHidden = hasOpponentHiddenScanTargets(game, user.id, opponentPlayerEnum, {
                 includeLooseOpponentStones: true,
                 hiddenStoneCountOrMix: stageAllowsHiddenStones,

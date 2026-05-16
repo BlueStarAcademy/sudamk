@@ -20,6 +20,7 @@ import UserNicknameText from '../UserNicknameText.js';
 import { containsProfanity } from '../../profanity.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
+import { mixSubRuleDisplayName } from '../../shared/utils/mixSubRuleDisplayName.js';
 import { pairSeatMatchesViewerUser, pairTurnSeatIdShortLabel } from '../../shared/utils/pairGameTurn.js';
 import { formatDiceGoSpecialDiceSummary } from '../../shared/utils/diceGoSettings.js';
 import {
@@ -154,7 +155,10 @@ export const GameInfoPanel: React.FC<{
         // --- ALL MODE SPECIFIC SETTINGS ---
 
         if (mode === GameMode.Mix) {
-            details.push(renderSetting("조합 규칙", settings.mixedModes?.join(', ')));
+            details.push(renderSetting(
+                "조합 규칙",
+                settings.mixedModes?.map((m) => mixSubRuleDisplayName(String(m))).join(', '),
+            ));
         }
 
         if (mode === GameMode.Omok || mode === GameMode.Ttamok) {

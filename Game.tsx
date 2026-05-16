@@ -3456,10 +3456,31 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
             const at = actionType;
             void Promise.resolve(handlers.handleAction({ type: at, payload } as ServerAction))
-                .then((res) => {
+                .then(async (res) => {
                     handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined);
                     if (at === 'TOWER_CLIENT_MOVE' || at === 'SINGLE_PLAYER_CLIENT_MOVE') {
                         claimStrategicPetHintBonusIfMatched(x, y, (session.moveHistory?.length || 0) + 1);
+                    }
+                    const shouldSyncHiddenPlacementToServer =
+                        (at === 'SINGLE_PLAYER_CLIENT_MOVE' || at === 'TOWER_CLIENT_MOVE') &&
+                        !!payload?.isHidden &&
+                        Array.isArray(payload?.newBoardState) &&
+                        typeof x === 'number' &&
+                        typeof y === 'number' &&
+                        x >= 0 &&
+                        y >= 0;
+                    if (shouldSyncHiddenPlacementToServer && !(res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error)) {
+                        await handlers.handleAction({
+                            type: 'PLACE_STONE',
+                            payload: {
+                                gameId,
+                                x,
+                                y,
+                                isHidden: true,
+                                boardState: payload.newBoardState,
+                                moveHistory: [...(session.moveHistory || []), { x, y, player: myPlayerEnum }],
+                            },
+                        } as ServerAction);
                     }
                     const hasErr = res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error;
                     if (hasErr) {

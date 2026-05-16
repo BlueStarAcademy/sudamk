@@ -1936,7 +1936,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         console.error('[MainLoop] Error in processGuildWarEnd:', error?.message);
                     }
 
-                    // 길드전 자동 매칭: 정규 창(월·목 23시, 화·금 캐치업) + 큐 잔여 시 즉시 봇 매칭(processGuildWarMatching 내부)
+                    // 길드전 자동 매칭: 정규 창(월·수 23시, 화·목 0시 캐치업) + 큐 잔여 시 즉시 매칭(processGuildWarMatching 내부)
                     try {
                         const { processGuildWarMatching } = await import('./scheduledTasks.js');
                         await processGuildWarMatching();

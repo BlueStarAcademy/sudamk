@@ -1379,8 +1379,22 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
             return;
         }
 
+        const warStartTime = toEpochMs((activeWar as { startTime?: unknown } | null)?.startTime);
+
         const updateCurrentWarRemaining = () => {
             const now = Date.now();
+            if (warStartTime != null && now < warStartTime) {
+                const untilOpen = warStartTime - now;
+                const hours = Math.floor(untilOpen / (1000 * 60 * 60));
+                const minutes = Math.floor((untilOpen % (1000 * 60 * 60)) / (1000 * 60));
+                if (hours > 0) {
+                    setCurrentWarRemaining(`개시까지 ${hours}시간 ${minutes}분`);
+                } else {
+                    const seconds = Math.floor((untilOpen % (1000 * 60)) / 1000);
+                    setCurrentWarRemaining(`개시까지 ${minutes}분 ${seconds}초`);
+                }
+                return;
+            }
             const remaining = warEndTime - now;
             if (remaining <= 0) {
                 setCurrentWarRemaining('종료');

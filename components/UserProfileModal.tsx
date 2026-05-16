@@ -465,6 +465,11 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                 losses: Math.max(0, Math.floor(Number(e?.seasonLosses) || 0)),
             };
         };
+        const withWinRate = (label: string, wins: number, losses: number) => {
+            const games = wins + losses;
+            const winRate = games > 0 ? Math.round((wins / games) * 100) : 0;
+            return { label, wins, losses, winRate };
+        };
         const p = wl('pvp');
         const pet = wl('pet');
         const pr = wl('petpair');
@@ -477,16 +482,12 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
             tierIcon: tier.icon,
             tierColor: tier.color,
             venueSeason: [
-                { label: 'PVP', ...p },
-                { label: '펫', ...pet },
-                { label: '페어', ...pr },
+                withWinRate('PVP', p.wins, p.losses),
+                withWinRate('펫', pet.wins, pet.losses),
+                withWinRate('페어', pr.wins, pr.losses),
             ],
         };
     }, [user]);
-    const championshipVenueRecordOneLine = useMemo(
-        () => championshipVenueStrip.venueSeason.map((row) => `${row.label} ${row.wins}승 ${row.losses}패`).join(' · '),
-        [championshipVenueStrip],
-    );
 
     // equipment 필드와 inventory를 매칭하여 장착된 아이템 찾기
     const equippedItems = useMemo(() => {
@@ -718,21 +719,32 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                                 <p className="mb-2 text-center text-xs font-black uppercase tracking-wide text-fuchsia-200/90 sm:text-sm">
                                     챔피언십 경기장
                                 </p>
-                                <div className="flex items-center gap-2 rounded-md border border-white/[0.06] bg-black/35 px-2 py-2 ring-1 ring-inset ring-white/[0.02] sm:gap-2.5 sm:px-2.5">
+                                <div className="flex items-start gap-2 rounded-md border border-white/[0.06] bg-black/35 px-2 py-2 ring-1 ring-inset ring-white/[0.02] sm:gap-2.5 sm:px-2.5">
                                     <img
                                         src={resolvePublicUrl(championshipVenueStrip.tierIcon)}
                                         alt=""
                                         title={championshipVenueStrip.tierName}
                                         className="h-9 w-9 shrink-0 object-contain drop-shadow-sm sm:h-10 sm:w-10"
                                     />
-                                    <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                                        <span className="block whitespace-nowrap text-[11px] font-semibold tracking-tight text-slate-100 sm:text-xs">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-[11px] font-semibold tracking-tight text-slate-100 sm:text-xs">
                                             <span className={`font-bold ${championshipVenueStrip.tierColor}`}>{championshipVenueStrip.tierName}</span>
                                             <span className="mx-1 text-slate-500">·</span>
                                             <span className="font-mono tabular-nums text-fuchsia-100">{championshipVenueStrip.rating}점</span>
-                                            <span className="mx-1 text-slate-500">·</span>
-                                            <span className="font-mono tabular-nums text-slate-200">{championshipVenueRecordOneLine}</span>
-                                        </span>
+                                        </p>
+                                        <div className="mt-1 flex flex-col gap-0.5">
+                                            {championshipVenueStrip.venueSeason.map((row) => (
+                                                <p
+                                                    key={row.label}
+                                                    className="font-mono text-[10px] tabular-nums leading-tight text-slate-200 sm:text-[11px]"
+                                                >
+                                                    <span className="font-semibold text-slate-300/95">{row.label}</span>
+                                                    <span className="ml-1.5">
+                                                        {row.wins}승 {row.losses}패 ({row.winRate}%)
+                                                    </span>
+                                                </p>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             </div>

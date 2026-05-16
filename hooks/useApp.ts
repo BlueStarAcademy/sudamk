@@ -134,6 +134,11 @@ import { coerceUserLevelXpFromPayload } from '../shared/utils/userLevelMerge.js'
 import type { LevelUpCelebrationPayload } from '../types/levelUpModal.js';
 import type { MannerGradeChangePayload } from '../types/mannerGradeChangeModal.js';
 import { getMannerRank, MANNER_RANKS } from '../services/manner.js';
+import {
+    markChampionshipVersusKataRewardsPending,
+    registerChampionshipVersusDeferredLevelUpFlush,
+    shouldDeferLevelUpCelebrationForChampionshipVersusKata,
+} from '../utils/championshipVersusLevelUpDeferral.js';
 
 type ConnectionStatusKind = 'ok' | 'connecting' | 'reconnecting' | 'degraded' | 'requestFailed';
 type ConnectionStatusSeverity = 'info' | 'success' | 'warning' | 'error';
@@ -1791,14 +1796,18 @@ export const useApp = () => {
                     playful: undefined,
                 };
                 const uid = mergedUser.id;
+                if (source.includes('START_CHAMPIONSHIP_VERSUS_KATA_DUEL')) {
+                    markChampionshipVersusKataRewardsPending();
+                }
                 const blockCelebration =
-                    !!uid &&
-                    Object.values(liveGamesRef.current).some((g) => {
-                        if (!g || isSessionSingleOrTower(g)) return false;
-                        if (g.gameStatus !== 'ended') return false;
-                        if (g.player1?.id !== uid && g.player2?.id !== uid) return false;
-                        return true;
-                    });
+                    shouldDeferLevelUpCelebrationForChampionshipVersusKata() ||
+                    (!!uid &&
+                        Object.values(liveGamesRef.current).some((g) => {
+                            if (!g || isSessionSingleOrTower(g)) return false;
+                            if (g.gameStatus !== 'ended') return false;
+                            if (g.player1?.id !== uid && g.player2?.id !== uid) return false;
+                            return true;
+                        }));
                 queueMicrotask(() => {
                     if (blockCelebration) {
                         deferredLevelUpCelebrationRef.current = levelPayload;
@@ -2598,6 +2607,17 @@ export const useApp = () => {
             setMannerGradeChange(pendingManner);
         }
     }, [liveGames]);
+
+    /** 챔피언십 장내 카타: 대국 결과 모달 시점에 보류 중인 레벨업 축하 모달 표시 */
+    useEffect(() => {
+        registerChampionshipVersusDeferredLevelUpFlush(() => {
+            const pendingLevel = deferredLevelUpCelebrationRef.current;
+            if (!pendingLevel) return;
+            deferredLevelUpCelebrationRef.current = null;
+            setLevelUpCelebration(pendingLevel);
+        });
+        return () => registerChampionshipVersusDeferredLevelUpFlush(null);
+    }, []);
 
     /** 관리자 홈: 레벨업 축하 모달 미리보기(실제 데이터 반영, 서버/레벨은 변경하지 않음) */
     const previewAdminLevelUpCelebrationModal = useCallback(() => {
@@ -4494,7 +4514,7 @@ export const useApp = () => {
                     console.error(`[handleAction] ${actionTypeName} - Failed to save game state to sessionStorage:`, e);
                 }
             }
-            
+
             // 살리기 바둑에서 게임 종료가 필요한 경우
             if (shouldEndGameSurvival && endGameWinnerSurvival !== null && finalUpdatedGame) {
                 // 게임 종료 액션 호출

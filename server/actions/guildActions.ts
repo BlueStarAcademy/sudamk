@@ -2904,6 +2904,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     console.warn('[START_GUILD_WAR_GAME] processGuildWarEnd (non-fatal):', e?.message);
                 }
                 const { guildWarIsChronologicallyActive } = await import('../guildWarActiveUtils.js');
+                const { guildWarIsOpenForPlay, guildWarStartMs } = await import('../../shared/utils/guildWarSchedule.js');
                 const nowG = Date.now();
                 const activeWars = (await db.getKV<any[]>('activeGuildWars')) || [];
                 activeWar = activeWars.find(
@@ -2913,6 +2914,13 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 );
 
                 if (!activeWar) {
+                    return { error: '진행 중인 길드 전쟁이 없습니다.' };
+                }
+                if (!guildWarIsOpenForPlay(activeWar, nowG)) {
+                    const openMs = guildWarStartMs(activeWar);
+                    if (openMs > nowG) {
+                        return { error: '전쟁 개시 시각 이전에는 바둑판에 입장할 수 없습니다.' };
+                    }
                     return { error: '진행 중인 길드 전쟁이 없습니다.' };
                 }
                 
