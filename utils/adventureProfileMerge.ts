@@ -25,6 +25,36 @@ export function mergeAdventureProfileForPersistence(
         mergedCodexDefeatCounts[codexId] = Math.max(prevWins, nextWins);
     }
 
+    const mergedCodexDefeatCountReachedAtByCodexId = {
+        ...(prev.codexDefeatCountReachedAtByCodexId ?? {}),
+    } as Record<string, number>;
+    const allCodexIds = new Set([
+        ...Object.keys(prev.codexDefeatCounts ?? {}),
+        ...Object.keys(next.codexDefeatCounts ?? {}),
+    ]);
+    for (const codexId of allCodexIds) {
+        const prevWins = Math.max(0, Math.floor(prev.codexDefeatCounts?.[codexId] ?? 0));
+        const nextWins = Math.max(0, Math.floor(next.codexDefeatCounts?.[codexId] ?? 0));
+        const mergedWins = Math.max(0, Math.floor(mergedCodexDefeatCounts[codexId] ?? 0));
+        if (mergedWins <= 0) {
+            delete mergedCodexDefeatCountReachedAtByCodexId[codexId];
+            continue;
+        }
+        const prevAt = prev.codexDefeatCountReachedAtByCodexId?.[codexId];
+        const nextAt = next.codexDefeatCountReachedAtByCodexId?.[codexId];
+        if (nextWins > prevWins && typeof nextAt === 'number' && Number.isFinite(nextAt)) {
+            mergedCodexDefeatCountReachedAtByCodexId[codexId] = nextAt;
+        } else if (prevWins > nextWins && typeof prevAt === 'number' && Number.isFinite(prevAt)) {
+            mergedCodexDefeatCountReachedAtByCodexId[codexId] = prevAt;
+        } else if (typeof prevAt === 'number' && typeof nextAt === 'number') {
+            mergedCodexDefeatCountReachedAtByCodexId[codexId] = Math.min(prevAt, nextAt);
+        } else if (typeof nextAt === 'number' && Number.isFinite(nextAt)) {
+            mergedCodexDefeatCountReachedAtByCodexId[codexId] = nextAt;
+        } else if (typeof prevAt === 'number' && Number.isFinite(prevAt)) {
+            mergedCodexDefeatCountReachedAtByCodexId[codexId] = prevAt;
+        }
+    }
+
     const mergedUnderstandingXpByStage = { ...(prev.understandingXpByStage ?? {}) } as Record<string, number>;
     for (const [stageId, xp] of Object.entries(next.understandingXpByStage ?? {})) {
         const prevXp = Math.max(0, Math.floor(mergedUnderstandingXpByStage[stageId] ?? 0));
@@ -89,6 +119,7 @@ export function mergeAdventureProfileForPersistence(
         ...prev,
         ...next,
         codexDefeatCounts: mergedCodexDefeatCounts,
+        codexDefeatCountReachedAtByCodexId: mergedCodexDefeatCountReachedAtByCodexId,
         understandingXpByStage: mergedUnderstandingXpByStage,
         adventureMapSuppressUntilByKey: mergedSuppressUntilByKey,
         monstersDefeatedByMode: mergedByMode,

@@ -58,8 +58,11 @@ export async function applyAdventureMonsterDefeatToProfile(
 ): Promise<void> {
     const { codexId, stageId, battleMode, monsterLevel } = params;
     const prev = normalizeAdventureProfile(user.adventureProfile);
+    const defeatAt = Date.now();
     const counts = { ...(prev.codexDefeatCounts ?? {}) };
     counts[codexId] = (counts[codexId] ?? 0) + 1;
+    const codexDefeatCountReachedAtByCodexId = { ...(prev.codexDefeatCountReachedAtByCodexId ?? {}) };
+    codexDefeatCountReachedAtByCodexId[codexId] = defeatAt;
 
     const byMode = { ...(prev.monstersDefeatedByMode ?? {}) };
     byMode[battleMode] = (byMode[battleMode] ?? 0) + 1;
@@ -74,7 +77,6 @@ export async function applyAdventureMonsterDefeatToProfile(
     uxp[stageId] = understandingXpBefore + 12 + codexLevelAfter;
     const understandingXpAfter = uxp[stageId]!;
 
-    const defeatAt = Date.now();
     const parsedMonsterLevel =
         typeof monsterLevel === 'number' && Number.isFinite(monsterLevel)
             ? parseAdventureMonsterLevel(monsterLevel)
@@ -97,6 +99,7 @@ export async function applyAdventureMonsterDefeatToProfile(
     let nextProfile: AdventureProfile = {
         ...prev,
         codexDefeatCounts: counts,
+        codexDefeatCountReachedAtByCodexId,
         monstersDefeatedByMode: byMode,
         monstersDefeatedTotal: (prev.monstersDefeatedTotal ?? 0) + 1,
         uniqueMonsterIdsCaught: Array.from(uniq),

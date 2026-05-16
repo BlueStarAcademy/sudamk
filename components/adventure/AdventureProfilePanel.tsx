@@ -9,6 +9,7 @@ import {
     getMonsterCodexComprehensionBuffTotals,
 } from '../../utils/adventureUnderstanding.js';
 import { getAdventureHuntingScore } from '../../shared/utils/adventureHuntingScore.js';
+import { getTopAdventureCodexMonsterByWins } from '../../utils/adventureTopCodexMonster.js';
 import { useRanking } from '../../hooks/useRanking.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 
@@ -27,6 +28,7 @@ const AdventureProfilePanel: React.FC<{
     const monsterCodexBuff = useMemo(() => getMonsterCodexComprehensionBuffTotals(p), [p]);
     const codexBreakdown = useMemo(() => getAdventureCodexCompletionBreakdown(profile), [profile]);
     const huntingScore = useMemo(() => getAdventureHuntingScore(profile).score, [profile]);
+    const topCodexMonster = useMemo(() => getTopAdventureCodexMonsterByWins(profile), [profile]);
     const { rankings: adventureRankings, loading: adventureRankLoading } = useRanking('adventure');
     const [mobileTab, setMobileTab] = useState<'understanding' | 'codex'>('understanding');
 
@@ -54,30 +56,18 @@ const AdventureProfilePanel: React.FC<{
                 compact ? 'px-3 py-2.5' : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
             }`}
         >
-            <p className={labelCls}>모험 랭킹</p>
+            <p className={`${labelCls} text-center`}>모험 랭킹</p>
             <div className={`mt-2 grid grid-cols-2 gap-2 ${compact ? 'text-xs' : 'text-sm sm:text-base'}`}>
-                <div className="rounded-lg border border-white/10 bg-black/30 px-2.5 py-2">
+                <div className="rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-center">
                     <p className={`font-semibold text-zinc-400 ${compact ? 'text-[10px]' : 'text-xs'}`}>모험 점수</p>
                     <p className={`mt-0.5 font-black tabular-nums text-emerald-200 ${compact ? 'text-base' : 'text-lg'}`}>
                         {huntingScore.toLocaleString()}
                     </p>
-                    <p className={`mt-0.5 text-zinc-500 ${compact ? 'text-[9px] leading-snug' : 'text-[10px] leading-snug'}`}>
-                        승리한 몬스터 레벨 합
-                    </p>
                 </div>
-                <div className="rounded-lg border border-white/10 bg-black/30 px-2.5 py-2">
+                <div className="rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-center">
                     <p className={`font-semibold text-zinc-400 ${compact ? 'text-[10px]' : 'text-xs'}`}>내 순위</p>
                     <p className={`mt-0.5 font-black tabular-nums text-amber-200 ${compact ? 'text-base' : 'text-lg'}`}>
                         {adventureRankLoading ? '…' : adventureRank != null ? `${adventureRank}위` : 'N/A'}
-                    </p>
-                    <p className={`mt-0.5 text-zinc-500 ${compact ? 'text-[9px] leading-snug' : 'text-[10px] leading-snug'}`}>
-                        {adventureRankLoading
-                            ? '불러오는 중'
-                            : adventureRank != null
-                              ? `전체 ${adventureRankings.length.toLocaleString()}명`
-                              : huntingScore > 0
-                                ? '랭킹 집계 대기'
-                                : '점수를 쌓으면 반영'}
                     </p>
                 </div>
             </div>
@@ -147,6 +137,31 @@ const AdventureProfilePanel: React.FC<{
             <p className={labelCls}>몬스터 이해도</p>
             <div className="mt-2 flex items-start gap-3">
                 <div className="min-w-0 flex-1">
+                    {topCodexMonster ? (
+                        <div
+                            className={`mb-2 flex items-center gap-2 rounded-md border border-violet-400/25 bg-violet-950/25 px-2 py-1.5 ${
+                                compact ? 'text-[11px]' : 'text-xs sm:text-sm'
+                            }`}
+                        >
+                            <img
+                                src={topCodexMonster.imageWebp}
+                                alt=""
+                                className={`shrink-0 rounded-md border border-white/10 bg-black/40 object-contain ${
+                                    compact ? 'h-9 w-9' : 'h-11 w-11'
+                                }`}
+                                draggable={false}
+                            />
+                            <div className="min-w-0 flex-1">
+                                <p className={`font-semibold text-violet-200/90 ${compact ? 'text-[10px]' : 'text-[11px]'}`}>
+                                    가장 많이 사냥한 몬스터
+                                </p>
+                                <p className="truncate font-bold text-zinc-100">{topCodexMonster.name}</p>
+                                <p className="tabular-nums text-zinc-400">
+                                    승리 {topCodexMonster.wins.toLocaleString()}회 · 도감 Lv.{topCodexMonster.comprehensionLevel}
+                                </p>
+                            </div>
+                        </div>
+                    ) : null}
                     <div
                         className={`grid grid-cols-1 gap-1.5 sm:grid-cols-2 ${
                             compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
@@ -206,7 +221,7 @@ const AdventureProfilePanel: React.FC<{
                     <div className="flex shrink-0 flex-col items-stretch gap-1.5 self-center">
                         {onOpenMonsterCodex ? (
                             <button type="button" onClick={onOpenMonsterCodex} className={codexOpenBtnClass} aria-label="몬스터 도감">
-                                {compact ? '몬스터 도감' : '몬스터 도감'}
+                                몬스터 도감
                             </button>
                         ) : null}
                         {codexDonutPanel}

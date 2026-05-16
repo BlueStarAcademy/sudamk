@@ -19,20 +19,22 @@ const AdventureRegionalBuffModal: React.FC<{
 
     return (
         <DraggableWindow
-            title={`${stage.title} · 지역 효과슬롯`}
+            title={`${stage.title} · 지역 효과`}
             onClose={onClose}
             windowId={`adventure-regional-buff-${stageId}`}
-            initialWidth={480}
-            initialHeight={620}
+            initialWidth={500}
+            initialHeight={760}
             isTopmost={isTopmost}
             variant="store"
+            bodyNoScroll
         >
-            <div className="min-h-0 overflow-y-auto overscroll-contain p-1 sm:p-1.5">
+            <div className="p-1 sm:p-1.5">
                 <AdventureRegionalBuffPanel
                     profile={profile}
                     stageRows={stageRows}
                     userGold={userGold}
                     singleStageId={stageId}
+                    embeddedInModal
                 />
             </div>
         </DraggableWindow>

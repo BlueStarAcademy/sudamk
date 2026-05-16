@@ -50,9 +50,11 @@ const AdventureRegionalBuffPanel: React.FC<{
     compact?: boolean;
     /** 지정 시 해당 지역만 표시(탭 숨김) — 챕터 카드 모달용 */
     singleStageId?: string;
+    /** 지역 효과 모달 내 임베드 — 여백·슬롯 간격 축소 */
+    embeddedInModal?: boolean;
     /** 생략 시 앱 컨텍스트의 유저 레벨·이해도로 지역 잠금을 판별합니다. */
     chapterUnlockCtx?: AdventureChapterUnlockContext;
-}> = ({ profile, stageRows, userGold = 0, compact = false, singleStageId, chapterUnlockCtx: chapterUnlockCtxProp }) => {
+}> = ({ profile, stageRows, userGold = 0, compact = false, singleStageId, embeddedInModal = false, chapterUnlockCtx: chapterUnlockCtxProp }) => {
     const { handlers, currentUserWithStatus } = useAppContext();
     const chapterUnlockCtx = useMemo<AdventureChapterUnlockContext>(
         () =>
@@ -102,7 +104,9 @@ const AdventureRegionalBuffPanel: React.FC<{
     const remainingPts = getRegionalEnhancePointsRemaining(p, stageId);
     const canAfford = userGold >= ADVENTURE_REGIONAL_BUFF_ACTION_GOLD;
 
-    const labelCls = compact
+    const panelCompact = compact || embeddedInModal;
+
+    const labelCls = panelCompact
         ? 'text-[11px] font-bold uppercase tracking-wider text-zinc-500 sm:text-xs'
         : 'text-xs font-bold uppercase tracking-wider text-zinc-500 sm:text-sm';
 
@@ -264,7 +268,11 @@ const AdventureRegionalBuffPanel: React.FC<{
         <>
             <div
                 className={`w-full min-w-0 rounded-xl border border-fuchsia-500/25 bg-fuchsia-950/15 ${
-                    compact ? 'px-3 py-2.5' : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
+                    embeddedInModal
+                        ? 'border-0 bg-transparent px-0 py-0'
+                        : panelCompact
+                          ? 'px-3 py-2.5'
+                          : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
                 }`}
             >
                 <div className="flex items-center justify-between gap-2">
@@ -311,16 +319,16 @@ const AdventureRegionalBuffPanel: React.FC<{
                     </div>
                 ) : null}
 
-                <div className="mt-2.5 space-y-2.5">
+                <div className={embeddedInModal ? 'mt-2 space-y-2' : 'mt-2.5 space-y-2.5'}>
                     {understandingRow && (
                         <div
                             className={`min-w-0 rounded-lg border border-white/8 bg-black/25 ${
-                                compact ? 'px-2.5 py-2' : 'px-3 py-2.5 sm:px-3.5'
+                                panelCompact ? 'px-2.5 py-2' : 'px-3 py-2.5 sm:px-3.5'
                             }`}
                         >
                             <div
                                 className={`flex items-center justify-between gap-2 ${
-                                    compact ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
+                                    panelCompact ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
                                 }`}
                             >
                                 <span className="min-w-0 truncate font-bold text-zinc-100">{understandingRow.title}</span>
@@ -336,7 +344,7 @@ const AdventureRegionalBuffPanel: React.FC<{
                             </div>
                             <p
                                 className={`mt-1 tabular-nums text-zinc-500 ${
-                                    compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
+                                    panelCompact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
                                 }`}
                             >
                                 XP ({(understandingRow.xpInTier ?? understandingRow.xp).toLocaleString()}/
@@ -344,7 +352,7 @@ const AdventureRegionalBuffPanel: React.FC<{
                             </p>
                             <p
                                 className={`mt-1 font-semibold tabular-nums text-amber-200/90 ${
-                                    compact ? 'text-[10px] sm:text-[11px]' : 'text-[11px] sm:text-xs'
+                                    panelCompact ? 'text-[10px] sm:text-[11px]' : 'text-[11px] sm:text-xs'
                                 }`}
                             >
                                 강화 포인트 {remainingPts.toLocaleString()} / {grantPts.toLocaleString()}
@@ -352,7 +360,11 @@ const AdventureRegionalBuffPanel: React.FC<{
                         </div>
                     )}
 
-                    <div className="mt-2 flex min-h-0 w-full min-w-0 flex-col gap-1.5 sm:gap-2">
+                    <div
+                        className={`mt-2 flex min-h-0 w-full min-w-0 flex-col ${
+                            embeddedInModal ? 'gap-1' : 'gap-1.5 sm:gap-2'
+                        }`}
+                    >
                         {!stageChapterUnlocked ? (
                             <div
                                 className={`flex w-full items-center gap-2 rounded-md border border-dashed border-zinc-600/50 bg-black/20 px-2 py-2 ${
@@ -393,12 +405,14 @@ const AdventureRegionalBuffPanel: React.FC<{
                             return (
                                 <div
                                     key={slotIndex}
-                                    className={`relative flex min-h-[3.25rem] w-full cursor-pointer items-center gap-2 rounded-md border px-2.5 py-2.5 transition-all duration-300 ${
+                                    className={`relative flex w-full cursor-pointer items-center gap-2 rounded-md border px-2.5 transition-all duration-300 ${
+                                        embeddedInModal ? 'min-h-[2.85rem] py-2' : 'min-h-[3.25rem] py-2.5'
+                                    } ${
                                         isFlashing
                                             ? 'border-amber-300/80 bg-amber-500/15 shadow-[0_0_20px_rgba(251,191,36,0.45)]'
                                             : 'border-white/8 bg-black/25'
                                     } ${
-                                        compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
+                                        panelCompact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
                                     }`}
                                 >
                                     {isSpinning ? (
