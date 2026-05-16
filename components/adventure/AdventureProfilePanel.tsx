@@ -1,4 +1,4 @@
-import React, { useId, useMemo, useState } from 'react';
+import React, { useId, useMemo } from 'react';
 import { getAdventureCodexCompletionBreakdown } from '../../utils/adventureCodexCompletion.js';
 import type { AdventureProfile } from '../../types/entities.js';
 import { CORE_STATS_DATA } from '../../constants.js';
@@ -22,10 +22,10 @@ const AdventureProfilePanel: React.FC<{
     profile: AdventureProfile | null | undefined;
     userGold?: number;
     compact?: boolean;
-    /** 네이티브 모바일 모험 일지: 몬스터 / 도감 완성도 탭 분리 */
-    mobileJournalSplit?: boolean;
+    /** 네이티브 모바일 모험 일지: 스크롤 없이 한 화면에 맞춤 */
+    mobileOneScreen?: boolean;
     onOpenMonsterCodex?: () => void;
-}> = ({ profile, compact = false, mobileJournalSplit = false, onOpenMonsterCodex }) => {
+}> = ({ profile, compact = false, mobileOneScreen = false, onOpenMonsterCodex }) => {
     const donutGradId = useId().replace(/:/g, '');
     const { currentUserWithStatus } = useAppContext();
     const userId = currentUserWithStatus?.id;
@@ -36,78 +36,135 @@ const AdventureProfilePanel: React.FC<{
     const topCodexMonster = useMemo(() => getTopAdventureCodexMonsterByWins(profile), [profile]);
     const battleRecord = useMemo(() => getAdventureBattleRecordSummary(profile), [profile]);
     const { rankings: adventureRankings, loading: adventureRankLoading } = useRanking('adventure');
-    const [mobileTab, setMobileTab] = useState<'understanding' | 'codex'>('understanding');
-
     const adventureRank = useMemo(() => {
         if (!userId) return null;
         const entry = adventureRankings.find((r) => r.id === userId);
         return entry?.rank ?? null;
     }, [adventureRankings, userId]);
 
-    const donutR = compact ? 34 : 42;
+    /** 로비 사이드·모바일 일지 — 스크롤 없이 한 화면에 맞춤 */
+    const tightLayout = mobileOneScreen || !compact;
+    const donutR = mobileOneScreen ? 28 : compact ? 30 : tightLayout ? 32 : 42;
     const donutC = 2 * Math.PI * donutR;
     const donutDash = (Math.min(100, Math.max(0, codexBreakdown.overallPercent)) / 100) * donutC;
 
-    const labelCls = compact
-        ? 'text-[11px] font-bold uppercase tracking-wider text-zinc-500 sm:text-xs'
-        : 'text-xs font-bold uppercase tracking-wider text-zinc-500 sm:text-sm';
+    const labelCls =
+        compact || tightLayout
+            ? 'text-[10px] font-bold uppercase tracking-wider text-zinc-500 sm:text-[11px]'
+            : 'text-xs font-bold uppercase tracking-wider text-zinc-500 sm:text-sm';
+
+    const panelPad =
+        mobileOneScreen ? 'px-2 py-1.5' : compact || tightLayout ? 'px-2.5 py-2' : 'px-3.5 py-3 sm:px-4 sm:py-3.5';
+    const sectionPad = mobileOneScreen
+        ? 'p-2'
+        : compact
+          ? 'p-3 sm:p-3.5'
+          : tightLayout
+            ? 'p-2.5 sm:p-3'
+            : 'p-3.5 sm:p-4 lg:p-5';
+    const blockGap = mobileOneScreen ? 'gap-1.5' : compact || tightLayout ? 'gap-2' : 'gap-3 sm:gap-3.5';
 
     const codexOpenBtnClass = `w-full rounded-lg border border-violet-400/40 bg-violet-950/60 font-bold text-violet-100 shadow-sm transition-colors hover:border-amber-400/45 hover:bg-violet-900/55 active:scale-[0.99] ${
-        compact ? 'px-2 py-1 text-[11px] sm:text-xs' : 'px-2.5 py-1.5 text-xs sm:text-sm'
+        mobileOneScreen
+            ? 'px-1.5 py-0.5 text-[10px]'
+            : compact || tightLayout
+              ? 'px-2 py-1 text-[11px] sm:text-xs'
+              : 'px-2.5 py-1.5 text-xs sm:text-sm'
+    }`;
+
+    const understandingStatRowCls = `flex items-center justify-between gap-2 rounded-md border border-white/8 bg-black/25 ${
+        mobileOneScreen ? 'px-1.5 py-0.5' : 'px-2 py-1'
     }`;
 
     const adventureBattleRecordPanel = (
         <div
-            className={`w-full min-w-0 rounded-xl border border-cyan-500/30 bg-gradient-to-br from-cyan-950/35 via-zinc-950/80 to-zinc-950/95 ${
-                compact ? 'px-3 py-2.5' : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
-            }`}
+            className={`w-full min-w-0 rounded-xl border border-cyan-500/30 bg-gradient-to-br from-cyan-950/35 via-zinc-950/80 to-zinc-950/95 ${panelPad}`}
         >
             <p className={labelCls}>모험 전적</p>
-            <div className={`mt-2 grid grid-cols-2 gap-2 ${compact ? 'text-xs' : 'text-sm sm:text-base'}`}>
-                <div className="rounded-lg border border-emerald-500/25 bg-emerald-950/25 px-2.5 py-2 text-center">
-                    <p className={`font-semibold text-zinc-400 ${compact ? 'text-[10px]' : 'text-xs'}`}>잡은 몬스터</p>
-                    <p className={`mt-0.5 font-black tabular-nums text-emerald-200 ${compact ? 'text-base' : 'text-lg'}`}>
-                        {battleRecord.caught.toLocaleString()}
-                    </p>
+            <div className={`mt-1.5 flex gap-2 ${mobileOneScreen ? 'gap-1.5' : ''}`}>
+                <div
+                    className={`grid min-w-0 flex-1 grid-cols-2 gap-x-1 gap-y-0.5 ${
+                        mobileOneScreen ? 'max-w-[58%]' : 'max-w-[62%]'
+                    }`}
+                >
+                    {battleRecord.byMode.map((row) => (
+                        <div
+                            key={row.mode}
+                            className="flex min-w-0 flex-col gap-0 rounded-md border border-white/8 bg-black/25 px-1.5 py-1"
+                            title={`${row.label} ${formatAdventureModeWinLossRecord(row.wins, row.losses, row.winRatePercent)}`}
+                        >
+                            <span className="truncate text-[10px] font-semibold leading-tight text-zinc-400">
+                                {row.label}
+                            </span>
+                            <span className="truncate text-[10px] font-bold tabular-nums leading-tight text-cyan-100/95 sm:text-[11px]">
+                                {formatAdventureModeWinLossRecord(row.wins, row.losses, row.winRatePercent)}
+                            </span>
+                        </div>
+                    ))}
                 </div>
-                <div className="rounded-lg border border-rose-500/25 bg-rose-950/20 px-2.5 py-2 text-center">
-                    <p className={`font-semibold text-zinc-400 ${compact ? 'text-[10px]' : 'text-xs'}`}>놓친 몬스터</p>
-                    <p className={`mt-0.5 font-black tabular-nums text-rose-200 ${compact ? 'text-base' : 'text-lg'}`}>
-                        {battleRecord.missed.toLocaleString()}
-                    </p>
-                </div>
-            </div>
-            <div className={`mt-2.5 space-y-1 ${compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'}`}>
-                {battleRecord.byMode.map((row) => (
+                <div
+                    className={`flex shrink-0 flex-col gap-1 ${
+                        mobileOneScreen ? 'w-[5.25rem]' : 'w-[5.75rem] sm:w-[6.25rem]'
+                    }`}
+                >
                     <div
-                        key={row.mode}
-                        className="flex items-center justify-between gap-2 rounded-md border border-white/8 bg-black/25 px-2.5 py-1.5"
+                        className={`flex flex-1 flex-col justify-center rounded-lg border border-emerald-500/30 bg-emerald-950/30 text-center ${
+                            mobileOneScreen ? 'px-1.5 py-1' : 'px-2 py-1.5'
+                        }`}
                     >
-                        <span className="shrink-0 font-semibold text-zinc-300">{row.label}</span>
-                        <span className="shrink-0 whitespace-nowrap font-bold tabular-nums text-cyan-100/95">
-                            {formatAdventureModeWinLossRecord(row.wins, row.losses, row.winRatePercent)}
-                        </span>
+                        <p className="text-[9px] font-semibold leading-tight text-zinc-400">잡은 몬스터</p>
+                        <p
+                            className={`mt-0.5 font-black tabular-nums leading-none text-emerald-200 ${
+                                mobileOneScreen ? 'text-sm' : 'text-base'
+                            }`}
+                        >
+                            {battleRecord.caught.toLocaleString()}
+                        </p>
                     </div>
-                ))}
+                    <div
+                        className={`flex flex-1 flex-col justify-center rounded-lg border border-rose-500/30 bg-rose-950/25 text-center ${
+                            mobileOneScreen ? 'px-1.5 py-1' : 'px-2 py-1.5'
+                        }`}
+                    >
+                        <p className="text-[9px] font-semibold leading-tight text-zinc-400">놓친 몬스터</p>
+                        <p
+                            className={`mt-0.5 font-black tabular-nums leading-none text-rose-200 ${
+                                mobileOneScreen ? 'text-sm' : 'text-base'
+                            }`}
+                        >
+                            {battleRecord.missed.toLocaleString()}
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     );
 
     const adventureHuntingStatsPanel = (
         <div
-            className={`w-full min-w-0 rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/35 via-zinc-950/80 to-zinc-950/95 ${
-                compact ? 'px-3 py-2.5' : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
-            }`}
+            className={`w-full min-w-0 rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/35 via-zinc-950/80 to-zinc-950/95 ${panelPad}`}
         >
             <p className={`${labelCls} text-center`}>모험 랭킹</p>
-            <div className={`mt-2 grid grid-cols-2 gap-2 ${compact ? 'text-xs' : 'text-sm sm:text-base'}`}>
-                <div className="rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-center">
+            <div
+                className={`${mobileOneScreen ? 'mt-1' : 'mt-1.5'} grid grid-cols-2 gap-1.5 ${
+                    mobileOneScreen ? 'gap-1 text-xs' : compact || tightLayout ? 'text-xs' : 'text-sm sm:text-base'
+                }`}
+            >
+                <div
+                    className={`rounded-lg border border-white/10 bg-black/30 text-center ${
+                        mobileOneScreen ? 'px-2 py-1.5' : 'px-2.5 py-2'
+                    }`}
+                >
                     <p className={`font-semibold text-zinc-400 ${compact ? 'text-[10px]' : 'text-xs'}`}>모험 점수</p>
                     <p className={`mt-0.5 font-black tabular-nums text-emerald-200 ${compact ? 'text-base' : 'text-lg'}`}>
                         {huntingScore.toLocaleString()}
                     </p>
                 </div>
-                <div className="rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-center">
+                <div
+                    className={`rounded-lg border border-white/10 bg-black/30 text-center ${
+                        mobileOneScreen ? 'px-2 py-1.5' : 'px-2.5 py-2'
+                    }`}
+                >
                     <p className={`font-semibold text-zinc-400 ${compact ? 'text-[10px]' : 'text-xs'}`}>내 순위</p>
                     <p className={`mt-0.5 font-black tabular-nums text-amber-200 ${compact ? 'text-base' : 'text-lg'}`}>
                         {adventureRankLoading ? '…' : adventureRank != null ? `${adventureRank}위` : 'N/A'}
@@ -119,8 +176,8 @@ const AdventureProfilePanel: React.FC<{
 
     const codexDonutPanel = (
         <div
-            className={`shrink-0 self-center rounded-lg border border-violet-400/30 bg-violet-950/30 p-2 ${
-                compact ? 'w-[8.25rem]' : 'w-[9.5rem]'
+            className={`shrink-0 self-center rounded-lg border border-violet-400/30 bg-violet-950/30 p-1.5 ${
+                mobileOneScreen ? 'w-[6.5rem]' : compact || tightLayout ? 'w-[7.25rem]' : 'w-[9.5rem]'
             }`}
             title="몬스터 도감 완성도"
         >
@@ -176,45 +233,47 @@ const AdventureProfilePanel: React.FC<{
     );
 
     const topHuntedMonsterPanel = (
-        <AdventureTopHuntedMonsterPanel monster={topCodexMonster} compact={compact} />
+        <AdventureTopHuntedMonsterPanel monster={topCodexMonster} compact={compact || tightLayout || mobileOneScreen} />
     );
 
     const understandingBody = (
         <div className="relative min-w-0">
             <p className={labelCls}>몬스터 이해도</p>
-            <div className="mt-2 flex items-start gap-3">
+            <div className={`mt-2 flex items-start ${mobileOneScreen ? 'gap-2' : 'gap-3'}`}>
                 <div className="min-w-0 flex-1">
                     <div
-                        className={`grid grid-cols-1 gap-1.5 sm:grid-cols-2 ${
-                            compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
+                        className={`grid gap-1.5 ${
+                            mobileOneScreen || compact || tightLayout
+                                ? 'grid-cols-2 text-[9px] sm:text-[10px]'
+                                : 'grid-cols-1 text-xs sm:grid-cols-2 sm:text-sm'
                         }`}
                     >
-                        <div className="flex items-center justify-between gap-2 rounded-md border border-white/8 bg-black/25 px-2.5 py-1.5">
+                        <div className={understandingStatRowCls}>
                             <span className="truncate text-zinc-300">모험 골드</span>
                             <span className="shrink-0 font-semibold tabular-nums text-amber-200/95">
                                 +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.goldBonusPercent)}%
                             </span>
                         </div>
-                        <div className="rounded-md border border-transparent bg-transparent px-2.5 py-1.5" aria-hidden />
-                        <div className="flex items-center justify-between gap-2 rounded-md border border-white/8 bg-black/25 px-2.5 py-1.5">
+                        <div className="rounded-md border border-transparent bg-transparent px-2 py-1" aria-hidden />
+                        <div className={understandingStatRowCls}>
                             <span className="truncate text-zinc-300">장비 획득</span>
                             <span className="shrink-0 font-semibold tabular-nums text-cyan-200/95">
                                 +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.equipmentDropPercent)}%
                             </span>
                         </div>
-                        <div className="flex items-center justify-between gap-2 rounded-md border border-white/8 bg-black/25 px-2.5 py-1.5">
+                        <div className={understandingStatRowCls}>
                             <span className="truncate text-zinc-300">고급 장비</span>
                             <span className="shrink-0 font-semibold tabular-nums text-sky-200/95">
                                 +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.highGradeEquipmentPercent)}%
                             </span>
                         </div>
-                        <div className="flex items-center justify-between gap-2 rounded-md border border-white/8 bg-black/25 px-2.5 py-1.5">
+                        <div className={understandingStatRowCls}>
                             <span className="truncate text-zinc-300">재료 획득</span>
                             <span className="shrink-0 font-semibold tabular-nums text-emerald-200/95">
                                 +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.materialDropPercent)}%
                             </span>
                         </div>
-                        <div className="flex items-center justify-between gap-2 rounded-md border border-white/8 bg-black/25 px-2.5 py-1.5">
+                        <div className={understandingStatRowCls}>
                             <span className="truncate text-zinc-300">고급 재료</span>
                             <span className="shrink-0 font-semibold tabular-nums text-teal-200/95">
                                 +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.highGradeMaterialPercent)}%
@@ -223,7 +282,7 @@ const AdventureProfilePanel: React.FC<{
                         {ADVENTURE_UNDERSTANDING_CORE_STAT_ORDER.map((stat) => (
                             <div
                                 key={stat}
-                                className="flex items-center justify-between gap-2 rounded-md border border-white/8 bg-black/25 px-2.5 py-1.5"
+                                className={understandingStatRowCls}
                             >
                                 <span className="truncate text-zinc-300">{CORE_STATS_DATA[stat]?.name ?? stat}</span>
                                 <span className="shrink-0 whitespace-nowrap font-mono font-bold tabular-nums">
@@ -239,159 +298,67 @@ const AdventureProfilePanel: React.FC<{
                         ))}
                     </div>
                 </div>
-                {!mobileJournalSplit ? (
-                    <div className="flex shrink-0 flex-col items-stretch gap-1.5 self-center">
-                        {onOpenMonsterCodex ? (
-                            <button type="button" onClick={onOpenMonsterCodex} className={codexOpenBtnClass} aria-label="몬스터 도감">
-                                몬스터 도감
-                            </button>
-                        ) : null}
-                        {codexDonutPanel}
-                    </div>
-                ) : null}
+                <div className={`flex shrink-0 flex-col items-stretch self-center ${mobileOneScreen ? 'gap-1' : 'gap-1.5'}`}>
+                    {onOpenMonsterCodex ? (
+                        <button type="button" onClick={onOpenMonsterCodex} className={codexOpenBtnClass} aria-label="몬스터 도감">
+                            몬스터 도감
+                        </button>
+                    ) : null}
+                    {codexDonutPanel}
+                </div>
             </div>
         </div>
     );
 
     const understandingWithTopMonster = (
-        <div className="flex min-w-0 flex-col gap-2.5 sm:gap-3">
+        <div
+            className={`flex min-w-0 flex-col ${
+                mobileOneScreen ? 'gap-1.5' : compact || tightLayout ? 'gap-2' : 'gap-2.5 sm:gap-3'
+            }`}
+        >
             {understandingBody}
             {topHuntedMonsterPanel}
         </div>
     );
 
-    const codexCompletionBody = (
-        <div className="w-full min-w-0 rounded-lg border border-violet-400/30 bg-violet-950/20 px-3 py-2.5">
-            <p className={labelCls}>도감 완성도</p>
-            {onOpenMonsterCodex ? (
-                <button type="button" onClick={onOpenMonsterCodex} className={`${codexOpenBtnClass} mt-2`} aria-label="몬스터 도감">
-                    몬스터 도감
-                </button>
-            ) : null}
-            <div className={`flex items-center gap-3 ${onOpenMonsterCodex ? 'mt-2' : 'mt-2'}`}>
-                <div className={`relative shrink-0 ${compact ? 'h-28 w-28' : 'h-32 w-32'}`}>
-                    <svg
-                        viewBox={`0 0 ${(donutR + 14) * 2} ${(donutR + 14) * 2}`}
-                        className="h-full w-full -rotate-90 text-zinc-800"
-                        aria-hidden
-                    >
-                        <circle
-                            cx={donutR + 14}
-                            cy={donutR + 14}
-                            r={donutR}
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth={compact ? 8 : 9}
-                            className="text-zinc-800/95"
-                        />
-                        <circle
-                            cx={donutR + 14}
-                            cy={donutR + 14}
-                            r={donutR}
-                            fill="none"
-                            stroke={`url(#${donutGradId})`}
-                            strokeWidth={compact ? 8 : 9}
-                            strokeLinecap="round"
-                            strokeDasharray={`${donutDash} ${donutC}`}
-                        />
-                    </svg>
-                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-                        <span className={`font-black tabular-nums text-white ${compact ? 'text-base' : 'text-lg'}`}>
-                            {codexBreakdown.overallPercent >= 10
-                                ? Math.round(codexBreakdown.overallPercent)
-                                : Math.round(codexBreakdown.overallPercent * 10) / 10}
-                            %
-                        </span>
-                        <span className={`font-semibold tabular-nums text-zinc-400 ${compact ? 'text-xs' : 'text-sm'}`}>
-                            {codexBreakdown.totalSum}/{codexBreakdown.totalMax}
-                        </span>
-                    </div>
-                </div>
-                <div className="min-w-0 flex-1 space-y-1">
-                    {codexBreakdown.stages.map((st, i) => (
-                        <div key={st.stageId} className="flex items-center justify-between gap-2 text-xs">
-                            <span className="font-semibold text-zinc-400">챕터 {i + 1}</span>
-                            <span className="tabular-nums font-bold text-violet-200">{Math.round(st.percent)}%</span>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
-
     return (
         <section
-            className={`relative flex h-full w-full min-w-0 flex-col rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-900/90 via-violet-950/25 to-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
-                compact ? 'p-3 sm:p-3.5' : 'p-3.5 sm:p-4 lg:p-5'
-            }`}
+            className={`relative flex h-full w-full min-w-0 flex-col border border-white/10 bg-gradient-to-br from-zinc-900/90 via-violet-950/25 to-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${mobileOneScreen ? 'rounded-xl' : 'rounded-2xl'} ${sectionPad}`}
             aria-label="모험 일지"
         >
-            {mobileJournalSplit ? <h2 className="sr-only">모험 일지</h2> : null}
-
-            {!mobileJournalSplit ? (
-                <div className="flex shrink-0 flex-wrap items-center border-b border-white/10 pb-2.5 sm:pb-3">
+            {mobileOneScreen ? (
+                <h2 className="sr-only">모험 일지</h2>
+            ) : (
+                <div className="flex shrink-0 flex-wrap items-center border-b border-white/10 pb-2 sm:pb-2.5">
                     <h2
                         className={`min-w-0 font-black tracking-tight text-transparent bg-gradient-to-r from-cyan-200 via-fuchsia-200 to-amber-200 bg-clip-text ${
-                            compact ? 'text-base sm:text-lg' : 'text-lg sm:text-xl lg:text-2xl'
+                            compact || tightLayout ? 'text-base sm:text-lg' : 'text-lg sm:text-xl lg:text-2xl'
                         }`}
                     >
                         모험 일지
                     </h2>
                 </div>
-            ) : null}
+            )}
 
             <div
-                className={`flex min-h-0 w-full min-w-0 flex-1 flex-col pr-0.5 ${
-                    mobileJournalSplit ? 'mt-0 gap-2 overflow-hidden' : `mt-3 gap-3 overflow-y-auto overscroll-contain ${compact ? '' : 'sm:gap-3.5'}`
+                className={`flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden pr-0.5 ${
+                    mobileOneScreen ? 'mt-0 gap-1.5' : `mt-2 ${blockGap}`
                 }`}
             >
                 {adventureHuntingStatsPanel}
                 {adventureBattleRecordPanel}
 
-                {mobileJournalSplit ? (
-                    <>
-                        <div className="grid grid-cols-2 gap-1.5">
-                            {[
-                                { id: 'understanding', label: '몬스터 이해도' },
-                                { id: 'codex', label: '도감 완성도' },
-                            ].map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    type="button"
-                                    onClick={() => setMobileTab(tab.id as 'understanding' | 'codex')}
-                                    className={`rounded-md border px-1.5 py-1.5 text-[11px] font-bold transition-colors ${
-                                        mobileTab === tab.id
-                                            ? 'border-amber-400/60 bg-amber-500/15 text-amber-100'
-                                            : 'border-white/10 bg-black/25 text-zinc-400'
-                                    }`}
-                                >
-                                    {tab.label}
-                                </button>
-                            ))}
-                        </div>
-                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-                            {mobileTab === 'understanding' ? (
-                                <div className="h-full w-full min-w-0 rounded-xl border border-amber-400/30 bg-gradient-to-br from-zinc-950/98 via-zinc-950/92 to-black/95 px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                                    <div className="h-full w-full min-w-0 rounded-lg border border-white/10 bg-black/35 px-2 py-1.5">
-                                        {understandingWithTopMonster}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="h-full w-full min-w-0 rounded-xl border border-violet-400/25 bg-violet-950/15 px-2.5 py-2">
-                                    {codexCompletionBody}
-                                </div>
-                            )}
-                        </div>
-                    </>
-                ) : (
-                    <div
-                        className={`w-full min-w-0 rounded-xl border border-white/8 bg-black/25 ${
-                            compact ? 'px-3 py-2.5' : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
-                        }`}
-                    >
-                        {understandingWithTopMonster}
-                    </div>
-                )}
+                <div
+                    className={`min-h-0 w-full min-w-0 flex-1 rounded-xl border border-white/8 bg-black/25 ${
+                        mobileOneScreen
+                            ? 'px-2 py-1.5'
+                            : compact || tightLayout
+                              ? 'px-2.5 py-2'
+                              : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
+                    }`}
+                >
+                    {understandingWithTopMonster}
+                </div>
             </div>
         </section>
     );

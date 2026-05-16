@@ -30,17 +30,48 @@ const REGIONAL_SPECIALTY_SLOT_COUNT = 5 as const;
 export type { AdventureStageUnderstandingRow } from '../../utils/adventureStageUnderstandingRows.js';
 import type { AdventureStageUnderstandingRow } from '../../utils/adventureStageUnderstandingRows.js';
 
-const GoldCostInline: React.FC<{ text: string }> = ({ text }) => (
-    <span className="inline-flex items-center gap-0.5 tabular-nums">
+const GoldCostInline: React.FC<{ text: string; compact?: boolean }> = ({ text, compact = false }) => (
+    <span className="inline-flex items-center justify-center gap-0.5 tabular-nums">
         <img
             src="/images/icon/Gold.webp"
             alt=""
-            className="h-3.5 w-3.5 shrink-0 object-contain sm:h-4 sm:w-4"
+            className={`shrink-0 object-contain ${compact ? 'h-3 w-3' : 'h-3.5 w-3.5 sm:h-4 sm:w-4'}`}
             aria-hidden
         />
         <span>{text}</span>
     </span>
 );
+
+const RegionalBuffStackedActionButton: React.FC<{
+    label: string;
+    cost: React.ReactNode;
+    disabled?: boolean;
+    onClick: () => void;
+    variant: 'change' | 'changeEmpty' | 'enhance';
+    title?: string;
+    'aria-label'?: string;
+}> = ({ label, cost, disabled, onClick, variant, title, 'aria-label': ariaLabel }) => {
+    const variantClass =
+        variant === 'enhance'
+            ? 'border-fuchsia-500/45 bg-fuchsia-950/35 text-fuchsia-100 enabled:hover:bg-fuchsia-900/45'
+            : variant === 'changeEmpty'
+              ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100 enabled:hover:bg-emerald-900/45'
+              : 'border-amber-500/45 bg-amber-950/35 text-amber-100 enabled:hover:bg-amber-900/45';
+
+    return (
+        <button
+            type="button"
+            disabled={disabled}
+            title={title}
+            onClick={onClick}
+            aria-label={ariaLabel}
+            className={`inline-flex min-w-[3.25rem] shrink-0 flex-col items-center justify-center gap-0.5 rounded-md border px-2 py-1.5 text-center text-[11px] font-bold leading-tight transition-colors disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[3.5rem] sm:text-xs ${variantClass}`}
+        >
+            <span className="whitespace-nowrap">{label}</span>
+            <span className="text-[10px] font-semibold leading-tight sm:text-[11px]">{cost}</span>
+        </button>
+    );
+};
 
 const AdventureRegionalBuffPanel: React.FC<{
     profile: AdventureProfile | null | undefined;
@@ -368,11 +399,11 @@ const AdventureRegionalBuffPanel: React.FC<{
                             ) : null}
                         </div>
                         {embeddedInModal ? (
-                            <div className="flex min-w-0 flex-col justify-center rounded-lg border border-amber-500/35 bg-gradient-to-br from-amber-950/45 via-amber-950/20 to-zinc-950/85 px-3 py-2.5">
+                            <div className="flex min-w-0 flex-col items-center justify-center rounded-lg border border-amber-500/35 bg-gradient-to-br from-amber-950/45 via-amber-950/20 to-zinc-950/85 px-3 py-2.5 text-center">
                                 <p className="text-[10px] font-bold uppercase tracking-wider text-amber-300/85">
                                     강화 포인트
                                 </p>
-                                <p className="mt-1 flex items-baseline gap-1 tabular-nums">
+                                <p className="mt-1 flex items-baseline justify-center gap-1 tabular-nums">
                                     <span className="text-2xl font-black leading-none text-amber-100">
                                         {remainingPts.toLocaleString()}
                                     </span>
@@ -431,76 +462,103 @@ const AdventureRegionalBuffPanel: React.FC<{
                             const isSpinning = !!spinningSlots[slotIndex];
                             const rouletteLabel = rouletteLabelBySlot[slotIndex];
                             const isFlashing = !!flashSlots[slotIndex];
-                            return (
-                                <div
-                                    key={slotIndex}
-                                    className={`relative flex w-full cursor-pointer rounded-md border px-2.5 transition-all duration-300 ${
-                                        embeddedInModal
-                                            ? 'flex-wrap gap-x-2 gap-y-2 py-2.5'
-                                            : 'min-h-[3.25rem] items-center gap-2 py-2.5'
-                                    } ${
-                                        isFlashing
-                                            ? 'border-amber-300/80 bg-amber-500/15 shadow-[0_0_20px_rgba(251,191,36,0.45)]'
-                                            : 'border-white/8 bg-black/25'
-                                    } ${
-                                        panelCompact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
+                            const goldCostLabel = formatGoldAmountKoG(ADVENTURE_REGIONAL_BUFF_ACTION_GOLD);
+
+                            const effectLabel = isSpinning ? (
+                                <p className="min-w-0 flex-1 animate-pulse font-semibold leading-snug text-amber-100/95">
+                                    {rouletteLabel ?? '효과 선택 중...'}
+                                </p>
+                            ) : isEmptyUnlockedSlot ? (
+                                <p className="min-w-0 flex-1 font-semibold leading-snug text-amber-100/95">🔓 사용 가능</p>
+                            ) : (
+                                <p
+                                    className={`min-w-0 flex-1 font-semibold leading-snug text-cyan-100/95 ${
+                                        embeddedInModal ? 'whitespace-nowrap' : ''
                                     }`}
                                 >
-                                    {isSpinning ? (
-                                        <p
-                                            className={`animate-pulse font-semibold leading-snug text-amber-100/95 ${
-                                                embeddedInModal
-                                                    ? 'w-full basis-full whitespace-nowrap'
-                                                    : 'min-w-0 flex-1'
-                                            }`}
-                                        >
-                                            {rouletteLabel ?? '효과 선택 중...'}
-                                        </p>
-                                    ) : isEmptyUnlockedSlot ? (
-                                        <p
-                                            className={`font-semibold leading-snug text-amber-100/95 ${
-                                                embeddedInModal ? 'w-full basis-full whitespace-nowrap' : 'min-w-0 flex-1'
-                                            }`}
-                                        >
-                                            🔓 사용 가능
-                                        </p>
+                                    {labelRegionalSpecialtyBuffEntry(e!)}
+                                </p>
+                            );
+
+                            const changeButton = (
+                                <button
+                                    type="button"
+                                    disabled={isSpinning || anySlotSpinning || (!isEmptyUnlockedSlot && !canAfford)}
+                                    onClick={() => void onChange(slotIndex)}
+                                    className={`inline-flex shrink-0 items-center justify-center gap-1 rounded-md border px-2 py-1.5 text-[11px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 sm:text-xs ${
+                                        isEmptyUnlockedSlot
+                                            ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100 enabled:hover:bg-emerald-900/45'
+                                            : 'border-amber-500/45 bg-amber-950/35 text-amber-100 enabled:hover:bg-amber-900/45'
+                                    }`}
+                                    aria-label={
+                                        isEmptyUnlockedSlot
+                                            ? '효과 획득 (무료)'
+                                            : `효과 변경, 비용 ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD} 골드`
+                                    }
+                                >
+                                    <span>{isEmptyUnlockedSlot ? '효과 획득' : '변경'}</span>
+                                    {!isEmptyUnlockedSlot ? (
+                                        <GoldCostInline text={goldCostLabel} />
                                     ) : (
-                                        <p
-                                            className={`font-semibold leading-snug text-cyan-100/95 ${
-                                                embeddedInModal ? 'w-full basis-full whitespace-nowrap' : 'min-w-0 flex-1'
-                                            }`}
-                                        >
-                                            {labelRegionalSpecialtyBuffEntry(e!)}
-                                        </p>
+                                        <span className="tabular-nums text-emerald-200/90">무료</span>
                                     )}
-                                    <button
-                                        type="button"
-                                        disabled={
-                                            isSpinning ||
-                                            anySlotSpinning ||
-                                            (!isEmptyUnlockedSlot && !canAfford)
+                                </button>
+                            );
+
+                            const enhanceButton = (
+                                <button
+                                    type="button"
+                                    disabled={
+                                        !canAfford ||
+                                        isSpinning ||
+                                        !e ||
+                                        !isRegionalBuffEnhanceable(e.kind) ||
+                                        remainingPts < 1 ||
+                                        Math.floor(e.stacks ?? 1) >= getRegionalBuffMaxStacks(e.kind)
+                                    }
+                                    title={
+                                        !e
+                                            ? '빈 슬롯은 강화할 수 없습니다'
+                                            : !isRegionalBuffEnhanceable(e.kind)
+                                              ? '이 효과는 강화할 수 없습니다'
+                                              : remainingPts < 1
+                                                ? '강화 포인트가 부족합니다'
+                                                : undefined
+                                    }
+                                    onClick={() => onEnhance(slotIndex)}
+                                    className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md border border-fuchsia-500/45 bg-fuchsia-950/35 px-2 py-1.5 text-[11px] font-bold text-fuchsia-100 transition-colors enabled:hover:bg-fuchsia-900/45 disabled:cursor-not-allowed disabled:opacity-40 sm:text-xs"
+                                    aria-label={`강화, 비용 ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD} 골드 및 포인트 1`}
+                                >
+                                    <span>강화</span>
+                                    <GoldCostInline text={goldCostLabel} />
+                                </button>
+                            );
+
+                            const modalActionButtons = (
+                                <div className="flex shrink-0 flex-row items-center gap-1.5">
+                                    <RegionalBuffStackedActionButton
+                                        label={isEmptyUnlockedSlot ? '효과 획득' : '변경'}
+                                        cost={
+                                            isEmptyUnlockedSlot ? (
+                                                <span className="text-emerald-200/90">무료</span>
+                                            ) : (
+                                                <GoldCostInline text={goldCostLabel} compact />
+                                            )
                                         }
+                                        disabled={
+                                            isSpinning || anySlotSpinning || (!isEmptyUnlockedSlot && !canAfford)
+                                        }
+                                        variant={isEmptyUnlockedSlot ? 'changeEmpty' : 'change'}
                                         onClick={() => void onChange(slotIndex)}
-                                        className={`inline-flex shrink-0 items-center justify-center gap-1 rounded-md border px-2 py-1.5 text-[11px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 sm:text-xs ${
-                                            isEmptyUnlockedSlot
-                                                ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100 enabled:hover:bg-emerald-900/45'
-                                                : 'border-amber-500/45 bg-amber-950/35 text-amber-100 enabled:hover:bg-amber-900/45'
-                                        }`}
                                         aria-label={
                                             isEmptyUnlockedSlot
                                                 ? '효과 획득 (무료)'
                                                 : `효과 변경, 비용 ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD} 골드`
                                         }
-                                    >
-                                        <span>{isEmptyUnlockedSlot ? '효과 획득' : '변경'}</span>
-                                        {!isEmptyUnlockedSlot ? (
-                                            <GoldCostInline text={formatGoldAmountKoG(ADVENTURE_REGIONAL_BUFF_ACTION_GOLD)} />
-                                        ) : (
-                                            <span className="tabular-nums text-emerald-200/90">무료</span>
-                                        )}
-                                    </button>
-                                    <button
-                                        type="button"
+                                    />
+                                    <RegionalBuffStackedActionButton
+                                        label="강화"
+                                        cost={<GoldCostInline text={goldCostLabel} compact />}
                                         disabled={
                                             !canAfford ||
                                             isSpinning ||
@@ -509,22 +567,42 @@ const AdventureRegionalBuffPanel: React.FC<{
                                             remainingPts < 1 ||
                                             Math.floor(e.stacks ?? 1) >= getRegionalBuffMaxStacks(e.kind)
                                         }
+                                        variant="enhance"
                                         title={
                                             !e
                                                 ? '빈 슬롯은 강화할 수 없습니다'
                                                 : !isRegionalBuffEnhanceable(e.kind)
-                                                ? '이 효과는 강화할 수 없습니다'
-                                                : remainingPts < 1
-                                                  ? '강화 포인트가 부족합니다'
-                                                  : undefined
+                                                  ? '이 효과는 강화할 수 없습니다'
+                                                  : remainingPts < 1
+                                                    ? '강화 포인트가 부족합니다'
+                                                    : undefined
                                         }
                                         onClick={() => onEnhance(slotIndex)}
-                                        className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md border border-fuchsia-500/45 bg-fuchsia-950/35 px-2 py-1.5 text-[11px] font-bold text-fuchsia-100 transition-colors enabled:hover:bg-fuchsia-900/45 disabled:cursor-not-allowed disabled:opacity-40 sm:text-xs"
                                         aria-label={`강화, 비용 ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD} 골드 및 포인트 1`}
-                                    >
-                                        <span>강화</span>
-                                        <GoldCostInline text={formatGoldAmountKoG(ADVENTURE_REGIONAL_BUFF_ACTION_GOLD)} />
-                                    </button>
+                                    />
+                                </div>
+                            );
+
+                            return (
+                                <div
+                                    key={slotIndex}
+                                    className={`relative flex w-full cursor-pointer rounded-md border px-2.5 transition-all duration-300 ${
+                                        embeddedInModal
+                                            ? 'min-h-[3rem] items-center gap-2 py-2.5'
+                                            : 'min-h-[3.25rem] items-center gap-2 py-2.5'
+                                    } ${
+                                        isFlashing
+                                            ? 'border-amber-300/80 bg-amber-500/15 shadow-[0_0_20px_rgba(251,191,36,0.45)]'
+                                            : 'border-white/8 bg-black/25'
+                                    } ${panelCompact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'}`}
+                                >
+                                    {effectLabel}
+                                    {embeddedInModal ? modalActionButtons : (
+                                        <>
+                                            {changeButton}
+                                            {enhanceButton}
+                                        </>
+                                    )}
                                 </div>
                             );
                         })

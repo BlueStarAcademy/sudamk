@@ -20,8 +20,9 @@ import {
 const ADVENTURE_CHAPTER_GRID_DESKTOP =
     'grid h-full min-h-0 w-full content-center grid-cols-2 grid-rows-[repeat(3,minmax(0,15rem))] gap-2.5 overflow-hidden lg:grid-rows-[repeat(3,minmax(0,17.5rem))] lg:gap-3 [&>*]:min-h-0 [&>*]:min-w-0';
 
-const ADVENTURE_CHAPTER_GRID_MOBILE =
-    'grid min-h-0 min-w-0 flex-1 grid-cols-2 grid-rows-[repeat(3,minmax(0,1fr))] gap-1 overflow-hidden py-0 [&>*]:min-h-0 [&>*]:min-w-0';
+/** 모바일: 챕터 카드 가로 1열 · 세로 스크롤 */
+const ADVENTURE_CHAPTER_LIST_MOBILE =
+    'flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain py-0.5 [&>*]:shrink-0';
 
 const STAGE_CARD_RINGS: readonly string[] = [
     'ring-emerald-400/40',
@@ -52,7 +53,7 @@ const AdventureLobby: React.FC = () => {
     const { currentUserWithStatus } = useAppContext();
     const { isNativeMobile, isNarrowViewport, pcLikeMobileLayout } = useNativeMobileShell();
 
-    /** 네이티브 앱 또는 모바일 웹(좁은 화면·PC동일 레이아웃 Off) — 챕터 5행 한 화면 */
+    /** 네이티브 앱 또는 모바일 웹(좁은 화면·PC동일 레이아웃 Off) — 챕터·일지 탭 */
     const mobileAdventureShell = isNativeMobile || (isNarrowViewport && !pcLikeMobileLayout);
     const [monsterCodexOpen, setMonsterCodexOpen] = useState(false);
     const [regionalBuffStageId, setRegionalBuffStageId] = useState<string | null>(null);
@@ -90,8 +91,8 @@ const AdventureLobby: React.FC = () => {
         </div>
     );
 
-    const chapterColumn = (showSectionHeading: boolean, opts?: { mobileFillViewportCards?: boolean }) => {
-        const mobileFillViewportCards = !!opts?.mobileFillViewportCards;
+    const chapterColumn = (showSectionHeading: boolean, opts?: { mobileScrollableList?: boolean }) => {
+        const mobileScrollableList = !!opts?.mobileScrollableList;
         return (
         <section
             className="flex min-h-0 min-w-0 flex-1 flex-col lg:h-full lg:min-h-0"
@@ -106,13 +107,13 @@ const AdventureLobby: React.FC = () => {
             ) : null}
             <div
                 className={
-                    mobileFillViewportCards
+                    mobileScrollableList
                         ? 'flex min-h-0 flex-1 flex-col overflow-hidden'
                         : 'min-h-0 flex-1 overflow-hidden'
                 }
             >
                 <ol
-                    className={mobileFillViewportCards ? ADVENTURE_CHAPTER_GRID_MOBILE : ADVENTURE_CHAPTER_GRID_DESKTOP}
+                    className={mobileScrollableList ? ADVENTURE_CHAPTER_LIST_MOBILE : ADVENTURE_CHAPTER_GRID_DESKTOP}
                 >
                     {ADVENTURE_STAGES.map((stage, i) => {
                         const ringClass = STAGE_CARD_RINGS[i] ?? STAGE_CARD_RINGS[0];
@@ -124,7 +125,7 @@ const AdventureLobby: React.FC = () => {
                             <li
                                 key={stage.id}
                                 className={`min-h-0 min-w-0 overflow-hidden ${
-                                    mobileFillViewportCards ? 'flex h-full min-h-0 flex-col' : 'flex flex-1 flex-col'
+                                    mobileScrollableList ? 'flex flex-col' : 'flex flex-1 flex-col'
                                 }`}
                             >
                                 <button
@@ -138,15 +139,19 @@ const AdventureLobby: React.FC = () => {
                                     aria-label={
                                         unlocked ? `${stage.title} 맵으로 입장` : `${stage.title} 잠김: ${blockers.join(', ')}`
                                     }
-                                    className={`group flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-xl border text-left shadow-[0_18px_44px_-22px_rgba(0,0,0,0.92)] ring-1 transition-[border-color,box-shadow,filter] duration-200 sm:rounded-2xl ${ringClass} ${
+                                    className={`group flex w-full min-w-0 flex-col overflow-hidden rounded-xl border text-left shadow-[0_18px_44px_-22px_rgba(0,0,0,0.92)] ring-1 transition-[border-color,box-shadow,filter] duration-200 sm:rounded-2xl ${ringClass} ${
+                                        mobileScrollableList ? 'min-h-[8.75rem]' : 'h-full min-h-0'
+                                    } ${
                                         unlocked
                                             ? 'cursor-pointer border-white/14 hover:border-amber-400/30 hover:shadow-[0_22px_52px_-22px_rgba(251,191,36,0.2)]'
                                             : 'cursor-not-allowed border-zinc-700/50 opacity-95'
                                     }`}
                                 >
                                     <div
-                                        className={`relative min-h-[2.75rem] shrink-0 overflow-hidden sm:min-h-[3.25rem] ${
-                                            mobileFillViewportCards ? 'basis-[38%]' : 'basis-[40%] lg:basis-[42%]'
+                                        className={`relative min-h-[3.5rem] shrink-0 overflow-hidden sm:min-h-[4rem] ${
+                                            mobileScrollableList
+                                                ? 'h-[5.25rem] min-h-[5rem] shrink-0'
+                                                : 'flex-[1.8] min-h-[4.5rem] lg:min-h-[5rem]'
                                         }`}
                                     >
                                         <img
@@ -170,73 +175,70 @@ const AdventureLobby: React.FC = () => {
                                             >
                                                 <div className="flex flex-col items-center gap-1 rounded-full border border-amber-400/35 bg-zinc-950/55 p-1.5 shadow-[0_8px_28px_rgba(0,0,0,0.55)] ring-2 ring-amber-500/15 backdrop-blur-[2px] sm:p-2">
                                                     <ChapterLockGlyph
-                                                        className={`text-amber-100 ${mobileFillViewportCards ? 'h-4 w-4' : 'h-5 w-5 sm:h-6 sm:w-6'}`}
+                                                        className={`text-amber-100 ${mobileScrollableList ? 'h-4 w-4' : 'h-5 w-5 sm:h-6 sm:w-6'}`}
                                                     />
                                                 </div>
                                             </div>
                                         )}
-                                        <div className="absolute inset-x-0 bottom-0 flex min-w-0 items-end gap-1 px-1.5 pb-1 sm:px-2 sm:pb-1.5">
-                                            <span
-                                                className={`shrink-0 rounded-md border border-white/25 bg-black/55 font-mono font-bold tabular-nums text-amber-100/95 shadow-sm backdrop-blur-[2px] ${
-                                                    mobileFillViewportCards
-                                                        ? 'px-1 py-0.5 text-[8px]'
-                                                        : 'px-1.5 py-0.5 text-[9px] sm:text-[10px]'
-                                                }`}
-                                            >
-                                                CH.{String(stage.stageIndex).padStart(2, '0')}
-                                            </span>
-                                            <h3
-                                                className={`min-w-0 flex-1 truncate font-black leading-tight text-white drop-shadow-sm ${
-                                                    mobileFillViewportCards ? 'text-[10px]' : 'text-xs sm:text-sm'
-                                                }`}
-                                            >
-                                                {stage.title}
-                                            </h3>
-                                        </div>
-                                    </div>
-                                    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-gradient-to-br from-zinc-950/98 to-zinc-900/85">
-                                        <div
-                                            className={`min-h-0 flex-1 overflow-hidden ${
-                                                mobileFillViewportCards ? 'px-1.5 py-1' : 'px-2 py-1.5 sm:px-2.5'
-                                            }`}
-                                        >
+                                        <div className="absolute inset-x-0 bottom-0 flex min-w-0 flex-col gap-0.5 px-1.5 pb-1 sm:px-2 sm:pb-1.5">
                                             <p
-                                                className={`min-w-0 text-zinc-300/95 ${
-                                                    mobileFillViewportCards
-                                                        ? 'line-clamp-2 text-[8px] leading-snug'
-                                                        : 'line-clamp-2 text-[9px] leading-snug sm:text-[10px] sm:line-clamp-3 lg:text-xs'
+                                                className={`line-clamp-1 min-w-0 text-zinc-100/95 drop-shadow-sm ${
+                                                    mobileScrollableList
+                                                        ? 'text-[9px] leading-snug'
+                                                        : 'text-[9px] leading-snug sm:text-[10px]'
                                                 }`}
                                             >
                                                 {stage.lobbyStoryLine}
                                             </p>
-                                            {!unlocked && conditionLines.length > 0 && (
+                                            <div className="flex min-w-0 items-end gap-1">
+                                                <span
+                                                    className={`shrink-0 rounded-md border border-white/25 bg-black/55 font-mono font-bold tabular-nums text-amber-100/95 shadow-sm backdrop-blur-[2px] ${
+                                                        mobileScrollableList
+                                                            ? 'px-1.5 py-0.5 text-[9px]'
+                                                            : 'px-1.5 py-0.5 text-[9px] sm:text-[10px]'
+                                                    }`}
+                                                >
+                                                    CH.{String(stage.stageIndex).padStart(2, '0')}
+                                                </span>
+                                                <h3
+                                                    className={`min-w-0 flex-1 truncate font-black leading-tight text-white drop-shadow-sm ${
+                                                        mobileScrollableList ? 'text-xs' : 'text-xs sm:text-sm'
+                                                    }`}
+                                                >
+                                                    {stage.title}
+                                                </h3>
+                                            </div>
+                                            {!unlocked && conditionLines.length > 0 ? (
                                                 <p
-                                                    className={`mt-0.5 flex min-w-0 flex-wrap items-center gap-x-0.5 gap-y-0 font-semibold leading-snug ${
-                                                        mobileFillViewportCards ? 'text-[7px]' : 'text-[8px] sm:text-[9px]'
+                                                    className={`line-clamp-1 min-w-0 font-semibold leading-snug ${
+                                                        mobileScrollableList ? 'text-[8px]' : 'text-[8px] sm:text-[9px]'
                                                     }`}
                                                 >
                                                     {conditionLines.map((line, idx) => (
                                                         <Fragment key={line.key}>
                                                             {idx > 0 ? (
-                                                                <span className="shrink-0 text-zinc-500" aria-hidden>
-                                                                    ·
+                                                                <span className="text-zinc-500" aria-hidden>
+                                                                    {' '}
+                                                                    ·{' '}
                                                                 </span>
                                                             ) : null}
                                                             <span
-                                                                className={`min-w-0 break-words ${
+                                                                className={
                                                                     line.satisfied ? 'text-emerald-300' : 'text-amber-200/95'
-                                                                }`}
+                                                                }
                                                             >
                                                                 {line.text}
                                                             </span>
                                                         </Fragment>
                                                     ))}
                                                 </p>
-                                            )}
+                                            ) : null}
                                         </div>
+                                    </div>
+                                    <div className="flex min-h-0 shrink-0 flex-col bg-gradient-to-br from-zinc-950/98 to-zinc-900/85">
                                         <AdventureChapterRegionalSummary
                                             row={stageUnderstandingRows[i]!}
-                                            compact={mobileFillViewportCards}
+                                            compact={false}
                                             onOpenEffectSlots={() => setRegionalBuffStageId(stage.id)}
                                         />
                                     </div>
@@ -320,14 +322,14 @@ const AdventureLobby: React.FC = () => {
                             </div>
                             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" role="tabpanel">
                                 {mobileLobbyTab === 'chapter' ? (
-                                    chapterColumn(false, { mobileFillViewportCards: mobileAdventureShell })
+                                    chapterColumn(false, { mobileScrollableList: mobileAdventureShell })
                                 ) : (
-                                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5">
+                                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                                         <AdventureProfilePanel
                                             profile={currentUserWithStatus?.adventureProfile}
                                             userGold={currentUserWithStatus?.gold ?? 0}
                                             compact
-                                            mobileJournalSplit={mobileAdventureShell}
+                                            mobileOneScreen={mobileAdventureShell}
                                             onOpenMonsterCodex={() => setMonsterCodexOpen(true)}
                                         />
                                     </div>
