@@ -3937,6 +3937,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         moveHistoryLength: 0,
         useClientSideAi: false,
         isAiGame: false,
+        isPairAiTurn: false,
         blackPlayerId: '' as string | undefined,
         whitePlayerId: '' as string | undefined,
     });
@@ -4015,6 +4016,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         restoredBoardState,
     ]);
 
+    const pairCurrentSeatForAiWatchSnapshot = getCurrentPairTurnSeat(session.settings);
+    const isPairAiTurnForWatchSnapshot = Boolean(
+        pairCurrentSeatForAiWatchSnapshot && isPairAiSeat(pairCurrentSeatForAiWatchSnapshot),
+    );
     aiStuckWatchRef.current = {
         id: session.id,
         gameStatus,
@@ -4024,6 +4029,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         isAiGame: !!session.isAiGame,
         blackPlayerId: session.blackPlayerId ?? undefined,
         whitePlayerId: session.whitePlayerId ?? undefined,
+        isPairAiTurn: isPairAiTurnForWatchSnapshot,
     };
 
     // 모험·길드전 등 Kata 계열 AI 대국: AI(봇) 차례에 일정 시간 착수가 없으면 동기화 → 필요 시 서버 직접 수(클라 AI 폴백)
@@ -4083,12 +4089,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             const w = aiStuckWatchRef.current;
             if (w.id !== gameIdForSync) return;
             const moveLenBeforeSync = w.moveHistoryLength;
+            const latestForKick = sessionRefForPveAiHiddenFollowup.current;
             const useServerAiKick =
                 w.isAiGame &&
-                (sessionRefForPveAiHiddenFollowup.current.isSinglePlayer ||
-                    kataServerAiCategories.has(
-                        String(sessionRefForPveAiHiddenFollowup.current.gameCategory ?? ''),
-                    ));
+                (latestForKick.isSinglePlayer ||
+                    kataServerAiCategories.has(String(latestForKick.gameCategory ?? '')) ||
+                    w.isPairAiTurn ||
+                    isPairArenaAiMatchSession(latestForKick));
             if (useServerAiKick) {
                 const latestSession = sessionRefForPveAiHiddenFollowup.current;
                 const clientSync = buildPveItemActionClientSync(latestSession);
@@ -4115,13 +4122,21 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 if (w2.id !== gameIdForSync) return;
                 if (w2.moveHistoryLength !== moveLenBeforeSync) return;
                 if (!STRATEGIC_AI_STUCK_RECOVERABLE_STATUSES.has(w2.gameStatus)) return;
-                const pid =
-                    w2.currentPlayer === Player.Black ? w2.blackPlayerId : w2.whitePlayerId;
+                const latestForFallback = sessionRefForPveAiHiddenFollowup.current;
+                const pairSeatForFallback = getCurrentPairTurnSeat(latestForFallback.settings);
                 const stillAi =
                     w2.isAiGame &&
-                    (pid === AI_USER_ID ||
-                        pid === 'ai-player-01' ||
-                        (!!pid && String(pid).startsWith('dungeon-bot-')));
+                    (w2.isPairAiTurn ||
+                        (pairSeatForFallback && isPairAiSeat(pairSeatForFallback)) ||
+                        (() => {
+                            const pid =
+                                w2.currentPlayer === Player.Black ? w2.blackPlayerId : w2.whitePlayerId;
+                            return (
+                                pid === AI_USER_ID ||
+                                pid === 'ai-player-01' ||
+                                (!!pid && String(pid).startsWith('dungeon-bot-'))
+                            );
+                        })());
                 if (!stillAi) return;
                 if (useServerAiKick || w2.useClientSideAi) {
                     const latestSession = sessionRefForPveAiHiddenFollowup.current;

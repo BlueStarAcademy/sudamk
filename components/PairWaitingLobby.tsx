@@ -37,6 +37,8 @@ import {
     PLAYFUL_ACTION_POINT_COST,
 } from '../constants.js';
 import {
+    baseAiLobbyActionPointCostForModeAndSettings,
+    effectivePairAiLobbyApCostForUser,
     effectivePairRankedApCostForUser,
     effectiveStrategicRankedQueueApCostForUser,
     formatActionPointCostWithPetDiscount,
@@ -390,10 +392,19 @@ function roomKindLabel(kind: RoomKind | undefined, lobbyChannel: PairWaitingLobb
     return o?.label ?? String(kind);
 }
 
-function pairAiLobbyActionPointCost(mode: GameMode | undefined): number {
-    if (!mode) return STRATEGIC_ACTION_POINT_COST;
-    if (SPECIAL_GAME_MODES.some((m) => m.mode === mode)) return STRATEGIC_ACTION_POINT_COST;
-    return STRATEGIC_ACTION_POINT_COST;
+function pairAiLobbyActionPointCostLabel(
+    mode: GameMode | undefined,
+    settings: GameSettings | undefined,
+    lobbyChannel: PairWaitingLobbyChannel,
+    user: { inventory: unknown[]; equippedPairPetTemplateId?: string | null; equippedPairPetInventoryItemId?: string | null } | null | undefined,
+): string {
+    const resolvedMode = mode ?? GameMode.Standard;
+    const base = baseAiLobbyActionPointCostForModeAndSettings(resolvedMode, settings ?? {});
+    if (!user) return String(base);
+    const eff = effectivePairAiLobbyApCostForUser(user as User, resolvedMode, settings ?? {}, {
+        lobbyChannel,
+    });
+    return formatActionPointCostWithPetDiscount(base, eff);
 }
 
 /** 페어/경기장 랭킹전 매칭 — 대기실 랭킹전과 동일하게 로비·선택 모드 기준 행동력 */
@@ -4581,7 +4592,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                     : `rounded-lg border-2 border-sky-400/75 bg-gradient-to-b from-sky-600/90 to-sky-950/95 px-4 py-3.5 text-sm font-extrabold text-sky-50 shadow-[0_6px_20px_-6px_rgba(56,189,248,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:brightness-110 disabled:pointer-events-none disabled:opacity-45 sm:rounded-xl min-h-[3.35rem]`
                             }
                         >
-                            AI 대전 (⚡{pairAiLobbyActionPointCost(myRoom.selectedGameMode)})
+                            AI 대전 (⚡{pairAiLobbyActionPointCostLabel(myRoom.selectedGameMode, myRoom.settings, lobbyChannel, currentUserWithStatus)})
                         </button>
                     )}
                     <button

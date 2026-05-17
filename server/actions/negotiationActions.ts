@@ -11,7 +11,10 @@ import { maybeDeleteDetachedEndedPvpGame } from '../maybeDeleteDetachedEndedPvpG
 import { clampAiLobbyStrategicItemCaps } from '../../shared/utils/strategicAiLobbyItemCaps.js';
 import { isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
 import { arenaChannelForGameMode, arenaChannelForGameSession } from '../../shared/utils/arenaChannel.js';
-import { effectiveNegotiationApCostForUser } from '../../shared/utils/pairPetArenaApDiscount.js';
+import {
+    effectiveAiLobbyApCostForUser,
+    effectiveNegotiationApCostForUser,
+} from '../../shared/utils/pairPetArenaApDiscount.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -522,7 +525,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                     : incomingSettings;
                 // 대기실 AI 대국은 페어 전용 `pairGame` 메타와 무관 — 잔존 시 인게임 분기 오류 방지
                 delete (settings as { pairGame?: unknown }).pairGame;
-                const cost = effectiveNegotiationApCostForUser(user, mode);
+                const cost = effectiveAiLobbyApCostForUser(user, mode, settings);
                 await applyPassiveActionPointRegenToUser(user, now);
                 if (user.actionPoints.current < cost && !user.isAdmin) {
                     return { error: `액션 포인트가 부족합니다. (필요: ${cost})` };
@@ -605,7 +608,15 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             } catch (err: any) {
                 // 실패 시 액션 포인트 복구
                 if (!user.isAdmin && payload?.mode) {
-                    const refundAp = effectiveNegotiationApCostForUser(user, payload.mode as GameMode);
+                    const refundSettings = {
+                        ...DEFAULT_GAME_SETTINGS,
+                        ...(payload?.settings && typeof payload.settings === 'object' ? payload.settings : {}),
+                    };
+                    const refundAp = effectiveAiLobbyApCostForUser(
+                        user,
+                        payload.mode as GameMode,
+                        refundSettings,
+                    );
                     user.actionPoints.current += refundAp;
                     user.lastActionPointUpdate = now;
                 }

@@ -12,6 +12,7 @@ import { audioService } from '../../services/audioService.js';
 import { arenaGameRoomTurnDisplayBgClass } from './arenaGameRoomStyles.js';
 import { getSessionPlayerDisplayName } from '../../utils/gameDisplayNames.js';
 import { getCurrentPairTurnSeat } from '../../shared/utils/pairGameTurn.js';
+import { formatPairTurnTickerMessage } from '../../shared/utils/pairTurnTickerDisplay.js';
 import { getEffectivePairLobbyOwnerId } from '../../shared/utils/effectivePairLobbyOwnerId.js';
 import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
 
@@ -49,16 +50,6 @@ const getGameStatusText = (session: LiveGameSession): string => {
     const { gameStatus, currentPlayer, blackPlayerId, whitePlayerId, player1, player2, mode, settings, passCount, moveHistory, alkkagiRound } = session;
     const pairGame = session.settings.pairGame;
     const pairCurrentSeat = getCurrentPairTurnSeat(session.settings);
-    const pairSeatLabel =
-        pairCurrentSeat?.seatId === 'black1'
-            ? '흑1'
-            : pairCurrentSeat?.seatId === 'black2'
-              ? '흑2'
-              : pairCurrentSeat?.seatId === 'white1'
-                ? '백1'
-                : pairCurrentSeat?.seatId === 'white2'
-                  ? '백2'
-                  : null;
 
     const getPlayerByEnum = (playerEnum: Player): User | null => {
         const targetId = playerEnum === Player.Black ? blackPlayerId : whitePlayerId;
@@ -127,7 +118,7 @@ const getGameStatusText = (session: LiveGameSession): string => {
     switch (gameStatus) {
         case 'playing':
             if (pairCurrentSeat) {
-                return `${pairSeatLabel} ${pairCurrentSeat.name}님의 차례입니다.`;
+                return formatPairTurnTickerMessage(session, pairCurrentSeat);
             }
             return player ? `${getSessionPlayerDisplayName(session, player)}님의 차례입니다.` : '대국 진행 중';
         case 'nigiri_choosing':

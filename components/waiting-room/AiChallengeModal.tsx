@@ -36,9 +36,11 @@ import { mixSubRuleDisplayName } from '../../shared/utils/mixSubRuleDisplayName.
 import { stableStringify } from '../../utils/appUtils.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import {
-    basePvpActionPointCostForMode,
-    effectiveNegotiationApCostForUser,
+    baseAiLobbyActionPointCostForModeAndSettings,
+    effectiveAiLobbyApCostForUser,
+    effectivePairAiLobbyApCostForUser,
     formatActionPointCostWithPetDiscount,
+    type PairPetArenaApLobbyChannel,
 } from '../../shared/utils/pairPetArenaApDiscount.js';
 import {
     type AiChallengeModalChromeKind,
@@ -485,13 +487,27 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             ? `${seedFromSession?.mode ?? ''}\0${stableStringify(seedFromSession?.settings ?? {})}\0${stableStringify(seedFromSession?.settingsByMode ?? {})}`
             : '__no_embed_parent_sync__';
 
+    const aiApLobbyChannel = useMemo((): PairPetArenaApLobbyChannel => {
+        if (startActionType === 'START_AI_GAME') {
+            return lobbyType === 'playful' ? 'playful' : 'strategic';
+        }
+        if (preferredGameSettingsBucket.includes('playful')) return 'playful';
+        if (preferredGameSettingsBucket.includes('strategic')) return 'strategic';
+        return 'pair';
+    }, [startActionType, lobbyType, preferredGameSettingsBucket]);
+
     const actionPointCostDisplay = useMemo(() => {
         if (!selectedGameMode) return String(STRATEGIC_ACTION_POINT_COST);
-        const base = basePvpActionPointCostForMode(selectedGameMode);
+        const base = baseAiLobbyActionPointCostForModeAndSettings(selectedGameMode, settings);
         if (!appCurrentUser) return String(base);
-        const eff = effectiveNegotiationApCostForUser(appCurrentUser as User, selectedGameMode);
+        const eff =
+            startActionType === 'START_AI_GAME'
+                ? effectiveAiLobbyApCostForUser(appCurrentUser as User, selectedGameMode, settings)
+                : effectivePairAiLobbyApCostForUser(appCurrentUser as User, selectedGameMode, settings, {
+                      lobbyChannel: aiApLobbyChannel,
+                  });
         return formatActionPointCostWithPetDiscount(base, eff);
-    }, [selectedGameMode, appCurrentUser]);
+    }, [selectedGameMode, settings, appCurrentUser, startActionType, aiApLobbyChannel]);
 
     const { isNativeMobile } = useNativeMobileShell();
     const isCompactViewport = useIsHandheldDevice(1024);

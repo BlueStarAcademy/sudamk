@@ -10,16 +10,20 @@ export function schedulePairAiTurnIfNeeded(game: LiveGameSession, now: number): 
     const seat = getCurrentPairTurnSeat(game.settings);
     if (isPairAiSeat(seat)) {
         game.aiTurnStartTime = now;
-        void import('../aiProcessingQueue.js')
-            .then(({ aiProcessingQueue }) =>
-                aiProcessingQueue.enqueue(game.id, undefined, { deferIfProcessing: true }),
-            )
-            .catch((err: unknown) =>
-                console.error(
-                    `[schedulePairAiTurnIfNeeded] Failed to enqueue pair AI turn ${game.id}:`,
-                    (err as Error)?.message ?? err,
-                ),
-            );
+        const gameId = game.id;
+        // makeGoAiBotMove/PLACE_STONE 처리 중에는 큐가 inFlight라 즉시 enqueue가 무시될 수 있음 → 다음 틱에 재등록
+        setTimeout(() => {
+            void import('../aiProcessingQueue.js')
+                .then(({ aiProcessingQueue }) =>
+                    aiProcessingQueue.enqueue(gameId, undefined, { deferIfProcessing: true }),
+                )
+                .catch((err: unknown) =>
+                    console.error(
+                        `[schedulePairAiTurnIfNeeded] Failed to enqueue pair AI turn ${gameId}:`,
+                        (err as Error)?.message ?? err,
+                    ),
+                );
+        }, 0);
     } else {
         game.aiTurnStartTime = undefined;
     }

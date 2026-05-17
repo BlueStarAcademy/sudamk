@@ -5,6 +5,10 @@ import { PLAYFUL_ACTION_POINT_COST, STRATEGIC_ACTION_POINT_COST } from '../const
 import { PLAYFUL_GAME_MODES, SPECIAL_GAME_MODES } from '../constants/gameModes.js';
 import { getEquippedPairPetInventoryRow } from './pairEquippedPet.js';
 import { resolvePairPetMetaFromInventoryRow } from './pairPetRoll.js';
+import {
+  baseAiLobbyActionPointCostForProfileStep,
+  resolveAiLobbyProfileStepFromSettings,
+} from './strategicAiDifficulty.js';
 
 /** 페어 방 `lobbyChannel` 기준 — 랭킹전 행동력 할인 종류 구분 */
 export type PairPetArenaApLobbyChannel = 'strategic' | 'playful' | 'pair';
@@ -42,6 +46,48 @@ export function basePvpActionPointCostForMode(mode: GameMode): number {
     if (SPECIAL_GAME_MODES.some((m) => m.mode === mode)) return STRATEGIC_ACTION_POINT_COST;
     if (PLAYFUL_GAME_MODES.some((m) => m.mode === mode)) return PLAYFUL_ACTION_POINT_COST;
     return STRATEGIC_ACTION_POINT_COST;
+}
+
+export type AiLobbyActionPointSettings = {
+    kataServerLevel?: number;
+    goAiBotLevel?: number;
+    aiDifficulty?: number;
+};
+
+/** 전략 대기실·페어 AI 대전 — AI 프로필 단계(1~10)별 기본 행동력. 놀이 AI는 고정 3 */
+export function baseAiLobbyActionPointCostForModeAndSettings(
+    mode: GameMode,
+    settings: AiLobbyActionPointSettings,
+): number {
+    if (PLAYFUL_GAME_MODES.some((m) => m.mode === mode)) return PLAYFUL_ACTION_POINT_COST;
+    if (!SPECIAL_GAME_MODES.some((m) => m.mode === mode)) return STRATEGIC_ACTION_POINT_COST;
+    const step = resolveAiLobbyProfileStepFromSettings(settings);
+    return baseAiLobbyActionPointCostForProfileStep(step);
+}
+
+/** `START_AI_GAME` — 전략/놀이 대기실 AI 대전 */
+export function effectiveAiLobbyApCostForUser(
+    user: Pick<User, 'inventory' | 'equippedPairPetTemplateId' | 'equippedPairPetInventoryItemId'>,
+    mode: GameMode,
+    settings: AiLobbyActionPointSettings,
+): number {
+    const base = baseAiLobbyActionPointCostForModeAndSettings(mode, settings);
+    const spec = resolveEquippedPairPetSpecialization(user);
+    const arena: PairPetArenaApLobbyChannel = PLAYFUL_GAME_MODES.some((m) => m.mode === mode) ? 'playful' : 'strategic';
+    return apCostAfterPairPetArenaDiscount(base, arena, spec);
+}
+
+/** `PAIR_START_AI_MATCH` — 페어/경기장 AI 방(로비 채널별 펫 할인) */
+export function effectivePairAiLobbyApCostForUser(
+    user: Pick<User, 'inventory' | 'equippedPairPetTemplateId' | 'equippedPairPetInventoryItemId'>,
+    mode: GameMode,
+    settings: AiLobbyActionPointSettings,
+    room: { lobbyChannel?: string },
+): number {
+    const base = baseAiLobbyActionPointCostForModeAndSettings(mode, settings);
+    const arena = pairRankedLobbyChannelFromRoom(room);
+    const spec = resolveEquippedPairPetSpecialization(user);
+    return apCostAfterPairPetArenaDiscount(base, arena, spec);
 }
 
 /**

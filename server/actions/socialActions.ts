@@ -99,6 +99,7 @@ import {
 } from '../../shared/utils/pairPetRoll.js';
 import { getEquippedPairPetInventoryRow, reconcileEquippedPairPetInventoryItem } from '../../shared/utils/pairEquippedPet.js';
 import {
+    baseAiLobbyActionPointCostForModeAndSettings,
     effectivePairRankedApCostForUser,
     effectiveStrategicRankedQueueApCostForUser,
 } from '../../shared/utils/pairPetArenaApDiscount.js';
@@ -1563,6 +1564,7 @@ const makePairPetAiDuelSettings = (room: types.PairRoomState): types.GameSetting
         const kataLevel = strategicKataLevelFromSnapshot(snap, step);
         settings.pairGame.pairKataFixedLevelByParticipantId = {
             'pair-opponent-ai': kataLevel,
+            'pair-opponent-pet': kataLevel,
         };
         settings.pairGame.pairOpponentPetDisplayLevelByParticipantId = {
             'pair-opponent-ai': rollPairAiOpponentPetDisplayLevelForProfileStep(step),
@@ -1605,6 +1607,7 @@ const makeDuoPairAiDuelSettings = (room: types.PairRoomState): types.GameSetting
         const kataLevel = strategicKataLevelFromSnapshot(snap, step);
         settings.pairGame.pairKataFixedLevelByParticipantId = {
             'pair-opponent-ai': kataLevel,
+            'pair-opponent-pet': kataLevel,
         };
         settings.pairGame.pairOpponentPetDisplayLevelByParticipantId = {
             'pair-opponent-ai': rollPairAiOpponentPetDisplayLevelForProfileStep(step),
@@ -1824,8 +1827,9 @@ async function assertAndConsumePairLobbyMatchActionPoints(
     participants: User[],
     pricingRoom: types.PairRoomState,
     nowMs: number,
+    options?: { baseCostOverride?: number },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-    const baseCost = pairRankedActionPointCostForPairRoom(pricingRoom);
+    const baseCost = options?.baseCostOverride ?? pairRankedActionPointCostForPairRoom(pricingRoom);
     for (const u of participants) {
         await applyPassiveActionPointRegenToUser(u, nowMs);
         const cost = effectivePairRankedApCostForUser(u, baseCost, pricingRoom);
@@ -4561,11 +4565,13 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
 
             const apNow = Date.now();
             const apParticipants = isDuoPairAiDuel ? [user, partnerUser] : [user];
+            const aiMatchBaseAp = baseAiLobbyActionPointCostForModeAndSettings(selectedMode, target.settings);
             const apCheck = await assertAndConsumePairLobbyMatchActionPoints(
                 volatileState,
                 apParticipants,
                 target,
                 apNow,
+                { baseCostOverride: aiMatchBaseAp },
             );
             if (!apCheck.ok) return { error: apCheck.error };
 

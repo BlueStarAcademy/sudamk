@@ -123,6 +123,14 @@ export function resolveAiLobbyProfileStepFromSettings(
   return 1;
 }
 
+/** 대기실 AI 대전(전략·페어) — 프로필 단계별 기본 행동력: 1~3→3, 4~7→4, 8~10→5 */
+export function baseAiLobbyActionPointCostForProfileStep(profileStep: number): number {
+  const step = Math.max(1, Math.min(10, Math.round(profileStep)));
+  if (step <= 3) return 3;
+  if (step <= 7) return 4;
+  return 5;
+}
+
 /**
  * 고정 베이스 보상에 곱하는 배율 (대기실 AI 프로필 1~10단계).
  * 1=1.0, 2=1.2, 3~10은 단계마다 +0.1 (7=1.7, 10=2.0).
