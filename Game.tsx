@@ -895,13 +895,19 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         (r as { clientResponse?: { strategicPetHint?: { pendingReward?: StrategicPetHintBonusReward } } })
                             ?.clientResponse?.strategicPetHint?.pendingReward;
                     strategicPetHintPendingRewardRef.current = pendingReward ?? null;
+                    const gameFromResult =
+                        (r as { game?: LiveGameSession })?.game ??
+                        (r as { clientResponse?: { game?: LiveGameSession } })?.clientResponse?.game;
+                    const plyAtHint = Array.isArray(gameFromResult?.moveHistory)
+                        ? gameFromResult.moveHistory.length
+                        : moveLenBefore ?? session.moveHistory?.length ?? 0;
                     setStrategicPetHintBoardOverlay({
                         x: hint.x,
                         y: hint.y,
                         message: hint.message,
                         showBubble: true,
                     });
-                    strategicPetHintMoveLenRef.current = moveLenBefore;
+                    strategicPetHintMoveLenRef.current = plyAtHint;
                     strategicPetHintBubbleTimerRef.current = setTimeout(() => {
                         setStrategicPetHintBoardOverlay((prev) => (prev ? { ...prev, showBubble: false } : prev));
                         strategicPetHintBubbleTimerRef.current = null;
@@ -930,14 +936,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const base = strategicPetHintMoveLenRef.current;
         if (base == null) return;
         const len = session.moveHistory?.length ?? 0;
-        if (len >= base + 1) {
+        // 힌트 직후 len === base 유지. len > base 일 때만 착수 반영(보너스·오버레이 해제).
+        // `len !== base` 는 HTTP/WS 병합 직후 수순 길이가 어긋나면 오버레이가 즉시 사라지는 버그를 유발했다.
+        if (len > base) {
             const move = session.moveHistory?.[base];
             const hint = strategicPetHintBoardOverlay;
             if (move && move.x === hint.x && move.y === hint.y) {
                 tryClaimPetHintBonusOnStone(hint.x, hint.y);
             }
-        }
-        if (len !== base) {
+            setStrategicPetHintBoardOverlay(null);
+            strategicPetHintMoveLenRef.current = null;
+            strategicPetHintPendingRewardRef.current = null;
+        } else if (len < base) {
             setStrategicPetHintBoardOverlay(null);
             strategicPetHintMoveLenRef.current = null;
             strategicPetHintPendingRewardRef.current = null;
