@@ -76,6 +76,8 @@ type MobileGameResultTabBarProps = {
     matchLabel?: string;
     recordLabel?: string;
     className?: string;
+    /** 놀이바둑 등 점수·라운드 정보가 많은 모바일 결과 — 탭 글자·터치 영역 확대 */
+    comfortable?: boolean;
 };
 
 /** 모바일 경기 결과: 경기 내용 ↔ 기록/보상 전환 */
@@ -85,7 +87,13 @@ export const MobileGameResultTabBar: React.FC<MobileGameResultTabBarProps> = ({
     matchLabel = '경기 내용',
     recordLabel = '대국 결과',
     className = '',
-}) => (
+    comfortable = false,
+}) => {
+    const tabBtnBase = comfortable
+        ? 'min-h-[2.35rem] flex-1 rounded-md px-2 py-1.5 text-center text-xs font-bold tracking-[0.06em] transition-colors'
+        : 'min-h-[2rem] flex-1 rounded-md px-1.5 py-1 text-center text-[10px] font-bold uppercase tracking-[0.08em] transition-colors sm:text-xs';
+
+    return (
     <div
         className={`flex w-full shrink-0 gap-0.5 rounded-lg border border-amber-500/35 bg-slate-950/80 p-0.5 ring-1 ring-inset ring-amber-500/12 ${className}`}
         role="tablist"
@@ -95,7 +103,7 @@ export const MobileGameResultTabBar: React.FC<MobileGameResultTabBarProps> = ({
             type="button"
             role="tab"
             aria-selected={active === 'match'}
-            className={`min-h-[2rem] flex-1 rounded-md px-1.5 py-1 text-center text-[10px] font-bold uppercase tracking-[0.08em] transition-colors sm:text-xs ${
+            className={`${tabBtnBase} ${
                 active === 'match'
                     ? 'border border-amber-400/40 bg-amber-500/20 text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
                     : 'border border-transparent text-slate-500 hover:text-slate-300'
@@ -108,7 +116,7 @@ export const MobileGameResultTabBar: React.FC<MobileGameResultTabBarProps> = ({
             type="button"
             role="tab"
             aria-selected={active === 'record'}
-            className={`min-h-[2rem] flex-1 rounded-md px-1.5 py-1 text-center text-[10px] font-bold uppercase tracking-[0.1em] transition-colors sm:text-xs ${
+            className={`${tabBtnBase} ${
                 active === 'record'
                     ? 'border border-violet-400/35 bg-violet-500/18 text-violet-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
                     : 'border border-transparent text-slate-500 hover:text-slate-300'
@@ -118,4 +126,5 @@ export const MobileGameResultTabBar: React.FC<MobileGameResultTabBarProps> = ({
             {recordLabel}
         </button>
     </div>
-);
+    );
+};

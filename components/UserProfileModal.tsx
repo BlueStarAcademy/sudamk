@@ -482,7 +482,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
             tierIcon: tier.icon,
             tierColor: tier.color,
             venueSeason: [
-                withWinRate('PVP', p.wins, p.losses),
+                withWinRate('유저', p.wins, p.losses),
                 withWinRate('펫', pet.wins, pet.losses),
                 withWinRate('페어', pr.wins, pr.losses),
             ],

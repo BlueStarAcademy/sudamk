@@ -136,7 +136,7 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
             bodyPaddingClassName="!p-0"
         >
             <div className="flex max-h-[min(88dvh,46rem)] min-h-0 flex-col gap-2 overflow-y-auto overflow-x-hidden px-1.5 pb-2 pt-1.5 sm:gap-3 sm:px-2.5 sm:pb-3 sm:pt-2">
-                <div className="relative min-w-0 overflow-hidden rounded-2xl border border-emerald-500/25 bg-gradient-to-b from-zinc-900/95 via-emerald-950/25 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(0,0,0,0.4)] ring-1 ring-emerald-400/15">
+                <div className="relative min-w-0 rounded-2xl border border-emerald-500/25 bg-gradient-to-b from-zinc-900/95 via-emerald-950/25 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(0,0,0,0.4)] ring-1 ring-emerald-400/15">
                     <div className="pointer-events-none absolute -right-6 -top-10 h-36 w-36 rounded-full bg-emerald-400/12 blur-3xl" aria-hidden />
                     <div className="relative flex min-w-0 flex-col gap-3 p-2.5 sm:gap-4 sm:p-4">
                         <div className="flex items-start gap-2.5 sm:items-center sm:gap-3">
@@ -158,10 +158,10 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
                             </div>
                         </div>
 
-                        <div className="flex flex-col items-stretch gap-2.5 sm:flex-row sm:items-center sm:gap-3">
-                            <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5 rounded-xl border border-white/10 bg-black/45 px-2.5 py-2.5 shadow-inner sm:gap-2 sm:px-3 sm:py-3">
-                                <span className="text-[0.62rem] font-bold uppercase tracking-[0.18em] text-slate-500">이전</span>
-                                <div className="relative h-12 w-12 overflow-hidden rounded-lg border border-white/12 sm:h-14 sm:w-14">
+                        <div className="flex flex-row items-center gap-1.5 sm:gap-3">
+                            <div className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl border border-white/10 bg-black/45 px-1.5 py-2 shadow-inner sm:gap-2 sm:px-3 sm:py-3">
+                                <span className="text-[0.6rem] font-bold uppercase tracking-[0.14em] text-slate-500 sm:text-[0.62rem] sm:tracking-[0.18em]">이전</span>
+                                <div className="relative h-11 w-11 overflow-hidden rounded-lg border border-white/12 sm:h-14 sm:w-14">
                                     <img src={fromBg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-90" />
                                     {petImg ? (
                                         <img
@@ -171,9 +171,9 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
                                         />
                                     ) : null}
                                 </div>
-                                <span className={`text-center text-sm font-black ${fromSt.color}`}>{fromKo}</span>
+                                <span className={`text-center text-xs font-black leading-tight sm:text-sm ${fromSt.color}`}>{fromKo}</span>
                             </div>
-                            <div className="flex shrink-0 flex-row items-center justify-center sm:flex-col">
+                            <div className="flex shrink-0 items-center justify-center px-0.5" aria-hidden>
                                 <div
                                     className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-400/35 bg-gradient-to-b from-emerald-600/25 to-emerald-950/55 text-emerald-100 shadow-[0_0_16px_rgba(16,185,129,0.12)] sm:h-9 sm:w-9"
                                     aria-hidden
@@ -189,9 +189,9 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
                                     </svg>
                                 </div>
                             </div>
-                            <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5 rounded-xl border border-emerald-400/30 bg-gradient-to-b from-emerald-950/40 to-black/50 px-2.5 py-2.5 shadow-[inset_0_1px_0_rgba(16,185,129,0.1)] sm:gap-2 sm:px-3 sm:py-3">
-                                <span className="text-[0.62rem] font-bold uppercase tracking-[0.18em] text-emerald-200/75">이후</span>
-                                <div className="relative h-12 w-12 overflow-hidden rounded-lg border border-emerald-300/25 sm:h-14 sm:w-14">
+                            <div className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl border border-emerald-400/30 bg-gradient-to-b from-emerald-950/40 to-black/50 px-1.5 py-2 shadow-[inset_0_1px_0_rgba(16,185,129,0.1)] sm:gap-2 sm:px-3 sm:py-3">
+                                <span className="text-[0.6rem] font-bold uppercase tracking-[0.14em] text-emerald-200/75 sm:text-[0.62rem] sm:tracking-[0.18em]">이후</span>
+                                <div className="relative h-11 w-11 overflow-hidden rounded-lg border border-emerald-300/25 sm:h-14 sm:w-14">
                                     <img src={toBg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-90" />
                                     {petImg ? (
                                         <img
@@ -201,7 +201,7 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
                                         />
                                     ) : null}
                                 </div>
-                                <span className={`text-center text-sm font-black ${toSt.color}`}>{toKo}</span>
+                                <span className={`text-center text-xs font-black leading-tight sm:text-sm ${toSt.color}`}>{toKo}</span>
                             </div>
                         </div>
 
@@ -234,13 +234,13 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
                                     {powerDelta})
                                 </span>
                             </div>
-                            <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-t border-white/10 pt-1.5 text-[0.62rem] sm:text-xs">
+                            <div className="mt-1.5 flex flex-col gap-1.5 border-t border-white/10 pt-1.5 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-2 sm:gap-y-1">
                                 {PHASE_DEFS.map(({ phase, label }) => {
                                     const b = pairPetKataAbilityScore(phase, kataBefore);
                                     const a = pairPetKataAbilityScore(phase, kataAfter);
                                     const d = a - b;
                                     return (
-                                        <span key={phase} className="inline-flex items-baseline gap-0.5 whitespace-nowrap">
+                                        <span key={phase} className="flex items-baseline justify-center gap-1 sm:inline-flex sm:gap-0.5">
                                             <span className="font-semibold text-slate-400">{label}</span>
                                             <span className="font-mono font-bold text-sky-100/95">{b}</span>
                                             <span className="text-slate-500">→</span>
@@ -259,28 +259,26 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
                             <p className="mb-2 text-center text-sm font-medium leading-snug text-slate-300 sm:text-[0.9375rem]">
                                 능력치 변화
                             </p>
-                            <div className="grid min-w-0 grid-cols-3 gap-x-1 gap-y-1.5 sm:gap-x-2 sm:gap-y-2">
+                            <ul className="flex min-w-0 flex-col gap-1.5">
                                 {CORE_LIST.map((stat) => {
                                     const label = CORE_STATS_DATA[stat]?.name ?? stat;
                                     const bShown = beforeCells[stat]!.shown + beforeCells[stat]!.bonus;
                                     const aShown = afterCells[stat]!.shown + afterCells[stat]!.bonus;
                                     const d = aShown - bShown;
                                     return (
-                                        <div
+                                        <li
                                             key={stat}
-                                            className="flex min-w-0 flex-col gap-1 rounded-lg border border-white/10 bg-black/35 px-1 py-1.5 ring-1 ring-inset ring-white/[0.04] sm:px-1.5 sm:py-2"
+                                            className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/35 px-2.5 py-2 ring-1 ring-inset ring-white/[0.04] sm:px-3"
                                         >
-                                            <span className="min-h-[2rem] px-0.5 text-center text-[0.62rem] font-medium leading-tight text-slate-400 sm:min-h-0 sm:text-xs">
-                                                {label}
-                                            </span>
-                                            <div className="flex min-w-0 flex-col items-center gap-0.5">
-                                                <span className="w-full overflow-x-auto overflow-y-hidden text-center font-mono text-[0.58rem] font-bold tabular-nums leading-tight text-slate-200 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] sm:text-xs sm:leading-snug">
-                                                    <span className="tabular-nums">{bShown}</span>
+                                            <span className="shrink-0 text-xs font-semibold text-slate-400 sm:text-sm">{label}</span>
+                                            <div className="flex min-w-0 flex-col items-end gap-0.5 text-right">
+                                                <span className="text-xs font-mono font-bold tabular-nums leading-snug text-slate-100 sm:text-sm">
+                                                    <span>{bShown}</span>
                                                     <span className="text-slate-500"> → </span>
-                                                    <span className="tabular-nums">{aShown}</span>
+                                                    <span>{aShown}</span>
                                                 </span>
                                                 <span
-                                                    className={`text-center text-[0.62rem] font-semibold tabular-nums sm:text-xs ${
+                                                    className={`text-xs font-semibold tabular-nums sm:text-sm ${
                                                         d > 0 ? 'text-emerald-300' : d < 0 ? 'text-rose-300' : 'text-slate-500'
                                                     }`}
                                                 >
@@ -288,10 +286,10 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
                                                     {d})
                                                 </span>
                                             </div>
-                                        </div>
+                                        </li>
                                     );
                                 })}
-                            </div>
+                            </ul>
                         </div>
                     </div>
                 </div>

@@ -46,7 +46,7 @@ export function formatVersusDuelLogAgeLabelKo(nowMs: number, occurredAt: number)
 }
 
 export function championshipVersusDuelVenueModeLabelKo(venue: ChampionshipVersusVenueKind): string {
-    if (venue === 'pvp') return 'PVP 챔피언십';
+    if (venue === 'pvp') return '유저 챔피언십';
     if (venue === 'pet') return '펫 챔피언십';
     return '페어 챔피언십';
 }

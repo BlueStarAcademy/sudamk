@@ -2,7 +2,7 @@ import type { ChampionshipVersusVenueKind } from '../types/entities.js';
 
 export const CHAMPIONSHIP_VERSUS_VENUE_KINDS: readonly ChampionshipVersusVenueKind[] = ['pvp', 'pet', 'petpair'];
 
-/** PVP / 펫 / 페어 챔피언십 입장(결투) 티켓 — `public/images/championship/ticket*.webp` */
+/** 유저 / 펫 / 페어 챔피언십 입장(결투) 티켓 — `public/images/championship/ticket*.webp` */
 export const CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE: Record<ChampionshipVersusVenueKind, string> = {
     pvp: '/images/championship/ticket1.webp',
     pet: '/images/championship/ticket2.webp',

@@ -1819,7 +1819,7 @@ function expireStalePairRankedPetProposals(volatileState: VolatileState, nowMs: 
     }
 }
 
-async function assertAndConsumePairRankedMatchActionPoints(
+async function assertAndConsumePairLobbyMatchActionPoints(
     volatileState: VolatileState,
     participants: User[],
     pricingRoom: types.PairRoomState,
@@ -1846,6 +1846,8 @@ async function assertAndConsumePairRankedMatchActionPoints(
     }
     return { ok: true };
 }
+
+const assertAndConsumePairRankedMatchActionPoints = assertAndConsumePairLobbyMatchActionPoints;
 
 async function openPairRankedPetMatchProposal(
     volatileState: VolatileState,
@@ -4556,6 +4558,17 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 ? await db.getUser(target.partnerId!)
                 : getAiUser(selectedMode);
             if (!partnerUser) return { error: '파트너 정보를 찾지 못했습니다.' };
+
+            const apNow = Date.now();
+            const apParticipants = isDuoPairAiDuel ? [user, partnerUser] : [user];
+            const apCheck = await assertAndConsumePairLobbyMatchActionPoints(
+                volatileState,
+                apParticipants,
+                target,
+                apNow,
+            );
+            if (!apCheck.ok) return { error: apCheck.error };
+
             const pairSettings = isDuoPairAiDuel ? makeDuoPairAiDuelSettings(target) : makePairPetAiDuelSettings(target);
             const negotiation: Negotiation = {
                 id: `neg-pair-ai-${randomUUID()}`,
@@ -4666,7 +4679,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             const purchaseQty = Math.min(999, Math.max(1, Math.floor(Number(rawQ)) || 1));
             const entry = PAIR_PET_SHOP_SKUS.find((s) => s.id === sku);
             if (!entry) return { error: '알 수 없는 상품입니다.' };
-            if (entry.dailyLimit <= 1 && purchaseQty !== 1) {
+            if (entry.dailyLimit === 1 && purchaseQty !== 1) {
                 return { error: '유효하지 않은 수량입니다.' };
             }
             const now = Date.now();

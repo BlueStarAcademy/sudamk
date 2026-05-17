@@ -58,10 +58,13 @@ import {
 import { championshipVersusBoardRulesForActorStrategicTier } from '../../shared/utils/championshipVersusTier.js';
 import { champCoinsForVersusLoss, champCoinsForVersusWin } from '../../shared/utils/championshipVersusElo.js';
 import { flushChampionshipVersusDeferredLevelUp } from '../../utils/championshipVersusLevelUpDeferral.js';
+import { resolveChampionshipPanelScores } from '../../utils/championshipLiveScores.js';
 import {
-    formatChampionshipPanelScoreDisplay,
-    resolveChampionshipPanelScores,
-} from '../../utils/championshipLiveScores.js';
+    ChampionshipDesktopScoreBox,
+    ChampionshipDesktopScoringCountdownBox,
+    ChampionshipMobileScoreCell,
+    ChampionshipMobileScoringCountdownCell,
+} from '../championship/ChampionshipArenaScorePanels.js';
 
 function readVersusPlaybackSpeedFromStorage(): ChampionshipPlaybackSpeed {
     if (typeof window === 'undefined') return 1;
@@ -604,18 +607,7 @@ const VersusRailPlayerCard: React.FC<{
                   : 'text-emerald-200'
               : strongText;
     const scoreBox = (
-        <div
-            className={`flex w-[4.8rem] shrink-0 flex-col items-center justify-center rounded-lg border-2 px-2 py-1.5 text-center shadow-lg ${
-                tone === 'black'
-                    ? 'border-zinc-600 bg-gradient-to-br from-zinc-800 to-zinc-950 text-white'
-                    : 'border-slate-500 bg-gradient-to-br from-slate-600 to-slate-900 text-slate-50'
-            }`}
-        >
-            <span className={`text-[10px] font-bold leading-none ${tone === 'black' ? 'text-zinc-400' : 'text-slate-300'}`}>점수</span>
-            <span className="mt-1 text-xl font-black leading-none tabular-nums">
-                {formatChampionshipPanelScoreDisplay(scoreValue, scoreKind)}
-            </span>
-        </div>
+        <ChampionshipDesktopScoreBox isWhite={tone === 'white'} score={scoreValue} scoreKind={scoreKind} />
     );
     const recordWins = player?.wins ?? 0;
     const recordLosses = player?.losses ?? 0;
@@ -1845,12 +1837,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         : maxPlyToScoring;
 
     const championshipScoringCountdownPanel = (
-        <div className="flex w-36 shrink-0 flex-col items-center justify-center rounded-lg border-2 border-zinc-600 bg-gradient-to-br from-zinc-800 to-zinc-950 px-3 py-2 text-center shadow-lg">
-            <div className="text-[11px] font-bold tracking-wide text-amber-100">계가까지</div>
-            <div className="mt-0.5 text-2xl font-black tabular-nums text-white">
-                {remainingPlyToScoring}/{maxPlyToScoring}
-            </div>
-        </div>
+        <ChampionshipDesktopScoringCountdownBox remaining={remainingPlyToScoring} max={maxPlyToScoring} />
     );
 
     const championshipPlayerRail =
@@ -2454,36 +2441,23 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         const whiteScore = versusPanelScores?.white ?? null;
         const mobileScoreKind = versusPanelScoreKind;
 
-        const renderScoreCell = (isWhite: boolean, score: number | null, colorLabel: string, side: 'left' | 'right') => {
-            const cellTone = isWhite
-                ? 'border-slate-500/85 bg-gradient-to-br from-slate-100 to-slate-300 text-slate-950'
-                : 'border-zinc-600 bg-gradient-to-br from-zinc-800/92 to-black/94 text-white';
-            const labelColor = isWhite ? 'text-slate-700' : 'text-zinc-300';
-            const scoreText = formatChampionshipPanelScoreDisplay(score, mobileScoreKind);
-            return (
-                <div
-                    className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md border-2 px-2 py-1 ${cellTone} ${
-                        side === 'right' ? 'flex-row-reverse' : ''
-                    }`}
-                >
-                    <span className={`max-w-[4.5rem] text-center text-[8px] font-bold leading-tight tracking-wide ${labelColor}`}>
-                        {colorLabel ? `${colorLabel} 점수` : '점수'}
-                    </span>
-                    <span className="text-base font-black leading-none tabular-nums">{scoreText}</span>
-                </div>
-            );
-        };
-
         return (
             <section className="flex shrink-0 flex-row items-stretch gap-1">
-                {renderScoreCell(false, blackScore, '흑', 'left')}
-                <div className="flex w-[36%] shrink-0 flex-col items-center justify-center rounded-md border-2 border-amber-400/55 bg-gradient-to-br from-zinc-800/92 to-black/94 px-1 py-0.5 text-center">
-                    <div className="text-[9px] font-bold tracking-wide text-amber-100">계가까지</div>
-                    <div className="text-base font-black tabular-nums leading-none text-white">
-                        {remainingPly}/{maxPly}
-                    </div>
-                </div>
-                {renderScoreCell(true, whiteScore, '백', 'right')}
+                <ChampionshipMobileScoreCell
+                    isWhite={false}
+                    score={blackScore}
+                    scoreKind={mobileScoreKind}
+                    colorLabel="흑"
+                    side="left"
+                />
+                <ChampionshipMobileScoringCountdownCell remaining={remainingPly} max={maxPly} />
+                <ChampionshipMobileScoreCell
+                    isWhite
+                    score={whiteScore}
+                    scoreKind={mobileScoreKind}
+                    colorLabel="백"
+                    side="right"
+                />
             </section>
         );
     })();

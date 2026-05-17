@@ -177,6 +177,21 @@ describe('PVP Strategic mode', () => {
             expect(game.itemUseDeadline).toBeDefined();
         });
 
+        it('START_HIDDEN_PLACEMENT is idempotent when already hidden_placing', async () => {
+            const game = makePvpStrategicGame();
+            game.hidden_stones_p1 = 2;
+            game.gameStatus = 'hidden_placing';
+            game.itemUseDeadline = Date.now() + 20000;
+            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const res = await handleStrategicGameAction(volatileState, game, {
+                type: 'START_HIDDEN_PLACEMENT',
+                payload: {},
+                userId: p1.id,
+            } as any, p1);
+            expect(res?.error).toBeUndefined();
+            expect(game.gameStatus).toBe('hidden_placing');
+        });
+
         it('START_HIDDEN_PLACEMENT rejects when no hidden stones left', async () => {
             const game = makePvpStrategicGame();
             (game as any).hidden_stones_p1 = 0;
@@ -420,6 +435,21 @@ describe('PVP Strategic mode', () => {
             expect(game.itemUseDeadline).toBeDefined();
         });
 
+        it('START_SCANNING is idempotent when already scanning', async () => {
+            const game = makePvpStrategicGame();
+            game.scans_p1 = 2;
+            game.gameStatus = 'scanning';
+            game.itemUseDeadline = Date.now() + 20000;
+            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const res = await handleStrategicGameAction(volatileState, game, {
+                type: 'START_SCANNING',
+                payload: {},
+                userId: p1.id,
+            } as any, p1);
+            expect(res?.error).toBeUndefined();
+            expect(game.gameStatus).toBe('scanning');
+        });
+
         it('SCAN_BOARD consumes scan and sets animation', async () => {
             const game = makePvpStrategicGame();
             game.gameStatus = 'scanning';
@@ -460,6 +490,21 @@ describe('PVP Strategic mode', () => {
             expect(res?.error).toBeUndefined();
             expect(game.gameStatus).toBe('missile_selecting');
             expect(game.itemUseDeadline).toBeDefined();
+        });
+
+        it('START_MISSILE_SELECTION is idempotent when already missile_selecting', async () => {
+            const game = makePvpStrategicGame();
+            game.missiles_p1 = 2;
+            game.gameStatus = 'missile_selecting';
+            game.itemUseDeadline = Date.now() + 20000;
+            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const res = await handleStrategicGameAction(volatileState, game, {
+                type: 'START_MISSILE_SELECTION',
+                payload: {},
+                userId: p1.id,
+            } as any, p1);
+            expect(res?.error).toBeUndefined();
+            expect(game.gameStatus).toBe('missile_selecting');
         });
 
         it('START_MISSILE_SELECTION rejects when no missiles left', async () => {

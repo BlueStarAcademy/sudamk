@@ -825,7 +825,7 @@ input, textarea {
    기존엔 빔이 자기 너비(22%) 기준의 translateX(120%)만 이동해 부모의 약 1/4 거리만 가서
    "끝까지 못 가는" 짧은 연출이 됐었다. 이를 부모 너비를 그대로 따르는 left(%) 애니메이션으로 교체해
    왼쪽 바깥에서 시작해 오른쪽 바깥까지 한 번에 쭉 통과하도록 한다.
-   본 hook 측에서는 약 3.0s 동안 'scoring' 상태를 유지한 뒤 결과 카드를 띄운다. (스캔 2.6s + ~0.4s hold) */
+   본 hook 측에서는 약 1.6s 동안 'scoring' 상태를 유지한 뒤 경기 완료 처리한다. (스캔 1.4s + ~0.2s hold) */
 @keyframes championship-scoring-veil-fill {
   from { clip-path: inset(0 100% 0 0); }
   to   { clip-path: inset(0 0 0 0); }
@@ -849,7 +849,7 @@ input, textarea {
     rgba(2, 6, 18, 0.55) 18%,
     rgba(2, 6, 18, 0.7) 100%
   );
-  animation: championship-scoring-veil-fill 2.6s ease-out forwards;
+  animation: championship-scoring-veil-fill 1.4s ease-out forwards;
 }
 
 .championship-scoring-beam {
@@ -865,7 +865,7 @@ input, textarea {
   filter: drop-shadow(0 0 22px rgba(34, 211, 238, 0.55));
   /* both: 시작 전엔 from-state(left:-28%)를 적용해 오른쪽에서 갑자기 등장하지 않게 하고,
      종료 후엔 to-state(left:108%)를 유지해 화면 밖에 머물도록 한다. */
-  animation: championship-scoring-beam-sweep 2.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) both;
+  animation: championship-scoring-beam-sweep 1.4s cubic-bezier(0.45, 0.05, 0.55, 0.95) both;
 }
 
 .championship-finished-result-card {

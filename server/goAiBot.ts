@@ -2425,6 +2425,7 @@ export async function makeGoAiBotMove(
                             `[makeGoAiBotMove] pair fixed-turn (no Kata): no legal moves → scoring, game=${game.id}, turns=${totalTurns}`,
                         );
                         game.totalTurns = totalTurns;
+                        await broadcastPlayingSnapshotBeforeScoring(game);
                         game.gameStatus = 'scoring';
                         await db.saveGame(game);
                         const { getGameResult } = await import('./gameModes.js');
@@ -2450,6 +2451,7 @@ export async function makeGoAiBotMove(
                     `[makeGoAiBotMove] Kata-only exhausted; pair fixed-turn → scoring, game=${game.id}, turns=${totalTurns}`,
                 );
                 game.totalTurns = totalTurns;
+                await broadcastPlayingSnapshotBeforeScoring(game);
                 game.gameStatus = 'scoring';
                 await db.saveGame(game);
                 const { getGameResult } = await import('./gameModes.js');
@@ -2588,6 +2590,7 @@ export async function makeGoAiBotMove(
                     `[makeGoAiBotMove] pair fixed-turn: Kata non-PASS 없음 → scoring, game=${game.id}, turns=${totalTurnsEnd}`,
                 );
                 game.totalTurns = totalTurnsEnd;
+                await broadcastPlayingSnapshotBeforeScoring(game);
                 game.gameStatus = 'scoring';
                 await db.saveGame(game);
                 const { getGameResult } = await import('./gameModes.js');
@@ -2611,6 +2614,7 @@ export async function makeGoAiBotMove(
                     `[makeGoAiBotMove] pair fixed-turn blocked AI PASS (no legal) → scoring, game=${game.id}, turns=${totalTurnsEnd}`,
                 );
                 game.totalTurns = totalTurnsEnd;
+                await broadcastPlayingSnapshotBeforeScoring(game);
                 game.gameStatus = 'scoring';
                 await db.saveGame(game);
                 const { getGameResult } = await import('./gameModes.js');
@@ -2638,6 +2642,7 @@ export async function makeGoAiBotMove(
         });
         const allPassed = markPairSeatPassed(game.settings, pairCurrentSeat);
         if (allPassed) {
+            await broadcastPlayingSnapshotBeforeScoring(game);
             game.gameStatus = 'scoring';
             await db.saveGame(game);
             const { getGameResult } = await import('./gameModes.js');

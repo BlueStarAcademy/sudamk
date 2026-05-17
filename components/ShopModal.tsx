@@ -1216,14 +1216,26 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         setPurchasingItem(item);
     };
 
-    const handleConfirmPurchase = (itemId: string, quantity: number) => {
+    const handleConfirmPurchase = async (itemId: string, quantity: number) => {
         const item = purchasingItem;
         if (!item) return;
 
         // 컨디션 회복제는 별도의 액션 사용
         if (itemId.startsWith('condition_potion_')) {
             const potionType = itemId.replace('condition_potion_', '') as 'small' | 'medium' | 'large';
-            onAction({ type: 'BUY_CONDITION_POTION', payload: { potionType, quantity } });
+            const result = await onAction({ type: 'BUY_CONDITION_POTION', payload: { potionType, quantity } });
+            const err =
+                result &&
+                typeof result === 'object' &&
+                'error' in result &&
+                typeof (result as { error?: unknown }).error === 'string'
+                    ? (result as { error: string }).error
+                    : undefined;
+            if (err) {
+                setToastMessage(err);
+            } else {
+                setToastMessage('컨디션 회복제 구매 완료! 회복 모달에서 사용할 수 있습니다.');
+            }
         } else if (
             itemId === 'option_type_change_ticket' ||
             itemId === 'option_value_change_ticket' ||

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { mergeGameUpdateByArena } from '../../../utils/clientGameMergePolicy.js';
+import {
+    mergeGameUpdateByArena,
+    shouldClearMissileFlightAnimationOnPlayingMerge,
+} from '../../../utils/clientGameMergePolicy.js';
+import { resolveArenaSessionPolicy } from '../../../shared/utils/liveSessionArenaKind.js';
 import { GameMode, Player } from '../../../shared/types/enums.js';
 import type { LiveGameSession } from '../../../shared/types/index.js';
 
@@ -25,6 +29,23 @@ const minimalSession = (overrides: Partial<LiveGameSession>): LiveGameSession =>
     }) as LiveGameSession;
 
 describe('mergeGameUpdateByArena', () => {
+    it('policy flag is set for missile mode sessions', () => {
+        const session = minimalSession({ mode: GameMode.Missile });
+        expect(resolveArenaSessionPolicy(session).clearsItemPhaseAnimationOnPlaying).toBe(true);
+    });
+
+    it('policy flag is set for hidden mode sessions', () => {
+        const session = minimalSession({ mode: GameMode.Hidden });
+        expect(resolveArenaSessionPolicy(session).clearsItemPhaseAnimationOnPlaying).toBe(true);
+    });
+
+    it('shouldClearMissileFlightAnimationOnPlayingMerge is false when previous state was not missile flight', () => {
+        const existing = minimalSession({ gameStatus: 'playing', animation: null });
+        const incoming = minimalSession({ gameStatus: 'playing' });
+        delete (incoming as any).animation;
+        expect(shouldClearMissileFlightAnimationOnPlayingMerge(existing, incoming)).toBe(false);
+    });
+
     it('clears stale missile flight animation when server sends playing without animation field', () => {
         const existing = minimalSession({
             gameStatus: 'missile_animating',
@@ -44,6 +65,46 @@ describe('mergeGameUpdateByArena', () => {
         delete (incoming as any).animation;
         const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
         expect(merged.gameStatus).toBe('playing');
+        expect(merged.animation).toBeNull();
+    });
+
+    it('clears stale missile flight animation when server sends playing with animation null', () => {
+        const existing = minimalSession({
+            gameStatus: 'missile_animating',
+            animation: {
+                type: 'missile',
+                from: { x: 1, y: 1 },
+                to: { x: 1, y: 3 },
+                player: Player.Black,
+                startTime: Date.now(),
+                duration: 400,
+            } as any,
+        });
+        const incoming = minimalSession({
+            gameStatus: 'playing',
+            animation: null,
+        });
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
+        expect(merged.animation).toBeNull();
+    });
+
+    it('clears stale scan animation when server sends playing without animation field', () => {
+        const existing = minimalSession({
+            mode: GameMode.Hidden,
+            gameStatus: 'scanning_animating',
+            animation: {
+                type: 'scan',
+                playerId: 'p1',
+                startTime: Date.now(),
+                duration: 500,
+            } as any,
+        });
+        const incoming = minimalSession({
+            mode: GameMode.Hidden,
+            gameStatus: 'playing',
+        });
+        delete (incoming as any).animation;
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
         expect(merged.animation).toBeNull();
     });
 

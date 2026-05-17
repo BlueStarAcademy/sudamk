@@ -19,6 +19,7 @@ import {
     computeChampionshipVersusDuelTicketStateForVenue,
     hasPersistedVersusDuelTicketsByVenue,
 } from '../shared/utils/championshipVersusDuelTickets.js';
+import { championshipVersusDuelVenueModeLabelKo } from '../shared/utils/championshipVersusDuelWeekLog.js';
 import ChampionshipVersusDuelTicketCountdown from './ChampionshipVersusDuelTicketCountdown.js';
 import Avatar from './Avatar.js';
 import { isSameDayKST } from '../utils/timeUtils.js';
@@ -385,7 +386,7 @@ const CHAMPIONSHIP_VERSUS_LOBBY_META: Record<
     }
 > = {
     pvp: {
-        title: 'PVP 챔피언십',
+        title: championshipVersusDuelVenueModeLabelKo('pvp'),
         image: CHAMPIONSHIP_PVP_VENUE_BG_WEBP,
         ticketImage: CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE.pvp,
         ring: 'ring-white/10',
@@ -395,7 +396,7 @@ const CHAMPIONSHIP_VERSUS_LOBBY_META: Record<
         chipText: 'text-slate-100',
     },
     pet: {
-        title: '펫 챔피언십',
+        title: championshipVersusDuelVenueModeLabelKo('pet'),
         image: CHAMPIONSHIP_PET_VENUE_BG_WEBP,
         ticketImage: CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE.pet,
         ring: 'ring-fuchsia-200/10',
@@ -405,7 +406,7 @@ const CHAMPIONSHIP_VERSUS_LOBBY_META: Record<
         chipText: 'text-fuchsia-50',
     },
     petpair: {
-        title: '페어 챔피언십',
+        title: championshipVersusDuelVenueModeLabelKo('petpair'),
         image: CHAMPIONSHIP_PET_PAIR_VENUE_BG_WEBP,
         ticketImage: CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE.petpair,
         ring: 'ring-sky-200/10',
@@ -418,7 +419,7 @@ const CHAMPIONSHIP_VERSUS_LOBBY_META: Record<
 
 type VersusLobbyMeta = (typeof CHAMPIONSHIP_VERSUS_LOBBY_META)['pvp'];
 
-/** 챔피언십 대전장 입장 카드 우측: 티어·ELO·전적(승률)·입장권 — PVP/펫/페어 공통 */
+/** 챔피언십 대전장 입장 카드 우측: 티어·ELO·전적(승률)·입장권 — 유저/펫/페어 공통 */
 function ChampionshipVersusLobbyCardRightStats(props: {
     compact: boolean;
     meta: VersusLobbyMeta;

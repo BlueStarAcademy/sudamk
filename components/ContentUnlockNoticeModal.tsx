@@ -14,13 +14,13 @@ type ContentUnlockNoticeModalProps = {
 const CONTENT_META: Record<ContentUnlockType, { title: string; subtitle: string; image: string; routeHint: string }> = {
     tower: {
         title: '도전의 탑 오픈',
-        subtitle: '바둑학원 입문반 20 클리어로\n도전의 탑이 해금되었습니다.',
+        subtitle: '바둑학원 입문반 10 클리어로\n도전의 탑이 해금되었습니다.',
         image: '/images/tower/Tower1.webp',
         routeHint: '홈 화면에서 도전의 탑으로 바로 입장할 수 있습니다.',
     },
     adventure: {
         title: '모험 오픈',
-        subtitle: '바둑학원 초급반 20 클리어로\n모험 콘텐츠가 해금되었습니다.',
+        subtitle: '바둑학원 입문반 20 클리어로\n모험 콘텐츠가 해금되었습니다.',
         image: ADVENTURE_STAGES[0]?.mapWebp ?? '/images/forest.webp',
         routeHint: '홈 화면에서 모험으로 바로 입장할 수 있습니다.',
     },

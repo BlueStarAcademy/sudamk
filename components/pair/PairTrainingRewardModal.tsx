@@ -12,18 +12,12 @@ import { MATERIAL_ITEMS } from '../../shared/constants/items.js';
 import { ItemGrade } from '../../types/enums.js';
 import type { InventoryItem, ServerAction } from '../../types.js';
 import type { PairTrainingClaimClientSummary } from '../../shared/types/pairTrainingClaim.js';
+import { pairTrainingClaimInFlightBySlotIndex, parsePairTrainingClaimResponse } from './pairTrainingClaimInFlight.js';
 import PairPetLevelUpCoreDelta from './PairPetLevelUpCoreDelta.js';
 import { effectivePairPetGradeFromRow, pairPetShowsGradeUpgradeNeededInsteadOfXp } from '../../shared/constants/pairPetGrade.js';
 
 const XP_BAR_BASE_MS = 700;
 const XP_BAR_GAIN_MS = 600;
-
-/**
- * 마운트 직후 자동 수령: React Strict Mode에서 effect가 두 번 실행되면 동일 슬롯으로
- * `PAIR_PET_CLAIM_TRAINING`이 중복 전송되어 첫 요청은 성공·두 번째는 실패할 수 있다.
- * 같은 slotIndex에 대해 진행 중인 Promise를 공유한다.
- */
-const pairTrainingClaimInFlightBySlotIndex = new Map<number, Promise<unknown>>();
 
 /** 대국 결과 모달 `XpBar`와 동일한 애니메이션·레이아웃(펫 수련 보상 전용) */
 const TrainingClaimXpBar: React.FC<{
@@ -217,6 +211,10 @@ export type PairTrainingRewardModalProps = {
     claimSummary?: PairTrainingClaimClientSummary | null;
     /** true면 마운트 직후 수령 API 호출(확인 문구 생략). false면 「수령할까요?」 후 버튼 수령. */
     autoClaimOnMount?: boolean;
+    /** `claimSummary`가 이미 있을 때 백그라운드로 `PAIR_PET_CLAIM_TRAINING`만 동기화(로딩 UI 없음) */
+    persistClaimOnMount?: boolean;
+    /** `persistClaimOnMount` 시 busy 없이 호출(예: `handlers.handleAction`) */
+    commitClaimWithoutBusy?: (action: ServerAction) => Promise<unknown>;
     onClose: () => void;
     applyPetAction: (action: ServerAction) => Promise<unknown>;
     isBusy: boolean;
@@ -228,6 +226,8 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
     petItem,
     claimSummary = null,
     autoClaimOnMount = false,
+    persistClaimOnMount = false,
+    commitClaimWithoutBusy,
     onClose,
     applyPetAction,
     isBusy,
@@ -238,8 +238,10 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
 
     /** 부모가 매 렌더마다 새 함수를 넘기면(예: `applyPetAction` inline) effect 의존성에 넣으면 `isBusy` 토글마다 재수령·실패·모달 닫힘 → ref로 고정 */
     const applyPetActionRef = useRef(applyPetAction);
+    const commitClaimRef = useRef(commitClaimWithoutBusy ?? applyPetAction);
     const onCloseRef = useRef(onClose);
     applyPetActionRef.current = applyPetAction;
+    commitClaimRef.current = commitClaimWithoutBusy ?? applyPetAction;
     onCloseRef.current = onClose;
 
     const compactRewards = isMobile;
@@ -286,7 +288,47 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
         if (claimSummary) {
             setSummary(claimSummary);
             setPhase('done');
-            return;
+            if (!persistClaimOnMount) return;
+
+            let cancelled = false;
+            let inflight = pairTrainingClaimInFlightBySlotIndex.get(slotIndex);
+            if (!inflight) {
+                inflight = commitClaimRef.current({
+                    type: 'PAIR_PET_CLAIM_TRAINING',
+                    payload: { slotIndex },
+                });
+                pairTrainingClaimInFlightBySlotIndex.set(slotIndex, inflight);
+                void inflight.finally(() => {
+                    if (pairTrainingClaimInFlightBySlotIndex.get(slotIndex) === inflight) {
+                        pairTrainingClaimInFlightBySlotIndex.delete(slotIndex);
+                    }
+                });
+            }
+
+            void inflight.then((raw) => {
+                if (cancelled) return;
+                const { error, summary: serverSummary } = parsePairTrainingClaimResponse(raw);
+                if (error) {
+                    window.alert(error);
+                    onCloseRef.current();
+                    return;
+                }
+                if (!serverSummary) {
+                    window.alert('보상 정보를 불러오지 못했습니다.');
+                    onCloseRef.current();
+                    return;
+                }
+                const coreDelta = serverSummary.pairPetLevelUpCoreBonuses;
+                if (coreDelta && Object.values(coreDelta).some((v) => typeof v === 'number' && v !== 0)) {
+                    setSummary((prev) =>
+                        prev ? { ...prev, pairPetLevelUpCoreBonuses: coreDelta } : serverSummary,
+                    );
+                }
+            });
+
+            return () => {
+                cancelled = true;
+            };
         }
 
         setPhase('ready');
@@ -310,21 +352,12 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
 
         void inflight.then((raw) => {
             if (cancelled) return;
-            const res = raw as {
-                error?: string;
-                pairTrainingClaimSummary?: PairTrainingClaimClientSummary;
-                clientResponse?: { pairTrainingClaimSummary?: PairTrainingClaimClientSummary };
-            } | null;
-            if (res?.error) {
-                window.alert(res.error);
+            const { error, summary: s } = parsePairTrainingClaimResponse(raw);
+            if (error) {
+                window.alert(error);
                 onCloseRef.current();
                 return;
             }
-            const s =
-                res?.pairTrainingClaimSummary ??
-                res?.clientResponse?.pairTrainingClaimSummary ??
-                (res as { data?: { pairTrainingClaimSummary?: PairTrainingClaimClientSummary } })?.data
-                    ?.pairTrainingClaimSummary;
             if (!s) {
                 window.alert('보상 정보를 불러오지 못했습니다.');
                 onCloseRef.current();
@@ -337,7 +370,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
         return () => {
             cancelled = true;
         };
-    }, [slotIndex, petItem.id, claimSummary, autoClaimOnMount]);
+    }, [slotIndex, petItem.id, claimSummary, autoClaimOnMount, persistClaimOnMount]);
 
     const soulMat = summary?.soulDrop
         ? MATERIAL_ITEMS[summary.soulDrop.materialName as keyof typeof MATERIAL_ITEMS]

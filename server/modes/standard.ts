@@ -732,18 +732,26 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
         if (missileStateChanged) (game as any)._missileStateChanged = true;
         if (itemTimeoutStateChanged || missileStateChanged) {
             if (itemTimeoutStateChanged) (game as any)._itemTimeoutStateChanged = false;
-            const { broadcastToGameParticipants } = await import('../socket.js');
-            const { updateGameCache } = await import('../gameCache.js');
-            const db = await import('../db.js');
-            updateGameCache(game);
-            await db.saveGame(game);
-            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+            const { broadcastItemPhaseSnapshot } = await import('../utils/broadcastItemPhaseSnapshot.js');
+            await broadcastItemPhaseSnapshot(game);
         }
     } else {
-        await updateHiddenState(game, now);
+        const hiddenStateChanged = await updateHiddenState(game, now);
         const missileStateChanged = updateMissileState(game, now);
+        const itemTimeoutStateChanged = (game as any)._itemTimeoutStateChanged;
+        const itemPhaseStateChanged = (game as any)._itemPhaseStateChanged;
         if (missileStateChanged) {
             (game as any)._missileStateChanged = true;
+        }
+        if (missileStateChanged || itemTimeoutStateChanged || hiddenStateChanged || itemPhaseStateChanged) {
+            if (itemTimeoutStateChanged) {
+                (game as any)._itemTimeoutStateChanged = false;
+            }
+            if (itemPhaseStateChanged) {
+                (game as any)._itemPhaseStateChanged = false;
+            }
+            const { broadcastItemPhaseSnapshot } = await import('../utils/broadcastItemPhaseSnapshot.js');
+            await broadcastItemPhaseSnapshot(game);
         }
     }
 
@@ -1805,6 +1813,10 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                                 ? 'Pair'
                               : 'SinglePlayer';
                         console.log(`[handleStandardAction] Auto-scoring triggered (user placed last stone): totalTurns=${newTotalTurns}, autoScoringTurns=${autoScoringTurns}, ${gameType}`);
+                        if (!game.isSinglePlayer) {
+                            const { broadcastPlayingSnapshotBeforeScoring } = await import('../utils/broadcastPlayingBeforeScoring.js');
+                            await broadcastPlayingSnapshotBeforeScoring(game);
+                        }
                         game.gameStatus = 'scoring';
                         await db.saveGame(game);
                         const { broadcastToGameParticipants } = await import('../socket.js');

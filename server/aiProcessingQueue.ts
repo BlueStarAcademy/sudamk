@@ -80,9 +80,14 @@ class AiProcessingQueue {
      * @param gameId 게임 ID
      * @param priority 우선순위 (기본값: 현재 시간, 최근일수록 높음)
      */
-    enqueue(gameId: string, priority?: number): void {
-        // 이미 큐에 있거나 처리 중이면 무시
-        if (this.queue.some(task => task.gameId === gameId) || this.processing.has(gameId)) {
+    enqueue(gameId: string, priority?: number, options?: { deferIfProcessing?: boolean }): void {
+        const alreadyQueued = this.queue.some(task => task.gameId === gameId);
+        const inFlight = this.processing.has(gameId);
+        // 이미 큐에 있거나 처리 중이면 무시 (페어 연속 AI 좌석은 defer로 처리 종료 후 재등록)
+        if (alreadyQueued || inFlight) {
+            if (options?.deferIfProcessing && inFlight && !alreadyQueued) {
+                setTimeout(() => this.enqueue(gameId, priority), 0);
+            }
             return;
         }
 
@@ -250,12 +255,23 @@ class AiProcessingQueue {
                 return;
             }
             const beforeMoveCount = game.moveHistory?.length ?? 0;
+            const pairClassic = isPairClassicGame(game.settings, game.mode);
 
             // AI 수 처리
             await makeAiMove(game);
             const afterMoveCount = game.moveHistory?.length ?? beforeMoveCount;
             const stalledOnAiTurn =
                 afterMoveCount <= beforeMoveCount &&
+                isAiControlledTurn(game) &&
+                AI_GO_STALL_RETRY_STATUSES.has(String(game.gameStatus));
+            const pairHiddenRevealFollowUp =
+                pairClassic &&
+                afterMoveCount > beforeMoveCount &&
+                game.gameStatus === 'hidden_reveal_animating';
+            /** 상대 AI가 두고 턴이 펫/다음 AI로 넘어갈 때 makeGoAiBotMove 안에서 enqueue가 processing 때문에 무시되는 경우 */
+            const consecutivePairAiSeat =
+                pairClassic &&
+                afterMoveCount > beforeMoveCount &&
                 isAiControlledTurn(game) &&
                 AI_GO_STALL_RETRY_STATUSES.has(String(game.gameStatus));
             if (stalledOnAiTurn) {
@@ -269,6 +285,11 @@ class AiProcessingQueue {
                     `[AI Queue] AI turn made no progress; requeueing game=${gameId} status=${game.gameStatus} moves=${beforeMoveCount}->${afterMoveCount} retry=${retryCount} delay=${retryDelayMs}ms`
                 );
                 setTimeout(() => this.enqueue(gameId), retryDelayMs);
+            } else if (pairHiddenRevealFollowUp) {
+                const retryDelayMs = getAnimationRetryDelayMs(game) ?? 500;
+                setTimeout(() => this.enqueue(gameId), retryDelayMs);
+            } else if (consecutivePairAiSeat) {
+                setTimeout(() => this.enqueue(gameId), 50);
             } else {
                 this.retryCounts.delete(gameId);
             }

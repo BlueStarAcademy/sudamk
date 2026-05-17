@@ -6,6 +6,7 @@ import {
     PAIR_EGG_MATERIAL_NAME,
     PAIR_WELCOME_EGG_MATERIAL_NAME,
     PAIR_PET_SHOP_SKUS,
+    isPairPetShopSkuUnlimitedDaily,
 } from '../constants/petLobby.js';
 import { PAIR_TRAINING_SLOT_DEFS } from '../constants/pairTraining.js';
 import { pairPetSoulConvertMaterialNameForGrade } from './pairPetSoulConvert.js';
@@ -49,6 +50,7 @@ function soulPetShopAcquireSnippet(materialName: string): string {
         sku.diamonds > 0
             ? `다이아 ${formatWalletDiamonds(sku.diamonds)}`
             : `골드 ${formatGoldAmountKoG(sku.gold)}`;
+    if (isPairPetShopSkuUnlimitedDaily(sku.dailyLimit)) return price;
     return `${price}, 일일 ${sku.dailyLimit}회`;
 }
 

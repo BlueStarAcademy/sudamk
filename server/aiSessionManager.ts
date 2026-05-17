@@ -1,5 +1,11 @@
 import { Player, type LiveGameSession, GameMode } from '../types/index.js';
-import { getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame } from '../shared/utils/pairGameTurn.js';
+import {
+    buildPairAiSchedulingKey,
+    getCurrentPairTurnSeat,
+    isPairAiSeat,
+    isPairClassicGame,
+    normalizePairTurnIndex,
+} from '../shared/utils/pairGameTurn.js';
 
 /** 놀이바둑: moveHistory를 사용하지 않으므로 syncAiSession에서 moveCount로 lastProcessedMoveCount를 덮어쓰면 다음 AI 턴이 막힘 */
 const PLAYFUL_MODES_NO_MOVE_HISTORY: GameMode[] = [
@@ -25,6 +31,8 @@ interface AiSession {
      * 동일한 값 이하일 경우 이미 처리된 턴으로 간주하여 중복 계산을 방지
      */
     lastProcessedMoveCount: number;
+    /** 페어 4인 수순: `moveCount:turnIndex:participantId` — 같은 길이에서도 좌석별로 구분 */
+    lastProcessedPairSchedulingKey?: string;
     /**
      * 최근 업데이트 타임스탬프 (ms)
      * 오래된 세션을 정리할 때 사용
@@ -68,14 +76,26 @@ function ensureSession(gameId: string): AiSession {
  * - 마지막으로 처리한 moveHistory 길이보다 현재 길이가 큰 경우에만 true
  * - 단, 한 번도 처리한 적 없으면(lastProcessedMoveCount === 0) 허용 (알까기/컬링 등 배치 단계는 moveHistory가 0)
  */
-export function shouldProcessAiTurn(gameId: string, currentMoveCount: number): boolean {
+export function shouldProcessAiTurn(
+    gameId: string,
+    currentMoveCount: number,
+    pairSchedulingKey?: string | null,
+): boolean {
     const session = ensureSession(gameId);
 
     // 세션 수순이 game.moveHistory보다 앞서 있으면(낡은 스냅샷으로 makeAiMove가 호출된 경우) currentMoveCount-1로 내리면
     // shouldProcessAiTurn이 다시 true가 되어 동일 국면에 AI가 중복 착수할 수 있음 → 스냅샷 길이에만 맞추고 스킵
     if (session.lastProcessedMoveCount > currentMoveCount) {
         session.lastProcessedMoveCount = currentMoveCount;
+        session.lastProcessedPairSchedulingKey = undefined;
         return false;
+    }
+
+    if (pairSchedulingKey) {
+        if (session.lastProcessedPairSchedulingKey === pairSchedulingKey) {
+            return false;
+        }
+        return true;
     }
 
     if (session.lastProcessedMoveCount > 0 && currentMoveCount <= session.lastProcessedMoveCount) {
@@ -115,11 +135,16 @@ export function startAiProcessing(gameId: string): boolean {
 /**
  * AI 계산이 정상적으로 끝났음을 표시하며 moveHistory 길이를 기록
  */
-export function finishAiProcessing(gameId: string, newMoveCount: number): void {
+export function finishAiProcessing(
+    gameId: string,
+    newMoveCount: number,
+    pairSchedulingKey?: string | null,
+): void {
     const session = ensureSession(gameId);
     session.isProcessing = false;
     session.processingStartedAt = undefined;
     session.lastProcessedMoveCount = newMoveCount;
+    session.lastProcessedPairSchedulingKey = pairSchedulingKey ?? undefined;
     session.lastUpdatedAt = Date.now();
 }
 
@@ -174,7 +199,9 @@ export function syncAiSession(game: LiveGameSession, aiPlayerId: string, options
     const moveCount = game.moveHistory?.length ?? 0;
     session.lastUpdatedAt = Date.now();
 
-    const pairCurrentSeat = isPairClassicGame(game.settings, game.mode) ? getCurrentPairTurnSeat(game.settings) : null;
+    const pairClassic = isPairClassicGame(game.settings, game.mode);
+    const pairCurrentSeat = pairClassic ? getCurrentPairTurnSeat(game.settings) : null;
+    const pairSchedulingKey = pairClassic ? buildPairAiSchedulingKey(game.settings, moveCount) : null;
     const isAiGame = game.isAiGame || game.blackPlayerId === aiPlayerId || game.whitePlayerId === aiPlayerId;
     const aiControlledBlack =
         game.blackPlayerId === aiPlayerId ||
@@ -190,18 +217,19 @@ export function syncAiSession(game: LiveGameSession, aiPlayerId: string, options
                     (game.currentPlayer === Player.White && aiControlledWhite))));
 
     if (aiShouldMove && !options.allowAdvanceOnAiTurn) {
-        // AI 차례의 stale state가 들어와도 lastProcessedMoveCount를 뒤로 되감지 않는다.
-        // 되감으면 방금 처리한 AI 수가 저장/브로드캐스트되기 전에 같은 국면으로 다시 GnuGo를 호출할 수 있다.
-        //
-        // 예외: 동기화/인간 턴 처리 등으로 lastProcessedMoveCount === moveCount 인 채 AI 차례가 되면
-        // shouldProcessAiTurn이 영구 false → 모험·AI 대국에서 봇이 안 두는 현상. 한 수만큼만 되돌린다.
+        const pairSeatNeedsTurn =
+            pairSchedulingKey != null && pairSchedulingKey !== session.lastProcessedPairSchedulingKey;
         if (session.lastProcessedMoveCount >= moveCount) {
+            if (pairSeatNeedsTurn) {
+                return;
+            }
             if (session.lastProcessedMoveCount > moveCount) {
-                // lastProcessed > moveCount: 실제 DB/브로드캐스트보다 짧은 스냅샷 — moveCount-1 복구는 중복 AI 착수를 유발하므로 길이만 맞춘다.
                 session.lastProcessedMoveCount = moveCount;
+                session.lastProcessedPairSchedulingKey = undefined;
                 return;
             }
             session.lastProcessedMoveCount = Math.max(-1, moveCount - 1);
+            session.lastProcessedPairSchedulingKey = undefined;
             cancelAiProcessing(game.id);
             console.warn(
                 `[AI Session] Repaired lastProcessed>=moveCount for game ${game.id} (AI to move, moveCount=${moveCount})`,
@@ -221,3 +249,8 @@ export function syncAiSession(game: LiveGameSession, aiPlayerId: string, options
     }
 }
 
+/** makeAiMove: 페어 AI 착수 전·후 turnIndex 비교용 */
+export function getPairTurnIndexForSession(game: LiveGameSession): number | null {
+    if (!isPairClassicGame(game.settings, game.mode) || !game.settings?.pairGame) return null;
+    return normalizePairTurnIndex(game.settings.pairGame);
+}

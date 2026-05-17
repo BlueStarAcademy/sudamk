@@ -15,7 +15,7 @@ export const CHAMPIONSHIP_VENUE_LOBBY_BG_IMAGE: Record<TournamentType, string> =
     world: '/images/bg/champ3.webp',
 };
 
-/** PVE 던전과 별도 — PVP 챔피언십(예정) 로비 카드·향후 인게임 배경 등 */
+/** PVE 던전과 별도 — 유저 챔피언십 로비 카드·인게임 배경 등 */
 export const CHAMPIONSHIP_PVP_VENUE_BG_WEBP = '/images/bg/champ4.webp';
 
 /** 펫 챔피언십 로비 입장 카드·인게임 배경 (`public/images/bg/pet.webp`) */

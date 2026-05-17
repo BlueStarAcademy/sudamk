@@ -123,6 +123,7 @@ export function mergeResolvedRoundsPreserveChampionshipPlayback(
                     lastMove: prevGame.lastMove,
                     status: prevGame.status,
                     timeMetrics: prevGame.timeMetrics ?? resolvedGame.timeMetrics,
+                    scoringAnalysis: prevGame.scoringAnalysis ?? resolvedGame.scoringAnalysis,
                 },
             };
         }),

@@ -2328,12 +2328,19 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         const seat = seats.find((s) => s.participantId === userId);
         const isWinner = !isDraw && !isNoContest && seat?.player === game.winner;
         const isResignLoser = resignLoserColor !== Player.None && seat?.player === resignLoserColor;
-        /** 페어 휴먼 대전(pvp)에서 기권 시 양측 보상 없음 — 페어 AI전(pairMode ai)은 기존처럼 패자만 0 */
+        /** 페어 휴먼 대전(pvp)에서 기권 시 양측 보상 없음 */
         const pvpPairResignNoRewards =
             !isNoContest && !isDraw && game.winReason === 'resign' && game.settings.pairGame?.pairMode === 'pvp';
+        /** 페어 AI전: 기권한 팀(색) 전원 보상 0 — blackPlayerId는 흑1만 가리켜 패자 색 판정이 어긋날 수 있음 */
+        const pairAiResignLoserTeamId =
+            isPairAiGame && !isNoContest && !isDraw && game.winReason === 'resign' && resignLoserColor !== Player.None
+                ? seats.find((s) => s.player === resignLoserColor)?.teamId
+                : undefined;
+        const isPairAiResignLoser =
+            pairAiResignLoserTeamId != null && seat?.teamId === pairAiResignLoserTeamId;
         const multiplier = pvpPairResignNoRewards
             ? 0
-            : isNoContest || isDraw || isResignLoser
+            : isNoContest || isDraw || isResignLoser || isPairAiResignLoser
               ? 0
               : isWinner
                 ? 1

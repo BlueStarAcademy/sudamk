@@ -469,6 +469,7 @@ export async function generateChampionshipRealMatch(
             generationMs: Date.now() - startedAt,
         },
     };
+    game.scoringAnalysis = scoring;
     game.resultContract = buildChampionshipResultContract(match.id, game);
 
     return {

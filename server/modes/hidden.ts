@@ -31,6 +31,14 @@ import {
 } from '../../shared/utils/mixGoRules.js';
 import { getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
 import { applyPairTurnAfterHiddenRevealCaptureResolved } from '../utils/pairTurnAfterHiddenRevealAnim.js';
+import {
+    clearItemPhasePresentationFields,
+    finalizeHiddenRevealPresentationCleanup,
+    finalizeHiddenSelectingUnstick,
+    finalizeItemPhase,
+    markItemPhaseStateChanged,
+    tryFinalizeHiddenRevealItemPhase,
+} from './finalizeItemPhase.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -53,165 +61,70 @@ export const initializeHidden = (game: types.LiveGameSession) => {
     }
 };
 
-export const updateHiddenState = async (game: types.LiveGameSession, now: number) => {
+export const updateHiddenState = async (game: types.LiveGameSession, now: number): Promise<boolean> => {
     const isStrategicAiGame = isStrategicAiGoSession(game);
     const isItemMode = ['hidden_placing', 'scanning'].includes(game.gameStatus);
+    let changed = false;
 
     if (mixGoShouldUnstickHiddenItemSelectionPhase(game)) {
-        game.gameStatus = 'playing';
-        mixGoClearHiddenItemPhaseTimers(game);
-        return;
+        if (finalizeHiddenSelectingUnstick(game, now)) changed = true;
+        return changed;
     }
 
-    // 스캔 연출 중인데 아이템 마감만 남은 경우(AI 대국 등 resumeGameTimer 실패로 deadline 잔존): 본경기로 복구
     if (game.gameStatus === 'scanning_animating' && game.itemUseDeadline && now > game.itemUseDeadline) {
-        game.animation = null;
-        game.gameStatus = 'playing';
-        game.itemUseDeadline = undefined;
-        game.pausedTurnTimeLeft = undefined;
-        const cur = game.currentPlayer;
-        if (cur !== types.Player.None) {
-            const resumed = resumeGameTimer(game, now, cur);
-            if (!resumed) {
-                game.itemUseDeadline = undefined;
-                game.pausedTurnTimeLeft = undefined;
-            }
-        }
-        return;
+        if (finalizeItemPhase(game, 'scan', now, { scanDeadlineCleanup: true })) changed = true;
+        return changed;
     }
 
     if (isItemMode && game.itemUseDeadline && now > game.itemUseDeadline) {
-        // Item use timed out. 아이템 소멸하고 턴 유지
-        const timedOutPlayerEnum = game.currentPlayer;
-        const timedOutPlayerId = timedOutPlayerEnum === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
-        const currentItemMode = game.gameStatus; // 현재 아이템 모드 저장 (hidden_placing 또는 scanning)
-        
-        game.foulInfo = { message: `${game.player1.id === timedOutPlayerId ? game.player1.nickname : game.player2.nickname}님의 아이템 시간 초과!`, expiry: now + 4000 };
-        game.gameStatus = 'playing';
-        game.currentPlayer = timedOutPlayerEnum;
-
-        // 아이템 소멸 처리 (착수 완료와 동일하게 재고 감소 + used 증가, 턴은 그대로)
-        // p1/p2는 흑/백을 의미한다 — player1 좌석과 무관 (페어바둑 파트너 user.id가 player1.id와 다른 경우 대비)
-        const timedOutIsBlack = timedOutPlayerEnum === types.Player.Black;
-        if (currentItemMode === 'hidden_placing') {
-            const hiddenInvKey = timedOutIsBlack ? 'hidden_stones_p1' : 'hidden_stones_p2';
-            const usedKey = timedOutIsBlack ? 'hidden_stones_used_p1' : 'hidden_stones_used_p2';
-            const currentHidden = game[hiddenInvKey] ?? game.settings.hiddenStoneCount ?? 0;
-            if (currentHidden > 0) {
-                game[hiddenInvKey] = currentHidden - 1;
-                game[usedKey] = (game[usedKey] || 0) + 1;
-            }
-        } else if (currentItemMode === 'scanning') {
-            // 스캔 아이템 소멸
-            const scanKey = timedOutIsBlack ? 'scans_p1' : 'scans_p2';
-            const currentScans = game[scanKey] ?? 0;
-            if (currentScans > 0) {
-                game[scanKey] = currentScans - 1;
-            }
+        const currentItemMode = game.gameStatus as 'hidden_placing' | 'scanning';
+        if (
+            finalizeItemPhase(game, 'hidden_selecting', now, {
+                selectingStatus: currentItemMode,
+            })
+        ) {
+            changed = true;
         }
-
-        // 원래 경기 시간 복원 (턴 유지)
-        const timerResumed = resumeGameTimer(game, now, timedOutPlayerEnum);
-        if (!timerResumed) {
-            game.itemUseDeadline = undefined;
-            game.pausedTurnTimeLeft = undefined;
-        }
-
-        return;
+        return changed;
     }
 
     switch (game.gameStatus) {
         case 'scanning_animating': {
             const anim = game.animation;
-            const scanEnded =
-                !anim ||
-                anim.type !== 'scan' ||
-                now >= anim.startTime + anim.duration;
-            if (scanEnded) {
-                if (anim && anim.type === 'scan') {
-                    const scanUserId = (anim as { type: 'scan'; playerId: string }).playerId;
-                    const scanPlayerEnum =
-                        scanUserId === game.blackPlayerId
-                            ? types.Player.Black
-                            : scanUserId === game.whitePlayerId
-                              ? types.Player.White
-                              : game.currentPlayer;
-                    game.currentPlayer = scanPlayerEnum;
-                    const scanAnim = anim as { type: 'scan'; success?: boolean; towerResumeScanning?: boolean };
-                    if (scanAnim.success && scanAnim.towerResumeScanning) {
-                        game.animation = null;
-                        game.gameStatus = 'scanning';
-                        pauseGameTimer(game, now, 30000);
-                        break;
-                    }
-                }
-                game.animation = null;
-                game.gameStatus = 'playing';
-                game.itemUseDeadline = undefined;
-                game.pausedTurnTimeLeft = undefined;
+            const scanAnim = anim && anim.type === 'scan' ? (anim as { success?: boolean; towerResumeScanning?: boolean }) : null;
+            if (
+                finalizeItemPhase(game, 'scan', now, {
+                    resumeScanningSelection: !!(scanAnim?.success && scanAnim?.towerResumeScanning),
+                })
+            ) {
+                changed = true;
             }
             break;
         }
-        case 'hidden_reveal_animating':
-            // 손상·직렬화 누락 등으로 종료 시각이 없으면 연출 분기가 영구 대기 → AI/턴 고착
+        case 'hidden_reveal_animating': {
             if (!game.revealAnimationEndTime) {
                 game.revealAnimationEndTime = now;
             }
-            if (useTowerStyleHiddenRevealAnimatingResolution(game)) {
-                await runTowerStyleHiddenRevealAnimatingIfDue(game, now, {
-                    logPrefix: 'updateHiddenState',
-                });
+            if (await tryFinalizeHiddenRevealItemPhase(game, now)) {
+                changed = true;
                 break;
             }
             if (game.revealAnimationEndTime && now >= game.revealAnimationEndTime) {
                 const cap = game.pendingCapture;
-                // 히든 돌만 공개(따냄 없음): 상대가 내 히든 위에 두려 한 경우 — 타이머만 재개
                 if (!cap) {
                     const pendingAiAfterUserHiddenReveal = (game as any).pendingAiMoveAfterUserHiddenFullReveal;
                     (game as any).pendingAiMoveAfterUserHiddenFullReveal = undefined;
-                    game.animation = null;
-                    game.gameStatus = 'playing';
-                    game.revealAnimationEndTime = undefined;
-                    game.pendingCapture = null;
-                    const cur = game.currentPlayer;
-                    if (game.pausedTurnTimeLeft !== undefined) {
-                        const timeKey = cur === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                        game[timeKey] = game.pausedTurnTimeLeft;
-                    }
-                    if (
-                        shouldEnforceTimeControl(game) &&
-                        game.settings?.timeLimit > 0 &&
-                        game.pausedTurnTimeLeft !== undefined
-                    ) {
-                        const timeKey = cur === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                        const isFischer = isFischerStyleTimeControl(game as any);
-                        const byoyomiTime = game.settings.byoyomiTime ?? 0;
-                        const isNextInByoyomi = game[timeKey] <= 0 && game.settings.byoyomiCount > 0 && !isFischer;
-                        if (isNextInByoyomi && byoyomiTime > 0) {
-                            game.turnDeadline = now + byoyomiTime * 1000;
-                        } else {
-                            game.turnDeadline = now + (game[timeKey] ?? 0) * 1000;
-                        }
-                        game.turnStartTime = now;
-                    } else {
-                        game.turnDeadline = undefined;
-                        game.turnStartTime = undefined;
-                    }
-                    game.pausedTurnTimeLeft = undefined;
+                    finalizeHiddenRevealPresentationCleanup(game, now, game.currentPlayer);
+                    changed = true;
                     const pairSeatAfterReveal = isPairClassicGame(game.settings, game.mode)
                         ? getCurrentPairTurnSeat(game.settings)
                         : null;
                     const isPairAiTurnAfterReveal = !!(pairSeatAfterReveal && isPairAiSeat(pairSeatAfterReveal));
                     if (pendingAiAfterUserHiddenReveal && (game.isAiGame || isPairAiTurnAfterReveal)) {
-                        // 즉시 makeAiMove를 강제 호출하면 AI 락 경합으로 스킵되는 케이스가 있어
-                        // 메인 루프가 안정적으로 처리하도록 AI 턴 시작 시각만 설정한다.
                         game.aiTurnStartTime = now;
-                        await db.saveGame(game);
-                        const { broadcastToGameParticipants } = await import('../socket.js');
-                        const { updateGameCache } = await import('../gameCache.js');
-                        updateGameCache(game);
-                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-                        return;
+                        const { broadcastItemPhaseSnapshot } = await import('../utils/broadcastItemPhaseSnapshot.js');
+                        await broadcastItemPhaseSnapshot(game);
+                        return true;
                     }
                     break;
                 }
@@ -220,6 +133,7 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                     const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
 
                     if (await applyPreserveDiscovererTurnIfPending(game, now, cap)) {
+                        changed = true;
                         break;
                     }
 
@@ -295,18 +209,17 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                     // newlyRevealed로 본판에 같은 애니를 한 번 더 붙이지 않는다.
                     game.newlyRevealed = [];
                     if (await tryEndGameWhenCaptureTargetReached(game, myPlayerEnum)) {
-                        game.animation = null;
-                        game.revealAnimationEndTime = undefined;
+                        clearItemPhasePresentationFields(game, { clearRevealClock: true });
                         game.pendingCapture = null;
                         (game as any).pendingAiMoveAfterUserHiddenFullReveal = undefined;
                         game.pausedTurnTimeLeft = undefined;
-                        return;
+                        markItemPhaseStateChanged(game);
+                        return true;
                     }
                 }
 
-                game.animation = null;
+                clearItemPhasePresentationFields(game, { clearRevealClock: true });
                 game.gameStatus = 'playing';
-                game.revealAnimationEndTime = undefined;
                 game.pendingCapture = null;
                 (game as any).pendingAiMoveAfterUserHiddenFullReveal = undefined;
 
@@ -351,16 +264,20 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                 }
 
                  game.pausedTurnTimeLeft = undefined;
+                markItemPhaseStateChanged(game);
+                changed = true;
             }
             break;
+        }
         case 'hidden_final_reveal':
             if (game.revealAnimationEndTime && now >= game.revealAnimationEndTime) {
-                game.animation = null;
-                game.revealAnimationEndTime = undefined;
+                clearItemPhasePresentationFields(game, { clearRevealClock: true });
                 await getGameResult(game);
+                changed = true;
             }
             break;
     }
+    return changed;
 };
 
 export const handleHiddenAction = (volatileState: types.VolatileState, game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): HandleActionResult | null => {
@@ -392,7 +309,14 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
 
     switch(type) {
         case 'START_HIDDEN_PLACEMENT': {
-            if (!canUseItem || game.gameStatus !== 'playing') return { error: "Not your turn to use an item." };
+            if (!canUseItem) return { error: "Not your turn to use an item." };
+            if (game.gameStatus === 'hidden_placing') {
+                if (!game.itemUseDeadline) {
+                    pauseGameTimer(game, now, 30000);
+                }
+                return { clientResponse: { gameUpdated: true } };
+            }
+            if (game.gameStatus !== 'playing') return { error: "Not your turn to use an item." };
             // Mix/타워: 히든 개수 확인 (없으면 진입 불가)
             const isMixOrHidden = game.mode === types.GameMode.Hidden || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
             if (isMixOrHidden) {
@@ -402,10 +326,18 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
             }
             game.gameStatus = 'hidden_placing';
             pauseGameTimer(game, now, 30000);
-            return {};
+            markItemPhaseStateChanged(game);
+            return { clientResponse: { gameUpdated: true } };
         }
         case 'START_SCANNING': {
-            if (!canUseItem || game.gameStatus !== 'playing') return { error: "Not your turn to use an item." };
+            if (!canUseItem) return { error: "Not your turn to use an item." };
+            if (game.gameStatus === 'scanning') {
+                if (!game.itemUseDeadline) {
+                    pauseGameTimer(game, now, 30000);
+                }
+                return { clientResponse: { gameUpdated: true } };
+            }
+            if (game.gameStatus !== 'playing') return { error: "Not your turn to use an item." };
             const scanKeyStart = myIsBlack ? 'scans_p1' : 'scans_p2';
             if ((game[scanKeyStart] ?? 0) <= 0) return { error: "No scans left." };
             const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
@@ -421,7 +353,8 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
             if (!opponentHasUnrevealedHidden) return { error: "No hidden stones to scan." };
             game.gameStatus = 'scanning';
             pauseGameTimer(game, now, 30000);
-            return {};
+            markItemPhaseStateChanged(game);
+            return { clientResponse: { gameUpdated: true } };
         }
         case 'SCAN_BOARD':
             if (game.gameStatus !== 'scanning') return { error: "Not in scanning mode." };
@@ -446,9 +379,10 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
                 game.pausedTurnTimeLeft = undefined;
             }
 
+            markItemPhaseStateChanged(game);
             // The `updateHiddenState` will transition from 'scanning_animating' to 'playing'
             // after the animation, but the timer is already correctly running for the current player.
-            return {};
+            return { clientResponse: { gameUpdated: true } };
     }
 
     return null;

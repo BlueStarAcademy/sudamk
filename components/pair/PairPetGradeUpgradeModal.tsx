@@ -133,8 +133,8 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
             hideFooter
             bodyPaddingClassName="!p-0"
         >
-            <div className="flex max-h-[min(72dvh,32rem)] flex-col gap-2 overflow-y-auto overflow-x-hidden px-1 pb-2 pt-1 sm:max-h-[min(78vh,36rem)] sm:gap-3 sm:px-2">
-                <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-b from-zinc-900/95 via-violet-950/40 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(0,0,0,0.4)] ring-1 ring-amber-400/10">
+            <div className="flex max-h-[min(72dvh,32rem)] flex-col gap-2 overflow-y-auto overflow-x-hidden px-1.5 pb-2 pt-1 sm:max-h-[min(78vh,36rem)] sm:gap-3 sm:px-2">
+                <div className="relative rounded-2xl border border-amber-500/20 bg-gradient-to-b from-zinc-900/95 via-violet-950/40 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(0,0,0,0.4)] ring-1 ring-amber-400/10">
                     <div
                         className="pointer-events-none absolute -right-8 -top-12 h-40 w-40 rounded-full bg-amber-400/10 blur-3xl"
                         aria-hidden
@@ -166,32 +166,26 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                         </div>
 
                         {nextG && nextSt && nextBg && nextGradeKo ? (
-                            <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-                                <div className="flex min-w-0 flex-1 flex-col items-center gap-2 rounded-xl border border-white/10 bg-black/45 px-3 py-3 shadow-inner">
-                                    <span className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-slate-500">현재</span>
+                            <div className="flex flex-row items-center gap-1.5 sm:gap-3">
+                                <div className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl border border-white/10 bg-black/45 px-1.5 py-2 shadow-inner sm:gap-2 sm:px-3 sm:py-3">
+                                    <span className="text-[0.6rem] font-bold uppercase tracking-[0.14em] text-slate-500 sm:text-[0.65rem] sm:tracking-[0.2em]">현재</span>
                                     <div
-                                        className="relative h-14 w-14 overflow-hidden rounded-lg border border-white/15"
+                                        className="relative h-11 w-11 overflow-hidden rounded-lg border border-white/15 sm:h-14 sm:w-14"
                                         aria-hidden
                                     >
                                         <img src={mainBg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-90" />
                                         <img
                                             src={mainItem.image}
                                             alt=""
-                                            className="relative z-[1] h-full w-full object-contain p-1.5 drop-shadow-[0_6px_10px_rgba(0,0,0,0.45)]"
+                                            className="relative z-[1] h-full w-full object-contain p-1 sm:p-1.5 drop-shadow-[0_6px_10px_rgba(0,0,0,0.45)]"
                                         />
                                     </div>
-                                    <span className={`text-center text-sm font-black ${mainSt.color}`}>{gradeKo}</span>
+                                    <span className={`text-center text-xs font-black leading-tight sm:text-sm ${mainSt.color}`}>{gradeKo}</span>
                                 </div>
 
-                                <div className="flex shrink-0 flex-row items-center justify-center gap-1 py-0 sm:flex-col sm:py-2">
-                                    <span className="hidden text-amber-200/40 sm:block" aria-hidden>
-                                        ···
-                                    </span>
-                                    <div
-                                        className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-400/35 bg-gradient-to-b from-amber-600/30 to-amber-950/60 text-amber-100 shadow-[0_0_20px_rgba(251,191,36,0.15)]"
-                                        aria-hidden
-                                    >
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="opacity-95">
+                                <div className="flex shrink-0 items-center justify-center px-0.5" aria-hidden>
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-full border border-amber-400/35 bg-gradient-to-b from-amber-600/30 to-amber-950/60 text-amber-100 shadow-[0_0_20px_rgba(251,191,36,0.15)] sm:h-9 sm:w-9">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="opacity-95 sm:h-[18px] sm:w-[18px]">
                                             <path
                                                 d="M5 12h14m0 0-4-4m4 4-4 4"
                                                 stroke="currentColor"
@@ -203,17 +197,17 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                                     </div>
                                 </div>
 
-                                <div className="flex min-w-0 flex-1 flex-col items-center gap-2 rounded-xl border border-amber-400/25 bg-gradient-to-b from-amber-950/50 to-black/50 px-3 py-3 shadow-[inset_0_1px_0_rgba(251,191,36,0.12)]">
-                                    <span className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-amber-200/70">다음</span>
-                                    <div className="relative h-14 w-14 overflow-hidden rounded-lg border border-amber-300/25">
+                                <div className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl border border-amber-400/25 bg-gradient-to-b from-amber-950/50 to-black/50 px-1.5 py-2 shadow-[inset_0_1px_0_rgba(251,191,36,0.12)] sm:gap-2 sm:px-3 sm:py-3">
+                                    <span className="text-[0.6rem] font-bold uppercase tracking-[0.14em] text-amber-200/70 sm:text-[0.65rem] sm:tracking-[0.2em]">다음</span>
+                                    <div className="relative h-11 w-11 overflow-hidden rounded-lg border border-amber-300/25 sm:h-14 sm:w-14">
                                         <img src={nextBg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-90" />
                                         <img
                                             src={mainItem.image}
                                             alt=""
-                                            className="relative z-[1] h-full w-full object-contain p-1.5 drop-shadow-[0_6px_10px_rgba(0,0,0,0.45)]"
+                                            className="relative z-[1] h-full w-full object-contain p-1 sm:p-1.5 drop-shadow-[0_6px_10px_rgba(0,0,0,0.45)]"
                                         />
                                     </div>
-                                    <span className={`text-center text-sm font-black ${nextSt.color}`}>{nextGradeKo}</span>
+                                    <span className={`text-center text-xs font-black leading-tight sm:text-sm ${nextSt.color}`}>{nextGradeKo}</span>
                                 </div>
                             </div>
                         ) : (
@@ -223,20 +217,22 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                         )}
 
                         {nextG && budgetNext != null ? (
-                            <div className="rounded-xl border border-white/[0.08] bg-black/50 p-3 backdrop-blur-sm">
-                                <dl className="space-y-2.5 text-[0.8125rem]">
-                                    <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] pb-2">
-                                        <dt className="shrink-0 text-slate-400">기본 능력치 증가</dt>
-                                        <dd className="tabular-nums font-mono text-right font-black text-amber-200">+10%</dd>
+                            <div className="rounded-xl border border-white/[0.08] bg-black/50 p-2.5 backdrop-blur-sm sm:p-3">
+                                <dl className="space-y-3 text-xs sm:text-[0.8125rem]">
+                                    <div className="flex flex-col gap-1 border-b border-white/[0.06] pb-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+                                        <dt className="text-slate-400">기본 능력치 증가</dt>
+                                        <dd className="tabular-nums font-mono font-black text-amber-200 sm:text-right">+10%</dd>
                                     </div>
-                                    <div className="flex items-center justify-between gap-2 pt-0.5">
-                                        <dt className="min-w-0 break-words text-slate-400">다음등급 구간 펫 레벨업 시 자동 분배 능력치</dt>
-                                        <dd className="shrink-0 tabular-nums font-mono text-right font-black text-violet-200">+{budgetNext}</dd>
+                                    <div className="flex flex-col gap-1 pt-0.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+                                        <dt className="break-words leading-snug text-slate-400">
+                                            다음등급 구간 펫 레벨업 시 자동 분배 능력치
+                                        </dt>
+                                        <dd className="shrink-0 tabular-nums font-mono font-black text-violet-200 sm:text-right">+{budgetNext}</dd>
                                     </div>
                                 </dl>
                                 <div className="mt-2.5 min-w-0 border-t border-white/[0.06] pt-2.5">
                                     <p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-fuchsia-300/90">성향 강화</p>
-                                    <p className="mt-1.5 break-words text-left text-[0.8125rem] font-semibold tabular-nums leading-snug text-fuchsia-100/95">
+                                    <p className="mt-1.5 break-words text-left text-xs font-semibold tabular-nums leading-relaxed text-fuchsia-100/95 sm:text-[0.8125rem] sm:leading-snug">
                                         {dispositionUpgradePreview}
                                     </p>
                                 </div>

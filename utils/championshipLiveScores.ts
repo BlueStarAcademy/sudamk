@@ -1,5 +1,5 @@
 import { processMoveClient } from '../client/goLogicClient.js';
-import { Player, type BoardState } from '../types/index.js';
+import { Player, type AnalysisResult, type BoardState } from '../types/index.js';
 import { calculateScoreManually } from '../shared/utils/manualScoring.js';
 
 const createEmptyBoard = (boardSize: number): BoardState =>
@@ -132,4 +132,48 @@ export function championshipAreaScoresAtPly(
     const white = analysis.areaScore?.white;
     if (typeof black !== 'number' || typeof white !== 'number') return null;
     return { black, white };
+}
+
+type ChampionshipTerritoryAnalysisSource = {
+    boardSize: number;
+    moves?: Array<{ x: number; y: number; player: Player }>;
+    boardState?: BoardState;
+    status?: string;
+    scoringAnalysis?: AnalysisResult | null;
+};
+
+/**
+ * 챔피언십 실대국 계가·종료 판면의 영토/사석 오버레이용 분석 결과.
+ * 서버가 내려준 KataGo `scoringAnalysis`를 우선 사용하고, 없을 때만 클라이언트 manual 폴백.
+ */
+export function resolveChampionshipTerritoryAnalysisForRealGame(
+    rg: ChampionshipTerritoryAnalysisSource | null | undefined,
+): AnalysisResult | null {
+    if (rg?.scoringAnalysis) return rg.scoringAnalysis;
+    return championshipTerritoryAnalysisForRealGame(rg);
+}
+
+/**
+ * @deprecated {@link resolveChampionshipTerritoryAnalysisForRealGame} 사용 (KataGo 스냅샷 우선)
+ * 서버 KataGo 분석이 없을 때 `manualScoring`으로 최종 국면을 산출한다.
+ */
+export function championshipTerritoryAnalysisForRealGame(
+    rg: ChampionshipTerritoryAnalysisSource | null | undefined,
+): AnalysisResult | null {
+    if (!rg?.moves?.length) return null;
+    const n = rg.moves.length;
+    const replay = replayChampionshipMovesUpToPly(rg.boardSize, rg.moves, n);
+    if (!replay) return null;
+    const { board, captures } = replay;
+    return calculateScoreManually(
+        {
+            id: 'championship-territory-overlay',
+            boardState: board,
+            settings: { boardSize: rg.boardSize, komi: 6.5 },
+            finalKomi: 6.5,
+            captures,
+            moveHistory: rg.moves.map((m) => ({ x: m.x, y: m.y })),
+        } as any,
+        { silent: true },
+    );
 }

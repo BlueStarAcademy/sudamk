@@ -75,6 +75,10 @@ import {
 } from '../shared/utils/pairPetQuickClaimNotification.js';
 import { advancePairTurn, getCurrentPairTurnSeat, isPairAiSeat, resetPairPasses } from '../shared/utils/pairGameTurn.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+import {
+    countConditionPotionsInInventory,
+    stripInventoryIfFewerConditionPotions,
+} from '../shared/utils/conditionPotionInventory.js';
 
 const HOME_BOARD_READ_STORAGE_PREFIX = 'sudamr-home-board-read-posts';
 
@@ -127,6 +131,7 @@ import {
     coerceAdventureLiveGameScoringTurnLimit,
     getClientArenaStateBucket,
     mergeGameUpdateByArena,
+    shouldClearMissileFlightAnimationOnPlayingMerge,
 } from '../utils/clientGameMergePolicy.js';
 import { BOARD_SETTLE_BEFORE_SCORING_MS } from '../shared/constants/boardSettleTiming.js';
 import { markPveBoardSettledForScoring } from '../shared/utils/pveScoringBoardSettleSignal.js';
@@ -850,7 +855,9 @@ function shouldDropStaleStrategicGameUpdate(
         incoming.gameStatus === 'hidden_final_reveal' ||
         incoming.gameStatus === 'ended' ||
         incoming.gameStatus === 'no_contest' ||
+        incoming.gameStatus === 'missile_selecting' ||
         incoming.gameStatus === 'missile_animating' ||
+        incoming.gameStatus === 'hidden_placing' ||
         incoming.gameStatus === 'scanning' ||
         incoming.gameStatus === 'scanning_animating' ||
         incoming.gameStatus === 'hidden_reveal_animating'
@@ -5673,7 +5680,18 @@ export const useApp = () => {
                 
                 // 서버 응답 구조: { success: true, ...result.clientResponse }
                 // 따라서 result.updatedUser 또는 result.clientResponse?.updatedUser 확인
-                const updatedUserFromResponse = result.updatedUser || result.clientResponse?.updatedUser;
+                let updatedUserFromResponse = result.updatedUser || result.clientResponse?.updatedUser;
+
+                if (
+                    updatedUserFromResponse &&
+                    action.type === 'BUY_CONDITION_POTION' &&
+                    Array.isArray(updatedUserFromResponse.inventory)
+                ) {
+                    updatedUserFromResponse = stripInventoryIfFewerConditionPotions(
+                        updatedUserFromResponse,
+                        currentUserRef.current?.inventory,
+                    );
+                }
                 
                 if (updatedUserFromResponse) {
                     // 인벤토리 변경을 확실히 반영해야 하는 액션들
@@ -6325,6 +6343,8 @@ export const useApp = () => {
                         action.type === 'START_SCANNING' ||
                         action.type === 'START_HIDDEN_PLACEMENT' ||
                         action.type === 'SCAN_BOARD' ||
+                        action.type === 'START_MISSILE_SELECTION' ||
+                        action.type === 'REQUEST_STRATEGIC_PET_HINT' ||
                         (action.type === 'BUY_TOWER_ITEM' && !!game))
                 ) {
                     console.log(`[handleAction] ${action.type} - gameId received:`, effectiveGameId, 'hasGame:', !!game, 'result keys:', Object.keys(result), 'clientResponse keys:', result.clientResponse ? Object.keys(result.clientResponse) : []);
@@ -7925,6 +7945,13 @@ export const useApp = () => {
                                     (Array.isArray(updatedCurrentUser.inventory) ||
                                         updatedCurrentUser.gold !== undefined ||
                                         updatedCurrentUser.dailyShopPurchases !== undefined);
+                                /** HTTP 응답보다 먼저 도착한 구매 반영 WS — 다른 액션 직후 디바운스에 막히면 회복 모달·가방이 0개로 남을 수 있음 */
+                                const refPotionQty = countConditionPotionsInInventory(currentUserRef.current?.inventory);
+                                const incomingPotionQty = countConditionPotionsInInventory(
+                                    updatedCurrentUser.inventory as InventoryItem[] | undefined,
+                                );
+                                const isConditionPotionInventoryIncreaseWs =
+                                    Array.isArray(updatedCurrentUser.inventory) && incomingPotionQty > refPotionQty;
 
                                 const hadHttpUpdate = lastHttpUpdateTime.current > 0;
                                 const httpUpdateHadUser = lastHttpHadUpdatedUser.current;
@@ -7935,6 +7962,7 @@ export const useApp = () => {
                                         !isPostTowerGameEndInventoryWs &&
                                         !isPostUseConditionPotionSyncWs &&
                                         !isPostBuyConditionPotionSyncWs &&
+                                        !isConditionPotionInventoryIncreaseWs &&
                                         hadHttpUpdate &&
                                         httpUpdateHadUser &&
                                         timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS
@@ -7952,6 +7980,7 @@ export const useApp = () => {
                                         !isPostTowerGameEndInventoryWs &&
                                         !isPostUseConditionPotionSyncWs &&
                                         !isPostBuyConditionPotionSyncWs &&
+                                        !isConditionPotionInventoryIncreaseWs &&
                                         hadHttpUpdate &&
                                         httpUpdateHadUser &&
                                         timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS * 2 &&
@@ -7963,47 +7992,16 @@ export const useApp = () => {
                                 }
                                 // 닉네임/모험 도감 프로필 변경은 디바운스 없이 항상 즉시 반영
 
-                                /** BUY_CONDITION_POTION HTTP 직후 지연 WS가 구매 전 인벤을 실어 오면 merge가 덮어써 '구매했는데 0개'로 보일 수 있음 */
-                                let userUpdatePatch: Partial<User> = updatedCurrentUser;
-                                if (
-                                    lastHttpActionType.current === 'BUY_CONDITION_POTION' &&
-                                    lastHttpHadUpdatedUser.current &&
-                                    timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS * 2 &&
-                                    Array.isArray((updatedCurrentUser as { inventory?: InventoryItem[] }).inventory)
-                                ) {
-                                    const countConditionPotions = (inv: InventoryItem[] | undefined): number => {
-                                        if (!Array.isArray(inv)) return 0;
-                                        let c = 0;
-                                        for (const row of inv) {
-                                            if (
-                                                row?.type === 'consumable' &&
-                                                typeof row.name === 'string' &&
-                                                row.name.startsWith('컨디션회복제')
-                                            ) {
-                                                const q = row.quantity;
-                                                c +=
-                                                    typeof q === 'number' && Number.isFinite(q) && q > 0
-                                                        ? Math.floor(q)
-                                                        : 1;
-                                            }
-                                        }
-                                        return c;
-                                    };
-                                    const prevP = countConditionPotions(currentUserRef.current?.inventory);
-                                    const incomingP = countConditionPotions(
-                                        (updatedCurrentUser as { inventory?: InventoryItem[] }).inventory,
+                                /** 지연 WS·역순 패치가 구매 전 인벤을 실으면 merge가 덮어써 '구매했는데 0개'로 보일 수 있음 */
+                                let userUpdatePatch: Partial<User> = stripInventoryIfFewerConditionPotions(
+                                    updatedCurrentUser,
+                                    currentUserRef.current?.inventory,
+                                );
+                                if (userUpdatePatch !== updatedCurrentUser) {
+                                    console.log(
+                                        '[WebSocket] Dropped stale inventory from USER_UPDATE (fewer condition potions than client)',
+                                        { refPotionQty, incomingPotionQty },
                                     );
-                                    if (prevP > 0 && incomingP < prevP) {
-                                        const { inventory: _staleInv, ...rest } = updatedCurrentUser as Record<
-                                            string,
-                                            unknown
-                                        >;
-                                        userUpdatePatch = rest as Partial<User>;
-                                        console.log(
-                                            '[WebSocket] Dropped stale inventory from USER_UPDATE after BUY_CONDITION_POTION',
-                                            { prevPotionQty: prevP, incomingPotionQty: incomingP },
-                                        );
-                                    }
                                 }
 
                                 const mergedUser = applyUserUpdate(userUpdatePatch, 'USER_UPDATE-websocket');
@@ -8314,8 +8312,28 @@ export const useApp = () => {
                                 const isHiddenPlacingExitToPlaying =
                                     existingForThrottle?.gameStatus === 'hidden_placing' &&
                                     game.gameStatus === 'playing';
+                                const isHiddenPlacingEntry =
+                                    game.gameStatus === 'hidden_placing' &&
+                                    existingForThrottle?.gameStatus !== 'hidden_placing';
+                                const isScanningEntry =
+                                    game.gameStatus === 'scanning' &&
+                                    existingForThrottle?.gameStatus !== 'scanning';
+                                const isScanningAnimEntry =
+                                    game.gameStatus === 'scanning_animating' &&
+                                    existingForThrottle?.gameStatus !== 'scanning_animating';
+                                const incomingHintUsage = (game.settings as { strategicPetHintByUserId?: Record<string, unknown> })
+                                    ?.strategicPetHintByUserId;
+                                const existingHintUsage = (existingForThrottle?.settings as {
+                                    strategicPetHintByUserId?: Record<string, unknown>;
+                                })?.strategicPetHintByUserId;
+                                const isStrategicPetHintUsageUpdate =
+                                    stableStringify(incomingHintUsage ?? null) !==
+                                    stableStringify(existingHintUsage ?? null);
                                 // 미사일: moveHistory 길이는 그대로라 쓰로틀에 걸리면 LAUNCH_MISSILE 보드 반영 또는 애니 종료(playing) 전환이 누락되어
                                 // 애니메이션만 재생되고 돌이 원래 칸에 남아 보이는 현상이 난다.
+                                const isMissileSelectEntry =
+                                    game.gameStatus === 'missile_selecting' &&
+                                    existingForThrottle?.gameStatus !== 'missile_selecting';
                                 const isMissileSelectToAnimating =
                                     existingForThrottle?.gameStatus === 'missile_selecting' &&
                                     game.gameStatus === 'missile_animating';
@@ -8402,6 +8420,11 @@ export const useApp = () => {
                                     !isDiceGoRoundProgress &&
                                     !isScanAnimExitToPlaying &&
                                     !isHiddenPlacingExitToPlaying &&
+                                    !isHiddenPlacingEntry &&
+                                    !isScanningEntry &&
+                                    !isScanningAnimEntry &&
+                                    !isStrategicPetHintUsageUpdate &&
+                                    !isMissileSelectEntry &&
                                     !isMissileSelectToAnimating &&
                                     !isMissileAnimatingEntry &&
                                     !isMissileAnimExitToPlaying &&
@@ -9684,6 +9707,9 @@ export const useApp = () => {
                                             const serverMoveHistoryValid = game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0;
                                             const existingBoardValid = existingGame.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0;
                                             const existingMoveHistoryValid = existingGame.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0;
+                                            if (shouldClearMissileFlightAnimationOnPlayingMerge(existingGame, game)) {
+                                                mergedGame = { ...mergedGame, animation: null };
+                                            }
                                             if (!serverBoardValid && existingBoardValid) {
                                                 mergedGame = { ...mergedGame, boardState: existingGame.boardState };
                                             }
@@ -9747,6 +9773,8 @@ export const useApp = () => {
                                             game.mode !== GameMode.Thief &&
                                             game.gameStatus !== 'missile_animating' &&
                                             game.gameStatus !== 'hidden_reveal_animating' &&
+                                            existingGame?.gameStatus !== 'missile_animating' &&
+                                            existingGame?.gameStatus !== 'missile_selecting' &&
                                             existingGame?.gameStatus !== 'hidden_reveal_animating' &&
                                             incomingMoveCount === existingMoveCount &&
                                             existingBoardValid &&
@@ -9866,9 +9894,30 @@ export const useApp = () => {
                                             (pickRicherWsBoardSnapshot(existingGame, liveDeferredSnap) ?? existingGame) as
                                                 | typeof existingGame
                                                 | undefined;
-                                        updatedGames[gameId] = mergeGameUpdateByArena(mergedGame, liveRicherExisting, {
+                                        if (isScoringTransition && liveGameGnugoDelayTimeoutRef.current[gameId] != null) {
+                                            clearTimeout(liveGameGnugoDelayTimeoutRef.current[gameId]);
+                                            delete liveGameGnugoDelayTimeoutRef.current[gameId];
+                                        }
+                                        let liveMerged = mergeGameUpdateByArena(mergedGame, liveRicherExisting, {
                                             source: 'game_update',
                                         });
+                                        if (
+                                            liveRicherExisting &&
+                                            (liveMerged.gameStatus === 'scoring' ||
+                                                liveMerged.gameStatus === 'ended' ||
+                                                liveMerged.gameStatus === 'no_contest')
+                                        ) {
+                                            const scoringResolved = resolvePveScoringBoardAndMoveHistory(
+                                                liveMerged,
+                                                liveRicherExisting as LiveGameSession,
+                                            );
+                                            liveMerged = {
+                                                ...liveMerged,
+                                                boardState: scoringResolved.boardState,
+                                                moveHistory: scoringResolved.moveHistory,
+                                            };
+                                        }
+                                        updatedGames[gameId] = liveMerged;
                                         if (
                                             game.gameStatus === 'scoring' ||
                                             game.gameStatus === 'hidden_final_reveal' ||
@@ -9906,7 +9955,9 @@ export const useApp = () => {
                                         const deferStrategicAiMoveForEffect =
                                             (isNewAiMoveLive || isNewPairAiMoveLive) &&
                                             game.gameCategory !== 'adventure' &&
-                                            game.gameCategory !== 'guildwar';
+                                            game.gameCategory !== 'guildwar' &&
+                                            game.gameStatus !== 'scoring' &&
+                                            !isScoringTransition;
                                         if (deferStrategicAiMoveForEffect) {
                                             if (liveGameGnugoDelayTimeoutRef.current[gameId] != null) {
                                                 clearTimeout(liveGameGnugoDelayTimeoutRef.current[gameId]);

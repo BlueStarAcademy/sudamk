@@ -2351,12 +2351,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                             y: strategicPetHintRewardAnimation.y,
                         });
                         const size = Math.max(cell_size * 0.76, 18);
-                        const overlapsCaptureScoreFloat = captureScoreFloats.some(
-                            (f) =>
-                                f.point.x === strategicPetHintRewardAnimation.x &&
-                                f.point.y === strategicPetHintRewardAnimation.y,
-                        );
-                        const animationDelay = overlapsCaptureScoreFloat ? '1s' : undefined;
+                        const animationDelay = undefined;
                         const hasIcon = Boolean(strategicPetHintRewardAnimation.iconSrc);
                         const quantityY = hasIcon ? size * 0.52 : -size * 0.1;
                         const quantityFont = hasIcon

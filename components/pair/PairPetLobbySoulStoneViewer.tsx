@@ -4,7 +4,7 @@ import type { InventoryItem } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
 import { gradeBackgrounds, gradeStyles } from '../../shared/constants/items.js';
 import { PAIR_PET_GRADE_ORDER } from '../../shared/constants/pairPetGrade.js';
-import { PAIR_PET_SHOP_SKUS } from '../../shared/constants/petLobby.js';
+import { PAIR_PET_SHOP_SKUS, isPairPetShopSkuUnlimitedDaily } from '../../shared/constants/petLobby.js';
 import { PAIR_TRAINING_SLOT_DEFS } from '../../shared/constants/pairTraining.js';
 import { pairPetSoulConvertMaterialNameForGrade } from '../../shared/utils/pairPetSoulConvert.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../../shared/utils/walletAmountDisplay.js';
@@ -61,7 +61,7 @@ function soulConvertAcquireDetail(materialName: string): string {
     return uniq.map((u) => `[${u}]`).join('·');
 }
 
-/** 페어 펫 상점 SKU(영혼석 전용) — 가격·일일 한도 */
+/** 페어 펫 상점 SKU(영혼석 전용) — 가격·구매 한도 */
 function soulPetShopAcquireDetail(materialName: string): string {
     const sku = PAIR_PET_SHOP_SKUS.find((s) => s.id.startsWith('pair_shop_soul_') && s.materialName === materialName);
     if (!sku) return '';
@@ -69,6 +69,7 @@ function soulPetShopAcquireDetail(materialName: string): string {
         sku.diamonds > 0
             ? `[다이아 ${formatWalletDiamonds(sku.diamonds)}]`
             : `[골드 ${formatGoldAmountKoG(sku.gold)}]`;
+    if (isPairPetShopSkuUnlimitedDaily(sku.dailyLimit)) return price;
     return `${price} [일일 ${sku.dailyLimit}회]`;
 }
 

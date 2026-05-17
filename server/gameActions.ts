@@ -1445,30 +1445,30 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     // MISSILE_ANIMATION_COMPLETE는 항상 게임 상태가 변경되므로 반드시 브로드캐스트
                     if (type === 'MISSILE_ANIMATION_COMPLETE') {
                         console.log(`[GameActions] MISSILE_ANIMATION_COMPLETE: gameStatus=${game.gameStatus}, always broadcasting update for game ${game.id}`);
-                        updateGameCache(game);
-                        try {
-                            await db.saveGame(game);
-                        } catch (err) {
-                            console.error(`[GameActions] Failed to save game ${game.id}:`, err);
-                        }
-                        const { broadcastToGameParticipants } = await import('./socket.js');
-                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                        const { broadcastItemPhaseSnapshot } = await import('./utils/broadcastItemPhaseSnapshot.js');
+                        await broadcastItemPhaseSnapshot(game);
                         return result || { clientResponse: { gameUpdated: true } };
                     }
                     
-                    // START_MISSILE_SELECTION의 경우 게임 상태가 변경되므로 반드시 브로드캐스트 필요
+                    // START_MISSILE_SELECTION: 성공 시(최초 전환·멱등 재동기화) 반드시 브로드캐스트
                     if (type === 'START_MISSILE_SELECTION') {
-                        if (game.gameStatus === 'missile_selecting' && statusBefore !== 'missile_selecting') {
-                            console.log(`[GameActions] START_MISSILE_SELECTION: gameStatus changed from ${statusBefore} to missile_selecting, broadcasting update for game ${game.id}`);
-                            updateGameCache(game);
-                            db.saveGame(game).catch(err => {
-                                console.error(`[GameActions] Failed to save game ${game.id}:`, err);
-                            });
-                            const { broadcastToGameParticipants } = await import('./socket.js');
-                            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                        const missileStartFailed = !!(result && (result as { error?: string }).error);
+                        if (game.gameStatus === 'missile_selecting' && !missileStartFailed) {
+                            if (statusBefore !== 'missile_selecting') {
+                                console.log(
+                                    `[GameActions] START_MISSILE_SELECTION: gameStatus changed from ${statusBefore} to missile_selecting, broadcasting update for game ${game.id}`,
+                                );
+                            } else {
+                                console.log(
+                                    `[GameActions] START_MISSILE_SELECTION: resync while already missile_selecting, broadcasting for game ${game.id}`,
+                                );
+                            }
+                            const { broadcastItemPhaseSnapshot } = await import('./utils/broadcastItemPhaseSnapshot.js');
+                            await broadcastItemPhaseSnapshot(game);
                             return result || { clientResponse: { gameUpdated: true } };
-                        } else {
-                            console.warn(`[GameActions] START_MISSILE_SELECTION: gameStatus not changed (before=${statusBefore}, after=${game.gameStatus}), gameId=${game.id}`);
+                        }
+                        if (missileStartFailed) {
+                            return result;
                         }
                     }
                     
@@ -1909,6 +1909,52 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     game.boardState && Array.isArray(game.boardState)
                         ? game.boardState.map((row: number[]) => [...row])
                         : game.boardState;
+                return {
+                    ...baseResult,
+                    clientResponse: {
+                        ...(typeof (baseResult as any).clientResponse === 'object' ? (baseResult as any).clientResponse : {}),
+                        gameId: game.id,
+                        game: { ...game, boardState: boardClone },
+                    },
+                };
+            }
+
+            const itemPhaseHttpActions = new Set([
+                'START_HIDDEN_PLACEMENT',
+                'START_SCANNING',
+                'SCAN_BOARD',
+                'START_MISSILE_SELECTION',
+            ]);
+            if (!(result as any)?.error && itemPhaseHttpActions.has(type)) {
+                const baseResult =
+                    result && typeof result === 'object' && !Array.isArray(result) ? (result as Record<string, unknown>) : {};
+                const boardClone =
+                    game.boardState && Array.isArray(game.boardState)
+                        ? game.boardState.map((row: number[]) => [...row])
+                        : game.boardState;
+                const { broadcastItemPhaseSnapshot } = await import('./utils/broadcastItemPhaseSnapshot.js');
+                await broadcastItemPhaseSnapshot(game);
+                return {
+                    ...baseResult,
+                    clientResponse: {
+                        ...(typeof (baseResult as any).clientResponse === 'object' ? (baseResult as any).clientResponse : {}),
+                        gameId: game.id,
+                        game: { ...game, boardState: boardClone, animation: game.animation ?? null },
+                    },
+                };
+            }
+
+            if (!(result as any)?.error && type === 'REQUEST_STRATEGIC_PET_HINT') {
+                const baseResult =
+                    result && typeof result === 'object' && !Array.isArray(result) ? (result as Record<string, unknown>) : {};
+                const boardClone =
+                    game.boardState && Array.isArray(game.boardState)
+                        ? game.boardState.map((row: number[]) => [...row])
+                        : game.boardState;
+                updateGameCache(game);
+                await db.saveGame(game);
+                const { broadcastToGameParticipants } = await import('./socket.js');
+                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
                 return {
                     ...baseResult,
                     clientResponse: {

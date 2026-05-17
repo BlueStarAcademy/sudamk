@@ -84,6 +84,11 @@ import {
     POST_GAME_PAIR_ROOM_RESTORE_SESSION_KEY,
 } from './shared/constants/pairArena.js';
 import { sessionUsesPairArenaIngameChrome } from './shared/utils/pairArenaIngameChrome.js';
+import {
+    isPairArenaAiMatchSession,
+    transformPairArenaAiMatchSettings,
+} from './shared/utils/pairArenaAiMatchSettings.js';
+import type { GameSettings } from './types/index.js';
 import { AI_HIDDEN_ITEM_THINKING_DURATION_MS } from './shared/constants/gameSettings.js';
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
 const AI_USER_ID = aiUserId;
@@ -724,6 +729,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const strategicPetHintRewardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     /** 동일 수에 대해 CLAIM_STRATEGIC_PET_HINT_BONUS가 연타·중복 비동기로 두 번 나가는 것을 막음 */
     const strategicPetHintBonusClaimKeyRef = useRef<string | null>(null);
+    const strategicPetHintPendingRewardRef = useRef<StrategicPetHintBonusReward | null>(null);
     /** 펫 힌트 좌표에 온라인 착수 시: 내 수 + 상대 수가 moveHistory에 반영될 때까지 보드 클릭 차단 */
     const strategicPetHintBoardInputLockUntilHistoryLenRef = useRef<number | null>(null);
 
@@ -806,10 +812,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 (result as StrategicPetHintActionResult | undefined)?.clientResponse?.strategicPetHintBonus;
             if (bonus && Number.isInteger(bonus.x) && Number.isInteger(bonus.y) && typeof bonus.message === 'string') {
                 showStrategicPetHintBonusBubble(bonus);
-                showStrategicPetHintRewardAnimation(bonus);
+                strategicPetHintPendingRewardRef.current = null;
             }
         },
-        [showStrategicPetHintBonusBubble, showStrategicPetHintRewardAnimation],
+        [showStrategicPetHintBonusBubble],
     );
 
     const claimStrategicPetHintBonusIfMatched = useCallback(
@@ -819,6 +825,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             const key = `${session.id}|${x}|${y}|${expectedMoveHistoryLength}`;
             if (strategicPetHintBonusClaimKeyRef.current === key) return;
             strategicPetHintBonusClaimKeyRef.current = key;
+            const pendingReward = strategicPetHintPendingRewardRef.current;
+            if (pendingReward) {
+                showStrategicPetHintRewardAnimation({ x, y, reward: pendingReward });
+            }
             void Promise.resolve(
                 handlers.handleAction({
                     type: 'CLAIM_STRATEGIC_PET_HINT_BONUS',
@@ -832,7 +842,22 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     }
                 });
         },
-        [handlers.handleAction, handleStrategicPetHintActionResult, session.id, strategicPetHintBoardOverlay],
+        [
+            handlers.handleAction,
+            handleStrategicPetHintActionResult,
+            session.id,
+            strategicPetHintBoardOverlay,
+            showStrategicPetHintRewardAnimation,
+        ],
+    );
+
+    const tryClaimPetHintBonusOnStone = useCallback(
+        (x: number, y: number) => {
+            const base = strategicPetHintMoveLenRef.current;
+            if (base == null) return;
+            claimStrategicPetHintBonusIfMatched(x, y, base + 1);
+        },
+        [claimStrategicPetHintBonusIfMatched],
     );
 
     const ingameHandleAction = useCallback(
@@ -861,6 +886,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         clearTimeout(strategicPetHintBubbleTimerRef.current);
                         strategicPetHintBubbleTimerRef.current = null;
                     }
+                    const pendingReward =
+                        (hint as { pendingReward?: StrategicPetHintBonusReward }).pendingReward ??
+                        (r as { clientResponse?: { strategicPetHint?: { pendingReward?: StrategicPetHintBonusReward } } })
+                            ?.clientResponse?.strategicPetHint?.pendingReward;
+                    strategicPetHintPendingRewardRef.current = pendingReward ?? null;
                     setStrategicPetHintBoardOverlay({
                         x: hint.x,
                         y: hint.y,
@@ -895,11 +925,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (strategicPetHintBoardOverlay == null) return;
         const base = strategicPetHintMoveLenRef.current;
         if (base == null) return;
-        if ((session.moveHistory?.length ?? 0) !== base) {
+        const len = session.moveHistory?.length ?? 0;
+        if (len >= base + 1) {
+            const move = session.moveHistory?.[base];
+            const hint = strategicPetHintBoardOverlay;
+            if (move && move.x === hint.x && move.y === hint.y) {
+                tryClaimPetHintBonusOnStone(hint.x, hint.y);
+            }
+        }
+        if (len !== base) {
             setStrategicPetHintBoardOverlay(null);
             strategicPetHintMoveLenRef.current = null;
+            strategicPetHintPendingRewardRef.current = null;
         }
-    }, [session.moveHistory?.length, strategicPetHintBoardOverlay, session.id]);
+    }, [session.moveHistory, strategicPetHintBoardOverlay, session.id, tryClaimPetHintBonusOnStone]);
 
     useEffect(() => {
         strategicPetHintBonusClaimKeyRef.current = null;
@@ -3125,6 +3164,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             if (isStrategicOnlinePlaceStone) {
                 const o = strategicPetHintBoardOverlay;
                 if (o && o.x === x && o.y === y) {
+                    tryClaimPetHintBonusOnStone(x, y);
                     strategicPetHintBoardInputLockUntilHistoryLenRef.current = (session.moveHistory?.length ?? 0) + 2;
                 }
             }
@@ -3234,7 +3274,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         isGuildWarGame,
         isOnlineHiddenStrategic,
         handleStrategicPetHintActionResult,
-        claimStrategicPetHintBonusIfMatched,
+        tryClaimPetHintBonusOnStone,
         showKoRuleFlash,
         myPlayerEnum,
         applyOptimisticAiUserMove,
@@ -3248,6 +3288,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.itemUseDeadline,
         session.settings,
         strategicPetHintBoardOverlay,
+        tryClaimPetHintBonusOnStone,
     ]);
 
     const handleConfirmMove = useCallback(() => {
@@ -3412,6 +3453,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             if (isStrategicOnlinePlaceStoneConfirm) {
                 const o = strategicPetHintBoardOverlay;
                 if (o && o.x === x && o.y === y) {
+                    tryClaimPetHintBonusOnStone(x, y);
                     strategicPetHintBoardInputLockUntilHistoryLenRef.current = (session.moveHistory?.length ?? 0) + 2;
                 }
             }
@@ -3458,8 +3500,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             void Promise.resolve(handlers.handleAction({ type: at, payload } as ServerAction))
                 .then(async (res) => {
                     handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined);
-                    if (at === 'TOWER_CLIENT_MOVE' || at === 'SINGLE_PLAYER_CLIENT_MOVE') {
-                        claimStrategicPetHintBonusIfMatched(x, y, (session.moveHistory?.length || 0) + 1);
+                    if (
+                        at === 'TOWER_CLIENT_MOVE' ||
+                        at === 'SINGLE_PLAYER_CLIENT_MOVE' ||
+                        at === 'PLACE_STONE'
+                    ) {
+                        tryClaimPetHintBonusOnStone(x, y);
                     }
                     const shouldSyncHiddenPlacementToServer =
                         (at === 'SINGLE_PLAYER_CLIENT_MOVE' || at === 'TOWER_CLIENT_MOVE') &&
@@ -3526,7 +3572,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.stonesToPlace,
         myPlayerEnum,
         handleStrategicPetHintActionResult,
-        claimStrategicPetHintBonusIfMatched,
+        tryClaimPetHintBonusOnStone,
         showKoRuleFlash,
         session.isAiGame,
         applyOptimisticAiUserMove,
@@ -3795,6 +3841,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         strategicAiStoneLockRef.current = false;
         strategicPetHintBonusClaimKeyRef.current = null;
         strategicPetHintBoardInputLockUntilHistoryLenRef.current = null;
+        strategicPetHintPendingRewardRef.current = null;
     }, [session.id, clearPauseCountdown]);
 
     // 같은 게임 내 serverRevision 변경 시: 최신 리비전 반영 및 보드 잠금 해제 (일시정지 상태는 유지)
@@ -4724,6 +4771,22 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         !isSinglePlayer &&
         !isTower;
 
+    const isPairArenaAiRematch = useMemo(() => isPairArenaAiMatchSession(session), [session.settings?.pairGame]);
+    const pairArenaLobbyChannel = (session.settings?.pairGame?.lobbyChannel ?? 'pair') as
+        | 'pair'
+        | 'strategic'
+        | 'playful';
+    const isAiOrPairAiRematchEligible =
+        !isSinglePlayer &&
+        !isTower &&
+        !isGuildWarGame &&
+        !isAdventureGame &&
+        (session.isAiGame || isPairArenaAiRematch);
+    const transformPairAiRematchSettings = useCallback(
+        (m: GameMode, raw: GameSettings) => transformPairArenaAiMatchSettings(m, raw, pairArenaLobbyChannel),
+        [pairArenaLobbyChannel],
+    );
+
     const allowPostGameFooterActions =
         (gameStatus !== 'ended' && gameStatus !== 'no_contest') || postGameSummaryAcknowledged;
 
@@ -4741,9 +4804,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         resumeCountdown: isPausableAiGame ? resumeCountdown : undefined,
         pauseButtonCooldown: isPausableAiGame ? pauseButtonCooldown : undefined,
         onPauseToggle: isPausableAiGame ? handlePauseToggle : undefined,
-        onOpenRematchSettings: (session.isAiGame && !isSinglePlayer && !isTower && !isGuildWarGame && !isAdventureGame)
-            ? () => setIsAiRematchModalOpen(true)
-            : undefined,
+        onOpenRematchSettings: isAiOrPairAiRematchEligible ? () => setIsAiRematchModalOpen(true) : undefined,
         onOpenGameRecordList: handlers.openGameRecordList,
         onLeaveOrResign: handleLeaveOrResignClick,
         strategicPetHintFooterBubble:
@@ -5136,21 +5197,65 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             {session.disconnectionState && <DisconnectionModal session={session} currentUser={currentUser} />}
             {isAiRematchModalOpen && (
                 <AiChallengeModal
-                    lobbyType={SPECIAL_GAME_MODES.some(m => m.mode === mode) ? 'strategic' : 'playful'}
-                    preferredGameSettingsBucket={
-                        SPECIAL_GAME_MODES.some((m) => m.mode === mode) ? 'strategic_ai_challenge' : 'playful_ai_challenge'
+                    lobbyType={
+                        isPairArenaAiRematch
+                            ? pairArenaLobbyChannel === 'playful'
+                                ? 'playful'
+                                : 'strategic'
+                            : SPECIAL_GAME_MODES.some((m) => m.mode === mode)
+                              ? 'strategic'
+                              : 'playful'
                     }
+                    preferredGameSettingsBucket={
+                        isPairArenaAiRematch
+                            ? 'pair_ai_match_modal'
+                            : SPECIAL_GAME_MODES.some((m) => m.mode === mode)
+                              ? 'strategic_ai_challenge'
+                              : 'playful_ai_challenge'
+                    }
+                    startActionType={isPairArenaAiRematch ? 'PAIR_START_AI_MATCH' : 'START_AI_GAME'}
+                    transformSettingsBeforeStart={
+                        isPairArenaAiRematch ? transformPairAiRematchSettings : undefined
+                    }
+                    hideScoringTurnLimit={isPairArenaAiRematch}
+                    title={isPairArenaAiRematch ? '페어바둑 AI와 재대결' : undefined}
+                    submitLabel={isPairArenaAiRematch ? 'AI와 대국 시작' : undefined}
+                    showActionPointCost
                     seedFromSession={{ mode: session.mode, settings: session.settings }}
                     onClose={() => setIsAiRematchModalOpen(false)}
-                    onAction={(action) => {
-                        // 기존 대국 상태를 깨끗하게 제거하고 새 대국 시작
+                    onAction={async (action) => {
                         try {
                             sessionStorage.removeItem(`gameState_${session.id}`);
                         } catch {
-                            // ignore
+                            /* ignore */
                         }
                         setIsAiRematchModalOpen(false);
-                        handlers.handleAction(action);
+                        if (action.type === 'PAIR_START_AI_MATCH') {
+                            const roomId = session.settings?.pairGame?.roomId;
+                            const basePayload =
+                                (action as { payload?: { mode?: GameMode; settings?: GameSettings } }).payload ?? {};
+                            const result = await handlers.handleAction({
+                                type: 'PAIR_START_AI_MATCH',
+                                payload: {
+                                    ...basePayload,
+                                    ...(roomId ? { roomId } : {}),
+                                },
+                            } as ServerAction);
+                            const err = (result as { error?: string } | undefined)?.error;
+                            if (err) {
+                                window.alert(err);
+                                return;
+                            }
+                            const nextGameId =
+                                (result as { gameId?: string } | undefined)?.gameId ??
+                                (result as { clientResponse?: { gameId?: string } } | undefined)?.clientResponse
+                                    ?.gameId;
+                            if (nextGameId) {
+                                replaceAppHash(`#/game/${nextGameId}`);
+                            }
+                            return;
+                        }
+                        await handlers.handleAction(action);
                     }}
                 />
             )}

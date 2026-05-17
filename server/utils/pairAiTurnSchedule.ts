@@ -11,7 +11,9 @@ export function schedulePairAiTurnIfNeeded(game: LiveGameSession, now: number): 
     if (isPairAiSeat(seat)) {
         game.aiTurnStartTime = now;
         void import('../aiProcessingQueue.js')
-            .then(({ aiProcessingQueue }) => aiProcessingQueue.enqueue(game.id))
+            .then(({ aiProcessingQueue }) =>
+                aiProcessingQueue.enqueue(game.id, undefined, { deferIfProcessing: true }),
+            )
             .catch((err: unknown) =>
                 console.error(
                     `[schedulePairAiTurnIfNeeded] Failed to enqueue pair AI turn ${game.id}:`,

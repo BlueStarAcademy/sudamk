@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TournamentType, UserWithStatus, PlayerForTournament } from '../../types';
 import type { ChampionshipVersusVenueKind } from '../../shared/types/entities.js';
 import ChampionshipVersusVenueArena from './ChampionshipVersusVenueArena.js';
@@ -10,54 +10,6 @@ import { TOURNAMENT_DEFINITIONS } from '../../constants';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
-
-// Error Boundary for TournamentBracket
-class TournamentBracketErrorBoundary extends Component<
-    { children: ReactNode },
-    { hasError: boolean; error: Error | null }
-> {
-    constructor(props: { children: ReactNode }) {
-        super(props);
-        this.state = { hasError: false, error: null };
-    }
-
-    static getDerivedStateFromError(error: Error) {
-        return { hasError: true, error };
-    }
-
-    componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-        console.error('[TournamentBracketErrorBoundary] Error caught:', error, errorInfo);
-    }
-
-    componentDidUpdate(prevProps: { children: ReactNode }) {
-        // props가 변경되면 에러 상태 리셋
-        if (prevProps.children !== this.props.children && this.state.hasError) {
-            this.setState({ hasError: false, error: null });
-        }
-    }
-
-    render() {
-        if (this.state.hasError) {
-            return (
-                <div className="p-4 text-center">
-                    <p className="text-red-400 mb-4">토너먼트 화면을 불러오는 중 오류가 발생했습니다.</p>
-                    <Button onClick={() => { replaceAppHash('#/tournament'); }}>토너먼트 로비로 돌아가기</Button>
-                    {import.meta.env.DEV && this.state.error && (
-                        <details className="mt-4 text-left">
-                            <summary className="cursor-pointer text-gray-400">에러 상세 정보</summary>
-                            <pre className="mt-2 p-2 bg-gray-800 rounded text-xs text-red-300 overflow-auto">
-                                {this.state.error.toString()}
-                                {this.state.error.stack}
-                            </pre>
-                        </details>
-                    )}
-                </div>
-            );
-        }
-
-        return this.props.children;
-    }
-}
 
 interface TournamentArenaProps {
     type: TournamentType | ChampionshipVersusVenueKind;
@@ -201,36 +153,34 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
     return (
         <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden text-white">
             {tournamentState && (
-                <TournamentBracketErrorBoundary>
-                    <TournamentBracket 
-                        tournament={tournamentState}
-                        championshipAbilityKataLadder={championshipAbilityKataLadder}
-                        currentUser={currentUserWithStatus}
-                        onBack={async () => {
-                            if (tournamentState.status === 'round_in_progress') {
-                                replaceAppHash('#/tournament');
-                                return;
+                <TournamentBracket
+                    tournament={tournamentState}
+                    championshipAbilityKataLadder={championshipAbilityKataLadder}
+                    currentUser={currentUserWithStatus}
+                    onBack={async () => {
+                        if (tournamentState.status === 'round_in_progress') {
+                            replaceAppHash('#/tournament');
+                            return;
+                        }
+                        try {
+                            if (tournamentState) {
+                                await handlers.handleAction({ type: 'SAVE_TOURNAMENT_PROGRESS', payload: { type } });
                             }
-                            try {
-                                if (tournamentState) {
-                                    await handlers.handleAction({ type: 'SAVE_TOURNAMENT_PROGRESS', payload: { type } });
-                                }
-                            } catch (error) {
-                                console.error('[TournamentArena] Failed to save tournament progress on exit:', error);
-                            } finally {
-                                replaceAppHash('#/tournament');
-                            }
-                        }}
-                        allUsersForRanking={allUsers}
-                        onViewUser={handlers.openViewingUser}
-                        onAction={handlers.handleAction}
-                        onStartNextRound={() => handlers.handleAction({ type: 'START_TOURNAMENT_ROUND', payload: { type: type } })}
-                        onReset={() => handlers.handleAction({ type: 'CLEAR_TOURNAMENT_SESSION', payload: { type: type } })}
-                        onSkip={() => handlers.handleAction({ type: 'SKIP_TOURNAMENT_END', payload: { type: type } })}
-                        onOpenShop={() => handlers.openShop('consumables')}
-                        isMobile={isChampionshipMobileLayout}
-                    />
-                </TournamentBracketErrorBoundary>
+                        } catch (error) {
+                            console.error('[TournamentArena] Failed to save tournament progress on exit:', error);
+                        } finally {
+                            replaceAppHash('#/tournament');
+                        }
+                    }}
+                    allUsersForRanking={allUsers}
+                    onViewUser={handlers.openViewingUser}
+                    onAction={handlers.handleAction}
+                    onStartNextRound={() => handlers.handleAction({ type: 'START_TOURNAMENT_ROUND', payload: { type: type } })}
+                    onReset={() => handlers.handleAction({ type: 'CLEAR_TOURNAMENT_SESSION', payload: { type: type } })}
+                    onSkip={() => handlers.handleAction({ type: 'SKIP_TOURNAMENT_END', payload: { type: type } })}
+                    onOpenShop={() => handlers.openShop('consumables')}
+                    isMobile={isChampionshipMobileLayout}
+                />
             )}
         </div>
     );

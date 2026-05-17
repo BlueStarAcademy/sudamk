@@ -19,6 +19,7 @@ import {
     normalizePairTurnIndex,
     pairTeamIdForUserId,
     pairWinningPlayerWhenTeamResigns,
+    resolvePairUserPlayerEnum,
     syncPairTurnOrderWithAssignedColors,
 } from '../../shared/utils/pairGameTurn.js';
 import { isPairHumanHumanPvpForTeamResign, resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
@@ -537,7 +538,15 @@ function pairHumanTeamResignTurnKey(game: LiveGameSession): string {
 
 export const handleSharedAction = async (volatileState: VolatileState, game: LiveGameSession, action: ServerAction, user: User): Promise<HandleActionResult | null> => {
     const { type, payload } = action as any;
-    const myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
+    let myPlayerEnum =
+        user.id === game.blackPlayerId
+            ? types.Player.Black
+            : user.id === game.whitePlayerId
+              ? types.Player.White
+              : types.Player.None;
+    if (myPlayerEnum === types.Player.None && isPairClassicGame(game.settings, game.mode)) {
+        myPlayerEnum = resolvePairUserPlayerEnum(game.settings, user.id) ?? types.Player.None;
+    }
     const now = Date.now();
     
     switch (type) {

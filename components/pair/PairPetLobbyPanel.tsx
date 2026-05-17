@@ -8,8 +8,6 @@ import PairPetLobbyInfoPetViewer from './PairPetLobbyInfoPetViewer.js';
 import PairPetLobbySoulStoneViewer from './PairPetLobbySoulStoneViewer.js';
 import PairPetSoulConvertModal from './PairPetSoulConvertModal.js';
 import PairTrainingRewardModal from './PairTrainingRewardModal.js';
-import { pairTrainingClaimInFlightBySlotIndex, parsePairTrainingClaimResponse } from './pairTrainingClaimInFlight.js';
-import type { PairTrainingClaimClientSummary } from '../../shared/types/pairTrainingClaim.js';
 import PairPetDetailCardBody from './PairPetDetailCardBody.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
@@ -26,6 +24,7 @@ import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedP
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../../shared/utils/walletAmountDisplay.js';
 import {
     PAIR_PET_SHOP_SKUS,
+    isPairPetShopSkuUnlimitedDaily,
     type PairPetShopSku,
     PAIR_PET_LOBBY_INV_EXPAND_STEP,
     PAIR_PET_LOBBY_INV_MAX_SLOTS,
@@ -55,10 +54,13 @@ import {
     getPairWins,
     isItemIdInPairTraining,
     isPairTrainingSlotUnlocked,
+    isValidPairPetTrainingPrecomputedRewards,
     minPetLevelForTrainingSlot,
     normalizePairPetTrainingSlots,
     trainingEndsAt,
 } from '../../shared/constants/pairTraining.js';
+import type { PairTrainingClaimClientSummary } from '../../shared/types/pairTrainingClaim.js';
+import { buildPairTrainingClaimSummaryFromPrecomputed } from '../../shared/utils/pairTrainingClaimSummary.js';
 import {
     PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE,
     PAIR_HATCHERY_SLOT_DEFS,
@@ -85,7 +87,13 @@ type InvFilter = 'pet' | 'soul';
 type ShopSkuTab = 'egg' | 'soul';
 type PairExpandCategory = 'pet';
 
-type PairTrainingRewardModalOpen = { slotIndex: number; petItem: InventoryItem; claimSummary: PairTrainingClaimClientSummary };
+type PairTrainingRewardModalOpen = {
+    slotIndex: number;
+    petItem: InventoryItem;
+    claimSummary: PairTrainingClaimClientSummary | null;
+    /** `precomputedRewards` 없는 구세션 — 서버 수령 후 표시 */
+    claimViaServer: boolean;
+};
 
 /** 인벤 썸네일 배지: 슬롯에 있으면서 타이머 종료 후 수령 전이면 `claim_ready` */
 function pairTrainingBadgeVariantForItem(currentUser: User, itemId: string): 'in_progress' | 'claim_ready' | undefined {
@@ -372,7 +380,8 @@ function PairPetShopSkuCard({
     const now = Date.now();
     const rec = currentUser.dailyShopPurchases?.[sku.id];
     const boughtToday = rec && isSameDayKST(rec.date, now) ? rec.quantity : 0;
-    const remaining = Math.max(0, sku.dailyLimit - boughtToday);
+    const unlimitedDaily = isPairPetShopSkuUnlimitedDaily(sku.dailyLimit);
+    const remaining = unlimitedDaily ? Number.POSITIVE_INFINITY : Math.max(0, sku.dailyLimit - boughtToday);
     const isGold = sku.gold > 0;
     const priceAmount = isGold ? sku.gold : sku.diamonds;
     const refinedDescription = formatPairShopDescription(sku.description);
@@ -411,7 +420,7 @@ function PairPetShopSkuCard({
                 <Button
                     type="button"
                     onClick={() => onBuyClick(sku)}
-                    disabled={isBusy || remaining === 0}
+                    disabled={isBusy || (!unlimitedDaily && remaining === 0)}
                     colorScheme="none"
                     bare
                     className={`flex w-full min-h-[2.35rem] flex-col items-center justify-center gap-0 rounded-md border px-0.5 py-1 text-center text-[0.65rem] font-semibold leading-tight transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[3rem] sm:gap-0.5 sm:rounded-lg sm:px-1 sm:py-1.5 sm:text-xs ${
@@ -430,11 +439,13 @@ function PairPetShopSkuCard({
                             {isGold ? formatGoldAmountKoG(priceAmount) : formatWalletDiamonds(priceAmount)}
                         </span>
                     </div>
-                    <span
-                        className={`max-w-full px-0.5 text-center text-[0.6rem] leading-tight sm:text-xs ${isGold ? 'text-slate-800/95' : 'text-white/85'}`}
-                    >
-                        일일 한도 {remaining}/{sku.dailyLimit}
-                    </span>
+                    {!unlimitedDaily ? (
+                        <span
+                            className={`max-w-full px-0.5 text-center text-[0.6rem] leading-tight sm:text-xs ${isGold ? 'text-slate-800/95' : 'text-white/85'}`}
+                        >
+                            일일 한도 {remaining}/{sku.dailyLimit}
+                        </span>
+                    ) : null}
                 </Button>
             </div>
         </div>
@@ -502,36 +513,24 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     /** 수련 진행 중 취소 확인 모달(슬롯 인덱스) */
     const [trainingCancelConfirmSlotIndex, setTrainingCancelConfirmSlotIndex] = useState<number | null>(null);
 
+    /** 수련 시작 시 확정된 `precomputedRewards`로 결과 숫자를 즉시 표시하고, 수령 API는 백그라운드 동기화 */
     const openPairTrainingClaimResultModal = useCallback(
-        async (slotIndex: number, petRow: InventoryItem) => {
+        (slotIndex: number, petRow: InventoryItem) => {
             if (isBusy) return;
-            let inflight = pairTrainingClaimInFlightBySlotIndex.get(slotIndex);
-            if (!inflight) {
-                inflight = applyPetAction({ type: 'PAIR_PET_CLAIM_TRAINING', payload: { slotIndex } });
-                pairTrainingClaimInFlightBySlotIndex.set(slotIndex, inflight);
-                void inflight.finally(() => {
-                    if (pairTrainingClaimInFlightBySlotIndex.get(slotIndex) === inflight) {
-                        pairTrainingClaimInFlightBySlotIndex.delete(slotIndex);
-                    }
-                });
-            }
-            try {
-                const raw = await inflight;
-                const { error, summary } = parsePairTrainingClaimResponse(raw);
-                if (error) {
-                    window.alert(error);
-                    return;
-                }
-                if (!summary) {
-                    window.alert('보상 정보를 불러오지 못했습니다.');
-                    return;
-                }
-                setTrainingRewardModal({ slotIndex, petItem: petRow, claimSummary: summary });
-            } catch {
-                window.alert('수련 보상을 받는 중 오류가 발생했습니다.');
-            }
+            const slots = normalizePairPetTrainingSlots(currentUser.pairPetTrainingSlots);
+            const pre = slots[slotIndex]?.precomputedRewards;
+            const claimSummary =
+                pre && isValidPairPetTrainingPrecomputedRewards(pre)
+                    ? buildPairTrainingClaimSummaryFromPrecomputed(petRow, pre)
+                    : null;
+            setTrainingRewardModal({
+                slotIndex,
+                petItem: petRow,
+                claimSummary,
+                claimViaServer: !claimSummary,
+            });
         },
-        [applyPetAction, isBusy],
+        [isBusy, currentUser.pairPetTrainingSlots],
     );
 
     const equippedTid = currentUser.equippedPairPetTemplateId ?? null;
@@ -543,6 +542,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
     const pairShopQuantityModalLimit = useMemo(() => {
         if (!pairShopPurchaseSku) return 0;
+        if (isPairPetShopSkuUnlimitedDaily(pairShopPurchaseSku.dailyLimit)) return 999;
         const rec = currentUser.dailyShopPurchases?.[pairShopPurchaseSku.id];
         const now = Date.now();
         const bought = rec && isSameDayKST(rec.date, now) ? rec.quantity : 0;
@@ -757,7 +757,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     };
 
     const onPairPetShopBuyClick = (sku: PairPetShopSku) => {
-        if (sku.dailyLimit > 1) {
+        if (isPairPetShopSkuUnlimitedDaily(sku.dailyLimit) || sku.dailyLimit > 1) {
             setPairShopPurchaseSku(sku);
             return;
         }
@@ -2353,6 +2353,9 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     slotLabel={getPairTrainingSlotDisplayName(trainingRewardModal.slotIndex)}
                     petItem={trainingRewardModal.petItem}
                     claimSummary={trainingRewardModal.claimSummary}
+                    autoClaimOnMount={trainingRewardModal.claimViaServer}
+                    persistClaimOnMount={!trainingRewardModal.claimViaServer}
+                    commitClaimWithoutBusy={handlers.handleAction}
                     onClose={() => setTrainingRewardModal(null)}
                     applyPetAction={applyPetAction}
                     isBusy={isBusy}

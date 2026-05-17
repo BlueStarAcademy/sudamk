@@ -1,5 +1,4 @@
 import * as types from '../../types/index.js';
-import * as db from '../db.js';
 import { aiUserId } from '../aiPlayer.js';
 import { syncAiSession } from '../aiSessionManager.js';
 import { resumeGameTimer } from './shared.js';
@@ -30,13 +29,10 @@ async function persistAfterHiddenRevealTransition(game: types.LiveGameSession, n
     } else {
         game.aiTurnStartTime = undefined;
     }
-    await db.saveGame(game);
-    const { broadcastToGameParticipants } = await import('../socket.js');
-    const { updateGameCache } = await import('../gameCache.js');
-    updateGameCache(game);
-    const payloadGame = { ...game };
-    delete (payloadGame as any).boardState;
-    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: payloadGame } }, game);
+    const { broadcastItemPhaseSnapshot } = await import('../utils/broadcastItemPhaseSnapshot.js');
+    const { markItemPhaseStateChanged } = await import('./finalizeItemPhase.js');
+    markItemPhaseStateChanged(game);
+    await broadcastItemPhaseSnapshot(game);
     syncAiSession(game, aiUserId);
 }
 

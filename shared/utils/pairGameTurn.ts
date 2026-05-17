@@ -328,6 +328,28 @@ export function getCurrentPairTurnSeat(settings: Pick<GameSettings, 'pairGame'> 
     return order[normalizePairTurnIndex(pairGame)] ?? null;
 }
 
+/**
+ * 페어 AI 세션 중복 방지용 키 — moveHistory 길이만으로는 4인 수순(흑1→백1→흑2→백2)에서 다음 AI 좌석을 구분할 수 없다.
+ */
+export function buildPairAiSchedulingKey(
+    settings: Pick<GameSettings, 'pairGame'> | undefined,
+    moveCount: number,
+    turnIndexOverride?: number,
+): string | null {
+    const pairGame = settings?.pairGame;
+    const order = pairGame?.turnOrder;
+    if (!pairGame || !order?.length) return null;
+    const len = order.length;
+    const raw =
+        turnIndexOverride != null && Number.isFinite(turnIndexOverride)
+            ? Math.floor(turnIndexOverride)
+            : normalizePairTurnIndex(pairGame);
+    const idx = ((raw % len) + len) % len;
+    const seat = order[idx];
+    if (!seat) return null;
+    return `${moveCount}:${idx}:${seat.participantId}`;
+}
+
 export function getPairTurnSeatByParticipantId(
     settings: Pick<GameSettings, 'pairGame'> | undefined,
     participantId: string
@@ -372,6 +394,21 @@ export function pairSeatMatchesViewerUser(seat: PairGameTurnSeat, userId: string
         return seat.participantId.slice('pet-ai-'.length) === userId;
     }
     return false;
+}
+
+/** 페어 4인 수순에서 유저(본인 펫 슬롯 포함)의 흑/백 — `blackPlayerId`는 흑1 좌석만 가리킨다 */
+export function resolvePairUserPlayerEnum(
+    settings: Pick<GameSettings, 'pairGame'> | undefined,
+    userId: string,
+): Player.Black | Player.White | null {
+    const order = settings?.pairGame?.turnOrder;
+    if (!order?.length) return null;
+    for (const seat of order) {
+        if (pairSeatMatchesViewerUser(seat, userId)) {
+            return seat.player;
+        }
+    }
+    return null;
 }
 
 export function pairOrderRevealNeedsConfirmation(settings: Pick<GameSettings, 'pairGame'> | undefined): boolean {

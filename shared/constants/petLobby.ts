@@ -173,7 +173,7 @@ export type PairPetShopSku = {
     /** 지급할 재료의 MATERIAL_ITEMS 키(이름) */
     materialName: string;
     quantity: number;
-    /** KST 일일 구매 상한 (`dailyShopPurchases[sku]`와 연동) */
+    /** KST 일일 구매 상한 (`dailyShopPurchases[sku]`와 연동). 0 이하면 무제한 */
     dailyLimit: number;
     /** 상점 카드 이미지(추후 교체 예정) */
     image: string;
@@ -211,7 +211,7 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         diamonds: 0,
         materialName: PAIR_SOULSTONE_NAMES[0],
         quantity: 1,
-        dailyLimit: 10,
+        dailyLimit: 0,
         image: '/images/pets/soulstone1.webp',
         description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[0]],
     },
@@ -222,7 +222,7 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         diamonds: 0,
         materialName: PAIR_SOULSTONE_NAMES[1],
         quantity: 1,
-        dailyLimit: 10,
+        dailyLimit: 0,
         image: '/images/pets/soulstone2.webp',
         description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[1]],
     },
@@ -244,7 +244,7 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         diamonds: 0,
         materialName: PAIR_SOULSTONE_NAMES[3],
         quantity: 1,
-        dailyLimit: 3,
+        dailyLimit: 0,
         image: '/images/pets/soulstone4.webp',
         description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[3]],
     },
@@ -255,11 +255,16 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         diamonds: 0,
         materialName: PAIR_SOULSTONE_NAMES[4],
         quantity: 1,
-        dailyLimit: 1,
+        dailyLimit: 0,
         image: '/images/pets/soulstone5.webp',
         description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[4]],
     },
 ];
+
+/** 페어 펫 상점 SKU 일일 구매 한도 없음 (`dailyLimit <= 0`) */
+export function isPairPetShopSkuUnlimitedDaily(dailyLimit: number): boolean {
+    return dailyLimit <= 0;
+}
 
 /**
  * 영혼석 1개 판매 골드 — 페어 상점에서 해당 영혼석을 골드로 살 때의 가격의 10% (`PAIR_PET_SHOP_SKUS`와 동기화).

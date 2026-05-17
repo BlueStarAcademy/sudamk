@@ -40,6 +40,10 @@ export type ArenaSessionPolicy = {
     usesAdventureScoringCap: boolean;
     isClientAuthoritativeForScoringSnapshot: boolean;
     deferAutoScoringAfterAi: boolean;
+    /** 아이템 페이즈(`missile_animating`·`scanning_animating`·`hidden_reveal_animating` 등) → `playing` 시 슬림 WS가 animation 필드를 생략해도 클라 병합에서 연출 제거 */
+    clearsItemPhaseAnimationOnPlaying: boolean;
+    /** @deprecated use clearsItemPhaseAnimationOnPlaying */
+    clearsMissileFlightAnimationOnPlaying: boolean;
     usesHiddenRule: boolean;
     masksHumanHiddenFromAi: boolean;
     requiresClientSyncBeforeAction: boolean;
@@ -266,6 +270,10 @@ export function resolveArenaSessionPolicy(session: SessionLike | null | undefine
         usesAdventureScoringCap,
         isClientAuthoritativeForScoringSnapshot: kind === GameCategory.SinglePlayer || kind === GameCategory.Tower,
         deferAutoScoringAfterAi: kind === GameCategory.SinglePlayer || kind === GameCategory.Tower || isStrategicAiLike,
+        clearsItemPhaseAnimationOnPlaying:
+            modeIncludesMissileRule(session?.mode, settings) || modeIncludesHiddenRule(session?.mode, settings),
+        clearsMissileFlightAnimationOnPlaying:
+            modeIncludesMissileRule(session?.mode, settings) || modeIncludesHiddenRule(session?.mode, settings),
         usesHiddenRule: hiddenRule,
         masksHumanHiddenFromAi: hiddenRule && matchAxis === 'pve',
         requiresClientSyncBeforeAction: isPveLike,

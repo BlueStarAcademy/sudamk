@@ -328,6 +328,8 @@ export type ChampionshipRealGameState = {
         scoringStartedAt?: number;
         scoringCompletedAt?: number;
     };
+    /** KataGo(또는 폴백 manual) 계가 분석 — 영토·사석 오버레이용. `generateChampionshipRealMatch` 시점에 확정 */
+    scoringAnalysis?: AnalysisResult | null;
     resultContract?: UnifiedResultContract;
 };
 

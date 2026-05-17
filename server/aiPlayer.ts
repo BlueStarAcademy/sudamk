@@ -15,13 +15,19 @@ import {
     startAiProcessing,
     finishAiProcessing,
     cancelAiProcessing,
+    getPairTurnIndexForSession,
 } from './aiSessionManager.js';
 import { getCaptureTarget, NO_CAPTURE_TARGET } from './utils/captureTargets.ts';
 import { getGuildWarAiBotDisplayName } from '../shared/constants/guildConstants.js';
 import { profileStepFromKataServerLevel } from '../shared/utils/strategicAiDifficulty.js';
 import { towerKataLevelFromSnapshot } from '../shared/utils/kataServerRuntimeResolvers.js';
 import { getKataServerRuntimeSnapshot } from './kataServerRuntimeStore.js';
-import { getCurrentPairTurnSeat, isPairAiSeat } from '../shared/utils/pairGameTurn.js';
+import {
+    buildPairAiSchedulingKey,
+    getCurrentPairTurnSeat,
+    isPairAiSeat,
+    isPairClassicGame,
+} from '../shared/utils/pairGameTurn.js';
 import { ensureSinglePlayerKataServerLevelOnGame } from './singlePlayerStageConfigService.js';
 
 
@@ -1227,6 +1233,8 @@ const makeCurlingAiMove = async (game: types.LiveGameSession) => {
 
 
 export const makeAiMove = async (game: LiveGameSession) => {
+    const pairClassic = isPairClassicGame(game.settings, game.mode);
+    const pairTurnIndexBefore = pairClassic ? getPairTurnIndexForSession(game) : null;
     const pairCurrentSeat = getCurrentPairTurnSeat(game.settings);
     const currentPlayerId = pairCurrentSeat?.participantId ?? (game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId);
     const isAlkkagiSimultaneousAiPlacement =
@@ -1247,8 +1255,11 @@ export const makeAiMove = async (game: LiveGameSession) => {
     }
 
     const initialMoveCount = game.moveHistory?.length ?? 0;
+    const pairSchedulingKeyBefore = pairClassic
+        ? buildPairAiSchedulingKey(game.settings, initialMoveCount)
+        : null;
 
-    if (!shouldProcessAiTurn(game.id, initialMoveCount)) {
+    if (!shouldProcessAiTurn(game.id, initialMoveCount, pairSchedulingKeyBefore)) {
         return;
     }
 
@@ -1418,10 +1429,23 @@ export const makeAiMove = async (game: LiveGameSession) => {
         // moveHistory가 늘지 않았을 때는 세션 카운트를 갱신하지 않고 잠금만 해제한다.
         const moveHistoryAdvanced =
             useMoveCountForSession && finalMoveCount > initialMoveCount;
+        const pairTurnIndexAfter = pairClassic ? getPairTurnIndexForSession(game) : null;
+        const pairTurnAdvanced =
+            pairTurnIndexBefore != null &&
+            pairTurnIndexAfter != null &&
+            pairTurnIndexBefore !== pairTurnIndexAfter;
+        /** 방금 수를 둔 좌석(턴 인덱스는 advance 전) — 다음 좌석 키를 저장하면 연속 AI 턴이 영구 스킵됨 */
+        const pairSchedulingKeyCompleted =
+            pairClassic && moveHistoryAdvanced && pairTurnIndexBefore != null
+                ? buildPairAiSchedulingKey(game.settings, finalMoveCount, pairTurnIndexBefore)
+                : null;
         if (useMoveCountForSession && !moveHistoryAdvanced) {
             cancelAiProcessing(game.id);
+        } else if (pairClassic && moveHistoryAdvanced && !pairTurnAdvanced) {
+            // 따내기/히든 공개 연출 등: 수는 기록됐지만 pair turnIndex는 유지 → 같은 좌석 재시도 허용
+            cancelAiProcessing(game.id);
         } else {
-            finishAiProcessing(game.id, finalMoveCount);
+            finishAiProcessing(game.id, finalMoveCount, pairSchedulingKeyCompleted);
         }
     } catch (error) {
         console.error(`[makeAiMove] Error processing AI move for game ${game.id}:`, error);

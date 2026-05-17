@@ -677,7 +677,7 @@ const Profile: React.FC<ProfileProps> = () => {
             tier,
             tierName,
             venueSeason: [
-                { label: 'PVP', ...p },
+                { label: '유저', ...p },
                 { label: '펫', ...pet },
                 { label: '페어', ...pr },
             ],
@@ -1090,9 +1090,9 @@ const Profile: React.FC<ProfileProps> = () => {
                 ? new Set(currentUserWithStatus.clearedSinglePlayerStages)
                 : new Set<string>();
             if (key === 'tower') {
-                return cleared.has(TOWER_ENTRANCE_REQUIRED_STAGE_ID) ? null : '입문반 20 클리어 필요';
+                return cleared.has(TOWER_ENTRANCE_REQUIRED_STAGE_ID) ? null : '입문반 10 클리어 필요';
             }
-            return cleared.has(ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID) ? null : '초급반 20 클리어 필요';
+            return cleared.has(ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID) ? null : '입문반 20 클리어 필요';
         },
         [arenaAdminBypass, mergedArena, serverArena, currentUserWithStatus.clearedSinglePlayerStages],
     );

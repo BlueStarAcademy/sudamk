@@ -3,6 +3,7 @@ import { User } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import { isConditionPotionConsumable } from '../shared/constants/items.js';
 
 /** TournamentBracket 챔피언십 푸터 버튼과 동일 계열 — 모달 전용 */
 const champBtnBase =
@@ -123,18 +124,21 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
         setPreviousCondition(currentCondition);
     }, [currentCondition]);
 
-    // 보유 중인 각 컨디션 회복제 개수 계산 (`currentUser` 전체·상점 닫힘·updateTrigger에 반응 — inventory 참조만으로는 놓칠 수 있음)
+    const inventorySnapshot = currentUser?.inventory;
+
+    // 보유 중인 각 컨디션 회복제 개수 (상점 구매 직후 inventory·updateTrigger·상점 닫힘에 반응)
     const potionCounts = useMemo(() => {
         const counts: Record<PotionType, number> = { small: 0, medium: 0, large: 0 };
-        if (!currentUser?.inventory) return counts;
-        currentUser.inventory
-            .filter(item => item.type === 'consumable' && item.name.startsWith('컨디션회복제'))
-            .forEach(item => {
-                if (item.name === '컨디션회복제(소)') {
+        if (!inventorySnapshot) return counts;
+        inventorySnapshot
+            .filter((item) => item.type === 'consumable' && isConditionPotionConsumable(item.name))
+            .forEach((item) => {
+                const compact = (item.name ?? '').replace(/\s+/g, '');
+                if (compact.includes('(소)')) {
                     counts.small += item.quantity || 1;
-                } else if (item.name === '컨디션회복제(중)') {
+                } else if (compact.includes('(중)')) {
                     counts.medium += item.quantity || 1;
-                } else if (item.name === '컨디션회복제(대)') {
+                } else if (compact.includes('(대)')) {
                     counts.large += item.quantity || 1;
                 }
             });
@@ -143,7 +147,7 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
             if (d) counts[t] = Math.max(0, counts[t] + d);
         });
         return counts;
-    }, [currentUser, updateTrigger, shopCloseRefreshNonce, optimisticPotionDelta]);
+    }, [inventorySnapshot, updateTrigger, shopCloseRefreshNonce, optimisticPotionDelta]);
 
     const displayCondition =
         currentCondition === 1000 ? 1000 : Math.min(100, currentCondition + optimisticConditionAdd);

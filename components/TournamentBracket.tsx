@@ -62,9 +62,15 @@ import type { PairPetAbilityKataLadderRow } from '../shared/constants/pairArena.
 import { DEFAULT_PAIR_PET_ABILITY_KATA_LADDER } from '../shared/constants/pairArena.js';
 import { resolveChampionshipVersusPhaseAbilityDisplay } from '../shared/utils/championshipVersusKataResolve.js';
 import {
-    formatChampionshipPanelScoreDisplay,
     resolveChampionshipPanelScores,
+    resolveChampionshipTerritoryAnalysisForRealGame,
 } from '../utils/championshipLiveScores.js';
+import {
+    ChampionshipDesktopScoreBox,
+    ChampionshipDesktopScoringCountdownBox,
+    ChampionshipMobileScoreCell,
+    ChampionshipMobileScoringCountdownCell,
+} from './championship/ChampionshipArenaScorePanels.js';
 import { replaceAppHash } from '../utils/appUtils.js';
 
 /** 서버 inferDungeonStageAttempt와 동일 — currentStageAttempt 누락 시에도 보상 버튼·COMPLETE_DUNGEON_STAGE 단계 일치 */
@@ -253,6 +259,22 @@ class PlayerProfilePanelErrorBoundary extends Component<
     }
 }
 
+/** 챔피언십 인게임·결과 카드용 아바타/테두리 URL (색상 테두리는 img가 아닌 Avatar가 처리) */
+function resolveChampionshipPortraitUrls(
+    player: { avatarId?: string; borderId?: string } | null,
+): { avatarUrl?: string; borderUrl?: string } {
+    const avatarRaw = player?.avatarId ? AVATAR_POOL.find((a) => a.id === player.avatarId)?.url : undefined;
+    const borderRaw = player?.borderId ? BORDER_POOL.find((b) => b.id === player.borderId)?.url : undefined;
+    const avatarUrl = avatarRaw ? resolvePublicUrl(avatarRaw) : undefined;
+    const borderUrl =
+        borderRaw == null
+            ? undefined
+            : borderRaw.startsWith('#') || borderRaw.startsWith('conic-gradient')
+              ? borderRaw
+              : resolvePublicUrl(borderRaw);
+    return { avatarUrl, borderUrl };
+}
+
 export const ChampionshipRealGoBoard: React.FC<{
     match: Match | null;
     currentUser: UserWithStatus;
@@ -350,7 +372,10 @@ export const ChampionshipRealGoBoard: React.FC<{
 
     // 매 경기 종료 후 다음 경기를 누르기 전까지 결과 카드를 바둑판 위에 띄워, 어떤 결과로 끝났는지 한눈에 확인할 수 있게 한다.
     const showFinishedResult =
-        !suppressFinishedResultCard && realGame.status === 'finished' && !!match?.isFinished && !!realGame.winnerId;
+        !suppressFinishedResultCard &&
+        !!realGame.winnerId &&
+        ((realGame.status === 'finished' && !!match?.isFinished) ||
+            (realGame.status === 'scoring' && scoringVeilComplete));
     const finishedScoreLeadAbs = showFinishedResult
         ? Math.abs(realGame.finalScore?.scoreLead ?? 0)
         : 0;
@@ -367,18 +392,9 @@ export const ChampionshipRealGoBoard: React.FC<{
         ? dungeonUserMatchRecordForPlayer(tournamentForResult, opponentInMatch.id, match)
         : { wins: 0, losses: 0 };
 
-    const userAvatarUrl = userInMatch?.avatarId
-        ? AVATAR_POOL.find(a => a.id === userInMatch.avatarId)?.url
-        : undefined;
-    const userBorderUrl = userInMatch?.borderId
-        ? BORDER_POOL.find(b => b.id === userInMatch.borderId)?.url
-        : undefined;
-    const opponentAvatarUrl = opponentInMatch?.avatarId
-        ? AVATAR_POOL.find(a => a.id === opponentInMatch.avatarId)?.url
-        : undefined;
-    const opponentBorderUrl = opponentInMatch?.borderId
-        ? BORDER_POOL.find(b => b.id === opponentInMatch.borderId)?.url
-        : undefined;
+    const { avatarUrl: userAvatarUrl, borderUrl: userBorderUrl } = resolveChampionshipPortraitUrls(userInMatch);
+    const { avatarUrl: opponentAvatarUrl, borderUrl: opponentBorderUrl } =
+        resolveChampionshipPortraitUrls(opponentInMatch);
 
     const roundLabel = (() => {
         if (!tournamentForResult || !match) return '';
@@ -441,7 +457,7 @@ export const ChampionshipRealGoBoard: React.FC<{
                         {/* 베일의 진행 끝에서 빛나는 좌→우 스캔 빔 */}
                         <div className="championship-scoring-beam absolute inset-y-0" aria-hidden />
                         <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="rounded-2xl border border-cyan-300/60 bg-slate-950/80 px-5 py-2.5 text-center shadow-2xl backdrop-blur-sm">
+                            <div className="rounded-2xl border border-cyan-300/60 bg-slate-950/90 px-5 py-2.5 text-center shadow-2xl">
                                 <div className="text-base font-bold tracking-wide text-cyan-200">계가 중...</div>
                             </div>
                         </div>
@@ -451,37 +467,34 @@ export const ChampionshipRealGoBoard: React.FC<{
             {/* 경기 종료 카드는 바둑판 정사각형 밖(경기장 전체)에 두어 최종 순위가 잘리지 않게 한다. */}
             {showFinishedResult && (
                 <div className="pointer-events-none absolute inset-0 z-[35] flex items-center justify-center overflow-visible p-1.5 sm:p-2">
-                    <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-[1.5px]" aria-hidden />
+                    <div className="absolute inset-0 bg-slate-950/40" aria-hidden />
                     <div className="relative z-[1] flex w-full max-w-full items-center justify-center px-1 sm:px-2">
-                        <div className="championship-finished-result-card pointer-events-auto max-w-[min(100%,min(92vw,30rem))] rounded-2xl border-2 border-amber-300/70 bg-gradient-to-b from-slate-900/95 via-slate-950/95 to-black/95 px-3 py-2.5 text-center shadow-[0_18px_42px_-12px_rgba(0,0,0,0.85)] ring-1 ring-amber-300/15 sm:px-5 sm:py-3.5">
+                        <div className="championship-finished-result-card pointer-events-auto max-w-[min(100%,min(94vw,34rem))] rounded-2xl border-2 border-amber-300/70 bg-gradient-to-b from-slate-900/95 via-slate-950/95 to-black/95 px-4 py-3 text-center shadow-[0_18px_42px_-12px_rgba(0,0,0,0.85)] ring-1 ring-amber-300/15 sm:px-6 sm:py-4">
                             <div className="flex items-center justify-center gap-2">
                                 {roundLabel && (
                                     <span className="rounded-full border border-amber-300/65 bg-amber-500/15 px-2 py-0.5 text-[10px] font-black tracking-wider text-amber-100">
                                         {roundLabel}
                                     </span>
                                 )}
-                                <span className="text-[10px] font-black tracking-[0.32em] text-amber-200/80">FINAL RESULT</span>
+                                <span className="text-[11px] font-black tracking-[0.32em] text-amber-200/80 sm:text-xs">FINAL RESULT</span>
                             </div>
 
                             <div className="mt-2 flex items-center justify-center gap-2 sm:mt-2.5 sm:gap-3">
                                 <div className="flex w-[5rem] flex-col items-center sm:w-[5.6rem]">
-                                    <div className="relative h-11 w-11 sm:h-12 sm:w-12">
-                                        {userAvatarUrl ? (
-                                            <img
-                                                src={userAvatarUrl}
-                                                alt={userInMatch?.nickname ?? '유저'}
-                                                className={`h-full w-full rounded-full border-2 object-cover ${userWonThisMatch ? 'border-emerald-300/85' : 'border-rose-300/85'}`}
-                                            />
-                                        ) : (
-                                            <div
-                                                className={`flex h-full w-full items-center justify-center rounded-full border-2 bg-slate-700 text-sm font-bold text-slate-100 ${userWonThisMatch ? 'border-emerald-300/85' : 'border-rose-300/85'}`}
-                                            >
-                                                {userInMatch?.nickname?.[0] ?? '나'}
-                                            </div>
-                                        )}
-                                        {userBorderUrl && (
-                                            <img src={userBorderUrl} alt="" className="pointer-events-none absolute inset-0 h-full w-full" />
-                                        )}
+                                    <div
+                                        className={`shrink-0 rounded-full ${
+                                            userWonThisMatch
+                                                ? 'ring-2 ring-emerald-400/90 ring-offset-1 ring-offset-slate-950'
+                                                : 'ring-2 ring-rose-400/90 ring-offset-1 ring-offset-slate-950'
+                                        }`}
+                                    >
+                                        <Avatar
+                                            userId={userInMatch?.id ?? currentUser.id}
+                                            userName={userInMatch?.nickname ?? '나'}
+                                            avatarUrl={userAvatarUrl}
+                                            borderUrl={userBorderUrl}
+                                            size={48}
+                                        />
                                     </div>
                                     <div className="mt-0.5 max-w-full truncate text-[10px] font-bold text-slate-100 sm:mt-1 sm:text-[11px]">
                                         {userInMatch?.nickname ?? '나'}
@@ -492,32 +505,29 @@ export const ChampionshipRealGoBoard: React.FC<{
                                 </div>
 
                                 <div className="flex flex-col items-center justify-center">
-                                    <div className={`text-base font-black leading-tight sm:text-lg ${userWonThisMatch ? 'text-emerald-200' : 'text-rose-200'}`}>
+                                    <div className={`text-lg font-black leading-tight sm:text-xl ${userWonThisMatch ? 'text-emerald-200' : 'text-rose-200'}`}>
                                         {userWonThisMatch ? '승리' : '패배'}
                                     </div>
-                                    <div className="mt-0.5 text-[9px] font-bold text-slate-300 sm:text-[10px]">
+                                    <div className="mt-0.5 text-[10px] font-bold text-slate-300 sm:text-xs">
                                         {finishedScoreLeadAbs > 0 ? `${finishedScoreLeadAbs.toFixed(1)}집 차` : '백병전'}
                                     </div>
                                 </div>
 
                                 <div className="flex w-[5rem] flex-col items-center sm:w-[5.6rem]">
-                                    <div className="relative h-11 w-11 sm:h-12 sm:w-12">
-                                        {opponentAvatarUrl ? (
-                                            <img
-                                                src={opponentAvatarUrl}
-                                                alt={opponentInMatch?.nickname ?? '상대'}
-                                                className={`h-full w-full rounded-full border-2 object-cover ${userWonThisMatch ? 'border-rose-300/85' : 'border-emerald-300/85'}`}
-                                            />
-                                        ) : (
-                                            <div
-                                                className={`flex h-full w-full items-center justify-center rounded-full border-2 bg-slate-700 text-sm font-bold text-slate-100 ${userWonThisMatch ? 'border-rose-300/85' : 'border-emerald-300/85'}`}
-                                            >
-                                                {opponentInMatch?.nickname?.[0] ?? '상'}
-                                            </div>
-                                        )}
-                                        {opponentBorderUrl && (
-                                            <img src={opponentBorderUrl} alt="" className="pointer-events-none absolute inset-0 h-full w-full" />
-                                        )}
+                                    <div
+                                        className={`shrink-0 rounded-full ${
+                                            userWonThisMatch
+                                                ? 'ring-2 ring-rose-400/90 ring-offset-1 ring-offset-slate-950'
+                                                : 'ring-2 ring-emerald-400/90 ring-offset-1 ring-offset-slate-950'
+                                        }`}
+                                    >
+                                        <Avatar
+                                            userId={opponentInMatch?.id ?? 'opponent'}
+                                            userName={opponentInMatch?.nickname ?? '상대'}
+                                            avatarUrl={opponentAvatarUrl}
+                                            borderUrl={opponentBorderUrl}
+                                            size={48}
+                                        />
                                     </div>
                                     <div className="mt-0.5 max-w-full truncate text-[10px] font-bold text-slate-100 sm:mt-1 sm:text-[11px]">
                                         {opponentInMatch?.nickname ?? '상대'}
@@ -6479,8 +6489,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     // 배속 조절 — 던전 1~3단계는 x0.5·x1만, 4~5단계는 x0.5·x1·x2, 6단계 이상·비던전은 x3까지.
     const championshipPlaybackSpeedSelector = (
-        <div className="mt-1.5 flex items-center justify-center gap-1">
-            <span className="text-[10px] font-semibold tracking-wider text-cyan-100/75">배속</span>
+        <div className="mb-1.5 flex items-center justify-center gap-1">
+            <span className="text-[10px] font-semibold tracking-wider text-cyan-100">배속</span>
             {championshipDungeonPlaybackSpeedChoices.map((speed) => {
                 const isActive = effectiveChampionshipPlaybackSpeed === speed;
                 const titleBySpeed: Record<string, string> = {
@@ -6510,20 +6520,18 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     const renderChampionshipMatchControlPanel = () => (
         <section
-            className={`flex min-h-0 flex-col justify-center rounded-2xl border border-cyan-300/22 shadow-[inset_0_1px_0_rgba(255,255,255,0.075),0_16px_36px_-24px_rgba(0,0,0,0.95)] ring-1 ring-inset ring-cyan-300/10 ${
+            className={`flex min-h-0 flex-col justify-center rounded-2xl border border-cyan-400/35 bg-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_16px_36px_-24px_rgba(0,0,0,0.95)] ring-1 ring-inset ring-cyan-400/20 ${
                 isMobile
-                    ? 'bg-gradient-to-br from-[#27364a]/96 via-[#121a27]/95 to-[#070a10]/95 p-2'
-                    : 'bg-gradient-to-br from-[#27364a]/96 via-[#121a27]/95 to-[#070a10]/95 p-2.5'
+                    ? 'bg-gradient-to-br from-[#2a3d56] via-[#141c2b] to-[#070a10] p-2'
+                    : 'bg-gradient-to-br from-[#2a3d56] via-[#141c2b] to-[#070a10] p-2.5'
             }`}
         >
-            <div className={`text-center font-black tracking-[0.22em] text-cyan-100/85 ${isMobile ? 'mb-1 text-[9px]' : 'mb-1.5 text-[10px]'}`}>
+            <div className={`text-center font-black tracking-[0.22em] text-cyan-100 ${isMobile ? 'mb-1 text-[9px]' : 'mb-1.5 text-[10px]'}`}>
                 AUTO MATCH CONTROL
             </div>
             <div
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-500/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.055)] ${
-                    isMobile
-                        ? 'min-h-0 bg-gradient-to-b from-black/94 to-slate-950/94 px-2 py-2'
-                        : 'min-h-[3.7rem] bg-gradient-to-b from-black/94 to-slate-950/94 px-2.5 py-2.5'
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-600/50 bg-[#0c1018] shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${
+                    isMobile ? 'min-h-0 px-2 py-2' : 'min-h-[3.7rem] px-2.5 py-2.5'
                 }`}
             >
                 {championshipFinished ? (
@@ -6535,6 +6543,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     </>
                 ) : (
                     <>
+                        {championshipPlaybackSpeedSelector}
                         <div className="flex w-full max-w-full flex-wrap items-center justify-center gap-2">
                             {footerButtons || countdownDisplay || (
                                 <div
@@ -6548,7 +6557,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                             {isMobile ? mobileChampionshipSkipSlot : desktopSkipSlot}
                             {isMobile ? mobileChampionshipExitSlot : desktopExitSlot}
                         </div>
-                        {championshipPlaybackSpeedSelector}
                     </>
                 )}
             </div>
@@ -6864,6 +6872,16 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         ],
     );
 
+    const championshipDungeonTerritoryAnalysis = useMemo(
+        () => resolveChampionshipTerritoryAnalysisForRealGame(matchForDisplay?.championshipRealGame ?? null),
+        [
+            matchForDisplay?.championshipRealGame?.boardSize,
+            matchForDisplay?.championshipRealGame?.moves,
+            matchForDisplay?.championshipRealGame?.status,
+            matchForDisplay?.championshipRealGame?.scoringAnalysis,
+        ],
+    );
+
     const renderSimpleChampionshipPlayerCard = (player: PlayerForTournament | null, tone: 'black' | 'white') => {
         const avatarUrl = player ? AVATAR_POOL.find((a) => a.id === player.avatarId)?.url : undefined;
         const borderUrl = player ? BORDER_POOL.find((b) => b.id === player.borderId)?.url : undefined;
@@ -6918,7 +6936,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                   : null
             : null;
         const scoreKind = championshipPanelScores?.kind;
-        const scoreDisplayText = formatChampionshipPanelScoreDisplay(scoreValue, scoreKind);
         /** 인게임 던전: `players[].wins`는 이번 단계 누적이 아닐 수 있어, 라운드 종료 대국 기준으로 표시 */
         const dungeonRunRecord =
             tournament.currentStageAttempt != null && player?.id
@@ -6927,18 +6944,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const recordWins = dungeonRunRecord ? dungeonRunRecord.wins : (player?.wins ?? 0);
         const recordLosses = dungeonRunRecord ? dungeonRunRecord.losses : (player?.losses ?? 0);
         const scoreBox = (
-            <div
-                className={`flex w-[4.8rem] shrink-0 flex-col items-center justify-center rounded-lg border-2 px-2 py-1.5 text-center shadow-lg ${
-                    isWhite
-                        ? 'border-slate-500/90 bg-gradient-to-br from-slate-100 to-slate-300 text-slate-950'
-                        : 'border-stone-600/55 bg-gradient-to-br from-zinc-900/92 to-black/95 text-white'
-                }`}
-            >
-                <span className={`text-[10px] font-bold leading-none ${isWhite ? 'text-slate-700' : 'text-gray-300'}`}>
-                    점수
-                </span>
-                <span className="mt-1 text-xl font-black leading-none tabular-nums">{scoreDisplayText}</span>
-            </div>
+            <ChampionshipDesktopScoreBox isWhite={isWhite} score={scoreValue} scoreKind={scoreKind} />
         );
 
         return (
@@ -6996,18 +7002,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         : null;
     const maxPlyToScoring = realGameForCountdown?.maxPly ?? 180;
     const championshipScoringCountdownPanel = (
-        <div className="flex w-36 shrink-0 flex-col items-center justify-center rounded-lg border-2 border-stone-600/80 bg-gradient-to-br from-zinc-900/92 to-black/95 px-3 py-2 text-center shadow-lg">
-            <div className="text-[11px] font-bold tracking-wide text-amber-100">계가까지</div>
-            <div className="mt-0.5 text-2xl font-black tabular-nums text-white">
-                {remainingPlyToScoring ?? '-'}/{maxPlyToScoring}
-            </div>
-        </div>
+        <ChampionshipDesktopScoringCountdownBox remaining={remainingPlyToScoring} max={maxPlyToScoring} />
     );
 
     const championshipPlayerRail = matchForDisplay && (p1 || p2) ? (
         <div className="flex-shrink-0 w-full flex justify-center">
             <div className="min-w-0 w-full flex-1 px-2 pt-1 min-[1025px]:px-1">
-                <section className="flex min-h-[74px] shrink-0 flex-row items-stretch gap-2 overflow-hidden rounded-lg border-2 border-stone-500 bg-stone-900/95 p-2 shadow-xl">
+                <section className="flex min-h-[74px] shrink-0 flex-row items-stretch gap-2 overflow-hidden rounded-lg border-2 border-zinc-600 bg-zinc-950 p-2 shadow-xl">
                     {renderSimpleChampionshipPlayerCard(p1, 'black')}
                     {championshipScoringCountdownPanel}
                     {renderSimpleChampionshipPlayerCard(p2, 'white')}
@@ -7025,7 +7026,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     const championshipFooterControls = (
         <div className="flex-shrink-0 w-full flex flex-col gap-1">
-            <div className="rounded-2xl border border-amber-300/18 bg-gradient-to-b from-[#283247]/95 via-[#151c2a]/94 to-[#07090f]/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_52px_-18px_rgba(0,0,0,0.96)] ring-1 ring-inset ring-white/[0.04]">
+            <div className="rounded-2xl border border-amber-400/25 bg-gradient-to-b from-[#2a3d56] via-[#141c2b] to-[#070a10] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_52px_-18px_rgba(0,0,0,0.96)] ring-1 ring-inset ring-amber-300/12">
                 <div className="grid min-h-[168px] grid-cols-[0.7fr_1.3fr] gap-2 overflow-hidden">
                     {renderChampionshipMatchControlPanel()}
                     {finalRewardSection}
@@ -7060,6 +7061,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                             tournamentForResult={displayTournament}
                                             dungeonBoardCenterMode={championshipDungeonBoardCenterMode}
                                             finalStandings={championshipFinalStandingsRows}
+                                            territoryAnalysis={championshipDungeonTerritoryAnalysis}
                                         />
                                     </div>
                                     <ChampionshipAbilityPlayerPanel
@@ -7217,7 +7219,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     const mobileChampionshipPlayerInfoRow =
         matchForDisplay && (p1 || p2) ? (
-            <section className="flex shrink-0 flex-row items-stretch gap-1 rounded-md border border-stone-500/70 bg-stone-900/95 p-1 shadow-md">
+            <section className="flex shrink-0 flex-row items-stretch gap-1 rounded-md border border-zinc-600 bg-zinc-950 p-1 shadow-md">
                 {renderMobileChampionshipPureInfoCard(p1, 'left')}
                 {renderMobileChampionshipPureInfoCard(p2, 'right')}
             </section>
@@ -7279,7 +7281,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     const mobileChampionshipAbilityRow =
         matchForDisplay && (p1 || p2) ? (
-            <section className="flex shrink-0 flex-row items-stretch gap-1 rounded-md border border-slate-700/45 bg-gradient-to-b from-[#111827]/88 to-[#070b12]/90 p-1 shadow-md">
+            <section className="flex shrink-0 flex-row items-stretch gap-1 rounded-md border border-zinc-600/80 bg-gradient-to-b from-[#1e293b] via-[#141c2b] to-[#070a10] p-1 shadow-md">
                 {renderMobileChampionshipAbilityPanel(p1, p1Stats as Record<string, number>, 'black')}
                 {renderMobileChampionshipAbilityPanel(p2, p2Stats as Record<string, number>, 'white')}
             </section>
@@ -7314,41 +7316,23 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
         const mobileScoreKind = championshipPanelScores?.kind;
 
-        const renderScoreCell = (
-            isWhite: boolean,
-            score: number | null,
-            colorLabel: string,
-            side: 'left' | 'right',
-        ) => {
-            const cellTone = isWhite
-                ? 'border-slate-500/85 bg-gradient-to-br from-slate-100 to-slate-300 text-slate-950'
-                : 'border-gray-600 bg-gradient-to-br from-gray-800/92 to-black/94 text-white';
-            const labelColor = isWhite ? 'text-slate-700' : 'text-gray-300';
-            const scoreText = formatChampionshipPanelScoreDisplay(score, mobileScoreKind);
-            return (
-                <div
-                    className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md border-2 px-2 py-1 ${cellTone} ${
-                        side === 'right' ? 'flex-row-reverse' : ''
-                    }`}
-                >
-                    <span className={`max-w-[4.5rem] text-center text-[8px] font-bold leading-tight tracking-wide ${labelColor}`}>
-                        {colorLabel ? `${colorLabel} 점수` : '점수'}
-                    </span>
-                    <span className="text-base font-black leading-none tabular-nums">{scoreText}</span>
-                </div>
-            );
-        };
-
         return (
             <section className="flex shrink-0 flex-row items-stretch gap-1">
-                {renderScoreCell(p1IsWhite, p1Score, p1IsBlack ? '흑' : p1IsWhite ? '백' : '', 'left')}
-                <div className="flex w-[36%] shrink-0 flex-col items-center justify-center rounded-md border-2 border-amber-400/55 bg-gradient-to-br from-gray-800/92 to-black/94 px-1 py-0.5 text-center">
-                    <div className="text-[9px] font-bold tracking-wide text-amber-100">계가까지</div>
-                    <div className="text-base font-black tabular-nums leading-none text-white">
-                        {remainingPly}/{maxPly}
-                    </div>
-                </div>
-                {renderScoreCell(p2IsWhite, p2Score, p2IsBlack ? '흑' : p2IsWhite ? '백' : '', 'right')}
+                <ChampionshipMobileScoreCell
+                    isWhite={p1IsWhite}
+                    score={p1Score}
+                    scoreKind={mobileScoreKind}
+                    colorLabel={p1IsBlack ? '흑' : p1IsWhite ? '백' : ''}
+                    side="left"
+                />
+                <ChampionshipMobileScoringCountdownCell remaining={remainingPly} max={maxPly} />
+                <ChampionshipMobileScoreCell
+                    isWhite={p2IsWhite}
+                    score={p2Score}
+                    scoreKind={mobileScoreKind}
+                    colorLabel={p2IsBlack ? '흑' : p2IsWhite ? '백' : ''}
+                    side="right"
+                />
             </section>
         );
     })();
@@ -7365,6 +7349,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 tournamentForResult={displayTournament}
                 dungeonBoardCenterMode={championshipDungeonBoardCenterMode}
                 finalStandings={championshipFinalStandingsRows}
+                territoryAnalysis={championshipDungeonTerritoryAnalysis}
             />
         </div>
     );
@@ -7526,6 +7511,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                         tournamentForResult={displayTournament}
                                         dungeonBoardCenterMode={championshipDungeonBoardCenterMode}
                                         finalStandings={championshipFinalStandingsRows}
+                                        territoryAnalysis={championshipDungeonTerritoryAnalysis}
                                     />
                                 </div>
                             </div>
@@ -7569,6 +7555,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                     tournamentForResult={displayTournament}
                                     dungeonBoardCenterMode={championshipDungeonBoardCenterMode}
                                     finalStandings={championshipFinalStandingsRows}
+                                    territoryAnalysis={championshipDungeonTerritoryAnalysis}
                                 />
                             </div>
                         </div>

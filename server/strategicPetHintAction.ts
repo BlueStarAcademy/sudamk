@@ -314,7 +314,9 @@ export async function handleStrategicPetHintRequest(
                 y: pt.y,
                 message,
                 phase,
+                pendingReward: bonusReward,
             },
+            gameId: game.id,
         },
     };
 }
@@ -340,7 +342,9 @@ export async function handleStrategicPetHintBonusClaim(
     const petLevel = Math.max(1, Math.floor(Number(petRow.level ?? 1) || 1));
     const reward = pending.bonusReward ?? rollStrategicPetHintBonus(petLevel);
     clearPendingHint(game, user.id);
-    await grantStrategicPetHintBonus(freshUser, reward);
+    void grantStrategicPetHintBonus(freshUser, reward).catch((err) => {
+        console.error('[strategicPetHint] grantStrategicPetHintBonus failed:', err);
+    });
 
     return {
         clientResponse: {

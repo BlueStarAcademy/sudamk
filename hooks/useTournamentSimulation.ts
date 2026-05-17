@@ -21,15 +21,16 @@ const REAL_MATCH_INTERVAL_BY_SPEED_MS: Record<string, number> = {
 };
 const moveIntervalMsForSpeed = (speed: ChampionshipPlaybackSpeed): number =>
     REAL_MATCH_INTERVAL_BY_SPEED_MS[String(speed)] ?? REAL_MATCH_INTERVAL_BY_SPEED_MS['1']!;
-// 모든 수를 둔 뒤 계가 화면(좌→우 스캔)을 충분히 보여주고 결과 카드로 넘어가기 위한 지연.
-// CSS 스캔 애니메이션이 2.6s 동안 빔을 부모 너비 끝까지 한 번 쭉 통과시키므로
-// 그 이후에도 약 0.4s 더 가려진 상태를 유지해 "스캔이 오른쪽 끝까지 간 뒤 결과가 등장한다"는
-// 흐름을 명확히 보여준다.
-const REAL_MATCH_SCORING_DELAY_MS = 3000;
+// 모든 수를 둔 뒤 계가 화면(좌→우 스캔)을 보여주고 COMPLETE_TOURNAMENT_SIMULATION을 보내기 위한 지연.
+// CSS 스캔 애니메이션(1.4s) 직후 약간의 여유만 두고 서버 완료 처리한다.
+const REAL_MATCH_SCORING_DELAY_MS = 1600;
 /** `index.css`의 `.championship-scoring-veil` / beam 애니메이션 길이와 동기 */
-export const CHAMPIONSHIP_SCORING_VEIL_DURATION_MS = 2600;
+export const CHAMPIONSHIP_SCORING_VEIL_DURATION_MS = 1400;
 /** 실대국 계가 연출 후 결과 화면까지 대기(ms) — PVE 토너먼트·PVP 장내 카타 재생과 동일 */
 export const CHAMPIONSHIP_REAL_MATCH_SCORING_DELAY_MS = REAL_MATCH_SCORING_DELAY_MS;
+/** 마지막 수 표시 후 계가 연출로 넘어가기 전 짧은 홀드 (배속에 비례, 상한 있음) */
+const postLastMoveHoldBeforeScoringMs = (speed: ChampionshipPlaybackSpeed): number =>
+    Math.min(500, Math.max(250, Math.round(moveIntervalMsForSpeed(speed) * 0.3)));
 
 type CommentaryPhase = 'early' | 'mid' | 'end';
 
@@ -341,6 +342,8 @@ export const useTournamentSimulation = (
     /** 동일 매치에 COMPLETE_TOURNAMENT_SIMULATION 중복 스케줄 방지(애니메이션 생략 복귀 경로 포함) */
     const championshipRealCompleteDispatchKeyRef = useRef<string | null>(null);
     const realMatchScoringTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    /** 마지막 수를 잠시 보여준 뒤 계가 연출로 넘기기 위한 대기 */
+    const realMatchScoringTransitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Track current match to detect changes
     const currentMatchKeyRef = useRef<string | null>(getMatchKey(localTournament));
@@ -389,6 +392,10 @@ export const useTournamentSimulation = (
             if (realMatchScoringTimeoutRef.current) {
                 clearTimeout(realMatchScoringTimeoutRef.current);
                 realMatchScoringTimeoutRef.current = null;
+            }
+            if (realMatchScoringTransitionTimeoutRef.current) {
+                clearTimeout(realMatchScoringTransitionTimeoutRef.current);
+                realMatchScoringTransitionTimeoutRef.current = null;
             }
             // getMatchKey가 잠깐 null로만 바뀌는 경우(다른 탭·절전·WS 생략) 터미널 락을 지우면
             // 같은 실대국 키로 돌아왔을 때 중계가 처음부터 다시 재생될 수 있다.
@@ -545,6 +552,10 @@ export const useTournamentSimulation = (
             if (realMatchScoringTimeoutRef.current) {
                 clearTimeout(realMatchScoringTimeoutRef.current);
                 realMatchScoringTimeoutRef.current = null;
+            }
+            if (realMatchScoringTransitionTimeoutRef.current) {
+                clearTimeout(realMatchScoringTransitionTimeoutRef.current);
+                realMatchScoringTransitionTimeoutRef.current = null;
             }
             isSimulatingRef.current = false;
             return;
@@ -789,7 +800,7 @@ export const useTournamentSimulation = (
                         boardState: boardAfterMoves(realGame.boardSize, realGame.moves, cappedPly),
                         currentPly: cappedPly,
                         lastMove: move ? { x: move.x, y: move.y } : m.championshipRealGame.lastMove,
-                        status: cappedPly >= realGame.moves.length ? 'scoring' : 'playing',
+                        status: 'playing',
                         timeMetrics: {
                             generatedAt: m.championshipRealGame.timeMetrics?.generatedAt ?? realGame.timeMetrics?.generatedAt ?? Date.now(),
                             generationMs: m.championshipRealGame.timeMetrics?.generationMs ?? realGame.timeMetrics?.generationMs ?? 0,
@@ -814,66 +825,100 @@ export const useTournamentSimulation = (
                         }
                     }
 
-                    commentary.push({ text: `${realGame.maxPly}수 진행이 완료되어 계가 중입니다...`, phase: 'end', isRandomEvent: false });
-                    setLocalTournament(prev => {
-                        if (!prev?.currentSimulatingMatch) return prev;
-                        const updated = { ...prev, currentMatchCommentary: [...commentary], rounds: prev.rounds.map(r => ({ ...r, matches: r.matches.map(m => ({ ...m })) })) };
-                        const m = updated.rounds[prev.currentSimulatingMatch.roundIndex]?.matches[prev.currentSimulatingMatch.matchIndex];
-                        if (m?.championshipRealGame) {
-                            m.championshipRealGame = {
-                                ...m.championshipRealGame,
-                                boardState: realGame.boardState,
-                                currentPly: realGame.moves.length,
-                                status: 'scoring',
-                                timeMetrics: {
-                                    generatedAt: m.championshipRealGame.timeMetrics?.generatedAt ?? realGame.timeMetrics?.generatedAt ?? Date.now(),
-                                    generationMs: m.championshipRealGame.timeMetrics?.generationMs ?? realGame.timeMetrics?.generationMs ?? 0,
-                                    playbackStartedAt: m.championshipRealGame.timeMetrics?.playbackStartedAt,
-                                    scoringStartedAt: Date.now(),
+                    const beginScoringPhase = () => {
+                        commentary.push({
+                            text: `${realGame.maxPly}수 진행이 완료되어 계가 중입니다...`,
+                            phase: 'end',
+                            isRandomEvent: false,
+                        });
+                        setLocalTournament(prev => {
+                            if (!prev?.currentSimulatingMatch) return prev;
+                            const updated = {
+                                ...prev,
+                                currentMatchCommentary: [...commentary],
+                                rounds: prev.rounds.map(r => ({ ...r, matches: r.matches.map(m => ({ ...m })) })),
+                            };
+                            const m =
+                                updated.rounds[prev.currentSimulatingMatch.roundIndex]?.matches[
+                                    prev.currentSimulatingMatch.matchIndex
+                                ];
+                            if (m?.championshipRealGame) {
+                                m.championshipRealGame = {
+                                    ...m.championshipRealGame,
+                                    boardState: realGame.boardState,
+                                    currentPly: realGame.moves.length,
+                                    lastMove:
+                                        realGame.moves.length > 0
+                                            ? {
+                                                  x: realGame.moves[realGame.moves.length - 1]!.x,
+                                                  y: realGame.moves[realGame.moves.length - 1]!.y,
+                                              }
+                                            : m.championshipRealGame.lastMove,
+                                    status: 'scoring',
+                                    timeMetrics: {
+                                        generatedAt:
+                                            m.championshipRealGame.timeMetrics?.generatedAt ??
+                                            realGame.timeMetrics?.generatedAt ??
+                                            Date.now(),
+                                        generationMs:
+                                            m.championshipRealGame.timeMetrics?.generationMs ??
+                                            realGame.timeMetrics?.generationMs ??
+                                            0,
+                                        playbackStartedAt: m.championshipRealGame.timeMetrics?.playbackStartedAt,
+                                        scoringStartedAt: Date.now(),
+                                    },
+                                };
+                            }
+                            return updated;
+                        });
+
+                        if (realMatchScoringTimeoutRef.current) {
+                            clearTimeout(realMatchScoringTimeoutRef.current);
+                        }
+                        if (playbackMatchKey) {
+                            championshipRealCompleteDispatchKeyRef.current = playbackMatchKey;
+                        }
+                        realMatchScoringTimeoutRef.current = setTimeout(() => {
+                            realMatchScoringTimeoutRef.current = null;
+                            const winner = localTournament.players.find(p => p.id === realGame.winnerId);
+                            const blackPlayer = localTournament.players.find(p => p.id === realGame.blackPlayerId);
+                            const whitePlayer = localTournament.players.find(p => p.id === realGame.whitePlayerId);
+                            commentary.push({
+                                text: `[최종계가] ${winner?.nickname ?? '승자'}, ${Math.abs(realGame.finalScore?.scoreLead ?? 0).toFixed(1)}집 승리`,
+                                phase: 'end',
+                                isRandomEvent: false,
+                            });
+                            commentary.push({
+                                text: `[경기 결과] ${matchDescription.roundName} 종료 - ${winner?.nickname ?? '승자'} 승리. 흑 ${blackPlayer?.nickname ?? '흑'} ${realGame.finalScore?.black.toFixed(1) ?? '-'}집, 백 ${whitePlayer?.nickname ?? '백'} ${realGame.finalScore?.white.toFixed(1) ?? '-'}집.`,
+                                phase: 'end',
+                                isRandomEvent: false,
+                            });
+                            const completionPayload = {
+                                type: localTournament.type,
+                                result: {
+                                    timeElapsed: realGame.moves.length,
+                                    player1Score: realGame.finalScore?.black ?? 0,
+                                    player2Score: realGame.finalScore?.white ?? 0,
+                                    commentary,
+                                    winnerId: realGame.winnerId || '',
                                 },
                             };
-                        }
-                        return updated;
-                    });
+                            void handlers.handleAction({
+                                type: 'COMPLETE_TOURNAMENT_SIMULATION',
+                                payload: completionPayload,
+                            });
+                            isSimulatingRef.current = false;
+                        }, CHAMPIONSHIP_REAL_MATCH_SCORING_DELAY_MS);
+                    };
 
-                    if (realMatchScoringTimeoutRef.current) {
-                        clearTimeout(realMatchScoringTimeoutRef.current);
+                    if (realMatchScoringTransitionTimeoutRef.current) {
+                        clearTimeout(realMatchScoringTransitionTimeoutRef.current);
                     }
-                    if (playbackMatchKey) {
-                        championshipRealCompleteDispatchKeyRef.current = playbackMatchKey;
-                    }
-                    realMatchScoringTimeoutRef.current = setTimeout(() => {
-                        realMatchScoringTimeoutRef.current = null;
-                        const winner = localTournament.players.find(p => p.id === realGame.winnerId);
-                        const blackPlayer = localTournament.players.find(p => p.id === realGame.blackPlayerId);
-                        const whitePlayer = localTournament.players.find(p => p.id === realGame.whitePlayerId);
-                        commentary.push({
-                            text: `[최종계가] ${winner?.nickname ?? '승자'}, ${Math.abs(realGame.finalScore?.scoreLead ?? 0).toFixed(1)}집 승리`,
-                            phase: 'end',
-                            isRandomEvent: false,
-                        });
-                        commentary.push({
-                            text: `[경기 결과] ${matchDescription.roundName} 종료 - ${winner?.nickname ?? '승자'} 승리. 흑 ${blackPlayer?.nickname ?? '흑'} ${realGame.finalScore?.black.toFixed(1) ?? '-'}집, 백 ${whitePlayer?.nickname ?? '백'} ${realGame.finalScore?.white.toFixed(1) ?? '-'}집.`,
-                            phase: 'end',
-                            isRandomEvent: false,
-                        });
-                        const completionPayload = {
-                            type: localTournament.type,
-                            result: {
-                                timeElapsed: realGame.moves.length,
-                                player1Score: realGame.finalScore?.black ?? 0,
-                                player2Score: realGame.finalScore?.white ?? 0,
-                                commentary,
-                                winnerId: realGame.winnerId || '',
-                            }
-                        };
-                        void handlers.handleAction({
-                            type: 'COMPLETE_TOURNAMENT_SIMULATION',
-                            payload: completionPayload,
-                        });
-                        isSimulatingRef.current = false;
-                    }, CHAMPIONSHIP_REAL_MATCH_SCORING_DELAY_MS);
-                    return; // 마지막 수에 도달했으면 다음 틱을 예약하지 않는다.
+                    realMatchScoringTransitionTimeoutRef.current = setTimeout(() => {
+                        realMatchScoringTransitionTimeoutRef.current = null;
+                        beginScoringPhase();
+                    }, postLastMoveHoldBeforeScoringMs(playbackSpeedRef.current));
+                    return;
                 }
 
                 // 다음 수: 매 틱마다 최신 배속을 읽어 적용 (사용자가 중간에 변경해도 즉시 반영).

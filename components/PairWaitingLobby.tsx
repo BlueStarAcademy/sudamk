@@ -1065,12 +1065,6 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         }
     }, [lobbyChannel, pairLobbyMobileTab]);
 
-    /** 놀이바둑 모바일: AI대결 탭을 유저목록 상단에 통합 */
-    useEffect(() => {
-        if (lobbyChannel !== 'playful') return;
-        if (pairLobbyMobileTab === 'ai') setPairLobbyMobileTab('users');
-    }, [lobbyChannel, pairLobbyMobileTab]);
-
     useEffect(() => {
         if (!aggregateLobbyMode || !currentUserWithStatus) return;
         if (isClientAdmin(currentUserWithStatus)) return;
