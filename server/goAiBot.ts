@@ -278,7 +278,12 @@ export async function computeStrategicPetKataHintMove(
     humanPlayerEnum: types.Player,
     kataLevel: number,
 ): Promise<Point | null> {
-    if (!isKataServerAvailable()) return null;
+    const logicFb = getGoLogic(game);
+    const legalFallback = (): Point | null => {
+        const legalFbMoves = findAllValidMoves(game, logicFb, humanPlayerEnum);
+        return legalFbMoves[0] ?? null;
+    };
+    if (!isKataServerAvailable()) return legalFallback();
     const opponentPlayerEnum = humanPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
     const rawMoveHistory = getMoveHistoryForKataServer(game, opponentPlayerEnum);
     const moveHistory = buildKataMoveHistory(game, rawMoveHistory, humanPlayerEnum);
@@ -302,7 +307,7 @@ export async function computeStrategicPetKataHintMove(
         const kataDetails = await generateKataServerMoveCandidateDetails(kataParamsBase);
         kataCandidates = kataDetails.candidates;
     } catch {
-        return null;
+        return legalFallback();
     }
     for (const cand of kataCandidates) {
         if (cand.x === -1 && cand.y === -1) continue;
@@ -323,9 +328,7 @@ export async function computeStrategicPetKataHintMove(
             }
         }
     }
-    const logicFb = getGoLogic(game);
-    const legalFb = findAllValidMoves(game, logicFb, humanPlayerEnum);
-    return legalFb[0] ?? null;
+    return legalFallback();
 }
 
 /** 히든 재고 p1/p2는 좌석이 아니라 흑/백 색상 기준이다. 베이스/덤으로 AI가 흑이 될 수 있어 색상에서만 파생한다. */

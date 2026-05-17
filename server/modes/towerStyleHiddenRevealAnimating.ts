@@ -34,6 +34,10 @@ async function persistAfterHiddenRevealTransition(game: types.LiveGameSession, n
     markItemPhaseStateChanged(game);
     await broadcastItemPhaseSnapshot(game);
     syncAiSession(game, aiUserId);
+    if (isAiControlledSeat(game, game.currentPlayer)) {
+        const { aiProcessingQueue } = await import('../aiProcessingQueue.js');
+        aiProcessingQueue.enqueue(game.id);
+    }
 }
 
 /**

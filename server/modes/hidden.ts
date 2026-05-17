@@ -124,6 +124,11 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                         game.aiTurnStartTime = now;
                         const { broadcastItemPhaseSnapshot } = await import('../utils/broadcastItemPhaseSnapshot.js');
                         await broadcastItemPhaseSnapshot(game);
+                        const { aiUserId } = await import('../aiPlayer.js');
+                        const { syncAiSession } = await import('../aiSessionManager.js');
+                        syncAiSession(game, aiUserId);
+                        const { aiProcessingQueue } = await import('../aiProcessingQueue.js');
+                        aiProcessingQueue.enqueue(game.id);
                         return true;
                     }
                     break;

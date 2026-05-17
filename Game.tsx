@@ -2214,29 +2214,66 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const useScanAnimationFallback =
         isSinglePlayer || isTower || isGuildWarHiddenClientEffects || isOnlineHiddenStrategic;
 
+    const needsLocalHiddenRevealFinalize =
+        isSinglePlayer || isTower || isGuildWarHiddenClientEffects;
+    const needsServerHiddenRevealNudge =
+        isOnlineHiddenStrategic &&
+        !!session.isAiGame &&
+        !isPairClassicGame(session.settings, mode);
+
     useEffect(() => {
-        if (!(isSinglePlayer || isTower || isGuildWarHiddenClientEffects)) return;
+        if (!needsLocalHiddenRevealFinalize && !needsServerHiddenRevealNudge) return;
         if ((session as any).pendingAiMoveAfterUserHiddenFullReveal) return;
-        const revealEndTime = session.revealAnimationEndTime;
+        const anim = session.animation as { type?: string; startTime?: number; duration?: number } | null | undefined;
+        const revealEndFromAnim =
+            anim?.type === 'hidden_reveal' && typeof anim.startTime === 'number'
+                ? anim.startTime + (typeof anim.duration === 'number' ? anim.duration : 2000)
+                : null;
+        const revealEndTime =
+            typeof session.revealAnimationEndTime === 'number' && session.revealAnimationEndTime > 0
+                ? session.revealAnimationEndTime
+                : revealEndFromAnim;
         const hasRevealToFinalize =
-            typeof revealEndTime === 'number' &&
+            revealEndTime != null &&
             revealEndTime > 0 &&
             (session.gameStatus === 'hidden_reveal_animating' || !!session.pendingCapture);
         if (!hasRevealToFinalize) return;
 
         const remaining = Math.max(0, revealEndTime - Date.now());
         const id = window.setTimeout(() => {
-            handlers.handleAction({
-                type: 'LOCAL_HIDDEN_REVEAL_COMPLETE',
-                payload: {
-                    gameId: session.id,
-                    gameType: isTower ? 'tower' : isGuildWarHiddenClientEffects ? 'guildwar' : 'singleplayer'
-                }
-            } as any);
+            if (needsLocalHiddenRevealFinalize) {
+                handlers.handleAction({
+                    type: 'LOCAL_HIDDEN_REVEAL_COMPLETE',
+                    payload: {
+                        gameId: session.id,
+                        gameType: isTower ? 'tower' : isGuildWarHiddenClientEffects ? 'guildwar' : 'singleplayer',
+                    },
+                } as any);
+            } else {
+                void handlers.handleAction({
+                    type: 'REQUEST_GAME_STATE_SYNC',
+                    payload: { gameId: session.id },
+                } as ServerAction);
+            }
         }, remaining + 50);
 
         return () => window.clearTimeout(id);
-    }, [session.gameStatus, session.revealAnimationEndTime, session.pendingCapture, session.id, (session as any).pendingAiMoveAfterUserHiddenFullReveal, isSinglePlayer, isTower, isGuildWarHiddenClientEffects, handlers.handleAction]);
+    }, [
+        session.gameStatus,
+        session.revealAnimationEndTime,
+        session.animation,
+        session.pendingCapture,
+        session.id,
+        session.isAiGame,
+        session.settings,
+        mode,
+        (session as any).pendingAiMoveAfterUserHiddenFullReveal,
+        needsLocalHiddenRevealFinalize,
+        needsServerHiddenRevealNudge,
+        isTower,
+        isGuildWarHiddenClientEffects,
+        handlers.handleAction,
+    ]);
 
     // 스캔 결과 애니메이션 종료 시 본경기(playing) 복귀 — 서버 updateGameStates/WS가 늦어도 착수 가능 (PVE + 온라인 히든)
     useEffect(() => {
@@ -2290,13 +2327,24 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const revealedToPlaying = prevGameStatus === 'hidden_reveal_animating' && gameStatus === 'playing';
         if (!revealedToPlaying) return;
         lastAiMoveRef.current = null;
+        setIsMoveInFlight(false);
+        strategicAiStoneLockRef.current = false;
+        strategicPetHintBoardInputLockUntilHistoryLenRef.current = null;
 
-        const isPveLikeGame =
+        const isStrategicAiLobbyKick =
+            !!session.isAiGame &&
+            !isSinglePlayer &&
+            !isTower &&
+            !isGuildWarGame &&
+            KATA_STYLE_AI_GO_MODES.has(mode) &&
+            !isPairClassicGame(session.settings, mode);
+        const needsAiKickAfterReveal =
             isTower ||
             isSinglePlayer ||
             isGuildWarGame ||
-            isAdventureGame;
-        if (!isPveLikeGame) return;
+            isAdventureGame ||
+            isStrategicAiLobbyKick;
+        if (!needsAiKickAfterReveal) return;
         if (currentPlayer !== Player.White && currentPlayer !== Player.Black) return;
         const aiSeatId = currentPlayer === Player.Black ? session.blackPlayerId : session.whitePlayerId;
         const isAiTurn =
@@ -2309,6 +2357,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         // 애니 종료→playing 전환 순간에 1회 kick을 보내 멈춤을 방지한다.
         const kickTimer = window.setTimeout(() => {
             const latestSession = sessionRefForPveAiHiddenFollowup.current;
+            if (isStrategicAiLobbyKick) {
+                void handleActionRef.current({
+                    type: 'REQUEST_GAME_STATE_SYNC',
+                    payload: { gameId: latestSession.id },
+                } as ServerAction);
+                return;
+            }
             const clientSync = buildPveItemActionClientSync(latestSession);
             void handleActionRef.current({
                 type: 'REQUEST_SERVER_AI_MOVE',
@@ -2325,7 +2380,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         currentPlayer,
         session.id,
         session.gameCategory,
+        session.settings,
+        mode,
         isSinglePlayer,
+        isTower,
+        isGuildWarGame,
         session.isAiGame,
         session.blackPlayerId,
         session.whitePlayerId,

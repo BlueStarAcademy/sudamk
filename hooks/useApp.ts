@@ -6381,6 +6381,7 @@ export const useApp = () => {
                                     action.type === 'START_HIDDEN_PLACEMENT' ||
                                     action.type === 'SCAN_BOARD' ||
                                     action.type === 'START_SINGLE_PLAYER_GAME' ||
+                                    action.type === 'REQUEST_STRATEGIC_PET_HINT' ||
                                     !currentGames[effectiveGameId];
                                 if (shouldUpdate) {
                                     const isRefresh = action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT';
@@ -6425,6 +6426,7 @@ export const useApp = () => {
                                     action.type === 'SCAN_BOARD' ||
                                     action.type === 'START_TOWER_GAME' ||
                                     action.type === 'BUY_TOWER_ITEM' ||
+                                    action.type === 'REQUEST_STRATEGIC_PET_HINT' ||
                                     !currentGames[effectiveGameId]
                                 ) {
                                     console.log('[handleAction] Updating tower game:', effectiveGameId, 'gameStatus:', game.gameStatus, 'action type:', action.type, 'existing game status:', currentGames[effectiveGameId]?.gameStatus);
@@ -6560,6 +6562,11 @@ export const useApp = () => {
                         window.location.hash = targetHash;
                     }
                     
+                    // 펫 힌트: Game.tsx ingameHandleAction이 strategicPetHint·game을 읽어야 함 (gameId만 반환하면 힌트 UI가 안 뜸)
+                    if (action.type === 'REQUEST_STRATEGIC_PET_HINT') {
+                        return result;
+                    }
+
                     // gameId를 반환하여 컴포넌트에서 사용할 수 있도록 함
                     return { gameId: effectiveGameId };
                 } else if (action.type === 'START_TOWER_GAME') {
