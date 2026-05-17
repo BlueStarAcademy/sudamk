@@ -46,6 +46,10 @@ import PairPetRpsBadge from './components/pair/PairPetRpsBadge.js';
 import { useClientTimer } from './hooks/useClientTimer.js';
 import { useIsHandheldDevice } from './hooks/useIsMobileLayout.js';
 import { useScoringOverlayPresentation } from './hooks/useScoringOverlayPresentation.js';
+import {
+    isStrategicPlaceStoneSoundMode,
+    playPlaceStoneSoundFromUserGesture,
+} from './utils/strategicPlaceStoneSound.js';
 import { calculateSimpleAiMove } from './client/goAiBotClient.js';
 import { processMoveClient } from './client/goLogicClient.js';
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from './client/logic/goLogic.js';
@@ -1978,6 +1982,19 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [session.moveHistory, session.hiddenMoves]);
     const prevMoveHistoryTail = usePrevious(moveHistoryTail);
 
+    /** 사용자 제스처(클릭·착수 확정) 직후 착수음 — 모바일에서 moveHistory 이펙트만으로는 재생이 막히는 경우 방지 */
+    const playUserPlaceStoneSoundAt = useCallback(
+        (x: number, y: number, isHidden: boolean) => {
+            if (!isStrategicPlaceStoneSoundMode(mode)) return;
+            const key = `${x},${y}:${myPlayerEnum}:${isHidden ? 1 : 0}`;
+            if (strategicPlaceSoundKeyRef.current === key) return;
+            strategicPlaceSoundKeyRef.current = key;
+            strategicPlaceHistoryLenRef.current = (session.moveHistory?.length ?? 0) + 1;
+            playPlaceStoneSoundFromUserGesture();
+        },
+        [mode, myPlayerEnum, session.moveHistory?.length],
+    );
+
     // 전략바둑·오목·따목: 착점 소리는 moveHistory 꼬리 변화 기준 (낙관적 갱신·모바일 확정·서버 응답 모두 커버)
     useEffect(() => {
         if (session.mode === GameMode.Dice || session.mode === GameMode.Thief) return;
@@ -2735,6 +2752,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
         if ((mode === GameMode.Omok || mode === GameMode.Ttamok) && gameStatus === 'playing' && isMyTurn) {
             actionType = 'OMOK_PLACE_STONE';
+            playUserPlaceStoneSoundAt(x, y, false);
         } else if (gameStatus === 'scanning' && isMyTurn) {
             audioService.stopScanBgm();
             actionType = 'SCAN_BOARD';
@@ -3122,6 +3140,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         ...(gameStatus === 'hidden_placing' ? { isHidden: true } : {}),
                     }
                 } as any);
+                playUserPlaceStoneSoundAt(x, y, gameStatus === 'hidden_placing');
                 claimStrategicPetHintBonusIfMatched(x, y, (session.moveHistory?.length || 0) + 1);
                 return;
             }
@@ -3167,6 +3186,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     tryClaimPetHintBonusOnStone(x, y);
                     strategicPetHintBoardInputLockUntilHistoryLenRef.current = (session.moveHistory?.length ?? 0) + 2;
                 }
+                playUserPlaceStoneSoundAt(x, y, !!payload.isHidden);
             }
             setIsMoveInFlight(true);
             if (isStrategicOnlinePlaceStone) {
@@ -3289,9 +3309,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.settings,
         strategicPetHintBoardOverlay,
         tryClaimPetHintBonusOnStone,
+        playUserPlaceStoneSoundAt,
     ]);
 
     const handleConfirmMove = useCallback(() => {
+        audioService.unlockFromUserGesture();
         audioService.stopTimerWarning();
         if (!pendingMove) return;
         if (gameStatus === 'ended' || gameStatus === 'no_contest' || gameStatus === 'scoring') {
@@ -3319,6 +3341,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
         if ((mode === GameMode.Omok || mode === GameMode.Ttamok) && gameStatus === 'playing' && isMyTurn) {
             actionType = 'OMOK_PLACE_STONE';
+            playUserPlaceStoneSoundAt(x, y, false);
         } else if (mode === GameMode.Dice && gameStatus === 'dice_placing' && isMyTurn && (session.stonesToPlace ?? 0) > 0) {
             if (!isDiceGoLibertyPlacement(session, x, y)) {
                 setPendingMove(null);
@@ -3456,6 +3479,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     tryClaimPetHintBonusOnStone(x, y);
                     strategicPetHintBoardInputLockUntilHistoryLenRef.current = (session.moveHistory?.length ?? 0) + 2;
                 }
+                playUserPlaceStoneSoundAt(x, y, !!payload?.isHidden);
+            } else if (
+                (actionType === 'TOWER_CLIENT_MOVE' || actionType === 'SINGLE_PLAYER_CLIENT_MOVE') &&
+                isStrategicPlaceStoneSoundMode(mode)
+            ) {
+                playUserPlaceStoneSoundAt(x, y, !!payload?.isHidden);
             }
             setIsMoveInFlight(true);
             if (isStrategicOnlinePlaceStoneConfirm) {
@@ -3586,6 +3615,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.itemUseDeadline,
         session.settings,
         strategicPetHintBoardOverlay,
+        playUserPlaceStoneSoundAt,
     ]);
 
     const handleCancelMove = useCallback(() => setPendingMove(null), []);

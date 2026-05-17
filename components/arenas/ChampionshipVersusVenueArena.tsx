@@ -25,6 +25,8 @@ import { computeChampionshipVersusDuelTicketStateForVenue } from '../../shared/u
 import { resolvePublicUrl } from '../../utils/publicAssetUrl.js';
 import { calculateTotalStats } from '../../services/statService.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { useChampionshipReplayPlaceStoneSound } from '../../hooks/useChampionshipReplayPlaceStoneSound.js';
+import { audioService } from '../../services/audioService.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import { getCurrentSeason, getVersusSeasonRemainingDaysHours } from '../../shared/utils/timeUtils.js';
 import { ArenaRightSidebarCollapseToggle } from '../game/ArenaRightSidebarCollapseToggle.js';
@@ -1059,6 +1061,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             versusKataPlyRef.current = resumeFromPly;
             versusKataPendingResultRef.current = resultPayload;
             setVersusReplayActive(true);
+            void audioService.initialize();
 
             const opponentUserId = options?.opponentUserId ?? '';
             if (opponentUserId) {
@@ -1455,6 +1458,12 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             },
         };
     }, [versusPlaybackMatch, completedVersusMatch, matchForDisplay, versusSummarySession]);
+
+    useChampionshipReplayPlaceStoneSound(
+        versusPlaybackMatch?.championshipRealGame?.currentPly,
+        versusPlaybackMatch?.id ?? `${venue}-kata-replay`,
+        Boolean(versusPlaybackMatch) && versusReplayActive,
+    );
 
     type VersusSideSeat = {
         player: PlayerForTournament;

@@ -24,6 +24,7 @@ import {
     CHAMPIONSHIP_SCORING_VEIL_DURATION_MS,
     type ChampionshipPlaybackSpeed,
 } from '../hooks/useTournamentSimulation.js';
+import { useChampionshipReplayPlaceStoneSound } from '../hooks/useChampionshipReplayPlaceStoneSound.js';
 import { findActiveChampionshipUserMatch } from '../shared/utils/championshipTournamentPreserve.js';
 import {
     TOURNAMENT_DEFINITIONS,
@@ -5994,6 +5995,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         }
         return safeRounds[0]?.matches[0] || null;
     }, [isSimulating, currentSimMatch, displayTournament, currentUser?.id, tournament.status, tournament.nextRoundStartTime, tournament.type, safeRounds, lastFinishedUserMatch, pendingRoundSwitchTo]);
+
+    useChampionshipReplayPlaceStoneSound(
+        matchForDisplay?.championshipRealGame?.currentPly,
+        matchForDisplay?.id ?? `${displayTournament.type}-championship-replay`,
+        isSimulating && (matchForDisplay?.championshipRealGame?.moves?.length ?? 0) > 0,
+    );
 
     useEffect(() => {
         if (!championshipAwaitingKataLoad) return;
