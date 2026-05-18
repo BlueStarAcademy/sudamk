@@ -27,6 +27,7 @@ import { replaceAppHash } from '../../utils/appUtils.js';
 import { getTimeUntilNextMondayKST, isSameDayKST, isDifferentWeekKST, formatDateTimeKST, getStartOfDayKST, getTodayKSTDateString } from '../../utils/timeUtils.js';
 import { getCurrentGuildBossStage, getScaledGuildBossMaxHp } from '../../utils/guildBossStageUtils.js';
 import { getGuildWarBotBoardDisplayTally } from '../../shared/utils/guildWarBoardOwner.js';
+import { useModalStackLayer } from '../../hooks/useModalStackLayer.js';
 // 고급 버튼 스타일 (길드 패널용)
 const guildPanelBtnBase =
     'inline-flex items-center justify-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-semibold tracking-wide transition-all duration-200';
@@ -669,6 +670,8 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
     const skillIconRefs = useRef<Record<string, HTMLDivElement | null>>({});
     const tooltipHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [showBossParticipantsModal, setShowBossParticipantsModal] = useState(false);
+    const guildBossSkillDetailLayer = useModalStackLayer({ enabled: Boolean(clickedSkill) });
+    const guildBossParticipantsLayer = useModalStackLayer({ enabled: showBossParticipantsModal });
 
     useEffect(() => () => {
         if (tooltipHideTimeoutRef.current) clearTimeout(tooltipHideTimeoutRef.current);
@@ -994,7 +997,8 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
                         clickedSkill &&
                         createPortal(
                             <div
-                                className="sudamr-modal-overlay z-[100000] pointer-events-auto"
+                                className="sudamr-modal-overlay pointer-events-auto"
+                                style={{ zIndex: guildBossSkillDetailLayer.zIndex }}
                                 onClick={() => setClickedSkill(null)}
                             >
                                 <div
@@ -1019,13 +1023,14 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
                                     </button>
                                 </div>
                             </div>,
-                            document.getElementById('sudamr-modal-root') ?? document.body
+                            document.body
                         )}
                     {typeof document !== 'undefined' &&
                         showBossParticipantsModal &&
                         createPortal(
                             <div
-                                className="sudamr-modal-overlay z-[100001] pointer-events-auto"
+                                className="sudamr-modal-overlay pointer-events-auto"
+                                style={{ zIndex: guildBossParticipantsLayer.zIndex }}
                                 onClick={() => setShowBossParticipantsModal(false)}
                             >
                                 <div
@@ -1057,10 +1062,10 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
                                     )}
                                 </div>
                             </div>,
-                            document.getElementById('sudamr-modal-root') ?? document.body
+                            document.body
                         )}
-                </div>
             </div>
+        </div>
     );
 };
 

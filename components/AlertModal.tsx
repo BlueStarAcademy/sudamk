@@ -22,8 +22,7 @@ const AlertModal: React.FC<AlertModalProps> = ({ title = '알림', message, onCl
             initialWidth={400}
             modal={true}
             closeOnOutsideClick={true}
-            isTopmost={isTopmost}
-            zIndex={isTopmost ? 9999 : 50}
+            isTopmost={isTopmost ?? true}
         >
             <div className="space-y-5 p-5 sm:p-6">
                 <div className="sudamr-modal-message-panel">

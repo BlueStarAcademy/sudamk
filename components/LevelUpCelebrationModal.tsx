@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useModalStackLayer } from '../hooks/useModalStackLayer.js';
 import { UserWithStatus } from '../types.js';
 import type { LevelUpCelebrationPayload } from '../types/levelUpModal.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants.js';
@@ -87,11 +88,12 @@ const LevelUpCelebrationModal: React.FC<LevelUpCelebrationModalProps> = ({ user,
     );
     const hasFeatureUnlocks = unlockLines.strategy.length > 0 || unlockLines.combined.length > 0;
 
-    const overlayZ = isTopmost ? 'z-[12050]' : 'z-[12040]';
+    const { zIndex } = useModalStackLayer({ zIndexFloor: 12_040, promoteOnMount: isTopmost });
 
     const node = (
         <div
-            className={`fixed inset-0 ${overlayZ} flex items-center justify-center overscroll-contain px-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]`}
+            className="fixed inset-0 flex items-center justify-center overscroll-contain px-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]"
+            style={{ zIndex }}
             role="dialog"
             aria-modal="true"
             aria-labelledby="level-up-celebration-title"

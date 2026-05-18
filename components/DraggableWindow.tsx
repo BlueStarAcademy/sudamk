@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, ReactNode } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, useId, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import {
     getLayoutViewportSize,
@@ -20,6 +20,13 @@ import {
 } from '../constants/ingameModalFrame.js';
 import { useInGameModalLayout } from '../contexts/InGameModalLayoutContext.js';
 import { getModalScaleFitPaddingPx } from '../utils/modalViewportPadding.js';
+import {
+    bringModalStackEntryToFront,
+    isModalStackEntryTop,
+    registerModalStackEntry,
+    subscribeModalStack,
+    unregisterModalStackEntry,
+} from '../utils/modalStack.js';
 
 /** 공지 게시판 모달과 동일한 텍스트 「닫기」 버튼 스타일 (DraggableWindow·커스텀 모달 공통) */
 export const SUDAMR_MODAL_CLOSE_BUTTON_CLASS =
@@ -380,19 +387,6 @@ function getIngameBoardCenteredDefaultPositionViewportFixed(base: { x: number; y
     };
 }
 
-// 전역 z-index 카운터: 최상위 모달이 항상 가장 높은 z-index를 가지도록 함
-let globalZIndexCounter = 10000;
-
-/**
- * 모든 모달은 "현재 보이는 모달들보다 +1"로 생성한다.
- * `zIndex`가 전달되면 그 값을 최소 기준(floor)으로만 사용한다.
- */
-function allocateNextModalZIndex(zIndexFloor?: number): number {
-    const floor = Number.isFinite(zIndexFloor as number) ? Number(zIndexFloor) : 0;
-    globalZIndexCounter = Math.max(globalZIndexCounter, floor) + 1;
-    return globalZIndexCounter;
-}
-
 const DraggableWindow: React.FC<DraggableWindowProps> = ({
     title,
     titleContent,
@@ -435,19 +429,29 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     autoViewportPortalOnSmallDesktop = false,
     skipIngameBoardFrameSizeCap = false,
 }) => {
-    // 모든 모달은 생성 시 전역 카운터에서 +1 z-index를 배정받는다.
-    const [effectiveZIndex, setEffectiveZIndex] = useState(() => {
-        return allocateNextModalZIndex(zIndex);
-    });
+    const stackEntryId = useId();
+    const [effectiveZIndex, setEffectiveZIndex] = useState(10_000);
+    const [isStackTop, setIsStackTop] = useState(false);
 
-    // `isTopmost === false`일 때도 z를 재배정하면, effect 실행 순서상 가방 등이
-    // 나중에 마운트된 모달(아이템 획득 등)보다 높은 z를 가져가 뒤에 가려질 수 있다.
-    // 전역 스택에서 "맨 위"로 올라갈 때만 카운터를 올린다.
     useLayoutEffect(() => {
-        if (isTopmost) {
-            setEffectiveZIndex(allocateNextModalZIndex(zIndex));
-        }
-    }, [isTopmost, zIndex]);
+        const syncTop = () => setIsStackTop(isModalStackEntryTop(stackEntryId));
+        setEffectiveZIndex(registerModalStackEntry(stackEntryId, zIndex));
+        syncTop();
+        const unsub = subscribeModalStack(syncTop);
+        return () => {
+            unsub();
+            unregisterModalStackEntry(stackEntryId);
+        };
+    }, [stackEntryId, zIndex]);
+
+    /** AppModalLayer 등에서 최상위로 지정된 창을 스택 맨 위로 올림 */
+    useLayoutEffect(() => {
+        if (!isTopmost) return;
+        setEffectiveZIndex(bringModalStackEntryToFront(stackEntryId, zIndex));
+    }, [isTopmost, stackEntryId, zIndex]);
+
+    /** 실제 클릭·드래그·딤 차단은 전역 스택 최상단만 */
+    const effectiveIsTopmost = isStackTop;
 
     const [position, setPosition] = useState({ x: 0, y: 0 });
 
@@ -481,7 +485,10 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         !isNativeMobile &&
         !isCompactViewport &&
         (windowWidth < 1440 || windowHeight < 820);
-    const effectiveViewportPortal = viewportPortal || useReadableSmallPcViewportPortal;
+    // 로비: modal-root(z≈60)와 body 혼용 시 z-index가 깨지므로 대국 화면이 아니면 body 포털로 통일.
+    // 대국 화면(ingameBoardFrame)은 설계 픽셀·보드 프레임 정렬을 위해 modal-root 유지.
+    const effectiveViewportPortal =
+        viewportPortal || useReadableSmallPcViewportPortal || !ingameBoardFrame;
     const modalLayerUsesDesignPixels = appModalLayerUsesDesignPixels && !effectiveViewportPortal;
 
     // PC 16:9 캔버스 안의 모달 루트(설계 픽셀)일 때만 true. 세로형 네이티브 셸에서는 false라 뷰포트·균일축소 분기가 동작함.
@@ -517,7 +524,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         if (
             onClose &&
             closeOnOutsideClick &&
-            isTopmost &&
+            effectiveIsTopmost &&
             windowRef.current
         ) {
             /** 전면·배너 광고는 모달 밖에 있으나 클릭이 document까지 올라오므로 닫기에서 제외 */
@@ -554,7 +561,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
         }
 
-    }, [onClose, closeOnOutsideClick, isTopmost, windowId]);
+    }, [onClose, closeOnOutsideClick, effectiveIsTopmost, windowId]);
 
 
 
@@ -1051,23 +1058,27 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
 
-        if (!isTopmost || e.button !== 0) return;
+        if (e.button !== 0) return;
+        if (effectiveIsTopmost) {
+            setEffectiveZIndex(bringModalStackEntryToFront(stackEntryId, zIndex));
+        }
+        if (!effectiveIsTopmost) return;
 
         handleDragStart(e.clientX, e.clientY);
 
-    }, [handleDragStart, isTopmost]);
+    }, [effectiveIsTopmost, handleDragStart, stackEntryId, zIndex]);
 
 
 
     const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
 
-        if (!isTopmost) return;
+        if (!effectiveIsTopmost) return;
 
         const touch = e.touches[0];
 
         handleDragStart(touch.clientX, touch.clientY);
 
-    }, [handleDragStart, isTopmost]);
+    }, [effectiveIsTopmost, handleDragStart]);
 
     const applyBoundsClamp = useCallback(() => {
         /** 회전 셸: visualViewport ∩ getBoundingClientRect 클램프가 매 프레임 미세히 달라져 setPosition → effect 무한 루프가 난다 */
@@ -1286,7 +1297,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     
 
-    const headerCursor = isTopmost ? 'cursor-move' : '';
+    const headerCursor = effectiveIsTopmost ? 'cursor-move' : '';
     const useLargeCorners = Boolean(containerExtraClassName?.includes('rounded-2xl'));
     const headerTopRounded = useLargeCorners ? 'rounded-t-2xl' : 'rounded-t-xl';
     const footerBottomRounded = useLargeCorners ? 'rounded-b-2xl' : 'rounded-b-xl';
@@ -1491,7 +1502,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     pointerEvents: 'auto',
                 }}
             >
-                {!isTopmost && (
+                {!effectiveIsTopmost && (
                     <div className={`absolute inset-0 z-20 cursor-not-allowed bg-black/30 ${overlayCornerRounded}`} />
                 )}
                 <div

@@ -1,5 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
+import { useModalStackLayer } from '../hooks/useModalStackLayer.js';
 import Button from './Button.js';
 import { ADVENTURE_STAGES } from '../constants/adventureConstants.js';
 
@@ -32,11 +33,12 @@ const ContentUnlockNoticeModal: React.FC<ContentUnlockNoticeModalProps> = ({
     isTopmost = true,
 }) => {
     const meta = CONTENT_META[unlockType];
-    const overlayZ = isTopmost ? 'z-[12062]' : 'z-[12048]';
+    const { zIndex } = useModalStackLayer({ zIndexFloor: 12_048, promoteOnMount: isTopmost });
 
     const node = (
         <div
-            className={`fixed inset-0 ${overlayZ} flex items-center justify-center px-3 py-3`}
+            className="fixed inset-0 flex items-center justify-center px-3 py-3"
+            style={{ zIndex }}
             role="dialog"
             aria-modal="true"
             aria-labelledby="content-unlock-title"

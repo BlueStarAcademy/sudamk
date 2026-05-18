@@ -56,8 +56,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
             shrinkHeightToContent={variant === 'premium-ledger'}
             modal={true}
             closeOnOutsideClick={true}
-            isTopmost={isTopmost}
-            zIndex={isTopmost ? 9999 : 50}
+            isTopmost={isTopmost ?? true}
             bodyScrollable={!isPremium}
             mobileViewportFit={isPremium}
             mobileViewportMaxHeightVh={90}

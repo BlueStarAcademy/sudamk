@@ -1200,6 +1200,19 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         setIsMobileItemDetailOpen(false);
         setIsMobileEquippedModalOpen(false);
     }, [bagTutorialStep]);
+    const hasInventoryChildModal =
+        showUseQuantityModal ||
+        !!itemToSell ||
+        !!itemToSellBulk ||
+        isExpandModalOpen ||
+        isRenameModalOpen ||
+        isPresetSavedModalOpen ||
+        !!pendingBindEquipItemId ||
+        !!pendingUnbindItemId ||
+        isEquipCompareOpen ||
+        (narrowInventoryLayout && isMobileEquippedModalOpen) ||
+        (narrowInventoryLayout && isMobileItemDetailOpen);
+
     const openedMobileEquipForObRef = useRef(false);
     useEffect(() => {
         if (!onboardingPhase9 || bagTutorialStep !== 3) {
@@ -1659,7 +1672,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
             title="가방"
             onClose={onClose}
             windowId="inventory"
-            isTopmost={isTopmost && !isMobileEquippedModalOpen && !isMobileItemDetailOpen}
+            isTopmost={isTopmost && !hasInventoryChildModal}
             initialWidth={calculatedWidth}
             initialHeight={calculatedHeight}
             variant="store"
@@ -3187,12 +3200,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     title="가방 확장"
                     onClose={() => setIsExpandModalOpen(false)}
                     windowId="expandInventory"
-                    isTopmost={isTopmost}
+                    isTopmost
                     variant="store"
                     initialWidth={400}
                     shrinkHeightToContent
                     bodyNoScroll
                     bodyPaddingClassName="p-0"
+                    viewportPortal={useViewportSizedBagModal}
                 >
                     <InventorySlotExpandDiamondBody
                         eyebrow="Inventory upgrade"
@@ -3213,14 +3227,14 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     title="프리셋 이름 변경"
                     onClose={() => setIsRenameModalOpen(false)}
                     windowId="renamePreset"
-                    isTopmost={isTopmost && !isExpandModalOpen}
-                    zIndex={78}
+                    isTopmost
                     variant="store"
                     initialWidth={400}
                     initialHeight={344}
                     mobileViewportFit
                     mobileViewportMaxHeightCss="min(88dvh, calc(100dvh - 16px))"
                     bodyPaddingClassName="!p-2 sm:!p-3"
+                    viewportPortal={useViewportSizedBagModal}
                 >
                     <div className="flex flex-col gap-3 p-1">
                         <div
@@ -3304,6 +3318,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     initialWidth={460}
                     initialHeight={300}
                     bodyNoScroll
+                    viewportPortal={useViewportSizedBagModal}
                 >
                     <div className="flex h-full flex-col justify-between gap-5 p-5">
                         <p className="whitespace-pre-line text-center text-sm leading-relaxed text-slate-100">
@@ -3332,6 +3347,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     initialWidth={460}
                     initialHeight={560}
                     bodyNoScroll
+                    viewportPortal={useViewportSizedBagModal}
                 >
                     <div className="flex h-full flex-col gap-3 p-3 text-slate-100">
                         <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-slate-950/90 to-zinc-950/95 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
