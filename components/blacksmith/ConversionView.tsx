@@ -5,6 +5,7 @@ import ResourceActionButton from '../ui/ResourceActionButton.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { MATERIAL_ITEMS } from '../../constants';
 import { BLACKSMITH_DISASSEMBLY_JACKPOT_RATES } from '../../constants/rules.js';
+import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
 
 const CraftingDetailModal: React.FC<{
     details: { materialName: string, craftType: 'upgrade' | 'downgrade' };
@@ -144,7 +145,7 @@ const CraftingDetailModal: React.FC<{
                     <div className="bg-gradient-to-br from-[#101a2f] via-[#0c1527] to-[#09101d] border border-cyan-300/20 rounded-xl p-3 text-center text-sm text-cyan-200/90 leading-relaxed">
                         대박 확률{' '}
                         <span className="text-emerald-300 font-semibold">
-                            {BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[Math.max(0, blacksmithLevel - 1)]}%
+                            {formatBlacksmithPercentInt(BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[Math.max(0, blacksmithLevel - 1)])}%
                         </span>
                     </div>
                 </div>

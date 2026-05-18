@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { InventoryItem, ServerAction, ItemGrade, EquipmentSlot, UserWithStatus } from '../../types.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
 import { BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES } from '../../constants/rules.js';
+import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
 
 const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; }> = {
     normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
@@ -97,7 +98,7 @@ const OutcomeProbability: React.FC<{ items: (InventoryItem | null)[], isRandom: 
                 {probabilities.map(([slot, prob]) => (
                     <div key={slot} className="flex justify-between">
                         <span className="text-slate-400">{SLOT_NAMES_KO[slot]}:</span>
-                        <span className="font-semibold text-emerald-200">{(prob * 100).toFixed(1)}%</span>
+                        <span className="font-semibold text-emerald-200">{formatBlacksmithPercentInt(prob * 100)}%</span>
                     </div>
                 ))}
             </div>
@@ -127,11 +128,11 @@ const GradeProbability: React.FC<{ items: (InventoryItem | null)[], currentUser:
             <div className="grid grid-cols-2 gap-x-4 text-[11px]">
                 <div className="flex justify-between">
                     <span className="text-slate-400">성공:</span>
-                    <span className="font-semibold text-emerald-200">{probabilities.successRate.toFixed(1)}%</span>
+                    <span className="font-semibold text-emerald-200">{formatBlacksmithPercentInt(probabilities.successRate)}%</span>
                 </div>
                 <div className="flex justify-between">
                     <span className="text-yellow-400">대성공:</span>
-                    <span className="font-semibold text-amber-200">{probabilities.greatSuccessRate.toFixed(1)}%</span>
+                    <span className="font-semibold text-amber-200">{formatBlacksmithPercentInt(probabilities.greatSuccessRate)}%</span>
                 </div>
             </div>
         </div>

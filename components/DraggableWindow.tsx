@@ -758,13 +758,22 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     /**
      * 스케일 캔버스 밖에서만, 뷰포트 맞춤·uniformPcScale이 아닐 때 실측 균일 scale.
      * 좁은 뷰포트·네이티브에서는 사용하지 않음(PC 축소형 모달 방지).
+     * `bodyScrollable`+설계 높이가 있는 모달(퀘스트·우편함 등)은 창 전체를 축소하지 않고 본문 스크롤을 유지한다.
      */
+    const prefersScrollableDesignFrame =
+        bodyScrollable &&
+        !bodyShrinkToContent &&
+        !shrinkHeightToContent &&
+        resolvedInitialHeight != null &&
+        resolvedInitialHeight >= 400;
+
     const useCompactScaleToFitLayout =
         !modalLayerUsesDesignPixels &&
         !useMobileViewportFitLayout &&
         !useUniformPcScaleLayout &&
         !effectiveIsCompactViewport &&
-        !isNativeMobile;
+        !isNativeMobile &&
+        !prefersScrollableDesignFrame;
 
     /** 실측 scale: 본문이 flex-1에 눌려 잘리지 않도록 자연 높이 (아래 containerBaseClass보다 먼저 선언) */
     const bodyScaleToFitNaturalLayout = useCompactScaleToFitLayout;

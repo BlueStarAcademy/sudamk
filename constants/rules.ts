@@ -202,8 +202,8 @@ function buildBlacksmithCombinationGreatSuccessRates(): CombinationGreatSuccessR
         };
         if (L >= 2) row.rare = Math.min(100, 30 + (L - 2) * 10);
         if (L >= 3) row.epic = Math.min(100, 30 + (L - 3) * 5);
-        if (L >= 4) row.legendary = Math.min(100, 10 + (L - 4) * (35 / 16));
-        if (L >= 5) row.mythic = Math.min(100, 10 + (L - 5) * (25 / 15));
+        if (L >= 4) row.legendary = Math.min(100, Math.round(10 + (L - 4) * (35 / 16)));
+        if (L >= 5) row.mythic = Math.min(100, Math.round(10 + (L - 5) * (25 / 15)));
         out.push(row);
     }
     return out;

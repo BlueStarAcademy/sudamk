@@ -9,11 +9,7 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import { MythicSubsPartitioned } from '../MythicSubsPartitioned.js';
 import { formatSpecialSubLineForPanel } from '../../shared/utils/specialStatMilestones.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
-
-const formatEnhancePercent = (n: number): string => {
-    const rounded = Math.round(n * 10) / 10;
-    return Number.isInteger(rounded) ? `${rounded}` : rounded.toFixed(1);
-};
+import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
 
 const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; }> = {
     normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
@@ -413,11 +409,11 @@ useEffect(() => {
         selectedItem.stars >= 10 ? 0 : Math.min(100, baseSuccessRate + failBonus + vipEnhanceBonus);
     const successRateBreakdownParts: string[] = [];
     if (selectedItem.stars < 10) {
-        successRateBreakdownParts.push(`기본 ${baseSuccessRate}%`);
-        if (failBonus > 0) successRateBreakdownParts.push(`실패 보너스 +${formatEnhancePercent(failBonus)}%`);
-        if (vipEnhanceBonus > 0) successRateBreakdownParts.push(`기능 VIP +${vipEnhanceBonus}%`);
+        successRateBreakdownParts.push(`기본 ${formatBlacksmithPercentInt(baseSuccessRate)}%`);
+        if (failBonus > 0) successRateBreakdownParts.push(`실패 보너스 +${formatBlacksmithPercentInt(failBonus)}%`);
+        if (vipEnhanceBonus > 0) successRateBreakdownParts.push(`기능 VIP +${formatBlacksmithPercentInt(vipEnhanceBonus)}%`);
     }
-    const successRateDisplay = selectedItem.stars >= 10 ? '—' : `${formatEnhancePercent(totalSuccessRate)}%`;
+    const successRateDisplay = selectedItem.stars >= 10 ? '—' : `${formatBlacksmithPercentInt(totalSuccessRate)}%`;
 
     const handleEnhanceClick = () => {
         if (!canEnhance || isEnhancing || !selectedItem) return;

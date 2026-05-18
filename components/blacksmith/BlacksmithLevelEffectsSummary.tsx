@@ -6,6 +6,7 @@ import {
     BLACKSMITH_DISASSEMBLY_JACKPOT_RATES,
 } from '../../constants/rules.js';
 import { ItemGrade } from '../../types/enums.js';
+import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
 
 const GRADE_ORDER: ItemGrade[] = [
     ItemGrade.Normal,
@@ -84,12 +85,12 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
                     <div className="flex justify-between gap-2">
                         <span>장비 분해 대박 확률</span>
                         <span>
-                            {BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[currentLevelIndex]}%
+                            {formatBlacksmithPercentInt(BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[currentLevelIndex])}%
                             {disassemblyJackpotBonusPercent > 0 && (
-                                <span className="text-emerald-300"> (+{disassemblyJackpotBonusPercent}%)</span>
+                                <span className="text-emerald-300"> (+{formatBlacksmithPercentInt(disassemblyJackpotBonusPercent)}%)</span>
                             )}
                             {!isMaxLevel && (
-                                <span className="text-yellow-400"> → {BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[nextLevelIndex]}%</span>
+                                <span className="text-yellow-400"> → {formatBlacksmithPercentInt(BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[nextLevelIndex])}%</span>
                             )}
                         </span>
                     </div>
@@ -98,12 +99,12 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
                     <div className="flex justify-between gap-2">
                         <span>재료 분해/합성 대박 확률</span>
                         <span>
-                            {BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[currentLevelIndex]}%
+                            {formatBlacksmithPercentInt(BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[currentLevelIndex])}%
                             {disassemblyJackpotBonusPercent > 0 && (
-                                <span className="text-emerald-300"> (+{disassemblyJackpotBonusPercent}%)</span>
+                                <span className="text-emerald-300"> (+{formatBlacksmithPercentInt(disassemblyJackpotBonusPercent)}%)</span>
                             )}
                             {!isMaxLevel && (
-                                <span className="text-yellow-400"> → {BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[nextLevelIndex]}%</span>
+                                <span className="text-yellow-400"> → {formatBlacksmithPercentInt(BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[nextLevelIndex])}%</span>
                             )}
                         </span>
                     </div>
@@ -124,12 +125,12 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
                                     {currentGradeName} → {nextGradeName}
                                 </span>
                                 <span>
-                                    {rate}%
+                                    {formatBlacksmithPercentInt(rate)}%
                                     {combinationGreatSuccessBonusPercent > 0 && (
-                                        <span className="text-emerald-300"> (+{combinationGreatSuccessBonusPercent}%)</span>
+                                        <span className="text-emerald-300"> (+{formatBlacksmithPercentInt(combinationGreatSuccessBonusPercent)}%)</span>
                                     )}
                                     {!isMaxLevel && nextRate !== undefined && (
-                                        <span className="text-yellow-400"> → {nextRate}%</span>
+                                        <span className="text-yellow-400"> → {formatBlacksmithPercentInt(nextRate)}%</span>
                                     )}
                                 </span>
                             </div>

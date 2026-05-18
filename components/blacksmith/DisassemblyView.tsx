@@ -11,6 +11,7 @@ import {
     MATERIAL_ITEMS,
 } from '../../constants';
 import { BLACKSMITH_DISASSEMBLY_JACKPOT_RATES } from '../../constants/rules.js';
+import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
 
 const gradeStyles: Record<ItemGrade, { color: string; background: string }> = {
     normal: { color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
@@ -182,7 +183,7 @@ const DisassemblyPreviewPanel: React.FC<{
     selectedCount,
 }) => {
     const jackpotRatePct = BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[Math.max(0, blacksmithLevel - 1)];
-    const jackpotHint = `${jackpotRatePct}%확률로 대박 발생(재료2배)`;
+    const jackpotHint = `${formatBlacksmithPercentInt(jackpotRatePct)}%확률로 대박 발생(재료2배)`;
 
     const { rangeMap, totalMaterials, itemCount } = useMemo(() => {
         const selectedItems = inventory.filter(item => selectedIds.has(item.id));
