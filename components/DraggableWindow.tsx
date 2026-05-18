@@ -478,13 +478,21 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const [windowHeight, setWindowHeight] = useState(() =>
         typeof window !== 'undefined' ? window.innerHeight : 1080,
     );
+    const isSmallPcViewport = windowWidth < 1180 || windowHeight < 820;
+    const isScrollableDesignFrameCandidate =
+        bodyScrollable &&
+        !bodyNoScroll &&
+        !bodyShrinkToContent &&
+        !shrinkHeightToContent &&
+        typeof initialHeight === 'number' &&
+        initialHeight >= 400;
     const useReadableSmallPcViewportPortal =
         !viewportPortal &&
-        autoViewportPortalOnSmallDesktop &&
         appModalLayerUsesDesignPixels &&
         !isNativeMobile &&
         !isCompactViewport &&
-        (windowWidth < 1440 || windowHeight < 820);
+        (autoViewportPortalOnSmallDesktop || isSmallPcViewport) &&
+        !isScrollableDesignFrameCandidate;
     // 로비: modal-root(z≈60)와 body 혼용 시 z-index가 깨지므로 대국 화면이 아니면 body 포털로 통일.
     // 대국 화면(ingameBoardFrame)은 설계 픽셀·보드 프레임 정렬을 위해 modal-root 유지.
     const effectiveViewportPortal =

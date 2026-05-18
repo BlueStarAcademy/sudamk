@@ -183,7 +183,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
     /** 이미지 열(3fr) 안에서 정사각형 — 상세(모달·로비 패널)는 max 제한 완화로 실제 픽셀 확대 */
     const imgShellClass = isPanelFit
         ? `relative aspect-square w-full overflow-hidden rounded-lg border border-white/20 bg-gradient-to-b from-zinc-800/95 to-black/90 shadow-inner ${
-              homePack ? 'max-w-[3.65rem] sm:max-w-[3.95rem]' : 'max-w-full'
+              homePack ? 'max-w-[3.65rem] sm:max-w-[3.95rem]' : 'max-w-[clamp(4.75rem,18vw,6.5rem)]'
           } ${transcendentSlot}`
         : isModal
           ? `relative aspect-square w-full max-w-full overflow-hidden rounded-xl border border-white/20 bg-zinc-950 shadow-inner sm:rounded-2xl ${transcendentSlot}`
@@ -373,8 +373,9 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                 currentUser={currentUser}
                 item={item}
                 statsGridVariant={isPanelFit ? 'modal' : isModal ? 'modal' : 'panel'}
+                layout={isPanelFit ? 'dense' : undefined}
                 dense={false}
-                coreGridDensity={undefined}
+                coreGridDensity={isPanelFit ? 'compact' : undefined}
                 mobileHomeRepPet={homePack}
                 enlargeHomeRepPhaseStrip={enlargeHomeRepPhaseStrip}
             />

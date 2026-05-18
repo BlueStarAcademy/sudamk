@@ -162,6 +162,7 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                         item={item}
                         showRepresentativeBadge={isRepresentative}
                         detailVariant={embedDetailVariant}
+                        suppressDetailFitScale={embedDetailVariant === 'panelFit'}
                     />
                 </div>
             </div>
