@@ -8356,6 +8356,9 @@ export const useApp = () => {
                                 const isMissileAnimExitToPlaying =
                                     existingForThrottle?.gameStatus === 'missile_animating' &&
                                     game.gameStatus === 'playing';
+                                const isMissileSelectExitToPlaying =
+                                    existingForThrottle?.gameStatus === 'missile_selecting' &&
+                                    game.gameStatus === 'playing';
                                 // 주사위/도둑 오버샷(또는 굴림 애니 종료) 후 rolling 단계로 복귀할 때
                                 // moveHistory 변화가 없어도 currentPlayer가 바뀔 수 있으므로 반드시 반영
                                 const isDiceThiefAnimExitToRolling =
@@ -8439,6 +8442,7 @@ export const useApp = () => {
                                     !isMissileSelectToAnimating &&
                                     !isMissileAnimatingEntry &&
                                     !isMissileAnimExitToPlaying &&
+                                    !isMissileSelectExitToPlaying &&
                                     !disconnectStateChanged &&
                                     !isAiHiddenItemPresentationUpdate &&
                                     !incomingHasSubstantiveBoard &&

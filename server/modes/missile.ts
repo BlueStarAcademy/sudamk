@@ -11,15 +11,18 @@ import {
 } from './towerPlayerHidden.js';
 import {
     getCurrentPairTurnSeat,
+    isPairAiSeat,
     isPairClassicGame,
     pairSeatMatchesViewerUser,
 } from '../../shared/utils/pairGameTurn.js';
+import { schedulePairAiTurnIfNeeded } from '../utils/pairAiTurnSchedule.js';
 import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../../shared/utils/baseHiddenMoveIndex.js';
 import {
     finalizeItemPhase,
     markItemPhaseStateChanged,
     tryFinalizeMissileFlightFromAnimationState,
+    type FinalizeItemPhaseOptions,
 } from './finalizeItemPhase.js';
 import { relocateMissileStoneMetadata } from './missileBoardUtils.js';
 import { isMissileFlightAnimationType } from '../../shared/utils/itemPhaseAnimationTypes.js';
@@ -186,63 +189,114 @@ function calculateMissilePath(
     return { to: current, revealedHiddenStone };
 }
 
+function resolveMissileTimeoutDisplayName(
+    game: types.LiveGameSession,
+    timedOutPlayerId: string,
+): string {
+    const pairSeat = isPairClassicGame(game.settings, game.mode)
+        ? getCurrentPairTurnSeat(game.settings)
+        : null;
+    if (pairSeat?.name) return pairSeat.name;
+    return game.player1.id === timedOutPlayerId ? game.player1.nickname : game.player2.nickname;
+}
+
+/** missile_selecting 고착/타임아웃 → playing 복귀 (페어 AI는 큐 재스케줄 포함) */
+function recoverFromMissileSelectionTimeout(game: types.LiveGameSession, now: number, reason: 'deadline' | 'stuck'): boolean {
+    if (game.gameStatus !== 'missile_selecting') return false;
+
+    const timedOutPlayerEnum = game.currentPlayer;
+    const pairSeat = isPairClassicGame(game.settings, game.mode) ? getCurrentPairTurnSeat(game.settings) : null;
+    const timedOutPlayerId =
+        pairSeat?.participantId ??
+        (timedOutPlayerEnum === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!);
+
+    console.log(
+        `[Missile Go] Item selection recovered (${reason}) for game ${game.id}, participant ${timedOutPlayerId}, restoring game state`,
+    );
+
+    game.foulInfo = {
+        message: `${resolveMissileTimeoutDisplayName(game, timedOutPlayerId)}님의 아이템 시간 초과!`,
+        expiry: now + 4000,
+    };
+    game.gameStatus = 'playing';
+    game.animation = null;
+    game.currentPlayer = pairSeat?.player ?? timedOutPlayerEnum;
+    game.missileUsedThisTurn = false;
+
+    const missileKey = game.currentPlayer === types.Player.Black ? 'missiles_p1' : 'missiles_p2';
+    const currentMissiles = game[missileKey] ?? game.settings.missileCount ?? 0;
+    if (currentMissiles > 0) {
+        game[missileKey] = currentMissiles - 1;
+    }
+
+    if (game.gameCategory === 'tower' && timedOutPlayerId === game.player1?.id) {
+        void persistTowerP1ConsumableDecrement(game.player1.id, 'missile');
+    }
+
+    const timerResumed = resumeGameTimer(game, now, game.currentPlayer);
+    if (!timerResumed) {
+        game.itemUseDeadline = undefined;
+        game.pausedTurnTimeLeft = undefined;
+        game.turnDeadline = undefined;
+        game.turnStartTime = undefined;
+    }
+
+    if (pairSeat) {
+        if (isPairAiSeat(pairSeat)) {
+            schedulePairAiTurnIfNeeded(game, now);
+        } else {
+            game.aiTurnStartTime = undefined;
+        }
+    }
+
+    markItemPhaseStateChanged(game);
+    return true;
+}
+
+function finalizeMissileFlightInUpdateLoop(
+    game: types.LiveGameSession,
+    now: number,
+    options: Parameters<typeof tryFinalizeMissileFlightFromAnimationState>[2],
+): boolean {
+    const resolved = tryFinalizeMissileFlightFromAnimationState(game, now, options);
+    if (!resolved) return false;
+    const pairSeat = isPairClassicGame(game.settings, game.mode) ? getCurrentPairTurnSeat(game.settings) : null;
+    if (pairSeat && isPairAiSeat(pairSeat) && game.gameStatus === 'playing') {
+        schedulePairAiTurnIfNeeded(game, now);
+    }
+    return true;
+}
+
+function finalizeMissileCleanupInUpdateLoop(
+    game: types.LiveGameSession,
+    now: number,
+    options: FinalizeItemPhaseOptions,
+): boolean {
+    const resolved = finalizeItemPhase(game, 'missile', now, options) as boolean;
+    if (!resolved) return false;
+    const pairSeat = isPairClassicGame(game.settings, game.mode) ? getCurrentPairTurnSeat(game.settings) : null;
+    if (pairSeat && isPairAiSeat(pairSeat) && game.gameStatus === 'playing') {
+        schedulePairAiTurnIfNeeded(game, now);
+    }
+    return true;
+}
+
 export const updateMissileState = (game: types.LiveGameSession, now: number): boolean => {
     // 방어 로직: 미사일 선택 모드인데 deadline이 비어 있으면 상태 고착을 방지하기 위해 즉시 복귀
     if (game.gameStatus === 'missile_selecting' && !game.itemUseDeadline) {
-        const timedOutPlayerEnum = game.currentPlayer;
-        game.gameStatus = 'playing';
-        game.currentPlayer = timedOutPlayerEnum;
-        const resumed = resumeGameTimer(game, now, timedOutPlayerEnum);
-        if (!resumed) {
-            game.itemUseDeadline = undefined;
-            game.pausedTurnTimeLeft = undefined;
-            game.turnDeadline = undefined;
-            game.turnStartTime = undefined;
-        }
-        return true;
+        return recoverFromMissileSelectionTimeout(game, now, 'stuck');
     }
 
     // 아이템 사용 시간 초과 처리
     if (game.gameStatus === 'missile_selecting' && game.itemUseDeadline && now > game.itemUseDeadline) {
-        const timedOutPlayerEnum = game.currentPlayer;
-        const timedOutPlayerId = timedOutPlayerEnum === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
-        
-        console.log(`[Missile Go] Item use deadline expired for game ${game.id}, player ${timedOutPlayerId}, restoring game state`);
-        
-        game.foulInfo = { 
-            message: `${game.player1.id === timedOutPlayerId ? game.player1.nickname : game.player2.nickname}님의 아이템 시간 초과!`, 
-            expiry: now + 4000 
-        };
-        game.gameStatus = 'playing';
-        game.currentPlayer = timedOutPlayerEnum;
-
-        // 미사일 아이템 소멸 (p1/p2는 흑/백 — player1 좌석과 무관)
-        const missileKey = timedOutPlayerEnum === types.Player.Black ? 'missiles_p1' : 'missiles_p2';
-        const currentMissiles = game[missileKey] ?? game.settings.missileCount ?? 0;
-        if (currentMissiles > 0) {
-            game[missileKey] = currentMissiles - 1;
-        }
-
-        if (game.gameCategory === 'tower' && timedOutPlayerId === game.player1?.id) {
-            void persistTowerP1ConsumableDecrement(game.player1.id, 'missile');
-        }
-
-        // 원래 경기 시간 복원 (턴 유지)
-        const timerResumed = resumeGameTimer(game, now, timedOutPlayerEnum);
-        if (!timerResumed) {
-            game.itemUseDeadline = undefined;
-            game.pausedTurnTimeLeft = undefined;
-            game.turnDeadline = undefined;
-            game.turnStartTime = undefined;
-        }
-        return true; // 게임 상태가 변경되었음을 반환
+        return recoverFromMissileSelectionTimeout(game, now, 'deadline');
     }
     
     // 애니메이션 처리
     if (game.gameStatus === 'missile_animating') {
         if (!game.animation) {
             console.warn(`[updateMissileState] Game ${game.id} has missile_animating status but no animation, cleaning up...`);
-            return finalizeItemPhase(game, 'missile', now, { cleanupOnly: true, reason: 'no-animation' });
+            return finalizeMissileCleanupInUpdateLoop(game, now, { cleanupOnly: true, reason: 'no-animation' });
         }
 
         const anim = game.animation;
@@ -252,7 +306,7 @@ export const updateMissileState = (game: types.LiveGameSession, now: number): bo
                     `[updateMissileState] Game ${game.id} has missile_animating status but animation type is ${game.animation.type}, cleaning up...`,
                 );
             }
-            return finalizeItemPhase(game, 'missile', now, { cleanupOnly: true, reason: 'wrong-animation-type' });
+            return finalizeMissileCleanupInUpdateLoop(game, now, { cleanupOnly: true, reason: 'wrong-animation-type' });
         }
 
         const elapsed = now - anim.startTime;
@@ -261,7 +315,7 @@ export const updateMissileState = (game: types.LiveGameSession, now: number): bo
         const lastProcessedAnimationTime = (game as any).lastProcessedMissileAnimationTime;
 
         if (lastProcessedAnimationTime === animationStartTime) {
-            return finalizeItemPhase(game, 'missile', now, {
+            return finalizeMissileCleanupInUpdateLoop(game, now, {
                 cleanupOnly: true,
                 animationStartTime,
                 reason: 'duplicate-processed',
@@ -269,7 +323,7 @@ export const updateMissileState = (game: types.LiveGameSession, now: number): bo
         }
 
         if (elapsed >= duration) {
-            return tryFinalizeMissileFlightFromAnimationState(game, now, {
+            return finalizeMissileFlightInUpdateLoop(game, now, {
                 animationStartTime,
                 reason: 'elapsed-complete',
             });
@@ -279,7 +333,7 @@ export const updateMissileState = (game: types.LiveGameSession, now: number): bo
             console.warn(
                 `[updateMissileState] Game ${game.id} animation should have ended (elapsed=${elapsed}ms, duration=${duration}ms), forcing cleanup...`,
             );
-            return tryFinalizeMissileFlightFromAnimationState(game, now, {
+            return finalizeMissileFlightInUpdateLoop(game, now, {
                 animationStartTime,
                 reason: 'over-duration-grace',
             });
@@ -290,7 +344,7 @@ export const updateMissileState = (game: types.LiveGameSession, now: number): bo
             console.warn(
                 `[updateMissileState] Game ${game.id} animation exceeded max duration (elapsed=${elapsed}ms), forcing cleanup...`,
             );
-            return tryFinalizeMissileFlightFromAnimationState(game, now, {
+            return finalizeMissileFlightInUpdateLoop(game, now, {
                 animationStartTime,
                 reason: 'max-duration',
             });

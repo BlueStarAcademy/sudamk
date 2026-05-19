@@ -3,6 +3,7 @@ import { GameMode, Player } from '../../../shared/types/enums.js';
 import type { LiveGameSession } from '../../../shared/types/index.js';
 import { resolveArenaSessionPolicy } from '../../../shared/utils/liveSessionArenaKind.js';
 import { finalizeItemPhase } from '../../modes/finalizeItemPhase.js';
+import { updateMissileState } from '../../modes/missile.js';
 import { buildItemPhaseGameUpdatePayload } from '../../utils/broadcastItemPhaseSnapshot.js';
 import {
     mergeGameUpdateByArena,
@@ -87,6 +88,26 @@ describe('pair AI missile item phase', () => {
         });
         const payload = buildItemPhaseGameUpdatePayload(game)[game.id]!;
         expect(payload.animation).toBeNull();
+    });
+
+    it('missile_selecting timeout returns to playing and clears item timers for pair AI seat', () => {
+        const game = pairAiMissileSession();
+        game.gameStatus = 'missile_selecting';
+        game.animation = null;
+        game.itemUseDeadline = 5000;
+        game.pausedTurnTimeLeft = 10;
+        game.missiles_p2 = 2;
+        game.settings.pairGame!.currentTurnIndex = 1;
+
+        const changed = updateMissileState(game, 6000);
+
+        expect(changed).toBe(true);
+        expect(game.gameStatus).toBe('playing');
+        expect(game.animation).toBeNull();
+        expect(game.itemUseDeadline).toBeUndefined();
+        expect(game.pausedTurnTimeLeft).toBeUndefined();
+        expect(game.missiles_p2).toBe(1);
+        expect(game.currentPlayer).toBe(Player.White);
     });
 
     it('mergeGameUpdateByArena clears stale missile animation for pair playing packet', () => {
