@@ -1332,7 +1332,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     // 계가/종료 직후에는 sessionStorage를 더 이상 덮어쓰지 않아(아래 useEffect), 저장분이 마지막 playing의 포획 반영 판이고
                     // 서버가 포석+수순만으로 재구성한 보드면 따낸 돌이 다시 보인다(튜토리얼 USER_UPDATE 등 한 번 더 동기화될 때 포함).
                     if (
-                        (isSinglePlayer || isTower) &&
+                        (isSinglePlayer || isTower || isAdventureGame) &&
                         serverMoveCount === storedMoveCount &&
                         session.boardState &&
                         Array.isArray(session.boardState) &&

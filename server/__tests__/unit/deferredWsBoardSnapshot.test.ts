@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { Player } from '../../../types/index.js';
-import { resolvePveScoringBoardAndMoveHistory } from '../../../utils/deferredWsBoardSnapshot.js';
+import {
+    resolvePveScoringBoardAndMoveHistory,
+    resolveStrategicPvePlayingBoardAndMoveHistory,
+} from '../../../utils/deferredWsBoardSnapshot.js';
 import type { LiveGameSession } from '../../../types/index.js';
 
 const boardWithWhiteAtCenter = (): number[][] => [
@@ -48,6 +51,44 @@ describe('resolvePveScoringBoardAndMoveHistory', () => {
         } as LiveGameSession;
 
         const resolved = resolvePveScoringBoardAndMoveHistory(server, client);
+        expect(resolved.moveHistory).toHaveLength(2);
+        expect(resolved.boardState?.[1]?.[1]).toBe(Player.White);
+    });
+});
+
+describe('resolveStrategicPvePlayingBoardAndMoveHistory', () => {
+    it('prefers server board when server moveHistory is ahead (AI move with full board)', () => {
+        const server = {
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 1, y: 1, player: Player.White },
+            ],
+            boardState: boardWithWhiteAtCenter(),
+        } as LiveGameSession;
+        const client = {
+            moveHistory: [{ x: 0, y: 0, player: Player.Black }],
+            boardState: boardWithoutWhite(),
+        } as LiveGameSession;
+
+        const resolved = resolveStrategicPvePlayingBoardAndMoveHistory(server, client);
+        expect(resolved.moveHistory).toHaveLength(2);
+        expect(resolved.boardState?.[1]?.[1]).toBe(Player.White);
+    });
+
+    it('keeps client board when client moveHistory is ahead and server sent slim packet', () => {
+        const server = {
+            moveHistory: [{ x: 0, y: 0, player: Player.Black }],
+            boardState: undefined,
+        } as LiveGameSession;
+        const client = {
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 1, y: 1, player: Player.White },
+            ],
+            boardState: boardWithWhiteAtCenter(),
+        } as LiveGameSession;
+
+        const resolved = resolveStrategicPvePlayingBoardAndMoveHistory(server, client);
         expect(resolved.moveHistory).toHaveLength(2);
         expect(resolved.boardState?.[1]?.[1]).toBe(Player.White);
     });

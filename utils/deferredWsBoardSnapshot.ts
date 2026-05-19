@@ -72,3 +72,48 @@ export function resolvePveScoringBoardAndMoveHistory(
 
     return { boardState, moveHistory };
 }
+
+/**
+ * 모험·길드전 등 PVE 전략 대국 playing GAME_UPDATE:
+ * 슬림 패킷(수순만·턴·시계)과 풀 보드 패킷이 섞일 때 판·수순을 한 쌍으로 맞춘다.
+ * moveHistory만으로 판을 재구성하면 포획이 빠져 돌이 사라지거나 다른 교차점으로 보인다.
+ */
+export function resolveStrategicPvePlayingBoardAndMoveHistory(
+    server: LiveGameSession,
+    client: LiveGameSession | undefined,
+): {
+    boardState: LiveGameSession['boardState'];
+    moveHistory: LiveGameSession['moveHistory'];
+} {
+    const clientSnap = client ?? server;
+    const serverMhLen = wsSessionMoveHistoryLen(server);
+    const clientMhLen = wsSessionMoveHistoryLen(clientSnap);
+    const serverBoardOk = isSubstantiveBoardState(server.boardState);
+    const clientBoardOk = isSubstantiveBoardState(clientSnap.boardState);
+
+    let moveHistory: LiveGameSession['moveHistory'];
+    if (serverMhLen > clientMhLen) {
+        moveHistory = server.moveHistory;
+    } else if (clientMhLen > serverMhLen) {
+        moveHistory = clientSnap.moveHistory;
+    } else if (serverMhLen > 0) {
+        moveHistory = server.moveHistory ?? clientSnap.moveHistory;
+    } else {
+        moveHistory = clientSnap.moveHistory ?? server.moveHistory;
+    }
+
+    let boardState: LiveGameSession['boardState'];
+    if (serverBoardOk && serverMhLen >= clientMhLen) {
+        boardState = server.boardState;
+    } else if (clientBoardOk && clientMhLen > serverMhLen) {
+        boardState = clientSnap.boardState;
+    } else if (serverBoardOk) {
+        boardState = server.boardState;
+    } else if (clientBoardOk) {
+        boardState = clientSnap.boardState;
+    } else {
+        boardState = server.boardState ?? clientSnap.boardState;
+    }
+
+    return { boardState, moveHistory };
+}
