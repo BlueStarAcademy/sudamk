@@ -23,6 +23,7 @@ import {
   pairPetLobbyInventorySlots,
 } from "../../shared/constants/petLobby.js";
 import { reconcileEquippedPairPetInventoryItem } from "../../shared/utils/pairEquippedPet.js";
+import { reconcileExchangeListedInventoryFlags } from "../../shared/utils/exchangeInventorySync.js";
 import { normalizePairPetTrainingSlots } from "../../shared/constants/pairTraining.js";
 import {
     normalizePairPetHatcherySessions,
@@ -313,29 +314,6 @@ export type PrismaUserWithStatus = Prisma.UserGetPayload<{ include: { status: tr
     createdAt: Date;
   }>;
 };
-
-/** 거래소 `listed` 목록과 인벤 `isExchangeListed` 동기화 — UserInventory.metadata에 플래그가 없던 기존 데이터 보정 */
-function reconcileExchangeListedInventoryFlags(user: User): User {
-  const listings = user.exchangeState?.listings;
-  if (!Array.isArray(listings)) return user;
-  const listedIds = new Set(
-    listings
-      .filter((row: unknown) => {
-        const r = row as { status?: unknown; itemId?: unknown } | null;
-        return Boolean(r && r.status === "listed" && typeof r.itemId === "string");
-      })
-      .map((row: unknown) => (row as { itemId: string }).itemId),
-  );
-  let changed = false;
-  const inventory = user.inventory.map((it: InventoryItem) => {
-    if (!it || it.type !== "equipment") return it;
-    const should = listedIds.has(it.id);
-    if (should === Boolean(it.isExchangeListed)) return it;
-    changed = true;
-    return { ...it, isExchangeListed: should };
-  });
-  return changed ? { ...user, inventory } : user;
-}
 
 const applyDefaults = (
   user: Partial<User>,

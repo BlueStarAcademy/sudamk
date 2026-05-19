@@ -57,7 +57,7 @@ export function getSelectiveUserUpdate(
         // 프로필 관련
         'UPDATE_AVATAR': ['avatarId'],
         'UPDATE_BORDER': ['borderId'],
-        'SAVE_EXCHANGE_STATE': ['exchangeState'],
+        'SAVE_EXCHANGE_STATE': ['exchangeState', 'inventory'],
         'PURCHASE_EXCHANGE_LISTING': ['inventory', 'gold', 'diamonds'],
         'EXCHANGE_PURCHASE_APPLY_SELLER': ['inventory', 'exchangeState'],
         'ADVANCE_ONBOARDING_TUTORIAL': ['onboardingTutorialPhase', 'onboardingSpResultTutorialStep'],

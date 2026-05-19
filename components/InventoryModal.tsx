@@ -38,6 +38,10 @@ import {
 import { EquipmentDetailPanel } from './EquipmentDetailPanel.js';
 import InventorySlotExpandDiamondBody from './inventory/InventorySlotExpandDiamondBody.js';
 import {
+    collectActiveExchangeListedItemIds,
+    isEquipmentHiddenFromBag,
+} from '../shared/utils/exchangeInventorySync.js';
+import {
     MOBILE_EQUIPMENT_DETAIL_BODY_PADDING_CLASS,
     MOBILE_EQUIPMENT_DETAIL_LAYOUT_SCALE,
     MOBILE_EQUIPMENT_DETAIL_MAX_HEIGHT_CSS,
@@ -1535,12 +1539,16 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         return EQUIPMENT_UNBIND_TICKET_COST_BY_GRADE[pendingUnbindItem.grade] ?? 1;
     }, [pendingUnbindItem]);
     const pendingUnbindHasEnoughTickets = pendingUnbindRequiredTickets > 0 && ownedUnbindTickets >= pendingUnbindRequiredTickets;
+    const activeExchangeListedItemIds = useMemo(
+        () => collectActiveExchangeListedItemIds(currentUser),
+        [currentUser.exchangeState?.listings],
+    );
     const filteredAndSortedInventory = useMemo(() => {
         let items = [...inventoryWithLatestItemMeta];
         // 도전의 탑 전용 소모품은 가방에서 숨김(탑 대기실에서만 표시)
         items = items.filter((item: InventoryItem) => !(item.type === 'consumable' && isTowerOnlyConsumable(item.name)));
-        // 거래소 등록 중인 장비는 가방에서 숨김 (등록 취소/회수 시 다시 표시)
-        items = items.filter((item: InventoryItem) => !(item.type === 'equipment' && item.isExchangeListed));
+        // 거래소 등록 중인 장비는 가방에서 숨김 (플래그 누락·합성 직후 등록 레이스 시 exchangeState 목록으로도 차단)
+        items = items.filter((item: InventoryItem) => !isEquipmentHiddenFromBag(item, activeExchangeListedItemIds));
         // 페어 알·AI 펫·영혼석은 페어 경기장 로비 인벤에서만 표시(재료 타입으로 분류하지 않음)
         items = items.filter((item: InventoryItem) => !isPairArenaExclusiveBagItem(item));
         if (activeTab !== 'all') {
@@ -1556,7 +1564,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         }
         items.sort((a, b) => compareInventoryItemsForSort(a, b, sortKey));
         return items;
-    }, [inventoryWithLatestItemMeta, activeTab, sortKey, updateTrigger]);
+    }, [inventoryWithLatestItemMeta, activeTab, sortKey, updateTrigger, activeExchangeListedItemIds]);
 
     const currentSlots = useMemo(() => {
         const slots = inventorySlots || {};

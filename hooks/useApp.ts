@@ -126,6 +126,8 @@ import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../shared/util
 import { buildWeightedJustCapturedForStones } from '../shared/utils/sumWeightedCapturePointsForCapturedStones.js';
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from '../client/logic/goLogic.js';
 import { normalizeInventoryAfterLoad } from '../utils/inventoryUtils.js';
+import { reconcileExchangeListedInventoryFlags } from '../shared/utils/exchangeInventorySync.js';
+import { stripReappearedRemovedInventoryItems } from '../shared/utils/inventoryStaleGuard.js';
 import { mergeAdventureProfileForPersistence } from '../utils/adventureProfileMerge.js';
 import {
     coerceAdventureLiveGameScoringTurnLimit,
@@ -1592,6 +1594,8 @@ export const useApp = () => {
     const [gameRejoinFailure, setGameRejoinFailure] = useState<GameRejoinFailure | null>(null);
     const [gameRejoinRetryNonce, setGameRejoinRetryNonce] = useState(0);
     const rejoinRequestedRef = useRef<Set<string>>(new Set());
+    /** 합성 등으로 제거된 id — 낡은 WS가 재료/장비를 가방에 되살리는 것 방지 */
+    const recentlyRemovedInventoryIdsRef = useRef<Set<string>>(new Set());
 
     const mergeUserState = useCallback((prev: User | null, updates: Partial<User>) => {
         if (!prev) {
@@ -1603,6 +1607,17 @@ export const useApp = () => {
         // 깊은 병합을 위해 JSON 직렬화/역직렬화 사용
         const base = JSON.parse(JSON.stringify(prev)) as User;
         const patch = JSON.parse(JSON.stringify(updates)) as Partial<User>;
+
+        if (patch.inventory !== undefined && recentlyRemovedInventoryIdsRef.current.size > 0) {
+            const stripped = stripReappearedRemovedInventoryItems(
+                base.inventory,
+                patch.inventory,
+                recentlyRemovedInventoryIdsRef.current,
+            );
+            if (stripped !== patch.inventory) {
+                patch.inventory = stripped;
+            }
+        }
         
         // inventory는 배열이므로 완전히 교체 (깊은 복사로 새로운 참조 생성)
         const mergedInventoryRaw =
@@ -1682,6 +1697,10 @@ export const useApp = () => {
         const coercedLv = coerceUserLevelXpFromPayload(merged as unknown as Record<string, unknown>);
         merged.userLevel = coercedLv.userLevel;
         merged.userXp = coercedLv.userXp;
+
+        if (merged.exchangeState?.listings != null || patch.exchangeState?.listings != null) {
+            return reconcileExchangeListedInventoryFlags(merged);
+        }
 
         return merged;
     }, []);
@@ -5877,6 +5896,24 @@ export const useApp = () => {
                     
                     // applyUserUpdate는 이미 내부에서 flushSync를 사용하므로 모든 액션에서 즉시 UI 업데이트됨
                     // HTTP 응답의 updatedUser를 우선적으로 적용하고, WebSocket 업데이트는 일정 시간 동안 무시됨
+                    if (action.type === 'COMBINE_ITEMS') {
+                        const consumedIds =
+                            (result as { consumedItemIds?: string[] }).consumedItemIds ??
+                            (result.clientResponse as { consumedItemIds?: string[] } | undefined)?.consumedItemIds ??
+                            ((action.payload as { itemIds?: string[] } | undefined)?.itemIds ?? []);
+                        if (Array.isArray(consumedIds) && consumedIds.length > 0) {
+                            const removed = recentlyRemovedInventoryIdsRef.current;
+                            consumedIds.forEach((id) => {
+                                if (typeof id === 'string' && id.length > 0) removed.add(id);
+                            });
+                            window.setTimeout(() => {
+                                consumedIds.forEach((id) => {
+                                    if (typeof id === 'string') removed.delete(id);
+                                });
+                            }, 8000);
+                        }
+                    }
+
                     const mergedUser = applyUserUpdate(updatedUserFromResponse, `${action.type}-http`);
                     // 챔피언십 던전 입장: 경기장에서 컨텍스트 반영 전에도 표시할 수 있도록 dungeonState를 sessionStorage에 보관
                     if (action.type === 'START_DUNGEON_STAGE') {
@@ -7980,6 +8017,14 @@ export const useApp = () => {
                                 const isPostExchangePurchaseInventoryWs =
                                     lastHttpActionType.current === 'PURCHASE_EXCHANGE_LISTING' &&
                                     Array.isArray(updatedCurrentUser.inventory);
+                                /** 거래소 등록·목록 저장 직후 WS — 디바운스로 isExchangeListed가 빠지면 가방에 그대로 보임 */
+                                const isPostExchangeListingInventoryWs =
+                                    (lastHttpActionType.current === 'MARK_ITEM_EXCHANGE_LISTED' ||
+                                        lastHttpActionType.current === 'SAVE_EXCHANGE_STATE') &&
+                                    Array.isArray(updatedCurrentUser.inventory);
+                                const isPostCombineInventoryWs =
+                                    lastHttpActionType.current === 'COMBINE_ITEMS' &&
+                                    Array.isArray(updatedCurrentUser.inventory);
                                 /** 도전의 탑 종료 직후 서버 브로드캐스트 인벤 — HTTP 직후 디바운스에 걸리면 다음 층 가방 수가 안 바뀜 */
                                 const isPostTowerGameEndInventoryWs =
                                     lastHttpActionType.current === 'END_TOWER_GAME' &&
@@ -8015,6 +8060,8 @@ export const useApp = () => {
                                 if (!hasNicknameUpdate && !hasAdventureProfileUpdate && !hasExchangeStatePayload) {
                                     if (
                                         !isPostExchangePurchaseInventoryWs &&
+                                        !isPostExchangeListingInventoryWs &&
+                                        !isPostCombineInventoryWs &&
                                         !isPostTowerGameEndInventoryWs &&
                                         !isPostUseConditionPotionSyncWs &&
                                         !isPostBuyConditionPotionSyncWs &&
@@ -8033,6 +8080,8 @@ export const useApp = () => {
                                     }
                                     if (
                                         !isPostExchangePurchaseInventoryWs &&
+                                        !isPostExchangeListingInventoryWs &&
+                                        !isPostCombineInventoryWs &&
                                         !isPostTowerGameEndInventoryWs &&
                                         !isPostUseConditionPotionSyncWs &&
                                         !isPostBuyConditionPotionSyncWs &&

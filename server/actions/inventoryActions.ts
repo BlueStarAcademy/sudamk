@@ -253,6 +253,10 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             const { itemIds, isRandom } = payload as { itemIds: string[], isRandom: boolean };
             if (!itemIds || itemIds.length !== 3) return { error: '합성에는 3개의 아이템이 필요합니다.' };
 
+            const { withUserInventoryLock, hydrateUserFromLatestInventory } = await import('../utils/userInventoryLock.js');
+            return withUserInventoryLock(user.id, async () => {
+            await hydrateUserFromLatestInventory(user);
+
             const itemsToCombine = user.inventory.filter(i => itemIds.includes(i.id));
             if (itemsToCombine.length !== 3) return { error: '선택된 아이템 중 일부를 찾을 수 없습니다.' };
 
@@ -340,12 +344,13 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             // 선택적 필드만 반환 (메시지 크기 최적화)
             const updatedUser = getSelectiveUserUpdate(user, 'COMBINE_ITEMS');
 
-            // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
-            db.updateUser(user).catch(err => {
+            try {
+                await db.updateUser(user);
+            } catch (err) {
                 console.error(`[COMBINE_ITEMS] Failed to save user ${user.id}:`, err);
-            });
+                return { error: '저장에 실패했습니다. 잠시 후 다시 시도해 주세요.' };
+            }
 
-            // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(user, ['inventory', 'blacksmithXp', 'blacksmithLevel']);
 
@@ -412,12 +417,14 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 clientResponse: { 
                     updatedUser,
                     combinationResult: { 
-                        item: newItem, 
+                        item: actualAddedItem, 
                         xpGained: xpGained, 
                         isGreatSuccess: finalIsGreatSuccess 
-                    }
+                    },
+                    consumedItemIds: itemIds,
                 }
             };
+            });
         }
 
         case 'USE_ITEM': {
@@ -1171,6 +1178,13 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
 
         case 'MARK_ITEM_EXCHANGE_LISTED':
         case 'UNMARK_ITEM_EXCHANGE_LISTED': {
+            const { withUserInventoryLock, hydrateUserFromLatestInventory } = await import('../utils/userInventoryLock.js');
+            const { reconcileExchangeListedInventoryFlags } = await import(
+                '../../shared/utils/exchangeInventorySync.js'
+            );
+            return withUserInventoryLock(user.id, async () => {
+            await hydrateUserFromLatestInventory(user);
+
             const payloadParsed = payload as {
                 itemId?: string;
                 listPrice?: number;
@@ -1240,6 +1254,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 };
             }
 
+            reconcileExchangeListedInventoryFlags(user);
+
             const updatedUser = getSelectiveUserUpdate(user, action.type, { includeAll: true });
             try {
                 await db.updateUser(user);
@@ -1250,10 +1266,11 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             const { broadcastUserUpdate } = await import('../socket.js');
             const broadcastFields =
                 action.type === 'MARK_ITEM_EXCHANGE_LISTED'
-                    ? (['inventory', 'gold', 'diamonds', 'equipmentPresets'] as const)
+                    ? (['inventory', 'gold', 'diamonds', 'equipmentPresets', 'exchangeState'] as const)
                     : (['inventory', 'exchangeState'] as const);
             broadcastUserUpdate(user, [...broadcastFields]);
             return { clientResponse: { updatedUser } };
+            });
         }
 
         case 'SELL_ITEM': {

@@ -135,6 +135,10 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             return { clientResponse: { updatedUser } };
         }
         case 'SAVE_EXCHANGE_STATE': {
+            const { withUserInventoryLock, hydrateUserFromLatestInventory } = await import('../utils/userInventoryLock.js');
+            return withUserInventoryLock(user.id, async () => {
+            await hydrateUserFromLatestInventory(user);
+
             const { listings, settlements, history } = (payload || {}) as {
                 listings?: unknown[];
                 settlements?: unknown[];
@@ -182,13 +186,23 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 settlements: nextSettlements,
                 history: Array.isArray(history) ? history.filter((row): row is string => typeof row === 'string').slice(0, 200) : [],
             };
-            const updatedUser = getSelectiveUserUpdate(user, 'SAVE_EXCHANGE_STATE');
-            db.updateUser(user).catch(err => {
-                console.error(`[UserAction] Failed to save user ${user.id} after SAVE_EXCHANGE_STATE:`, err);
+            const { reconcileExchangeListedInventoryFlags } = await import(
+                '../../shared/utils/exchangeInventorySync.js'
+            );
+            reconcileExchangeListedInventoryFlags(user);
+            const updatedUser = getSelectiveUserUpdate(user, 'SAVE_EXCHANGE_STATE', {
+                additionalFields: ['inventory'],
             });
+            try {
+                await db.updateUser(user);
+            } catch (err) {
+                console.error(`[UserAction] Failed to save user ${user.id} after SAVE_EXCHANGE_STATE:`, err);
+                return { error: '저장에 실패했습니다. 잠시 후 다시 시도해 주세요.' };
+            }
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['exchangeState']);
+            broadcastUserUpdate(user, ['exchangeState', 'inventory']);
             return { clientResponse: { updatedUser } };
+            });
         }
         case 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST': {
             const { stageId } = (payload || {}) as { stageId?: string };
