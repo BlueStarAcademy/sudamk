@@ -121,6 +121,7 @@ const championshipFooterButtonBase =
     'rounded-xl border px-4 py-2 text-xs font-black tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_-14px_rgba(0,0,0,0.9)] transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950';
 const championshipFooterPrimaryButton = `${championshipFooterButtonBase} border-emerald-300/45 bg-gradient-to-b from-emerald-400/95 via-emerald-600/90 to-emerald-950/95 text-slate-950 hover:brightness-110 focus-visible:ring-emerald-400/55`;
 const championshipVersusStartMatchButtonFooterClass = `${championshipFooterPrimaryButton} !flex min-h-[42px] w-[10.5rem] shrink-0 items-center justify-center !px-3 !py-2.5 sm:min-h-[44px] sm:w-[11.5rem]`;
+const championshipVersusExitButtonFooterClass = `${championshipFooterButtonBase} !flex min-h-[42px] w-[6.5rem] shrink-0 items-center justify-center border-rose-400/45 bg-gradient-to-b from-rose-600/88 via-rose-800/90 to-rose-950/95 !px-3 !py-2.5 text-rose-50 hover:brightness-110 focus-visible:ring-rose-400/55 sm:min-h-[44px] sm:w-[7rem]`;
 
 /** 네이티브 셸 고정 패널: `Header` 모바일 min-h(`clamp(3.5rem,…,4.85rem)`)와 동일 계열 */
 const VERSUS_MOBILE_DRAWER_TOP = 'calc(env(safe-area-inset-top, 0px) + clamp(3.5rem, calc(2.85rem + 2vw), 4.85rem))';
@@ -2127,6 +2128,13 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                             </span>
                         )}
                     </Button>
+                    <button
+                        type="button"
+                        onClick={() => replaceAppHash('#/tournament')}
+                        className={championshipVersusExitButtonFooterClass}
+                    >
+                        나가기
+                    </button>
                 </div>
             </div>
         </section>
