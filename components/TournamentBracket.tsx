@@ -40,9 +40,7 @@ import {
     getChampionshipArenaBackgroundUrl,
 } from '../constants';
 import {
-    DUNGEON_STAGE_EQUIPMENT_DROP,
     DUNGEON_STAGE_MATERIAL_ROLLS,
-    formatDungeonChampCoinRewardPreviewLabel,
     getDungeonBasicRewardRangeGold,
     getDungeonRankRewardForDisplay,
     getDungeonRankRewardRangeForDisplay,
@@ -3295,6 +3293,7 @@ const FinalRewardPanel: React.FC<{
     
     // 중복 클릭 방지를 위한 상태
     const [isClaiming, setIsClaiming] = useState(false);
+    const [showExpectedRewardDetails, setShowExpectedRewardDetails] = useState(false);
 
     const handleClaim = () => {
         // 중복 클릭 방지: 이미 클릭 중이거나 이미 수령했으면 무시
@@ -3358,6 +3357,7 @@ const FinalRewardPanel: React.FC<{
     }, [finalUserRank, effectiveStageAttempt, type, claimedRewardSummary]);
 
     const showSideActionsColumn = !isMobileTabLayout && !suppressBottomActions;
+    const canShowExpectedRewardPreview = isDungeonMode && !isTournamentFullyComplete && !isUserEliminated;
     const exitActionButton = onExitToLobby ? (
         <button
             type="button"
@@ -3367,14 +3367,25 @@ const FinalRewardPanel: React.FC<{
             나가기
         </button>
     ) : null;
-    const currentUserDungeonWins = dungeonUserMatchRecordForPlayer(tournamentState, currentUser.id, null).wins;
-    const showExpectedRewardPreview = isDungeonMode && !isTournamentFullyComplete && !isUserEliminated;
-    const expectedRewardPreview = showExpectedRewardPreview ? (() => {
+    const expectedRewardActionButton = canShowExpectedRewardPreview ? (
+        <button
+            type="button"
+            onClick={() => setShowExpectedRewardDetails((prev) => !prev)}
+            className={`w-full ${championshipFooterSecondaryButton}`}
+        >
+            예상보상
+        </button>
+    ) : null;
+    const expectedRewardPreview = canShowExpectedRewardPreview ? (() => {
         const stage = effectiveStageAttempt;
-        const champCoinLabel = formatDungeonChampCoinRewardPreviewLabel(stage, currentUserDungeonWins);
         const rowClass = 'flex flex-wrap items-center justify-center gap-1.5';
         const chipClass =
             'inline-flex min-h-[2rem] items-center gap-1.5 rounded-lg border border-white/10 bg-black/35 px-2 py-1 text-[10.5px] font-bold leading-tight text-slate-100 shadow-inner';
+        const gradeTextClass: Record<string, string> = {
+            epic: 'text-purple-300',
+            legendary: 'text-red-300',
+            mythic: 'text-amber-300',
+        };
 
         if (type === 'neighborhood') {
             const gold = getDungeonBasicRewardRangeGold(stage);
@@ -3389,10 +3400,6 @@ const FinalRewardPanel: React.FC<{
                         <span className="text-slate-300">패</span>
                         <img src="/images/icon/Gold.webp" alt="" className="h-4 w-4 object-contain" />
                         {formatGoldAmountKoG(gold.loss.min)}~{formatGoldAmountKoG(gold.loss.max)}
-                    </span>
-                    <span className={chipClass}>
-                        <img src="/images/icon/champcoin.webp" alt="" className="h-4 w-4 object-contain" />
-                        {champCoinLabel}
                     </span>
                 </div>
             );
@@ -3418,34 +3425,19 @@ const FinalRewardPanel: React.FC<{
                 <div className={rowClass}>
                     {rolls.win.map((roll) => renderRoll('승', 'text-emerald-200', roll))}
                     {(rolls.loss ?? []).map((roll) => renderRoll('패', 'text-slate-300', roll))}
-                    <span className={chipClass}>
-                        <img src="/images/icon/champcoin.webp" alt="" className="h-4 w-4 object-contain" />
-                        {champCoinLabel}
-                    </span>
                 </div>
             );
         }
 
-        const equipment = DUNGEON_STAGE_EQUIPMENT_DROP[stage] ?? DUNGEON_STAGE_EQUIPMENT_DROP[1];
         return (
             <div className={rowClass}>
-                {equipment.win.map((row) => (
-                    <span key={`eq-win-${row.grade}`} className={chipClass}>
-                        <span className="text-emerald-200">승</span>
-                        <span>{EQUIPMENT_GRADE_LABEL_KO[row.grade] ?? row.grade}</span>
-                        <span className="tabular-nums">{row.chance}%</span>
-                    </span>
-                ))}
-                {equipment.loss.map((row) => (
-                    <span key={`eq-loss-${row.grade}`} className={chipClass}>
-                        <span className="text-slate-300">패</span>
-                        <span>{EQUIPMENT_GRADE_LABEL_KO[row.grade] ?? row.grade}</span>
-                        <span className="tabular-nums">{row.chance}%</span>
-                    </span>
-                ))}
                 <span className={chipClass}>
-                    <img src="/images/icon/champcoin.webp" alt="" className="h-4 w-4 object-contain" />
-                    {champCoinLabel}
+                    장비 등급
+                    <span className={gradeTextClass.epic}>{EQUIPMENT_GRADE_LABEL_KO.epic}</span>
+                    <span className="text-slate-500">~</span>
+                    <span className={gradeTextClass.legendary}>{EQUIPMENT_GRADE_LABEL_KO.legendary}</span>
+                    <span className="text-slate-500">~</span>
+                    <span className={gradeTextClass.mythic}>{EQUIPMENT_GRADE_LABEL_KO.mythic}</span>
                 </span>
             </div>
         );
@@ -3467,14 +3459,7 @@ const FinalRewardPanel: React.FC<{
                         보상완료
                     </div>
                 )}
-                {onOpenRewardHistory && (
-                    <button
-                        onClick={onOpenRewardHistory}
-                        className={`w-full ${championshipFooterSecondaryButton}`}
-                    >
-                        보상내역
-                    </button>
-                )}
+                {expectedRewardActionButton}
                 {exitActionButton}
             </>
         ) : !treatAsClaimed ? (
@@ -3492,14 +3477,7 @@ const FinalRewardPanel: React.FC<{
                         {isClaiming ? '수령 중...' : (canClaimReward ? '보상받기' : '경기 종료 후 수령 가능')}
                     </button>
                 ) : null}
-                {onOpenRewardHistory && (
-                    <button
-                        onClick={onOpenRewardHistory}
-                        className={`w-full ${championshipFooterSecondaryButton}`}
-                    >
-                        보상내역
-                    </button>
-                )}
+                {expectedRewardActionButton}
                 {(isTournamentFullyComplete || isUserEliminated) ? exitActionButton : null}
                 {(isInProgress || isRoundComplete) && !((isTournamentFullyComplete || isUserEliminated) && effectiveStageAttempt) && (
                     <div className="w-full rounded-lg border border-sky-500/35 bg-sky-950/55 px-2 py-1.5 text-center text-[10.5px] font-bold leading-tight text-sky-200">
@@ -3519,7 +3497,18 @@ const FinalRewardPanel: React.FC<{
                     : { height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }
             }
         >
-            <h4 className="flex-shrink-0 whitespace-nowrap py-0.5 text-center text-sm font-bold text-gray-300 mb-1.5">획득 보상</h4>
+            <div className="mb-1.5 flex flex-shrink-0 items-center justify-center gap-2 py-0.5">
+                <h4 className="whitespace-nowrap text-center text-sm font-bold text-gray-300">획득 보상</h4>
+                {isMobileTabLayout && canShowExpectedRewardPreview ? (
+                    <button
+                        type="button"
+                        onClick={() => setShowExpectedRewardDetails((prev) => !prev)}
+                        className="rounded-md border border-violet-300/40 bg-violet-950/55 px-2 py-1 text-[10px] font-black text-violet-100"
+                    >
+                        예상보상
+                    </button>
+                ) : null}
+            </div>
             <div
                 className={
                     isMobileTabLayout
@@ -3550,7 +3539,7 @@ const FinalRewardPanel: React.FC<{
                     <p className="text-xs text-green-400 text-center font-semibold">✓ 보상을 수령했습니다.</p>
                 </div>
             )}
-            {expectedRewardPreview ? (
+            {showExpectedRewardDetails && expectedRewardPreview ? (
                 <div className="mb-1 w-full rounded-lg border border-cyan-500/35 bg-cyan-950/30 px-2 py-1.5">
                     <p className="mb-1 text-center text-[10px] font-black tracking-[0.14em] text-cyan-200/90">
                         예상 보상
@@ -3616,11 +3605,8 @@ const FinalRewardPanel: React.FC<{
                 })();
                 const hasWorldChangeTickets = worldChangeTicketChips.length > 0;
 
-                const showChampCoinChip =
-                    isDungeonMode &&
-                    effectiveStageAttempt >= 1 &&
-                    effectiveStageAttempt <= 10 &&
-                    (type === 'neighborhood' || type === 'national' || type === 'world');
+                const claimedChampCoins = Math.max(0, Math.floor(Number(claimedRewardSummary?.baseRewards?.champCoins ?? 0)));
+                const showChampCoinChip = claimedChampCoins > 0;
 
                 const hasAnyMatchReward =
                     hasNeighborhoodGold ||
@@ -3784,13 +3770,16 @@ const FinalRewardPanel: React.FC<{
                                 );
                             })}
 
-                        {/* PVE 공통: 챔프 코인 — 인게임에는 아이콘만(수량은 경기 결과 보상 모달에서만 표시) */}
+                        {/* PVE 공통: 챔프 코인 — 수령 전 예상값은 숨기고, 서버 확정 지급량만 표시 */}
                         {showChampCoinChip && (
                             <div
                                 className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg border-2 border-amber-400/70 bg-amber-950/45"
-                                title="챔프 코인 — 획득 수량은 경기 종료 후 보상 확인 창에서 표시됩니다."
+                                title={`챔프 코인 ×${claimedChampCoins.toLocaleString('ko-KR')}`}
                             >
                                 <img src="/images/icon/champcoin.webp" alt="챔프 코인" className="h-7 w-7 object-contain" loading="lazy" decoding="async" />
+                                <span className="absolute -bottom-0.5 -right-0.5 rounded-tl bg-black/80 px-1 text-[11px] font-bold leading-tight text-amber-100 shadow-sm">
+                                    {claimedChampCoins.toLocaleString('ko-KR')}
+                                </span>
                             </div>
                         )}
 
@@ -6709,7 +6698,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                   <div className="flex w-full shrink-0 flex-col gap-1.5 border-t border-cyan-500/35 bg-slate-950/92 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
                       {(isTournamentFullyComplete || isUserEliminated) && treatAsClaimed && (
                           <div className="flex w-full flex-row flex-wrap items-stretch gap-2">
-                              <div className="min-w-0 flex-1 basis-[calc(33.333%-0.35rem)]">
+                              <div className="min-w-0 flex-1 basis-[calc(50%-0.25rem)]">
                                   {isDungeonModeFooter && !isRewardClaimed ? (
                                       <button
                                           type="button"
@@ -6725,19 +6714,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                       </div>
                                   )}
                               </div>
-                              {claimedRewardSummary ? (
-                                  <button
-                                      type="button"
-                                      onClick={handleOpenRewardHistory}
-                                      className="min-w-0 flex-1 basis-[calc(33.333%-0.35rem)] rounded-lg bg-purple-700/70 px-2 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-purple-700"
-                                  >
-                                      보상내역
-                                  </button>
-                              ) : null}
                               <button
                                   type="button"
                                   onClick={handleChampionshipArenaExitClick}
-                                  className="min-w-0 flex-1 basis-[calc(33.333%-0.35rem)] rounded-lg bg-rose-800/85 px-2 py-1.5 text-xs font-semibold text-rose-50 transition-colors hover:bg-rose-700"
+                                  className="min-w-0 flex-1 basis-[calc(50%-0.25rem)] rounded-lg bg-rose-800/85 px-2 py-1.5 text-xs font-semibold text-rose-50 transition-colors hover:bg-rose-700"
                               >
                                   나가기
                               </button>
@@ -6761,6 +6741,15 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                           : canClaimReward
                                             ? '보상받기'
                                             : '경기 종료 후 수령 가능'}
+                                  </button>
+                              ) : null}
+                              {!(isTournamentFullyComplete || isUserEliminated) && isDungeonModeFooter ? (
+                                  <button
+                                      type="button"
+                                      onClick={() => setMobileChampionshipTab('rewards')}
+                                      className="min-w-0 flex-1 basis-[calc(50%-0.25rem)] rounded-lg bg-purple-700/70 px-2 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-purple-700"
+                                  >
+                                      예상보상
                                   </button>
                               ) : null}
                               {(isTournamentFullyComplete || isUserEliminated) ? (

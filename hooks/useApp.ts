@@ -5681,6 +5681,10 @@ export const useApp = () => {
                 // 서버 응답 구조: { success: true, ...result.clientResponse }
                 // 따라서 result.updatedUser 또는 result.clientResponse?.updatedUser 확인
                 let updatedUserFromResponse = result.updatedUser || result.clientResponse?.updatedUser;
+                const deferUpdatedUserUntilLocalReveal = action.type === 'START_CHAMPIONSHIP_VERSUS_KATA_DUEL';
+                if (deferUpdatedUserUntilLocalReveal) {
+                    updatedUserFromResponse = undefined;
+                }
 
                 if (
                     updatedUserFromResponse &&
@@ -11207,6 +11211,7 @@ export const useApp = () => {
         },
         handlers: {
             handleAction,
+            applyDeferredUserUpdate: (updates: Partial<User>, source = 'deferred-user-update') => applyUserUpdate(updates, source),
             handleLogout,
             handleEnterWaitingRoom,
             requestGameRejoinRetry,

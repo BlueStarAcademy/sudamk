@@ -1718,6 +1718,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
         return totalGold;
     }, [mySummary]);
     const isGuildWar = isGuildWarLiveSession(session as any);
+    const isChampionshipVersusSummary = typeof session.description === 'string' && session.description.startsWith('챔피언십 장내 카타:');
+    const showMannerPostGameStats = !isChampionshipVersusSummary;
     /** 랭킹·매너 등 실제 정산이 있는 대국에서만 통계 카드 표시 (친선·AI 등에서는 숨김) */
     const showPostGameRatingMannerStats = useMemo(() => {
         if (!mySummary || isSpectator) return false;
@@ -2592,31 +2594,33 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                             </span>
                                                         </div>
                                                     </div>
-                                                    <div className={`${statCardClass} text-center`}>
-                                                        <p className={statLabelClass}>매너 점수</p>
-                                                        <div className={statCardBodyClass}>
-                                                            <span className={statValueMannerClass}>{postGameStatsSummary.manner.final}</span>
-                                                            {postGameStatsSummary.manner.change === 0 ? (
-                                                                <span className="text-[0.6rem] font-semibold text-slate-500 min-[1024px]:text-[0.65rem]">
-                                                                    변동 없음
-                                                                </span>
-                                                            ) : (
-                                                                <span
-                                                                    className={`inline-flex items-center gap-0.5 text-[0.6rem] font-bold tabular-nums min-[1024px]:text-[0.65rem] ${
-                                                                        postGameStatsSummary.manner.change > 0 ? 'text-emerald-300' : 'text-rose-300'
-                                                                    }`}
-                                                                >
-                                                                    <span aria-hidden>{postGameStatsSummary.manner.change > 0 ? '↑' : '↓'}</span>
-                                                                    <span>
-                                                                        {postGameStatsSummary.manner.change > 0
-                                                                            ? postGameStatsSummary.manner.change
-                                                                            : Math.abs(postGameStatsSummary.manner.change)}
-                                                                        점
+                                                    {showMannerPostGameStats ? (
+                                                        <div className={`${statCardClass} text-center`}>
+                                                            <p className={statLabelClass}>매너 점수</p>
+                                                            <div className={statCardBodyClass}>
+                                                                <span className={statValueMannerClass}>{postGameStatsSummary.manner.final}</span>
+                                                                {postGameStatsSummary.manner.change === 0 ? (
+                                                                    <span className="text-[0.6rem] font-semibold text-slate-500 min-[1024px]:text-[0.65rem]">
+                                                                        변동 없음
                                                                     </span>
-                                                                </span>
-                                                            )}
+                                                                ) : (
+                                                                    <span
+                                                                        className={`inline-flex items-center gap-0.5 text-[0.6rem] font-bold tabular-nums min-[1024px]:text-[0.65rem] ${
+                                                                            postGameStatsSummary.manner.change > 0 ? 'text-emerald-300' : 'text-rose-300'
+                                                                        }`}
+                                                                    >
+                                                                        <span aria-hidden>{postGameStatsSummary.manner.change > 0 ? '↑' : '↓'}</span>
+                                                                        <span>
+                                                                            {postGameStatsSummary.manner.change > 0
+                                                                                ? postGameStatsSummary.manner.change
+                                                                                : Math.abs(postGameStatsSummary.manner.change)}
+                                                                            점
+                                                                        </span>
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                    </div>
+                                                    ) : null}
                                                     <div className={`${statCardClass} text-center`}>
                                                         <p className={statLabelClass}>통산 전적</p>
                                                         <div className={statCardBodyClass}>
@@ -2632,16 +2636,18 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                             )}
                                                         </div>
                                                     </div>
-                                                    <div className={`${statCardClass} text-center`}>
-                                                        <p className={statLabelClass}>매너 등급</p>
-                                                        <div className={statCardBodyClass}>
-                                                            <span className="flex flex-wrap items-center justify-center gap-0.5 text-[0.65rem] font-bold text-violet-200/95 min-[1024px]:text-xs">
-                                                                <span className="rounded border border-violet-400/25 bg-violet-950/40 px-1 py-px">{initialMannerRank}</span>
-                                                                <span className="text-slate-500">→</span>
-                                                                <span className="rounded border border-violet-400/35 bg-violet-900/35 px-1 py-px">{finalMannerRank}</span>
-                                                            </span>
+                                                    {showMannerPostGameStats ? (
+                                                        <div className={`${statCardClass} text-center`}>
+                                                            <p className={statLabelClass}>매너 등급</p>
+                                                            <div className={statCardBodyClass}>
+                                                                <span className="flex flex-wrap items-center justify-center gap-0.5 text-[0.65rem] font-bold text-violet-200/95 min-[1024px]:text-xs">
+                                                                    <span className="rounded border border-violet-400/25 bg-violet-950/40 px-1 py-px">{initialMannerRank}</span>
+                                                                    <span className="text-slate-500">→</span>
+                                                                    <span className="rounded border border-violet-400/35 bg-violet-900/35 px-1 py-px">{finalMannerRank}</span>
+                                                                </span>
+                                                            </div>
                                                         </div>
-                                                    </div>
+                                                    ) : null}
                                                 </div>
                                             </div>
                                         ) : null}
@@ -2858,29 +2864,31 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                     </span>
                                                 </div>
                                             </div>
-                                            <div className={`${statCardClass} text-center`}>
-                                                <p className={statLabelClass}>매너 점수</p>
-                                                <div className={statCardBodyClass}>
-                                                    <span className={statValueMannerClass}>{postGameStatsSummary.manner.final}</span>
-                                                    {postGameStatsSummary.manner.change === 0 ? (
-                                                        <span className="text-[0.6rem] font-semibold text-slate-500 min-[1024px]:text-[0.65rem]">변동 없음</span>
-                                                    ) : (
-                                                        <span
-                                                            className={`inline-flex items-center gap-0.5 text-[0.6rem] font-bold tabular-nums min-[1024px]:text-[0.65rem] ${
-                                                                postGameStatsSummary.manner.change > 0 ? 'text-emerald-300' : 'text-rose-300'
-                                                            }`}
-                                                        >
-                                                            <span aria-hidden>{postGameStatsSummary.manner.change > 0 ? '↑' : '↓'}</span>
-                                                            <span>
-                                                                {postGameStatsSummary.manner.change > 0
-                                                                    ? postGameStatsSummary.manner.change
-                                                                    : Math.abs(postGameStatsSummary.manner.change)}
-                                                                점
+                                            {showMannerPostGameStats ? (
+                                                <div className={`${statCardClass} text-center`}>
+                                                    <p className={statLabelClass}>매너 점수</p>
+                                                    <div className={statCardBodyClass}>
+                                                        <span className={statValueMannerClass}>{postGameStatsSummary.manner.final}</span>
+                                                        {postGameStatsSummary.manner.change === 0 ? (
+                                                            <span className="text-[0.6rem] font-semibold text-slate-500 min-[1024px]:text-[0.65rem]">변동 없음</span>
+                                                        ) : (
+                                                            <span
+                                                                className={`inline-flex items-center gap-0.5 text-[0.6rem] font-bold tabular-nums min-[1024px]:text-[0.65rem] ${
+                                                                    postGameStatsSummary.manner.change > 0 ? 'text-emerald-300' : 'text-rose-300'
+                                                                }`}
+                                                            >
+                                                                <span aria-hidden>{postGameStatsSummary.manner.change > 0 ? '↑' : '↓'}</span>
+                                                                <span>
+                                                                    {postGameStatsSummary.manner.change > 0
+                                                                        ? postGameStatsSummary.manner.change
+                                                                        : Math.abs(postGameStatsSummary.manner.change)}
+                                                                    점
+                                                                </span>
                                                             </span>
-                                                        </span>
-                                                    )}
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            ) : null}
                                             <div className={`${statCardClass} text-center`}>
                                                 <p className={statLabelClass}>통산 전적</p>
                                                 <div className={statCardBodyClass}>
@@ -2896,16 +2904,18 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className={`${statCardClass} text-center`}>
-                                                <p className={statLabelClass}>매너 등급</p>
-                                                <div className={statCardBodyClass}>
-                                                    <span className="flex flex-wrap items-center justify-center gap-0.5 text-[0.65rem] font-bold text-violet-200/95 min-[1024px]:text-xs">
-                                                        <span className="rounded border border-violet-400/25 bg-violet-950/40 px-1 py-px">{initialMannerRank}</span>
-                                                        <span className="text-slate-500">→</span>
-                                                        <span className="rounded border border-violet-400/35 bg-violet-900/35 px-1 py-px">{finalMannerRank}</span>
-                                                    </span>
+                                            {showMannerPostGameStats ? (
+                                                <div className={`${statCardClass} text-center`}>
+                                                    <p className={statLabelClass}>매너 등급</p>
+                                                    <div className={statCardBodyClass}>
+                                                        <span className="flex flex-wrap items-center justify-center gap-0.5 text-[0.65rem] font-bold text-violet-200/95 min-[1024px]:text-xs">
+                                                            <span className="rounded border border-violet-400/25 bg-violet-950/40 px-1 py-px">{initialMannerRank}</span>
+                                                            <span className="text-slate-500">→</span>
+                                                            <span className="rounded border border-violet-400/35 bg-violet-900/35 px-1 py-px">{finalMannerRank}</span>
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            ) : null}
                                         </div>
                                     </div>
                                 ) : null}

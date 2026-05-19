@@ -2458,12 +2458,13 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                     },
                 };
             }
-            const { myRating, ratingSeasonKey, opponents } = await buildChampionshipVersusOpponentList(user, v, now);
+            const { myRating, myGlobalRank, ratingSeasonKey, opponents } = await buildChampionshipVersusOpponentList(user, v, now);
             return {
                 clientResponse: {
                     updatedUser: user,
                     championshipVersusVenue: v,
                     championshipVersusMyRating: myRating,
+                    championshipVersusMyGlobalRank: myGlobalRank,
                     championshipVersusRatingSeasonKey: ratingSeasonKey,
                     championshipVersusRatingMonthKST: ratingSeasonKey,
                     championshipVersusOpponents: opponents,
@@ -2488,6 +2489,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                     updatedUser: user,
                     championshipVersusVenue: v,
                     championshipVersusMyRating: refreshed.myRating,
+                    championshipVersusMyGlobalRank: refreshed.myGlobalRank,
                     championshipVersusRatingSeasonKey: refreshed.ratingSeasonKey,
                     championshipVersusRatingMonthKST: refreshed.ratingSeasonKey,
                     championshipVersusOpponents: refreshed.opponents,

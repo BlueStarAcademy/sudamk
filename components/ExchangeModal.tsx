@@ -531,6 +531,9 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
         });
         return Array.from(merged.values());
     }, [allUsers, listings, marketListingsLoaded, marketListingsRemote]);
+    const myRecoverableListings = listings.filter(
+        (listing) => listing.sellerId === currentUser.id && listing.status === 'listed' && listing.expiresAt <= nowMs,
+    );
     const sellSlots = isAdminUser
         ? myActiveListings
         : Array.from({ length: MAX_SELL_SLOTS }, (_, idx) => myActiveListings[idx] ?? null);
@@ -1918,9 +1921,15 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                         </button>
                         <button
                             onClick={() => setActiveTab('sell')}
-                            className={`${mobileExchange ? exchangeTabButtonMobile : exchangeTabButtonBase} ${activeTab === 'sell' ? 'border-cyan-300/70 bg-gradient-to-b from-cyan-500/70 to-blue-700/80 text-white shadow-[0_10px_20px_-12px_rgba(56,189,248,0.9)]' : 'border-slate-600/70 bg-gradient-to-b from-slate-700/70 to-slate-900/80 text-slate-300 hover:border-slate-400/80 hover:text-slate-100'}`}
+                            className={`relative overflow-visible ${mobileExchange ? exchangeTabButtonMobile : exchangeTabButtonBase} ${activeTab === 'sell' ? 'border-cyan-300/70 bg-gradient-to-b from-cyan-500/70 to-blue-700/80 text-white shadow-[0_10px_20px_-12px_rgba(56,189,248,0.9)]' : 'border-slate-600/70 bg-gradient-to-b from-slate-700/70 to-slate-900/80 text-slate-300 hover:border-slate-400/80 hover:text-slate-100'}`}
                         >
                             판매등록
+                            {myRecoverableListings.length > 0 ? (
+                                <span
+                                    className="pointer-events-none absolute right-0.5 top-0.5 h-2 w-2 rounded-full border-2 border-slate-900 bg-red-500 sm:right-1 sm:top-1 sm:h-2.5 sm:w-2.5"
+                                    aria-hidden
+                                />
+                            ) : null}
                         </button>
                         <button
                             type="button"
@@ -2372,7 +2381,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                             ) : (
                                 <div className="flex h-full min-h-0 flex-col gap-3">
                                     <div className="shrink-0 grid min-h-0 grid-cols-1 gap-3 lg:grid-cols-[380px_minmax(0,1.15fr)_220px]">
-                                        <div className="flex h-[380px] min-h-[380px] max-h-[380px] min-w-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/45 p-3">
+                                        <div className="flex h-[340px] min-h-[340px] max-h-[340px] min-w-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/45 p-3">
                                             <p className="text-xs font-semibold text-amber-200">등록된 아이템</p>
                                             <div className={`min-h-0 flex-1 overflow-y-auto pr-1 ${BAG_SCROLLBAR_Y_CLASS}`}>
                                                 <div className="space-y-2">
@@ -2504,7 +2513,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                         </div>
                                         <div className="min-h-0 rounded-lg border border-slate-700/60 bg-slate-900/45 p-3">
                                             {selectedItem ? (
-                                                <div className="h-[380px] min-h-[380px] max-h-[380px] overflow-hidden">
+                                                <div className="h-[340px] min-h-[340px] max-h-[340px] overflow-hidden">
                                                     <EquipmentDetailPanel
                                             item={selectedItem}
                                             showTradeStatusUnderImage
@@ -2513,7 +2522,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                         />
                                                 </div>
                                             ) : (
-                                                <div className="h-[380px] min-h-[380px] max-h-[380px] rounded border border-dashed border-slate-700/70 bg-slate-950/40" />
+                                                <div className="h-[340px] min-h-[340px] max-h-[340px] rounded border border-dashed border-slate-700/70 bg-slate-950/40" />
                                             )}
                                         </div>
                                         <div className="flex min-h-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/45 p-3">{renderSellRegistrationSidebar()}</div>

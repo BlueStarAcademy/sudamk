@@ -61,7 +61,6 @@ import { championshipVersusBoardRulesForActorStrategicTier } from '../../shared/
 import {
     champCoinsForVersusLoss,
     champCoinsForVersusWin,
-    splitVersusExperiencePoolForVenue,
 } from '../../shared/utils/championshipVersusElo.js';
 import { flushChampionshipVersusDeferredLevelUp } from '../../utils/championshipVersusLevelUpDeferral.js';
 import { resolveChampionshipPanelScores } from '../../utils/championshipLiveScores.js';
@@ -117,36 +116,6 @@ type OpponentRow = {
         endgameAbility: number;
     };
 };
-
-type VersusExpectedRewardPreview = {
-    win: { coins: number; gold: [number, number]; userXp: [number, number]; petXp: [number, number] };
-    loss: { coins: number; gold: [number, number]; userXp: [number, number]; petXp: [number, number] };
-};
-
-const rewardRangeLabel = ([min, max]: [number, number]): string => (min === max ? `${min}` : `${min}~${max}`);
-
-function buildVersusExpectedRewardPreview(rating: number, venue: ChampionshipVersusVenueKind): VersusExpectedRewardPreview {
-    const r = Math.max(0, Math.floor(Number(rating) || 0));
-    const goldWin: [number, number] = [Math.floor(r * 0.1), Math.floor(r * 0.15)];
-    const goldLoss: [number, number] = [Math.floor(goldWin[0] * 0.5), Math.floor(goldWin[1] * 0.5)];
-    const xpPoolWin: [number, number] = [Math.floor(r * 0.05), Math.floor(r * 0.1)];
-    const xpPoolLoss: [number, number] = [Math.floor(xpPoolWin[0] * 0.5), Math.floor(xpPoolWin[1] * 0.5)];
-    const splitRange = (range: [number, number]) => {
-        const low = splitVersusExperiencePoolForVenue(venue, range[0]);
-        const high = splitVersusExperiencePoolForVenue(venue, range[1]);
-        return {
-            userXp: [low.userPart, high.userPart] as [number, number],
-            petXp: [low.petPart, high.petPart] as [number, number],
-        };
-    };
-    const winXp = splitRange(xpPoolWin);
-    const lossXp = splitRange(xpPoolLoss);
-
-    return {
-        win: { coins: champCoinsForVersusWin(r), gold: goldWin, ...winXp },
-        loss: { coins: champCoinsForVersusLoss(r), gold: goldLoss, ...lossXp },
-    };
-}
 
 const championshipFooterButtonBase =
     'rounded-xl border px-4 py-2 text-xs font-black tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_-14px_rgba(0,0,0,0.9)] transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950';
@@ -907,6 +876,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
 
     const [opponents, setOpponents] = React.useState<OpponentRow[]>([]);
     const [myRating, setMyRating] = React.useState(RANKED_ELO_BASE_SCORE);
+    const [myGlobalRank, setMyGlobalRank] = React.useState<number | null>(null);
     const [ratingSeasonKey, setRatingSeasonKey] = React.useState('');
     const [loading, setLoading] = React.useState(CHAMPIONSHIP_VERSUS_VENUE_USE_LIVE_OPPONENT_LIST);
     const [loadError, setLoadError] = React.useState<string | null>(null);
@@ -948,6 +918,9 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         champCoinsDelta: number;
         rewards: VersusKataActorRewardClientPayload;
     } | null>(null);
+    const versusKataPendingUserUpdateRef = React.useRef<UserWithStatus | null>(null);
+    const applyDeferredUserUpdateRef = React.useRef(handlers.applyDeferredUserUpdate);
+    applyDeferredUserUpdateRef.current = handlers.applyDeferredUserUpdate;
     /** 승리 시 `setBeatenOpponentIds`를 재생 중에 호출하면 `selectedRow`가 바뀌며 재생이 끊긴다 — 모달 확인·상대 변경 시에만 flush. */
     const versusKataSessionBeatOpponentIdRef = React.useRef<string | null>(null);
     type VersusKataDuelResultPayload = {
@@ -1032,6 +1005,8 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                     overallRecord: { wins: 0, losses: 0 },
                     vipPlayRewardSlot: { locked: true },
                 } as VersusKataActorRewardClientPayload);
+            const pendingUserUpdate = versusKataPendingUserUpdateRef.current;
+            versusKataPendingUserUpdateRef.current = null;
             try {
                 setVersusSummarySession(
                     buildChampionshipVersusKataSummarySession({
@@ -1046,6 +1021,19 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                         rewards,
                     }),
                 );
+                if (pendingUserUpdate && pendingUserUpdate.id === cu.id) {
+                    applyDeferredUserUpdateRef.current?.(
+                        pendingUserUpdate,
+                        'START_CHAMPIONSHIP_VERSUS_KATA_DUEL-replay-complete',
+                    );
+                    const updatedVenueRating = pendingUserUpdate.championshipVersusVenueRatings?.[venue];
+                    if (typeof updatedVenueRating?.rating === 'number') {
+                        setMyRating(updatedVenueRating.rating);
+                    }
+                    if (typeof updatedVenueRating?.ratingSeasonKey === 'string') {
+                        setRatingSeasonKey(updatedVenueRating.ratingSeasonKey);
+                    }
+                }
             } catch (err) {
                 console.warn('[ChampionshipVersusVenueArena] summary session build failed', err);
             }
@@ -1214,6 +1202,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         if (!CHAMPIONSHIP_VERSUS_VENUE_USE_LIVE_OPPONENT_LIST) {
             setOpponents(makeDemoOpponentRows(venue));
             setMyRating(RANKED_ELO_BASE_SCORE);
+            setMyGlobalRank(1);
             setRatingSeasonKey(getCurrentSeason().name);
             setLoadError(null);
             setLoading(false);
@@ -1245,12 +1234,22 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                     try {
                         const res = (await handleActionRef.current({
                             type: 'GET_CHAMPIONSHIP_VERSUS_VENUE_STATE',
-                            payload: { venue, economyOnly: true },
+                            payload: { venue },
                         })) as {
+                            championshipVersusMyRating?: number;
+                            championshipVersusMyGlobalRank?: number;
+                            championshipVersusRatingSeasonKey?: string;
+                            championshipVersusRatingMonthKST?: string;
                             championshipVersusRefreshFreeRemaining?: number;
                             error?: string;
                         };
                         if (res?.error) return;
+                        if (typeof res?.championshipVersusMyRating === 'number') setMyRating(res.championshipVersusMyRating);
+                        if (typeof res?.championshipVersusMyGlobalRank === 'number') {
+                            setMyGlobalRank(Math.max(1, Math.floor(res.championshipVersusMyGlobalRank)));
+                        }
+                        const sk = res?.championshipVersusRatingSeasonKey ?? res?.championshipVersusRatingMonthKST;
+                        if (typeof sk === 'string') setRatingSeasonKey(sk);
                         if (typeof res?.championshipVersusRefreshFreeRemaining === 'number') {
                             setOppRefreshFreeRemaining(res.championshipVersusRefreshFreeRemaining);
                         }
@@ -1277,6 +1276,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             })) as {
                 championshipVersusOpponents?: OpponentRow[];
                 championshipVersusMyRating?: number;
+                championshipVersusMyGlobalRank?: number;
                 championshipVersusRatingSeasonKey?: string;
                 championshipVersusRatingMonthKST?: string;
                 championshipVersusRefreshFreeRemaining?: number;
@@ -1302,6 +1302,11 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 }
             }
             if (typeof res?.championshipVersusMyRating === 'number') setMyRating(res.championshipVersusMyRating);
+            if (typeof res?.championshipVersusMyGlobalRank === 'number') {
+                setMyGlobalRank(Math.max(1, Math.floor(res.championshipVersusMyGlobalRank)));
+            } else {
+                setMyGlobalRank(null);
+            }
             if (typeof res?.championshipVersusRefreshFreeRemaining === 'number') {
                 setOppRefreshFreeRemaining(res.championshipVersusRefreshFreeRemaining);
             }
@@ -1414,6 +1419,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         setVersusPlaybackMatch(null);
         versusKataFinalMatchRef.current = null;
         versusKataPendingResultRef.current = null;
+        versusKataPendingUserUpdateRef.current = null;
         setVersusReplayActive(false);
         setLowConditionVersusStartModalOpen(false);
         setLowConditionStartPending(null);
@@ -1753,6 +1759,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         setVersusPlaybackMatch(null);
         versusKataFinalMatchRef.current = null;
         versusKataPendingResultRef.current = null;
+        versusKataPendingUserUpdateRef.current = null;
         setVersusReplayActive(false);
         setVersusTerritoryAnalysis(null);
         clearVersusKataPlaybackTimers();
@@ -1765,6 +1772,9 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 payload: { venue, opponentUserId: selectedRow.userId },
             })) as Record<string, unknown> & { error?: string; clientResponse?: Record<string, unknown> };
             if (res?.error) throw new Error(String(res.error));
+            const deferredUpdatedUser = (res.updatedUser ?? res.clientResponse?.updatedUser) as UserWithStatus | undefined;
+            versusKataPendingUserUpdateRef.current =
+                deferredUpdatedUser && deferredUpdatedUser.id === cuStart?.id ? deferredUpdatedUser : null;
             const kd = (res.championshipVersusKataDuel ?? res.clientResponse?.championshipVersusKataDuel) as
                 | {
                       match?: Match;
@@ -1839,9 +1849,25 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                             rewards: resultPayload.rewards,
                         }),
                     );
+                    const pendingUserUpdate = versusKataPendingUserUpdateRef.current;
+                    versusKataPendingUserUpdateRef.current = null;
+                    if (pendingUserUpdate && pendingUserUpdate.id === cu.id) {
+                        applyDeferredUserUpdateRef.current?.(
+                            pendingUserUpdate,
+                            'START_CHAMPIONSHIP_VERSUS_KATA_DUEL-replay-complete',
+                        );
+                        const updatedVenueRating = pendingUserUpdate.championshipVersusVenueRatings?.[venue];
+                        if (typeof updatedVenueRating?.rating === 'number') {
+                            setMyRating(updatedVenueRating.rating);
+                        }
+                        if (typeof updatedVenueRating?.ratingSeasonKey === 'string') {
+                            setRatingSeasonKey(updatedVenueRating.ratingSeasonKey);
+                        }
+                    }
                 }
             }
         } catch (err: unknown) {
+            versusKataPendingUserUpdateRef.current = null;
             const msg = err instanceof Error ? err.message : '경기 시작에 실패했습니다.';
             window.alert(msg);
         } finally {
@@ -1868,40 +1894,6 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
 
     const winCoinPreview = champCoinsForVersusWin(myRating);
     const lossCoinPreview = champCoinsForVersusLoss(myRating);
-    const versusExpectedRewardPreview = React.useMemo(
-        () => buildVersusExpectedRewardPreview(myRating, venue),
-        [myRating, venue],
-    );
-    const versusExpectedRewardGrid = (
-        <div className="grid w-full max-w-[30rem] grid-cols-2 gap-1.5 text-[10px] sm:text-[11px]">
-            {([
-                ['승리 시', 'text-emerald-200', versusExpectedRewardPreview.win],
-                ['패배 시', 'text-slate-300', versusExpectedRewardPreview.loss],
-            ] as const).map(([label, tone, reward]) => {
-                const xpLine =
-                    venue === 'pvp'
-                        ? `유저 XP ${rewardRangeLabel(reward.userXp)}`
-                        : venue === 'pet'
-                          ? `펫 XP ${rewardRangeLabel(reward.petXp)}`
-                          : `유저 ${rewardRangeLabel(reward.userXp)} / 펫 ${rewardRangeLabel(reward.petXp)}`;
-                return (
-                    <div
-                        key={label}
-                        className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-white/10 bg-black/35 px-2 py-1.5 text-slate-100 shadow-inner"
-                    >
-                        <div className={`font-black ${tone}`}>{label}</div>
-                        <div className="flex items-center gap-1 font-bold">
-                            <img src={specialResourceIcons.champCoins} alt="" className="h-3.5 w-3.5 object-contain" />
-                            <span>{reward.coins}</span>
-                            <img src={resourceIcons.gold} alt="" className="ml-1 h-3.5 w-3.5 object-contain" />
-                            <span>{rewardRangeLabel(reward.gold)}</span>
-                        </div>
-                        <div className="truncate text-[9px] font-semibold text-cyan-100/90 sm:text-[10px]">{xpLine}</div>
-                    </div>
-                );
-            })}
-        </div>
-    );
 
     const championshipBoardHostClipClass = 'overflow-hidden';
 
@@ -2136,10 +2128,6 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                         )}
                     </Button>
                 </div>
-                <div className="flex w-full flex-col items-center gap-1 rounded-lg border border-cyan-400/25 bg-cyan-950/20 px-2 py-1.5">
-                    <div className="text-[9px] font-black tracking-[0.16em] text-cyan-100/90">예상 보상</div>
-                    {versusExpectedRewardGrid}
-                </div>
             </div>
         </section>
     );
@@ -2176,6 +2164,12 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                     </button>
                 </div>
                 <div className="flex items-center gap-2 rounded-md border border-white/10 bg-zinc-900/92 px-2 py-1.5 ring-1 ring-inset ring-white/[0.06]">
+                    <div className="flex min-w-[3.15rem] shrink-0 flex-col items-center justify-center rounded-md border border-amber-400/45 bg-amber-950/35 px-1.5 py-1 shadow-inner">
+                        <span className="text-[9px] font-black leading-none tracking-[0.12em] text-amber-200/85">순위</span>
+                        <span className="mt-0.5 text-sm font-black leading-none tabular-nums text-amber-50">
+                            {myGlobalRank ? `${myGlobalRank.toLocaleString('ko-KR')}위` : '-'}
+                        </span>
+                    </div>
                     <Avatar userId={user.id} userName={user.nickname} size={40} avatarUrl={myAvatarUrl} borderUrl={myBorderUrl} />
                     <div className="min-w-0 flex-1">
                         <div className="truncate text-[13px] font-black leading-tight text-white sm:text-sm">{user.nickname}</div>
@@ -2972,7 +2966,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                         flushVersusSessionBeatMarkRef();
                         setVersusSummarySession(null);
                     }}
-                    confirmLabel="보상받기"
+                    confirmLabel="확인"
                     secondaryConfirmAction={{
                         label: '나가기',
                         title: '보상 확인 후 챔피언십 로비로 나갑니다.',

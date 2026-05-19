@@ -430,7 +430,7 @@ export async function executeChampionshipVersusOpponentListRefresh(
     user: User,
     venue: ChampionshipVersusVenueKind,
     now: number,
-): Promise<{ error?: string; myRating?: number; ratingSeasonKey?: string; opponents?: ChampionshipVersusOpponentRow[] }> {
+): Promise<{ error?: string; myRating?: number; myGlobalRank?: number; ratingSeasonKey?: string; opponents?: ChampionshipVersusOpponentRow[] }> {
     normalizeChampionshipVersusDuelTickets(user, now);
     normalizeChampionshipVersusOppRefreshDay(user, now);
     resolveChampionshipVersusConditionForDay(user, venue, now);
@@ -465,7 +465,7 @@ export async function executeChampionshipVersusOpponentListRefresh(
         'championshipVersusConditionSnapshot',
     ]);
 
-    return { myRating: built.myRating, ratingSeasonKey: built.ratingSeasonKey, opponents: built.opponents };
+    return { myRating: built.myRating, myGlobalRank: built.myGlobalRank, ratingSeasonKey: built.ratingSeasonKey, opponents: built.opponents };
 }
 
 function opponentUserChampionshipSnapshot(u: User): Pick<
@@ -506,7 +506,7 @@ export async function buildChampionshipVersusOpponentList(
     self: User,
     venue: ChampionshipVersusVenueKind,
     now: number,
-): Promise<{ myRating: number; ratingSeasonKey: string; opponents: ChampionshipVersusOpponentRow[] }> {
+): Promise<{ myRating: number; myGlobalRank?: number; ratingSeasonKey: string; opponents: ChampionshipVersusOpponentRow[] }> {
     ensureChampionshipVersusRatingEntry(self, venue, now);
     const selfEntry = self.championshipVersusVenueRatings![venue]!;
     const myRating = selfEntry.rating;
@@ -519,6 +519,7 @@ export async function buildChampionshipVersusOpponentList(
         if (!selfHasPet) {
             return {
                 myRating,
+                myGlobalRank: 1,
                 ratingSeasonKey: selfEntry.ratingSeasonKey,
                 opponents: [],
             };
@@ -641,6 +642,7 @@ export async function buildChampionshipVersusOpponentList(
     });
     return {
         myRating,
+        myGlobalRank: globalRankByUserId.get(self.id),
         ratingSeasonKey: selfEntry.ratingSeasonKey,
         opponents,
     };
@@ -1119,20 +1121,8 @@ async function executeChampionshipVersusKataDuelUnlocked(
     await db.updateUser(opponent);
 
     const { broadcastUserUpdate } = await import('./socket.js');
-    broadcastUserUpdate(actor, [
-        'championshipVersusVenueRatings',
-        'champCoins',
-        'gold',
-        'userXp',
-        'userLevel',
-        'inventory',
-        'championshipVersusDuelTickets',
-        'championshipVersusDuelTicketNextAt',
-        'championshipVersusDuelTicketsByVenue',
-        'championshipVersusDuelTicketNextAtByVenue',
-        'championshipVersusConditionSnapshot',
-        'championshipVersusDuelWeekLog',
-    ]);
+    // Actor UI reveals rating/record/reward changes after replay completes.
+    // The HTTP payload carries the updated user for that local reveal; avoid an early WebSocket merge.
     broadcastUserUpdate(opponent, [
         'championshipVersusVenueRatings',
         'champCoins',
