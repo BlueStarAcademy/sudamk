@@ -357,6 +357,32 @@ export const updateMissileState = (game: types.LiveGameSession, now: number): bo
     return false;
 };
 
+const MISSILE_ANIMATION_STUCK_TIMEOUT_MS = 5000;
+
+/** START_MISSILE_SELECTION 직전: 클라만 playing으로 넘긴 뒤 서버가 missile_animating에 남은 경우 복구 */
+function tryRecoverStuckMissileAnimatingBeforeSelection(
+    game: types.LiveGameSession,
+    now: number,
+): { blocked: boolean; error?: string } {
+    if (game.gameStatus !== 'missile_animating') {
+        return { blocked: false };
+    }
+    if (!game.animation || !isMissileFlightAnimationType(game.animation)) {
+        finalizeItemPhase(game, 'missile', now, { cleanupOnly: true, reason: 'start-selection-no-animation' });
+        return { blocked: false };
+    }
+    const animDuration = now - game.animation.startTime;
+    if (animDuration > MISSILE_ANIMATION_STUCK_TIMEOUT_MS) {
+        finalizeItemPhase(game, 'missile', now, {
+            animationStartTime: game.animation.startTime,
+            skipBoardRelocation: true,
+            reason: 'start-selection-animation-timeout',
+        });
+        return { blocked: false };
+    }
+    return { blocked: true, error: '미사일 애니메이션이 진행 중입니다. 잠시 후 다시 시도해주세요.' };
+}
+
 export const handleMissileAction = (game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): HandleActionResult | null => {
     const { type, payload } = action as any;
     const now = Date.now();
@@ -386,6 +412,13 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
             if (!canUseMissile) {
                 console.warn(`[Missile Go] START_MISSILE_SELECTION failed: isMyTurn=${isMyTurn}, gameStatus=${game.gameStatus}, gameId=${game.id}`);
                 return { error: "Not your turn to use an item." };
+            }
+            const animRecovery = tryRecoverStuckMissileAnimatingBeforeSelection(game, now);
+            if (animRecovery.blocked) {
+                console.warn(
+                    `[Missile Go] START_MISSILE_SELECTION failed: animation in progress, gameStatus=${game.gameStatus}, gameId=${game.id}`,
+                );
+                return { error: animRecovery.error ?? '미사일 애니메이션이 진행 중입니다. 잠시 후 다시 시도해주세요.' };
             }
             // 클라이언트가 첫 전환 GAME_UPDATE를 쓰로틀로 놓친 경우 재동기화(멱등)
             if (game.gameStatus === 'missile_selecting') {

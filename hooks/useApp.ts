@@ -3452,7 +3452,52 @@ export const useApp = () => {
             };
             setSinglePlayerGames(applyMissileAnimationCompletion);
             setTowerGames(applyMissileAnimationCompletion);
-            
+
+            // 도전의 탑: LAUNCH는 서버 처리, 애니 완료는 클라만 반영되면 서버가 missile_animating에 남아 다음 START가 400
+            const isTowerMissileGame = Boolean(towerGamesRef.current[gameId]);
+            const uid = currentUserRef.current?.id;
+            if (isTowerMissileGame && uid) {
+                void (async () => {
+                    try {
+                        const res = await fetch(getApiUrl('/api/action'), {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({
+                                type: 'MISSILE_ANIMATION_COMPLETE',
+                                payload: { gameId },
+                                userId: uid,
+                            }),
+                        });
+                        if (!res.ok) return;
+                        const result = await res.json();
+                        const serverGame =
+                            (result?.game as LiveGameSession | undefined) ??
+                            (result?.clientResponse?.game as LiveGameSession | undefined);
+                        if (!serverGame?.id) return;
+                        setTowerGames((currentGames) => {
+                            const prev = currentGames[gameId];
+                            if (!prev) return currentGames;
+                            return {
+                                ...currentGames,
+                                [gameId]: mergeGameWithMonotonicCounters(
+                                    prev,
+                                    serverGame,
+                                    gameId,
+                                ),
+                            };
+                        });
+                    } catch (e) {
+                        if (process.env.NODE_ENV === 'development') {
+                            console.warn(
+                                '[handleAction] tower MISSILE_ANIMATION_COMPLETE sync failed:',
+                                e,
+                            );
+                        }
+                    }
+                })();
+            }
+
             return;
         }
         

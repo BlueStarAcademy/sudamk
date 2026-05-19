@@ -540,6 +540,21 @@ describe('PVP Strategic mode', () => {
             expect(game.gameStatus).toBe('missile_animating');
         });
 
+        it('START_MISSILE_SELECTION recovers stuck missile_animating without animation payload', async () => {
+            const game = makePvpStrategicGame();
+            game.missiles_p1 = 1;
+            game.gameStatus = 'missile_animating';
+            game.animation = null as any;
+            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const res = await handleStrategicGameAction(volatileState, game, {
+                type: 'START_MISSILE_SELECTION',
+                payload: {},
+                userId: p1.id,
+            } as any, p1);
+            expect(res?.error).toBeUndefined();
+            expect(game.gameStatus).toBe('missile_selecting');
+        });
+
         it('LAUNCH_MISSILE ignores suspiciously long client moveHistory (prevents scoringTurnLimit corruption)', async () => {
             const game = makePvpStrategicGame();
             game.moveHistory = [{ player: Player.Black, x: 4, y: 4 }];
