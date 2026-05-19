@@ -58,7 +58,7 @@ const pairAiMissileSession = (): LiveGameSession => {
             startTime,
             duration: 400,
         } as any,
-    } as LiveGameSession;
+    } as unknown as LiveGameSession;
 };
 
 describe('pair AI missile item phase', () => {

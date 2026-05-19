@@ -1,10 +1,16 @@
-import type { LiveGameSession } from '../../types/index.js';
+import type { AnimationData, LiveGameSession } from '../../types/index.js';
 
-export function isMissileFlightAnimationType(anim: { type?: string } | null | undefined): boolean {
+export type MissileFlightAnimationData = Extract<AnimationData, { type: 'missile' | 'hidden_missile' }>;
+
+export function isMissileFlightAnimationType(
+    anim: AnimationData | { type?: string } | null | undefined,
+): anim is MissileFlightAnimationData {
     return anim?.type === 'missile' || anim?.type === 'hidden_missile';
 }
 
-export function isScanAnimationType(anim: { type?: string } | null | undefined): boolean {
+export function isScanAnimationType(
+    anim: AnimationData | { type?: string } | null | undefined,
+): anim is Extract<AnimationData, { type: 'scan' }> {
     return anim?.type === 'scan';
 }
 

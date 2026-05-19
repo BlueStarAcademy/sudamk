@@ -14,7 +14,7 @@ describe('pairTurnTickerDisplay', () => {
                 },
             },
         };
-        const msg = formatPairTurnTickerMessage(session, {
+        const msg = formatPairTurnTickerMessage(session as any, {
             seatId: 'white2',
             player: Player.White,
             order: 2,

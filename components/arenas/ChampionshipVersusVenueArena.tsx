@@ -58,7 +58,11 @@ import {
     type ChampionshipPlaybackSpeed,
 } from '../../hooks/useTournamentSimulation.js';
 import { championshipVersusBoardRulesForActorStrategicTier } from '../../shared/utils/championshipVersusTier.js';
-import { champCoinsForVersusLoss, champCoinsForVersusWin } from '../../shared/utils/championshipVersusElo.js';
+import {
+    champCoinsForVersusLoss,
+    champCoinsForVersusWin,
+    splitVersusExperiencePoolForVenue,
+} from '../../shared/utils/championshipVersusElo.js';
 import { flushChampionshipVersusDeferredLevelUp } from '../../utils/championshipVersusLevelUpDeferral.js';
 import { resolveChampionshipPanelScores } from '../../utils/championshipLiveScores.js';
 import {
@@ -114,12 +118,40 @@ type OpponentRow = {
     };
 };
 
+type VersusExpectedRewardPreview = {
+    win: { coins: number; gold: [number, number]; userXp: [number, number]; petXp: [number, number] };
+    loss: { coins: number; gold: [number, number]; userXp: [number, number]; petXp: [number, number] };
+};
+
+const rewardRangeLabel = ([min, max]: [number, number]): string => (min === max ? `${min}` : `${min}~${max}`);
+
+function buildVersusExpectedRewardPreview(rating: number, venue: ChampionshipVersusVenueKind): VersusExpectedRewardPreview {
+    const r = Math.max(0, Math.floor(Number(rating) || 0));
+    const goldWin: [number, number] = [Math.floor(r * 0.1), Math.floor(r * 0.15)];
+    const goldLoss: [number, number] = [Math.floor(goldWin[0] * 0.5), Math.floor(goldWin[1] * 0.5)];
+    const xpPoolWin: [number, number] = [Math.floor(r * 0.05), Math.floor(r * 0.1)];
+    const xpPoolLoss: [number, number] = [Math.floor(xpPoolWin[0] * 0.5), Math.floor(xpPoolWin[1] * 0.5)];
+    const splitRange = (range: [number, number]) => {
+        const low = splitVersusExperiencePoolForVenue(venue, range[0]);
+        const high = splitVersusExperiencePoolForVenue(venue, range[1]);
+        return {
+            userXp: [low.userPart, high.userPart] as [number, number],
+            petXp: [low.petPart, high.petPart] as [number, number],
+        };
+    };
+    const winXp = splitRange(xpPoolWin);
+    const lossXp = splitRange(xpPoolLoss);
+
+    return {
+        win: { coins: champCoinsForVersusWin(r), gold: goldWin, ...winXp },
+        loss: { coins: champCoinsForVersusLoss(r), gold: goldLoss, ...lossXp },
+    };
+}
+
 const championshipFooterButtonBase =
     'rounded-xl border px-4 py-2 text-xs font-black tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_-14px_rgba(0,0,0,0.9)] transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950';
 const championshipFooterPrimaryButton = `${championshipFooterButtonBase} border-emerald-300/45 bg-gradient-to-b from-emerald-400/95 via-emerald-600/90 to-emerald-950/95 text-slate-950 hover:brightness-110 focus-visible:ring-emerald-400/55`;
-const championshipFooterExitButton = `${championshipFooterButtonBase} border-rose-400/45 bg-gradient-to-b from-rose-600/88 via-rose-800/90 to-rose-950/95 text-rose-50 hover:brightness-110 focus-visible:ring-rose-400/55`;
 const championshipVersusStartMatchButtonFooterClass = `${championshipFooterPrimaryButton} !flex min-h-[42px] w-[10.5rem] shrink-0 items-center justify-center !px-3 !py-2.5 sm:min-h-[44px] sm:w-[11.5rem]`;
-const championshipVersusExitButtonFooterClass = `${championshipFooterExitButton} !flex min-h-[42px] w-[5.25rem] shrink-0 items-center justify-center !px-3 !py-2.5 sm:min-h-[44px] sm:w-[5.75rem]`;
 
 /** 네이티브 셸 고정 패널: `Header` 모바일 min-h(`clamp(3.5rem,…,4.85rem)`)와 동일 계열 */
 const VERSUS_MOBILE_DRAWER_TOP = 'calc(env(safe-area-inset-top, 0px) + clamp(3.5rem, calc(2.85rem + 2vw), 4.85rem))';
@@ -1213,7 +1245,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                     try {
                         const res = (await handleActionRef.current({
                             type: 'GET_CHAMPIONSHIP_VERSUS_VENUE_STATE',
-                            payload: { venue },
+                            payload: { venue, economyOnly: true },
                         })) as {
                             championshipVersusRefreshFreeRemaining?: number;
                             error?: string;
@@ -1836,6 +1868,40 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
 
     const winCoinPreview = champCoinsForVersusWin(myRating);
     const lossCoinPreview = champCoinsForVersusLoss(myRating);
+    const versusExpectedRewardPreview = React.useMemo(
+        () => buildVersusExpectedRewardPreview(myRating, venue),
+        [myRating, venue],
+    );
+    const versusExpectedRewardGrid = (
+        <div className="grid w-full max-w-[30rem] grid-cols-2 gap-1.5 text-[10px] sm:text-[11px]">
+            {([
+                ['승리 시', 'text-emerald-200', versusExpectedRewardPreview.win],
+                ['패배 시', 'text-slate-300', versusExpectedRewardPreview.loss],
+            ] as const).map(([label, tone, reward]) => {
+                const xpLine =
+                    venue === 'pvp'
+                        ? `유저 XP ${rewardRangeLabel(reward.userXp)}`
+                        : venue === 'pet'
+                          ? `펫 XP ${rewardRangeLabel(reward.petXp)}`
+                          : `유저 ${rewardRangeLabel(reward.userXp)} / 펫 ${rewardRangeLabel(reward.petXp)}`;
+                return (
+                    <div
+                        key={label}
+                        className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-white/10 bg-black/35 px-2 py-1.5 text-slate-100 shadow-inner"
+                    >
+                        <div className={`font-black ${tone}`}>{label}</div>
+                        <div className="flex items-center gap-1 font-bold">
+                            <img src={specialResourceIcons.champCoins} alt="" className="h-3.5 w-3.5 object-contain" />
+                            <span>{reward.coins}</span>
+                            <img src={resourceIcons.gold} alt="" className="ml-1 h-3.5 w-3.5 object-contain" />
+                            <span>{rewardRangeLabel(reward.gold)}</span>
+                        </div>
+                        <div className="truncate text-[9px] font-semibold text-cyan-100/90 sm:text-[10px]">{xpLine}</div>
+                    </div>
+                );
+            })}
+        </div>
+    );
 
     const championshipBoardHostClipClass = 'overflow-hidden';
 
@@ -1957,6 +2023,9 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 className="h-10 w-10 shrink-0 object-contain drop-shadow-md sm:h-11 sm:w-11 lg:h-12 lg:w-12"
             />
             <span className="shrink-0 text-xl font-black tabular-nums tracking-tight text-white sm:text-2xl">{myRating}</span>
+            <span className="shrink-0 rounded-lg border border-cyan-400/35 bg-cyan-950/35 px-2.5 py-1 text-[10px] font-black tracking-wide text-cyan-100 shadow-inner sm:px-3 sm:py-1.5 sm:text-xs">
+                예상 보상
+            </span>
             <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-emerald-400/40 bg-emerald-950/35 px-2.5 py-1 shadow-inner sm:px-3 sm:py-1.5">
                 <span className="text-[10px] font-black tracking-wide text-emerald-200 sm:text-xs">승리시</span>
                 <img src={specialResourceIcons.champCoins} alt="" className="h-5 w-5 object-contain sm:h-6 sm:w-6" />
@@ -2066,16 +2135,10 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                             </span>
                         )}
                     </Button>
-                    <Button
-                        type="button"
-                        bare
-                        onClick={() => replaceAppHash('#/tournament')}
-                        colorScheme="none"
-                        className={championshipVersusExitButtonFooterClass}
-                        title="경기장을 나갑니다."
-                    >
-                        나가기
-                    </Button>
+                </div>
+                <div className="flex w-full flex-col items-center gap-1 rounded-lg border border-cyan-400/25 bg-cyan-950/20 px-2 py-1.5">
+                    <div className="text-[9px] font-black tracking-[0.16em] text-cyan-100/90">예상 보상</div>
+                    {versusExpectedRewardGrid}
                 </div>
             </div>
         </section>
@@ -2908,6 +2971,16 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                     onConfirm={() => {
                         flushVersusSessionBeatMarkRef();
                         setVersusSummarySession(null);
+                    }}
+                    confirmLabel="보상받기"
+                    secondaryConfirmAction={{
+                        label: '나가기',
+                        title: '보상 확인 후 챔피언십 로비로 나갑니다.',
+                        onClick: () => {
+                            flushVersusSessionBeatMarkRef();
+                            setVersusSummarySession(null);
+                            replaceAppHash('#/tournament');
+                        },
                     }}
                 />
             ) : null}

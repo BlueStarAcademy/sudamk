@@ -1785,9 +1785,9 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
                 kataCandidates[0]!.y === -1)
         ) {
             console.warn(
-                `[pickKataMoveExclusiveWithBoardResync] empty/PASS-only (${tagSuffix} resync=${resync + 1}/${KATA_EXCLUSIVE_MAX_BOARD_RESYNC}) game=${game.id}`,
+                `[pickKataMoveExclusiveWithBoardResync] empty/PASS-only (${tagSuffix} resync=${resync + 1}/${KATA_EXCLUSIVE_MAX_BOARD_RESYNC}); falling back without repeated Kata calls, game=${game.id}`,
             );
-            continue;
+            break;
         }
 
         for (const cand of kataCandidates) {
@@ -1895,6 +1895,7 @@ export async function makeGoAiBotMove(
     const pairClassicGame = pairClassicGameForGuard;
     const captureRuleGame = modeIncludesCaptureRule(game);
     const pairCurrentSeat = pairCurrentSeatForGuard;
+    const arenaPolicy = resolveArenaSessionPolicy(game as any);
     const aiPlayerEnum = pairCurrentSeat?.player ?? game.currentPlayer;
     const opponentPlayerEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
     const now = Date.now();
@@ -2198,7 +2199,9 @@ export async function makeGoAiBotMove(
     const pairHasFixedScoringTurnLimit =
         pairClassicGame &&
         !captureRuleGame &&
+        arenaPolicy.turnLimitMode !== 'none' &&
         Number((game.settings as any)?.scoringTurnLimit ?? 0) > 0;
+    const pairPassRequiresAllSeats = pairClassicGame && arenaPolicy.matchAxis === 'pvp';
     if (process.env.NODE_ENV === 'development') {
         console.log(
             `[makeGoAiBotMove] game=${game.id} category=${(game as any).gameCategory ?? 'normal'} stage=${(game as any).stageId ?? '-'} floor=${(game as any).towerFloor ?? '-'} profileStep=${goAiProfileLevel} configuredKata=${configuredKataLevel ?? 'none'} resolvedKata=${resolvedKataLevel} pairSeat=${pairCurrentSeat?.participantId ?? 'none'} pairPhase=${pairKataPhase ?? 'none'} pairPly=${pairCurrentSeat ? pairValidPlyForNextMove : 'none'} pairFixed=${Number.isFinite(pairFixedKataLevel) ? Number(pairFixedKataLevel) : 'none'}`,
@@ -2422,7 +2425,12 @@ export async function makeGoAiBotMove(
                     );
                 }
                 if (legalFb.length === 0) {
-                    if (pairHasFixedScoringTurnLimit && pairCurrentSeat) {
+                    if (pairPassRequiresAllSeats && pairCurrentSeat) {
+                        selectedMove = { x: -1, y: -1 };
+                        console.warn(
+                            `[makeGoAiBotMove] pair PVP (no Kata): no legal moves → seat PASS, game=${game.id}`,
+                        );
+                    } else if (pairHasFixedScoringTurnLimit && pairCurrentSeat) {
                         const totalTurns = getProgressTurnCount(game);
                         console.warn(
                             `[makeGoAiBotMove] pair fixed-turn (no Kata): no legal moves → scoring, game=${game.id}, turns=${totalTurns}`,
@@ -2442,7 +2450,7 @@ export async function makeGoAiBotMove(
                         return;
                     }
                 }
-                if (!selectedMove) {
+                if (!selectedMove && legalFb.length > 0) {
                     pickedFromKata = legalFb[0]!;
                     console.warn(
                         `[makeGoAiBotMove] Kata unavailable; server legal move (${pickedFromKata.x},${pickedFromKata.y}), game=${game.id}`,
@@ -2471,6 +2479,12 @@ export async function makeGoAiBotMove(
                     pickedFromKata = fallbackMove;
                     console.warn(
                         `[makeGoAiBotMove] Kata-only exhausted; using server-scored legal move (${fallbackMove.x},${fallbackMove.y}), game=${game.id}`,
+                    );
+                } else if (pairPassRequiresAllSeats && pairCurrentSeat) {
+                    selectedMove = { x: -1, y: -1 };
+                    pendingPairPetKataGameChat = null;
+                    console.warn(
+                        `[makeGoAiBotMove] pair PVP: Kata exhausted and no legal move → seat PASS, game=${game.id}`,
                     );
                 } else {
                     const totalTurns = getProgressTurnCount(game);
@@ -2629,6 +2643,27 @@ export async function makeGoAiBotMove(
                 `[makeGoAiBotMove] pair fixed-turn blocked AI PASS (no Kata) → (${selectedMove.x},${selectedMove.y}), game=${game.id}`,
             );
         }
+    }
+
+    if (selectedMove.x === -1 && selectedMove.y === -1 && pairCurrentSeat && arenaPolicy.matchAxis !== 'pvp') {
+        const fallbackMove = pickServerScoredLegalMove(
+            game,
+            aiPlayerEnum,
+            opponentPlayerEnum,
+            goAiProfileLevel,
+        );
+        if (!fallbackMove) {
+            console.warn(
+                `[makeGoAiBotMove] pair PVE blocked AI PASS but found no legal move; AI resigns, game=${game.id}`,
+            );
+            await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+            return;
+        }
+        selectedMove = { x: fallbackMove.x, y: fallbackMove.y };
+        pendingPairPetKataGameChat = null;
+        console.warn(
+            `[makeGoAiBotMove] pair PVE blocked AI PASS → server legal move (${selectedMove.x},${selectedMove.y}), game=${game.id}`,
+        );
     }
 
     if (selectedMove.x === -1 && selectedMove.y === -1 && pairCurrentSeat) {

@@ -1903,10 +1903,10 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             }
             if (
                 pairClassicGame &&
-                game.settings?.pairGame?.pairMode === 'ai' &&
+                sessionPolicy.matchAxis !== 'pvp' &&
                 !modeIncludesCaptureRule(game)
             ) {
-                return { error: '페어 AI 대국에서는 통과할 수 없습니다. 정해진 수순이 끝나면 자동으로 계가됩니다.' };
+                return { error: '페어 AI 대국에서는 통과할 수 없습니다. 가능한 위치에 착수해야 합니다.' };
             }
             // 수순 고정 모드에서는 제한 수순 종료 후 PASS도 엄격 차단한다.
             {

@@ -67,6 +67,37 @@ import {
 import { pairPetKataStatsSixFromEquippedUser } from '../shared/utils/pairPetKataStatsFromEquippedUser.js';
 import { appendChampionshipVersusDuelWeekLogForUser } from '../shared/utils/championshipVersusDuelWeekLog.js';
 
+const CHAMPIONSHIP_VERSUS_KATA_DUEL_CONCURRENCY = Math.max(
+    1,
+    Math.min(4, Number(process.env.CHAMPIONSHIP_VERSUS_KATA_DUEL_CONCURRENCY) || 1),
+);
+let activeChampionshipVersusKataDuelCount = 0;
+const championshipVersusKataDuelWaiters: Array<() => void> = [];
+const activeChampionshipVersusKataDuelActors = new Set<string>();
+
+async function acquireChampionshipVersusKataDuelSlot(): Promise<() => void> {
+    return new Promise((resolve) => {
+        const grant = () => {
+            activeChampionshipVersusKataDuelCount += 1;
+            let released = false;
+            resolve(() => {
+                if (released) return;
+                released = true;
+                activeChampionshipVersusKataDuelCount = Math.max(0, activeChampionshipVersusKataDuelCount - 1);
+                championshipVersusKataDuelWaiters.shift()?.();
+            });
+        };
+        if (
+            activeChampionshipVersusKataDuelCount < CHAMPIONSHIP_VERSUS_KATA_DUEL_CONCURRENCY &&
+            championshipVersusKataDuelWaiters.length === 0
+        ) {
+            grant();
+            return;
+        }
+        championshipVersusKataDuelWaiters.push(grant);
+    });
+}
+
 function shouldSkipVersusDuelWeekLog(opponentId: string): boolean {
     return opponentId.startsWith('versus-demo-');
 }
@@ -825,6 +856,39 @@ export async function applyChampionshipVersusDuelRatingAndCoins(
 }
 
 export async function executeChampionshipVersusKataDuel(
+    actor: User,
+    venue: ChampionshipVersusVenueKind,
+    opponentUserId: string,
+    now: number,
+): Promise<{
+    error?: string;
+    actor?: User;
+    opponent?: User;
+    match?: Match;
+    championshipRealGame?: ChampionshipRealGameState;
+    analysis?: AnalysisResult;
+    actorWon?: boolean;
+    actorVenueRatingBefore?: number;
+    actorVenueRatingAfter?: number;
+    actorVenueRatingDelta?: number;
+    champCoinsDelta?: number;
+    versusActorRewards?: VersusKataActorRewardClientPayload;
+}> {
+    const actorRunKey = `${actor.id}:${venue}`;
+    if (activeChampionshipVersusKataDuelActors.has(actorRunKey)) {
+        return { error: '이미 챔피언십 경기를 시작하는 중입니다. 잠시만 기다려 주세요.' };
+    }
+    activeChampionshipVersusKataDuelActors.add(actorRunKey);
+    const releaseDuelSlot = await acquireChampionshipVersusKataDuelSlot();
+    try {
+        return await executeChampionshipVersusKataDuelUnlocked(actor, venue, opponentUserId, now);
+    } finally {
+        releaseDuelSlot();
+        activeChampionshipVersusKataDuelActors.delete(actorRunKey);
+    }
+}
+
+async function executeChampionshipVersusKataDuelUnlocked(
     actor: User,
     venue: ChampionshipVersusVenueKind,
     opponentUserId: string,

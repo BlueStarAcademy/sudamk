@@ -443,6 +443,7 @@ export type ServerAction =
     | { type: 'REQUEST_SCORING', payload: { gameId: string; boardState: BoardState; moveHistory: any[]; settings: any } }
     | { type: 'LAUNCH_MISSILE', payload: { gameId: string, from: Point, direction: 'up' | 'down' | 'left' | 'right', boardState?: BoardState, moveHistory?: any[] } }
     | { type: 'MISSILE_INVALID_SELECTION', payload: { gameId: string } }
+    | { type: 'MISSILE_ITEM_TIMEOUT', payload: { gameId: string } }
     | { type: 'CANCEL_MISSILE_SELECTION', payload: { gameId: string } }
     | { type: 'MISSILE_ANIMATION_COMPLETE', payload: { gameId: string } }
     // Omok
@@ -656,7 +657,7 @@ export type ServerAction =
     | { type: 'START_DUNGEON_STAGE', payload: { dungeonType: TournamentType; stage: number } }
     | { type: 'COMPLETE_DUNGEON_STAGE', payload: { dungeonType: TournamentType; stage: number } }
     | { type: 'CLAIM_DUNGEON_REWARD', payload: { dungeonType: TournamentType; stage: number } }
-    | { type: 'GET_CHAMPIONSHIP_VERSUS_VENUE_STATE', payload: { venue: ChampionshipVersusVenueKind } }
+    | { type: 'GET_CHAMPIONSHIP_VERSUS_VENUE_STATE', payload: { venue: ChampionshipVersusVenueKind; economyOnly?: boolean } }
     | { type: 'REFRESH_CHAMPIONSHIP_VERSUS_OPPONENT_LIST', payload: { venue: ChampionshipVersusVenueKind } }
     | { type: 'REPORT_CHAMPIONSHIP_VERSUS_DUEL_RESULT', payload: { venue: ChampionshipVersusVenueKind; opponentUserId: string; won: boolean } }
     | { type: 'START_CHAMPIONSHIP_VERSUS_KATA_DUEL', payload: { venue: ChampionshipVersusVenueKind; opponentUserId: string } }

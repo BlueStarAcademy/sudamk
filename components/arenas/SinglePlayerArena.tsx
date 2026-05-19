@@ -196,6 +196,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
     } = session;
     const [stageDescriptionCollapsed, setStageDescriptionCollapsed] = useState(false);
     const arenaFrameRef = useRef<HTMLDivElement | null>(null);
+    const missileTimeoutRequestKeyRef = useRef<string | null>(null);
     const [leftGutterWidth, setLeftGutterWidth] = useState(0);
 
     /** 모바일에서 스테이지 두루마리를 펼쳐도, 베이스 사전 단계에서는 판에 놓인 베이스돌을 항상 표시해야 함(그렇지 않으면 배치·덤 UI가 깨져 보임). */
@@ -219,6 +220,32 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         () => canViewerPlaceMoreBaseStones(session, currentUser.id),
         [session, currentUser.id]
     );
+
+    useEffect(() => {
+        if (gameStatus !== 'missile_selecting' || typeof session.itemUseDeadline !== 'number') {
+            missileTimeoutRequestKeyRef.current = null;
+            return undefined;
+        }
+
+        const requestKey = `${session.id}:${session.itemUseDeadline}`;
+        const requestTimeout = () => {
+            if (missileTimeoutRequestKeyRef.current === requestKey) return;
+            missileTimeoutRequestKeyRef.current = requestKey;
+            props.onAction({
+                type: 'MISSILE_ITEM_TIMEOUT',
+                payload: { gameId: session.id },
+            });
+        };
+
+        const delayMs = session.itemUseDeadline - Date.now() + 250;
+        if (delayMs <= 0) {
+            requestTimeout();
+            return undefined;
+        }
+
+        const timeoutId = window.setTimeout(requestTimeout, delayMs);
+        return () => window.clearTimeout(timeoutId);
+    }, [gameStatus, session.id, session.itemUseDeadline, props.onAction]);
 
     const myRevealedMoveIndices = useMemo(() => {
         const uid = currentUser?.id;

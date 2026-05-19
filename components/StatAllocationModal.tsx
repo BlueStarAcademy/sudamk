@@ -6,6 +6,7 @@ import Button from './Button.js';
 import RadarChart from './RadarChart.js';
 import { CORE_STATS_DATA } from '../constants';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import { useModalStackLayer } from '../hooks/useModalStackLayer.js';
 
 interface StatAllocationModalProps {
     currentUser: UserWithStatus;
@@ -50,6 +51,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
         }
     });
     const [selectedStat, setSelectedStat] = useState<CoreStat | null>(null);
+    const statEditorLayer = useModalStackLayer({ enabled: Boolean(selectedStat), zIndexFloor: 10_000 });
 
     const resetCost = 1000; // 골드로 변경 (서버와 일치)
     const maxDailyResets = 2;
@@ -407,7 +409,8 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                 selectedStat &&
                 createPortal(
                     <div
-                        className="fixed inset-0 z-[220] flex items-center justify-center bg-black/55 p-3 backdrop-blur-[2px] sm:p-5"
+                        className="fixed inset-0 flex items-center justify-center bg-black/55 p-3 backdrop-blur-[2px] sm:p-5"
+                        style={{ zIndex: statEditorLayer.zIndex }}
                         role="presentation"
                         data-draggable-satellite={STAT_ALLOCATION_WINDOW_ID}
                         onClick={() => setSelectedStat(null)}

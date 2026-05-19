@@ -2,6 +2,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import { selectKataMoveWithoutPass } from './kataMoveSelection.js';
 
 const app = express();
 // Railway sets PORT automatically, use it or default to 4001
@@ -34,6 +35,7 @@ app.get('/', (req, res) => {
         endpoints: {
             health: '/api/health',
             analyze: '/api/katago/analyze',
+            move: '/move',
             status: '/api/katago/status'
         }
     });
@@ -102,6 +104,82 @@ app.post('/api/katago/analyze', async (req, res) => {
         res.status(500).json({ 
             error: error.message || 'Internal server error',
             queryId: req.body?.id 
+        });
+    }
+});
+
+// Stateless move endpoint used by the game backend.
+// If KataGo's top move is PASS but pass is disallowed, choose the best non-pass
+// move from KataGo's own moveInfos instead of falling back to the heuristic bot.
+app.post('/move', async (req, res) => {
+    try {
+        const body = req.body ?? {};
+        const boardSize = Number(body.boardXSize ?? body.boardSize ?? 19);
+        if (!Number.isInteger(boardSize) || boardSize < 2 || boardSize > 19) {
+            return res.status(400).json({ error: `Invalid board size: ${body.boardXSize ?? body.boardSize}` });
+        }
+
+        const playerRaw = String(body.player ?? '').toLowerCase();
+        const initialPlayer = playerRaw === 'white' || playerRaw === 'w' ? 'W' : 'B';
+        const moves = Array.isArray(body.moves) ? body.moves : [];
+        const allowPass = body.allowPass === true;
+        const maxVisits = Math.max(1, Math.floor(Number(body.maxVisits ?? process.env.KATAGO_MOVE_MAX_VISITS ?? 120)));
+        const maxTimeSec = Math.max(0.1, Number(body.maxTimeSec ?? process.env.KATAGO_MOVE_MAX_TIME_SEC ?? 1.5));
+        const queryId = `move-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+        const query = {
+            id: queryId,
+            rules: body.rules || 'korean',
+            komi: Number.isFinite(Number(body.komi)) ? Number(body.komi) : 6.5,
+            boardXSize: boardSize,
+            boardYSize: Number(body.boardYSize ?? boardSize),
+            moves,
+            initialPlayer,
+            maxVisits,
+            includePolicy: false,
+            includeOwnership: false,
+            overrideSettings: { maxTime: maxTimeSec },
+        };
+
+        const { getKataGoManager } = await import('./kataGoService.js');
+        const manager = getKataGoManager();
+        const analysis = await manager.query(query);
+        const moveInfos = Array.isArray(analysis?.moveInfos) ? analysis.moveInfos : [];
+        const selection = selectKataMoveWithoutPass(moveInfos, boardSize, allowPass);
+
+        if (!selection) {
+            const topMove = moveInfos[0]?.move ?? 'PASS';
+            console.warn(
+                `[KataGo Server] /move found no non-pass Kata candidate: queryId=${queryId} topMove=${topMove} allowPass=${allowPass}`,
+            );
+            return res.json({
+                move: allowPass ? 'PASS' : topMove,
+                bestMove: topMove,
+                strategy: allowPass ? 'pass' : 'noNonPassCandidate',
+                winrate: moveInfos[0]?.winrate ?? analysis?.rootInfo?.winrate ?? 0,
+                moveInfos,
+            });
+        }
+
+        const topMove = moveInfos[0]?.move ?? selection.move;
+        if (selection.source === 'nonPassFallback') {
+            console.log(
+                `[KataGo Server] /move forced non-pass Kata candidate: top=${topMove} selected=${selection.move} queryId=${queryId}`,
+            );
+        }
+
+        res.json({
+            move: selection.move,
+            bestMove: topMove,
+            strategy: selection.source === 'nonPassFallback' ? 'kataNonPassFallback' : 'kataMoveInfo',
+            winrate: selection.winrate ?? analysis?.rootInfo?.winrate ?? 0,
+            scoreLead: selection.scoreLead,
+            moveInfos,
+        });
+    } catch (error: any) {
+        console.error('[KataGo Server] /move error:', error);
+        res.status(500).json({
+            error: error?.message || 'Internal server error',
         });
     }
 });

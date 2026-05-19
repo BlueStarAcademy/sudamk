@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { InventoryItem } from '../../../types/index.js';
+import { ItemGrade, type InventoryItem } from '../../../types/index.js';
 import {
     countConditionPotionsInInventory,
     stripInventoryIfFewerConditionPotions,
@@ -9,11 +9,12 @@ const potion = (name: string, quantity: number): InventoryItem =>
     ({
         id: `item-${name}`,
         name,
+        description: '',
         type: 'consumable',
         quantity,
         slot: null,
         image: '',
-        grade: 'Normal',
+        grade: ItemGrade.Normal,
         createdAt: 0,
         isEquipped: false,
         level: 1,

@@ -32,7 +32,7 @@ import {
 interface ShopModalProps {
     currentUser?: UserWithStatus; // Optional: useAppContext에서 가져올 수 있도록
     onClose: () => void;
-    onAction: (action: ServerAction) => void;
+    onAction: (action: ServerAction) => Promise<unknown> | unknown;
     isTopmost?: boolean;
     initialTab?: ShopTab;
 }

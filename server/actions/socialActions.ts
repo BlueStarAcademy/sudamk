@@ -85,6 +85,7 @@ import {
     isPairPetMaterial,
     isPairEggItem,
     findFirstHatchablePairEgg,
+    pairEggTemplateIdForHatch,
     isPairSoulStoneItem,
     pairSoulTierFromMaterialName,
     pairSoulTemplateIdFromTier,
@@ -4843,10 +4844,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (nextQty <= 0) afterEgg.splice(eggIdx, 1);
             else afterEgg[eggIdx] = { ...egg, quantity: nextQty };
             user.inventory = afterEgg;
-            const eggTid =
-                typeof egg.templateId === 'string' && egg.templateId.length > 0
-                    ? egg.templateId
-                    : PAIR_EGG_TEMPLATE_ID;
+            const eggTid = pairEggTemplateIdForHatch(egg);
             user.pairPetHatcherySessions[slotIndex] = {
                 slotIndex,
                 startedAt: Date.now(),
@@ -4867,6 +4865,15 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (slotIndex < 0 || slotIndex >= PAIR_HATCHERY_SESSION_SLOT_COUNT) {
                 return { error: '유효하지 않은 슬롯입니다.' };
             }
+            // 완료 수령은 펫을 새로 생성하므로, 캐시된 세션으로 같은 슬롯을 재수령하지 않도록 최신 DB 스냅샷을 기준으로 처리한다.
+            const liveSnap = await db.getUser(user.id, { includeInventory: true, includeEquipment: true });
+            if (!liveSnap) return { error: '유효하지 않은 사용자입니다.' };
+            user.pairPetHatcherySessions = liveSnap.pairPetHatcherySessions;
+            user.inventory = liveSnap.inventory;
+            if (liveSnap.inventorySlots) user.inventorySlots = liveSnap.inventorySlots;
+            if (liveSnap.pairPetLobbyPetSlotCount != null) user.pairPetLobbyPetSlotCount = liveSnap.pairPetLobbyPetSlotCount;
+            if (liveSnap.pairPetLobbySlotCount != null) user.pairPetLobbySlotCount = liveSnap.pairPetLobbySlotCount;
+
             user.pairPetHatcherySessions = normalizePairPetHatcherySessions(user.pairPetHatcherySessions);
             const session = user.pairPetHatcherySessions[slotIndex];
             if (!session) return { error: '부화 완료 대기 중인 알이 없습니다.' };

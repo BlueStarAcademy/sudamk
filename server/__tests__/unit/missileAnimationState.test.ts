@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { GameMode, Player } from '../../../shared/types/enums.js';
+import { GameCategory, GameMode, Player } from '../../../shared/types/enums.js';
 import type { LiveGameSession } from '../../../shared/types/index.js';
 import { updateMissileState } from '../../modes/missile.js';
+import { updateSinglePlayerMissileState } from '../../modes/singlePlayerMissile.js';
 
 const minimalMissileAnimatingGame = (overrides: Partial<LiveGameSession> = {}): LiveGameSession => {
     const startTime = 1000;
@@ -50,5 +51,33 @@ describe('updateMissileState', () => {
         const changed = updateMissileState(game, 5000);
         expect(changed).toBe(true);
         expect(game.gameStatus).toBe('playing');
+    });
+});
+
+describe('updateSinglePlayerMissileState', () => {
+    it('restores playing state and consumes one missile when selection times out', async () => {
+        const game = minimalMissileAnimatingGame({
+            id: 'sp-missile-timeout',
+            isSinglePlayer: true,
+            gameCategory: GameCategory.SinglePlayer,
+            gameStatus: 'missile_selecting',
+            animation: null as any,
+            itemUseDeadline: 2000,
+            pausedTurnTimeLeft: 12,
+            turnDeadline: undefined,
+            turnStartTime: undefined,
+            missiles_p1: 2,
+            missiles_p2: 3,
+        });
+
+        const changed = await updateSinglePlayerMissileState(game, 2500);
+
+        expect(changed).toBe(true);
+        expect(game.gameStatus).toBe('playing');
+        expect(game.itemUseDeadline).toBeUndefined();
+        expect(game.pausedTurnTimeLeft).toBeUndefined();
+        expect(game.missiles_p1).toBe(1);
+        expect(game.missiles_p2).toBe(3);
+        expect(game.blackTimeLeft).toBe(12);
     });
 });

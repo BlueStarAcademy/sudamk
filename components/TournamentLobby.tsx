@@ -1012,7 +1012,7 @@ const TournamentLobby: React.FC = () => {
         if (!u || hasPersistedVersusDuelTicketsByVenue(u)) return;
         void handlers.handleAction({
             type: 'GET_CHAMPIONSHIP_VERSUS_VENUE_STATE',
-            payload: { venue: 'pvp' },
+            payload: { venue: 'pvp', economyOnly: true },
         });
     }, [currentUserWithStatus?.id, handlers]);
 

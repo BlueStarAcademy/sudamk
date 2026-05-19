@@ -369,6 +369,13 @@ export function isPairEggItem(item: Pick<InventoryItem, 'templateId' | 'name'>):
     );
 }
 
+export function pairEggTemplateIdForHatch(item: Pick<InventoryItem, 'templateId' | 'name'>): string {
+    if (isPairWelcomeEggItem(item)) return PAIR_WELCOME_EGG_TEMPLATE_ID;
+    return typeof item.templateId === 'string' && item.templateId.length > 0
+        ? item.templateId
+        : PAIR_EGG_TEMPLATE_ID;
+}
+
 /** 부화 시작 시 서버와 동일 순서로 소모될 첫 알 행(수량 ≥ 1). `(특)신비로운 알`을 일반 신비로운알보다 우선 */
 export function findFirstHatchablePairEgg(inv: InventoryItem[] | null | undefined): InventoryItem | undefined {
     if (!Array.isArray(inv)) return undefined;

@@ -68,7 +68,7 @@ export function assignChampionshipCondition(): number {
 }
 
 function isLegalPoint(board: BoardState, point: Point, player: Player, koInfo: KoInfo, moveCount: number): boolean {
-    return processMove(board, { ...point, player }, koInfo as any, moveCount).isValid;
+    return processMove(board, { ...point, player }, koInfo as any, moveCount, { suppressOccupiedLog: true }).isValid;
 }
 
 function legalCandidates(board: BoardState, player: Player, koInfo: KoInfo, moveCount: number): MoveCandidate[] {
@@ -79,7 +79,7 @@ function legalCandidates(board: BoardState, player: Player, koInfo: KoInfo, move
         for (let x = 0; x < boardSize; x++) {
             if (board[y][x] !== Player.None) continue;
             const point = { x, y };
-            const result = processMove(board, { ...point, player }, koInfo as any, moveCount);
+            const result = processMove(board, { ...point, player }, koInfo as any, moveCount, { suppressOccupiedLog: true });
             if (!result.isValid) continue;
             const distanceFromCenter = Math.abs(center - x) + Math.abs(center - y);
             const captureScore = result.capturedStones.length * 12;

@@ -37,10 +37,11 @@ const session = (patch: Partial<LiveGameSession> = {}): LiveGameSession =>
 const pairSettings = (
     teamA: Array<{ id: string; kind: 'user' | 'ai' | 'pet' }>,
     teamB: Array<{ id: string; kind: 'user' | 'ai' | 'pet' }>,
+    pairMode: 'ai' | 'pvp' = 'ai',
 ): Pick<GameSettings, 'pairGame'> => ({
     pairGame: {
         roomId: 'pair-test',
-        pairMode: 'ai',
+        pairMode,
         teamA: { name: 'A', members: teamA.map((m, i) => ({ ...m, name: m.id, slot: `a${i}` })) },
         teamB: { name: 'B', members: teamB.map((m, i) => ({ ...m, name: m.id, slot: `b${i}` })) },
     },
@@ -58,7 +59,20 @@ describe('arena policy', () => {
                     settings: settings(pairSettings([{ id: 'h1', kind: 'user' }, { id: 'ai1', kind: 'ai' }], [{ id: 'h2', kind: 'user' }, { id: 'ai2', kind: 'ai' }])),
                 }),
             ),
-        ).toBe('mixed_pair');
+        ).toBe('pve');
+        expect(
+            resolveArenaMatchAxis(
+                session({
+                    settings: settings(
+                        pairSettings(
+                            [{ id: 'h1', kind: 'user' }, { id: 'pet1', kind: 'pet' }],
+                            [{ id: 'h2', kind: 'user' }, { id: 'pet2', kind: 'pet' }],
+                            'pvp',
+                        ),
+                    ),
+                }),
+            ),
+        ).toBe('pvp');
     });
 
     it('detects pair team compositions', () => {
@@ -143,6 +157,35 @@ describe('arena policy', () => {
         );
         expect(pair.isPairGame).toBe(true);
         expect(pair.resultRewardModel).toBe('pairSummary');
+    });
+
+    it('does not apply turn-limit auto scoring to pair games', () => {
+        const pairPve = resolveArenaSessionPolicy(
+            session({
+                settings: settings(
+                    pairSettings(
+                        [{ id: 'h1', kind: 'user' }, { id: 'pet1', kind: 'pet' }],
+                        [{ id: 'ai1', kind: 'ai' }, { id: 'pet2', kind: 'pet' }],
+                    ),
+                ),
+            }),
+        );
+        const pairPvp = resolveArenaSessionPolicy(
+            session({
+                settings: settings(
+                    pairSettings(
+                        [{ id: 'h1', kind: 'user' }, { id: 'pet1', kind: 'pet' }],
+                        [{ id: 'h2', kind: 'user' }, { id: 'pet2', kind: 'pet' }],
+                        'pvp',
+                    ),
+                ),
+            }),
+        );
+
+        expect(pairPve.turnLimitMode).toBe('none');
+        expect(pairPve.matchAxis).toBe('pve');
+        expect(pairPvp.turnLimitMode).toBe('none');
+        expect(pairPvp.matchAxis).toBe('pvp');
     });
 
     it('allows team-resign only for pair human-vs-human pvp', () => {

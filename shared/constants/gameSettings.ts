@@ -11,7 +11,7 @@ export const THIEF_BOARD_SIZES = [9, 13, 19];
 export const THIEF_NIGHTS_PER_SEGMENT = 5;
 export const MISSILE_BOARD_SIZES = [19, 13, 9];
 /** 미사일 이동: 출발~도착까지 고정 시간(ms). 거리가 멀수록 시각적 속도만 빨라짐(선형 보간). 서버·클라이언트 동기화용. */
-export const MISSILE_FLIGHT_DURATION_MS = 3000;
+export const MISSILE_FLIGHT_DURATION_MS = 2000;
 /** AI 히든 아이템 사용 시 "생각" 연출 길이(ms). 끝난 뒤 서버가 Kata로 좌표를 정함. 길드전 클라 대기와 동일 값 유지. */
 export const AI_HIDDEN_ITEM_THINKING_DURATION_MS = 3000;
 export const STRATEGIC_CLASSIC_SPEED_BOARD_SIZES = [9, 13, 19] as const;

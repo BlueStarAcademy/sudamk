@@ -1831,6 +1831,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     isBusy={isBusy}
                     equippedTemplateId={equippedTid}
                     petInTraining={selectedPetInTraining}
+                    embedDetailVariant="modal"
                     onSetRepresentative={(templateId, inventoryItemId) => void equipPet(templateId, inventoryItemId)}
                     onClearRepresentative={() => void clearEquip()}
                     onSoulConvert={(item) => setSoulConvertItem(item)}

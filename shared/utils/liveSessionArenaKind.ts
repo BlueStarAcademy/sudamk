@@ -180,6 +180,12 @@ export function resolvePairTeamComposition(settings: Pick<GameSettings, 'pairGam
 }
 
 export function resolveArenaMatchAxis(session: SessionLike | null | undefined): ArenaMatchAxis {
+    if (isPairSessionLike(session)) {
+        const pairMode = session?.settings?.pairGame?.pairMode;
+        if (pairMode === 'pvp') return 'pvp';
+        if (pairMode === 'ai') return 'pve';
+    }
+
     const pairComposition = resolvePairTeamComposition(session?.settings);
     if (pairComposition === 'human_ai_vs_human_ai' || pairComposition === 'human_human_vs_ai' || pairComposition === 'human_ai_vs_ai') {
         return 'mixed_pair';
@@ -229,7 +235,7 @@ export function resolveArenaSessionPolicy(session: SessionLike | null | undefine
         !session?.isAiGame &&
         Number(settings?.scoringTurnLimit ?? 0) > 0;
 
-    const turnLimitMode: ArenaTurnLimitMode = captureRule
+    const turnLimitMode: ArenaTurnLimitMode = captureRule || isPairGame
         ? 'none'
         : kind === GameCategory.SinglePlayer
           ? 'stageAutoScoring'

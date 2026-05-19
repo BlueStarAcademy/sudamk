@@ -7,17 +7,20 @@ import {
 } from '../../aiSessionManager.js';
 import { buildPairAiSchedulingKey, resolvePairUserPlayerEnum } from '../../../shared/utils/pairGameTurn.js';
 
-const pairSettings = {
+const pairSettings: any = {
     pairGame: {
+        roomId: 'pair-ai-room',
         pairMode: 'ai' as const,
         currentTurnIndex: 0,
         teamA: {
+            name: 'A',
             members: [
                 { id: 'u1', name: 'U1', kind: 'user' as const, slot: 'A1' },
                 { id: 'pet-ai-u1', name: 'Pet', kind: 'pet' as const, slot: 'A2' },
             ],
         },
         teamB: {
+            name: 'B',
             members: [
                 { id: 'pair-opponent-ai', name: 'AI', kind: 'ai' as const, slot: 'B1' },
                 { id: 'pair-opponent-pet', name: 'Pet2', kind: 'pet' as const, slot: 'B2' },
@@ -156,6 +159,6 @@ describe('resolvePairUserPlayerEnum', () => {
             },
         };
 
-        expect(resolvePairUserPlayerEnum(settings, 'u1')).toBe(Player.Black);
+        expect(resolvePairUserPlayerEnum(settings as any, 'u1')).toBe(Player.Black);
     });
 });

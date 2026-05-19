@@ -29,7 +29,7 @@ import {
     ResultModalGoldCurrencySlot,
     ResultModalItemRewardSlot,
     RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS,
-    RESULT_MODAL_REWARDS_ROW_MOBILE_COMPACT_CLASS,
+    RESULT_MODAL_REWARDS_ROW_MOBILE_WRAP_CLASS,
     RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
 } from './game/ResultModalRewardSlot.js';
 import { ResultModalVipRewardSlot } from './game/ResultModalVipRewardSlot.js';
@@ -55,6 +55,12 @@ interface GameSummaryModalProps {
     session: LiveGameSession;
     currentUser: User;
     onConfirm: () => void;
+    confirmLabel?: string;
+    secondaryConfirmAction?: {
+        label: string;
+        onClick: () => void;
+        title?: string;
+    };
     /** 모험: 맵으로 돌아가며 경기장 퇴장 */
     onLeaveToAdventureMap?: () => void;
     onAction?: (action: ServerAction) => void | Promise<unknown>;
@@ -1547,6 +1553,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
     session,
     currentUser,
     onConfirm,
+    confirmLabel = '확인',
+    secondaryConfirmAction,
     onLeaveToAdventureMap,
     isSpectator = false,
 }) => {
@@ -2110,7 +2118,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             <div
                 className={
                     isMobile
-                        ? RESULT_MODAL_REWARDS_ROW_MOBILE_COMPACT_CLASS
+                        ? RESULT_MODAL_REWARDS_ROW_MOBILE_WRAP_CLASS
                         : `flex ${
                               useCompactRewardSlots ? 'min-h-[5.25rem]' : RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS
                           } flex-wrap content-center items-center justify-center gap-2 sm:gap-2.5`
@@ -2913,13 +2921,24 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                 >
                     {isMobile ? <div className="min-w-0 w-full shrink-0">{pvpRewardsSection}</div> : null}
                     <div className={`${arenaPostGameSingleConfirmFooterClass} shrink-0`}>
+                        {secondaryConfirmAction ? (
+                            <button
+                                type="button"
+                                className={`${arenaPostGameButtonClass('danger', isMobile, 'modal')} ${arenaPostGameSingleModalConfirmButtonClass}`}
+                                style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
+                                onClick={secondaryConfirmAction.onClick}
+                                title={secondaryConfirmAction.title}
+                            >
+                                {secondaryConfirmAction.label}
+                            </button>
+                        ) : null}
                         <button
                             type="button"
                             className={`${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${arenaPostGameSingleModalConfirmButtonClass}`}
                             style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
                             onClick={onConfirm}
                         >
-                            확인
+                            {confirmLabel}
                         </button>
                     </div>
                 </div>

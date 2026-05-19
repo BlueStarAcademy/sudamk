@@ -6,6 +6,7 @@
  */
 
 import { Point } from '../types/index.js';
+import { selectKataMoveWithoutPass, type KataAnalysisMoveInfo } from './kataMoveSelection.js';
 
 // 환경변수
 const KATA_SERVER_URL = process.env.KATA_SERVER_URL?.trim();
@@ -101,6 +102,7 @@ type KataMoveApiData = {
     strategy?: string;
     winrate?: number;
     bestMove?: string;
+    moveInfos?: KataAnalysisMoveInfo[];
 };
 
 export interface KataServerMoveCandidateDetails {
@@ -123,7 +125,7 @@ function dedupePointsFirstWins(points: Point[]): Point[] {
 }
 
 /** KataServer가 레벨에 맞게 고른 `move` 우선, 그다음 참고용 `bestMove`. GTP 문자열 단계에서 중복 제거. */
-function buildGtpCandidatesFromKataResponse(data: KataMoveApiData, allowPass: boolean): string[] {
+function buildGtpCandidatesFromKataResponse(data: KataMoveApiData, allowPass: boolean, boardSize: number): string[] {
     const best = data.bestMove?.trim();
     const reported = data.move?.trim();
     const out: string[] = [];
@@ -136,6 +138,10 @@ function buildGtpCandidatesFromKataResponse(data: KataMoveApiData, allowPass: bo
     };
     pushUnique(reported);
     pushUnique(best);
+    if (!allowPass && out.length === 0) {
+        const forced = selectKataMoveWithoutPass(data.moveInfos, boardSize, false);
+        if (forced?.move) pushUnique(forced.move);
+    }
     return out;
 }
 
@@ -265,7 +271,7 @@ async function generateKataServerMoveCandidatesUncached(params: GenerateKataServ
 
             console.log(`[KataServer] Move response: move=${data.move} strategy=${data.strategy} winrate=${data.winrate} bestMove=${data.bestMove}`);
 
-            const gtps = buildGtpCandidatesFromKataResponse(data, allowPass);
+            const gtps = buildGtpCandidatesFromKataResponse(data, allowPass, boardSize);
             const best = data.bestMove?.trim();
             const reported = data.move?.trim();
             if (best && reported && best.toUpperCase() !== 'PASS' && reported.toUpperCase() !== 'PASS' && best.toUpperCase() !== reported.toUpperCase()) {
@@ -315,7 +321,7 @@ async function generateKataServerMoveCandidatesUncached(params: GenerateKataServ
             const r = await singleHttpAttempt();
             const hasCandidates = r.candidates.length > 0;
             if (hasCandidates || attempt === maxAttempts - 1) {
-                if (!params.skipApplyDelay) {
+                if (hasCandidates && !params.skipApplyDelay) {
                     await sleep(KATA_APPLY_MOVE_DELAY_MS);
                 }
                 return r;

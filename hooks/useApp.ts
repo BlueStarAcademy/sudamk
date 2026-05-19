@@ -5074,7 +5074,7 @@ export const useApp = () => {
                                                 ...((action as { payload?: Record<string, unknown> }).payload ?? {}),
                                                 __diceRollRetriedAfterSync: true,
                                             },
-                                        } as ServerAction);
+                                        } as unknown as ServerAction);
                                     }
                                 }
                             }

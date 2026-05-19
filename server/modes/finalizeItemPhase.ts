@@ -170,7 +170,7 @@ export function finalizeScanItemPhase(
     now: number,
     options: FinalizeItemPhaseOptions = {},
 ): boolean {
-    if (game.gameStatus !== 'scanning_animating' && !(options.scanDeadlineCleanup && game.gameStatus === 'scanning_animating')) {
+    if (game.gameStatus !== 'scanning_animating') {
         return false;
     }
 
@@ -312,6 +312,18 @@ export function finalizeHiddenRevealPresentationCleanup(
     markItemPhaseStateChanged(game);
 }
 
+export function finalizeItemPhase(
+    game: types.LiveGameSession,
+    kind: Exclude<ItemPhaseKind, 'hidden_reveal'>,
+    now: number,
+    options?: FinalizeItemPhaseOptions,
+): boolean;
+export function finalizeItemPhase(
+    game: types.LiveGameSession,
+    kind: 'hidden_reveal',
+    now: number,
+    options?: FinalizeItemPhaseOptions,
+): Promise<boolean>;
 export function finalizeItemPhase(
     game: types.LiveGameSession,
     kind: ItemPhaseKind,

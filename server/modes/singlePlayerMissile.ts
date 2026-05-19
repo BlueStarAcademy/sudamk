@@ -254,6 +254,44 @@ function relocateMissileStoneMetadata(
     }
 }
 
+function expireSinglePlayerMissileSelection(
+    game: types.LiveGameSession,
+    now: number,
+    reason: 'deadline' | 'client-expired'
+): boolean {
+    if (game.gameStatus !== 'missile_selecting') return false;
+
+    const timedOutPlayerEnum = game.currentPlayer;
+    const timedOutPlayerId = timedOutPlayerEnum === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
+
+    console.log(
+        `[SinglePlayer Missile] Item use expired (${reason}) for game ${game.id}, player ${timedOutPlayerId}, restoring game state`,
+    );
+
+    game.foulInfo = {
+        message: `${game.player1.id === timedOutPlayerId ? game.player1.nickname : game.player2.nickname}님의 아이템 시간 초과!`,
+        expiry: now + 4000,
+    };
+    game.gameStatus = 'playing';
+    game.currentPlayer = timedOutPlayerEnum;
+
+    // 싱글플레이는 player1/player2 기준으로 세션 아이템 카운터를 관리한다.
+    const missileKey = timedOutPlayerId === game.player1.id ? 'missiles_p1' : 'missiles_p2';
+    const currentMissiles = game[missileKey] ?? game.settings.missileCount ?? 0;
+    if (currentMissiles > 0) {
+        game[missileKey] = currentMissiles - 1;
+    }
+
+    const resumed = resumeGameTimer(game, now, timedOutPlayerEnum);
+    if (!resumed) {
+        game.itemUseDeadline = undefined;
+        game.pausedTurnTimeLeft = undefined;
+        game.turnDeadline = undefined;
+        game.turnStartTime = undefined;
+    }
+    return true;
+}
+
 export const updateSinglePlayerMissileState = async (game: types.LiveGameSession, now: number): Promise<boolean> => {
     // 싱글플레이 게임이 아니면 처리하지 않음
     if (!game.isSinglePlayer) {
@@ -277,36 +315,7 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
 
     // 아이템 사용 시간 초과 처리
     if (game.gameStatus === 'missile_selecting' && game.itemUseDeadline && now > game.itemUseDeadline) {
-        const timedOutPlayerEnum = game.currentPlayer;
-        const timedOutPlayerId = timedOutPlayerEnum === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
-        
-        console.log(`[SinglePlayer Missile] Item use deadline expired for game ${game.id}, player ${timedOutPlayerId}, restoring game state`);
-        
-        game.foulInfo = { 
-            message: `${game.player1.id === timedOutPlayerId ? game.player1.nickname : game.player2.nickname}님의 아이템 시간 초과!`, 
-            expiry: now + 4000 
-        };
-        game.gameStatus = 'playing';
-        game.currentPlayer = timedOutPlayerEnum;
-        
-        // 미사일 아이템 소멸 — 싱글플레이는 USE 경로(`handleSinglePlayerMissileAction`)가 player1=p1 / player2=p2 매핑을
-        // 진실원으로 쓴다. 베이스 싱글에서 유저가 백이 되면 색→키 매핑은 USE 경로와 어긋나 잘못된 인벤(`missiles_p2`=AI)이 줄어들 수 있다.
-        // 시간 초과 패널티도 같은 매핑으로 통일해 주인의 미사일 발수만 깎이도록 한다.
-        const missileKey = timedOutPlayerId === game.player1.id ? 'missiles_p1' : 'missiles_p2';
-        const currentMissiles = game[missileKey] ?? game.settings.missileCount ?? 0;
-        if (currentMissiles > 0) {
-            game[missileKey] = currentMissiles - 1;
-        }
-        
-        // 원래 경기 시간 복원 (턴 유지)
-        const resumed = resumeGameTimer(game, now, timedOutPlayerEnum);
-        if (!resumed) {
-            game.itemUseDeadline = undefined;
-            game.pausedTurnTimeLeft = undefined;
-            game.turnDeadline = undefined;
-            game.turnStartTime = undefined;
-        }
-        return true; // 게임 상태가 변경되었음을 반환
+        return expireSinglePlayerMissileSelection(game, now, 'deadline');
     }
     
     // 애니메이션 처리 - 최우선 처리
@@ -903,7 +912,8 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
             // 아이템 사용 시간 확인
             if (game.itemUseDeadline && now > game.itemUseDeadline) {
                 console.warn(`[SinglePlayer Missile] LAUNCH_MISSILE failed: item use time expired, gameId=${game.id}`);
-                return { error: "Item use time expired." };
+                expireSinglePlayerMissileSelection(game, now, 'deadline');
+                return { clientResponse: { gameUpdated: true } };
             }
             
             // 이미 애니메이션이 진행 중인 경우 무시 (중복 방지)
@@ -1125,6 +1135,17 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
             }
             game.foulInfo = { message: '움직일 수 없는 돌입니다.', expiry: now + 4000 };
             return {};
+        }
+
+        case 'MISSILE_ITEM_TIMEOUT': {
+            if (game.gameStatus !== 'missile_selecting') {
+                return { clientResponse: { gameUpdated: true } };
+            }
+            if (game.itemUseDeadline && now < game.itemUseDeadline) {
+                return { clientResponse: { gameUpdated: true } };
+            }
+            expireSinglePlayerMissileSelection(game, now, 'client-expired');
+            return { clientResponse: { gameUpdated: true } };
         }
         
         case 'CANCEL_MISSILE_SELECTION': {

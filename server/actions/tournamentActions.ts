@@ -2424,7 +2424,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
         case 'GET_CHAMPIONSHIP_VERSUS_VENUE_STATE': {
             const champGate = await requireArenaEntranceOpen(user.isAdmin, 'championship', user);
             if (!champGate.ok) return { error: champGate.error };
-            const { venue } = payload as { venue: ChampionshipVersusVenueKind };
+            const { venue, economyOnly } = payload as { venue: ChampionshipVersusVenueKind; economyOnly?: boolean };
             const {
                 parseVersusVenuePayload,
                 buildChampionshipVersusOpponentList,
@@ -2444,6 +2444,19 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             if (needPersist || firstEconomy || versusCondSnapNew) {
                 updateUserCache(user);
                 void db.updateUser(user).catch((err) => console.error('[GET_CHAMPIONSHIP_VERSUS_VENUE_STATE] save user failed:', err));
+            }
+            if (economyOnly) {
+                const selfEntry = user.championshipVersusVenueRatings?.[v];
+                return {
+                    clientResponse: {
+                        updatedUser: user,
+                        championshipVersusVenue: v,
+                        championshipVersusMyRating: selfEntry?.rating,
+                        championshipVersusRatingSeasonKey: selfEntry?.ratingSeasonKey,
+                        championshipVersusRatingMonthKST: selfEntry?.ratingSeasonKey,
+                        ...economy,
+                    },
+                };
             }
             const { myRating, ratingSeasonKey, opponents } = await buildChampionshipVersusOpponentList(user, v, now);
             return {

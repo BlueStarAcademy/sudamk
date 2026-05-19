@@ -1413,6 +1413,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
         case 'LAUNCH_MISSILE':
         case 'CANCEL_MISSILE_SELECTION':
         case 'MISSILE_INVALID_SELECTION':
+        case 'MISSILE_ITEM_TIMEOUT':
         case 'MISSILE_ANIMATION_COMPLETE': {
             const { gameId } = payload;
             if (!gameId) {
