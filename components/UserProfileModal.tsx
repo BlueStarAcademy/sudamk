@@ -496,8 +496,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
         const inventoryList = inventory || [];
         
         // equipment 필드의 각 슬롯에 대해 아이템 찾기
-        for (const [slot, itemId] of Object.entries(equipmentObj)) {
-            const item = inventoryList.find(i => i.id === itemId && i.slot === slot);
+        for (const [, itemId] of Object.entries(equipmentObj)) {
+            const item = inventoryList.find((i) => i.id === itemId);
             if (item) {
                 items.push(item);
             }
@@ -512,8 +512,14 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
         if (!itemId) return undefined;
         
         // inventory에서 해당 아이템 찾기
-        return (inventory || []).find(item => item.id === itemId && item.slot === slot);
+        return (inventory || []).find((item) => item.id === itemId);
     };
+
+    const canShowMbti = isSelfProfile || user.isMbtiPublic !== false;
+    const mbtiHiddenByPrivacy =
+        !isSelfProfile &&
+        user.isMbtiPublic === false &&
+        Boolean((user as UserWithStatus & { hasMbtiConfigured?: boolean }).hasMbtiConfigured);
 
     const totalMannerScore = getMannerScore(user);
     const mannerRank = getMannerRank(totalMannerScore);
@@ -577,7 +583,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                                     </h2>
                                     <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-slate-400/95">
                                         <span className="font-semibold text-slate-300">MBTI</span>
-                                        {user.mbti ? (
+                                        {canShowMbti && user.mbti ? (
                                             <>
                                                 <span className="font-bold text-base text-cyan-200">{user.mbti}</span>
                                                 <button
@@ -588,6 +594,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                                                     분석하기
                                                 </button>
                                             </>
+                                        ) : mbtiHiddenByPrivacy ? (
+                                            <span className="font-semibold text-base text-slate-400">비공개</span>
                                         ) : (
                                             <span className="font-semibold text-base text-gray-200 inline-flex items-center gap-1">
                                                 미설정

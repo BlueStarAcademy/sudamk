@@ -1,3 +1,12 @@
+/** 펫 관리 모달 — PC 가로(px) */
+export const PAIR_PET_MANAGEMENT_MODAL_WIDTH_DESKTOP = 580;
+
+/** 펫 관리 모달 — 모바일 가로(px) */
+export const PAIR_PET_MANAGEMENT_MODAL_WIDTH_MOBILE = 760;
+
+/** 펫 획득·상세 모달 — PC 가로(px) */
+export const PAIR_PET_DETAIL_MODAL_INITIAL_WIDTH = 480;
+
 /** 펫 관리 모달 — PC 설계 높이(px) */
 export const PAIR_PET_MANAGEMENT_MODAL_HEIGHT_DESKTOP = 1080;
 

@@ -9,6 +9,8 @@ import { PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE } from '../shared/constants/pa
 import {
     PAIR_PET_MANAGEMENT_MODAL_HEIGHT_DESKTOP,
     PAIR_PET_MANAGEMENT_MODAL_HEIGHT_MOBILE,
+    PAIR_PET_MANAGEMENT_MODAL_WIDTH_DESKTOP,
+    PAIR_PET_MANAGEMENT_MODAL_WIDTH_MOBILE,
     PAIR_PET_MODAL_MOBILE_BOTTOM_GAP_PX,
     PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS,
 } from '../shared/constants/pairPetModal.js';
@@ -48,7 +50,7 @@ const PetManagementModal: React.FC<PetManagementModalProps> = ({ onClose, isTopm
             title="펫 관리"
             onClose={onClose}
             windowId="pet-management-modal"
-            initialWidth={isMobile ? 820 : 640}
+            initialWidth={isMobile ? PAIR_PET_MANAGEMENT_MODAL_WIDTH_MOBILE : PAIR_PET_MANAGEMENT_MODAL_WIDTH_DESKTOP}
             initialHeight={isMobile ? PAIR_PET_MANAGEMENT_MODAL_HEIGHT_MOBILE : PAIR_PET_MANAGEMENT_MODAL_HEIGHT_DESKTOP}
             isTopmost={isTopmost}
             variant="store"

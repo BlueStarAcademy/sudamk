@@ -74,10 +74,10 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
             ? 'text-xs sm:text-sm'
             : 'text-sm';
 
-    const stripTextMainModal = 'text-sm font-bold text-amber-100 sm:text-[0.95rem]';
-    const stripTotalNumModal = 'text-base font-black tabular-nums text-amber-50 sm:text-lg';
-    const stripPhaseLabelModal = 'text-[0.7rem] font-semibold leading-none text-slate-400 sm:text-xs';
-    const stripPhaseNumModal = 'text-sm font-bold tabular-nums text-sky-100 sm:text-base';
+    const stripTextMainModal = 'text-lg font-bold text-amber-100 sm:text-xl';
+    const stripTotalNumModal = 'text-xl font-black tabular-nums text-amber-50 sm:text-2xl';
+    const stripPhaseLabelModal = 'text-sm font-semibold leading-none text-slate-300 sm:text-base';
+    const stripPhaseNumModal = 'text-lg font-bold tabular-nums text-sky-100 sm:text-xl';
 
     const kataCoreSix = useMemo(() => computePairPetKataCoreStatsSixFromMeta(meta, petGrade), [meta, petGrade]);
     const badukTotalPower = useMemo(

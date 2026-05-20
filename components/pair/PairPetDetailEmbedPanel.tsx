@@ -49,13 +49,15 @@ const PairPetDetailEmbedPanel: React.FC<PairPetDetailEmbedPanelProps> = ({
     const isModalLayout = detailVariant === 'modal';
     const hug = contentHeight === 'hug';
     const homePack = Boolean(mobileHomeRepPet && !isModalLayout);
-    const readablePanelFit = detailVariant === 'panelFit' && suppressDetailFitScale;
+    const readableEmbed = suppressDetailFitScale && (detailVariant === 'panelFit' || detailVariant === 'modal');
     const modalScrollClass =
-        isModalLayout || parentOuterFitScale
+        parentOuterFitScale
             ? 'overflow-hidden'
-            : readablePanelFit
+            : readableEmbed
               ? 'overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-width:thin]'
-              : 'overflow-hidden';
+              : isModalLayout
+                ? 'overflow-hidden'
+                : 'overflow-hidden';
     return (
     <div
         className={`flex min-h-0 flex-col overflow-hidden ${homePack ? 'gap-0.5' : 'gap-1'} ${

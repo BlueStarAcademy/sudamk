@@ -4310,6 +4310,16 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             const equippedItems: types.InventoryItem[] = Array.isArray(user.inventory)
                 ? (user.inventory as types.InventoryItem[]).filter((item) => item && equipIds.has(item.id))
                 : [];
+            const equippedById = new Map(equippedItems.map((item) => [item.id, item]));
+            for (const itemId of equipIds) {
+                if (!equippedById.has(itemId)) {
+                    const row = (user.inventory as types.InventoryItem[] | undefined)?.find((item) => item?.id === itemId);
+                    if (row) {
+                        equippedItems.push(row);
+                        equippedById.set(itemId, row);
+                    }
+                }
+            }
             /** 대표펫은 `equipment` 슬롯이 아니라 별도 필드로 장착 → 공개 프로필에도 행·메타가 필요 */
             const pairPetRow = getEquippedPairPetInventoryRow(user);
             if (pairPetRow?.id && !equippedItems.some((it) => it.id === pairPetRow.id)) {
@@ -4330,8 +4340,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 mannerScore: user.mannerScore,
                 tournamentScore: user.tournamentScore,
                 cumulativeTournamentScore: user.cumulativeTournamentScore,
-                mbti: user.mbti,
-                isMbtiPublic: user.isMbtiPublic,
+                hasMbtiConfigured: Boolean(user.mbti),
+                mbti: user.isMbtiPublic ? (user.mbti ?? null) : null,
+                isMbtiPublic: user.isMbtiPublic ?? false,
                 cumulativeRankingScore: user.cumulativeRankingScore,
                 dailyRankings: user.dailyRankings,
                 towerFloor: (user as any).towerFloor,

@@ -131,7 +131,7 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
                 <div className="flex flex-row items-start gap-2.5 sm:gap-4">
                     <div className="shrink-0">
                         <div
-                            className={`relative flex h-[4.5rem] w-[4.5rem] items-center justify-center overflow-hidden rounded-xl border border-white/12 shadow-[0_18px_42px_-16px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-violet-400/15 min-[380px]:h-[5.25rem] min-[380px]:w-[5.25rem] min-[400px]:rounded-2xl sm:h-[7.5rem] sm:w-[7.5rem] md:h-[8.75rem] md:w-[8.75rem] ${
+                            className={`relative flex h-[3.25rem] w-[3.25rem] items-center justify-center overflow-hidden rounded-xl border border-white/12 shadow-[0_18px_42px_-16px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-violet-400/15 min-[380px]:h-[3.75rem] min-[380px]:w-[3.75rem] min-[400px]:rounded-2xl sm:h-[4.75rem] sm:w-[4.75rem] md:h-[5.5rem] md:w-[5.5rem] ${
                                 isTranscendent ? '' : ''
                             }`}
                         >
@@ -140,7 +140,7 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
                             <img
                                 src={item.image}
                                 alt=""
-                                className="relative z-[1] h-[68%] w-[68%] object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.75)] sm:h-[72%] sm:w-[72%] sm:drop-shadow-[0_6px_18px_rgba(0,0,0,0.75)]"
+                                className="relative z-[1] h-[64%] w-[64%] object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.75)] sm:h-[66%] sm:w-[66%] sm:drop-shadow-[0_6px_18px_rgba(0,0,0,0.75)]"
                                 loading="lazy"
                             />
                         </div>
@@ -148,28 +148,28 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
 
                     <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:gap-2.5">
                         <div className="flex items-start justify-between gap-2 sm:gap-2.5">
-                            <h3 className="min-w-0 flex-1 text-left text-base font-black leading-snug tracking-tight text-violet-50 drop-shadow-[0_2px_14px_rgba(88,28,135,0.5)] min-[380px]:text-lg sm:text-xl md:text-2xl">
+                            <h3 className="min-w-0 flex-1 text-left text-xl font-black leading-snug tracking-tight text-violet-50 drop-shadow-[0_2px_14px_rgba(88,28,135,0.5)] sm:text-2xl">
                                 {item.name}
                             </h3>
                             <span
-                                className="shrink-0 rounded-md border border-amber-400/35 bg-gradient-to-b from-amber-900/40 to-black/50 px-2 py-1 text-center text-[0.68rem] font-extrabold leading-none text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-300/15 sm:rounded-lg sm:px-2.5 sm:py-1.5 sm:text-xs"
+                                className="shrink-0 rounded-md border border-amber-400/35 bg-gradient-to-b from-amber-900/40 to-black/50 px-2 py-1 text-center text-xs font-extrabold leading-none text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-300/15 sm:rounded-lg sm:px-2.5 sm:py-1.5 sm:text-sm"
                                 title="보유 개수"
                             >
                                 보유
-                                <span className="mt-0.5 block tabular-nums text-[0.8rem] text-amber-50 sm:text-sm">×{qty.toLocaleString()}</span>
+                                <span className="mt-0.5 block tabular-nums text-sm text-amber-50 sm:text-base">×{qty.toLocaleString()}</span>
                             </span>
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                             <span
-                                className={`inline-flex items-center gap-1.5 rounded-md border border-white/12 bg-black/40 px-2 py-1 text-xs font-bold tabular-nums ring-1 ring-inset ring-white/[0.06] sm:rounded-lg sm:px-2.5 sm:py-1 sm:text-sm ${gradeMeta.color}`}
+                                className={`inline-flex items-center gap-1.5 rounded-md border border-white/12 bg-black/40 px-2 py-1 text-sm font-bold tabular-nums ring-1 ring-inset ring-white/[0.06] sm:rounded-lg sm:px-2.5 sm:py-1 sm:text-base ${gradeMeta.color}`}
                             >
-                                <span className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-slate-500 sm:text-xs sm:tracking-[0.14em]">등급</span>
-                                <span className="text-sm sm:text-base">{gradeMeta.name}</span>
+                                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 sm:text-sm sm:tracking-[0.14em]">등급</span>
+                                <span className="text-base sm:text-lg">{gradeMeta.name}</span>
                             </span>
                         </div>
 
                         {item.description ? (
-                            <p className="rounded-lg border border-white/[0.07] bg-black/35 px-2.5 py-2 text-[0.78rem] leading-relaxed text-slate-300/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-violet-500/10 sm:rounded-xl sm:px-3 sm:py-2.5 sm:text-sm">
+                            <p className="rounded-lg border border-white/[0.07] bg-black/35 px-2.5 py-2 text-[0.92rem] leading-relaxed text-slate-100/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-violet-500/10 sm:rounded-xl sm:px-3 sm:py-2.5 sm:text-lg">
                                 {item.description}
                             </p>
                         ) : null}
@@ -177,8 +177,8 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
                 </div>
 
                 <div className="w-full rounded-lg border border-cyan-500/18 bg-gradient-to-r from-slate-950/90 via-[#0c0a12] to-slate-950/90 px-2.5 py-2 ring-1 ring-inset ring-cyan-500/10 sm:rounded-xl sm:px-3.5 sm:py-2.5">
-                    <p className="mb-1.5 text-xs font-semibold text-cyan-200/80 sm:text-sm">사용처</p>
-                    <p className="break-words font-sans text-[0.78rem] font-medium leading-relaxed text-slate-300/95 sm:text-sm">
+                    <p className="mb-1.5 text-sm font-semibold text-cyan-200/80 sm:text-base">사용처</p>
+                    <p className="break-words font-sans text-[0.92rem] font-medium leading-relaxed text-slate-100/95 sm:text-lg">
                         <span className="text-violet-300/90">[펫]</span>
                         <span className="mx-1 text-slate-600">-</span>
                         <span className="text-slate-200">[등급 강화]</span>
@@ -197,8 +197,8 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
                 </div>
 
                 <div className="w-full rounded-lg border border-amber-500/20 bg-gradient-to-r from-[#1a1510]/92 via-[#0f0c0a] to-[#0a0908] px-2.5 py-2 ring-1 ring-inset ring-amber-500/12 sm:rounded-xl sm:px-3.5 sm:py-2.5">
-                    <p className="mb-1.5 text-xs font-semibold text-amber-200/85 sm:text-sm">획득처</p>
-                    <div className="flex flex-col gap-1.5 font-sans text-[0.78rem] font-medium leading-relaxed text-slate-300/95 sm:text-sm">
+                    <p className="mb-1.5 text-sm font-semibold text-amber-200/85 sm:text-base">획득처</p>
+                    <div className="flex flex-col gap-1.5 font-sans text-[0.92rem] font-medium leading-relaxed text-slate-100/95 sm:text-lg">
                         <p className="break-words">
                             <span className="text-violet-300/90">[펫]</span>
                             <span className="mx-1 text-slate-600">-</span>

@@ -169,34 +169,36 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
     const isPanelFit = statsGridVariant === 'panelFit';
     const homePack = Boolean(isPanelFit && mobileHomeRepPet);
 
-    const rootGap = homePack ? 'gap-1' : isPanelFit ? 'gap-1' : isModal ? 'gap-2.5 sm:gap-4' : 'gap-3 sm:gap-4';
+    const rootGap = homePack ? 'gap-1' : isPanelFit ? 'gap-1' : isModal ? 'gap-2 sm:gap-2.5' : 'gap-3 sm:gap-4';
 
     const heroOuterRound = isPanelFit ? 'rounded-xl' : 'rounded-2xl';
 
     const rowPad = homePack ? 'p-1.5 sm:p-2' : isPanelFit ? 'p-1.5' : isModal ? 'p-1.5 sm:p-2' : 'p-2 sm:p-2.5';
 
-    /** 상단 행: 이미지 3 · 우측 정보 7 */
-    const heroTopGridGap = homePack ? 'gap-x-1 gap-y-1' : isModal ? 'gap-x-2.5 gap-y-1 sm:gap-x-3 sm:gap-y-1.5' : isPanelFit ? 'gap-x-2 gap-y-1 sm:gap-x-2.5' : 'gap-x-2 gap-y-1.5 sm:gap-x-3';
+    /** 상단 행: 모달은 좁은 이미지 열 + 넓은 정보 열 */
+    const heroTopGridCols = isModal
+        ? 'grid-cols-[minmax(0,4rem)_minmax(0,1fr)] sm:grid-cols-[minmax(0,4.5rem)_minmax(0,1fr)]'
+        : 'grid-cols-[3fr_7fr]';
+    const heroTopGridGap = homePack ? 'gap-x-1 gap-y-1' : isModal ? 'gap-x-2 gap-y-1 sm:gap-x-2.5 sm:gap-y-1' : isPanelFit ? 'gap-x-2 gap-y-1 sm:gap-x-2.5' : 'gap-x-2 gap-y-1.5 sm:gap-x-3';
 
     const transcendentSlot = petGrade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : '';
 
-    /** 이미지 열(3fr) 안에서 정사각형 — 상세(모달·로비 패널)는 max 제한 완화로 실제 픽셀 확대 */
     const imgShellClass = isPanelFit
         ? `relative aspect-square w-full overflow-hidden rounded-lg border border-white/20 bg-gradient-to-b from-zinc-800/95 to-black/90 shadow-inner ${
               homePack ? 'max-w-[3.65rem] sm:max-w-[3.95rem]' : 'max-w-[clamp(4.75rem,18vw,6.5rem)]'
           } ${transcendentSlot}`
         : isModal
-          ? `relative aspect-square w-full max-w-full overflow-hidden rounded-xl border border-white/20 bg-zinc-950 shadow-inner sm:rounded-2xl ${transcendentSlot}`
+          ? `relative mx-auto aspect-square w-full max-w-[4rem] overflow-hidden rounded-lg border border-white/20 bg-zinc-950 shadow-inner sm:max-w-[4.5rem] sm:rounded-xl ${transcendentSlot}`
           : `relative aspect-square w-full max-w-full overflow-hidden rounded-xl border border-white/20 bg-gradient-to-b from-zinc-800/95 to-black/90 shadow-inner ${transcendentSlot}`;
 
-    const petImgPad = homePack ? 'p-0.5' : isPanelFit ? 'p-px' : isModal ? 'p-0.5 sm:p-1' : 'p-1 sm:p-1.5';
+    const petImgPad = homePack ? 'p-0.5' : isPanelFit ? 'p-px' : isModal ? 'p-px sm:p-0.5' : 'p-1 sm:p-1.5';
 
     const badgeClass = isPanelFit
         ? homePack
             ? 'shrink-0 rounded border border-white/15 px-1 py-px text-[0.58rem] font-extrabold leading-none'
             : 'shrink-0 rounded border border-white/15 px-2 py-0.5 text-[0.72rem] font-extrabold sm:text-[0.78rem]'
         : isModal
-          ? 'shrink-0 rounded-md border border-white/15 px-2 py-0.5 text-xs font-extrabold sm:px-2.5 sm:py-1 sm:text-sm'
+          ? 'shrink-0 rounded-md border border-white/15 px-2 py-0.5 text-base font-extrabold sm:px-2.5 sm:py-1 sm:text-lg'
           : 'shrink-0 rounded-md border border-white/15 px-2 py-0.5 text-[0.68rem] font-extrabold sm:text-[0.72rem]';
 
     const repBadgeClass = isPanelFit
@@ -204,7 +206,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
             ? 'shrink-0 rounded border border-cyan-400/55 bg-cyan-950/65 px-0.5 py-px text-[0.54rem] font-extrabold leading-none text-cyan-50'
             : 'shrink-0 rounded border border-cyan-400/55 bg-cyan-950/65 px-1.5 py-0.5 text-[0.65rem] font-extrabold text-cyan-50 sm:text-[0.72rem]'
         : isModal
-          ? 'shrink-0 rounded-md border border-cyan-400/55 bg-cyan-950/65 px-2 py-0.5 text-xs font-extrabold text-cyan-50 sm:text-sm'
+          ? 'shrink-0 rounded-md border border-cyan-400/55 bg-cyan-950/65 px-2 py-0.5 text-base font-extrabold text-cyan-50 sm:text-lg'
           : 'shrink-0 rounded-md border border-cyan-400/55 bg-cyan-950/65 px-1.5 py-0.5 text-[0.62rem] font-extrabold text-cyan-50 sm:text-[0.68rem]';
 
     const lvClass = isPanelFit
@@ -212,7 +214,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
             ? 'shrink-0 text-[0.68rem] font-bold tabular-nums leading-none text-amber-200'
             : 'shrink-0 text-sm font-bold tabular-nums text-amber-200 sm:text-base'
         : isModal
-          ? 'shrink-0 text-base font-bold tabular-nums text-amber-200 sm:text-lg'
+          ? 'shrink-0 text-xl font-bold tabular-nums text-amber-200 sm:text-2xl'
           : 'text-sm font-bold tabular-nums text-amber-200 sm:text-base';
 
     const nameClass = isPanelFit
@@ -220,7 +222,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
             ? 'min-w-0 whitespace-nowrap text-[0.68rem] font-black leading-none tracking-tight text-fuchsia-50 sm:text-[0.72rem]'
             : 'line-clamp-2 min-w-0 text-base font-black leading-snug tracking-tight text-fuchsia-50 sm:text-lg'
         : isModal
-          ? 'line-clamp-2 min-w-0 text-base font-black leading-snug tracking-tight text-fuchsia-50 sm:text-lg'
+          ? 'line-clamp-2 min-w-0 text-xl font-black leading-snug tracking-tight text-fuchsia-50 sm:text-2xl'
           : 'line-clamp-2 min-w-0 text-sm font-black leading-tight tracking-tight text-fuchsia-50 sm:text-base';
 
     const expTextClass = isPanelFit
@@ -228,7 +230,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
             ? 'whitespace-nowrap text-[0.56rem] font-medium leading-none text-slate-400 sm:text-[0.6rem]'
             : 'text-sm font-medium text-slate-400 sm:text-[0.95rem]'
         : isModal
-          ? 'text-sm font-medium text-slate-400 sm:text-base'
+          ? 'text-lg font-medium text-slate-200 sm:text-xl'
           : 'text-[0.65rem] font-medium text-slate-400 sm:text-xs';
 
     const barH = homePack ? 'h-1.5' : isPanelFit ? 'h-2 sm:h-2' : isModal ? 'h-2.5 sm:h-3' : 'h-2 sm:h-2.5';
@@ -251,25 +253,33 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
         ? homePack
             ? 'text-[0.52rem] font-bold uppercase leading-none tracking-wide text-fuchsia-200/90'
             : 'text-[0.58rem] font-bold uppercase tracking-wide text-fuchsia-200/90 sm:text-[0.62rem]'
-        : 'text-[0.62rem] font-bold uppercase tracking-wide text-fuchsia-200/85 sm:text-[0.68rem]';
+        : isModal
+          ? 'text-sm font-bold uppercase tracking-wide text-fuchsia-200/90 sm:text-base'
+          : 'text-[0.62rem] font-bold uppercase tracking-wide text-fuchsia-200/85 sm:text-[0.68rem]';
 
     const traitTitleAmber = isPanelFit
         ? homePack
             ? 'text-[0.52rem] font-bold uppercase leading-none tracking-wide text-amber-200/90'
             : 'text-[0.58rem] font-bold uppercase tracking-wide text-amber-200/90 sm:text-[0.62rem]'
-        : 'text-[0.62rem] font-bold uppercase tracking-wide text-amber-200/85 sm:text-[0.68rem]';
+        : isModal
+          ? 'text-sm font-bold uppercase tracking-wide text-amber-200/90 sm:text-base'
+          : 'text-[0.62rem] font-bold uppercase tracking-wide text-amber-200/85 sm:text-[0.68rem]';
 
     const traitBodyFuchsia = isPanelFit
         ? homePack
             ? 'mt-0.5 min-w-0 line-clamp-2 text-[0.56rem] font-semibold leading-snug text-fuchsia-50/95 sm:text-[0.58rem]'
             : 'mt-0.5 min-w-0 line-clamp-2 text-[0.65rem] font-semibold leading-snug text-fuchsia-50/95 sm:text-[0.72rem]'
-        : 'mt-0.5 min-w-0 line-clamp-2 text-[0.7rem] font-semibold leading-snug text-fuchsia-50/95 sm:text-[0.8rem]';
+        : isModal
+          ? 'mt-0.5 min-w-0 line-clamp-2 text-base font-semibold leading-snug text-fuchsia-50/95 sm:text-lg'
+          : 'mt-0.5 min-w-0 line-clamp-2 text-[0.7rem] font-semibold leading-snug text-fuchsia-50/95 sm:text-[0.8rem]';
 
     const traitBodyAmber = isPanelFit
         ? homePack
             ? 'mt-0.5 min-w-0 line-clamp-2 text-[0.56rem] font-semibold leading-snug text-amber-50/95 sm:text-[0.58rem]'
             : 'mt-0.5 min-w-0 line-clamp-2 text-[0.65rem] font-semibold leading-snug text-amber-50/95 sm:text-[0.72rem]'
-        : 'mt-0.5 min-w-0 line-clamp-2 text-[0.7rem] font-semibold leading-snug text-amber-50/95 sm:text-[0.8rem]';
+        : isModal
+          ? 'mt-0.5 min-w-0 line-clamp-2 text-base font-semibold leading-snug text-amber-50/95 sm:text-lg'
+          : 'mt-0.5 min-w-0 line-clamp-2 text-[0.7rem] font-semibold leading-snug text-amber-50/95 sm:text-[0.8rem]';
 
     const heroFramePad = homePack ? 'p-0.5 sm:p-1' : 'p-px';
 
@@ -280,7 +290,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
             >
                 {/* 상단: 이미지 + 기본 정보 */}
                 <div
-                    className={`relative z-[1] grid min-w-0 grid-cols-[3fr_7fr] items-stretch border-b border-white/10 bg-zinc-950/92 ${rowPad} ${heroTopGridGap}`}
+                    className={`relative z-[1] grid min-w-0 ${heroTopGridCols} items-stretch border-b border-white/10 bg-zinc-950/92 ${rowPad} ${heroTopGridGap}`}
                 >
                     <div className="flex min-w-0 flex-col items-center justify-center py-0.5">
                         <div className={imgShellClass}>
@@ -320,7 +330,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                                             homePack
                                                 ? 'whitespace-nowrap text-[0.54rem] sm:text-[0.56rem]'
                                                 : isModal
-                                                  ? 'text-xs sm:text-sm'
+                                                  ? 'text-base sm:text-lg'
                                                   : 'text-sm sm:text-[0.95rem]'
                                         }`}
                                     >

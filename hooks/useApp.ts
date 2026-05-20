@@ -11039,32 +11039,52 @@ export const useApp = () => {
     };
     
     const handleViewUser = useCallback(async (userId: string) => {
-        // allUsers(usersMap)에 전체 프로필이 있으면 사용 (협상 상대 등)
-        if (Array.isArray(allUsers)) {
-            const userToView = allUsers.find(u => u && u.id === userId);
-            if (userToView) {
-                const statusInfo = Array.isArray(onlineUsers) ? onlineUsers.find(u => u && u.id === userId) : null;
-                setViewingUser({ ...userToView, ...(statusInfo || { status: UserStatus.Online }) });
-                return;
-            }
+        const statusInfo = Array.isArray(onlineUsers) ? onlineUsers.find((u) => u && u.id === userId) : null;
+        const withOnlineStatus = (u: UserWithStatus): UserWithStatus => ({
+            ...u,
+            ...(statusInfo || { status: UserStatus.Online }),
+        });
+
+        if (currentUserWithStatus?.id === userId) {
+            setViewingUser(withOnlineStatus(currentUserWithStatus));
+            return;
         }
-        // 온디맨드: 프로필 보기 요청 시 서버에서 가져오기
+
+        const cached = usersMap[userId];
+        if (cached) {
+            setViewingUser(withOnlineStatus(cached as UserWithStatus));
+        }
+
         try {
             const response = await fetch(getApiUrl(`/api/user/${userId}`));
             if (!response.ok) {
-                console.error(`[handleViewUser] Failed to fetch user ${userId}: ${response.statusText}`);
+                if (!cached) {
+                    console.error(`[handleViewUser] Failed to fetch user ${userId}: ${response.statusText}`);
+                }
                 return;
             }
             const userData = await response.json();
-            const statusInfo = Array.isArray(onlineUsers) ? onlineUsers.find(u => u && u.id === userId) : null;
-            const merged = { ...userData, status: statusInfo?.status || UserStatus.Offline, equipment: userData.equipment || {}, inventory: userData.inventory || [], } as UserWithStatus;
+            const merged = withOnlineStatus({
+                ...userData,
+                equipment: userData.equipment || {},
+                inventory: userData.inventory || [],
+            } as UserWithStatus);
             setViewingUser(merged);
-            setUsersMap(prev => ({ ...prev, [userId]: userData }));
-            setUserBriefCache(prev => ({ ...prev, [userId]: { nickname: userData.nickname || userData.username || userId, avatarId: userData.avatarId, borderId: userData.borderId } }));
+            setUsersMap((prev) => ({ ...prev, [userId]: userData }));
+            setUserBriefCache((prev) => ({
+                ...prev,
+                [userId]: {
+                    nickname: userData.nickname || userData.username || userId,
+                    avatarId: userData.avatarId,
+                    borderId: userData.borderId,
+                },
+            }));
         } catch (error) {
-            console.error(`[handleViewUser] Error fetching user ${userId}:`, error);
+            if (!cached) {
+                console.error(`[handleViewUser] Error fetching user ${userId}:`, error);
+            }
         }
-    }, [onlineUsers, allUsers]);
+    }, [currentUserWithStatus, onlineUsers, usersMap]);
 
     const openModerationModal = useCallback((userId: string) => {
         if (!Array.isArray(onlineUsers) || !Array.isArray(allUsers)) return;

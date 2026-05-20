@@ -21,9 +21,6 @@ import {
     PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS,
 } from '../shared/constants/pairPetModal.js';
 
-/** 장비 상세(350)보다 넓게 — 펫 히어로·3×2 능력치 그리드용 */
-const PAIR_PET_MODAL_INITIAL_WIDTH = 540;
-
 /** 본문만 패딩(푸터는 ITEM_OBTAIN 행이 자체 패딩) — 세로 여백 최소화로 한 화면 맞춤 */
 const PAIR_PET_MODAL_BODY_PADDING =
     'flex min-h-0 w-full flex-col !px-2.5 !pb-2 !pt-2 sm:!px-4 sm:!pb-3 sm:!pt-3';
@@ -134,7 +131,7 @@ const PairPetObtainedModal: React.FC<PairPetObtainedModalProps> = ({ currentUser
                 title={title}
                 onClose={onClose}
                 windowId="pair-pet-detail-modal"
-                initialWidth={PAIR_PET_MODAL_INITIAL_WIDTH}
+                initialWidth={PAIR_PET_DETAIL_MODAL_INITIAL_WIDTH}
                 initialHeight={mode === 'view' ? PAIR_PET_DETAIL_MODAL_INITIAL_HEIGHT : undefined}
                 shrinkHeightToContent={mode === 'obtain'}
                 isTopmost={isTopmost}

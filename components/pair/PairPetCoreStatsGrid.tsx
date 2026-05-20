@@ -136,7 +136,7 @@ const PairPetCoreStatsGrid: React.FC<PairPetCoreStatsGridProps> = ({
           : compact
             ? 'grid grid-cols-1 gap-1 text-[10px] leading-tight'
             : variant === 'modal'
-              ? 'grid grid-cols-3 gap-x-1.5 gap-y-1 text-[0.72rem] leading-tight sm:gap-x-3 sm:gap-y-2 sm:text-sm'
+              ? 'grid grid-cols-3 gap-x-1.5 gap-y-1 text-[0.88rem] leading-tight sm:gap-x-2 sm:gap-y-1.5 sm:text-base'
               : 'grid grid-cols-3 gap-x-2 gap-y-1.5 text-[0.8125rem] leading-tight sm:gap-x-3 sm:gap-y-2 sm:text-sm';
 
     return (
@@ -173,7 +173,7 @@ const PairPetCoreStatsGrid: React.FC<PairPetCoreStatsGridProps> = ({
                                       : compact
                                         ? 'text-[10px]'
                                         : variant === 'modal'
-                                          ? 'text-[0.68rem] sm:text-sm'
+                                          ? 'text-[0.88rem] sm:text-base'
                                           : 'text-[0.78rem] sm:text-sm'
                             } ${corrected ? 'text-rose-300' : 'text-slate-100'}`}
                         >

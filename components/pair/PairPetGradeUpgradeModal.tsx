@@ -26,6 +26,7 @@ import {
     resolvePairPetMetaFromInventoryRow,
 } from '../../shared/utils/pairPetRoll.js';
 import {
+    PAIR_PET_DETAIL_MODAL_INITIAL_WIDTH,
     PAIR_PET_GRADE_UPGRADE_MODAL_INITIAL_HEIGHT,
     PAIR_PET_MODAL_MOBILE_BOTTOM_GAP_PX,
     PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS,
@@ -128,7 +129,7 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
             title="펫 등급 강화"
             onClose={onClose}
             windowId="pair-pet-grade-upgrade"
-            initialWidth={520}
+            initialWidth={PAIR_PET_DETAIL_MODAL_INITIAL_WIDTH}
             initialHeight={PAIR_PET_GRADE_UPGRADE_MODAL_INITIAL_HEIGHT}
             isTopmost={isTopmost}
             zIndex={72}
