@@ -51,8 +51,8 @@ const PairPetDetailEmbedPanel: React.FC<PairPetDetailEmbedPanelProps> = ({
     const homePack = Boolean(mobileHomeRepPet && !isModalLayout);
     const readablePanelFit = detailVariant === 'panelFit' && suppressDetailFitScale;
     const modalScrollClass =
-        isModalLayout && !parentOuterFitScale
-            ? 'overflow-y-auto overflow-x-hidden'
+        isModalLayout || parentOuterFitScale
+            ? 'overflow-hidden'
             : readablePanelFit
               ? 'overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-width:thin]'
               : 'overflow-hidden';

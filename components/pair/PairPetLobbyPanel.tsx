@@ -1995,7 +1995,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             </div>
                         </div>
                         {aiTab !== 'hatchery' ? (
-                        <div className="flex min-h-[9.25rem] min-w-0 shrink-0 grow-0 basis-[clamp(9.25rem,32%,15rem)] flex-col overflow-hidden rounded-lg border border-white/10 bg-gray-900/40">
+                        <div className="flex min-h-[8.5rem] min-w-0 shrink-0 grow-0 basis-[clamp(8.5rem,26%,12.5rem)] flex-col overflow-hidden rounded-lg border border-white/10 bg-gray-900/40">
                             <div className="mb-1 shrink-0 rounded-md bg-gray-900/50 p-1 sm:mb-1.5 sm:p-1.5">
                                 <div className="flex min-w-0 flex-nowrap items-center gap-2">
                                     <div className="grid shrink-0 grid-cols-2 gap-1 rounded-lg border border-white/10 bg-black/40 p-1">

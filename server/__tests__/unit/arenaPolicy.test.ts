@@ -9,7 +9,7 @@ import {
     resolvePairTeamComposition,
 } from '../../../shared/utils/liveSessionArenaKind.js';
 import { getAdventureDesignScoringTurnLimit } from '../../../shared/utils/adventureBattleBoard.js';
-import { getArenaTurnCount } from '../../utils/arenaTurnPolicy.js';
+import { getArenaTurnCount, resolveArenaFixedScoringTurnLimit } from '../../utils/arenaTurnPolicy.js';
 
 const settings = (patch: Partial<GameSettings> = {}): GameSettings =>
     ({
@@ -159,33 +159,44 @@ describe('arena policy', () => {
         expect(pair.resultRewardModel).toBe('pairSummary');
     });
 
-    it('does not apply turn-limit auto scoring to pair games', () => {
-        const pairPve = resolveArenaSessionPolicy(
-            session({
-                settings: settings(
-                    pairSettings(
-                        [{ id: 'h1', kind: 'user' }, { id: 'pet1', kind: 'pet' }],
-                        [{ id: 'ai1', kind: 'ai' }, { id: 'pet2', kind: 'pet' }],
-                    ),
+    it('keeps pair turnLimitMode none but honors scoringTurnLimit for turn counting and auto scoring', async () => {
+        const pairSession = session({
+            settings: settings({
+                scoringTurnLimit: 120,
+                ...pairSettings(
+                    [{ id: 'h1', kind: 'user' }, { id: 'pet1', kind: 'pet' }],
+                    [{ id: 'ai1', kind: 'ai' }, { id: 'pet2', kind: 'pet' }],
                 ),
             }),
-        );
+        });
+        const pairPve = resolveArenaSessionPolicy(pairSession);
         const pairPvp = resolveArenaSessionPolicy(
             session({
-                settings: settings(
-                    pairSettings(
+                settings: settings({
+                    scoringTurnLimit: 120,
+                    ...pairSettings(
                         [{ id: 'h1', kind: 'user' }, { id: 'pet1', kind: 'pet' }],
                         [{ id: 'h2', kind: 'user' }, { id: 'pet2', kind: 'pet' }],
                         'pvp',
                     ),
-                ),
+                }),
             }),
         );
 
         expect(pairPve.turnLimitMode).toBe('none');
         expect(pairPve.matchAxis).toBe('pve');
+        expect(pairPve.countPassAsTurn).toBe(true);
         expect(pairPvp.turnLimitMode).toBe('none');
         expect(pairPvp.matchAxis).toBe('pvp');
+        expect(pairPvp.countPassAsTurn).toBe(true);
+        expect(await resolveArenaFixedScoringTurnLimit(pairSession)).toBe(120);
+
+        const movesWithPass = [
+            { x: 1, y: 1, player: Player.Black },
+            { x: -1, y: -1, player: Player.White },
+            { x: 2, y: 2, player: Player.Black },
+        ];
+        expect(getArenaTurnCount({ ...pairSession, moveHistory: movesWithPass })).toBe(3);
     });
 
     it('allows team-resign only for pair human-vs-human pvp', () => {

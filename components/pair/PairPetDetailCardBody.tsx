@@ -382,11 +382,12 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
         </div>
     );
 
-    if (isPanelFit && !suppressFitScale) {
+    if ((isModal || isPanelFit) && !suppressFitScale) {
         return (
             <PairPetDetailFitScale
                 itemId={item.id}
                 outerClassName={mobileHomeRepPet ? 'px-1 py-1 sm:px-1.5 sm:py-1.5' : ''}
+                stretchInnerHeightWhenUnscaled={isModal}
             >
                 {body}
             </PairPetDetailFitScale>

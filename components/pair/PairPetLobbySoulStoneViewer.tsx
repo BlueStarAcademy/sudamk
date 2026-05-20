@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import Button from '../Button.js';
+import { PairPetDetailFitScale } from './PairPetDetailCardBody.js';
 import type { InventoryItem } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
 import { gradeBackgrounds, gradeStyles } from '../../shared/constants/items.js';
@@ -124,7 +125,8 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
             />
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-300/35 to-transparent" aria-hidden />
 
-            <div className="relative z-[1] min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-2.5 pb-2 pt-2.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] sm:px-4 sm:pb-2.5 sm:pt-4">
+            <div className="relative z-[1] flex min-h-0 flex-1 flex-col overflow-hidden px-2.5 pb-2 pt-2.5 sm:px-4 sm:pb-2.5 sm:pt-4">
+            <PairPetDetailFitScale itemId={item.id} outerClassName="min-h-0 flex-1" stretchInnerHeightWhenUnscaled>
             <div className="relative flex flex-col gap-2.5 sm:gap-3.5">
                 <div className="flex flex-row items-start gap-2.5 sm:gap-4">
                     <div className="shrink-0">
@@ -224,6 +226,7 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
                     </div>
                 </div>
             </div>
+            </PairPetDetailFitScale>
             </div>
 
             <div className="relative z-[1] shrink-0 border-t border-white/[0.12] bg-[#0a080c]/95 px-2 pb-[max(0.4rem,env(safe-area-inset-bottom,0px))] pt-1.5 backdrop-blur-sm sm:px-4 sm:pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:pt-2">

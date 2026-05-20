@@ -228,12 +228,12 @@ export function resolveArenaSessionPolicy(session: SessionLike | null | undefine
     const usesAdventureScoringCap = kind === GameCategory.Adventure && !captureRule;
     const countPassAsTurn =
         !captureRule &&
-        !isPairGame &&
-        matchAxis === 'pvp' &&
-        kind === GameCategory.Normal &&
-        !session?.isSinglePlayer &&
-        !session?.isAiGame &&
-        Number(settings?.scoringTurnLimit ?? 0) > 0;
+        Number(settings?.scoringTurnLimit ?? 0) > 0 &&
+        (isPairGame ||
+            (matchAxis === 'pvp' &&
+                kind === GameCategory.Normal &&
+                !session?.isSinglePlayer &&
+                !session?.isAiGame));
 
     const turnLimitMode: ArenaTurnLimitMode = captureRule || isPairGame
         ? 'none'

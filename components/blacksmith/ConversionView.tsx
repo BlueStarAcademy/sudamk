@@ -214,14 +214,14 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
         const materialData = MATERIAL_ITEMS[materialName];
         return (
             <div
-                className={`flex shrink-0 flex-col items-center justify-center rounded-lg border border-white/10 bg-gradient-to-b from-slate-900/80 to-black/55 p-2 ${
-                    useMobileConversionRow ? 'w-[5.5rem] min-w-[5.5rem]' : 'min-w-[100px] sm:min-w-[120px] sm:p-2.5'
+                className={`flex shrink-0 flex-col items-center justify-center rounded-lg border border-white/10 bg-gradient-to-b from-slate-900/80 to-black/55 p-1.5 ${
+                    useMobileConversionRow ? 'w-[5.1rem] min-w-[5.1rem]' : 'min-w-[92px] sm:min-w-[110px] sm:p-2'
                 }`}
             >
                 <img
                     src={materialData.image as string | undefined}
                     alt={materialName}
-                    className={`mb-1 object-contain ${useMobileConversionRow ? 'h-9 w-9' : 'h-10 w-10 sm:mb-1.5 sm:h-12 sm:w-12'}`}
+                    className={`mb-0.5 object-contain ${useMobileConversionRow ? 'h-8 w-8' : 'h-9 w-9 sm:mb-1 sm:h-11 sm:w-11'}`}
                 />
                 <h4
                     className={`mb-0.5 text-center font-bold text-secondary sm:mb-1 sm:text-xs ${
@@ -293,19 +293,19 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
             )}
 
             <div
-                className={`flex min-h-0 flex-1 rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c2a]/70 via-[#101522]/88 to-[#0b1018]/92 p-2.5 sm:p-3 ${
+                className={`flex min-h-0 flex-1 rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c2a]/70 via-[#101522]/88 to-[#0b1018]/92 p-2 sm:p-2.5 ${
                     useMobileConversionRow
-                        ? 'flex-col justify-start overflow-x-hidden overflow-y-hidden py-2'
-                        : 'flex-col items-center justify-center gap-4 overflow-y-auto overflow-x-hidden'
+                        ? 'flex-col justify-center overflow-x-hidden overflow-y-hidden py-1.5'
+                        : 'flex-col items-center justify-center gap-2.5 overflow-hidden'
                 }`}
             >
                 {useMobileConversionRow ? (
-                    <div className="flex w-full min-w-0 flex-col gap-1.5">
-                        <p className="shrink-0 px-0.5 text-center text-[10px] text-amber-200/75">
+                    <div className="flex w-full min-w-0 flex-col gap-1">
+                        <p className="shrink-0 px-0.5 text-center text-[9px] leading-tight text-amber-200/75 sm:text-[10px]">
                             좌우로 스크롤하여 강화석 단계를 선택하세요
                         </p>
-                        <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]">
-                            <div className="inline-flex min-h-[7.5rem] flex-nowrap items-stretch gap-1.5 px-1 py-0.5">
+                        <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]">
+                            <div className="inline-flex min-h-[6.25rem] flex-nowrap items-stretch gap-1 px-0.5 py-0.5">
                                 {materialTiers.map((materialName, index) => (
                                     <React.Fragment key={materialName}>
                                         {renderStoneCard(materialName)}

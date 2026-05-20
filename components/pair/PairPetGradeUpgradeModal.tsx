@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import DraggableWindow from '../DraggableWindow.js';
+import { PairPetDetailFitScale } from './PairPetDetailCardBody.js';
 import type { InventoryItem, User } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
 import {
@@ -24,6 +25,11 @@ import {
     bumpPairPetDispositionPctOnGradeUpgrade,
     resolvePairPetMetaFromInventoryRow,
 } from '../../shared/utils/pairPetRoll.js';
+import {
+    PAIR_PET_GRADE_UPGRADE_MODAL_INITIAL_HEIGHT,
+    PAIR_PET_MODAL_MOBILE_BOTTOM_GAP_PX,
+    PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS,
+} from '../../shared/constants/pairPetModal.js';
 
 export interface PairPetGradeUpgradeModalProps {
     isOpen: boolean;
@@ -123,17 +129,23 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
             onClose={onClose}
             windowId="pair-pet-grade-upgrade"
             initialWidth={520}
-            shrinkHeightToContent
+            initialHeight={PAIR_PET_GRADE_UPGRADE_MODAL_INITIAL_HEIGHT}
             isTopmost={isTopmost}
             zIndex={72}
             skipSavedPosition
             variant="store"
             mobileViewportFit
-            mobileViewportMaxHeightCss="min(92dvh, calc(100dvh - 16px))"
+            mobileLockViewportHeight
+            mobileViewportMaxHeightVh={99}
+            mobileViewportMaxHeightCss={PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS}
+            mobileViewportDvhBottomGapPx={PAIR_PET_MODAL_MOBILE_BOTTOM_GAP_PX}
             hideFooter
-            bodyPaddingClassName="!p-0"
+            bodyNoScroll
+            bodyPaddingClassName="flex min-h-0 min-w-0 flex-1 flex-col !p-0"
         >
-            <div className="flex max-h-[min(72dvh,32rem)] flex-col gap-2 overflow-y-auto overflow-x-hidden px-1.5 pb-2 pt-1 sm:max-h-[min(78vh,36rem)] sm:gap-3 sm:px-2">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-1.5 pb-2 pt-1 sm:px-2">
+                <PairPetDetailFitScale itemId={mainItem.id} outerClassName="min-h-0 flex-1" stretchInnerHeightWhenUnscaled>
+                <div className="flex flex-col gap-2 sm:gap-3">
                 <div className="relative rounded-2xl border border-amber-500/20 bg-gradient-to-b from-zinc-900/95 via-violet-950/40 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(0,0,0,0.4)] ring-1 ring-amber-400/10">
                     <div
                         className="pointer-events-none absolute -right-8 -top-12 h-40 w-40 rounded-full bg-amber-400/10 blur-3xl"
@@ -277,6 +289,8 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                         등급 강화
                     </button>
                 </div>
+                </div>
+                </PairPetDetailFitScale>
             </div>
             {gradeBlockHint ? (
                 <DraggableWindow

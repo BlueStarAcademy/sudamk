@@ -6,6 +6,12 @@ import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { waitingLobbyPcPanelShellClass } from './waiting-room/waitingLobbyHomePanelStyles.js';
 import { PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE } from '../shared/constants/pairHatchery.js';
+import {
+    PAIR_PET_MANAGEMENT_MODAL_HEIGHT_DESKTOP,
+    PAIR_PET_MANAGEMENT_MODAL_HEIGHT_MOBILE,
+    PAIR_PET_MODAL_MOBILE_BOTTOM_GAP_PX,
+    PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS,
+} from '../shared/constants/pairPetModal.js';
 import type { ServerAction } from '../types.js';
 
 interface PetManagementModalProps {
@@ -43,13 +49,13 @@ const PetManagementModal: React.FC<PetManagementModalProps> = ({ onClose, isTopm
             onClose={onClose}
             windowId="pet-management-modal"
             initialWidth={isMobile ? 820 : 640}
-            initialHeight={isMobile ? 1200 : 960}
+            initialHeight={isMobile ? PAIR_PET_MANAGEMENT_MODAL_HEIGHT_MOBILE : PAIR_PET_MANAGEMENT_MODAL_HEIGHT_DESKTOP}
             isTopmost={isTopmost}
             variant="store"
             mobileViewportFit={isMobile}
-            mobileViewportMaxHeightVh={98}
-            mobileViewportMaxHeightCss="calc(100dvh - max(12px, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px) + 12px))"
-            mobileViewportDvhBottomGapPx={10}
+            mobileViewportMaxHeightVh={99}
+            mobileViewportMaxHeightCss={PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS}
+            mobileViewportDvhBottomGapPx={PAIR_PET_MODAL_MOBILE_BOTTOM_GAP_PX}
             mobileLockViewportHeight={isMobile}
             bodyPaddingClassName={isMobile ? '!p-2' : '!p-3'}
             bodyNoScroll

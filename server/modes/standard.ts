@@ -914,8 +914,15 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             // triggerAutoScoring 플래그가 있으면 계가를 트리거
             if (payload.triggerAutoScoring) {
                 if (pairClassicGame) {
-                    console.warn(`[handleStandardAction] Ignored triggerAutoScoring for pair game ${game.id}; pair scoring requires all 4 seats to pass.`);
-                    return {};
+                    const pairTurnLimit = await resolveArenaFixedScoringTurnLimit(game);
+                    const pairTotalTurns = getArenaTurnCount(game);
+                    game.totalTurns = pairTotalTurns;
+                    if (pairTurnLimit == null || pairTotalTurns < pairTurnLimit) {
+                        console.warn(
+                            `[handleStandardAction] Ignored triggerAutoScoring for pair game ${game.id}; turn limit not reached (${pairTotalTurns}/${pairTurnLimit ?? 'none'}). Voluntary scoring still requires all 4 seats to pass.`,
+                        );
+                        return {};
+                    }
                 }
                 // 온라인 전략바둑/PVP/AI 대국에서는 항상 서버의 게임 상태를 기준으로 계가해야 함
                 // (클라이언트가 새로고침 후 잘못된 boardState를 보내면 오계가 발생할 수 있음)

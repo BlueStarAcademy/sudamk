@@ -2974,16 +2974,6 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                         flushVersusSessionBeatMarkRef();
                         setVersusSummarySession(null);
                     }}
-                    confirmLabel="확인"
-                    secondaryConfirmAction={{
-                        label: '나가기',
-                        title: '보상 확인 후 챔피언십 로비로 나갑니다.',
-                        onClick: () => {
-                            flushVersusSessionBeatMarkRef();
-                            setVersusSummarySession(null);
-                            replaceAppHash('#/tournament');
-                        },
-                    }}
                 />
             ) : null}
             <ChampionshipVersusDuelHistoryModal

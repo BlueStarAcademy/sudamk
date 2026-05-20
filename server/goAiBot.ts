@@ -2199,7 +2199,6 @@ export async function makeGoAiBotMove(
     const pairHasFixedScoringTurnLimit =
         pairClassicGame &&
         !captureRuleGame &&
-        arenaPolicy.turnLimitMode !== 'none' &&
         Number((game.settings as any)?.scoringTurnLimit ?? 0) > 0;
     const pairPassRequiresAllSeats = pairClassicGame && arenaPolicy.matchAxis === 'pvp';
     if (process.env.NODE_ENV === 'development') {

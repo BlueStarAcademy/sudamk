@@ -510,7 +510,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
     }, [activeTab]);
     /** 재료 변환만 그리드·스크롤용 최소 높이; 장비 탭(선택/작업 안내)은 콘텐츠 높이로 두어 하단 여백 제거 */
     const mobileViewerMinH =
-        activeTab === 'convert' ? 'min(clamp(11rem, 32dvh, 20rem), 46dvh)' : undefined;
+        activeTab === 'convert' ? 'clamp(9.5rem, 28dvh, 17rem)' : undefined;
     const stackedMobileFillHeight = useStackedBlacksmithLayout && activeTab === 'convert';
 
     const mobilePickHint = useMemo(() => {
@@ -599,7 +599,6 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                                 <div className="flex min-h-[12rem] w-full items-stretch gap-2 sm:min-h-[12.5rem]">
                                     <div className="min-h-0 min-w-0 flex-1">
                                         <div className="relative flex h-full min-h-[11rem] flex-col overflow-hidden rounded-lg border border-cyan-300/30 bg-gradient-to-b from-stone-900/95 to-black/90 shadow-md sm:min-h-[12rem]">
-                                            {/* 이미지: 패널 가용 영역을 object-cover로 채움 (PC 좌측 패널과 동일 계열) */}
                                             <div className="relative min-h-[6.75rem] min-w-0 flex-1">
                                                 <img
                                                     src="/images/equipments/moru.webp"
@@ -607,41 +606,45 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                                                     className="absolute inset-0 h-full w-full object-cover object-center"
                                                     decoding="async"
                                                 />
+                                                <div
+                                                    className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent"
+                                                    aria-hidden
+                                                />
                                                 <button
                                                     type="button"
                                                     onClick={() => handlers.openBlacksmithEffectsModal()}
                                                     title="대장간 효과"
                                                     aria-label="대장간 효과 보기"
-                                                    className="absolute left-1.5 top-1.5 z-[2] max-w-[calc(100%-4.5rem)] rounded-md border border-amber-500/45 bg-black/75 px-2 py-1 text-left shadow-md backdrop-blur-sm transition hover:border-amber-400/70 hover:bg-black/85 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 sm:left-2 sm:top-2 sm:px-2.5 sm:py-1"
+                                                    className="absolute left-1.5 top-1.5 z-[2] max-w-[calc(100%-1rem)] rounded-md border border-amber-500/45 bg-black/55 px-2 py-1 text-left shadow-md backdrop-blur-sm transition hover:border-amber-400/70 hover:bg-black/70 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 sm:left-2 sm:top-2 sm:px-2.5 sm:py-1"
                                                 >
-                                                    <span className="block text-[13px] font-bold leading-tight text-white drop-shadow-sm">
+                                                    <span className="block text-[13px] font-bold leading-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] sm:text-sm">
                                                         대장간 <span className="text-amber-300">Lv.{blacksmithLevel ?? 1}</span>
                                                     </span>
                                                 </button>
-                                            </div>
-                                            <div className="relative z-[3] shrink-0 border-t border-amber-500/20 bg-gradient-to-t from-black/90 via-black/78 to-black/20 px-2 pb-1.5 pt-2 sm:px-3 sm:pb-2 sm:pt-3">
-                                                <div className="mb-0.5 flex items-center justify-between gap-1 text-[13px] font-semibold tabular-nums text-stone-200">
-                                                    <span className="shrink-0 text-stone-400">경험치</span>
-                                                    {isMaxLevel ? (
-                                                        <span className="min-w-0 truncate text-right text-amber-200/95">
-                                                            {(blacksmithXp ?? 0).toLocaleString()} (Max)
-                                                        </span>
-                                                    ) : (
-                                                        <span className="min-w-0 truncate text-right text-[13px]">
-                                                            {(blacksmithXp ?? 0).toLocaleString()} /{' '}
-                                                            {BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1).toLocaleString()}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="h-1.5 w-full overflow-hidden rounded-full border border-stone-600/60 bg-black/60 shadow-inner sm:h-2">
-                                                    <div
-                                                        className="h-full rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-400 transition-all"
-                                                        style={{
-                                                            width: isMaxLevel
-                                                                ? '100%'
-                                                                : `${((blacksmithXp ?? 0) / BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) * 100}%`,
-                                                        }}
-                                                    />
+                                                <div className="absolute inset-x-0 bottom-0 z-[2] px-2 pb-2 pt-6 sm:px-3 sm:pb-2.5">
+                                                    <div className="mb-0.5 flex items-center justify-between gap-1 text-[12px] font-semibold tabular-nums text-stone-200 sm:text-[13px]">
+                                                        <span className="shrink-0 text-stone-300/90">경험치</span>
+                                                        {isMaxLevel ? (
+                                                            <span className="min-w-0 truncate text-right text-amber-200/95">
+                                                                {(blacksmithXp ?? 0).toLocaleString()} (Max)
+                                                            </span>
+                                                        ) : (
+                                                            <span className="min-w-0 truncate text-right">
+                                                                {(blacksmithXp ?? 0).toLocaleString()} /{' '}
+                                                                {BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1).toLocaleString()}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="h-1.5 w-full overflow-hidden rounded-full border border-stone-600/60 bg-black/60 shadow-inner sm:h-2">
+                                                        <div
+                                                            className="h-full rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-400 transition-all"
+                                                            style={{
+                                                                width: isMaxLevel
+                                                                    ? '100%'
+                                                                    : `${((blacksmithXp ?? 0) / BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) * 100}%`,
+                                                            }}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -719,38 +722,70 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                     ) : (
                     <>
                     {/* Left Panel */}
-                    <div className="w-[360px] flex flex-shrink-0 flex-col items-center gap-4 overflow-hidden rounded-2xl border border-amber-400/20 bg-gradient-to-b from-[#1b1f2f]/85 via-[#131827]/90 to-[#0c101a]/95 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_48px_-28px_rgba(0,0,0,0.85)]">
-                        <div className="relative w-full overflow-hidden rounded-xl border border-amber-400/25 shadow-[0_14px_30px_-20px_rgba(251,191,36,0.45)] aspect-w-3 aspect-h-2 flex-shrink-0">
-                            <img src="/images/equipments/moru.webp" alt="Blacksmith" className="w-full h-full object-cover" />
-                        </div>
-                        <div className="text-center">
-                            <h2 className="text-2xl font-black tracking-tight text-amber-100">
-                                대장간 <span className="text-yellow-300">Lv.{(blacksmithLevel ?? 1)}</span>
-                            </h2>
-                        </div>
-                        <div className="w-full">
-                            <div className="mb-1 flex justify-between text-xs text-slate-200">
-                                <span className="font-semibold tracking-wide text-amber-200/80">경험치</span>
-                                {isMaxLevel ? (
-                                    <span className="text-amber-200">{(blacksmithXp ?? 0).toLocaleString()} (Max)</span>
-                                ) : (
-                                    <span className="text-slate-200">
-                                        {(blacksmithXp ?? 0)} / {BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)} ({Math.round(((blacksmithXp ?? 0) / BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) * 100)}%)
-                                    </span>
-                                )}
+                    <div className="flex w-[360px] flex-shrink-0 flex-col gap-2.5 overflow-hidden rounded-2xl border border-amber-400/20 bg-gradient-to-b from-[#1b1f2f]/85 via-[#131827]/90 to-[#0c101a]/95 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_48px_-28px_rgba(0,0,0,0.85)]">
+                        <div className="relative aspect-[3/2] w-full shrink-0 overflow-hidden rounded-xl border border-amber-400/25 shadow-[0_14px_30px_-20px_rgba(251,191,36,0.45)]">
+                            <img
+                                src="/images/equipments/moru.webp"
+                                alt="Blacksmith"
+                                className="absolute inset-0 h-full w-full object-cover"
+                            />
+                            <div
+                                className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-black/15"
+                                aria-hidden
+                            />
+                            <button
+                                type="button"
+                                onClick={() => handlers.openBlacksmithEffectsModal()}
+                                title="대장간 효과"
+                                aria-label="대장간 효과 보기"
+                                className="absolute left-0 top-0 z-[2] max-w-[calc(100%-0.5rem)] p-3 text-left transition hover:brightness-110 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+                            >
+                                <h2 className="text-2xl font-black tracking-tight text-amber-50 drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)]">
+                                    대장간 <span className="text-yellow-300">Lv.{blacksmithLevel ?? 1}</span>
+                                </h2>
+                            </button>
+                            <div className="absolute inset-x-0 bottom-0 z-[2] px-3 pb-3 pt-8">
+                                <div className="mb-1 flex justify-between gap-2 text-xs text-slate-200">
+                                    <span className="shrink-0 font-semibold tracking-wide text-amber-200/90">경험치</span>
+                                    {isMaxLevel ? (
+                                        <span className="min-w-0 truncate text-right text-amber-200">
+                                            {(blacksmithXp ?? 0).toLocaleString()} (Max)
+                                        </span>
+                                    ) : (
+                                        <span className="min-w-0 truncate text-right text-slate-100">
+                                            {(blacksmithXp ?? 0).toLocaleString()} /{' '}
+                                            {BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1).toLocaleString()}
+                                            <span className="text-amber-200/90">
+                                                {' '}
+                                                (
+                                                {Math.round(
+                                                    ((blacksmithXp ?? 0) /
+                                                        BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) *
+                                                        100
+                                                )}
+                                                %)
+                                            </span>
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="h-3 w-full overflow-hidden rounded-full border border-amber-500/30 bg-black/60 shadow-inner">
+                                    <div
+                                        className="h-full rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-300 transition-all"
+                                        style={{
+                                            width: isMaxLevel
+                                                ? '100%'
+                                                : `${((blacksmithXp ?? 0) / BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) * 100}%`,
+                                        }}
+                                    />
+                                </div>
                             </div>
-                            <div className="h-3 w-full overflow-hidden rounded-full border border-amber-500/25 bg-black/55 shadow-inner">
-                                <div
-                                    className="h-full rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-300 transition-all"
-                                    style={{ width: isMaxLevel ? '100%' : `${((blacksmithXp ?? 0) / BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) * 100}%` }}
-                                />
-                            </div>
                         </div>
-                        <div className="w-full min-h-0 flex-1 overflow-y-auto rounded-xl border border-white/10 bg-black/20 p-2">
+                        <div className="flex min-h-[15.5rem] min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/20 p-2">
                             <BlacksmithLevelEffectsSummary
                                 blacksmithLevel={blacksmithLevel ?? 1}
                                 disassemblyJackpotBonusPercent={vipBonus}
                                 combinationGreatSuccessBonusPercent={vipBonus}
+                                className="min-h-0 flex-1 overflow-y-auto pr-0.5 [scrollbar-width:thin]"
                             />
                         </div>
                     </div>

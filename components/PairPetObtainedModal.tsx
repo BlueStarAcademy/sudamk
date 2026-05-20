@@ -7,15 +7,19 @@ import DraggableWindow, {
 import type { InventoryItem, ServerAction, User } from '../types.js';
 import { audioService } from '../services/audioService.js';
 import PairPetHatchAcquirePanel from './pair/PairPetHatchAcquirePanel.js';
+import { PairPetDetailFitScale } from './pair/PairPetDetailCardBody.js';
 import PairPetLobbyInfoPetViewer from './pair/PairPetLobbyInfoPetViewer.js';
 import PairPetSoulConvertModal from './pair/PairPetSoulConvertModal.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { normalizePairPetTrainingSlots, isItemIdInPairTraining } from '../shared/constants/pairTraining.js';
-import {
-    MOBILE_EQUIPMENT_DETAIL_MAX_HEIGHT_CSS,
-} from '../shared/constants/mobileEquipmentDetailModal.js';
+import { MOBILE_EQUIPMENT_DETAIL_MAX_HEIGHT_CSS } from '../shared/constants/mobileEquipmentDetailModal.js';
 import { PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE } from '../shared/constants/pairHatchery.js';
+import {
+    PAIR_PET_DETAIL_MODAL_INITIAL_HEIGHT,
+    PAIR_PET_MODAL_MOBILE_BOTTOM_GAP_PX,
+    PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS,
+} from '../shared/constants/pairPetModal.js';
 
 /** 장비 상세(350)보다 넓게 — 펫 히어로·3×2 능력치 그리드용 */
 const PAIR_PET_MODAL_INITIAL_WIDTH = 540;
@@ -131,28 +135,35 @@ const PairPetObtainedModal: React.FC<PairPetObtainedModalProps> = ({ currentUser
                 onClose={onClose}
                 windowId="pair-pet-detail-modal"
                 initialWidth={PAIR_PET_MODAL_INITIAL_WIDTH}
-                shrinkHeightToContent
+                initialHeight={mode === 'view' ? PAIR_PET_DETAIL_MODAL_INITIAL_HEIGHT : undefined}
+                shrinkHeightToContent={mode === 'obtain'}
                 isTopmost={isTopmost}
                 zIndex={70}
                 skipSavedPosition
                 variant="store"
                 hideFooter
                 mobileViewportFit
-                mobileViewportMaxHeightVh={98}
-                mobileViewportMaxHeightCss={MOBILE_EQUIPMENT_DETAIL_MAX_HEIGHT_CSS}
-                mobileViewportDvhBottomGapPx={8}
-                bodyShrinkToContent
+                mobileLockViewportHeight={mode === 'view'}
+                mobileViewportMaxHeightVh={mode === 'view' ? 99 : 98}
+                mobileViewportMaxHeightCss={
+                    mode === 'view' ? PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS : MOBILE_EQUIPMENT_DETAIL_MAX_HEIGHT_CSS
+                }
+                mobileViewportDvhBottomGapPx={mode === 'view' ? PAIR_PET_MODAL_MOBILE_BOTTOM_GAP_PX : 8}
+                bodyShrinkToContent={mode === 'obtain'}
+                bodyNoScroll={mode === 'view'}
                 bodyScrollable={false}
                 bodyPaddingClassName={bodyPaddingClassName}
             >
                 {mode === 'obtain' ? (
                     <>
-                        <div className="min-w-0 w-full">
-                            <PairPetHatchAcquirePanel
-                                currentUser={userForView}
-                                item={item}
-                                showRepresentativeBadge={showRepresentativeBadge}
-                            />
+                        <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
+                            <PairPetDetailFitScale itemId={item.id} outerClassName="min-h-0 flex-1" stretchInnerHeightWhenUnscaled>
+                                <PairPetHatchAcquirePanel
+                                    currentUser={userForView}
+                                    item={item}
+                                    showRepresentativeBadge={showRepresentativeBadge}
+                                />
+                            </PairPetDetailFitScale>
                         </div>
                         <div className={`${ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS} shrink-0 border-t border-slate-700/50`}>
                             <button

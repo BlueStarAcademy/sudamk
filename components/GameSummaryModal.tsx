@@ -1720,6 +1720,9 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
     const isGuildWar = isGuildWarLiveSession(session as any);
     const isChampionshipVersusSummary = typeof session.description === 'string' && session.description.startsWith('챔피언십 장내 카타:');
     const showMannerPostGameStats = !isChampionshipVersusSummary;
+    /** 챔피언십 장내: 결과 모달은 확인만 — 나가기·보상 수령은 경기장 푸터/사이드바에서 처리 */
+    const resultModalSecondaryAction = isChampionshipVersusSummary ? undefined : secondaryConfirmAction;
+    const resultModalConfirmLabel = isChampionshipVersusSummary ? '확인' : confirmLabel;
     /** 랭킹·매너 등 실제 정산이 있는 대국에서만 통계 카드 표시 (친선·AI 등에서는 숨김) */
     const showPostGameRatingMannerStats = useMemo(() => {
         if (!mySummary || isSpectator) return false;
@@ -2931,15 +2934,15 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                 >
                     {isMobile ? <div className="min-w-0 w-full shrink-0">{pvpRewardsSection}</div> : null}
                     <div className={`${arenaPostGameSingleConfirmFooterClass} shrink-0`}>
-                        {secondaryConfirmAction ? (
+                        {resultModalSecondaryAction ? (
                             <button
                                 type="button"
                                 className={`${arenaPostGameButtonClass('danger', isMobile, 'modal')} ${arenaPostGameSingleModalConfirmButtonClass}`}
                                 style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
-                                onClick={secondaryConfirmAction.onClick}
-                                title={secondaryConfirmAction.title}
+                                onClick={resultModalSecondaryAction.onClick}
+                                title={resultModalSecondaryAction.title}
                             >
-                                {secondaryConfirmAction.label}
+                                {resultModalSecondaryAction.label}
                             </button>
                         ) : null}
                         <button
@@ -2948,7 +2951,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                             style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
                             onClick={onConfirm}
                         >
-                            {confirmLabel}
+                            {resultModalConfirmLabel}
                         </button>
                     </div>
                 </div>

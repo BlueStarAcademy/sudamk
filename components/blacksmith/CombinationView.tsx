@@ -32,7 +32,7 @@ const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; isC
 }) => {
     if (!item) {
         return (
-            <div className={`${isCompact ? 'h-24 w-full' : 'h-28 w-1/3'} rounded-lg border-2 border-dashed border-amber-500/30 bg-black/35 text-xs text-amber-100/70 flex items-center justify-center`}>
+            <div className={`${isCompact ? 'h-[5.25rem] w-full' : 'h-28 w-1/3'} rounded-lg border-2 border-dashed border-amber-500/30 bg-black/35 text-xs text-amber-100/70 flex items-center justify-center`}>
                 재료
             </div>
         );
@@ -47,7 +47,7 @@ const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; isC
             onClick={onRemove}
             title="재료 해제"
             aria-label={`${item.name} 재료 해제`}
-            className={`${isCompact ? 'h-24 w-full p-1.5' : 'h-28 w-1/3 p-2'} relative cursor-pointer rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#191e2b]/80 via-[#121724]/90 to-[#0c1018]/95 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] flex flex-col items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70`}
+            className={`${isCompact ? 'h-[5.25rem] w-full p-1.5' : 'h-28 w-1/3 p-2'} relative cursor-pointer rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#191e2b]/80 via-[#121724]/90 to-[#0c1018]/95 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] flex flex-col items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70`}
         >
             <div
                 className={`relative ${isCompact ? 'h-12 w-12' : 'h-14 w-14'} flex-shrink-0 overflow-hidden rounded-lg border border-slate-500/50 bg-transparent ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
@@ -63,7 +63,11 @@ const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; isC
     );
 };
 
-const OutcomeProbability: React.FC<{ items: (InventoryItem | null)[], isRandom: boolean }> = ({ items, isRandom }) => {
+const OutcomeProbability: React.FC<{
+    items: (InventoryItem | null)[];
+    isRandom: boolean;
+    className?: string;
+}> = ({ items, isRandom, className = '' }) => {
     const probabilities = useMemo(() => {
         const validItems = items.filter((i): i is InventoryItem => i !== null);
         if (validItems.length !== 3) return [];
@@ -92,9 +96,11 @@ const OutcomeProbability: React.FC<{ items: (InventoryItem | null)[], isRandom: 
     if (probabilities.length === 0) return null;
 
     return (
-        <div className="mt-3 w-full rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c29]/75 via-black/35 to-black/45 p-3">
-            <h4 className="mb-2 text-center text-xs font-bold text-amber-100">결과물 종류 확률</h4>
-            <div className="grid grid-cols-3 gap-x-3 gap-y-1 text-[11px]">
+        <div
+            className={`w-full rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c29]/75 via-black/35 to-black/45 p-2 ${className}`.trim()}
+        >
+            <h4 className="mb-1.5 text-center text-[11px] font-bold text-amber-100">결과물 종류 확률</h4>
+            <div className="grid grid-cols-3 gap-x-2 gap-y-0.5 text-[10px] sm:text-[11px]">
                 {probabilities.map(([slot, prob]) => (
                     <div key={slot} className="flex justify-between">
                         <span className="text-slate-400">{SLOT_NAMES_KO[slot]}:</span>
@@ -106,7 +112,11 @@ const OutcomeProbability: React.FC<{ items: (InventoryItem | null)[], isRandom: 
     );
 }
 
-const GradeProbability: React.FC<{ items: (InventoryItem | null)[], currentUser: UserWithStatus }> = ({ items, currentUser }) => {
+const GradeProbability: React.FC<{
+    items: (InventoryItem | null)[];
+    currentUser: UserWithStatus;
+    className?: string;
+}> = ({ items, currentUser, className = '' }) => {
     const { blacksmithLevel } = currentUser;
     const probabilities = useMemo(() => {
         const validItems = items.filter((i): i is InventoryItem => i !== null);
@@ -123,9 +133,11 @@ const GradeProbability: React.FC<{ items: (InventoryItem | null)[], currentUser:
     if (!probabilities) return null;
 
     return (
-        <div className="mt-2 w-full rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c29]/75 via-black/35 to-black/45 p-3">
-            <h4 className="mb-2 text-center text-xs font-bold text-amber-100">결과물 등급 확률</h4>
-            <div className="grid grid-cols-2 gap-x-4 text-[11px]">
+        <div
+            className={`w-full rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c29]/75 via-black/35 to-black/45 p-2 ${className}`.trim()}
+        >
+            <h4 className="mb-1.5 text-center text-[11px] font-bold text-amber-100">결과물 등급 확률</h4>
+            <div className="grid grid-cols-2 gap-x-3 text-[10px] sm:text-[11px]">
                 <div className="flex justify-between">
                     <span className="text-slate-400">성공:</span>
                     <span className="font-semibold text-emerald-200">{formatBlacksmithPercentInt(probabilities.successRate)}%</span>
@@ -165,10 +177,14 @@ const CombinationView: React.FC<CombinationViewProps> = ({
     };
     
     const canCombine = items.every(item => item !== null) && new Set(items.map(i => i?.grade)).size === 1;
+    const filledCount = items.filter((i) => i !== null).length;
+    const showOutcomeProb = filledCount === 3;
+    const showGradeProb =
+        filledCount === 3 && new Set(items.filter((i) => i !== null).map((i) => i!.grade)).size === 1;
 
     return (
-        <div className={`${isMobile ? 'h-auto' : 'h-full'} flex flex-col items-center ${isMobile ? 'justify-start gap-2' : 'justify-between gap-3'}`}>
-            <div className={`w-full ${isMobile ? 'grid grid-cols-3 gap-1' : 'flex justify-around items-stretch gap-2'}`}>
+        <div className={`${isMobile ? 'h-auto min-h-0' : 'h-full min-h-0'} flex w-full flex-col items-center gap-2`}>
+            <div className={`w-full shrink-0 ${isMobile ? 'grid grid-cols-3 gap-1' : 'flex justify-around items-stretch gap-2'}`}>
                 {items.map((item, index) => (
                     <ItemSlot
                         key={index}
@@ -179,12 +195,18 @@ const CombinationView: React.FC<CombinationViewProps> = ({
                 ))}
             </div>
 
-            <div className={`w-full ${isMobile ? 'space-y-1' : 'space-y-2'}`}>
-                <OutcomeProbability items={items} isRandom={isRandom} />
-                <GradeProbability items={items} currentUser={currentUser} />
-            </div>
+            {(showOutcomeProb || showGradeProb) && (
+                <div
+                    className={`grid w-full shrink-0 gap-1.5 ${
+                        showOutcomeProb && showGradeProb ? 'grid-cols-2' : 'grid-cols-1'
+                    }`}
+                >
+                    {showOutcomeProb ? <OutcomeProbability items={items} isRandom={isRandom} /> : null}
+                    {showGradeProb ? <GradeProbability items={items} currentUser={currentUser} /> : null}
+                </div>
+            )}
 
-            <div className={`w-full ${isMobile ? 'space-y-2' : 'space-y-3'} ${isMobile ? 'mt-1' : 'mt-2'}`}>
+            <div className={`w-full shrink-0 ${isMobile ? 'space-y-1.5' : 'space-y-2'} ${isMobile ? '' : 'mt-auto pt-1'}`}>
                 <div className={`flex items-center justify-center gap-2 ${isMobile ? 'text-[10px]' : 'text-xs'} text-slate-300`}>
                     <input 
                         type="checkbox" 

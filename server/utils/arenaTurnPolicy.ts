@@ -22,6 +22,12 @@ export function getArenaTurnCount(game: types.LiveGameSession): number {
 
 export async function resolveArenaFixedScoringTurnLimit(game: types.LiveGameSession): Promise<number | undefined> {
     const policy = resolveArenaSessionPolicy(game as any);
+    const scoringTurnLimit = Number((game.settings as any)?.scoringTurnLimit ?? 0);
+    if (policy.isPairGame) {
+        return scoringTurnLimit > 0 && !modeIncludesCaptureRule(game.mode, game.settings)
+            ? scoringTurnLimit
+            : undefined;
+    }
     if (policy.turnLimitMode === 'none' || modeIncludesCaptureRule(game.mode, game.settings)) {
         return undefined;
     }
