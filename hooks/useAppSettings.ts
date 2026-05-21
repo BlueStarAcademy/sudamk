@@ -29,6 +29,7 @@ export const defaultSettings: AppSettings = {
         captureScoreAnimation: true,
         questNotifications: true,
         chatNotifications: true,
+        screenGuideModals: true,
     },
 };
 

@@ -4,10 +4,13 @@
     <meta charset="UTF-8" />
     <link rel="icon" href="/images/Icon.webp" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- 카카오톡·메신저 인앱 → 외부 브라우저(세로 잠금·safe-area 충돌 방지). public/in-app-browser-escape.js -->
+    <script src="/in-app-browser-escape.js"></script>
     <!-- 터치 폰만: React·번들보다 먼저 세로 잠금 시도(첫 페인트 전). 기준은 hooks/useIsMobileLayout.ts와 동기화 -->
     <script>
       (function () {
         try {
+          if (window.__SUDAMR_IN_APP_BROWSER__) return;
           var w = window.innerWidth,
             h = window.innerHeight;
           var shortSide = Math.min(w, h),

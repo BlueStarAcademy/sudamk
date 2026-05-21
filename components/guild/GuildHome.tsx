@@ -3,6 +3,8 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import { Guild as GuildType } from '../../types/index.js';
 import { GuildDashboard } from './GuildDashboard.js';
 import BackButton from '../BackButton.js';
+import { useScreenGuide } from '../../hooks/useScreenGuide.js';
+import ScreenGuideModal from '../ScreenGuideModal.js';
 
 interface GuildHomeProps {
     initialGuild?: GuildType;
@@ -107,6 +109,8 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
         };
     }, [guildDonationAnimation]);
 
+    const guildScreenGuide = useScreenGuide('guildHome', { active: Boolean(myGuild && !isLoading) });
+
     // 사용자가 길드에 속해있지 않으면 프로필로 리다이렉트 (currentUserWithStatus가 로드된 후에만, 길드 ID가 확실히 없을 때만)
     useEffect(() => {
         if (!currentUserWithStatus) return; // 사용자 정보가 아직 로드 중이면 대기
@@ -166,6 +170,13 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
                     setGuildDonationAnimation({ coins, research, type })
                 }
             />
+            {guildScreenGuide.isOpen && (
+                <ScreenGuideModal
+                    guideId="guildHome"
+                    onClose={guildScreenGuide.close}
+                    onDismissForever={guildScreenGuide.dismissForever}
+                />
+            )}
         </div>
     );
 };

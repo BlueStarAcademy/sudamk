@@ -44,6 +44,8 @@ import { getSeasonalRankingTierName, RANKING_TIERS } from '../shared/constants/r
 import { RANKED_ELO_BASE_SCORE } from '../shared/constants/rules.js';
 import { resolvePublicUrl } from '../utils/publicAssetUrl.js';
 import ChampionshipVersusDuelHistoryModal from './ChampionshipVersusDuelHistoryModal.js';
+import { useScreenGuide } from '../hooks/useScreenGuide.js';
+import ScreenGuideModal from './ScreenGuideModal.js';
 
 /** 챔피언십 로비 패널: 경기장 배경 블러(전략/놀이 대기실과 동일 계열) */
 const CHAMPIONSHIP_PANEL_GLASS =
@@ -1005,6 +1007,7 @@ const TournamentLobby: React.FC = () => {
     /** PC 챔피언십 로비 좌측: 유저 장비·능력치 / 대표 펫 능력치 */
     const [pcChampionshipLeftAbilityTab, setPcChampionshipLeftAbilityTab] = useState<'user' | 'pet'>('user');
     const [championshipDuelHistoryOpen, setChampionshipDuelHistoryOpen] = useState(false);
+    const championshipScreenGuide = useScreenGuide('championship');
 
     /** 경기장별 결투권이 DB에 없으면 서버와 동일 규칙으로 한 번 동기화(대기실 5/5 오표시 방지) */
     useEffect(() => {
@@ -1602,6 +1605,13 @@ const TournamentLobby: React.FC = () => {
                 onClose={() => setChampionshipDuelHistoryOpen(false)}
                 entries={currentUserWithStatus.championshipVersusDuelWeekLog}
             />
+            {championshipScreenGuide.isOpen && (
+                <ScreenGuideModal
+                    guideId="championship"
+                    onClose={championshipScreenGuide.close}
+                    onDismissForever={championshipScreenGuide.dismissForever}
+                />
+            )}
         </div>
     );
 };

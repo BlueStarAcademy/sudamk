@@ -21,6 +21,8 @@ import {
 } from './constants/ads.js';
 import { syncDocumentViewportHeightVar } from './utils/layoutViewportCss.js';
 import { staleChunkReloadFlagResetEffect } from './utils/chunkReloadRecovery.js';
+import { isMessagingInAppBrowser } from './utils/inAppBrowserEscape.js';
+import InAppBrowserEscapeGate from './components/InAppBrowserEscapeGate.js';
 
 function usePrevious<T>(value: T): T | undefined {
     const ref = useRef<T | undefined>(undefined);
@@ -158,6 +160,9 @@ const AppContent: React.FC = () => {
      * 잠금은 `innerWidth > innerHeight` 일 때만 걸어 세로에서는 클래스를 두지 않는다(과거 깜빡임 완화).
      */
     useEffect(() => {
+        if (isMessagingInAppBrowser()) {
+            return undefined;
+        }
         const el = document.documentElement;
 
         const syncPhonePortraitLock = () => {
@@ -212,7 +217,7 @@ const AppContent: React.FC = () => {
      * 8인치+ 태블릿은 이 훅이 돌지 않음(`isPhoneHandheldTouch` false).
      */
     useEffect(() => {
-        if (!isPhoneHandheldTouch) {
+        if (!isPhoneHandheldTouch || isMessagingInAppBrowser()) {
             return undefined;
         }
 
@@ -701,6 +706,7 @@ const AdProviderFromUser: React.FC<{ children: React.ReactNode }> = ({ children 
 const App: React.FC = () => {
     return (
         <div className="app-container">
+            <InAppBrowserEscapeGate />
             <AppProvider>
                 <AdProviderFromUser>
                     <AppContent />

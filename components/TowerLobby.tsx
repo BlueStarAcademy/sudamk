@@ -25,6 +25,8 @@ import {
 } from '../utils/towerLobbyInventory.js';
 import { formatGoldAmountKoG } from '../shared/utils/walletAmountDisplay.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import { useScreenGuide } from '../hooks/useScreenGuide.js';
+import ScreenGuideModal from './ScreenGuideModal.js';
 
 // 월간 보상 구간 (매월 1일 0시 KST 지급, 역대 최고 층수 아님 월간 최고 층수 기준)
 // 서버 `processTowerRankingRewards`의 구간·수치와 반드시 동기화할 것
@@ -132,6 +134,7 @@ const resolveTowerRewardImage = (itemId: string): string => {
 const TowerLobby: React.FC = () => {
         const { currentUser, currentUserWithStatus, handlers, towerRankingsRefetchTrigger } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
+    const towerScreenGuide = useScreenGuide('tower');
     const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
     const [isItemShopOpen, setIsItemShopOpen] = useState(false);
     /** 네이티브 모바일: 도전의 탑 히어로 우측 슬라이드 패널 */
@@ -1289,6 +1292,13 @@ const TowerLobby: React.FC = () => {
                             payload: { itemId, quantity }
                         } as any);
                     }}
+                />
+            )}
+            {towerScreenGuide.isOpen && (
+                <ScreenGuideModal
+                    guideId="tower"
+                    onClose={towerScreenGuide.close}
+                    onDismissForever={towerScreenGuide.dismissForever}
                 />
             )}
         </div>

@@ -1,7 +1,40 @@
+import { GameMode } from '../types/index.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from './gameModes.js';
 import { GUILD_BOSS_MAX_ATTEMPTS } from './guildConstants.js';
 import { ADVENTURE_UNDERSTANDING_STAT_EFFECT_CAP, ADVENTURE_STAGES } from '../../constants/adventureConstants.js';
 import { ADVENTURE_REGIONAL_BUFF_ACTION_GOLD } from '../../utils/adventureRegionalSpecialtyBuff.js';
+import { PAIR_GO_GAME_MODES } from '../utils/pairGameTurn.js';
+import { PAIR_EGG_DISPLAY_IMAGE } from './petLobby.js';
+import { AVATAR_POOL, BORDER_POOL } from './ui.js';
+
+/** 프로필 편집 안내 — `ProfileEditModal`과 동일한 아바타·테두리 에셋 */
+const PROFILE_EDIT_GUIDE_AVATAR = AVATAR_POOL.find((a) => a.id === 'profile_1') ?? AVATAR_POOL[0]!;
+const PROFILE_EDIT_GUIDE_BORDER =
+    BORDER_POOL.find((b) => b.id === 'tier_ring_3') ??
+    BORDER_POOL.find((b) => typeof b.url === 'string' && b.url.startsWith('/images'))!;
+
+/** 도움말·홈 안내용 — `assets.ts`·로비 UI와 동일한 경로 */
+const ADVENTURE_HELP_IMAGE = '/images/adventure.png';
+const ADVENTURE_HOME_ENTRY_IMAGE = ADVENTURE_STAGES[0].mapWebp;
+const SINGLE_PLAYER_ACADEMY_IMAGE = '/images/single/Academy1.webp';
+const TOWER_ENTRY_IMAGE = '/images/tower/Tower1.webp';
+const CHAMPIONSHIP_ENTRY_IMAGE = '/images/championship/Champ1.webp';
+const STRATEGIC_LOBBY_IMAGE = '/images/RatingArena.webp';
+const PLAYFUL_LOBBY_IMAGE = '/images/PlayingArena.webp';
+const PAIR_LOBBY_IMAGE = '/images/2v2.webp';
+const TOURNAMENT_LOBBY_IMAGE = '/images/Championship.webp';
+const HOME_BG_IMAGE = '/images/bg/mainbg.webp';
+const HELP_BUTTON_IMAGE = '/images/button/help.webp';
+const PET_HELP_HERO_IMAGE = '/images/bg/pet.webp';
+const PET_SAMPLE_IMAGE = '/images/pets/pet1.webp';
+const MIX_MODE_IMAGE =
+    SPECIAL_GAME_MODES.find((g) => g.mode === GameMode.Mix)?.image ?? '/images/simbols/simbol7.webp';
+
+const pairGoModeGallery: HelpImageRef[] = PAIR_GO_GAME_MODES.map((mode) => {
+    const spec = SPECIAL_GAME_MODES.find((g) => g.mode === mode);
+    if (!spec) return { src: MIX_MODE_IMAGE, alt: String(mode), caption: String(mode) };
+    return { src: spec.image, alt: spec.name, caption: spec.name };
+});
 
 export type HelpImageRef = { src: string; alt: string; caption?: string };
 
@@ -67,7 +100,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'start-home',
                     title: '홈 화면과 퀵메뉴',
                     tagline: '한 화면에서 입장부터 성장 콘텐츠까지 연결됩니다.',
-                    hero: { src: '/images/bg/mainbg.webp', alt: '홈 배경' },
+                    hero: { src: HOME_BG_IMAGE, alt: '홈 배경' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -120,7 +153,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'start-settings',
                     title: '설정과 계정',
                     tagline: '그래픽·알림·프로필 편집은 설정에서 한곳에 모았습니다.',
-                    hero: { src: '/images/simbols/simbol1.webp', alt: '설정' },
+                    hero: { src: HELP_BUTTON_IMAGE, alt: '설정 · 도움말' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -137,26 +170,418 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     ],
                 },
             },
+            {
+                id: 'start-profile-edit',
+                label: '프로필 수정',
+                article: {
+                    id: 'start-profile-edit',
+                    title: '프로필 수정',
+                    tagline: '닉네임·외형·MBTI를 한곳에서 관리합니다.',
+                    hero: { src: PROFILE_EDIT_GUIDE_AVATAR.url, alt: '프로필 아바타' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '프로필 영역을 누르거나 설정에서 「프로필 수정」을 열면 아바타·테두리·닉네임·MBTI를 바꿀 수 있습니다.',
+                        },
+                        {
+                            type: 'imageRow',
+                            compact: true,
+                            images: [
+                                {
+                                    src: PROFILE_EDIT_GUIDE_AVATAR.url,
+                                    alt: PROFILE_EDIT_GUIDE_AVATAR.name,
+                                    caption: '아바타',
+                                },
+                                {
+                                    src: PROFILE_EDIT_GUIDE_BORDER.url,
+                                    alt: PROFILE_EDIT_GUIDE_BORDER.name,
+                                    caption: '테두리',
+                                },
+                            ],
+                        },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '닉네임 변경에는 다이아가 소모될 수 있습니다.',
+                                'MBTI 설문 결과는 프로필에 표시되며, 바둑 스타일 참고용입니다.',
+                                '일부 테두리는 레벨·구매·시즌 보상으로 해금됩니다.',
+                            ],
+                        },
+                    ],
+                },
+            },
+        ],
+    },
+    {
+        id: 'home-screen',
+        label: '홈 화면',
+        iconSrc: HOME_BG_IMAGE,
+        accentClass: 'from-amber-500/25 to-orange-600/12',
+        subcategories: [
+            {
+                id: 'home-profile',
+                label: '1. 프로필',
+                article: {
+                    id: 'home-profile',
+                    title: '프로필',
+                    tagline: '레벨·매너·MBTI와 함께 나만의 프로필을 꾸밉니다.',
+                    hero: { src: HOME_BG_IMAGE, alt: '홈 프로필' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '홈 상단 프로필에는 전략·놀이 레벨, 매너점수, MBTI, 시즌 티어 등이 표시됩니다. 프로필을 누르면 닉네임·아바타·테두리·MBTI를 수정할 수 있습니다.',
+                        },
+                        {
+                            type: 'imageRow',
+                            images: [
+                                {
+                                    src: PROFILE_EDIT_GUIDE_AVATAR.url,
+                                    alt: PROFILE_EDIT_GUIDE_AVATAR.name,
+                                    caption: '아바타',
+                                },
+                                {
+                                    src: PROFILE_EDIT_GUIDE_BORDER.url,
+                                    alt: PROFILE_EDIT_GUIDE_BORDER.name,
+                                    caption: '테두리',
+                                },
+                            ],
+                        },
+                        {
+                            type: 'callout',
+                            tone: 'tip',
+                            text: '매너점수는 대국 매너·접속 습관에 따라 변하며, 일부 보상·행동력에 영향을 줄 수 있습니다.',
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'home-gear',
+                label: '2. 장비',
+                article: {
+                    id: 'home-gear',
+                    title: '장비',
+                    tagline: '장비를 장착하면 바둑 능력과 전투 스탯이 올라갑니다.',
+                    hero: { src: '/images/quickmenu/enhance.webp', alt: '대장간' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '부채·바둑판·의상 등 부위별 장비를 장착해 능력치를 올립니다. 대장간에서 강화·합성·제련·분해로 성장시킬 수 있습니다.',
+                        },
+                        {
+                            type: 'imageRow',
+                            compact: true,
+                            images: [
+                                { src: '/images/equipments/moru.webp', alt: '대장간', caption: '대장간' },
+                                { src: '/images/quickmenu/bag.webp', alt: '가방', caption: '가방' },
+                                { src: '/images/button/itembook.webp', alt: '도감', caption: '도감' },
+                            ],
+                        },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '등급이 높을수록 주옵션·부옵션·특수 효과가 강해집니다.',
+                                '홈에서 장비 슬롯을 누르면 가방·장착 화면으로 이동합니다.',
+                            ],
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'home-ability',
+                label: '3. 바둑능력',
+                article: {
+                    id: 'home-ability',
+                    title: '바둑능력',
+                    tagline: '6가지 능력치가 바둑 스타일과 시뮬 결과를 만듭니다.',
+                    hero: { src: '/images/PlayingArena.webp', alt: '능력치' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '집중력·사고속도·판단력·계산력·전투력·안정감 6종 능력치를 포인트로 분배합니다. 스타일에 맞게 투자해 챔피언십·길드 보스전에 대비하세요.',
+                        },
+                        {
+                            type: 'figure',
+                            src: '/images/championship/Champ1.webp',
+                            alt: '챔피언십 시뮬',
+                            caption: '챔피언십 시뮬레이션 경기장에서 능력치·컨디션이 결과에 반영됩니다.',
+                        },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '초반·중반·종반마다 중요한 능력치 비중이 다릅니다.',
+                                '길드 보스전은 보스 특성에 맞는 능력치·연구 스킬이 유리합니다.',
+                            ],
+                        },
+                        {
+                            type: 'imageRow',
+                            images: [
+                                { src: '/images/guild/button/bossraid1.webp', alt: '보스전', caption: '길드 보스' },
+                            ],
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'home-guild',
+                label: '4. 길드',
+                article: {
+                    id: 'home-guild',
+                    title: '길드',
+                    tagline: '5레벨 이후 협동 콘텐츠로 길드를 성장시킵니다.',
+                    hero: { src: '/images/guild/profile/icon1.webp', alt: '길드' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '전략·놀이 레벨 합산 5레벨이 되면 길드에 가입·창설할 수 있습니다. 길드전·보스전·연구·미션으로 길드와 개인 모두 성장합니다.',
+                        },
+                        {
+                            type: 'imageRow',
+                            images: [
+                                { src: '/images/guild/button/guildwar.webp', alt: '길드전', caption: '길드전' },
+                                { src: '/images/guild/button/bossraid1.webp', alt: '보스', caption: '보스전' },
+                                { src: '/images/guild/button/guildlab.webp', alt: '연구', caption: '연구소' },
+                            ],
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'home-pet',
+                label: '5. 펫',
+                article: {
+                    id: 'home-pet',
+                    title: '펫',
+                    tagline: '바둑을 두는 펫을 육성하고 함께 대국합니다.',
+                    hero: { src: PET_HELP_HERO_IMAGE, alt: '펫' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '펫은 페어 경기장·대전 등에서 파트너로 함께합니다. 우측 퀵 버튼에서 펫 관리·부화·장착을 할 수 있습니다.',
+                        },
+                        {
+                            type: 'callout',
+                            tone: 'tip',
+                            title: '시작 보상',
+                            text: '게임을 처음 시작하면 우편에 (특)신비로운알이 도착합니다. 5레벨 펫을 부화시킨 뒤 본격적으로 플레이하는 것을 권장합니다.',
+                        },
+                        {
+                            type: 'imageRow',
+                            compact: true,
+                            images: [
+                                { src: PET_SAMPLE_IMAGE, alt: 'AI 펫', caption: 'AI 펫' },
+                                { src: PAIR_EGG_DISPLAY_IMAGE, alt: '신비로운알', caption: '신비로운알' },
+                            ],
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'home-entries',
+                label: '6. 입장카드',
+                article: {
+                    id: 'home-entries',
+                    title: '각종 입장카드',
+                    tagline: '바둑학원부터 PVP·챔피언십·모험까지.',
+                    hero: { src: ADVENTURE_HELP_IMAGE, alt: '모험' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '홈 중앙 입장 카드로 각 컨텐츠에 이동합니다. 바둑학원에서 기본기를 익힌 뒤 도전의 탑·PVP·챔피언십·모험을 순서대로 즐겨 보세요.',
+                        },
+                        {
+                            type: 'imageRow',
+                            compact: true,
+                            images: [
+                                { src: SINGLE_PLAYER_ACADEMY_IMAGE, alt: '바둑학원', caption: '바둑학원' },
+                                { src: TOWER_ENTRY_IMAGE, alt: '도전의 탑', caption: '도전의 탑' },
+                                { src: STRATEGIC_LOBBY_IMAGE, alt: 'PVP', caption: 'PVP' },
+                                { src: '/images/championship/Champ1.webp', alt: '챔피언십', caption: '챔피언십' },
+                                { src: ADVENTURE_HOME_ENTRY_IMAGE, alt: '모험', caption: '모험' },
+                            ],
+                        },
+                    ],
+                },
+            },
+        ],
+    },
+    {
+        id: 'pet-management',
+        label: '펫 관리',
+        iconSrc: PET_HELP_HERO_IMAGE,
+        accentClass: 'from-sky-500/20 to-fuchsia-600/10',
+        subcategories: [
+            {
+                id: 'pet-mgmt-overview',
+                label: '1. 개요',
+                article: {
+                    id: 'pet-mgmt-overview',
+                    title: '펫 관리 창',
+                    tagline: '펫 정보·수련·부화·상점을 한곳에서 다룹니다.',
+                    hero: { src: PET_HELP_HERO_IMAGE, alt: '펫 관리' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '홈·대기실 퀵 메뉴의 「펫」 또는 페어 경기장에서 펫 관리를 열면 이 창이 표시됩니다. 상단 탭으로 기능을 나누고, 하단 인벤에서 펫·알·영혼석을 선택해 각 탭 작업에 사용합니다.',
+                        },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '정보: 장착 펫·스탯·등급 강화·영혼 변환·가위바위보 속성을 확인합니다.',
+                                '수련: 펫을 슬롯에 보내 시간이 지나면 골드·경험치·영혼석을 받습니다.',
+                                '부화장: 알을 넣어 AI 펫을 부화시킵니다.',
+                                '상점: 신비로운알·영혼석을 골드·다이아로 구매합니다.',
+                            ],
+                        },
+                        {
+                            type: 'callout',
+                            tone: 'tip',
+                            title: '시작 팁',
+                            text: '처음 접속 시 우편의 (특)신비로운 알로 5레벨 펫을 부화한 뒤 정보 탭에서 장착하면 페어·펫 대국을 바로 이용할 수 있습니다.',
+                        },
+                        {
+                            type: 'imageRow',
+                            compact: true,
+                            images: [
+                                { src: PET_SAMPLE_IMAGE, alt: '펫', caption: 'AI 펫' },
+                                { src: PAIR_EGG_DISPLAY_IMAGE, alt: '알', caption: '신비로운알' },
+                                { src: '/images/pets/soulstone1.webp', alt: '영혼석', caption: '영혼석' },
+                            ],
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'pet-mgmt-info',
+                label: '2. 정보 · 장착',
+                article: {
+                    id: 'pet-mgmt-info',
+                    title: '정보 탭과 장착',
+                    tagline: '대표 펫을 정하고 성장·등급을 관리합니다.',
+                    hero: { src: PET_SAMPLE_IMAGE, alt: '펫 프로필' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '정보 탭 왼쪽에서 현재 장착 펫의 레벨·등급·경험치·가위바위보 속성을 봅니다. 인벤에서 펫을 선택하면 상세 카드가 열리고, 「장착」으로 페어 경기장·홈 대표 펫을 바꿀 수 있습니다.',
+                        },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '영혼석을 소모해 등급 강화를 시도할 수 있습니다. 실패 시에도 일부 자원이 돌아올 수 있습니다.',
+                                '영혼 변환: 불필요한 펫을 영혼석으로 바꿔 등급 강화 재료를 모읍니다.',
+                                '인벤 하단 「펫」/「영혼석」 필터로 목록을 전환하고, 정렬·슬롯 확장(다이아)으로 보관 칸을 늘릴 수 있습니다.',
+                                '페어 승리 누적·행동력 등은 페어 경기장 플레이와 연동됩니다.',
+                            ],
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'pet-mgmt-training',
+                label: '3. 수련',
+                article: {
+                    id: 'pet-mgmt-training',
+                    title: '수련 탭',
+                    tagline: '펫을 보내 두고 골드·경험치·영혼석을 받습니다.',
+                    hero: { src: '/images/quickmenu/quest.webp', alt: '수련' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '수련 탭에는 최대 6개 슬롯(기술·사활·수상전·정석·기보·수담)이 있습니다. 페어 바둑 승리 횟수에 따라 슬롯이 해금되며, 슬롯마다 필요 최소 펫 레벨이 다릅니다. 인벤에서 펫을 고른 뒤 빈 슬롯에 배치하면 타이머가 돌아가고, 완료 후 보상을 수령합니다.',
+                        },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '슬롯별 수련 시간·골드·경험치·영혼석 확률이 다릅니다.',
+                                '맨 오른쪽 수담 수련은 기능 VIP 전용 슬롯입니다.',
+                                '수련 중인 펫은 다른 슬롯·부화에 쓸 수 없으니 배치 전에 확인하세요.',
+                                '수령 가능할 때 탭·퀵 메뉴에 알림이 표시될 수 있습니다.',
+                            ],
+                        },
+                        {
+                            type: 'callout',
+                            tone: 'info',
+                            title: '해금 조건',
+                            text: '2번 슬롯부터는 페어 승 1·10·50·100·250회 누적이 필요합니다. VIP 슬롯은 승리 조건 없이 VIP 활성 시 이용합니다.',
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'pet-mgmt-hatchery',
+                label: '4. 부화장',
+                article: {
+                    id: 'pet-mgmt-hatchery',
+                    title: '부화장 탭',
+                    tagline: '알을 넣어 새 AI 펫을 얻습니다.',
+                    hero: { src: PAIR_EGG_DISPLAY_IMAGE, alt: '부화장' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '부화장에는 일반 4칸과 VIP 1칸이 있습니다. 인벤의 알(신비로운알·환영 알 등)을 빈 슬롯에 넣으면 부화 시간이 시작되고, 완료 후 펫 인벤으로 받습니다. 슬롯마다 부화 시간·나오는 레벨 범위가 다릅니다.',
+                        },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '1번 슬롯: 기본 부화(환영 알은 약 1분·레벨 5 고정).',
+                                '2~4번: 페어 승리·골드로 슬롯 해금 후, 더 짧은 시간·넓은 레벨 범위.',
+                                'VIP 슬롯: 기능 VIP 활성 시 고정 레벨 10 펫을 빠르게 부화.',
+                                '즉시 완료(다이아)·펫 인벤 가득 참 시 수령 불가 — 인벤 슬롯을 비우거나 확장하세요.',
+                            ],
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'pet-mgmt-shop',
+                label: '5. 상점',
+                article: {
+                    id: 'pet-mgmt-shop',
+                    title: '펫 상점 탭',
+                    tagline: '알과 영혼석을 재화로 구매합니다.',
+                    hero: { src: '/images/quickmenu/store.webp', alt: '펫 상점' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '상점 탭에서 신비로운알(골드·다이아)과 5종 영혼석을 살 수 있습니다. 일부 상품은 KST 기준 일일 구매 한도가 있습니다. 구매한 알은 부화장으로, 영혼석은 정보 탭 등급 강화에 사용합니다.',
+                        },
+                        {
+                            type: 'imageRow',
+                            compact: true,
+                            images: [
+                                { src: PAIR_EGG_DISPLAY_IMAGE, alt: '신비로운알', caption: '신비로운알' },
+                                { src: '/images/pets/soulstone3.webp', alt: '심연영혼석', caption: '영혼석' },
+                            ],
+                        },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '인벤에서 영혼석을 선택하면 골드로 판매(상점 가격의 10%)할 수 있습니다.',
+                                '영혼석 일괄 판매·재료 판매는 가방과 비슷한 확인 창을 거칩니다.',
+                            ],
+                        },
+                    ],
+                },
+            },
         ],
     },
     {
         id: 'lobby',
         label: '대기실 · 매칭',
-        iconSrc: '/images/PlayingArena.webp',
+        iconSrc: PLAYFUL_LOBBY_IMAGE,
         accentClass: 'from-cyan-500/15 to-sky-600/10',
         subcategories: [
             {
                 id: 'lobby-common',
-                label: '대기실 이용법',
+                label: '전략 · 놀이 대기실',
                 article: {
                     id: 'lobby-common',
-                    title: '대기실에서 할 수 있는 것',
-                    tagline: '접속자 목록부터 관전·채팅까지 한 공간에서 처리합니다.',
-                    hero: { src: '/images/PlayingArena.webp', alt: '대기실' },
+                    title: '전략 · 놀이 대기실',
+                    tagline: '1:1 매칭·관전·랭크전이 있는 클래식 PVP 로비입니다.',
+                    hero: { src: PLAYFUL_LOBBY_IMAGE, alt: '대기실' },
                     blocks: [
                         {
                             type: 'paragraph',
-                            text: '전략·놀이 대기실에서는 접속 중인 플레이어 목록, 진행 중인 대국, 채팅, 랭킹 패널을 동시에 볼 수 있습니다. 상대에게 대국을 신청하거나 AI 봇과 연습할 수 있습니다.',
+                            text: '전략·놀이 경기장 대기실에서는 접속 중인 플레이어 목록, 진행 중인 대국, 채팅, 랭킹 패널을 동시에 볼 수 있습니다. 상대에게 대국을 신청하거나 AI 봇과 연습할 수 있습니다.',
                         },
                         {
                             type: 'bullets',
@@ -164,15 +589,70 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                                 '플레이어를 선택해 대국을 신청하면 상대가 수락할 때 경기가 열립니다.',
                                 '진행 중인 방은 관전해 수읽기 학습에 활용할 수 있습니다.',
                                 '우측 퀵 메뉴로 퀘스트·가방·상점·도움말 등을 그대로 이용합니다.',
-                                '각 게임 모드의 세부 규칙은 통합 도움말(퀵 메뉴의 도움말)에서 모드별로 확인할 수 있습니다.',
+                                '각 게임 모드의 세부 규칙은 통합 도움말(퀵 메뉴의 도움말) 또는 아래 「페어 바둑」·「게임 모드」 항목에서 확인할 수 있습니다.',
                             ],
                         },
                         {
                             type: 'imageRow',
+                            compact: true,
                             images: [
-                                { src: '/images/bg/strategicbg.webp', alt: '전략 대기실', caption: '전략 바둑' },
-                                { src: '/images/bg/playfulbg.webp', alt: '놀이 대기실', caption: '놀이 바둑' },
+                                { src: STRATEGIC_LOBBY_IMAGE, alt: '전략 경기장', caption: '전략 바둑' },
+                                { src: PLAYFUL_LOBBY_IMAGE, alt: '놀이 경기장', caption: '놀이 바둑' },
+                                { src: PAIR_LOBBY_IMAGE, alt: '페어 경기장', caption: '페어 바둑' },
                             ],
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'lobby-pair',
+                label: '페어 바둑',
+                article: {
+                    id: 'lobby-pair',
+                    title: '페어 바둑 경기장',
+                    tagline: '2인·4인 팀 대국과 펫 파트너가 함께하는 2v2 바둑입니다.',
+                    hero: { src: PAIR_LOBBY_IMAGE, alt: '페어 바둑' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '페어 경기장은 흑·백 각 팀이 두 명씩 번갈아 한 수를 두는 2v2 바둑입니다. 방 번호 그리드에서 방을 만들거나 참가하고, 파트너·펫·AI 슬롯을 채운 뒤 대국을 시작합니다. 전략바둑 규칙(클래식·따내기·스피드·베이스·히든·미사일·믹스)을 선택할 수 있으며, 판 크기는 9·13·19줄 중 설정합니다.',
+                        },
+                        {
+                            type: 'heading',
+                            text: '방 종류',
+                            level: 3,
+                        },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '4인 친선: 네 명이 모두 유저인 친선 대국. 팀원과 번갈아 착수합니다.',
+                                '2인 친선: 두 명이 한 팀으로 상대 팀(2인)과 대국합니다.',
+                                '2인 AI대전: 내 팀은 유저 2명, 상대 팀은 AI 2명과 대결합니다.',
+                                '펫 페어(AI와 대결): 내 펫·파트너 펫과 AI 펫이 좌석을 나눠 두는 연습·도전 형식입니다.',
+                                '페어 랭킹전: 펫 페어 또는 2인 페어 팀으로 매칭되는 랭크 대국(행동력 소모).',
+                            ],
+                        },
+                        {
+                            type: 'heading',
+                            text: '페어에서 쓸 수 있는 바둑 종류',
+                            level: 3,
+                        },
+                        {
+                            type: 'imageRow',
+                            images: pairGoModeGallery,
+                            compact: true,
+                        },
+                        {
+                            type: 'bullets',
+                            items: SPECIAL_GAME_MODES.filter((g) =>
+                                PAIR_GO_GAME_MODES.includes(g.mode),
+                            ).map((g) => `${g.name}: ${g.description}`),
+                        },
+                        {
+                            type: 'callout',
+                            tone: 'tip',
+                            title: '참고',
+                            text: '놀이바둑(주사위·오목·알까기 등)은 페어 경기장 친선 방이 아닌 전략·놀이 1:1 대기실에서 플레이합니다. 페어 대국 중 펫은 KATA·힌트 등 팀 보조 기능이 적용될 수 있습니다.',
                         },
                     ],
                 },
@@ -201,9 +681,9 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
         ],
     },
     {
-        id: 'pve',
-        label: '바둑학원 · 도전의 탑',
-        iconSrc: '/images/tower/Tower.webp',
+        id: 'pve-academy',
+        label: '바둑학원 · 수련',
+        iconSrc: SINGLE_PLAYER_ACADEMY_IMAGE,
         accentClass: 'from-emerald-500/15 to-amber-600/10',
         subcategories: [
             {
@@ -213,7 +693,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'pve-singleplayer',
                     title: '바둑학원',
                     tagline: '난이도별 스테이지와 수련과제로 AI와 수읽기를 연습합니다.',
-                    hero: { src: '/images/single/Map.webp', alt: '바둑학원' },
+                    hero: { src: SINGLE_PLAYER_ACADEMY_IMAGE, alt: '바둑학원' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -237,30 +717,24 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                 },
             },
             {
-                id: 'pve-tower',
-                label: '도전의 탑',
+                id: 'pve-training-quest',
+                label: '수련과제',
                 article: {
-                    id: 'pve-tower',
-                    title: '도전의 탑',
-                    tagline: '100층 PvE, 월간 랭킹과 보상이 함께 갱신됩니다.',
-                    hero: { src: '/images/tower/Tower.webp', alt: '도전의 탑' },
+                    id: 'pve-training-quest',
+                    title: '수련과제',
+                    tagline: '시간이 지나 쌓이는 보상으로 성장 루틴을 챙깁니다.',
+                    hero: { src: '/images/quickmenu/quest.webp', alt: '수련과제' },
                     blocks: [
                         {
                             type: 'paragraph',
-                            text: '도전의 탑은 100층으로 구성된 PvE 콘텐츠입니다. 층을 올라갈수록 난이도가 높아지며, 클리어 시 보상을 받을 수 있습니다.',
+                            text: '홈·바둑학원에서 수련과제를 열 수 있습니다. 과제를 완료하면 골드·다이아·재료 등을 받고, 바둑학원 진행과 함께 하면 성장이 빨라집니다.',
                         },
                         {
                             type: 'bullets',
                             items: [
-                                '랭킹은 달성한 층수와 기록 시간 등으로 정해집니다.',
-                                '로비에서 인벤토리·아이템 상점 등 탑 전용 도구를 사용할 수 있습니다.',
+                                '완료한 과제는 반드시 보상을 수령하세요.',
+                                '일부 과제는 특정 스테이지 클리어 후 해금됩니다.',
                             ],
-                        },
-                        {
-                            type: 'callout',
-                            tone: 'warn',
-                            title: '월간 초기화',
-                            text: '매월 1일 0시(KST)에 층 진행이 초기화됩니다. 월간 최고 층에 따른 정산 보상 구간과 상세 내역은 로비의 「보상정보」에서 확인하세요.',
                         },
                     ],
                 },
@@ -270,7 +744,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
     {
         id: 'modes',
         label: '게임 모드',
-        iconSrc: '/images/simbols/simbol7.webp',
+        iconSrc: MIX_MODE_IMAGE,
         accentClass: 'from-violet-500/15 to-fuchsia-600/10',
         subcategories: [
             {
@@ -280,7 +754,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'modes-strategic',
                     title: '전략 바둑 모드 안내',
                     tagline: '클래식부터 미사일·믹스룰까지, 수읽기 중심 라인업입니다.',
-                    hero: { src: '/images/bg/strategicbg.webp', alt: '전략 바둑' },
+                    hero: { src: STRATEGIC_LOBBY_IMAGE, alt: '전략 바둑' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -302,13 +776,41 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                 },
             },
             {
+                id: 'modes-pair',
+                label: '페어 바둑 규칙',
+                article: {
+                    id: 'modes-pair',
+                    title: '페어 바둑에서 선택 가능한 규칙',
+                    tagline: '전략바둑 7종만 지원 — 팀이 번갈아 같은 판에 둡니다.',
+                    hero: { src: PAIR_LOBBY_IMAGE, alt: '페어 바둑' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '페어 경기장·2인 페어 랭킹전에서 방을 만들 때 아래 전략 모드 중 하나를 고릅니다. 믹스 모드는 여러 규칙을 섞어 진행할 수 있습니다.',
+                        },
+                        { type: 'heading', text: '지원 모드', level: 3 },
+                        {
+                            type: 'imageRow',
+                            images: pairGoModeGallery,
+                            compact: true,
+                        },
+                        {
+                            type: 'bullets',
+                            items: SPECIAL_GAME_MODES.filter((g) =>
+                                PAIR_GO_GAME_MODES.includes(g.mode),
+                            ).map((g) => `${g.name}: ${g.description}`),
+                        },
+                    ],
+                },
+            },
+            {
                 id: 'modes-playful',
                 label: '놀이 바둑 모드',
                 article: {
                     id: 'modes-playful',
                     title: '놀이 바둑 모드 안내',
                     tagline: '주사위·역할·액션형 등 가볍게 즐기는 라인업입니다.',
-                    hero: { src: '/images/bg/playfulbg.webp', alt: '놀이 바둑' },
+                    hero: { src: PLAYFUL_LOBBY_IMAGE, alt: '놀이 바둑' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -332,7 +834,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
     {
         id: 'adventure',
         label: '모험',
-        iconSrc: '/images/adventure.webp',
+        iconSrc: ADVENTURE_HELP_IMAGE,
         accentClass: 'from-amber-500/22 via-fuchsia-600/12 to-violet-900/15',
         subcategories: [
             {
@@ -342,7 +844,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'adventure-chapters',
                     title: '챕터 맵과 몬스터',
                     tagline: '입장부터 맵 탐색·대국까지 한눈에.',
-                    hero: { src: '/images/adventure.webp', alt: '모험' },
+                    hero: { src: ADVENTURE_HELP_IMAGE, alt: '모험' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -415,7 +917,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             compact: true,
                             images: [
                                 { src: '/images/icon/Gold.webp', alt: '골드', caption: '변경·강화 비용' },
-                                { src: '/images/adventure.webp', alt: '모험', caption: '효과 획득·변경' },
+                                { src: ADVENTURE_HELP_IMAGE, alt: '모험', caption: '효과 획득·변경' },
                             ],
                         },
                         {
@@ -710,9 +1212,9 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
         ],
     },
     {
-        id: 'pve',
+        id: 'tower-championship',
         label: '도전의 탑 · 챔피언십',
-        iconSrc: '/images/simbols/simbol3.webp',
+        iconSrc: TOWER_ENTRY_IMAGE,
         accentClass: 'from-fuchsia-500/15 to-pink-600/10',
         subcategories: [
             {
@@ -722,6 +1224,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'pve-tower',
                     title: '도전의 탑',
                     tagline: '월간 층수·시간·순위가 핵심입니다.',
+                    hero: { src: TOWER_ENTRY_IMAGE, alt: '도전의 탑' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -744,6 +1247,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'pve-championship',
                     title: '챔피언십(시뮬 대회)',
                     tagline: '능력치·장비 세팅으로 자동 시뮬레이션 결과를 받습니다.',
+                    hero: { src: CHAMPIONSHIP_ENTRY_IMAGE, alt: '챔피언십' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -767,7 +1271,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'pve-training',
                     title: '연습 모드와 AI 스테이지',
                     tagline: '봇과의 대국·미션형 스테이지로 실력을 다듬습니다.',
-                    hero: { src: '/images/simbols/simbol1.webp', alt: '연습' },
+                    hero: { src: STRATEGIC_LOBBY_IMAGE, alt: '연습 · AI 대국' },
                     blocks: [
                         {
                             type: 'paragraph',

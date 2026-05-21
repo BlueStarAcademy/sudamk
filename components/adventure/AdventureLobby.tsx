@@ -9,6 +9,8 @@ import AdventureChapterRegionalSummary from './AdventureChapterRegionalSummary.j
 import AdventureRegionalBuffModal from './AdventureRegionalBuffModal.js';
 import { buildAdventureStageUnderstandingRows } from '../../utils/adventureStageUnderstandingRows.js';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from '../QuickAccessSidebar.js';
+import { useScreenGuide } from '../../hooks/useScreenGuide.js';
+import ScreenGuideModal from '../ScreenGuideModal.js';
 import {
     getAdventureChapterUnlockBlockers,
     getAdventureChapterUnlockConditionLines,
@@ -59,6 +61,7 @@ const AdventureLobby: React.FC = () => {
     const [regionalBuffStageId, setRegionalBuffStageId] = useState<string | null>(null);
     /** 네이티브 모바일: 챕터(기본) · 모험 일지 */
     const [mobileLobbyTab, setMobileLobbyTab] = useState<'chapter' | 'journal'>('chapter');
+    const adventureScreenGuide = useScreenGuide('adventure');
     const onBack = () => replaceAppHash('#/profile');
 
     const stageUnderstandingRows = useMemo(
@@ -377,6 +380,13 @@ const AdventureLobby: React.FC = () => {
                     userGold={currentUserWithStatus?.gold ?? 0}
                     onClose={() => setRegionalBuffStageId(null)}
                     isTopmost
+                />
+            )}
+            {adventureScreenGuide.isOpen && (
+                <ScreenGuideModal
+                    guideId="adventure"
+                    onClose={adventureScreenGuide.close}
+                    onDismissForever={adventureScreenGuide.dismissForever}
                 />
             )}
         </div>

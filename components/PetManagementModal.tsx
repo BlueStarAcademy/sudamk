@@ -1,7 +1,9 @@
 import React, { useCallback, useState } from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import PairPetLobbyPanel from './pair/PairPetLobbyPanel.js';
+import ScreenGuideModal from './ScreenGuideModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { useScreenGuide } from '../hooks/useScreenGuide.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { waitingLobbyPcPanelShellClass } from './waiting-room/waitingLobbyHomePanelStyles.js';
@@ -23,6 +25,7 @@ interface PetManagementModalProps {
 
 const PetManagementModal: React.FC<PetManagementModalProps> = ({ onClose, isTopmost }) => {
     const { currentUserWithStatus, handlers } = useAppContext();
+    const petGuide = useScreenGuide('petManagement');
     const isCompactViewport = useIsHandheldDevice(1024);
     const { isNativeMobile } = useNativeMobileShell();
     const isMobile = isCompactViewport || isNativeMobile;
@@ -46,6 +49,7 @@ const PetManagementModal: React.FC<PetManagementModalProps> = ({ onClose, isTopm
     if (!currentUserWithStatus) return null;
 
     return (
+        <>
         <DraggableWindow
             title="펫 관리"
             onClose={onClose}
@@ -76,6 +80,15 @@ const PetManagementModal: React.FC<PetManagementModalProps> = ({ onClose, isTopm
                 </div>
             </div>
         </DraggableWindow>
+        {petGuide.isOpen && (
+            <ScreenGuideModal
+                guideId="petManagement"
+                onClose={petGuide.close}
+                onDismissForever={petGuide.dismissForever}
+                isTopmost
+            />
+        )}
+        </>
     );
 };
 

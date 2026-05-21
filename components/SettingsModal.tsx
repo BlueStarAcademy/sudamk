@@ -367,6 +367,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                                         onChange={(checked) => updateFeatureSetting('captureScoreAnimation', checked)}
                                     />
                                 </div>
+                                <div className="flex items-center justify-between gap-2 rounded-lg border border-transparent px-1.5 py-1.5 hover:border-amber-500/15 hover:bg-white/[0.04] sm:px-2 sm:py-2">
+                                    <div className="min-w-0 flex-1">
+                                        <span className="block text-[11px] text-slate-300 sm:text-sm">도움말 모달</span>
+                                        <span className="mt-0.5 block text-[10px] leading-snug text-slate-500">
+                                            화면 첫 진입 시 안내. 끄면 퀵 메뉴 「도움말」에서만 열립니다.
+                                        </span>
+                                    </div>
+                                    <ToggleSwitch
+                                        checked={settings.features.screenGuideModals !== false}
+                                        onChange={(checked) => updateFeatureSetting('screenGuideModals', checked)}
+                                    />
+                                </div>
                             </div>
                         </SettingsSection>
                         <SettingsSection title="알림">

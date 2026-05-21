@@ -27,6 +27,8 @@ export interface FeatureSettings {
     captureScoreAnimation: boolean;
     questNotifications: boolean;
     chatNotifications: boolean;
+    /** 화면별 첫 진입 안내(도움말 모달) 자동 표시 */
+    screenGuideModals: boolean;
 }
 
 export interface AppSettings {

@@ -14,6 +14,8 @@ import {
 } from '../shared/utils/staffNicknameDisplay.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
+import { useScreenGuide } from '../hooks/useScreenGuide.js';
+import ScreenGuideModal from './ScreenGuideModal.js';
 
 interface ProfileEditModalProps {
     currentUser: UserWithStatus;
@@ -72,6 +74,7 @@ const formatVipRemainingPlain = (expiresAt: number | undefined, nowMs: number): 
 };
 
 const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClose, onAction, isTopmost }) => {
+    const profileEditGuide = useScreenGuide('profileEdit');
     const { isNativeMobile } = useNativeMobileShell();
     const isPcMode = !isNativeMobile;
     const avatarScrollRef = useRef<HTMLDivElement>(null);
@@ -891,6 +894,7 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
     ];
 
     return (
+        <>
         <DraggableWindow
             title="프로필 설정"
             onClose={onClose}
@@ -953,6 +957,15 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                 </div>
             </div>
         </DraggableWindow>
+        {profileEditGuide.isOpen && (
+            <ScreenGuideModal
+                guideId="profileEdit"
+                onClose={profileEditGuide.close}
+                onDismissForever={profileEditGuide.dismissForever}
+                isTopmost={isTopmost}
+            />
+        )}
+    </>
     );
 };
 

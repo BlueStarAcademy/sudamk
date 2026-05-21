@@ -44,6 +44,8 @@ import {
     formatActionPointCostWithPetDiscount,
 } from '../shared/utils/pairPetArenaApDiscount.js';
 import { sumLobbyAiMatchRecordFromStats } from '../shared/utils/lobbyAiMatchRecord.js';
+import { useScreenGuide } from '../hooks/useScreenGuide.js';
+import ScreenGuideModal from './ScreenGuideModal.js';
 import {
     type WaitingLobbyPanelTone,
     aiChallengeFeatureShellClass,
@@ -1014,6 +1016,8 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     useEffect(() => {
         postGamePairRoomRestoreDoneRef.current = false;
     }, [lobbyChannel]);
+
+    const pvpArenaScreenGuide = useScreenGuide('pvpArena');
 
     const aggregateLobbyMode = lobbyChannel === 'strategic' || lobbyChannel === 'playful' ? lobbyChannel : null;
     const aggregateLobbyAiRecord = useMemo(() => {
@@ -5837,6 +5841,13 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                         handlers.clearRankedMatchFound?.();
                         window.location.hash = `#/game/${gameId}`;
                     }}
+                />
+            )}
+            {pvpArenaScreenGuide.isOpen && (
+                <ScreenGuideModal
+                    guideId="pvpArena"
+                    onClose={pvpArenaScreenGuide.close}
+                    onDismissForever={pvpArenaScreenGuide.dismissForever}
                 />
             )}
         </div>
