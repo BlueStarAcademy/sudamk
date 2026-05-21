@@ -1,8 +1,6 @@
 import React from 'react';
 import { CORE_STATS_DATA } from '../../constants/index.js';
 import { CORE_STAT_RADAR_ORDER } from '../CoreStatsHexagonChart.js';
-import { PairPetDetailFitScale } from './PairPetDetailCardBody.js';
-
 export interface PairPetHomeEmptyDetailFrameProps {
     /** {@link PairPetDetailCardBody} `statsGridVariant`와 동일 */
     variant: 'modal' | 'panelFit';
@@ -18,12 +16,12 @@ export interface PairPetHomeEmptyDetailFrameProps {
 const PairPetHomeEmptyDetailFrame: React.FC<PairPetHomeEmptyDetailFrameProps> = ({ variant, mobileHomeRepPet = false, onRequestEquip }) => {
     const isPanelFit = variant === 'panelFit';
     const homePack = Boolean(isPanelFit && mobileHomeRepPet);
-    const rootGap = homePack ? 'gap-1' : isPanelFit ? 'gap-1' : 'gap-2.5 sm:gap-4';
+    const rootGap = homePack ? 'gap-0.5' : isPanelFit ? 'gap-1' : 'gap-2.5 sm:gap-4';
     const heroOuterRound = isPanelFit ? 'rounded-xl' : 'rounded-2xl';
-    const rowPad = homePack ? 'p-1.5 sm:p-2' : isPanelFit ? 'p-1.5' : 'p-2 sm:p-3';
+    const rowPad = homePack ? 'p-1' : isPanelFit ? 'p-1.5' : 'p-2 sm:p-3';
     const imgShellClass = isPanelFit
         ? homePack
-            ? 'relative aspect-square w-full max-w-[3.65rem] overflow-hidden rounded-lg border border-dashed border-white/20 bg-zinc-900/70 shadow-inner sm:max-w-[3.95rem]'
+            ? 'relative aspect-square w-full max-w-[6rem] overflow-hidden rounded-lg border border-dashed border-white/20 bg-zinc-900/70 shadow-inner'
             : 'relative aspect-square w-full max-w-full overflow-hidden rounded-lg border border-dashed border-white/20 bg-zinc-900/70 shadow-inner'
         : 'relative aspect-square w-full max-w-full overflow-hidden rounded-xl border border-dashed border-white/20 bg-zinc-950 shadow-inner sm:max-w-[min(100%,7.5rem)]';
     const badgeClass = isPanelFit
@@ -50,25 +48,30 @@ const PairPetHomeEmptyDetailFrame: React.FC<PairPetHomeEmptyDetailFrameProps> = 
             : 'flex min-h-0 min-w-0 flex-1 basis-0 flex-col rounded-md border border-amber-500/25 bg-gradient-to-br from-amber-950/30 to-zinc-950/85 px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:px-2 sm:py-1.5'
         : 'flex min-h-0 min-w-0 flex-1 basis-0 flex-col rounded-lg border border-amber-500/25 bg-gradient-to-br from-amber-950/25 to-zinc-950/80 px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:px-2.5 sm:py-2';
     const traitTitleFuchsia = isPanelFit
-        ? 'text-[0.58rem] font-bold uppercase tracking-wide text-fuchsia-200/90 sm:text-[0.62rem]'
+        ? homePack
+            ? 'text-xs font-bold uppercase leading-none tracking-wide text-fuchsia-200/90 antialiased'
+            : 'text-[0.58rem] font-bold uppercase tracking-wide text-fuchsia-200/90 sm:text-[0.62rem]'
         : 'text-[0.62rem] font-bold uppercase tracking-wide text-fuchsia-200/85 sm:text-[0.68rem]';
     const traitTitleAmber = isPanelFit
-        ? 'text-[0.58rem] font-bold uppercase tracking-wide text-amber-200/90 sm:text-[0.62rem]'
+        ? homePack
+            ? 'text-xs font-bold uppercase leading-none tracking-wide text-amber-200/90 antialiased'
+            : 'text-[0.58rem] font-bold uppercase tracking-wide text-amber-200/90 sm:text-[0.62rem]'
         : 'text-[0.62rem] font-bold uppercase tracking-wide text-amber-200/85 sm:text-[0.68rem]';
     const traitBodyMuted = isPanelFit
         ? 'mt-0.5 min-h-[1.1rem] w-full rounded bg-zinc-800/30 sm:min-h-[1.2rem]'
         : 'mt-0.5 min-h-[1.25rem] w-full rounded bg-zinc-800/30 sm:min-h-[1.4rem]';
     /** 바둑능력 스트립·6코어 */
-    const stripPad = homePack ? 'gap-x-1 px-1.5 py-1 sm:gap-x-1.5 sm:px-2 sm:py-1' : 'gap-x-1 px-1.5 py-1 sm:gap-x-1.5 sm:px-2 sm:py-1.5';
-    const stripLabel = homePack ? 'text-xs font-bold text-amber-100/50 sm:text-sm' : 'text-sm font-bold text-amber-100/50 sm:text-[0.95rem]';
-    const stripPhase = homePack ? 'text-[0.62rem] leading-none text-slate-500 sm:text-xs' : 'text-[0.7rem] text-slate-500 sm:text-xs';
-    const phaseNumClass = homePack ? 'font-mono text-xs font-bold tabular-nums text-sky-100/35 sm:text-sm' : 'font-mono text-sm font-bold tabular-nums text-sky-100/35 sm:text-base';
-    const gridGap = homePack ? 'gap-x-1 gap-y-0.5' : 'gap-1.5 sm:gap-2';
+    const stripPad = homePack ? 'gap-x-1 px-1 py-0.5' : 'gap-x-1 px-1.5 py-1 sm:gap-x-1.5 sm:px-2 sm:py-1.5';
+    const stripLabel = homePack ? 'text-[13px] font-bold leading-snug text-amber-100/50 antialiased' : 'text-sm font-bold text-amber-100/50 sm:text-[0.95rem]';
+    const stripPhase = homePack ? 'text-xs font-semibold leading-snug text-slate-500 antialiased' : 'text-[0.7rem] text-slate-500 sm:text-xs';
+    const phaseNumClass = homePack ? 'font-mono text-[13px] font-bold tabular-nums leading-snug text-sky-100/35 antialiased' : 'font-mono text-sm font-bold tabular-nums text-sky-100/35 sm:text-base';
+    const gridGap = homePack ? 'grid w-full min-w-0 grid-cols-3 gap-x-1.5 gap-y-1 text-[13px] leading-snug antialiased' : 'gap-1.5 sm:gap-2';
     const cellPad = homePack ? 'px-1 py-0.5' : 'px-2 py-1.5 sm:px-2.5';
-    const labelText = homePack ? 'whitespace-nowrap text-[0.58rem] font-semibold leading-none text-slate-500 sm:text-[0.6rem]' : 'text-[11px] text-slate-500 sm:text-xs';
+    const labelText = homePack ? 'whitespace-nowrap text-[13px] font-semibold leading-snug text-slate-500 antialiased' : 'text-[11px] text-slate-500 sm:text-xs';
     const valueBlock = homePack ? 'h-3 w-6 shrink-0 rounded bg-zinc-800/40 sm:h-3.5 sm:w-6' : 'h-3.5 w-7 rounded bg-zinc-800/40 sm:h-4 sm:w-8';
 
-    const heroFramePad = homePack ? 'p-0.5 sm:p-1' : 'p-px';
+    const heroFramePad = homePack ? 'p-px' : 'p-px';
+    const heroTopGridCols = homePack ? 'grid-cols-[minmax(0,6rem)_minmax(0,1fr)]' : 'grid-cols-[3fr_7fr]';
 
     const inner = (
         <div className={`flex w-full min-w-0 flex-col ${rootGap}`}>
@@ -76,8 +79,8 @@ const PairPetHomeEmptyDetailFrame: React.FC<PairPetHomeEmptyDetailFrameProps> = 
                 className={`relative flex min-h-0 w-full min-w-0 flex-col overflow-hidden bg-gradient-to-br from-zinc-900 via-violet-950/35 to-zinc-950 ${heroFramePad} shadow-[0_12px_28px_-10px_rgba(0,0,0,0.65)] ring-1 ring-fuchsia-400/35 ${heroOuterRound}`}
             >
                 <div
-                    className={`relative z-[1] grid min-w-0 grid-cols-[3fr_7fr] items-stretch border-b border-white/10 bg-zinc-950/92 ${rowPad} ${
-                        homePack ? 'gap-x-1 gap-y-1' : 'gap-x-2 gap-y-1 sm:gap-x-2.5 sm:gap-y-1.5'
+                    className={`relative z-[1] grid min-w-0 ${heroTopGridCols} items-stretch border-b border-white/10 bg-zinc-950/92 ${rowPad} ${
+                        homePack ? 'gap-x-1 gap-y-0.5' : 'gap-x-2 gap-y-1 sm:gap-x-2.5 sm:gap-y-1.5'
                     }`}
                 >
                     <div className="flex min-w-0 flex-col items-center justify-center py-0.5">
@@ -147,23 +150,15 @@ const PairPetHomeEmptyDetailFrame: React.FC<PairPetHomeEmptyDetailFrameProps> = 
             </div>
 
             <p
-                className={`text-center font-medium text-slate-500 ${homePack ? 'text-[0.58rem] leading-tight sm:text-[0.6rem]' : 'text-[0.65rem] sm:text-xs'}`}
+                className={`text-center font-medium text-slate-500 antialiased ${homePack ? 'text-sm leading-snug' : 'text-[0.65rem] sm:text-xs'}`}
             >
                 대표 펫이 없습니다
             </p>
         </div>
     );
 
-    const scaledInner = homePack ? (
-        <PairPetDetailFitScale itemId="pair-pet-home-empty" outerClassName="px-1 py-1 sm:px-1.5 sm:py-1.5">
-            {inner}
-        </PairPetDetailFitScale>
-    ) : (
-        inner
-    );
-
     if (!onRequestEquip) {
-        return scaledInner;
+        return inner;
     }
 
     return (
@@ -172,7 +167,7 @@ const PairPetHomeEmptyDetailFrame: React.FC<PairPetHomeEmptyDetailFrameProps> = 
             onClick={() => onRequestEquip()}
             className="w-full cursor-pointer rounded-lg border border-transparent text-left outline-none transition-colors hover:border-amber-500/20 hover:bg-amber-950/10 focus-visible:border-amber-400/40 focus-visible:ring-1 focus-visible:ring-amber-300/30"
         >
-            {scaledInner}
+            {inner}
         </button>
     );
 };

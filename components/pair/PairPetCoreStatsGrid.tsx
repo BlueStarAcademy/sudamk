@@ -89,8 +89,8 @@ export interface PairPetCoreStatsGridProps {
     levelUpCoreBonuses?: Partial<Record<CoreStat, number>>;
     /** 모달(어두운 배경) vs 로비 정보(밝은 카드) 등 톤 */
     variant?: 'modal' | 'panel';
-    /** compact: 1열 스택·작은 글꼴 / micro: 홈 대표펫 칸용 더 촘촘 / fit: 3열 유지·한 화면 맞춤용 초소형 */
-    density?: 'default' | 'compact' | 'micro' | 'fit';
+    /** compact: 1열 스택 / micro: 홈(구) / fit: 3×2 소형 / mgmt·profileHome: 펫관리·홈 대표펫 */
+    density?: 'default' | 'compact' | 'micro' | 'fit' | 'mgmt' | 'profileHome';
     className?: string;
 }
 
@@ -116,10 +116,18 @@ const PairPetCoreStatsGrid: React.FC<PairPetCoreStatsGridProps> = ({
 
     const micro = density === 'micro';
     const fit = density === 'fit';
+    const mgmt = density === 'mgmt';
+    const profileHome = density === 'profileHome';
     const compact = density === 'compact' || micro || fit;
+    /** modal·mgmt·profileHome·fit 은 항상 3×2 */
+    const lockThreeByTwo = variant === 'modal' || mgmt || profileHome || fit;
 
     const cell =
-        micro
+        profileHome
+            ? 'flex min-w-0 flex-row items-center justify-between gap-1 rounded-md border border-white/10 bg-black/30 px-2 py-1.5'
+            : mgmt
+              ? 'flex min-w-0 flex-row items-center justify-between gap-1 rounded-md border border-white/10 bg-black/30 px-1.5 py-1'
+            : micro
             ? 'rounded border border-white/10 bg-black/30 px-1 py-0.5'
             : fit
               ? 'rounded border border-white/10 bg-black/30 px-1 py-0.5'
@@ -129,15 +137,19 @@ const PairPetCoreStatsGrid: React.FC<PairPetCoreStatsGridProps> = ({
                   ? 'rounded-md border border-white/[0.1] bg-zinc-950/80 px-1.5 py-1 ring-1 ring-inset ring-white/[0.04] sm:rounded-lg sm:px-2 sm:py-1.5'
                   : 'rounded-md border border-white/10 bg-black/30 px-2 py-1.5';
 
-    const gridClass = micro
-        ? 'grid grid-cols-1 gap-0.5 text-[9px] leading-none'
-        : fit
-          ? 'grid grid-cols-3 gap-x-1 gap-y-0.5 text-[0.58rem] leading-tight'
-          : compact
-            ? 'grid grid-cols-1 gap-1 text-[10px] leading-tight'
-            : variant === 'modal'
-              ? 'grid grid-cols-3 gap-x-1.5 gap-y-1 text-[0.88rem] leading-tight sm:gap-x-2 sm:gap-y-1.5 sm:text-base'
-              : 'grid grid-cols-3 gap-x-2 gap-y-1.5 text-[0.8125rem] leading-tight sm:gap-x-3 sm:gap-y-2 sm:text-sm';
+    const gridClass = mgmt
+        ? 'grid w-full min-w-0 grid-cols-3 grid-rows-2 gap-x-1.5 gap-y-1 text-[0.625rem] leading-snug antialiased'
+        : profileHome
+          ? 'grid w-full min-w-0 grid-cols-3 gap-x-1.5 gap-y-1 text-[13px] leading-snug antialiased sm:gap-x-2 sm:gap-y-1'
+          : micro && !lockThreeByTwo
+            ? 'grid grid-cols-1 gap-0.5 text-[9px] leading-none'
+            : fit || (compact && lockThreeByTwo)
+              ? 'grid w-full min-w-0 grid-cols-3 grid-rows-2 gap-x-1 gap-y-0.5 text-[0.58rem] leading-tight'
+              : compact
+                ? 'grid grid-cols-1 gap-1 text-[10px] leading-tight'
+                : variant === 'modal'
+                  ? 'grid w-full min-w-0 grid-cols-3 grid-rows-2 gap-x-1.5 gap-y-1 text-[0.88rem] leading-tight sm:gap-x-2 sm:gap-y-1.5 sm:text-base'
+                  : 'grid w-full min-w-0 grid-cols-3 grid-rows-2 gap-x-2 gap-y-1.5 text-[0.8125rem] leading-tight sm:gap-x-3 sm:gap-y-2 sm:text-sm';
 
     return (
         <div className={`${gridClass} ${className}`.trim()}>
@@ -154,27 +166,35 @@ const PairPetCoreStatsGrid: React.FC<PairPetCoreStatsGridProps> = ({
                 return (
                     <div
                         key={stat}
-                        className={`flex min-w-0 flex-nowrap items-center justify-between ${micro || fit ? 'gap-0.5' : 'gap-1.5'} ${cell}`}
+                        className={`${mgmt || profileHome ? '' : 'flex min-w-0 flex-nowrap items-center justify-between'} ${micro || fit ? 'gap-0.5' : 'gap-1.5'} ${cell}`}
                         title={`${statLabel} ${shown}${bonusTitle}`}
                     >
                         <span
-                            className={`shrink-0 font-semibold text-slate-400 ${
-                                compact || fit ? 'whitespace-nowrap' : 'min-w-0 shrink truncate'
+                            className={`font-semibold text-slate-400 ${
+                                mgmt || profileHome
+                                    ? 'max-w-[58%] truncate text-left'
+                                    : compact || fit
+                                      ? 'shrink-0 whitespace-nowrap'
+                                      : 'min-w-0 shrink truncate'
                             }`}
                         >
                             {statLabel}
                         </span>
                         <span
-                            className={`shrink-0 whitespace-nowrap font-mono font-bold tabular-nums ${
-                                micro
-                                    ? 'text-[9px]'
-                                    : fit
-                                      ? 'text-[0.58rem]'
-                                      : compact
-                                        ? 'text-[10px]'
-                                        : variant === 'modal'
-                                          ? 'text-[0.88rem] sm:text-base'
-                                          : 'text-[0.78rem] sm:text-sm'
+                            className={`whitespace-nowrap font-mono font-bold tabular-nums ${
+                                mgmt
+                                    ? 'shrink-0 text-[0.625rem]'
+                                    : profileHome
+                                      ? 'shrink-0 text-sm font-bold sm:text-base'
+                                      : micro
+                                        ? 'shrink-0 text-[9px]'
+                                        : fit
+                                          ? 'shrink-0 text-[0.58rem]'
+                                          : compact
+                                            ? 'shrink-0 text-[10px]'
+                                            : variant === 'modal'
+                                              ? 'shrink-0 text-[0.88rem] sm:text-base'
+                                              : 'shrink-0 text-[0.78rem] sm:text-sm'
                             } ${corrected ? 'text-rose-300' : 'text-slate-100'}`}
                         >
                             {shown}

@@ -63,14 +63,14 @@ const PetManagementModal: React.FC<PetManagementModalProps> = ({ onClose, isTopm
             mobileViewportMaxHeightCss={PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS}
             mobileViewportDvhBottomGapPx={PAIR_PET_MODAL_MOBILE_BOTTOM_GAP_PX}
             mobileLockViewportHeight={isMobile}
-            bodyPaddingClassName={isMobile ? '!p-2' : '!p-3'}
+            bodyPaddingClassName={isMobile ? '!p-1.5' : '!p-2'}
             bodyNoScroll
             hideFooter
         >
             <div
                 className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
             >
-                <div className={`${waitingLobbyPcPanelShellClass('pair')} flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-3`}>
+                <div className={`${waitingLobbyPcPanelShellClass('pair')} flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2`}>
                     <PairPetLobbyPanel
                         currentUser={currentUserWithStatus}
                         currentUserId={currentUserWithStatus.id}

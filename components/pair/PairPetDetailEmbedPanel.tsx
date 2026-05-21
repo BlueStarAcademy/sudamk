@@ -24,6 +24,12 @@ export interface PairPetDetailEmbedPanelProps {
     enlargeHomeRepPhaseStrip?: boolean;
     /** 부모가 {@link PairPetDetailFitScale}으로 감쌀 때 내부 이중 스케일 방지 */
     suppressDetailFitScale?: boolean;
+    /** 펫 관리 정보 탭(구): modal + 초상화 확대 — 홈 대표펫 전용 */
+    enlargedModalHero?: boolean;
+    /** 펫 관리 모달: nowrap·sm: 미적용 타이포 */
+    petManagementModal?: boolean;
+    /** 홈 좌측 대표펫 칸 — 프로필 능력치 패널과 동일 타이포 */
+    profileHomeColumn?: boolean;
     /**
      * 부모(예: 챔피언십 PC 좌측)가 `PairPetDetailFitScale`로 전체를 축소할 때:
      * `overflow-y-auto`는 측정·스케일을 막고 스크롤만 생기므로 끄고 `overflow-hidden`으로 맡김.
@@ -44,12 +50,17 @@ const PairPetDetailEmbedPanel: React.FC<PairPetDetailEmbedPanelProps> = ({
     mobileHomeRepPet = false,
     enlargeHomeRepPhaseStrip = false,
     suppressDetailFitScale = false,
+    enlargedModalHero = false,
+    petManagementModal = false,
+    profileHomeColumn = false,
     parentOuterFitScale = false,
 }) => {
     const isModalLayout = detailVariant === 'modal';
     const hug = contentHeight === 'hug';
-    const homePack = Boolean(mobileHomeRepPet && !isModalLayout);
+    const homePack = Boolean((mobileHomeRepPet || profileHomeColumn) && !isModalLayout);
+    const homeFill = homePack && contentHeight === 'fill';
     const readableEmbed = suppressDetailFitScale && (detailVariant === 'panelFit' || detailVariant === 'modal');
+    const scrollablePetInfo = readableEmbed && hug && !homePack;
     const modalScrollClass =
         parentOuterFitScale
             ? 'overflow-hidden'
@@ -61,22 +72,26 @@ const PairPetDetailEmbedPanel: React.FC<PairPetDetailEmbedPanelProps> = ({
     return (
     <div
         className={`flex min-h-0 flex-col overflow-hidden ${homePack ? 'gap-0.5' : 'gap-1'} ${
-            hug
-                ? homePack
-                    ? 'h-full min-h-0 w-full flex-1'
-                    : 'w-full min-h-0 shrink-0'
-                : parentOuterFitScale
-                  ? 'w-full shrink-0'
-                  : 'min-h-0 flex-1'
+            scrollablePetInfo
+                ? 'h-full min-h-0 w-full flex-1'
+                : hug
+                  ? homePack
+                      ? 'h-full min-h-0 w-full flex-1'
+                      : 'w-full min-h-0 shrink-0'
+                  : parentOuterFitScale
+                    ? 'w-full shrink-0'
+                    : 'min-h-0 flex-1'
         }`}
     >
         <div
             className={`flex min-h-0 min-w-0 flex-col ${
-                hug
-                    ? `h-full w-full shrink-0 overflow-hidden ${homePack ? 'px-0.5 pb-0.5 pt-0.5 sm:px-1 sm:pb-1 sm:pt-0.5' : ''}`
-                    : parentOuterFitScale
-                      ? `w-full shrink-0 ${modalScrollClass}`
-                      : `min-h-0 flex-1 ${modalScrollClass}`
+                scrollablePetInfo
+                    ? 'min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-width:thin]'
+                    : hug
+                      ? `h-full w-full shrink-0 overflow-hidden ${homePack ? 'px-0.5 pb-0.5 pt-0.5 sm:px-1 sm:pb-1 sm:pt-0.5' : ''}`
+                      : parentOuterFitScale
+                        ? `w-full shrink-0 ${modalScrollClass}`
+                        : `min-h-0 flex-1 ${modalScrollClass}`
             }`}
         >
             <PairPetDetailCardBody
@@ -87,6 +102,9 @@ const PairPetDetailEmbedPanel: React.FC<PairPetDetailEmbedPanelProps> = ({
                 mobileHomeRepPet={mobileHomeRepPet}
                 enlargeHomeRepPhaseStrip={enlargeHomeRepPhaseStrip}
                 suppressFitScale={suppressDetailFitScale}
+                enlargedModalHero={enlargedModalHero}
+                petManagementModal={petManagementModal}
+                profileHomeColumn={profileHomeColumn}
             />
         </div>
         {onOpenDetail ? (

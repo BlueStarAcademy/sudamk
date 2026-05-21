@@ -3,6 +3,7 @@ import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
 import PairPetGradeUpgradeModal from './PairPetGradeUpgradeModal.js';
 import PairPetDetailEmbedPanel from './PairPetDetailEmbedPanel.js';
+import { resolvePetManagementInfoEmbedLayout } from './pairPetHomeEmbedLayout.js';
 import type { InventoryItem, ServerAction, User } from '../../types.js';
 import PairPetGradeUpgradeResultModal from './PairPetGradeUpgradeResultModal.js';
 import { ItemGrade } from '../../types/enums.js';
@@ -50,23 +51,23 @@ export interface PairPetLobbyInfoPetViewerProps {
     equippedTemplateId: string | null;
     /** 수련 슬롯에 올라가 있는 펫은 대표로 지정할 수 없음 */
     petInTraining?: boolean;
-    /**
-     * 로비 정보 패널: `panelFit`(기본). 전역 펫 상세 모달 등: `modal` — {@link PairPetDetailCardBody} 타이포를 획득/상세 모달과 동일하게.
-     */
-    embedDetailVariant?: 'modal' | 'panelFit';
     onSetRepresentative: (templateId: string, inventoryItemId: string) => void;
     onClearRepresentative: () => void;
     onSoulConvert: (item: InventoryItem) => void;
     applyPetAction: (action: ServerAction) => Promise<unknown>;
 }
 
+const petInfoEmbed = resolvePetManagementInfoEmbedLayout();
+
+/**
+ * 펫 관리 모달 정보 탭 — 좁은 모달에 맞춘 {@link PairPetDetailCardBody} panelFit + 균등 축소.
+ */
 const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
     currentUser,
     item,
     isBusy,
     equippedTemplateId,
     petInTraining = false,
-    embedDetailVariant = 'panelFit',
     onSetRepresentative,
     onClearRepresentative,
     onSoulConvert,
@@ -155,26 +156,23 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
 
     return (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-1.5 pb-1.5 pt-1.5 sm:px-2 sm:pb-2 sm:pt-2">
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-black/20 p-1 ring-1 ring-white/[0.04] sm:p-1.5">
-                    <PairPetDetailEmbedPanel
-                        currentUser={currentUser}
-                        item={item}
-                        showRepresentativeBadge={isRepresentative}
-                        detailVariant={embedDetailVariant}
-                        suppressDetailFitScale
-                    />
-                </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain px-1 pt-1 [scrollbar-width:thin]">
+                <PairPetDetailEmbedPanel
+                    currentUser={currentUser}
+                    item={item}
+                    showRepresentativeBadge={isRepresentative}
+                    {...petInfoEmbed}
+                />
             </div>
 
-            <div className="flex min-w-0 shrink-0 flex-nowrap gap-1.5 border-t border-white/10 bg-black/45 px-1.5 py-2 backdrop-blur-sm supports-[backdrop-filter]:bg-black/35 sm:gap-2 sm:px-2 sm:pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
+            <div className="flex min-w-0 shrink-0 flex-nowrap gap-1 border-t border-white/10 bg-black/45 px-1.5 py-1.5 backdrop-blur-sm supports-[backdrop-filter]:bg-black/35 sm:pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
                 {isRepresentative ? (
                     <Button
                         type="button"
                         disabled={isBusy}
                         onClick={() => void onClearRepresentative()}
                         colorScheme="none"
-                        className="!min-w-0 !flex-1 !shrink !rounded-lg !border !border-white/25 !bg-black/45 !px-1 !py-2 !text-[0.7rem] !font-extrabold !leading-tight !text-slate-100 sm:!rounded-xl sm:!px-2 sm:!text-xs"
+                        className="!min-w-0 !flex-1 !shrink !rounded-lg !border !border-white/25 !bg-black/45 !px-1 !py-1 !text-[0.625rem] !font-extrabold !leading-snug !text-slate-100 antialiased"
                     >
                         대표펫 해제
                     </Button>
@@ -191,7 +189,7 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                             if (tid) void onSetRepresentative(tid, item.id);
                         }}
                         colorScheme="none"
-                        className="!min-w-0 !flex-1 !shrink !rounded-lg !border !border-cyan-400/50 !bg-cyan-950/55 !px-1 !py-2 !text-[0.7rem] !font-extrabold !leading-tight !text-cyan-50 sm:!rounded-xl sm:!px-2 sm:!text-xs"
+                        className="!min-w-0 !flex-1 !shrink !rounded-lg !border !border-cyan-400/50 !bg-cyan-950/55 !px-1 !py-1 !text-[0.625rem] !font-extrabold !leading-snug !text-cyan-50 antialiased"
                     >
                         대표펫
                     </Button>
@@ -212,7 +210,7 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                                   : `Lv.${needLv} 이상에서 등급 강화할 수 있습니다.`
                     }
                     colorScheme="none"
-                    className="!min-w-0 !flex-1 !shrink !rounded-lg !border !border-amber-400/55 !bg-amber-950/45 !px-1 !py-2 !text-[0.7rem] !font-extrabold !leading-tight !text-amber-50 disabled:!opacity-45 sm:!rounded-xl sm:!px-2 sm:!text-xs"
+                    className="!min-w-0 !flex-1 !shrink !rounded-lg !border !border-amber-400/55 !bg-amber-950/45 !px-1 !py-1 !text-[0.625rem] !font-extrabold !leading-snug !text-amber-50 antialiased disabled:!opacity-45"
                 >
                     등급 강화
                 </Button>
@@ -228,7 +226,7 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                     }
                     onClick={() => void onSoulConvert(item)}
                     colorScheme="none"
-                    className="!min-w-0 !flex-1 !shrink !rounded-lg !border !border-rose-500/55 !bg-gradient-to-b !from-rose-700/90 !to-rose-950/95 !px-1 !py-2 !text-[0.7rem] !font-extrabold !leading-tight !text-rose-50 !shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_12px_rgba(244,63,94,0.2)] hover:!border-rose-400/65 hover:!from-rose-600/95 hover:!to-rose-950 disabled:!opacity-45 sm:!rounded-xl sm:!px-2 sm:!text-xs"
+                    className="!min-w-0 !flex-1 !shrink !rounded-lg !border !border-rose-500/55 !bg-gradient-to-b !from-rose-700/90 !to-rose-950/95 !px-1 !py-1 !text-[0.625rem] !font-extrabold !leading-snug !text-rose-50 antialiased !shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_12px_rgba(244,63,94,0.2)] hover:!border-rose-400/65 hover:!from-rose-600/95 hover:!to-rose-950 disabled:!opacity-45"
                 >
                     영혼변환
                 </Button>

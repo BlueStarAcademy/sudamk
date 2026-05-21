@@ -180,7 +180,6 @@ const PairPetObtainedModal: React.FC<PairPetObtainedModalProps> = ({ currentUser
                             isBusy={isBusy}
                             equippedTemplateId={equippedTid}
                             petInTraining={petInTraining}
-                            embedDetailVariant="modal"
                             onSetRepresentative={(templateId, inventoryItemId) => void equipPet(templateId, inventoryItemId)}
                             onClearRepresentative={() => void clearEquip()}
                             onSoulConvert={(row) => setSoulConvertTarget(row)}

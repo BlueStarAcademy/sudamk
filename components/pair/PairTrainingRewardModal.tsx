@@ -1,7 +1,9 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
+import { useAppContext } from '../../hooks/useAppContext.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
+import { normalizePairPetTrainingSlots } from '../../shared/constants/pairTraining.js';
 import {
     ResultModalGoldCurrencySlot,
     ResultModalItemRewardSlot,
@@ -232,6 +234,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
     applyPetAction,
     isBusy,
 }) => {
+    const { currentUserWithStatus, handlers } = useAppContext();
     const isMobile = useIsHandheldDevice();
     const [phase, setPhase] = useState<'ready' | 'done'>(claimSummary ? 'done' : 'ready');
     const [summary, setSummary] = useState<PairTrainingClaimClientSummary | null>(claimSummary);
@@ -240,6 +243,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
     const applyPetActionRef = useRef(applyPetAction);
     const commitClaimRef = useRef(commitClaimWithoutBusy ?? applyPetAction);
     const onCloseRef = useRef(onClose);
+    const trainAgainInFlightRef = useRef(false);
     applyPetActionRef.current = applyPetAction;
     commitClaimRef.current = commitClaimWithoutBusy ?? applyPetAction;
     onCloseRef.current = onClose;
@@ -274,14 +278,47 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
         setPhase('done');
     };
 
-    /** 수령 직후 슬롯은 비었으므로 같은 슬롯·같은 인벤 행으로 수련 재시작 */
-    const handleTrainAgain = async () => {
-        const res = (await applyPetActionRef.current({
-            type: 'PAIR_PET_START_TRAINING',
-            payload: { slotIndex, itemId: petItem.id },
-        })) as { error?: string } | null;
-        if (res?.error) return;
+    /** 수령 직후 슬롯은 비었으므로 같은 슬롯·같은 인벤 행으로 수련 재시작(슬롯·타이머 즉시 반영, 보상 롤은 서버 동기화) */
+    const handleTrainAgain = () => {
+        if (trainAgainInFlightRef.current) return;
+        const user = currentUserWithStatus;
+        if (!user) return;
+
+        trainAgainInFlightRef.current = true;
+        const prevSlots = normalizePairPetTrainingSlots(user.pairPetTrainingSlots);
+        const prevSlotsSnapshot = JSON.parse(JSON.stringify(prevSlots)) as ReturnType<
+            typeof normalizePairPetTrainingSlots
+        >;
+        const nextSlots = [...prevSlots];
+        nextSlots[slotIndex] = {
+            slotIndex,
+            itemId: petItem.id,
+            startedAt: Date.now(),
+        };
+        handlers.applyDeferredUserUpdate(
+            { pairPetTrainingSlots: nextSlots },
+            'PAIR_PET_START_TRAINING-optimistic',
+        );
         onCloseRef.current();
+
+        void handlers
+            .handleAction({
+                type: 'PAIR_PET_START_TRAINING',
+                payload: { slotIndex, itemId: petItem.id },
+            })
+            .then((raw) => {
+                const err = (raw as { error?: string } | null)?.error;
+                if (err) {
+                    handlers.applyDeferredUserUpdate(
+                        { pairPetTrainingSlots: prevSlotsSnapshot },
+                        'PAIR_PET_START_TRAINING-optimistic-rollback',
+                    );
+                    window.alert(err);
+                }
+            })
+            .finally(() => {
+                trainAgainInFlightRef.current = false;
+            });
     };
 
     useLayoutEffect(() => {
@@ -573,8 +610,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                             <div className="mx-auto mt-4 flex w-full max-w-sm flex-row items-stretch justify-center gap-2 sm:mt-5 sm:gap-3">
                                 <button
                                     type="button"
-                                    disabled={isBusy}
-                                    onClick={() => void handleTrainAgain()}
+                                    onClick={() => handleTrainAgain()}
                                     className="min-w-0 flex-1 rounded-xl border border-violet-400/45 bg-violet-950/35 px-2 py-2 text-[0.65rem] font-bold leading-snug text-violet-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-violet-300/55 hover:bg-violet-900/40 disabled:cursor-not-allowed disabled:opacity-45 sm:px-3 sm:py-2.5 sm:text-sm sm:font-black"
                                 >
                                     한번 더 수련

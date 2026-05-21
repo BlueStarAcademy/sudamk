@@ -20,6 +20,10 @@ export interface PairPetBadukPhaseStripAndCoreGridProps {
     coreGridDensity?: 'default' | 'compact' | 'micro' | 'fit';
     /** 네이티브 홈 대표펫: 스트립·코어 그리드 세로·가로 여백 축소, 스크롤 없이 맞춤 */
     mobileHomeRepPet?: boolean;
+    /** 펫 관리 모달 정보 탭 — 작은 스트립·3×2 고정 */
+    petManagementModal?: boolean;
+    /** 홈 좌측 대표펫 — 프로필 능력치 배너와 비슷한 크기 */
+    profileHomeColumn?: boolean;
     /** 챔피언십 로비 등: 홈 대표펫 밀도를 유지하면서 초·중·종반 스트립만 여유 있게 */
     enlargeHomeRepPhaseStrip?: boolean;
     className?: string;
@@ -34,6 +38,8 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
     dense = false,
     coreGridDensity: coreGridDensityProp,
     mobileHomeRepPet = false,
+    petManagementModal = false,
+    profileHomeColumn = false,
     enlargeHomeRepPhaseStrip = false,
     className = '',
 }) => {
@@ -44,30 +50,44 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
     const meta = useMemo(() => resolvePairPetMetaFromInventoryRow(item), [item]);
     const petGrade = effectivePairPetGradeFromRow(item);
     const isModal = statsGridVariant === 'modal';
-    /** 펫 상세 모달(비 panelFit) — 스트립 타이포·좁은 간격 */
-    const modalStripComfort = isModal && !tight;
+    /** 펫 상세 모달(비 panelFit) — 스트립 타이포·좁은 간격 (펫관리·홈 대표펫 제외) */
+    const modalStripComfort = isModal && !tight && !petManagementModal && !profileHomeColumn;
     const homePackStrip = Boolean(mobileHomeRepPet && modalStripComfort);
+    const profileHomeStrip = Boolean(profileHomeColumn);
+    const mgmtStrip = Boolean(petManagementModal);
     const roomyPetStrip = Boolean(homePackStrip && enlargeHomeRepPhaseStrip);
 
-    const stripTextMain = tight
-        ? homeColumn
-            ? 'text-[0.52rem] font-bold text-amber-100 sm:text-[0.56rem]'
-            : 'text-[0.58rem] sm:text-[0.62rem]'
-        : 'text-[0.62rem] font-bold text-amber-100 sm:text-xs';
-    const stripTotalNum = homeColumn
-        ? 'text-xs font-black sm:text-sm'
+    const stripTextMain = profileHomeStrip
+        ? 'text-[13px] font-bold leading-snug text-amber-100 antialiased'
+        : mgmtStrip
+          ? 'text-[0.625rem] font-bold leading-snug text-amber-100 antialiased'
+          : tight
+            ? homeColumn
+              ? 'text-[0.52rem] font-bold text-amber-100 sm:text-[0.56rem]'
+              : 'text-[0.58rem] sm:text-[0.62rem]'
+            : 'text-[0.62rem] font-bold text-amber-100 sm:text-xs';
+    const stripTotalNum = profileHomeStrip
+        ? 'text-base font-black tabular-nums antialiased'
+        : mgmtStrip
+          ? 'text-[0.6875rem] font-black tabular-nums antialiased'
+          : homeColumn
+            ? 'text-xs font-black sm:text-sm'
+            : tight
+              ? 'text-sm font-black sm:text-base'
+              : isModal
+                ? 'text-sm font-black sm:text-base'
+                : 'text-base font-black';
+    const stripPhaseLabel = profileHomeStrip
+        ? 'text-xs font-semibold leading-snug text-slate-400 antialiased'
         : tight
-          ? 'text-sm font-black sm:text-base'
-          : isModal
-            ? 'text-sm font-black sm:text-base'
-            : 'text-base font-black';
-    const stripPhaseLabel = tight
-        ? homeColumn
+          ? homeColumn
             ? 'text-[0.48rem] font-semibold text-slate-400 sm:text-[0.52rem]'
             : 'text-[0.52rem] sm:text-[0.56rem]'
-        : 'text-[0.58rem] font-semibold text-slate-400 sm:text-xs';
-    const stripPhaseNum = homeColumn
-        ? 'text-[0.65rem] sm:text-xs'
+          : 'text-[0.58rem] font-semibold text-slate-400 sm:text-xs';
+    const stripPhaseNum = profileHomeStrip
+        ? 'text-[13px] font-bold tabular-nums text-sky-100 antialiased'
+        : homeColumn
+          ? 'text-[0.65rem] sm:text-xs'
         : tight
           ? 'text-xs font-bold sm:text-sm'
           : isModal
@@ -106,10 +126,33 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
               ? 'gap-x-1 px-1.5 py-1 sm:gap-x-1.5 sm:px-2 sm:py-1.5'
               : 'gap-x-2 px-2 py-1.5 sm:gap-x-3 sm:px-3 sm:py-2';
 
-    const blockGap = homeColumn ? 'gap-1' : roomyPetStrip ? 'gap-1.5 sm:gap-2' : homePackStrip ? 'gap-1' : tight ? 'gap-2' : 'gap-4';
+    const blockGap = profileHomeStrip
+        ? 'gap-1.5'
+        : homeColumn
+          ? 'gap-1'
+          : roomyPetStrip
+            ? 'gap-1.5 sm:gap-2'
+            : homePackStrip
+              ? 'gap-1'
+              : tight
+                ? 'gap-2'
+                : 'gap-4';
 
     const gridDensity =
-        coreGridDensityProp ?? (roomyPetStrip ? 'compact' : homePackStrip ? 'fit' : homeColumn ? 'micro' : tight ? 'compact' : 'default');
+        coreGridDensityProp ??
+        (profileHomeColumn
+            ? 'profileHome'
+            : petManagementModal
+              ? 'mgmt'
+              : roomyPetStrip
+                ? 'compact'
+                : homePackStrip
+                  ? 'fit'
+                  : homeColumn
+                    ? 'micro'
+                    : tight
+                      ? 'compact'
+                      : 'default');
 
     const phaseDefs = [
         { phase: 'opening' as const, label: '초반' },

@@ -1,17 +1,17 @@
 /** 펫 관리 모달 — PC 가로(px) */
-export const PAIR_PET_MANAGEMENT_MODAL_WIDTH_DESKTOP = 580;
+export const PAIR_PET_MANAGEMENT_MODAL_WIDTH_DESKTOP = 448;
 
-/** 펫 관리 모달 — 모바일 가로(px) */
-export const PAIR_PET_MANAGEMENT_MODAL_WIDTH_MOBILE = 760;
+/** 펫 관리 모달 — 좁은 휴대·소형 태블릿 가로(px) */
+export const PAIR_PET_MANAGEMENT_MODAL_WIDTH_MOBILE = 500;
 
 /** 펫 획득·상세 모달 — PC 가로(px) */
 export const PAIR_PET_DETAIL_MODAL_INITIAL_WIDTH = 480;
 
 /** 펫 관리 모달 — PC 설계 높이(px) */
-export const PAIR_PET_MANAGEMENT_MODAL_HEIGHT_DESKTOP = 1080;
+export const PAIR_PET_MANAGEMENT_MODAL_HEIGHT_DESKTOP = 900;
 
-/** 펫 관리 모달 — 모바일·좁은 화면 설계 높이(px), 뷰포트 상한과 min 처리 */
-export const PAIR_PET_MANAGEMENT_MODAL_HEIGHT_MOBILE = 1320;
+/** 펫 관리 모달 — 좁은 휴대·소형 태블릿 설계 높이(px), 뷰포트 상한과 min 처리 */
+export const PAIR_PET_MANAGEMENT_MODAL_HEIGHT_MOBILE = 920;
 
 /** 펫 획득/상세 모달 — PC·뷰포트 맞춤 설계 높이(px) */
 export const PAIR_PET_DETAIL_MODAL_INITIAL_HEIGHT = 720;

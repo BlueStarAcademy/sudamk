@@ -63,6 +63,7 @@ import { NEW_FEATURE_BADGE_CLASS } from '../utils/newFeatureBadges.js';
 import PairPetProfilePanel from './pair/PairPetProfilePanel.js';
 import PairPetDetailEmbedPanel from './pair/PairPetDetailEmbedPanel.js';
 import PairPetHomeEmptyDetailFrame from './pair/PairPetHomeEmptyDetailFrame.js';
+import { resolvePairPetHomeEmbedLayout } from './pair/pairPetHomeEmbedLayout.js';
 import HomeNativeMergedEquipmentAbilityPanel from './HomeNativeMergedEquipmentAbilityPanel.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { useScreenGuide } from '../hooks/useScreenGuide.js';
@@ -1900,6 +1901,7 @@ const Profile: React.FC<ProfileProps> = () => {
 
     const HomeLeftPetColumnContent = useMemo(() => {
         const ch = nativeCompactHome;
+        const homeEmbed = resolvePairPetHomeEmbedLayout({ nativeCompactHome: ch });
         const equippedPetRow = getEquippedPairPetInventoryRow(currentUserWithStatus);
         return (
             <div
@@ -1909,24 +1911,27 @@ const Profile: React.FC<ProfileProps> = () => {
                 <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
                 <div className="relative z-[1] flex min-h-0 flex-1 flex-col overflow-hidden">
                     {equippedPetRow ? (
-                        <div className="flex min-h-0 flex-1 flex-col items-stretch justify-center overflow-hidden">
-                            <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
+                        <div className="flex min-h-0 flex-1 flex-col items-stretch justify-start overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-width:thin]">
+                            <div className="flex min-h-0 w-full min-w-0 shrink-0 flex-col">
                                 <PairPetDetailEmbedPanel
                                     currentUser={currentUserWithStatus}
                                     item={equippedPetRow}
-                                    detailVariant={ch ? 'panelFit' : 'modal'}
-                                    contentHeight="hug"
+                                    detailVariant={homeEmbed.detailVariant}
+                                    contentHeight={homeEmbed.contentHeight}
                                     showRepresentativeBadge
-                                    mobileHomeRepPet={ch}
+                                    mobileHomeRepPet={homeEmbed.mobileHomeRepPet}
+                                    enlargedModalHero={homeEmbed.enlargedModalHero}
+                                    suppressDetailFitScale={homeEmbed.suppressDetailFitScale}
+                                    profileHomeColumn={homeEmbed.profileHomeColumn}
                                 />
                             </div>
                         </div>
                     ) : (
-                        <div className="flex min-h-0 flex-1 flex-col items-stretch justify-center overflow-hidden">
-                            <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
+                        <div className="flex min-h-0 flex-1 flex-col items-stretch justify-start overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-width:thin]">
+                            <div className="flex min-h-0 w-full min-w-0 shrink-0 flex-col">
                                 <PairPetHomeEmptyDetailFrame
-                                    variant={ch ? 'panelFit' : 'modal'}
-                                    mobileHomeRepPet={ch}
+                                    variant={homeEmbed.detailVariant}
+                                    mobileHomeRepPet={homeEmbed.mobileHomeRepPet}
                                     onRequestEquip={focusPairPetInventoryFromProfileHome}
                                 />
                             </div>
