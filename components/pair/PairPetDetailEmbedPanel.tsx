@@ -1,6 +1,7 @@
 import React from 'react';
 import Button from '../Button.js';
 import PairPetDetailCardBody from './PairPetDetailCardBody.js';
+import { PET_INFO_VIEWER_SCROLL_PAD, PET_PANEL_ROOT_GAP } from './pairPetDetailPanelUi.js';
 import type { InventoryItem, User } from '../../types.js';
 
 export interface PairPetDetailEmbedPanelProps {
@@ -57,7 +58,8 @@ const PairPetDetailEmbedPanel: React.FC<PairPetDetailEmbedPanelProps> = ({
 }) => {
     const isModalLayout = detailVariant === 'modal';
     const hug = contentHeight === 'hug';
-    const homePack = Boolean((mobileHomeRepPet || profileHomeColumn) && !isModalLayout);
+    const infoViewerPack = Boolean(petManagementModal && !isModalLayout);
+    const homePack = Boolean((mobileHomeRepPet || profileHomeColumn || infoViewerPack) && !isModalLayout);
     const homeFill = homePack && contentHeight === 'fill';
     const readableEmbed = suppressDetailFitScale && (detailVariant === 'panelFit' || detailVariant === 'modal');
     const scrollablePetInfo = readableEmbed && hug && !homePack;
@@ -69,9 +71,11 @@ const PairPetDetailEmbedPanel: React.FC<PairPetDetailEmbedPanelProps> = ({
               : isModalLayout
                 ? 'overflow-hidden'
                 : 'overflow-hidden';
+    const contentPad = infoViewerPack ? PET_INFO_VIEWER_SCROLL_PAD : '';
+
     return (
     <div
-        className={`flex min-h-0 flex-col overflow-hidden ${homePack ? 'gap-0.5' : 'gap-1'} ${
+        className={`flex min-h-0 flex-col overflow-hidden ${contentPad} ${homePack ? PET_PANEL_ROOT_GAP : 'gap-1'} ${
             scrollablePetInfo
                 ? 'h-full min-h-0 w-full flex-1'
                 : hug
@@ -88,7 +92,7 @@ const PairPetDetailEmbedPanel: React.FC<PairPetDetailEmbedPanelProps> = ({
                 scrollablePetInfo
                     ? 'min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-width:thin]'
                     : hug
-                      ? `h-full w-full shrink-0 overflow-hidden ${homePack ? 'px-0.5 pb-0.5 pt-0.5 sm:px-1 sm:pb-1 sm:pt-0.5' : ''}`
+                      ? `h-full w-full shrink-0 overflow-hidden ${homePack && !infoViewerPack ? 'px-0.5 pb-0.5 pt-0.5 sm:px-1 sm:pb-1 sm:pt-0.5' : ''}`
                       : parentOuterFitScale
                         ? `w-full shrink-0 ${modalScrollClass}`
                         : `min-h-0 flex-1 ${modalScrollClass}`
@@ -97,7 +101,7 @@ const PairPetDetailEmbedPanel: React.FC<PairPetDetailEmbedPanelProps> = ({
             <PairPetDetailCardBody
                 currentUser={currentUser}
                 item={item}
-                statsGridVariant={isModalLayout ? 'modal' : 'panelFit'}
+                statsGridVariant={petManagementModal ? 'panelFit' : isModalLayout ? 'modal' : 'panelFit'}
                 showRepresentativeBadge={showRepresentativeBadge}
                 mobileHomeRepPet={mobileHomeRepPet}
                 enlargeHomeRepPhaseStrip={enlargeHomeRepPhaseStrip}

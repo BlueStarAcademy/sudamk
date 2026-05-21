@@ -4902,12 +4902,19 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             }
             user.inventory = merged.updatedInventory;
             user.pairPetHatcherySessions[slotIndex] = null;
-            user.inventory = JSON.parse(JSON.stringify(user.inventory));
-            const updatedUser = getSelectiveUserUpdate(user, 'PAIR_PET_HATCHERY_CLAIM', { includeAll: true });
+            const updatedUser = getSelectiveUserUpdate(user, 'PAIR_PET_HATCHERY_CLAIM');
             await db.updateUser(user);
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(user, ['inventory', 'pairPetHatcherySessions']);
-            return { clientResponse: { updatedUser } };
+            const awardedRow =
+                user.inventory.find((row) => row.id === petItem.id) ??
+                user.inventory.find((row) => row.templateId === petItem.templateId && isPairPetMaterial(row));
+            return {
+                clientResponse: {
+                    updatedUser,
+                    obtainedPet: awardedRow ?? petItem,
+                },
+            };
         }
 
         case 'PAIR_PET_HATCHERY_CANCEL': {
@@ -5002,12 +5009,19 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             }
             user.inventory = mergedIf.updatedInventory;
             user.pairPetHatcherySessions[slotIndexIf] = null;
-            user.inventory = JSON.parse(JSON.stringify(user.inventory));
-            const updatedUserIf = getSelectiveUserUpdate(user, 'PAIR_PET_HATCHERY_INSTANT_FINISH', { includeAll: true });
+            const updatedUserIf = getSelectiveUserUpdate(user, 'PAIR_PET_HATCHERY_INSTANT_FINISH');
             await db.updateUser(user);
             const { broadcastUserUpdate: broadcastIf } = await import('../socket.js');
             broadcastIf(user, ['inventory', 'pairPetHatcherySessions', 'diamonds']);
-            return { clientResponse: { updatedUser: updatedUserIf } };
+            const awardedRowIf =
+                user.inventory.find((row) => row.id === petItemIf.id) ??
+                user.inventory.find((row) => row.templateId === petItemIf.templateId && isPairPetMaterial(row));
+            return {
+                clientResponse: {
+                    updatedUser: updatedUserIf,
+                    obtainedPet: awardedRowIf ?? petItemIf,
+                },
+            };
         }
 
         case 'PAIR_PET_UPGRADE_GRADE': {

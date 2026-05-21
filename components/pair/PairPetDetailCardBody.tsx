@@ -14,6 +14,24 @@ import { gradeBackgrounds, gradeStyles, EQUIPMENT_GRADE_LABEL_KO } from '../../s
 import PairPetBadukPhaseStripAndCoreGrid from './PairPetBadukPhaseStripAndCoreGrid.js';
 import PairPetRpsBadge from './PairPetRpsBadge.js';
 import { resolvePairPetRpsAttributeFromMeta } from '../../shared/utils/pairPetRps.js';
+import {
+    PET_PANEL_BADGE,
+    PET_PANEL_BAR,
+    PET_PANEL_EXP,
+    PET_PANEL_HERO_GAP,
+    PET_PANEL_LV,
+    PET_PANEL_NAME,
+    PET_PANEL_HERO_GRID_COLS,
+    PET_PANEL_PORTRAIT_MAX,
+    PET_PANEL_REP_BADGE,
+    PET_PANEL_ROOT_GAP,
+    PET_PANEL_ROW_PAD,
+    PET_PANEL_TRAIT_BODY,
+    PET_PANEL_TRAIT_BOX,
+    PET_PANEL_TRAIT_GAP,
+    PET_PANEL_TRAIT_TITLE,
+    PET_PANEL_XP_BLOCKED,
+} from './pairPetDetailPanelUi.js';
 
 function dispositionLabel(meta: PairPetMeta['disposition']): string {
     if (meta.kind === 'all') {
@@ -191,168 +209,113 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
             ? 0
             : Math.min(100, ((meta.xp ?? 0) / maxXp) * 100);
 
-    const isModal = statsGridVariant === 'modal';
-    const isPanelFit = statsGridVariant === 'panelFit';
-    /** 홈 대표펫·프로필 칸 — 이미지·타이포는 `profileHomeColumn` 포함 시 동일 규격 */
-    const homePack = Boolean(isPanelFit && (mobileHomeRepPet || profileHomeColumn));
-    const mgmtPack = Boolean(isPanelFit && petManagementModal);
+    const isModal = statsGridVariant === 'modal' && !petManagementModal;
+    const isPanelFit = statsGridVariant === 'panelFit' || petManagementModal;
+    /** 펫 정보 뷰어(관리·홈·상세·챔피언십) — 동일 카드·타이포 */
+    const panelCompact = Boolean(petManagementModal);
+    const mgmtPack = panelCompact;
     const heroEnlarged = Boolean(isModal && enlargedModalHero);
     const modalTextLarge = isModal;
 
-    const rootGap = homePack ? 'gap-1' : mgmtPack ? 'gap-1' : isPanelFit ? 'gap-1' : isModal ? 'gap-2 sm:gap-2.5' : 'gap-3 sm:gap-4';
+    const rootGap = panelCompact ? PET_PANEL_ROOT_GAP : isModal ? 'gap-2 sm:gap-2.5' : 'gap-3 sm:gap-4';
 
     const heroOuterRound = isPanelFit ? 'rounded-xl' : 'rounded-2xl';
 
-    const rowPad = homePack ? 'p-1.5' : mgmtPack ? 'p-1.5' : isPanelFit ? 'p-1.5' : isModal ? 'p-1.5 sm:p-2' : 'p-2 sm:p-2.5';
+    const rowPad = panelCompact ? PET_PANEL_ROW_PAD : isModal ? 'p-1.5 sm:p-2' : 'p-2 sm:p-2.5';
 
-    /** 상단 행: 모달은 좁은 이미지 열 + 넓은 정보 열 */
     const heroTopGridCols = heroEnlarged
         ? 'grid-cols-[minmax(0,5.75rem)_minmax(0,1fr)] sm:grid-cols-[minmax(0,6.75rem)_minmax(0,1fr)]'
-        : homePack
-          ? 'grid-cols-[minmax(0,6rem)_minmax(0,1fr)]'
-          : mgmtPack
-            ? 'grid-cols-[minmax(0,4rem)_minmax(0,1fr)]'
-            : isModal
-              ? 'grid-cols-[minmax(0,4.75rem)_minmax(0,1fr)] sm:grid-cols-[minmax(0,5.35rem)_minmax(0,1fr)]'
-              : 'grid-cols-[3fr_7fr]';
-    const heroTopGridGap = homePack || mgmtPack
-        ? 'gap-x-1 gap-y-0.5'
-        : isModal
-          ? 'gap-x-2 gap-y-1 sm:gap-x-2.5 sm:gap-y-1'
-          : isPanelFit
-            ? 'gap-x-2 gap-y-1 sm:gap-x-2.5'
-            : 'gap-x-2 gap-y-1.5 sm:gap-x-3';
+        : panelCompact
+          ? PET_PANEL_HERO_GRID_COLS
+          : isModal
+            ? 'grid-cols-[minmax(0,4.75rem)_minmax(0,1fr)] sm:grid-cols-[minmax(0,5.35rem)_minmax(0,1fr)]'
+            : 'grid-cols-[3fr_7fr]';
+    const heroTopGridGap = panelCompact ? PET_PANEL_HERO_GAP : isModal ? 'gap-x-2 gap-y-1 sm:gap-x-2.5 sm:gap-y-1' : 'gap-x-2 gap-y-1.5 sm:gap-x-3';
 
     const transcendentSlot = petGrade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : '';
 
-    const imgShellClass = isPanelFit
-        ? `relative aspect-square w-full overflow-hidden rounded-lg border border-white/20 bg-gradient-to-b from-zinc-800/95 to-black/90 shadow-inner ${
-              homePack
-                  ? 'max-w-[6rem]'
-                  : mgmtPack
-                    ? 'max-w-[4rem]'
-                    : 'max-w-[clamp(4.75rem,16vw,6.25rem)]'
-          } ${transcendentSlot}`
+    const imgShellClass = panelCompact
+        ? `relative aspect-square w-full overflow-hidden rounded-lg border border-white/20 bg-gradient-to-b from-zinc-800/95 to-black/90 shadow-inner ${PET_PANEL_PORTRAIT_MAX} ${transcendentSlot}`
+        : isPanelFit
+        ? `relative aspect-square w-full overflow-hidden rounded-lg border border-white/20 bg-gradient-to-b from-zinc-800/95 to-black/90 shadow-inner max-w-[clamp(4.75rem,16vw,6.25rem)] ${transcendentSlot}`
         : heroEnlarged
           ? `relative mx-auto aspect-square w-full max-w-[5.75rem] overflow-hidden rounded-lg border border-white/20 bg-zinc-950 shadow-inner sm:max-w-[6.75rem] sm:rounded-xl ${transcendentSlot}`
           : isModal
             ? `relative mx-auto aspect-square w-full max-w-[4.75rem] overflow-hidden rounded-lg border border-white/20 bg-zinc-950 shadow-inner sm:max-w-[5.35rem] sm:rounded-xl ${transcendentSlot}`
             : `relative aspect-square w-full max-w-full overflow-hidden rounded-xl border border-white/20 bg-gradient-to-b from-zinc-800/95 to-black/90 shadow-inner ${transcendentSlot}`;
 
-    const petImgPad = homePack ? 'p-1' : isPanelFit ? 'p-px' : isModal ? 'p-px sm:p-0.5' : 'p-1 sm:p-1.5';
+    const petImgPad = panelCompact ? 'p-0.5' : isModal ? 'p-px sm:p-0.5' : 'p-1 sm:p-1.5';
 
-    const badgeClass = isPanelFit
-        ? homePack
-            ? 'shrink-0 rounded border border-white/15 px-1.5 py-0.5 text-[13px] font-extrabold leading-none antialiased'
-            : mgmtPack
-              ? 'shrink-0 rounded border border-white/15 px-1 py-px text-[0.625rem] font-extrabold leading-none antialiased'
-              : 'shrink-0 rounded border border-white/15 px-2 py-0.5 text-[0.72rem] font-extrabold sm:text-[0.78rem]'
+    const badgeClass = panelCompact
+        ? PET_PANEL_BADGE
         : modalTextLarge
           ? 'shrink-0 rounded-md border border-white/15 px-2 py-0.5 text-base font-extrabold sm:px-2.5 sm:py-1 sm:text-lg'
           : 'shrink-0 rounded-md border border-white/15 px-2 py-0.5 text-[0.68rem] font-extrabold sm:text-[0.72rem]';
 
-    const repBadgeClass = isPanelFit
-        ? homePack
-            ? 'shrink-0 rounded border border-cyan-400/55 bg-cyan-950/65 px-1 py-0.5 text-[12px] font-extrabold leading-none text-cyan-50 antialiased'
-            : mgmtPack
-              ? 'shrink-0 rounded border border-cyan-400/55 bg-cyan-950/65 px-1 py-px text-[0.625rem] font-extrabold leading-none text-cyan-50 antialiased'
-              : 'shrink-0 rounded border border-cyan-400/55 bg-cyan-950/65 px-1.5 py-0.5 text-[0.65rem] font-extrabold text-cyan-50 sm:text-[0.72rem]'
+    const repBadgeClass = panelCompact
+        ? PET_PANEL_REP_BADGE
         : modalTextLarge
           ? 'shrink-0 rounded-md border border-cyan-400/55 bg-cyan-950/65 px-2 py-0.5 text-base font-extrabold text-cyan-50 sm:text-lg'
           : 'shrink-0 rounded-md border border-cyan-400/55 bg-cyan-950/65 px-1.5 py-0.5 text-[0.62rem] font-extrabold text-cyan-50 sm:text-[0.68rem]';
 
-    const lvClass = isPanelFit
-        ? homePack
-            ? 'shrink-0 text-[13px] font-bold tabular-nums leading-none text-amber-200'
-            : mgmtPack
-              ? 'shrink-0 text-[0.625rem] font-bold tabular-nums leading-none text-amber-200 antialiased'
-              : 'shrink-0 text-sm font-bold tabular-nums text-amber-200 sm:text-base'
+    const lvClass = panelCompact
+        ? PET_PANEL_LV
         : modalTextLarge
           ? 'shrink-0 text-xl font-bold tabular-nums text-amber-200 sm:text-2xl'
           : 'text-sm font-bold tabular-nums text-amber-200 sm:text-base';
 
-    const nameClass = isPanelFit
-        ? homePack
-            ? 'min-w-0 line-clamp-2 text-sm font-black leading-snug tracking-tight text-fuchsia-50 antialiased'
-            : mgmtPack
-              ? 'min-w-0 line-clamp-2 text-[0.6875rem] font-black leading-snug tracking-tight text-fuchsia-50 antialiased'
-              : 'line-clamp-2 min-w-0 text-base font-black leading-snug tracking-tight text-fuchsia-50 sm:text-lg'
+    const nameClass = panelCompact
+        ? PET_PANEL_NAME
         : modalTextLarge
           ? 'line-clamp-2 min-w-0 text-xl font-black leading-snug tracking-tight text-fuchsia-50 sm:text-2xl'
           : 'line-clamp-2 min-w-0 text-sm font-black leading-tight tracking-tight text-fuchsia-50 sm:text-base';
 
-    const expTextClass = isPanelFit
-        ? homePack
-            ? 'whitespace-nowrap text-xs font-medium leading-snug text-slate-400 antialiased'
-            : mgmtPack
-              ? 'whitespace-nowrap text-[0.625rem] font-medium leading-none text-slate-400 antialiased'
-              : 'text-sm font-medium text-slate-400 sm:text-[0.95rem]'
+    const expTextClass = panelCompact
+        ? PET_PANEL_EXP
         : modalTextLarge
           ? 'text-lg font-medium text-slate-200 sm:text-xl'
           : 'text-[0.65rem] font-medium text-slate-400 sm:text-xs';
 
-    const barH = homePack ? 'h-2' : isPanelFit ? 'h-2' : isModal ? 'h-2.5 sm:h-3' : 'h-2 sm:h-2.5';
+    const barH = panelCompact ? PET_PANEL_BAR : isModal ? 'h-2.5 sm:h-3' : 'h-2 sm:h-2.5';
 
-    const traitRowGap = homePack ? 'gap-1' : isPanelFit ? 'gap-1 sm:gap-1.5' : 'gap-1.5 sm:gap-2';
+    const traitRowGap = panelCompact ? PET_PANEL_TRAIT_GAP : 'gap-1.5 sm:gap-2';
 
-    const traitBoxFuchsia = isPanelFit
-        ? homePack
-            ? 'flex min-h-0 min-w-0 flex-1 basis-0 flex-col rounded border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-950/40 to-zinc-950/85 px-1 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
-            : 'flex min-h-0 min-w-0 flex-1 basis-0 flex-col rounded-md border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-950/40 to-zinc-950/85 px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:px-2 sm:py-1.5'
+    const traitBoxFuchsia = panelCompact
+        ? `${PET_PANEL_TRAIT_BOX} border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-950/40 to-zinc-950/85`
         : 'flex min-h-0 min-w-0 flex-1 basis-0 flex-col rounded-lg border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-950/35 to-zinc-950/80 px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:px-2.5 sm:py-2';
 
-    const traitBoxAmber = isPanelFit
-        ? homePack
-            ? 'flex min-h-0 min-w-0 flex-1 basis-0 flex-col rounded border border-amber-500/25 bg-gradient-to-br from-amber-950/30 to-zinc-950/85 px-1 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]'
-            : 'flex min-h-0 min-w-0 flex-1 basis-0 flex-col rounded-md border border-amber-500/25 bg-gradient-to-br from-amber-950/30 to-zinc-950/85 px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:px-2 sm:py-1.5'
+    const traitBoxAmber = panelCompact
+        ? `${PET_PANEL_TRAIT_BOX} border-amber-500/25 bg-gradient-to-br from-amber-950/30 to-zinc-950/85`
         : 'flex min-h-0 min-w-0 flex-1 basis-0 flex-col rounded-lg border border-amber-500/25 bg-gradient-to-br from-amber-950/25 to-zinc-950/80 px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:px-2.5 sm:py-2';
 
-    const traitTitleFuchsia = isPanelFit
-        ? homePack
-            ? 'text-xs font-bold uppercase leading-none tracking-wide text-fuchsia-200/90 antialiased'
-            : mgmtPack
-              ? 'text-[0.625rem] font-bold uppercase leading-none tracking-wide text-fuchsia-200/90 antialiased'
-              : 'text-[0.58rem] font-bold uppercase tracking-wide text-fuchsia-200/90 sm:text-[0.62rem]'
+    const traitTitleFuchsia = panelCompact
+        ? `${PET_PANEL_TRAIT_TITLE} text-fuchsia-200/90`
         : modalTextLarge
           ? 'text-sm font-bold uppercase tracking-wide text-fuchsia-200/90 sm:text-base'
           : 'text-[0.58rem] font-bold uppercase tracking-wide text-fuchsia-200/90 sm:text-[0.62rem]';
 
-    const traitTitleAmber = isPanelFit
-        ? homePack
-            ? 'text-xs font-bold uppercase leading-none tracking-wide text-amber-200/90 antialiased'
-            : mgmtPack
-              ? 'text-[0.625rem] font-bold uppercase leading-none tracking-wide text-amber-200/90 antialiased'
-              : 'text-[0.58rem] font-bold uppercase tracking-wide text-amber-200/90 sm:text-[0.62rem]'
+    const traitTitleAmber = panelCompact
+        ? `${PET_PANEL_TRAIT_TITLE} text-amber-200/90`
         : modalTextLarge
           ? 'text-sm font-bold uppercase tracking-wide text-amber-200/90 sm:text-base'
           : 'text-[0.58rem] font-bold uppercase tracking-wide text-amber-200/90 sm:text-[0.62rem]';
 
-    const traitBodyFuchsia = isPanelFit
-        ? homePack
-            ? 'mt-0.5 min-w-0 line-clamp-2 text-[13px] font-semibold leading-snug text-fuchsia-50/95 antialiased'
-            : mgmtPack
-              ? 'mt-0.5 min-w-0 line-clamp-2 text-[0.625rem] font-semibold leading-snug text-fuchsia-50/95 antialiased'
-              : 'mt-0.5 min-w-0 text-[0.62rem] font-semibold leading-snug text-fuchsia-50 sm:text-[0.68rem]'
+    const traitBodyFuchsia = panelCompact
+        ? `${PET_PANEL_TRAIT_BODY} text-fuchsia-50/95`
         : modalTextLarge
           ? 'mt-0.5 min-w-0 line-clamp-2 text-base font-semibold leading-snug text-fuchsia-50/95 sm:text-lg'
           : 'mt-0.5 min-w-0 line-clamp-2 text-[0.62rem] font-semibold leading-snug text-fuchsia-50 sm:text-[0.68rem]';
 
-    const traitBodyAmber = isPanelFit
-        ? homePack
-            ? 'mt-0.5 min-w-0 line-clamp-2 text-[13px] font-semibold leading-snug text-amber-50/95 antialiased'
-            : mgmtPack
-              ? 'mt-0.5 min-w-0 line-clamp-2 text-[0.625rem] font-semibold leading-snug text-amber-50/95 antialiased'
-              : 'mt-0.5 min-w-0 text-[0.62rem] font-semibold leading-snug text-amber-50 sm:text-[0.68rem]'
+    const traitBodyAmber = panelCompact
+        ? `${PET_PANEL_TRAIT_BODY} text-amber-50/95`
         : modalTextLarge
           ? 'mt-0.5 min-w-0 line-clamp-2 text-base font-semibold leading-snug text-amber-50/95 sm:text-lg'
           : 'mt-0.5 min-w-0 line-clamp-2 text-[0.62rem] font-semibold leading-snug text-amber-50 sm:text-[0.68rem]';
 
-    const heroFramePad = homePack ? 'p-px' : 'p-px';
-
     const body = (
         <div className={`flex w-full min-w-0 flex-col ${rootGap}`}>
             <div
-                className={`relative flex min-h-0 w-full min-w-0 flex-col overflow-hidden bg-gradient-to-br from-zinc-900 via-violet-950/35 to-zinc-950 ${heroFramePad} shadow-[0_12px_28px_-10px_rgba(0,0,0,0.65)] ring-1 ring-fuchsia-400/35 ${heroOuterRound}`}
+                className={`relative box-border flex min-h-0 w-full min-w-0 flex-col overflow-hidden bg-gradient-to-br from-zinc-900 via-violet-950/35 to-zinc-950 shadow-[0_12px_28px_-10px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-fuchsia-400/35 ${heroOuterRound}`}
             >
                 {/* 상단: 이미지 + 기본 정보 */}
                 <div
@@ -379,22 +342,22 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                             </span>
                         </div>
                     </div>
-                    <div className={`flex min-w-0 flex-col justify-center text-left ${mgmtPack || homePack ? 'gap-0.5' : 'gap-1 sm:gap-1.5'}`}>
-                        <div className={`flex items-center ${homePack || mgmtPack ? 'min-w-0 flex-nowrap gap-0.5' : 'flex-wrap gap-x-1 gap-y-0.5'}`}>
+                    <div className={`flex min-w-0 flex-col justify-center text-left ${panelCompact ? 'gap-0.5' : 'gap-1 sm:gap-1.5'}`}>
+                        <div className={`flex items-center ${panelCompact ? 'min-w-0 flex-nowrap gap-0.5' : 'flex-wrap gap-x-1 gap-y-0.5'}`}>
                             <span className={`${badgeClass} ${gradeStyle.color} bg-black/45`}>{gradeKo}</span>
                             {showRepresentativeBadge ? <span className={repBadgeClass}>대표펫</span> : null}
                         </div>
-                        <div className={`flex items-baseline ${homePack || mgmtPack ? 'min-w-0 flex-nowrap gap-0.5 overflow-hidden' : 'flex-wrap gap-x-1 gap-y-0'}`}>
+                        <div className={`flex items-baseline ${panelCompact ? 'min-w-0 flex-nowrap gap-0.5 overflow-hidden' : 'flex-wrap gap-x-1 gap-y-0'}`}>
                             <span className={lvClass}>Lv.{levelSafe}</span>
                             <h3 className={nameClass}>{displayName}</h3>
                         </div>
-                        <div className="mt-0.5 space-y-0.5">
-                            <div className={expTextClass}>
-                                {xpBlocked ? (
+                        <div className={panelCompact ? 'mt-1 space-y-1' : 'mt-0.5 space-y-0.5'}>
+                            {xpBlocked ? (
+                                <div className="flex min-w-0 justify-end">
                                     <span
                                         className={`rounded border border-amber-500/40 bg-amber-950/50 px-1.5 py-px font-extrabold leading-none text-amber-100 ${
-                                            homePack
-                                                ? 'whitespace-nowrap text-xs'
+                                            panelCompact
+                                                ? PET_PANEL_XP_BLOCKED
                                                 : modalTextLarge
                                                   ? 'text-base sm:text-lg'
                                                   : 'text-sm sm:text-[0.95rem]'
@@ -402,13 +365,15 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                                     >
                                         등급 강화 필요
                                     </span>
-                                ) : (
+                                </div>
+                            ) : (
+                                <div className={`flex min-w-0 justify-end ${expTextClass}`}>
                                     <span className="font-mono font-semibold tabular-nums text-slate-400">
                                         EXP {(meta.xp ?? 0).toLocaleString()} /{' '}
                                         {Number.isFinite(maxXp) ? maxXp.toLocaleString() : '—'}
                                     </span>
-                                )}
-                            </div>
+                                </div>
+                            )}
                             <div
                                 className={`${barH} w-full rounded-full border ${
                                     xpBlocked
@@ -449,13 +414,11 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                 currentUser={currentUser}
                 item={item}
                 statsGridVariant="panelFit"
-                layout={homePack || profileHomeColumn ? 'homeColumn' : mgmtPack ? 'dense' : undefined}
                 dense={false}
-                coreGridDensity={
-                    profileHomeColumn ? 'profileHome' : mgmtPack ? 'mgmt' : homePack ? 'fit' : undefined
-                }
-                mobileHomeRepPet={homePack && !profileHomeColumn}
+                coreGridDensity={panelCompact ? 'panelCompact' : undefined}
+                panelCompactStrip={panelCompact}
                 petManagementModal={mgmtPack}
+                mobileHomeRepPet={mobileHomeRepPet}
                 profileHomeColumn={profileHomeColumn}
                 enlargeHomeRepPhaseStrip={enlargeHomeRepPhaseStrip}
             />
@@ -465,12 +428,10 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
     if ((isModal || isPanelFit) && !suppressFitScale) {
         return (
             <PairPetDetailFitScale
-                itemId={homePack ? `profile-home-pet-${item.id}` : item.id}
-                minScale={homePack ? 0.82 : 0.55}
-                outerClassName={`${mgmtPack || homePack ? 'min-h-0 flex-1' : ''} ${
-                    homePack ? 'px-0.5 py-0.5' : mobileHomeRepPet ? 'px-1 py-1 sm:px-1.5 sm:py-1.5' : 'px-0.5 py-0.5'
-                }`.trim()}
-                stretchInnerHeightWhenUnscaled={isModal || mgmtPack || homePack}
+                itemId={panelCompact ? `profile-home-pet-${item.id}` : item.id}
+                minScale={panelCompact ? 0.82 : 0.55}
+                outerClassName={`${panelCompact ? 'min-h-0 flex-1 px-0.5 py-0.5' : ''}`.trim()}
+                stretchInnerHeightWhenUnscaled={isModal || panelCompact}
             >
                 {body}
             </PairPetDetailFitScale>

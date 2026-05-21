@@ -1,11 +1,19 @@
 import { ItemGrade } from '../types/enums.js';
 import type { InventoryItem } from '../types/entities.js';
-import { PAIR_SOULSTONE_NAMES } from '../constants/petLobby.js';
+import { MATERIAL_ITEMS } from '../constants/items.js';
+import {
+    PAIR_SOULSTONE_NAMES,
+    isPairEggItem,
+    isPairPetMaterial,
+    pairSoulTemplateIdFromTier,
+    pairSoulTierFromMaterialName,
+} from '../constants/petLobby.js';
 import {
     PAIR_PET_MAX_LEVEL,
     effectivePairPetGradeFromRow,
     pairPetGradeIndex,
 } from '../constants/pairPetGrade.js';
+import { addItemsToInventory } from '../../utils/inventoryUtils.js';
 import { resolvePairPetMetaFromInventoryRow } from './pairPetRoll.js';
 
 /** 영혼변환 보상 영혼석 — 펫 저장 등급에 대응하는 티어 (신화·초월도 최상위 천광 티어). */
@@ -50,6 +58,63 @@ export type PairPetSoulConvertPreview = {
     qtyMin?: number;
     qtyMax?: number;
 };
+
+export function buildPairPetSoulConvertRewardStack(row: InventoryItem, quantity: number): InventoryItem {
+    const materialName = pairPetSoulConvertMaterialNameForGrade(effectivePairPetGradeFromRow(row));
+    const base = MATERIAL_ITEMS[materialName as keyof typeof MATERIAL_ITEMS];
+    if (!base) throw new Error(`Unknown soul material: ${materialName}`);
+    const templateId = pairSoulTemplateIdFromTier(pairSoulTierFromMaterialName(materialName));
+    return {
+        id: `item-${Date.now()}-${Math.floor(Math.random() * 1e9)}`,
+        name: base.name,
+        description: base.description,
+        type: 'material',
+        slot: null,
+        level: 1,
+        stars: 0,
+        isEquipped: false,
+        createdAt: Date.now(),
+        image: base.image,
+        grade: base.grade,
+        quantity,
+        templateId,
+    };
+}
+
+export type OptimisticPairPetSoulConvertResult =
+    | { ok: true; nextInventory: InventoryItem[]; soulStack: InventoryItem }
+    | { ok: false; error: string };
+
+/** 클라이언트 즉시 반영용 — 서버 `PAIR_PET_CONVERT_PET`와 동일 규칙(수량은 클라 롤, 수령 시 서버 값으로 정정). */
+export function computeOptimisticPairPetSoulConvert(
+    inventory: InventoryItem[],
+    inventorySlots: { equipment: number; consumable: number; material: number },
+    itemId: string,
+    rng: () => number = Math.random
+): OptimisticPairPetSoulConvertResult {
+    const rowIdx = inventory.findIndex((it) => it.id === itemId);
+    if (rowIdx < 0) return { ok: false, error: '아이템을 찾을 수 없습니다.' };
+    const row = inventory[rowIdx]!;
+    if (!isPairPetMaterial(row) || isPairEggItem(row) || (row.quantity ?? 1) < 1) {
+        return { ok: false, error: '변환할 수 있는 펫이 아닙니다.' };
+    }
+    const grade = effectivePairPetGradeFromRow(row);
+    const meta = resolvePairPetMetaFromInventoryRow(row);
+    const level = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(meta.level) || 1));
+    const soulQty = rollPairPetSoulConvertRewardQuantity(grade, level, rng);
+    const soulStack = buildPairPetSoulConvertRewardStack(row, soulQty);
+
+    const nextQty = (row.quantity ?? 1) - 1;
+    const afterPet = [...inventory];
+    if (nextQty <= 0) afterPet.splice(rowIdx, 1);
+    else afterPet[rowIdx] = { ...row, quantity: nextQty };
+
+    const merged = addItemsToInventory(afterPet, inventorySlots, [soulStack]);
+    if (!merged.success || !merged.updatedInventory) {
+        return { ok: false, error: '인벤토리 공간이 부족해 변환 보상을 받을 수 없습니다.' };
+    }
+    return { ok: true, nextInventory: merged.updatedInventory, soulStack };
+}
 
 export function getPairPetSoulConvertPreview(row: InventoryItem): PairPetSoulConvertPreview {
     const grade = effectivePairPetGradeFromRow(row);

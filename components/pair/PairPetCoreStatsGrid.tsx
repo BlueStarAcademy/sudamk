@@ -4,6 +4,7 @@ import { calculateTotalStats } from '../../services/statService.js';
 import type { PairPetMeta, User } from '../../types.js';
 import { CoreStat, ItemGrade } from '../../types/enums.js';
 import { pairPetRawBaseCoreNoLevel } from '../../shared/utils/pairPetKataStatsFromMeta.js';
+import { PET_PANEL_CORE_CELL, PET_PANEL_CORE_GRID } from './pairPetDetailPanelUi.js';
 
 const CORE_LIST = Object.values(CoreStat) as CoreStat[];
 
@@ -89,8 +90,8 @@ export interface PairPetCoreStatsGridProps {
     levelUpCoreBonuses?: Partial<Record<CoreStat, number>>;
     /** 모달(어두운 배경) vs 로비 정보(밝은 카드) 등 톤 */
     variant?: 'modal' | 'panel';
-    /** compact: 1열 스택 / micro: 홈(구) / fit: 3×2 소형 / mgmt·profileHome: 펫관리·홈 대표펫 */
-    density?: 'default' | 'compact' | 'micro' | 'fit' | 'mgmt' | 'profileHome';
+    /** compact: 1열 스택 / micro: 홈(구) / fit: 3×2 소형 / panelCompact·mgmt·profileHome: 통일 panelFit */
+    density?: 'default' | 'compact' | 'micro' | 'fit' | 'mgmt' | 'profileHome' | 'panelCompact';
     className?: string;
 }
 
@@ -116,17 +117,20 @@ const PairPetCoreStatsGrid: React.FC<PairPetCoreStatsGridProps> = ({
 
     const micro = density === 'micro';
     const fit = density === 'fit';
-    const mgmt = density === 'mgmt';
+    const panelCompact = density === 'panelCompact' || density === 'mgmt';
+    const mgmt = panelCompact;
     const profileHome = density === 'profileHome';
     const compact = density === 'compact' || micro || fit;
-    /** modal·mgmt·profileHome·fit 은 항상 3×2 */
-    const lockThreeByTwo = variant === 'modal' || mgmt || profileHome || fit;
+    /** modal·mgmt·profileHome·fit·panelCompact 은 항상 3×2 */
+    const lockThreeByTwo = variant === 'modal' || mgmt || profileHome || fit || panelCompact;
 
     const cell =
-        profileHome
-            ? 'flex min-w-0 flex-row items-center justify-between gap-1 rounded-md border border-white/10 bg-black/30 px-2 py-1.5'
-            : mgmt
-              ? 'flex min-w-0 flex-row items-center justify-between gap-1 rounded-md border border-white/10 bg-black/30 px-1.5 py-1'
+        panelCompact
+            ? PET_PANEL_CORE_CELL
+            : profileHome
+              ? 'flex min-w-0 flex-row items-center justify-between gap-1 rounded-md border border-white/10 bg-black/30 px-2 py-1.5'
+              : mgmt
+                ? 'flex min-w-0 flex-row items-center justify-between gap-1 rounded-md border border-white/10 bg-black/30 px-1.5 py-1'
             : micro
             ? 'rounded border border-white/10 bg-black/30 px-1 py-0.5'
             : fit
@@ -137,8 +141,8 @@ const PairPetCoreStatsGrid: React.FC<PairPetCoreStatsGridProps> = ({
                   ? 'rounded-md border border-white/[0.1] bg-zinc-950/80 px-1.5 py-1 ring-1 ring-inset ring-white/[0.04] sm:rounded-lg sm:px-2 sm:py-1.5'
                   : 'rounded-md border border-white/10 bg-black/30 px-2 py-1.5';
 
-    const gridClass = mgmt
-        ? 'grid w-full min-w-0 grid-cols-3 grid-rows-2 gap-x-1.5 gap-y-1 text-[0.625rem] leading-snug antialiased'
+    const gridClass = panelCompact
+        ? PET_PANEL_CORE_GRID
         : profileHome
           ? 'grid w-full min-w-0 grid-cols-3 gap-x-1.5 gap-y-1 text-[13px] leading-snug antialiased sm:gap-x-2 sm:gap-y-1'
           : micro && !lockThreeByTwo
@@ -166,12 +170,12 @@ const PairPetCoreStatsGrid: React.FC<PairPetCoreStatsGridProps> = ({
                 return (
                     <div
                         key={stat}
-                        className={`${mgmt || profileHome ? '' : 'flex min-w-0 flex-nowrap items-center justify-between'} ${micro || fit ? 'gap-0.5' : 'gap-1.5'} ${cell}`}
+                        className={`${mgmt || profileHome || panelCompact ? '' : 'flex min-w-0 flex-nowrap items-center justify-between'} ${micro || fit ? 'gap-0.5' : 'gap-1.5'} ${cell}`}
                         title={`${statLabel} ${shown}${bonusTitle}`}
                     >
                         <span
                             className={`font-semibold text-slate-400 ${
-                                mgmt || profileHome
+                                mgmt || profileHome || panelCompact
                                     ? 'max-w-[58%] truncate text-left'
                                     : compact || fit
                                       ? 'shrink-0 whitespace-nowrap'
@@ -182,8 +186,8 @@ const PairPetCoreStatsGrid: React.FC<PairPetCoreStatsGridProps> = ({
                         </span>
                         <span
                             className={`whitespace-nowrap font-mono font-bold tabular-nums ${
-                                mgmt
-                                    ? 'shrink-0 text-[0.625rem]'
+                                mgmt || panelCompact
+                                    ? 'shrink-0 text-[12px] font-bold'
                                     : profileHome
                                       ? 'shrink-0 text-sm font-bold sm:text-base'
                                       : micro

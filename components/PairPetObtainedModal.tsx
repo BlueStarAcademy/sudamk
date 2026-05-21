@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import DraggableWindow, {
     ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS,
@@ -6,24 +6,19 @@ import DraggableWindow, {
 } from './DraggableWindow.js';
 import type { InventoryItem, ServerAction, User } from '../types.js';
 import { audioService } from '../services/audioService.js';
-import PairPetHatchAcquirePanel from './pair/PairPetHatchAcquirePanel.js';
-import { PairPetDetailFitScale } from './pair/PairPetDetailCardBody.js';
 import PairPetLobbyInfoPetViewer from './pair/PairPetLobbyInfoPetViewer.js';
 import PairPetSoulConvertModal from './pair/PairPetSoulConvertModal.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
+import { computeOptimisticPairPetSoulConvert } from '../shared/utils/pairPetSoulConvert.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { normalizePairPetTrainingSlots, isItemIdInPairTraining } from '../shared/constants/pairTraining.js';
-import { MOBILE_EQUIPMENT_DETAIL_MAX_HEIGHT_CSS } from '../shared/constants/mobileEquipmentDetailModal.js';
 import { PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE } from '../shared/constants/pairHatchery.js';
 import {
-    PAIR_PET_DETAIL_MODAL_INITIAL_HEIGHT,
+    PAIR_PET_DETAIL_MODAL_INITIAL_WIDTH,
+    PAIR_PET_DETAIL_VIEW_BODY_MAX_HEIGHT_CSS,
     PAIR_PET_MODAL_MOBILE_BOTTOM_GAP_PX,
     PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS,
 } from '../shared/constants/pairPetModal.js';
-
-/** 본문만 패딩(푸터는 ITEM_OBTAIN 행이 자체 패딩) — 세로 여백 최소화로 한 화면 맞춤 */
-const PAIR_PET_MODAL_BODY_PADDING =
-    'flex min-h-0 w-full flex-col !px-2.5 !pb-2 !pt-2 sm:!px-4 sm:!pb-3 sm:!pt-3';
 
 export type PairPetModalMode = 'obtain' | 'view';
 
@@ -39,6 +34,7 @@ const PairPetObtainedModal: React.FC<PairPetObtainedModalProps> = ({ currentUser
     const { currentUserWithStatus, handlers } = useAppContext();
     const [isBusy, setIsBusy] = useState(false);
     const [soulConvertTarget, setSoulConvertTarget] = useState<InventoryItem | null>(null);
+    const soulConvertInFlightRef = useRef(false);
 
     const userForView = currentUserWithStatus ?? currentUser;
 
@@ -89,23 +85,42 @@ const PairPetObtainedModal: React.FC<PairPetObtainedModalProps> = ({ currentUser
         await applyPetAction({ type: 'PAIR_PET_SET_EQUIPPED', payload: { templateId: null } });
     }, [applyPetAction]);
 
-    const confirmSoulConvert = useCallback(async () => {
-        if (!soulConvertTarget || isBusy) return;
+    const confirmSoulConvert = useCallback(() => {
+        if (!soulConvertTarget || soulConvertInFlightRef.current) return;
         const itemId = soulConvertTarget.id;
-        flushSync(() => setSoulConvertTarget(null));
-        setIsBusy(true);
-        try {
-            const result = await handlers.handleAction({ type: 'PAIR_PET_CONVERT_PET', payload: { itemId } });
-            const err = (result as { error?: string })?.error;
-            if (err) {
-                window.alert(err);
-                return;
-            }
-            onClose();
-        } finally {
-            setIsBusy(false);
+        soulConvertInFlightRef.current = true;
+        const inv = userForView.inventory || [];
+        const slots = userForView.inventorySlots ?? { equipment: 30, consumable: 30, material: 30 };
+        const optimistic = computeOptimisticPairPetSoulConvert(inv, slots, itemId);
+        if (!optimistic.ok) {
+            window.alert(optimistic.error);
+            return;
         }
-    }, [soulConvertTarget, isBusy, handlers, onClose]);
+        const invSnapshot = JSON.parse(JSON.stringify(inv)) as InventoryItem[];
+        flushSync(() => setSoulConvertTarget(null));
+        handlers.applyDeferredUserUpdate(
+            { inventory: optimistic.nextInventory },
+            'PAIR_PET_CONVERT_PET-optimistic',
+        );
+        handlers.showObtainedItemsBulk([optimistic.soulStack]);
+        onClose();
+
+        void handlers
+            .handleAction({
+                type: 'PAIR_PET_CONVERT_PET',
+                payload: { itemId, __clientSkipObtainedModal: true },
+            })
+            .then((raw) => {
+                const err = (raw as { error?: string } | null)?.error;
+                if (err) {
+                    handlers.applyDeferredUserUpdate({ inventory: invSnapshot }, 'PAIR_PET_CONVERT_PET-optimistic-rollback');
+                    window.alert(err);
+                }
+            })
+            .finally(() => {
+                soulConvertInFlightRef.current = false;
+            });
+    }, [soulConvertTarget, userForView.inventory, userForView.inventorySlots, handlers, onClose]);
 
     useEffect(() => {
         if (mode !== 'obtain') return;
@@ -120,10 +135,21 @@ const PairPetObtainedModal: React.FC<PairPetObtainedModalProps> = ({ currentUser
     const showRepresentativeBadge =
         mode === 'view' && getEquippedPairPetInventoryRow(userForView)?.id === item.id;
 
-    const bodyPaddingClassName =
-        mode === 'view'
-            ? 'flex min-h-0 w-full min-w-0 flex-1 flex-col !p-0 sm:!p-0'
-            : PAIR_PET_MODAL_BODY_PADDING;
+    const petDetailBody = (
+        <PairPetLobbyInfoPetViewer
+            currentUser={userForView}
+            item={liveItem}
+            isBusy={isBusy}
+            equippedTemplateId={equippedTid}
+            petInTraining={petInTraining}
+            fillParent={mode === 'view'}
+            hideActionBar={mode === 'obtain'}
+            onSetRepresentative={(templateId, inventoryItemId) => void equipPet(templateId, inventoryItemId)}
+            onClearRepresentative={() => void clearEquip()}
+            onSoulConvert={(row) => setSoulConvertTarget(row)}
+            applyPetAction={applyPetAction}
+        />
+    );
 
     return (
         <>
@@ -132,70 +158,48 @@ const PairPetObtainedModal: React.FC<PairPetObtainedModalProps> = ({ currentUser
                 onClose={onClose}
                 windowId="pair-pet-detail-modal"
                 initialWidth={PAIR_PET_DETAIL_MODAL_INITIAL_WIDTH}
-                initialHeight={mode === 'view' ? PAIR_PET_DETAIL_MODAL_INITIAL_HEIGHT : undefined}
-                shrinkHeightToContent={mode === 'obtain'}
+                shrinkHeightToContent
                 isTopmost={isTopmost}
                 zIndex={70}
                 skipSavedPosition
                 variant="store"
                 hideFooter
                 mobileViewportFit
-                mobileLockViewportHeight={mode === 'view'}
-                mobileViewportMaxHeightVh={mode === 'view' ? 99 : 98}
-                mobileViewportMaxHeightCss={
-                    mode === 'view' ? PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS : MOBILE_EQUIPMENT_DETAIL_MAX_HEIGHT_CSS
-                }
-                mobileViewportDvhBottomGapPx={mode === 'view' ? PAIR_PET_MODAL_MOBILE_BOTTOM_GAP_PX : 8}
-                bodyShrinkToContent={mode === 'obtain'}
-                bodyNoScroll={mode === 'view'}
-                bodyScrollable={false}
-                bodyPaddingClassName={bodyPaddingClassName}
+                mobileLockViewportHeight={false}
+                mobileViewportMaxHeightVh={88}
+                mobileViewportMaxHeightCss={PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS}
+                mobileViewportDvhBottomGapPx={PAIR_PET_MODAL_MOBILE_BOTTOM_GAP_PX}
+                bodyShrinkToContent
+                bodyNoScroll={false}
+                bodyScrollable
+                bodyPaddingClassName="flex min-h-0 w-full min-w-0 flex-1 flex-col !p-0 sm:!p-0"
             >
+                <div
+                    className={`flex min-h-0 w-full min-w-0 flex-col overflow-hidden ${mode === 'obtain' ? 'flex-1' : ''}`}
+                    style={{ maxHeight: PAIR_PET_DETAIL_VIEW_BODY_MAX_HEIGHT_CSS }}
+                >
+                    {petDetailBody}
+                </div>
                 {mode === 'obtain' ? (
-                    <>
-                        <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
-                            <PairPetDetailFitScale itemId={item.id} outerClassName="min-h-0 flex-1" stretchInnerHeightWhenUnscaled>
-                                <PairPetHatchAcquirePanel
-                                    currentUser={userForView}
-                                    item={item}
-                                    showRepresentativeBadge={showRepresentativeBadge}
-                                />
-                            </PairPetDetailFitScale>
-                        </div>
-                        <div className={`${ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS} shrink-0 border-t border-slate-700/50`}>
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className={`${ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS} !text-xs !leading-snug`}
-                            >
-                                확인
-                            </button>
-                        </div>
-                    </>
-                ) : (
-                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                        <PairPetLobbyInfoPetViewer
-                            currentUser={userForView}
-                            item={liveItem}
-                            isBusy={isBusy}
-                            equippedTemplateId={equippedTid}
-                            petInTraining={petInTraining}
-                            onSetRepresentative={(templateId, inventoryItemId) => void equipPet(templateId, inventoryItemId)}
-                            onClearRepresentative={() => void clearEquip()}
-                            onSoulConvert={(row) => setSoulConvertTarget(row)}
-                            applyPetAction={applyPetAction}
-                        />
+                    <div className={`${ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS} shrink-0 border-t border-slate-700/50`}>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className={ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS}
+                        >
+                            확인
+                        </button>
                     </div>
-                )}
+                ) : null}
             </DraggableWindow>
 
             {soulConvertTarget ? (
                 <PairPetSoulConvertModal
                     isOpen
                     item={soulConvertTarget}
-                    isBusy={isBusy}
+                    isBusy={false}
                     onClose={() => setSoulConvertTarget(null)}
-                    onConfirm={() => void confirmSoulConvert()}
+                    onConfirm={() => confirmSoulConvert()}
                     isTopmost
                 />
             ) : null}

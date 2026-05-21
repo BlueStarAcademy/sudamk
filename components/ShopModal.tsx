@@ -1233,6 +1233,8 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                     : undefined;
             if (err) {
                 setToastMessage(err);
+            } else if (!result) {
+                setToastMessage('구매 요청이 처리되지 않았습니다. 잠시 후 다시 시도해 주세요.');
             } else {
                 setToastMessage('컨디션 회복제 구매 완료! 회복 모달에서 사용할 수 있습니다.');
             }

@@ -63,7 +63,7 @@ import { NEW_FEATURE_BADGE_CLASS } from '../utils/newFeatureBadges.js';
 import PairPetProfilePanel from './pair/PairPetProfilePanel.js';
 import PairPetDetailEmbedPanel from './pair/PairPetDetailEmbedPanel.js';
 import PairPetHomeEmptyDetailFrame from './pair/PairPetHomeEmptyDetailFrame.js';
-import { resolvePairPetHomeEmbedLayout } from './pair/pairPetHomeEmbedLayout.js';
+import { resolveProfileHomePetEmbedLayout } from './pair/pairPetHomeEmbedLayout.js';
 import HomeNativeMergedEquipmentAbilityPanel from './HomeNativeMergedEquipmentAbilityPanel.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { useScreenGuide } from '../hooks/useScreenGuide.js';
@@ -1901,7 +1901,7 @@ const Profile: React.FC<ProfileProps> = () => {
 
     const HomeLeftPetColumnContent = useMemo(() => {
         const ch = nativeCompactHome;
-        const homeEmbed = resolvePairPetHomeEmbedLayout({ nativeCompactHome: ch });
+        const homeEmbed = resolveProfileHomePetEmbedLayout({ nativeCompactHome: ch });
         const equippedPetRow = getEquippedPairPetInventoryRow(currentUserWithStatus);
         return (
             <div
@@ -1923,6 +1923,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                     enlargedModalHero={homeEmbed.enlargedModalHero}
                                     suppressDetailFitScale={homeEmbed.suppressDetailFitScale}
                                     profileHomeColumn={homeEmbed.profileHomeColumn}
+                                    petManagementModal={homeEmbed.petManagementModal}
                                 />
                             </div>
                         </div>
@@ -1931,7 +1932,7 @@ const Profile: React.FC<ProfileProps> = () => {
                             <div className="flex min-h-0 w-full min-w-0 shrink-0 flex-col">
                                 <PairPetHomeEmptyDetailFrame
                                     variant={homeEmbed.detailVariant}
-                                    mobileHomeRepPet={homeEmbed.mobileHomeRepPet}
+                                    petManagementModal={homeEmbed.petManagementModal}
                                     onRequestEquip={focusPairPetInventoryFromProfileHome}
                                 />
                             </div>

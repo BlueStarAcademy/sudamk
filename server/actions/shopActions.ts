@@ -623,14 +623,19 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
 
             // 인벤토리를 깊은 복사하여 새로운 배열로 할당 (참조 문제 방지)
             user.inventory = JSON.parse(JSON.stringify(updatedInventory));
+
+            const { updateUserCache } = await import('../gameCache.js');
+            updateUserCache(user);
             
             // 선택적 필드만 반환 (메시지 크기 최적화)
             const updatedUser = getSelectiveUserUpdate(user, 'BUY_CONDITION_POTION', { includeAll: true });
 
-            // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
-            db.updateUser(user).catch(err => {
+            try {
+                await db.updateUser(user);
+            } catch (err) {
                 console.error(`[BUY_CONDITION_POTION] Failed to save user ${user.id}:`, err);
-            });
+                return { error: '데이터 저장 중 오류가 발생했습니다.' };
+            }
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');

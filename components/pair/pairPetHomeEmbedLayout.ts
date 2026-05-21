@@ -6,8 +6,11 @@ export type PairPetHomeEmbedLayoutInput = {
     nativeCompactHome?: boolean;
 };
 
-export function resolvePairPetHomeEmbedLayout(
-    input: PairPetHomeEmbedLayoutInput = {},
+/**
+ * 펫 관리 모달 정보 탭 — 좁은 모달에 맞춘 panelFit·촘촘 타이포.
+ */
+export function resolvePetInfoViewerEmbedLayout(
+    _input: PairPetHomeEmbedLayoutInput = {},
 ): Pick<
     PairPetDetailEmbedPanelProps,
     | 'detailVariant'
@@ -16,37 +19,55 @@ export function resolvePairPetHomeEmbedLayout(
     | 'profileHomeColumn'
     | 'enlargedModalHero'
     | 'suppressDetailFitScale'
-> {
-    void input.nativeCompactHome;
-    /** 홈 대표펫 — 프로필 능력치 패널과 동일 밀도, FitScale 없음 */
-    return {
-        detailVariant: 'panelFit',
-        contentHeight: 'hug',
-        mobileHomeRepPet: true,
-        profileHomeColumn: true,
-        enlargedModalHero: false,
-        suppressDetailFitScale: true,
-    };
-}
-
-/** 펫 관리 모달 정보 탭 — 고정 3×2·읽기 가능 타이포, FitScale 없음(스크롤) */
-export function resolvePetManagementInfoEmbedLayout(): Pick<
-    PairPetDetailEmbedPanelProps,
-    | 'detailVariant'
-    | 'contentHeight'
-    | 'mobileHomeRepPet'
-    | 'profileHomeColumn'
-    | 'suppressDetailFitScale'
-    | 'enlargedModalHero'
     | 'petManagementModal'
 > {
+    void _input.nativeCompactHome;
     return {
         detailVariant: 'panelFit',
         contentHeight: 'hug',
         mobileHomeRepPet: false,
         profileHomeColumn: false,
-        suppressDetailFitScale: true,
         enlargedModalHero: false,
+        suppressDetailFitScale: true,
         petManagementModal: true,
     };
+}
+
+/**
+ * {@link Profile} 홈 좌측 대표펫 칸 — 프로필 능력치 패널과 동일한 가독성(`profileHomeColumn`).
+ */
+export function resolveProfileHomePetEmbedLayout(
+    _input: PairPetHomeEmbedLayoutInput = {},
+): Pick<
+    PairPetDetailEmbedPanelProps,
+    | 'detailVariant'
+    | 'contentHeight'
+    | 'mobileHomeRepPet'
+    | 'profileHomeColumn'
+    | 'enlargedModalHero'
+    | 'suppressDetailFitScale'
+    | 'petManagementModal'
+> {
+    void _input.nativeCompactHome;
+    return {
+        detailVariant: 'panelFit',
+        contentHeight: 'hug',
+        mobileHomeRepPet: false,
+        profileHomeColumn: true,
+        enlargedModalHero: false,
+        suppressDetailFitScale: true,
+        petManagementModal: false,
+    };
+}
+
+/** @deprecated {@link resolvePetInfoViewerEmbedLayout} 사용 */
+export function resolvePairPetHomeEmbedLayout(
+    input: PairPetHomeEmbedLayoutInput = {},
+): ReturnType<typeof resolvePetInfoViewerEmbedLayout> {
+    return resolvePetInfoViewerEmbedLayout(input);
+}
+
+/** @deprecated {@link resolvePetInfoViewerEmbedLayout} 사용 */
+export function resolvePetManagementInfoEmbedLayout(): ReturnType<typeof resolvePetInfoViewerEmbedLayout> {
+    return resolvePetInfoViewerEmbedLayout();
 }

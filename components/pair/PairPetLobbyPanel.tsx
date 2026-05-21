@@ -13,7 +13,15 @@ import {
     PET_MGMT_BASE,
     PET_MGMT_BOLD,
     PET_MGMT_HATCHERY_GRID_CLASS,
+    PET_MGMT_HATCHERY_BTN_CLASS,
+    PET_MGMT_HATCHERY_BTN_STACK_CLASS,
     PET_MGMT_HATCHERY_CHAMBER_CLASS,
+    PET_MGMT_HATCHERY_EGG_IMG_CLASS,
+    PET_MGMT_HATCHERY_ACTION_ROW_CLASS,
+    PET_MGMT_HATCHERY_INFO_CLASS,
+    PET_MGMT_HATCHERY_STATUS_ROW_CLASS,
+    PET_MGMT_HATCHERY_TIMER_ROW_CLASS,
+    PET_MGMT_HATCHERY_SLOT_HEADER_CLASS,
     PET_MGMT_HATCHERY_SLOT_OUTER_CLASS,
     PET_MGMT_INV_DOCK_CLASS,
     PET_MGMT_INV_GRID_CLASS,
@@ -82,6 +90,7 @@ import {
 } from '../../shared/constants/pairTraining.js';
 import type { PairTrainingClaimClientSummary } from '../../shared/types/pairTrainingClaim.js';
 import { buildPairTrainingClaimSummaryFromPrecomputed } from '../../shared/utils/pairTrainingClaimSummary.js';
+import { computeOptimisticPairPetSoulConvert } from '../../shared/utils/pairPetSoulConvert.js';
 import {
     PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE,
     PAIR_HATCHERY_SLOT_DEFS,
@@ -95,6 +104,10 @@ import {
     normalizePairPetHatcherySlotUnlocked,
     type PairHatcherySlotDef,
 } from '../../shared/constants/pairHatchery.js';
+import {
+    collectPairPetInventoryIds,
+    readObtainedPetFromHatcheryActionResult,
+} from '../../shared/utils/pairHatcheryClaim.js';
 import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
 import { resolvePairPetMetaFromInventoryRow } from '../../shared/utils/pairPetRoll.js';
 import {
@@ -151,19 +164,6 @@ function formatPairHatcheryRemainHMS(ms: number): string {
     return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function pickAwardedPairPetFromInventoryDelta(before: InventoryItem[], after: InventoryItem[]): InventoryItem | null {
-    const beforePets = before.filter(isPairPetMaterial);
-    const afterPets = after.filter(isPairPetMaterial);
-    const beforeById = new Map(beforePets.map((p) => [p.id, p]));
-    for (const ap of afterPets) {
-        if (!beforeById.has(ap.id)) return ap;
-    }
-    for (const ap of afterPets) {
-        const bp = beforeById.get(ap.id);
-        if (bp && (ap.quantity ?? 1) > (bp.quantity ?? 1)) return ap;
-    }
-    return null;
-}
 
 /** 부화장 슬롯 — 짧은 레벨 표기 (줄바꿈·줄임 없음) */
 function hatcheryLevelOutcomeLine(def: PairHatcherySlotDef): React.ReactNode {
@@ -504,6 +504,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     const [hatcheryInstantConfirmSlotIndex, setHatcheryInstantConfirmSlotIndex] = useState<number | null>(null);
     const [hatcheryPetInvFullModalOpen, setHatcheryPetInvFullModalOpen] = useState(false);
     const [soulConvertItem, setSoulConvertItem] = useState<InventoryItem | null>(null);
+    const soulConvertInFlightRef = useRef(false);
     /** 영혼석 판매 확인(스택 행 + 판매 개수) */
     const [soulStoneSellConfirm, setSoulStoneSellConfirm] = useState<{ stackItem: InventoryItem; quantity: number } | null>(
         null,
@@ -794,18 +795,42 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         setExpandTarget(null);
     }, []);
 
-    const confirmSoulConvert = async () => {
-        if (!soulConvertItem || isBusy) return;
+    const confirmSoulConvert = () => {
+        if (!soulConvertItem || soulConvertInFlightRef.current) return;
         const itemId = soulConvertItem.id;
-        // 영혼변환 창(zIndex 72)이 획득 모달(70)보다 위라서, 닫기 전에 획득 모달이 가려지지 않도록 먼저 내린다.
-        flushSync(() => setSoulConvertItem(null));
-        const res = await applyPetAction({ type: 'PAIR_PET_CONVERT_PET', payload: { itemId } });
-        const err = (res as { error?: string })?.error;
-        if (err) {
-            window.alert(err);
+        soulConvertInFlightRef.current = true;
+        const inv = currentUser.inventory || [];
+        const slots = currentUser.inventorySlots ?? { equipment: 30, consumable: 30, material: 30 };
+        const optimistic = computeOptimisticPairPetSoulConvert(inv, slots, itemId);
+        if (!optimistic.ok) {
+            window.alert(optimistic.error);
             return;
         }
+        const invSnapshot = JSON.parse(JSON.stringify(inv)) as InventoryItem[];
+        // 영혼변환 창(zIndex 72)이 획득 모달(70)보다 위라서, 닫기 전에 획득 모달이 가려지지 않도록 먼저 내린다.
+        flushSync(() => setSoulConvertItem(null));
+        handlers.applyDeferredUserUpdate(
+            { inventory: optimistic.nextInventory },
+            'PAIR_PET_CONVERT_PET-optimistic',
+        );
+        handlers.showObtainedItemsBulk([optimistic.soulStack]);
         setSelectedLobbyItemId((cur) => (cur === itemId ? null : cur));
+
+        void handlers
+            .handleAction({
+                type: 'PAIR_PET_CONVERT_PET',
+                payload: { itemId, __clientSkipObtainedModal: true },
+            })
+            .then((raw) => {
+                const err = (raw as { error?: string } | null)?.error;
+                if (err) {
+                    handlers.applyDeferredUserUpdate({ inventory: invSnapshot }, 'PAIR_PET_CONVERT_PET-optimistic-rollback');
+                    window.alert(err);
+                }
+            })
+            .finally(() => {
+                soulConvertInFlightRef.current = false;
+            });
     };
 
     const sellItem = async (itemId: string, quantity: number) => {
@@ -828,23 +853,27 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         return r.updatedUser ?? r.clientResponse?.updatedUser;
     };
 
+    const openHatcheryObtainedPetModal = useCallback(
+        (res: unknown, beforePetIds: ReadonlySet<string>) => {
+            const pet = readObtainedPetFromHatcheryActionResult(res, beforePetIds);
+            if (pet) flushSync(() => handlers.openPairPetDetailModal(pet, 'obtain'));
+        },
+        [handlers.openPairPetDetailModal],
+    );
+
     const handleHatcheryClaim = async (slotIndex: number) => {
         if (isPairLobbyPetInventoryFull(currentUser)) {
             setHatcheryPetInvFullModalOpen(true);
             return;
         }
-        const before = JSON.parse(JSON.stringify(currentUser.inventory || [])) as InventoryItem[];
+        const beforePetIds = collectPairPetInventoryIds(currentUser.inventory);
         const res = await applyPetAction({ type: 'PAIR_PET_HATCHERY_CLAIM', payload: { slotIndex } });
         const claimErr = res && (res as { error?: string }).error;
         if (claimErr) {
             if (claimErr === PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE) setHatcheryPetInvFullModalOpen(true);
             return;
         }
-        const updated = readUpdatedUserFromActionResult(res);
-        if (updated?.inventory) {
-            const pet = pickAwardedPairPetFromInventoryDelta(before, updated.inventory);
-            if (pet) handlers.openPairPetDetailModal(pet, 'obtain');
-        }
+        openHatcheryObtainedPetModal(res, beforePetIds);
     };
 
     const instantFinishHatch = async (slotIndex: number) => {
@@ -852,14 +881,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             setHatcheryPetInvFullModalOpen(true);
             return { error: PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE };
         }
-        const before = JSON.parse(JSON.stringify(currentUser.inventory || [])) as InventoryItem[];
+        const beforePetIds = collectPairPetInventoryIds(currentUser.inventory);
         const res = await applyPetAction({ type: 'PAIR_PET_HATCHERY_INSTANT_FINISH', payload: { slotIndex } });
         if (res && (res as { error?: string }).error) return res;
-        const updated = readUpdatedUserFromActionResult(res);
-        if (updated?.inventory) {
-            const pet = pickAwardedPairPetFromInventoryDelta(before, updated.inventory);
-            if (pet) handlers.openPairPetDetailModal(pet, 'obtain');
-        }
+        openHatcheryObtainedPetModal(res, beforePetIds);
         return res;
     };
 
@@ -921,108 +946,125 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                   : def.durationMs;
             const durationHMS = formatHatcheryDurationHMS(effectiveDurationMs);
 
-            const infoPanelShell = isVip
-                ? 'border-amber-500/20 bg-gradient-to-br from-black/40 via-black/25 to-amber-950/22 shadow-[inset_0_1px_0_rgba(251,191,36,0.06)]'
-                : 'border-white/[0.08] bg-gradient-to-br from-black/40 via-black/25 to-fuchsia-950/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
             const hatchStartBtn = isVip
                 ? '!border !border-amber-400/65 !bg-gradient-to-b !from-amber-500/95 !to-amber-900/95 !text-amber-50 !shadow-[0_6px_18px_rgba(245,158,11,0.38)] hover:!from-amber-400 hover:!to-amber-800'
                 : '!border !border-fuchsia-400/60 !bg-gradient-to-b !from-fuchsia-600/95 !to-fuchsia-900/95 !text-fuchsia-50 !shadow-[0_6px_18px_rgba(192,38,211,0.35)] hover:!from-fuchsia-500 hover:!to-fuchsia-800';
 
-            const infoPanel = (
-                <div
-                    className={`flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden rounded border p-0.5 ${infoPanelShell}`}
+            const hatchBtnStart = `${PET_MGMT_HATCHERY_BTN_CLASS} !h-full disabled:!opacity-40 ${hatchStartBtn}`;
+            const hatchBtnClaim = `${PET_MGMT_HATCHERY_BTN_CLASS} !h-full !border !border-amber-400/55 !bg-gradient-to-b !from-amber-500/95 !to-amber-800/95 !text-amber-50 disabled:!opacity-40`;
+            const hatchBtnInstant = `${PET_MGMT_HATCHERY_BTN_STACK_CLASS} !h-full !border !border-cyan-400/55 !bg-gradient-to-b !from-cyan-600/90 !to-cyan-950/95 !text-cyan-50 disabled:!opacity-40`;
+            const hatchBtnCancel = `${PET_MGMT_HATCHERY_BTN_CLASS} !h-full !border !border-white/20 !bg-white/[0.06] !text-zinc-200 hover:!border-white/30 hover:!bg-white/[0.1] disabled:!opacity-40`;
+            const hatchBtnUnlock = `${PET_MGMT_HATCHERY_BTN_CLASS} !h-full !border !border-amber-400/50 !bg-gradient-to-b !from-amber-600/90 !to-amber-900/90 !text-amber-50 disabled:!opacity-45`;
+
+            const slotHeaderLabel = isVip ? (
+                <span
+                    className={`shrink-0 rounded border border-amber-200/50 bg-gradient-to-b from-amber-300 via-amber-500 to-amber-700 px-1 py-px ${PET_MGMT_XBOLD} uppercase tracking-wide text-amber-950 ring-1 ring-amber-400/50`}
                 >
-                    {!isVip ? (
-                        <div className="shrink-0 border-b border-white/[0.08] py-0.5 text-center text-amber-100">
-                            {levelOutcome}
-                        </div>
+                    VIP
+                </span>
+            ) : (
+                <span className={`${PET_MGMT_XBOLD} tabular-nums text-fuchsia-200/85`}>#{def.displayNumber}</span>
+            );
+
+            const hasActionPanel =
+                (usable && !session) ||
+                (usable && session && !canClaim) ||
+                (usable && session && canClaim) ||
+                (isVip && !vipActive) ||
+                showUnlockBtn;
+
+            const actionPanel = hasActionPanel ? (
+                <div className={`${PET_MGMT_HATCHERY_INFO_CLASS} min-h-[2.125rem]`}>
+                    {usable && !session ? (
+                        <Button
+                            type="button"
+                            bare
+                            disabled={isBusy || eggCount < 1}
+                            onClick={() => setHatcheryConfirmSlotIndex(slotIndex)}
+                            colorScheme="none"
+                            className={hatchBtnStart}
+                        >
+                            부화 시작
+                        </Button>
                     ) : null}
-                    {/* 부화 시작 ↔ 진행 중(즉시·취소) 전환 시 높이 고정 */}
-                    <div className="mt-0.5 flex h-[1.35rem] shrink-0 flex-col justify-center gap-0.5 overflow-hidden">
-                        {usable && !session ? (
+                    {usable && session && !canClaim ? (
+                        <div className={PET_MGMT_HATCHERY_ACTION_ROW_CLASS}>
                             <Button
                                 type="button"
-                                disabled={isBusy || eggCount < 1}
-                                onClick={() => setHatcheryConfirmSlotIndex(slotIndex)}
-                                colorScheme="none"
-                                className={`!h-full !min-h-0 !w-full !min-w-0 !rounded !px-1 !py-0 !text-[0.5rem] !font-black !leading-none !tracking-wide disabled:!opacity-40 ${hatchStartBtn}`}
-                            >
-                                부화 시작
-                            </Button>
-                        ) : null}
-                        {usable && session && !canClaim ? (
-                            <div className="flex min-w-0 flex-row flex-nowrap items-stretch gap-[clamp(0.25rem,0.85vmin,0.45rem)]">
-                                <Button
-                                    type="button"
-                                    disabled={isBusy || !hasEnoughInstantDiamonds || pairLobbyPetInvFull}
-                                    title={
-                                        pairLobbyPetInvFull
-                                            ? PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE
-                                            : !hasEnoughInstantDiamonds
-                                              ? '다이아가 부족합니다.'
-                                              : undefined
-                                    }
-                                    onClick={() => setHatcheryInstantConfirmSlotIndex(slotIndex)}
-                                    colorScheme="none"
-                                    className="!flex !min-w-0 !flex-1 !basis-0 !flex-row !items-center !justify-center !gap-1 !rounded-lg !border !border-cyan-400/55 !bg-gradient-to-b !from-cyan-600/90 !to-cyan-950/95 !px-[clamp(0.25rem,1vmin,0.55rem)] !py-[clamp(0.22rem,0.8vmin,0.5rem)] !text-[clamp(0.48rem,1.25vmin,0.68rem)] !font-black !uppercase !tracking-wide !text-cyan-50 !shadow-[0_4px_14px_rgba(6,182,212,0.28)] hover:!from-cyan-500 hover:!to-cyan-900 disabled:!opacity-40"
-                                >
-                                    <span className="min-w-0 shrink-0 whitespace-nowrap">즉시완료</span>
-                                    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-cyan-300/35 bg-black/25 px-[clamp(0.12rem,0.55vmin,0.28rem)] py-0.5 tabular-nums">
-                                        <img src="/images/icon/Zem.webp" alt="" className="h-[clamp(0.75rem,2.1vmin,0.9rem)] w-[clamp(0.75rem,2.1vmin,0.9rem)] shrink-0" />
-                                        <span>{instantDiamondCost}</span>
-                                    </span>
-                                </Button>
-                                <Button
-                                    type="button"
-                                    disabled={isBusy}
-                                    onClick={() => void cancelHatchery(slotIndex)}
-                                    colorScheme="none"
-                                    className="!min-w-0 !flex-1 !basis-0 !rounded-lg !border !border-white/20 !bg-white/[0.06] !px-[clamp(0.25rem,1vmin,0.55rem)] !py-[clamp(0.2rem,0.75vmin,0.48rem)] !text-[clamp(0.48rem,1.25vmin,0.68rem)] !font-bold !text-zinc-200 hover:!border-white/30 hover:!bg-white/[0.1] disabled:!opacity-40"
-                                >
-                                    취소
-                                </Button>
-                            </div>
-                        ) : null}
-                        {usable && session && canClaim ? (
-                            <Button
-                                type="button"
-                                disabled={isBusy}
+                                bare
+                                disabled={isBusy || !hasEnoughInstantDiamonds || pairLobbyPetInvFull}
                                 title={
                                     pairLobbyPetInvFull
-                                        ? '펫 인벤토리가 가득 찼습니다. 눌러 안내를 확인하세요.'
-                                        : undefined
+                                        ? PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE
+                                        : !hasEnoughInstantDiamonds
+                                          ? '다이아가 부족합니다.'
+                                          : undefined
                                 }
-                                onClick={() => void handleHatcheryClaim(slotIndex)}
+                                onClick={() => setHatcheryInstantConfirmSlotIndex(slotIndex)}
                                 colorScheme="none"
-                                className="!flex !w-full !min-w-0 !flex-row !items-center !justify-center !gap-1 !rounded-lg !border !border-amber-400/55 !bg-gradient-to-b !from-amber-500/95 !to-amber-800/95 !px-[clamp(0.25rem,1vmin,0.55rem)] !py-[clamp(0.22rem,0.8vmin,0.5rem)] !text-xs !font-black !uppercase !tracking-wide !text-amber-50 !antialiased !shadow-[0_4px_14px_rgba(245,158,11,0.3)] hover:!from-amber-500 hover:!to-amber-800 disabled:!opacity-40 sm:!text-sm lg:!w-auto lg:self-center lg:!px-[clamp(0.55rem,1.6vmin,0.85rem)]"
+                                className={hatchBtnInstant}
                             >
-                                펫 받기
+                                <span>즉시완료</span>
+                                <span className="inline-flex items-center gap-0.5 tabular-nums">
+                                    <img src="/images/icon/Zem.webp" alt="" className="h-2.5 w-2.5 shrink-0" />
+                                    <span>{instantDiamondCost}</span>
+                                </span>
                             </Button>
-                        ) : null}
-                        {isVip && !vipActive ? (
-                            <div className="flex items-center justify-center gap-1.5 rounded-lg border border-amber-500/20 bg-amber-950/20 py-[clamp(0.25rem,0.8vmin,0.45rem)] text-amber-200/90">
-                                <HatcheryFunctionVipHintIcon />
-                            </div>
-                        ) : null}
-                        {showUnlockBtn ? (
                             <Button
                                 type="button"
-                                disabled={isBusy || !gate?.ok}
-                                title={!gate?.ok ? gate?.reason : undefined}
-                                onClick={() => void unlockSlot(slotIndex)}
+                                bare
+                                disabled={isBusy}
+                                onClick={() => void cancelHatchery(slotIndex)}
                                 colorScheme="none"
-                                className="!w-full !min-h-0 !rounded-lg !border !border-amber-400/50 !bg-gradient-to-b !from-amber-600/90 !to-amber-900/90 !py-[clamp(0.2rem,0.75vmin,0.5rem)] !text-[clamp(0.58rem,1.5vmin,0.75rem)] !font-extrabold !text-amber-50 !shadow-[0_4px_14px_rgba(245,158,11,0.25)] hover:!from-amber-500 hover:!to-amber-800 disabled:!opacity-45"
+                                className={hatchBtnCancel}
                             >
-                                해금
+                                취소
                             </Button>
-                        ) : null}
-                    </div>
+                        </div>
+                    ) : null}
+                    {usable && session && canClaim ? (
+                        <Button
+                            type="button"
+                            bare
+                            disabled={isBusy}
+                            title={
+                                pairLobbyPetInvFull
+                                    ? '펫 인벤토리가 가득 찼습니다. 눌러 안내를 확인하세요.'
+                                    : undefined
+                            }
+                            onClick={() => void handleHatcheryClaim(slotIndex)}
+                            colorScheme="none"
+                            className={hatchBtnClaim}
+                        >
+                            펫 받기
+                        </Button>
+                    ) : null}
+                    {isVip && !vipActive ? (
+                        <div
+                            className={`flex h-[2.125rem] items-center justify-center rounded border border-amber-500/20 bg-amber-950/20 ${PET_MGMT_SEMI} text-amber-200/90`}
+                        >
+                            <HatcheryFunctionVipHintIcon />
+                        </div>
+                    ) : null}
+                    {showUnlockBtn ? (
+                        <Button
+                            type="button"
+                            bare
+                            disabled={isBusy || !gate?.ok}
+                            title={!gate?.ok ? gate?.reason : undefined}
+                            onClick={() => void unlockSlot(slotIndex)}
+                            colorScheme="none"
+                            className={hatchBtnUnlock}
+                        >
+                            해금
+                        </Button>
+                    ) : null}
                 </div>
-            );
+            ) : null;
 
             const chamberBusy = usable && Boolean(session);
 
-            const eggBox = 'h-12 w-12';
+            const eggStatusCls = `${PET_MGMT_SEMI} whitespace-nowrap leading-none`;
 
             const outerUsable = isVip
                 ? 'border-amber-500/38 bg-gradient-to-br from-amber-950/42 via-zinc-950/82 to-orange-950/28 shadow-[0_0_28px_rgba(245,158,11,0.16),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-amber-400/22 hover:-translate-y-[1px]'
@@ -1034,7 +1076,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             return (
                 <div
                     key={`hatch-def-${slotIndex}`}
-                    className={`group relative ${PET_MGMT_HATCHERY_SLOT_OUTER_CLASS} rounded-lg border p-1 shadow-md ${PET_MGMT_BASE} ${
+                    className={`group relative ${PET_MGMT_HATCHERY_SLOT_OUTER_CLASS} gap-0.5 rounded-lg border p-1 shadow-md ${PET_MGMT_BASE} ${
                         usable ? outerUsable : outerLocked
                     }`}
                 >
@@ -1043,24 +1085,19 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         className={`pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent ${topHairline} to-transparent`}
                         aria-hidden
                     />
-                    <div className="relative flex min-h-0 w-full flex-col gap-0.5 overflow-visible">
-                        {isVip ? (
-                            <div className="relative z-20 flex shrink-0 items-center justify-between gap-1 px-0.5 pt-0.5">
-                                <span
-                                    className={`shrink-0 rounded border border-amber-200/50 bg-gradient-to-b from-amber-300 via-amber-500 to-amber-700 px-1.5 py-px ${PET_MGMT_XBOLD} uppercase tracking-wide text-amber-950 ring-1 ring-amber-400/50`}
-                                >
-                                    VIP
-                                </span>
-                                <div className={`min-w-0 shrink text-right ${PET_MGMT_SEMI} tabular-nums leading-none text-amber-100`}>
-                                    {levelOutcome}
-                                </div>
-                            </div>
-                        ) : null}
-                        <div className="relative mx-auto flex min-h-0 w-full min-w-0 flex-col overflow-visible">
+                    <div className={`relative z-10 ${PET_MGMT_HATCHERY_SLOT_HEADER_CLASS}`}>
+                        {slotHeaderLabel}
+                        <div
+                            className={`min-w-0 truncate text-right ${PET_MGMT_SEMI} tabular-nums leading-none ${
+                                isVip ? 'text-amber-100' : 'text-amber-100/95'
+                            }`}
+                        >
+                            {levelOutcome}
+                        </div>
+                    </div>
+                    <div className="relative z-10 flex min-h-0 min-w-0 flex-col py-px">
                             <div
-                                className={`${PET_MGMT_HATCHERY_CHAMBER_CLASS} ${isVip ? 'min-h-[5rem]' : ''} ${
-                                    usable && isVip ? 'px-0.5 pb-0.5 pt-0.5' : 'p-0.5'
-                                } ${
+                                className={`${PET_MGMT_HATCHERY_CHAMBER_CLASS} min-h-0 flex-1 p-0.5 ${
                                     !usable
                                         ? isVip
                                             ? 'border-amber-900/25 bg-gradient-to-b from-amber-950/35 to-black/72'
@@ -1074,32 +1111,28 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             : 'border-fuchsia-400/50 bg-gradient-to-b from-fuchsia-900/25 to-black/50 shadow-[inset_0_0_24px_rgba(217,70,239,0.08)]'
                                 }`}
                             >
-                                <div
-                                    className={`flex min-h-0 flex-1 flex-col items-center justify-center ${
-                                        usable ? 'overflow-visible py-0.5' : 'overflow-hidden'
-                                    }`}
-                                >
-                                    {!usable ? (
-                                        <div className="flex min-h-0 flex-col items-center justify-center gap-0.5 px-0.5 text-center">
-                                            <span
-                                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/40 text-sm leading-none text-zinc-400 shadow-inner"
-                                                aria-hidden
-                                            >
-                                                🔒
-                                            </span>
-                                            {isVip ? (
-                                                <p className={`max-w-full px-0.5 text-center ${PET_MGMT_XBOLD} text-amber-200/95`}>
-                                                    기능VIP활성화
-                                                </p>
-                                            ) : (
-                                                <p className={`max-w-full bg-gradient-to-r from-amber-100 to-amber-300 bg-clip-text px-0.5 text-center ${PET_MGMT_XBOLD} text-transparent`}>
-                                                    페어 {def.unlockWinsRequired}승
-                                                </p>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <div className="relative flex shrink-0 flex-col items-center">
+                                {!usable ? (
+                                    <div className="col-span-full row-span-3 flex min-h-0 flex-col items-center justify-center gap-0.5 px-0.5 text-center">
+                                        <span
+                                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/40 text-sm leading-none text-zinc-400 shadow-inner"
+                                            aria-hidden
+                                        >
+                                            🔒
+                                        </span>
+                                        {isVip ? (
+                                            <p className={`max-w-full px-0.5 text-center ${PET_MGMT_XBOLD} text-amber-200/95`}>
+                                                기능VIP활성화
+                                            </p>
+                                        ) : (
+                                            <p className={`max-w-full bg-gradient-to-r from-amber-100 to-amber-300 bg-clip-text px-0.5 text-center ${PET_MGMT_XBOLD} text-transparent`}>
+                                                페어 {def.unlockWinsRequired}승
+                                            </p>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="flex min-h-0 items-center justify-center overflow-hidden p-px">
+                                            <div className="relative flex shrink-0 items-center justify-center">
                                                 <div
                                                     className={`absolute inset-0 rounded-full blur-md ${
                                                         session
@@ -1117,7 +1150,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                 <img
                                                     src={eggImgForSlot}
                                                     alt=""
-                                                    className={`relative ${eggBox} shrink-0 rounded-lg object-contain ring-[3px] ring-offset-2 ${
+                                                    className={`relative ${PET_MGMT_HATCHERY_EGG_IMG_CLASS} ring-[3px] ring-offset-2 ${
                                                         session
                                                             ? isVip
                                                                 ? 'ring-amber-300/65 ring-offset-amber-950/85 shadow-[0_0_20px_rgba(245,158,11,0.42),inset_0_1px_0_rgba(255,255,255,0.15)]'
@@ -1129,8 +1162,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                     loading="lazy"
                                                 />
                                             </div>
+                                        </div>
+                                        <div className={PET_MGMT_HATCHERY_STATUS_ROW_CLASS}>
                                             <span
-                                                className={`mt-0.5 ${PET_MGMT_XBOLD} uppercase tracking-wide ${
+                                                className={`${eggStatusCls} ${
                                                     session
                                                         ? canClaim
                                                             ? 'text-amber-200/95'
@@ -1144,28 +1179,27 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             >
                                                 {session ? (canClaim ? '부화 완료' : '부화 중') : '부화 가능'}
                                             </span>
-                                        </>
-                                    )}
-                                </div>
-                                <div
-                                    className={`shrink-0 border-t border-white/[0.07] py-0.5 text-center font-mono ${PET_MGMT_BOLD} tabular-nums ${
-                                        usable && session && !canClaim
-                                            ? 'text-cyan-200 drop-shadow-[0_0_8px_rgba(34,211,238,0.35)]'
-                                            : usable && !session && isVip
-                                              ? 'text-amber-200/88'
-                                              : 'text-fuchsia-200/90'
-                                    }`}
-                                >
-                                    {usable && session
-                                        ? canClaim
-                                            ? formatPairHatcheryRemainHMS(0)
-                                            : formatPairHatcheryRemainHMS(remainMs)
-                                        : durationHMS}
-                                </div>
+                                        </div>
+                                        <div
+                                            className={`${PET_MGMT_HATCHERY_TIMER_ROW_CLASS} ${PET_MGMT_BOLD} leading-none ${
+                                                usable && session && !canClaim
+                                                    ? 'text-cyan-200 drop-shadow-[0_0_8px_rgba(34,211,238,0.35)]'
+                                                    : usable && !session && isVip
+                                                      ? 'text-amber-200/88'
+                                                      : 'text-fuchsia-200/90'
+                                            }`}
+                                        >
+                                            {usable && session
+                                                ? canClaim
+                                                    ? formatPairHatcheryRemainHMS(0)
+                                                    : formatPairHatcheryRemainHMS(remainMs)
+                                                : durationHMS}
+                                        </div>
+                                    </>
+                                )}
                             </div>
-                        </div>
-                        <div className="flex min-h-0 w-full min-w-0 shrink-0 flex-col">{infoPanel}</div>
                     </div>
+                    {actionPanel}
                 </div>
             );
         };
@@ -1178,15 +1212,18 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         const renderEggInventoryCell = () => (
             <div
                 key="hatch-egg-inventory"
-                className={`${PET_MGMT_HATCHERY_SLOT_OUTER_CLASS} w-full min-w-0 flex-col overflow-hidden rounded-lg border border-white/12 bg-gradient-to-br from-zinc-900/80 via-black/75 to-violet-950/30 p-1 ring-1 ring-violet-400/10`}
+                className={`${PET_MGMT_HATCHERY_SLOT_OUTER_CLASS} gap-0.5 rounded-lg border border-white/12 bg-gradient-to-br from-zinc-900/80 via-black/75 to-violet-950/30 p-1 ring-1 ring-violet-400/10`}
             >
-                <p className={`shrink-0 text-center ${PET_MGMT_XBOLD} uppercase tracking-wide text-slate-300`}>보유 알</p>
-                <div className="flex min-h-0 flex-1 flex-col justify-center gap-0.5 py-0.5">
+                <div className={PET_MGMT_HATCHERY_SLOT_HEADER_CLASS}>
+                    <span className={`${PET_MGMT_XBOLD} text-slate-300`}>보유 알</span>
+                    <span className={`${PET_MGMT_BOLD} tabular-nums text-amber-100`}>합계 {eggCount}</span>
+                </div>
+                <div className="flex min-h-0 flex-1 flex-col justify-center gap-0.5 py-px">
                     <div
                         className="flex min-w-0 flex-nowrap items-center gap-0.5 rounded border border-amber-400/30 bg-amber-950/35 px-0.5 py-0.5"
                         title={PAIR_WELCOME_EGG_MATERIAL_NAME}
                     >
-                        <img src={welcomeEggThumbSrc} alt="" className="h-7 w-7 shrink-0 object-contain" loading="lazy" />
+                        <img src={welcomeEggThumbSrc} alt="" className="h-6 w-6 shrink-0 object-contain" loading="lazy" />
                         <span className={`${PET_MGMT_SEMI} text-amber-100`}>(특)</span>
                         <span className={`ml-auto ${PET_MGMT_XBOLD} tabular-nums text-amber-50`}>{welcomeEggCount}</span>
                     </div>
@@ -1194,25 +1231,19 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         className="flex min-w-0 flex-nowrap items-center gap-0.5 rounded border border-fuchsia-400/28 bg-fuchsia-950/32 px-0.5 py-0.5"
                         title={PAIR_EGG_MATERIAL_NAME}
                     >
-                        <img src={eggThumbSrc} alt="" className="h-7 w-7 shrink-0 object-contain" loading="lazy" />
+                        <img src={eggThumbSrc} alt="" className="h-6 w-6 shrink-0 object-contain" loading="lazy" />
                         <span className={`${PET_MGMT_SEMI} text-fuchsia-100`}>일반</span>
                         <span className={`ml-auto ${PET_MGMT_XBOLD} tabular-nums text-fuchsia-50`}>{standardMysteryEggCount}</span>
                     </div>
                 </div>
-                <p className={`shrink-0 border-t border-white/10 pt-0.5 text-center ${PET_MGMT_BOLD} tabular-nums text-amber-100`}>
-                    합계 {eggCount}
-                </p>
+                <p className={`shrink-0 text-center ${PET_MGMT_SEMI} leading-none text-slate-500`}>부화 시 1개 소모</p>
             </div>
         );
 
         return (
             <div className={PET_MGMT_HATCHERY_GRID_CLASS}>
-                {PAIR_HATCHERY_SLOT_DEFS.map((d) => (
-                    <div key={`hatch-wrap-${d.slotIndex}`} className="min-w-0">
-                        {renderSlot(d.slotIndex)}
-                    </div>
-                ))}
-                <div className="min-w-0">{renderEggInventoryCell()}</div>
+                {PAIR_HATCHERY_SLOT_DEFS.map((d) => renderSlot(d.slotIndex))}
+                {renderEggInventoryCell()}
             </div>
         );
     })();
@@ -1952,11 +1983,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     <>
                         <div className={PET_MGMT_VIEWER_FRAME_CLASS}>
                             <div className={`rounded-lg border border-white/10 bg-black/25 ${PET_MGMT_TAB_PANEL_CLASS}`}>
-                                {aiTab === 'info' ? (
-                                    <div className={`${PET_MGMT_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS}`}>
-                                        {infoDetailPanel}
-                                    </div>
-                                ) : null}
+                                {aiTab === 'info' ? infoDetailPanel : null}
                                 {aiTab === 'training' ? (
                                     <div className={`${PET_MGMT_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} px-0.5`}>
                                         {trainingTabContent}
@@ -2141,9 +2168,9 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                 <PairPetSoulConvertModal
                     isOpen
                     item={soulConvertItem}
-                    isBusy={isBusy}
+                    isBusy={false}
                     onClose={() => setSoulConvertItem(null)}
-                    onConfirm={() => void confirmSoulConvert()}
+                    onConfirm={() => confirmSoulConvert()}
                     isTopmost
                 />
             ) : null}
@@ -2228,7 +2255,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             <PairPetDetailCardBody
                                                 currentUser={currentUser}
                                                 item={petRow}
-                                                statsGridVariant="modal"
+                                                statsGridVariant="panelFit"
+                                                petManagementModal
                                                 showRepresentativeBadge={repPet?.id === petRow.id}
                                             />
                                         </div>

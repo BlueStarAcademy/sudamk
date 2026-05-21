@@ -393,7 +393,10 @@ export type ServerAction =
     | { type: 'PAIR_PET_HATCHERY_CLAIM', payload: { slotIndex: number } }
     | { type: 'PAIR_PET_HATCHERY_CANCEL', payload: { slotIndex: number } }
     | { type: 'PAIR_PET_HATCHERY_INSTANT_FINISH', payload: { slotIndex: number } }
-    | { type: 'PAIR_PET_CONVERT_PET', payload: { itemId: string } }
+    | {
+          type: 'PAIR_PET_CONVERT_PET';
+          payload: { itemId: string; /** 클라이언트 낙관 획득 모달 표시 후 서버 응답 모달 중복 방지 */ __clientSkipObtainedModal?: boolean };
+      }
     | { type: 'PAIR_PET_UPGRADE_GRADE', payload: { mainItemId: string } }
     | { type: 'PAIR_PET_EXPAND_LOBBY_SLOTS', payload: { category: 'pet' | 'egg' } }
     | { type: 'PAIR_PET_START_TRAINING', payload: { slotIndex: number; itemId: string } }

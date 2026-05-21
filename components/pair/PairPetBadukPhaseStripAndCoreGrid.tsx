@@ -5,6 +5,14 @@ import { effectivePairPetGradeFromRow } from '../../shared/constants/pairPetGrad
 import { pairPetKataAbilityScore, type PairPetKataPhase } from '../../shared/constants/pairArena.js';
 import { computePairPetKataCoreStatsSixFromMeta } from '../../shared/utils/pairPetKataStatsFromMeta.js';
 import PairPetCoreStatsGrid, { computePairPetBadukTotalPower } from './PairPetCoreStatsGrid.js';
+import {
+    PET_PANEL_BADUK_BLOCK_GAP,
+    PET_PANEL_BADUK_LABEL,
+    PET_PANEL_BADUK_PHASE_LABEL,
+    PET_PANEL_BADUK_PHASE_NUM,
+    PET_PANEL_BADUK_STRIP,
+    PET_PANEL_BADUK_TOTAL,
+} from './pairPetDetailPanelUi.js';
 
 export type PairPetBadukStripLayout = 'default' | 'dense' | 'homeColumn';
 
@@ -24,6 +32,8 @@ export interface PairPetBadukPhaseStripAndCoreGridProps {
     petManagementModal?: boolean;
     /** 홈 좌측 대표펫 — 프로필 능력치 배너와 비슷한 크기 */
     profileHomeColumn?: boolean;
+    /** 홈·펫관리·상세 panelFit — 바둑능력 스트립 중앙·동일 타이포 */
+    panelCompactStrip?: boolean;
     /** 챔피언십 로비 등: 홈 대표펫 밀도를 유지하면서 초·중·종반 스트립만 여유 있게 */
     enlargeHomeRepPhaseStrip?: boolean;
     className?: string;
@@ -40,6 +50,7 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
     mobileHomeRepPet = false,
     petManagementModal = false,
     profileHomeColumn = false,
+    panelCompactStrip = false,
     enlargeHomeRepPhaseStrip = false,
     className = '',
 }) => {
@@ -53,8 +64,9 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
     /** 펫 상세 모달(비 panelFit) — 스트립 타이포·좁은 간격 (펫관리·홈 대표펫 제외) */
     const modalStripComfort = isModal && !tight && !petManagementModal && !profileHomeColumn;
     const homePackStrip = Boolean(mobileHomeRepPet && modalStripComfort);
-    const profileHomeStrip = Boolean(profileHomeColumn);
+    const profileHomeStrip = Boolean(profileHomeColumn && !petManagementModal);
     const mgmtStrip = Boolean(petManagementModal);
+    const unifiedStrip = Boolean(panelCompactStrip || petManagementModal);
     const roomyPetStrip = Boolean(homePackStrip && enlargeHomeRepPhaseStrip);
 
     const stripTextMain = profileHomeStrip
@@ -126,33 +138,37 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
               ? 'gap-x-1 px-1.5 py-1 sm:gap-x-1.5 sm:px-2 sm:py-1.5'
               : 'gap-x-2 px-2 py-1.5 sm:gap-x-3 sm:px-3 sm:py-2';
 
-    const blockGap = profileHomeStrip
-        ? 'gap-1.5'
-        : homeColumn
-          ? 'gap-1'
-          : roomyPetStrip
-            ? 'gap-1.5 sm:gap-2'
-            : homePackStrip
-              ? 'gap-1'
-              : tight
-                ? 'gap-2'
-                : 'gap-4';
+    const blockGap = unifiedStrip
+        ? PET_PANEL_BADUK_BLOCK_GAP
+        : profileHomeStrip
+          ? 'gap-1.5'
+          : homeColumn
+            ? 'gap-1'
+            : roomyPetStrip
+              ? 'gap-1.5 sm:gap-2'
+              : homePackStrip
+                ? 'gap-1'
+                : tight
+                  ? 'gap-2'
+                  : 'gap-4';
 
     const gridDensity =
         coreGridDensityProp ??
-        (profileHomeColumn
-            ? 'profileHome'
-            : petManagementModal
-              ? 'mgmt'
-              : roomyPetStrip
-                ? 'compact'
-                : homePackStrip
-                  ? 'fit'
-                  : homeColumn
-                    ? 'micro'
-                    : tight
-                      ? 'compact'
-                      : 'default');
+        (unifiedStrip
+            ? 'panelCompact'
+            : profileHomeColumn
+              ? 'profileHome'
+              : petManagementModal
+                ? 'mgmt'
+                : roomyPetStrip
+                  ? 'compact'
+                  : homePackStrip
+                    ? 'fit'
+                    : homeColumn
+                      ? 'micro'
+                      : tight
+                        ? 'compact'
+                        : 'default');
 
     const phaseDefs = [
         { phase: 'opening' as const, label: '초반' },
@@ -229,6 +245,25 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
                         </React.Fragment>
                     ))}
                 </div>
+            ) : unifiedStrip ? (
+                <div className={PET_PANEL_BADUK_STRIP}>
+                    <span className="inline-flex shrink-0 items-baseline gap-0.5">
+                        <span className={PET_PANEL_BADUK_LABEL}>바둑능력</span>
+                        <span className={`font-mono ${PET_PANEL_BADUK_TOTAL}`}>{badukTotalPower}</span>
+                    </span>
+                    <span className="mx-0.5 h-3 w-px shrink-0 self-center bg-white/15" aria-hidden />
+                    {phaseDefs.map(({ phase, label }, idx) => (
+                        <React.Fragment key={phase}>
+                            {idx > 0 ? (
+                                <span className="mx-0.5 h-3 w-px shrink-0 self-center bg-white/12" aria-hidden />
+                            ) : null}
+                            <span className="inline-flex shrink-0 items-baseline gap-0.5">
+                                <span className={PET_PANEL_BADUK_PHASE_LABEL}>{label}</span>
+                                <span className={`font-mono ${PET_PANEL_BADUK_PHASE_NUM}`}>{phaseScores[phase]}</span>
+                            </span>
+                        </React.Fragment>
+                    ))}
+                </div>
             ) : (
                 <div
                     className={`flex min-w-0 flex-nowrap items-center overflow-x-auto rounded-xl border border-sky-500/30 bg-gradient-to-r from-sky-950/40 to-zinc-950/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] [scrollbar-width:thin] ${stripPad} ${
@@ -270,7 +305,7 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
                 petGrade={petGrade}
                 birthCoreBases={meta.birthCoreBases}
                 levelUpCoreBonuses={meta.levelUpCoreBonuses}
-                variant={statsGridVariant}
+                variant={statsGridVariant === 'panelFit' ? 'panel' : statsGridVariant}
                 density={gridDensity}
             />
         </div>

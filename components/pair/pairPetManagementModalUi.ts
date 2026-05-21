@@ -44,7 +44,7 @@ export const PET_MGMT_VIEWER_FRAME_CLASS = 'flex min-h-0 min-w-0 flex-1 flex-col
 
 
 
-export const PET_MGMT_TAB_PANEL_CLASS = `flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-1 ${PET_MGMT_BASE} text-slate-200`;
+export const PET_MGMT_TAB_PANEL_CLASS = `flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-1.5 ${PET_MGMT_BASE} text-slate-200`;
 
 
 
@@ -82,17 +82,39 @@ export const PET_MGMT_SOUL_GRID_CLASS = 'grid grid-cols-6 content-start gap-0';
 
 
 
-/** 부화장 3×2 — 세로 늘어남 방지, 고정 슬롯 높이 */
+/** 부화장 3×2 — 행 높이 통일 */
+export const PET_MGMT_HATCHERY_GRID_CLASS =
+    'grid w-full grid-cols-3 grid-rows-2 items-stretch gap-1.5 auto-rows-[13.25rem]';
 
-export const PET_MGMT_HATCHERY_GRID_CLASS = 'grid w-full grid-cols-3 gap-1.5';
+/** 부화장 슬롯 — 헤더·챔버·액션 3단 고정 */
+export const PET_MGMT_HATCHERY_SLOT_OUTER_CLASS =
+    'grid h-full min-h-[13.25rem] w-full min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden';
 
+export const PET_MGMT_HATCHERY_SLOT_HEADER_CLASS =
+    'flex h-[1.125rem] shrink-0 items-center justify-between gap-0.5 px-0.5';
 
-
-export const PET_MGMT_HATCHERY_SLOT_OUTER_CLASS = 'flex h-[10rem] min-h-0 flex-col overflow-visible';
-
-/** 부화 알 영역 — 이미지 링·글로우가 잘리지 않도록 여유 높이 */
+/** 알 영역(이미지·상태·남은시간) */
 export const PET_MGMT_HATCHERY_CHAMBER_CLASS =
-    'flex min-h-[5.75rem] w-full shrink-0 flex-col overflow-visible rounded-lg border shadow-inner transition';
+    'grid min-h-0 w-full min-w-0 grid-rows-[minmax(0,1fr)_auto_auto] overflow-hidden rounded-md border shadow-inner';
+
+/** 챔버 알 이미지 */
+export const PET_MGMT_HATCHERY_EGG_IMG_CLASS = 'h-14 w-14 shrink-0 rounded-lg object-contain';
+
+/** 챔버 상태 문구(부화 가능·부화 중) — 고정 한 줄 */
+export const PET_MGMT_HATCHERY_STATUS_ROW_CLASS =
+    'flex h-[0.875rem] shrink-0 items-center justify-center px-0.5';
+
+export const PET_MGMT_HATCHERY_TIMER_ROW_CLASS =
+    'flex h-[0.875rem] shrink-0 items-center justify-center border-t border-white/[0.07] px-0.5 font-mono tabular-nums';
+
+export const PET_MGMT_HATCHERY_INFO_CLASS =
+    'flex w-full min-w-0 shrink-0 flex-col gap-0.5 overflow-hidden';
+
+export const PET_MGMT_HATCHERY_ACTION_ROW_CLASS = 'grid h-[2.125rem] shrink-0 grid-cols-2 gap-0.5';
+
+export const PET_MGMT_HATCHERY_BTN_CLASS = `!min-h-0 !w-full !min-w-0 !rounded !px-0.5 !py-0.5 ${PET_MGMT_BOLD} !text-[0.5625rem] !leading-none antialiased`;
+
+export const PET_MGMT_HATCHERY_BTN_STACK_CLASS = `${PET_MGMT_HATCHERY_BTN_CLASS} !flex !h-full !flex-col !items-center !justify-center !gap-0.5`;
 
 
 

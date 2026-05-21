@@ -37,6 +37,7 @@ import { specialResourceIcons } from './resourceIcons.js';
 import ChampionshipShopPanel from './championship/ChampionshipShopPanel.js';
 import PairPetDetailEmbedPanel from './pair/PairPetDetailEmbedPanel.js';
 import PairPetHomeEmptyDetailFrame from './pair/PairPetHomeEmptyDetailFrame.js';
+import { resolvePetInfoViewerEmbedLayout } from './pair/pairPetHomeEmbedLayout.js';
 import { PairPetDetailFitScale } from './pair/PairPetDetailCardBody.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { getChampionshipVersusDisplayRating } from '../shared/utils/championshipVersusElo.js';
@@ -1146,6 +1147,7 @@ const TournamentLobby: React.FC = () => {
         () => getEquippedPairPetInventoryRow(currentUserWithStatus),
         [currentUserWithStatus],
     );
+    const championshipPetEmbed = useMemo(() => resolvePetInfoViewerEmbedLayout(), []);
     return (
         <div
             className={`relative flex w-full flex-col bg-lobby-shell-championship text-primary ${
@@ -1271,13 +1273,13 @@ const TournamentLobby: React.FC = () => {
                                             <PairPetDetailEmbedPanel
                                                 currentUser={currentUserWithStatus}
                                                 item={equippedPairPetRowNative}
-                                                detailVariant="modal"
-                                                contentHeight="hug"
+                                                {...championshipPetEmbed}
                                                 showRepresentativeBadge
                                             />
                                         ) : (
                                             <PairPetHomeEmptyDetailFrame
-                                                variant="modal"
+                                                variant={championshipPetEmbed.detailVariant}
+                                                petManagementModal={championshipPetEmbed.petManagementModal}
                                                 onRequestEquip={openPairLobbyForRepresentativePet}
                                             />
                                         )}
@@ -1476,17 +1478,17 @@ const TournamentLobby: React.FC = () => {
                                                 <PairPetDetailEmbedPanel
                                                     currentUser={currentUserWithStatus}
                                                     item={equippedPairPetRowNative}
-                                                    detailVariant="modal"
+                                                    {...championshipPetEmbed}
                                                     contentHeight="fill"
                                                     showRepresentativeBadge
-                                                    suppressDetailFitScale
                                                     parentOuterFitScale
                                                 />
                                             </div>
                                         ) : (
                                             <div className="flex w-full shrink-0 flex-col rounded-t-xl rounded-b-none border border-fuchsia-500/40 border-b-0 bg-gradient-to-b from-zinc-900/92 to-zinc-950 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-fuchsia-500/18 sm:p-2">
                                                 <PairPetHomeEmptyDetailFrame
-                                                    variant="modal"
+                                                    variant={championshipPetEmbed.detailVariant}
+                                                    petManagementModal={championshipPetEmbed.petManagementModal}
                                                     onRequestEquip={openPairLobbyForRepresentativePet}
                                                 />
                                             </div>

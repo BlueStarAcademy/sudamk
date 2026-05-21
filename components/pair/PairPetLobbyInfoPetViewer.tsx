@@ -3,7 +3,8 @@ import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
 import PairPetGradeUpgradeModal from './PairPetGradeUpgradeModal.js';
 import PairPetDetailEmbedPanel from './PairPetDetailEmbedPanel.js';
-import { resolvePetManagementInfoEmbedLayout } from './pairPetHomeEmbedLayout.js';
+import { resolvePetInfoViewerEmbedLayout } from './pairPetHomeEmbedLayout.js';
+import { PET_MGMT_ACTION_BAR_CLASS, PET_MGMT_ACTION_BTN_CLASS } from './pairPetDetailPanelUi.js';
 import type { InventoryItem, ServerAction, User } from '../../types.js';
 import PairPetGradeUpgradeResultModal from './PairPetGradeUpgradeResultModal.js';
 import { ItemGrade } from '../../types/enums.js';
@@ -55,9 +56,15 @@ export interface PairPetLobbyInfoPetViewerProps {
     onClearRepresentative: () => void;
     onSoulConvert: (item: InventoryItem) => void;
     applyPetAction: (action: ServerAction) => Promise<unknown>;
+    /** 펫 관리 모달: true(기본) — 남는 높이 채움. 상세보기: false — 콘텐츠 높이만 */
+    fillParent?: boolean;
+    /** `fillParent={false}`일 때 본문 스크롤 상한 (CSS length) */
+    bodyMaxHeightCss?: string;
+    /** 펫 획득 모달 — 하단 액션 바 숨김(확인만) */
+    hideActionBar?: boolean;
 }
 
-const petInfoEmbed = resolvePetManagementInfoEmbedLayout();
+const petInfoEmbed = resolvePetInfoViewerEmbedLayout();
 
 /**
  * 펫 관리 모달 정보 탭 — 좁은 모달에 맞춘 {@link PairPetDetailCardBody} panelFit + 균등 축소.
@@ -72,6 +79,9 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
     onClearRepresentative,
     onSoulConvert,
     applyPetAction,
+    fillParent = true,
+    bodyMaxHeightCss,
+    hideActionBar = false,
 }) => {
     const tid = item.templateId ?? null;
     const eqRowId = currentUser.equippedPairPetInventoryItemId ?? null;
@@ -155,8 +165,15 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
     };
 
     return (
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain px-1 pt-1 [scrollbar-width:thin]">
+        <div
+            className={
+                fillParent
+                    ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'
+                    : 'flex w-full min-w-0 flex-col overflow-hidden'
+            }
+            style={!fillParent && bodyMaxHeightCss ? { maxHeight: bodyMaxHeightCss } : undefined}
+        >
+            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-width:thin]">
                 <PairPetDetailEmbedPanel
                     currentUser={currentUser}
                     item={item}
@@ -165,14 +182,15 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                 />
             </div>
 
-            <div className="flex min-w-0 shrink-0 flex-nowrap gap-1 border-t border-white/10 bg-black/45 px-1.5 py-1.5 backdrop-blur-sm supports-[backdrop-filter]:bg-black/35 sm:pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
+            {hideActionBar ? null : (
+            <div className={PET_MGMT_ACTION_BAR_CLASS}>
                 {isRepresentative ? (
                     <Button
                         type="button"
                         disabled={isBusy}
                         onClick={() => void onClearRepresentative()}
                         colorScheme="none"
-                        className="!min-w-0 !flex-1 !shrink !rounded-lg !border !border-white/25 !bg-black/45 !px-1 !py-1 !text-[0.625rem] !font-extrabold !leading-snug !text-slate-100 antialiased"
+                        className={`${PET_MGMT_ACTION_BTN_CLASS} !border !border-white/25 !bg-black/45 !text-slate-100`}
                     >
                         대표펫 해제
                     </Button>
@@ -189,7 +207,7 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                             if (tid) void onSetRepresentative(tid, item.id);
                         }}
                         colorScheme="none"
-                        className="!min-w-0 !flex-1 !shrink !rounded-lg !border !border-cyan-400/50 !bg-cyan-950/55 !px-1 !py-1 !text-[0.625rem] !font-extrabold !leading-snug !text-cyan-50 antialiased"
+                        className={`${PET_MGMT_ACTION_BTN_CLASS} !border !border-cyan-400/50 !bg-cyan-950/55 !text-cyan-50`}
                     >
                         대표펫
                     </Button>
@@ -210,7 +228,7 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                                   : `Lv.${needLv} 이상에서 등급 강화할 수 있습니다.`
                     }
                     colorScheme="none"
-                    className="!min-w-0 !flex-1 !shrink !rounded-lg !border !border-amber-400/55 !bg-amber-950/45 !px-1 !py-1 !text-[0.625rem] !font-extrabold !leading-snug !text-amber-50 antialiased disabled:!opacity-45"
+                    className={`${PET_MGMT_ACTION_BTN_CLASS} !border !border-amber-400/55 !bg-amber-950/45 !text-amber-50 disabled:!opacity-45`}
                 >
                     등급 강화
                 </Button>
@@ -226,11 +244,12 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                     }
                     onClick={() => void onSoulConvert(item)}
                     colorScheme="none"
-                    className="!min-w-0 !flex-1 !shrink !rounded-lg !border !border-rose-500/55 !bg-gradient-to-b !from-rose-700/90 !to-rose-950/95 !px-1 !py-1 !text-[0.625rem] !font-extrabold !leading-snug !text-rose-50 antialiased !shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_12px_rgba(244,63,94,0.2)] hover:!border-rose-400/65 hover:!from-rose-600/95 hover:!to-rose-950 disabled:!opacity-45"
+                    className={`${PET_MGMT_ACTION_BTN_CLASS} !border !border-rose-500/55 !bg-gradient-to-b !from-rose-700/90 !to-rose-950/95 !text-rose-50 !shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_12px_rgba(244,63,94,0.2)] hover:!border-rose-400/65 hover:!from-rose-600/95 hover:!to-rose-950 disabled:!opacity-45`}
                 >
                     영혼변환
                 </Button>
             </div>
+            )}
 
             {gradeModalOpen ? (
                 <PairPetGradeUpgradeModal

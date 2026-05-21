@@ -27,15 +27,17 @@ describe('conditionPotionInventory', () => {
         expect(countConditionPotionsInInventory(inv)).toBe(3);
     });
 
-    it('strips inventory patch when fewer potions than client state', () => {
+    it('strips inventory and shop economy fields when fewer potions than client state', () => {
         const prev = [potion('컨디션회복제(소)', 3)];
         const patch = {
             inventory: [potion('컨디션회복제(소)', 0)],
             gold: 500,
+            dailyShopPurchases: { condition_potion_small: { quantity: 0, date: Date.now() } },
         };
         const stripped = stripInventoryIfFewerConditionPotions(patch, prev);
         expect(stripped.inventory).toBeUndefined();
-        expect(stripped.gold).toBe(500);
+        expect(stripped.gold).toBeUndefined();
+        expect(stripped.dailyShopPurchases).toBeUndefined();
     });
 
     it('keeps inventory patch when potion count increases', () => {

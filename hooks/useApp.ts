@@ -72,6 +72,7 @@ import {
     hasPairPetClaimReadyForQuickMenu,
     pairPetQuickMenuNeedsSecondTick,
 } from '../shared/utils/pairPetQuickClaimNotification.js';
+import { stampObtainedItemsBulk } from '../shared/utils/obtainedItemsBulk.js';
 import { advancePairTurn, getCurrentPairTurnSeat, isPairAiSeat, resetPairPasses } from '../shared/utils/pairGameTurn.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import {
@@ -1755,6 +1756,7 @@ export const useApp = () => {
                 prevUser.mannerMasteryApplied !== mergedUser.mannerMasteryApplied ||
                 inventoryChanged ||
                 tournamentStateChanged ||
+                JSON.stringify(prevUser.dailyShopPurchases) !== JSON.stringify(mergedUser.dailyShopPurchases) ||
                 JSON.stringify(prevUser.equipment) !== JSON.stringify(mergedUser.equipment) ||
                 JSON.stringify(prevUser.singlePlayerMissions) !== JSON.stringify(mergedUser.singlePlayerMissions) ||
                 JSON.stringify(prevUser.actionPoints) !== JSON.stringify(mergedUser.actionPoints);
@@ -2932,7 +2934,9 @@ export const useApp = () => {
             action.type !== 'START_CHAMPIONSHIP_VERSUS_KATA_DUEL' &&
             action.type !== 'COMPLETE_DUNGEON_STAGE' &&
             action.type !== 'CLAIM_TOURNAMENT_REWARD' &&
-            action.type !== 'CLAIM_GUILD_WAR_REWARD'
+            action.type !== 'CLAIM_GUILD_WAR_REWARD' &&
+            action.type !== 'BUY_CONDITION_POTION' &&
+            action.type !== 'USE_CONDITION_POTION'
         ) {
             const debouncePayload = 'payload' in action ? (action as { payload?: unknown }).payload : undefined;
             const actionKey = `${action.type}_${JSON.stringify(debouncePayload ?? {})}`;
@@ -6024,7 +6028,11 @@ export const useApp = () => {
                  
                 const obtainedItemsBulkRaw = result.clientResponse?.obtainedItemsBulk || result.obtainedItemsBulk;
                 // 도전의 탑 전용 상점 구매: 인벤은 갱신되지만 획득 아이템 모달은 띄우지 않음
-                if (obtainedItemsBulkRaw && action.type !== 'BUY_TOWER_ITEM') {
+                const skipObtainedModalForOptimisticConvert =
+                    action.type === 'PAIR_PET_CONVERT_PET' &&
+                    Boolean((action.payload as { __clientSkipObtainedModal?: boolean } | undefined)?.__clientSkipObtainedModal);
+
+                if (obtainedItemsBulkRaw && action.type !== 'BUY_TOWER_ITEM' && !skipObtainedModalForOptimisticConvert) {
                     let obtainedItemsBulk: InventoryItem[] = obtainedItemsBulkRaw as InventoryItem[];
                     try {
                         obtainedItemsBulk = JSON.parse(JSON.stringify(obtainedItemsBulkRaw)) as InventoryItem[];
@@ -6032,18 +6040,7 @@ export const useApp = () => {
                         // 폴백: 얕은 복사만 가능한 경우에도 인벤 행과 참조를 끊기 위해 항목 단위 복제
                         obtainedItemsBulk = (obtainedItemsBulkRaw as InventoryItem[]).map((it) => ({ ...it }));
                     }
-                    const stampedItems = obtainedItemsBulk.map((item: InventoryItem) => {
-                        const qRaw = (item as { quantity?: unknown }).quantity;
-                        const q =
-                            typeof qRaw === 'number' && Number.isFinite(qRaw)
-                                ? Math.max(0, Math.floor(qRaw))
-                                : 1;
-                        return {
-                            ...item,
-                            id: item.id || `reward-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                            quantity: q,
-                        };
-                    });
+                    const stampedItems = stampObtainedItemsBulk(obtainedItemsBulk);
                     flushSync(() => {
                         setLastUsedItemResult(stampedItems);
                     });
@@ -11405,6 +11402,11 @@ export const useApp = () => {
         handlers: {
             handleAction,
             applyDeferredUserUpdate: (updates: Partial<User>, source = 'deferred-user-update') => applyUserUpdate(updates, source),
+            showObtainedItemsBulk: (items: InventoryItem[]) => {
+                flushSync(() => {
+                    setLastUsedItemResult(stampObtainedItemsBulk(items));
+                });
+            },
             handleLogout,
             handleEnterWaitingRoom,
             requestGameRejoinRetry,
