@@ -10,7 +10,8 @@ import { getSinglePlayerStages } from '../constants/singlePlayerConstants.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { userHasFullTrainingQuestReward } from '../utils/trainingQuestRewardNotify.js';
-import { isOnboardingTutorialActive } from '../shared/constants/onboardingTutorial.js';
+import { useScreenGuide } from '../hooks/useScreenGuide.js';
+import ScreenGuideModal from './ScreenGuideModal.js';
 
 /** singlePlayerProgress(다음 플레이 스테이지 전역 인덱스)에 맞는 반 — 대기실 기본 탭 */
 function defaultSinglePlayerLevelFromProgress(progress: number): SinglePlayerLevel {
@@ -23,18 +24,12 @@ function defaultSinglePlayerLevelFromProgress(progress: number): SinglePlayerLev
 
 const SINGLE_PLAYER_LOBBY_TITLE = '바둑학원';
 
-/** PC: 수련과제는 프로필 홈 모달로 이동. 온보딩 phase 8(수련과제 튜토) 중에는 타깃 요소가 필요해 기존 3열 유지 */
 const DesktopSinglePlayerLobbyLayout: React.FC<{
     selectedClass: SinglePlayerLevel;
     onClassSelect: (level: SinglePlayerLevel | null) => void;
     onBackToProfile: () => void;
     currentUserWithStatus: UserWithStatus;
-}> = ({ selectedClass, onClassSelect, onBackToProfile, currentUserWithStatus }) => {
-    const phase8TrainingSpotlight =
-        isOnboardingTutorialActive(currentUserWithStatus) &&
-        (currentUserWithStatus.onboardingTutorialPhase ?? 0) === 8;
-
-    return (
+}> = ({ selectedClass, onClassSelect, onBackToProfile, currentUserWithStatus }) => (
         <div className="grid min-h-0 flex-1 grid-cols-12 gap-2 sm:gap-3 xl:gap-4">
             <div className="col-span-4 flex min-h-0 flex-col">
                 <ClassNavigationPanel
@@ -48,22 +43,16 @@ const DesktopSinglePlayerLobbyLayout: React.FC<{
                 />
             </div>
 
-            <div className={`flex min-h-0 flex-col ${phase8TrainingSpotlight ? 'col-span-4' : 'col-span-7'}`}>
+            <div className="col-span-7 flex min-h-0 flex-col">
                 <StageGrid selectedClass={selectedClass} currentUser={currentUserWithStatus} />
             </div>
-            {phase8TrainingSpotlight && (
-                <div className="col-span-3 flex min-h-0 flex-col">
-                    <TrainingQuestPanel currentUser={currentUserWithStatus} />
-                </div>
-            )}
             <div className={`flex min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`}>
                 <div className="flex h-full min-h-0 flex-col rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40">
                     <QuickAccessSidebar fillHeight />
                 </div>
             </div>
         </div>
-    );
-};
+);
 
 const SinglePlayerLobby: React.FC = () => {
     const { currentUser, currentUserWithStatus, singlePlayerStagesListRevision } = useAppContext();
@@ -88,21 +77,12 @@ const SinglePlayerLobby: React.FC = () => {
 
     const [mobileLobbySubTab, setMobileLobbySubTab] = useState<'quests' | 'stages'>('stages');
 
-    useEffect(() => {
-        if (!currentUserWithStatus || !isOnboardingTutorialActive(currentUserWithStatus)) return;
-        const p = currentUserWithStatus.onboardingTutorialPhase ?? 0;
-        if (p === 2 || p === 4) {
-            setOverrideClass(SinglePlayerLevel.입문);
-            if (compactSpLobby) setMobileLobbySubTab('stages');
-        }
-        if (!compactSpLobby) return;
-        if (p === 8) setMobileLobbySubTab('quests');
-    }, [compactSpLobby, currentUserWithStatus]);
-
     const hasTrainingQuestRewardToClaim = useMemo(
         () => userHasFullTrainingQuestReward(currentUserWithStatus),
         [currentUserWithStatus],
     );
+
+    const academyScreenGuide = useScreenGuide('singlePlayerAcademy');
 
     if (!currentUser || !currentUserWithStatus) {
         return null;
@@ -118,6 +98,13 @@ const SinglePlayerLobby: React.FC = () => {
                       : 'h-full min-h-0 px-2 pb-2 pt-1 sm:px-3 sm:pb-3 sm:pt-2 lg:px-6 lg:pb-6 lg:pt-3'
             }`}
         >
+            {academyScreenGuide.isOpen && (
+                <ScreenGuideModal
+                    guideId="singlePlayerAcademy"
+                    onClose={academyScreenGuide.close}
+                    onDismissForever={academyScreenGuide.dismissForever}
+                />
+            )}
             {compactSpLobby ? (
                 <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden px-0.5 pb-0.5">
                     <div className="min-h-0 max-h-[min(22dvh,200px)] shrink-0 overflow-hidden rounded-xl sm:max-h-[min(24dvh,220px)]">

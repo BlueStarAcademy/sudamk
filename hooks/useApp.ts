@@ -62,7 +62,6 @@ import {
     ARENA_ENTRANCE_CLOSED_MESSAGE,
     type ArenaEntranceKey,
 } from '../constants/arenaEntrance.js';
-import { applyOnboardingArenaEntranceTutorialLocks } from '../shared/constants/onboardingTutorial.js';
 import { PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE } from '../shared/constants/pairHatchery.js';
 import {
     pairArenaLobbyHash,
@@ -2601,7 +2600,7 @@ export const useApp = () => {
         if (!u || isClientAdmin(u)) return base;
         const snap = getBadukAbilitySnapshotFromStats(u, calculateTotalStats(u));
         const prog = applyUserProgressionArenaLocks(base, snap);
-        return applyOnboardingArenaEntranceTutorialLocks(prog, u);
+        return prog;
     }, [
         arenaEntranceFromServer,
         currentUserWithStatus,
@@ -5809,7 +5808,6 @@ export const useApp = () => {
                         'MANNER_ACTION',
                         'START_GUILD_BOSS_BATTLE',
                         'END_TOWER_GAME',
-                        'CLAIM_ONBOARDING_INTRO1_FAN',
                         'PAIR_PET_PURCHASE',
                         'PAIR_PET_HATCH_EGG',
                         'PAIR_PET_CONVERT_PET',

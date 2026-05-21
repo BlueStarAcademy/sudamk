@@ -1,11 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import { mergeArenaEntranceAvailability, ARENA_ENTRANCE_CLOSED_MESSAGE, type ArenaEntranceKey } from '../../constants/arenaEntrance.js';
 import { USER_PROGRESSION_ARENA_BLOCK_MESSAGE } from '../../shared/utils/contentProgressionGates.js';
 import { isClientAdmin } from '../../utils/clientAdmin.js';
-import { isOnboardingTutorialActive } from '../../shared/constants/onboardingTutorial.js';
-import { getPhase8TrainingTutorialStep, subscribePhase8TrainingTutorialStep } from '../../utils/phase8TrainingTutorialStep.js';
 type DockTab = 'home' | 'arena' | 'tournament' | 'singleplayer' | 'tower' | 'adventure';
 
 type DockItemDef = { tab: DockTab; label: string; labelLines?: readonly [string, string] };
@@ -32,16 +30,6 @@ const TAB_ARENA_KEY: Record<Exclude<DockTab, 'home'>, ArenaEntranceKey | null> =
 
 const NativeMobileDock: React.FC = () => {
     const { currentRoute, arenaEntranceAvailability, arenaEntranceFromServer, currentUser } = useAppContext();
-    const [phase8DockTick, setPhase8DockTick] = useState(0);
-    useEffect(() => subscribePhase8TrainingTutorialStep(() => setPhase8DockTick((t) => t + 1)), []);
-    const phase8HomeSpotlight = useMemo(
-        () =>
-            !!currentUser &&
-            isOnboardingTutorialActive(currentUser) &&
-            (currentUser.onboardingTutorialPhase ?? 0) === 8 &&
-            getPhase8TrainingTutorialStep() === 3,
-        [currentUser, phase8DockTick],
-    );
     const mergedArena = useMemo(
         () => mergeArenaEntranceAvailability(arenaEntranceAvailability),
         [arenaEntranceAvailability],
@@ -134,13 +122,6 @@ const NativeMobileDock: React.FC = () => {
                                 type="button"
                                 onClick={() => go(tab)}
                                 title={blocked ? '입장이 닫혀 있습니다' : label}
-                                {...(tab === 'singleplayer'
-                                    ? { 'data-onboarding-target': 'onboarding-dock-sp' }
-                                    : tab === 'tower'
-                                      ? { 'data-onboarding-target': 'onboarding-dock-tower' }
-                                      : tab === 'home' && phase8HomeSpotlight
-                                        ? { 'data-onboarding-target': 'onboarding-dock-home' }
-                                        : {})}
                                 className={[
                                     'group relative flex h-11 min-h-0 w-full min-w-0 flex-row items-center justify-center overflow-hidden rounded-md border px-px py-0 text-center transition-all duration-200 active:scale-[0.98] sm:h-12 sm:px-0.5',
                                     blocked ? 'opacity-45 cursor-not-allowed' : '',

@@ -170,9 +170,6 @@ interface DraggableWindowProps {
      */
     pcViewportMaxWidthCss?: string;
 
-    /** 온보딩 스포트라이트: 닫기 버튼에 `data-onboarding-target` 부여 */
-    closeButtonDataOnboardingTarget?: string;
-
     /** true면 스케일 캔버스 안 modal-root 대신 실제 브라우저 뷰포트(document.body)에 렌더링 */
     viewportPortal?: boolean;
 
@@ -424,7 +421,6 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     footerClassName,
     pcViewportMaxHeightCss,
     pcViewportMaxWidthCss,
-    closeButtonDataOnboardingTarget,
     viewportPortal = false,
     autoViewportPortalOnSmallDesktop = false,
     skipIngameBoardFrameSizeCap = false,
@@ -1570,9 +1566,6 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                                         : {}),
                                 }}
                                 aria-label={`${title} 닫기`}
-                                {...(closeButtonDataOnboardingTarget
-                                    ? { 'data-onboarding-target': closeButtonDataOnboardingTarget }
-                                    : {})}
                             >
                                 닫기
                             </button>

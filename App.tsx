@@ -440,8 +440,6 @@ const AppContent: React.FC = () => {
                         className="pointer-events-none fixed inset-0 z-[25]"
                         style={{ pointerEvents: 'none' }}
                     />
-                    {/* aria-hidden 금지: 싱글/튜토리얼 등이 이 루트로 포털할 때 포커스 가능 버튼이 조상에 숨겨지면 브라우저가 경고하고 a11y가 깨짐 */}
-                    <div id="sudamr-onboarding-root" className="pointer-events-none fixed inset-0 z-[70]" />
                     <div
                         id="sudamr-modal-root"
                         className="pointer-events-none fixed inset-0 z-[60]"
@@ -603,18 +601,6 @@ const AppContent: React.FC = () => {
                                 width: DESIGN_W,
                                 height: DESIGN_H,
                                 zIndex: 25,
-                                pointerEvents: 'none',
-                            }}
-                        />
-                        <div
-                            id="sudamr-onboarding-root"
-                            style={{
-                                position: 'absolute',
-                                left: 0,
-                                top: 0,
-                                width: DESIGN_W,
-                                height: DESIGN_H,
-                                zIndex: 70,
                                 pointerEvents: 'none',
                             }}
                         />

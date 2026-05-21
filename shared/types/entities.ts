@@ -675,17 +675,6 @@ export type User = {
   statResetCountToday?: number;
   lastStatResetDate?: string | null;
   singlePlayerProgress?: number;
-  /** 신규 온보딩 튜토리얼 진행 단계(0~). 미설정·100 이상이면 튜토리얼 비활성(기존 유저). */
-  onboardingTutorialPhase?: number;
-  onboardingTutorialPendingFirstHome?: boolean;
-  onboardingCompletionRewardClaimed?: boolean;
-  /** 입문-1 온보딩 첫 클리어 후 부채를 튜토리얼 「수령하기」로만 지급할 때 true */
-  onboardingIntro1FanPendingClaim?: boolean;
-  /**
-   * 입문-1 승리 후 싱글 결과 모달 온보딩(phase 7, 인게임).
-   * 0: 획득 장비 모달 대기 → 1: 하단 4버튼 안내 → 2: 「대기실로」만 활성
-   */
-  onboardingSpResultTutorialStep?: number;
   clearedSinglePlayerStages?: string[]; // 클리어한 스테이지 ID 배열 (최초 클리어 여부 추적용)
   /** 반별 스테이지 클리어 수 10·20점 막대 보상 수령 여부 */
   singlePlayerClassBarClaims?: Partial<Record<SinglePlayerLevel, { m10?: boolean; m20?: boolean }>>;

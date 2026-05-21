@@ -647,10 +647,6 @@ interface GoBoardProps {
   adventureRegionalHeadStartCaptureBonus?: number;
   /** 패·둘 수 없는 자리 등 — TurnDisplay 전광판 */
   onBoardRuleFlash?: (message: string) => void;
-  /** 온보딩: 화살표 위치 측정용 투명 앵커(SVG) */
-  onboardingDemoAnchorPoint?: Point | null;
-  /** 온보딩: 이 교차점만 착수 허용(싱글 등) */
-  onboardingForcedFirstMovePoint?: Point | null;
   /** 전략바둑 대표펫 힌트: 좌표 점만(말풍선은 푸터) */
   strategicPetHintOverlay?: { x: number; y: number } | null;
   /** 펫 힌트 보너스 획득: 해당 좌표에서 아이콘이 위로 떠오르는 1회성 연출 */
@@ -689,8 +685,6 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         captures,
         adventureRegionalHeadStartCaptureBonus = 0,
         onBoardRuleFlash,
-        onboardingDemoAnchorPoint = null,
-        onboardingForcedFirstMovePoint = null,
         strategicPetHintOverlay = null,
         strategicPetHintRewardAnimation = null,
         isPairBasePlacementHost = false,
@@ -1460,15 +1454,6 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 }
             }
 
-            if (
-                onboardingForcedFirstMovePoint &&
-                isSinglePlayer &&
-                (boardPos.x !== onboardingForcedFirstMovePoint.x || boardPos.y !== onboardingForcedFirstMovePoint.y)
-            ) {
-                onBoardRuleFlash?.('튜토리얼: 표시된 자리에 두세요.');
-                return;
-            }
-
             onBoardClick(boardPos.x, boardPos.y);
         }
     };
@@ -2176,20 +2161,6 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         />
                     );
                 })}
-
-                {onboardingDemoAnchorPoint && (() => {
-                    const { cx, cy } = toSvgCoords(onboardingDemoAnchorPoint);
-                    return (
-                        <circle
-                            data-onboarding-target="onboarding-sp-ingame-demo-point"
-                            cx={cx}
-                            cy={cy}
-                            r={Math.max(4, stone_radius * 0.45)}
-                            fill="transparent"
-                            style={{ pointerEvents: 'none' }}
-                        />
-                    );
-                })()}
 
                 {showHoverPreview && hoverPos && ( <g opacity="0.5"> <Stone player={stoneColor} cx={toSvgCoords(hoverPos).cx} cy={toSvgCoords(hoverPos).cy} radius={stone_radius} /> </g> )}
                 {renderMissileLaunchPreview()}

@@ -2,6 +2,8 @@ import React from 'react';
 import DraggableWindow from '../DraggableWindow.js';
 import { UserWithStatus } from '../../types.js';
 import TrainingQuestPanel from './TrainingQuestPanel.js';
+import { useScreenGuide } from '../../hooks/useScreenGuide.js';
+import ScreenGuideModal from '../ScreenGuideModal.js';
 
 interface TrainingQuestModalProps {
     open: boolean;
@@ -10,9 +12,12 @@ interface TrainingQuestModalProps {
 }
 
 const TrainingQuestModal: React.FC<TrainingQuestModalProps> = ({ open, onClose, currentUser }) => {
+    const trainingGuide = useScreenGuide('trainingQuest', { active: open });
+
     if (!open) return null;
 
     return (
+        <>
         <DraggableWindow
             title="수련과제"
             windowId="training-quest-modal"
@@ -37,6 +42,14 @@ const TrainingQuestModal: React.FC<TrainingQuestModalProps> = ({ open, onClose, 
                 </div>
             </div>
         </DraggableWindow>
+        {trainingGuide.isOpen && (
+            <ScreenGuideModal
+                guideId="trainingQuest"
+                onClose={trainingGuide.close}
+                onDismissForever={trainingGuide.dismissForever}
+            />
+        )}
+        </>
     );
 };
 

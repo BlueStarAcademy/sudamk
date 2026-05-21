@@ -12,12 +12,6 @@ import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposi
 import { useAppContext } from '../hooks/useAppContext.js';
 import { resolveAspectFittedModalFrame } from '../utils/modalFrameSizing.js';
 import { getLayoutViewportSize } from '../hooks/useIsMobileLayout.js';
-import { ONBOARDING_INTRO1_FAN_ITEM_ID } from '../shared/constants/onboardingTutorial.js';
-import {
-    getOnboardingBagTutorialStep,
-    setOnboardingBagTutorialStep,
-    subscribeOnboardingBagTutorialStep,
-} from '../utils/onboardingBagTutorialStep.js';
 import PurchaseQuantityModal from './PurchaseQuantityModal.js';
 import SellItemConfirmModal from './SellItemConfirmModal.js';
 import SellMaterialBulkModal from './SellMaterialBulkModal.js';
@@ -1175,35 +1169,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     const narrowInventoryLayout = effectiveIsCompactViewport;
     // 가방/하위 모달은 캔버스 프레임 상한의 영향을 받지 않도록 브라우저 뷰포트 레이어에 고정 렌더링한다.
     const useViewportSizedBagModal = true;
-    const onboardingPhase = currentUser.onboardingTutorialPhase ?? -1;
-    const onboardingPhase9 = onboardingPhase === 9;
-    const [bagTutorialStep, setBagTutorialStepState] = useState(() =>
-        typeof window === 'undefined' ? 0 : getOnboardingBagTutorialStep(),
-    );
-    useEffect(() => subscribeOnboardingBagTutorialStep(() => setBagTutorialStepState(getOnboardingBagTutorialStep())), []);
-    useEffect(() => {
-        setBagTutorialStepState(getOnboardingBagTutorialStep());
-    }, [onboardingPhase, updateTrigger]);
-    useEffect(() => {
-        if (!onboardingPhase9) return;
-        if (getOnboardingBagTutorialStep() !== 0) return;
-        setOnboardingBagTutorialStep(1);
-        setBagTutorialStepState(1);
-    }, [onboardingPhase9]);
-    useEffect(() => {
-        if (!onboardingPhase9) return;
-        if (getOnboardingBagTutorialStep() !== 2) return;
-        const fan = currentUser.inventory.find((i) => i.name === ONBOARDING_INTRO1_FAN_ITEM_ID);
-        if (fan?.isEquipped) {
-            setOnboardingBagTutorialStep(3);
-            setBagTutorialStepState(3);
-        }
-    }, [onboardingPhase9, currentUser.inventory, updateTrigger]);
-    useEffect(() => {
-        if (bagTutorialStep !== 4) return;
-        setIsMobileItemDetailOpen(false);
-        setIsMobileEquippedModalOpen(false);
-    }, [bagTutorialStep]);
     const hasInventoryChildModal =
         showUseQuantityModal ||
         !!itemToSell ||
@@ -1217,19 +1182,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         (narrowInventoryLayout && isMobileEquippedModalOpen) ||
         (narrowInventoryLayout && isMobileItemDetailOpen);
 
-    const openedMobileEquipForObRef = useRef(false);
-    useEffect(() => {
-        if (!onboardingPhase9 || bagTutorialStep !== 3) {
-            openedMobileEquipForObRef.current = false;
-            return;
-        }
-        if (!narrowInventoryLayout || openedMobileEquipForObRef.current) return;
-        openedMobileEquipForObRef.current = true;
-        setIsMobileEquippedModalOpen(true);
-    }, [onboardingPhase9, bagTutorialStep, narrowInventoryLayout]);
-    const inventoryOnboardingShell = onboardingPhase9 && bagTutorialStep === 4;
-    const inventoryOnboardingCloseTarget = inventoryOnboardingShell ? 'onboarding-inv-modal-close' : undefined;
-    const showObEquippedStatsPreset = onboardingPhase9 && bagTutorialStep === 3;
     /** 모바일 가방: 가로 한 줄 6칸. PC는 기존처럼 한 줄 12칸 */
     const mobileInventoryColumns = useMemo(() => {
         if (!narrowInventoryLayout) return 12;
@@ -1694,14 +1646,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
             uniformPcScale={!narrowInventoryLayout}
             pcViewportMaxHeightCss="min(94dvh, calc(100dvh - 16px))"
             pcViewportMaxWidthCss="90vw"
-            closeButtonDataOnboardingTarget={inventoryOnboardingCloseTarget}
             viewportPortal={useViewportSizedBagModal}
             skipIngameBoardFrameSizeCap
         >
             <div 
                 className="flex min-h-0 h-full w-full flex-col overflow-hidden"
                 style={{ margin: 0, padding: 0 }}
-                {...(inventoryOnboardingShell ? { 'data-onboarding-target': 'onboarding-inv-equipment-modal-shell' } : {})}
             >
                 {narrowInventoryLayout ? (
                     <div className="mb-2 shrink-0 rounded-md bg-gray-800 px-2 py-2 shadow-inner">
@@ -1734,9 +1684,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                             <div
                                 className="flex h-full min-h-0 w-1/3 flex-shrink-0 flex-col overflow-hidden border-r border-gray-700"
                                 style={{ paddingRight: `${Math.max(12, Math.round(16 * scaleFactor))}px` }}
-                                {...(showObEquippedStatsPreset && !narrowInventoryLayout
-                                    ? { 'data-onboarding-target': 'onboarding-inv-equipped-stats-preset' }
-                                    : {})}
                             >
                                 <>
                                     <h3 className="font-bold text-on-panel" style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px`, marginBottom: `${Math.max(6, Math.round(8 * scaleFactor))}px` }}>장착 장비</h3>
@@ -2103,9 +2050,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                 className={BAG_INVENTORY_FOOTER_BTN.success}
                                                 disabled={!canEquip}
                                                 style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}
-                                                {...(onboardingPhase9 && bagTutorialStep === 2
-                                                    ? { 'data-onboarding-target': 'onboarding-inv-equip-button' }
-                                                    : {})}
                                             >
                                                 장착
                                             </Button>
@@ -2374,30 +2318,17 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         {Array.from({ length: currentSlots }).map((_, index) => {
                             const item = filteredAndSortedInventory[index];
                             if (item) {
-                                const fanObSlot =
-                                    onboardingPhase9 &&
-                                    bagTutorialStep === 1 &&
-                                    item.name === ONBOARDING_INTRO1_FAN_ITEM_ID;
                                 return (
                                     <div
                                         key={item.id}
                                         className="aspect-square"
                                         style={{ width: '100%', minWidth: 0, minHeight: 0, maxWidth: '100%' }}
-                                        {...(fanObSlot ? { 'data-onboarding-target': 'onboarding-inv-fan-slot' } : {})}
                                     >
                                         <InventoryItemCard
                                             item={item}
                                             onClick={() => {
                                                 setSelectedItemId(item.id);
                                                 if (narrowInventoryLayout) setIsMobileItemDetailOpen(true);
-                                                if (
-                                                    onboardingPhase9 &&
-                                                    getOnboardingBagTutorialStep() === 1 &&
-                                                    item.name === ONBOARDING_INTRO1_FAN_ITEM_ID
-                                                ) {
-                                                    setOnboardingBagTutorialStep(2);
-                                                    setBagTutorialStepState(2);
-                                                }
                                             }}
                                             isSelected={selectedItemId === item.id}
                                             isEquipped={item.isEquipped || false}
@@ -2448,9 +2379,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     <div
                         className={`flex max-h-[min(82dvh,600px)] min-h-0 flex-col gap-1.5 overflow-y-auto ${BAG_SCROLLBAR_Y_CLASS}`}
                         style={{ WebkitOverflowScrolling: 'touch' }}
-                        {...(showObEquippedStatsPreset && narrowInventoryLayout
-                            ? { 'data-onboarding-target': 'onboarding-inv-equipped-stats-preset' }
-                            : {})}
                     >
                         <h3
                             className="font-bold text-on-panel"
@@ -2607,9 +2535,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                             onClick={() => handleEquipToggle(selectedItem.id)}
                                             className={BAG_INVENTORY_FOOTER_BTN.success}
                                             disabled={!canEquip}
-                                            {...(onboardingPhase9 && bagTutorialStep === 2
-                                                ? { 'data-onboarding-target': 'onboarding-inv-equip-button' }
-                                                : {})}
                                         >
                                             장착
                                         </Button>

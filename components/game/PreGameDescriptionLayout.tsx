@@ -243,10 +243,6 @@ export function PreGameSummaryGrid({
   forceTwoColumnPrimary = false,
   /** 도전의 탑: 미사일·히든·스캔 배지가 0일 때 탭하면 상점 */
   onTowerItemZeroClick,
-  /** 온보딩 phase 5: 승패 / 나머지 블록에 `data-onboarding-target` 분리 */
-  embedOnboardingSpotlightTargets = false,
-  spotlightWinLoseTargetId = 'onboarding-sp-pregame-winlose',
-  spotlightRestTargetId = 'onboarding-sp-pregame-rest',
 }: {
   session: LiveGameSession;
   summary: PreGameSummaryFour;
@@ -255,9 +251,6 @@ export function PreGameSummaryGrid({
   briefLayout?: boolean;
   forceTwoColumnPrimary?: boolean;
   onTowerItemZeroClick?: (slotKey: string) => void;
-  embedOnboardingSpotlightTargets?: boolean;
-  spotlightWinLoseTargetId?: string;
-  spotlightRestTargetId?: string;
 }) {
   const panelShell =
     'group relative min-w-0 overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] shadow-[0_12px_36px_-16px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-amber-400/12 transition-[box-shadow,ring-color] duration-200 hover:ring-amber-400/20';
@@ -323,8 +316,6 @@ export function PreGameSummaryGrid({
       : 'select-none text-center text-[0.65rem] font-black italic leading-none tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)] sm:text-xs';
 
   const outerStackClass = singleColumn ? 'space-y-2.5 sm:space-y-2.5' : 'space-y-2 sm:space-y-2.5';
-  const goalCells = primaryCells.filter((c): c is Extract<TopCell, { kind: 'goal' }> => c.kind === 'goal');
-  const imgCells = primaryCells.filter((c): c is Extract<TopCell, { kind: 'img' }> => c.kind === 'img');
 
   const renderPrimaryCell = (c: TopCell) => {
     if (c.kind === 'goal') {
@@ -505,26 +496,9 @@ export function PreGameSummaryGrid({
 
   return (
     <div className={outerStackClass}>
-      {embedOnboardingSpotlightTargets ? (
-        <div data-onboarding-target={spotlightWinLoseTargetId} className={primaryGridClass}>
-          {goalCells.map(renderPrimaryCell)}
-        </div>
-      ) : (
-        <div className={primaryGridClass}>{primaryCells.map(renderPrimaryCell)}</div>
-      )}
-
-      {embedOnboardingSpotlightTargets ? (
-        <div data-onboarding-target={spotlightRestTargetId} className={outerStackClass}>
-          <div className={primaryGridClass}>{imgCells.map(renderPrimaryCell)}</div>
-          {itemStripPanel}
-          {specialRulesPanel}
-        </div>
-      ) : (
-        <>
-          {itemStripPanel}
-          {specialRulesPanel}
-        </>
-      )}
+      <div className={primaryGridClass}>{primaryCells.map(renderPrimaryCell)}</div>
+      {itemStripPanel}
+      {specialRulesPanel}
     </div>
   );
 }

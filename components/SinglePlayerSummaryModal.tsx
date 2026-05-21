@@ -464,23 +464,14 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
         designHeight: 860,
     });
 
-    const spResultStep = currentUser.onboardingSpResultTutorialStep;
-    const intro1SpResultOnboarding =
-        session.stageId === '입문-1' &&
-        (currentUser.onboardingTutorialPhase ?? 0) === 7 &&
-        typeof spResultStep === 'number';
-    const blockSpModalScroll =
-        intro1SpResultOnboarding && (spResultStep === 0 || spResultStep === 1);
-    const blockSpFooterRow = intro1SpResultOnboarding && spResultStep === 0;
+    const desktopCompactRewards = !isMobile;
+
     useEffect(() => {
         setMobileResultTab('match');
     }, [session.id]);
 
-    const desktopCompactRewards = !isMobile;
-
     const spRewardsSection = (
         <div
-            data-onboarding-target="onboarding-sp-summary-rewards"
             className={`flex flex-col gap-0.5 ${SP_SUMMARY_PANEL_CLASS} shrink-0 p-1.5 sm:p-2 ${isMobile ? 'sm:gap-1' : ''}`}
         >
             <h2
@@ -597,15 +588,12 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             bodyPaddingClassName={isMobile ? 'p-2 pb-0 sm:p-3 sm:pb-0' : 'p-3 sm:p-4'}
         >
             <div
-                data-onboarding-target="onboarding-sp-summary-modal"
                 className={`text-on-panel ${PRE_GAME_MODAL_LAYER_CLASS} flex w-full min-h-0 flex-col ${
                     isMobile
                         ? 'h-full min-h-0 flex-1 overflow-hidden'
                         : 'h-full flex-1 ' +
                           (useBodyScrollSizing ? 'overflow-x-hidden' : 'overflow-x-hidden overflow-y-visible')
-                } ${isMobile ? 'text-xs sm:text-sm' : 'text-[1.0625rem] min-[1024px]:text-lg min-[1280px]:text-xl'} ${
-                    blockSpModalScroll ? 'pointer-events-none' : ''
-                }`}
+                } ${isMobile ? 'text-xs sm:text-sm' : 'text-[1.0625rem] min-[1024px]:text-lg min-[1280px]:text-xl'}`}
                 style={!isMobile ? { fontSize: `${14 * desktopTextScale}px` } : undefined}
             >
                 {/* Title */}
@@ -963,14 +951,8 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                             : '!gap-2 !p-3 sm:!gap-3 sm:!p-3.5'
                     }`}
                 >
-                    <div
-                        data-onboarding-target="onboarding-sp-summary-footer"
-                        className={`grid w-full min-w-0 flex-shrink-0 grid-cols-1 gap-2 ${
-                            blockSpFooterRow ? 'pointer-events-none' : ''
-                        }`}
-                    >
+                    <div className="grid w-full min-w-0 flex-shrink-0 grid-cols-1 gap-2">
                     <Button
-                        data-onboarding-target="onboarding-sp-summary-confirm"
                         onClick={() => {
                             if (isScoring) return;
                             handleClose(session, onClose);

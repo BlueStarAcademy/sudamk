@@ -257,8 +257,6 @@ interface SinglePlayerPanelProps {
     /** 모험 경기장: TimeBar용 전체 제한 시간 남은 초(양쪽 패널 동일) */
     adventureMatchCountdownSec?: number | null;
     adventureMatchTotalSec?: number | null;
-    /** 싱글 인게임 온보딩: 스포트라이트·링 타깃(실제 패널 카드) */
-    spIngameOnboardingUserTarget?: boolean;
     /** 모험 AI 상대: 도감 초상·이름·레벨 표시 */
     opponentMonsterDisplay?: { portraitUrl: string; displayName: string; level: number };
     /** 모험 지역 이해도 시작 가산 — 따낸 숫자 옆 `(+N)` */
@@ -303,7 +301,6 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         opponentMonsterDisplay,
         adventureMatchCountdownSec = null,
         adventureMatchTotalSec = null,
-        spIngameOnboardingUserTarget = false,
         captureHeadStartFlatBonus,
         speedTimeBonusScore = null,
         speedBonusScoreLabel = 'self',
@@ -481,10 +478,6 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const showAiRobotEmoji = !!isAiPlayer && !opponentMonsterDisplay && !isSinglePlayer;
     const nameTitle = `${displayNickname}${showAiRobotEmoji ? ' 🤖' : ''}${role ? ` (${role})` : ''}`;
 
-    const ingameOnboardingUserAttrs = spIngameOnboardingUserTarget
-        ? ({ 'data-onboarding-target': 'onboarding-sp-ingame-user-panel' } as const)
-        : {};
-
     /** 모바일·PC 동일: 따낸 돌 패널을 대국자 블록 옆(가로)에 배치 */
     const rootLayoutClass = `items-stretch ${gap} ${orderClass}`;
 
@@ -643,7 +636,6 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         return (
             <div
                 className={`relative flex h-full min-h-0 min-w-0 flex-1 flex-col ${compactMainColClass} ${padding} rounded-lg transition-all duration-300 border ${panelColorClasses} ${fluidTextLayout ? 'max-h-full overflow-hidden' : ''} ${textAlignClass}`}
-                {...ingameOnboardingUserAttrs}
             >
                 {showActiveBorderPulse && (
                     <div className={`pointer-events-none absolute inset-0 rounded-lg border-2 animate-pulse ${activeBorderPulseClass}`} />
@@ -727,7 +719,6 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         return (
             <div
                 className={`relative flex h-full min-h-0 min-w-0 flex-1 ${rootLayoutClass} ${padding} rounded-lg transition-all duration-300 border ${panelColorClasses} ${fluidTextLayout ? 'max-h-full overflow-hidden' : ''}`}
-                {...ingameOnboardingUserAttrs}
             >
                 {showActiveBorderPulse && (
                     <div className={`pointer-events-none absolute inset-0 rounded-lg border-2 animate-pulse ${activeBorderPulseClass}`} />
@@ -746,7 +737,6 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     return (
         <div
             className={`relative flex h-full min-h-0 min-w-0 flex-1 ${rootLayoutClass} ${padding} rounded-lg transition-all duration-300 border ${panelColorClasses} ${fluidTextLayout ? 'max-h-full overflow-hidden' : ''}`}
-            {...ingameOnboardingUserAttrs}
         >
             {showActiveBorderPulse && (
                 <div className={`pointer-events-none absolute inset-0 rounded-lg border-2 animate-pulse ${activeBorderPulseClass}`} />
@@ -840,9 +830,7 @@ interface PlayerPanelProps extends GameProps {
   // FIX: Add isSinglePlayer prop to handle different UI themes
   isSinglePlayer?: boolean;
   isMobile?: boolean;
-  /** 온보딩 phase 6: 유저 패널만 / 점수·턴 줄 전체 스포트라이트 */
-  singlePlayerOnboardingBarHighlight?: 'user-panel' | 'scores-bar' | null;
-  /** 싱글 스테이지 목록 리비전(온보딩 등에서 패널 리셋용) */
+  /** 싱글 스테이지 목록 리비전(패널 리셋용) */
   singlePlayerStagesListRevision?: number;
 }
 
@@ -884,7 +872,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         isSinglePlayer,
         isMobile = false,
         currentUser,
-        singlePlayerOnboardingBarHighlight = null,
         singlePlayerStagesListRevision = 0,
     } = props;
     /** PC 창을 좁혔거나 태블릿 폭: 네이티브 모바일이 아니어도 상단 바가 같은 폭 제약을 받음 */
@@ -1931,13 +1918,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         session.gameCategory === 'adventure' &&
         ['nigiri_reveal', 'color_start_confirmation', 'nigiri_choosing', 'nigiri_guessing'].includes(session.gameStatus);
 
-    const barHighlightAttrs =
-        singlePlayerOnboardingBarHighlight === 'scores-bar'
-            ? ({ 'data-onboarding-target': 'onboarding-sp-ingame-scores-bar' } as const)
-            : {};
-    const userPanelOnboardingTarget =
-        singlePlayerOnboardingBarHighlight === 'user-panel' && currentUser?.id === leftPlayerUser.id;
-
     if (adventurePregameColorReveal) {
         return (
             <div
@@ -1951,7 +1931,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
 
     if (compactPlayerBar) {
         return (
-            <div className="flex w-full min-w-0 flex-shrink-0 flex-col gap-1.5" {...barHighlightAttrs}>
+            <div className="flex w-full min-w-0 flex-shrink-0 flex-col gap-1.5">
                 <div className="flex w-full min-h-[3.25rem] flex-shrink-0 items-stretch gap-2 overflow-hidden">
                     <div className={playerColClass}>
                         <SinglePlayerPanel
@@ -1978,7 +1958,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             showElapsedOnly={leftShowElapsedOnly}
                             isCurrentUser={leftPlayerUser.id === currentUser?.id}
                             opponentMonsterDisplay={isLeftAi ? adventureMonsterPanel : undefined}
-                            spIngameOnboardingUserTarget={userPanelOnboardingTarget}
                             captureHeadStartFlatBonus={leftCaptureHeadStartFlatBonus}
                             speedTimeBonusScore={leftSpeedTimeBonusForPanel}
                             speedBonusScoreLabel={leftSpeedBonusScoreLabel}
@@ -2013,9 +1992,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             showElapsedOnly={rightShowElapsedOnly}
                             isCurrentUser={rightPlayerUser.id === currentUser?.id}
                             opponentMonsterDisplay={isRightAi ? adventureMonsterPanel : undefined}
-                            spIngameOnboardingUserTarget={
-                                singlePlayerOnboardingBarHighlight === 'user-panel' && currentUser?.id === rightPlayerUser.id
-                            }
                             captureHeadStartFlatBonus={rightCaptureHeadStartFlatBonus}
                             speedTimeBonusScore={rightSpeedTimeBonusForPanel}
                             speedBonusScoreLabel={rightSpeedBonusScoreLabel}
@@ -2052,7 +2028,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             showElapsedOnly={leftShowElapsedOnly}
                             isCurrentUser={leftPlayerUser.id === currentUser?.id}
                             opponentMonsterDisplay={isLeftAi ? adventureMonsterPanel : undefined}
-                            spIngameOnboardingUserTarget={userPanelOnboardingTarget}
                             captureHeadStartFlatBonus={leftCaptureHeadStartFlatBonus}
                             speedTimeBonusScore={leftSpeedTimeBonusForPanel}
                             speedBonusScoreLabel={leftSpeedBonusScoreLabel}
@@ -2088,9 +2063,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             showElapsedOnly={rightShowElapsedOnly}
                             isCurrentUser={rightPlayerUser.id === currentUser?.id}
                             opponentMonsterDisplay={isRightAi ? adventureMonsterPanel : undefined}
-                            spIngameOnboardingUserTarget={
-                                singlePlayerOnboardingBarHighlight === 'user-panel' && currentUser?.id === rightPlayerUser.id
-                            }
                             captureHeadStartFlatBonus={rightCaptureHeadStartFlatBonus}
                             speedTimeBonusScore={rightSpeedTimeBonusForPanel}
                             speedBonusScoreLabel={rightSpeedBonusScoreLabel}
@@ -2106,7 +2078,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     }
 
     return (
-        <div className={`flex w-full ${compactBarRowClass} flex-shrink-0`} {...barHighlightAttrs}>
+        <div className={`flex w-full ${compactBarRowClass} flex-shrink-0`}>
             <div className={playerColClass}>
                 <SinglePlayerPanel
                     user={leftPlayerUser}
@@ -2131,7 +2103,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     showElapsedOnly={leftShowElapsedOnly}
                     isCurrentUser={leftPlayerUser.id === currentUser?.id}
                     opponentMonsterDisplay={isLeftAi ? adventureMonsterPanel : undefined}
-                    spIngameOnboardingUserTarget={userPanelOnboardingTarget}
                     captureHeadStartFlatBonus={leftCaptureHeadStartFlatBonus}
                     speedTimeBonusScore={leftSpeedTimeBonusForPanel}
                     speedBonusScoreLabel={leftSpeedBonusScoreLabel}
@@ -2259,9 +2230,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 showElapsedOnly={rightShowElapsedOnly}
                 isCurrentUser={rightPlayerUser.id === currentUser?.id}
                 opponentMonsterDisplay={isRightAi ? adventureMonsterPanel : undefined}
-                spIngameOnboardingUserTarget={
-                    singlePlayerOnboardingBarHighlight === 'user-panel' && currentUser?.id === rightPlayerUser.id
-                }
                 captureHeadStartFlatBonus={rightCaptureHeadStartFlatBonus}
                 speedTimeBonusScore={rightSpeedTimeBonusForPanel}
                 speedBonusScoreLabel={rightSpeedBonusScoreLabel}

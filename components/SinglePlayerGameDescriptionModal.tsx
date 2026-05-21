@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LiveGameSession, ServerAction, SinglePlayerStageInfo, UserWithStatus } from '../types.js';
 import { getSinglePlayerStages, setSinglePlayerStagesFromServer } from '../constants/singlePlayerConstants.js';
@@ -31,10 +31,6 @@ import {
     RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
 } from './game/ResultModalRewardSlot.js';
 import TowerItemShopModal, { towerShopItemIdFromSlotKey } from './TowerItemShopModal.js';
-import {
-    isOnboardingTutorialActive,
-    ONBOARDING_PREGAME_DESC_STEP_EVENT,
-} from '../shared/constants/onboardingTutorial.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import StageDefinitionEditorShell from './editor/StageDefinitionEditorShell.js';
 import SinglePlayerStageOrderEditor from './editor/SinglePlayerStageOrderEditor.js';
@@ -133,19 +129,8 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     const [frameHeight, setFrameHeight] = useState(780);
     const [towerShopOpen, setTowerShopOpen] = useState(false);
     const [towerShopInitialItemId, setTowerShopInitialItemId] = useState<string | undefined>(undefined);
-    const [pregameDescSubStep, setPregameDescSubStep] = useState(-1);
     const [editorOpen, setEditorOpen] = useState(false);
     const [orderEditorOpen, setOrderEditorOpen] = useState(false);
-
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        const onStep = (ev: Event) => {
-            const d = (ev as CustomEvent<number>).detail;
-            setPregameDescSubStep(typeof d === 'number' ? d : -1);
-        };
-        window.addEventListener(ONBOARDING_PREGAME_DESC_STEP_EVENT, onStep as EventListener);
-        return () => window.removeEventListener(ONBOARDING_PREGAME_DESC_STEP_EVENT, onStep as EventListener);
-    }, []);
 
     useLayoutEffect(() => {
         if (isCompactUi) return;
@@ -165,12 +150,6 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
         ro.observe(el);
         return () => ro.disconnect();
     }, [session, stage, summaryFour, isCompactUi]);
-
-    const onboardingPhase5Active =
-        !readOnly &&
-        isOnboardingTutorialActive(currentUser) &&
-        (currentUser?.onboardingTutorialPhase ?? 0) === 5;
-    const onboardingPregameFinalSubStep = onboardingPhase5Active && pregameDescSubStep >= 2;
 
     const canOpenTowerShop = isTower && !!currentUser && !!onTowerItemPurchase;
     const canOpenStageEditor = !isTower && !!currentUser && isClientAdmin(currentUser) && !!onAction;
@@ -317,7 +296,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                                     <ResultModalXpRewardBadge
                                         variant="strategy"
                                         amount={clearReward.exp ?? 0}
-                                        density={onboardingPhase5Active ? 'preGameInline' : 'compact'}
+                                        density="compact"
                                     />
                                 )}
                                 {clearReward.items?.map((rewardItem, idx) => {
@@ -369,9 +348,6 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                           }
                         : undefined
                 }
-                embedOnboardingSpotlightTargets={onboardingPhase5Active}
-                spotlightWinLoseTargetId="onboarding-sp-pregame-winlose"
-                spotlightRestTargetId="onboarding-sp-pregame-rest"
             />
         </div>
     );
@@ -451,7 +427,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                     </Button>
                 </>
             )}
-            {onClose && !onboardingPregameFinalSubStep && (
+            {onClose && (
                 <Button
                     onClick={onClose}
                     colorScheme="gray"
@@ -465,7 +441,6 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                 </Button>
             )}
             <Button
-                data-onboarding-target={onboardingPregameFinalSubStep ? 'onboarding-sp-game-start' : undefined}
                 onClick={() => {
                     onStart?.();
                 }}
@@ -582,12 +557,12 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                 ) : undefined
             }
             windowId="game-description-modal"
-            onClose={onboardingPregameFinalSubStep ? undefined : onClose}
+            onClose={onClose}
             initialWidth={760}
             initialHeight={isCompactUi ? 2400 : frameHeight}
             modal={true}
             transparentModalBackdrop
-            closeOnOutsideClick={onboardingPregameFinalSubStep ? false : !!onClose}
+            closeOnOutsideClick={!!onClose}
             uniformPcScale={!isCompactUi}
             bodyAvoidVerticalStretch={!isCompactUi}
             mobileViewportFit={isCompactUi}
@@ -604,10 +579,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             {towerShopPortal}
             <div className={`flex min-h-0 flex-col text-white ${isCompactUi ? 'h-full min-h-0 flex-1' : 'shrink-0'}`}>
                 {isCompactUi ? (
-                    <div
-                        className="flex min-h-0 min-w-0 flex-1 flex-col"
-                        {...(onboardingPhase5Active ? { 'data-onboarding-target': 'onboarding-sp-pregame-body' } : {})}
-                    >
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                         <div
                             className={`min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain pr-0.5 [scrollbar-gutter:stable] ${PRE_GAME_MODAL_LAYER_CLASS}`}
                         >
@@ -626,10 +598,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                         ref={contentMeasureRef}
                         className={`flex min-h-0 min-w-0 shrink-0 flex-col ${PRE_GAME_MODAL_LAYER_CLASS}`}
                     >
-                        <div
-                            className="flex min-h-0 min-w-0 flex-1 flex-col"
-                            {...(onboardingPhase5Active ? { 'data-onboarding-target': 'onboarding-sp-pregame-body' } : {})}
-                        >
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                             <div className="min-h-0 shrink-0 overflow-visible overflow-x-hidden pr-0.5">
                                 <div>
                                     {mainBlocks}

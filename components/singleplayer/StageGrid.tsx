@@ -4,7 +4,6 @@ import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js'
 import { CONSUMABLE_ITEMS } from '../../constants/index.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
-import { isOnboardingTutorialActive } from '../../shared/constants/onboardingTutorial.js';
 import {
     isSinglePlayerStageCleared,
     isSinglePlayerStageUnlocked,
@@ -25,16 +24,8 @@ const PREMIUM_STAGE_ENTER_CLASS =
 const PREMIUM_STAGE_ENTER_CLASS_COMPACT =
     `${PREMIUM_STAGE_ENTER_CLASS} !px-1 !py-2 !text-center !tracking-tight !text-[10px] !overflow-visible`;
 
-/** 페이즈2 온보딩 등: disabled여도 앰버 입장 버튼 색 유지(클릭만 막음) */
-const premiumStageEnterClass = (compact: boolean, stripDisabledVisual: boolean): string => {
-    const raw = compact ? PREMIUM_STAGE_ENTER_CLASS_COMPACT : PREMIUM_STAGE_ENTER_CLASS;
-    if (!stripDisabledVisual) return raw;
-    return raw
-        .replace(/\s*disabled:!cursor-not-allowed/g, '')
-        .replace(/\s*disabled:!opacity-45/g, '')
-        .replace(/\s*disabled:!grayscale/g, '')
-        .replace(/\s*disabled:hover:!brightness-100/g, '');
-};
+const premiumStageEnterClass = (compact: boolean): string =>
+    compact ? PREMIUM_STAGE_ENTER_CLASS_COMPACT : PREMIUM_STAGE_ENTER_CLASS;
 
 interface StageGridProps {
     selectedClass: SinglePlayerLevel;
@@ -225,19 +216,6 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                 : [];
                         const effectiveActionPointCost = isCleared ? 0 : stage.actionPointCost;
                         const hasEnoughAP = currentUser.actionPoints.current >= effectiveActionPointCost;
-                        const spOnboardingPhase = currentUser.onboardingTutorialPhase ?? 0;
-                        const tutorialStage1Spotlight =
-                            isOnboardingTutorialActive(currentUser) &&
-                            stage.id === '입문-1' &&
-                            (spOnboardingPhase === 2 || spOnboardingPhase === 4);
-                        const tutorialBlockStage1Enter =
-                            tutorialStage1Spotlight && spOnboardingPhase === 2;
-                        const tutorialInviteStage1Enter =
-                            tutorialStage1Spotlight && spOnboardingPhase === 4;
-
-                        const stage1OnboardingTargetAttrs = tutorialStage1Spotlight
-                            ? ({ 'data-onboarding-target': 'onboarding-sp-stage-1' } as const)
-                            : {};
 
                         const cardSurface = usePremiumDesktop
                             ? 'relative flex min-h-0 min-w-0 flex-col items-center justify-between overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-b from-zinc-800/95 via-zinc-900 to-black/95 px-2.5 py-3 shadow-[0_14px_34px_-18px_rgba(0,0,0,0.88)] ring-1 ring-white/[0.06]'
@@ -248,45 +226,22 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                         return (
                             <div
                                 key={stage.id}
-                                {...stage1OnboardingTargetAttrs}
                                 className={`
                                     ${cardSurface}
                                     transition-transform duration-150
-                                    ${tutorialBlockStage1Enter ? 'cursor-not-allowed z-[1]' : ''}
-                                    ${tutorialBlockStage1Enter ? 'brightness-[1.18] saturate-110 shadow-[inset_0_0_0_2px_rgba(253,224,71,0.85),0_0_28px_6px_rgba(251,191,36,0.4)]' : ''}
                                     ${isLocked 
                                         ? 'opacity-50 cursor-not-allowed'
                                         : isCleared
-                                            ? tutorialBlockStage1Enter
-                                                ? 'ring-1 ring-green-500/70'
-                                                : `${usePremiumDesktop ? '' : 'cursor-pointer '}ring-1 ${usePremiumDesktop ? 'ring-emerald-400/55' : 'ring-green-500/70'} ${usePremiumDesktop ? '' : 'hover:scale-[1.02] hover:shadow-[0_0_22px_rgba(52,211,153,0.22)]'}`
-                                            : tutorialBlockStage1Enter
-                                              ? ''
-                                              : `${usePremiumDesktop ? '' : 'cursor-pointer hover:scale-[1.03] hover:shadow-md'} ${usePremiumDesktop ? '' : 'hover:shadow-[0_12px_28px_-12px_rgba(245,158,11,0.25)]'}`
+                                            ? `${usePremiumDesktop ? '' : 'cursor-pointer '}ring-1 ${usePremiumDesktop ? 'ring-emerald-400/55' : 'ring-green-500/70'} ${usePremiumDesktop ? '' : 'hover:scale-[1.02] hover:shadow-[0_0_22px_rgba(52,211,153,0.22)]'}`
+                                            : `${usePremiumDesktop ? '' : 'cursor-pointer hover:scale-[1.03] hover:shadow-md'} ${usePremiumDesktop ? '' : 'hover:shadow-[0_12px_28px_-12px_rgba(245,158,11,0.25)]'}`
                                     }
                                 `}
                                 onClick={() =>
                                     !usePremiumDesktop &&
                                     !isLocked &&
-                                    !tutorialBlockStage1Enter &&
-                                    !tutorialInviteStage1Enter &&
                                     handleStageEnter(stage.id)
                                 }
                             >
-                                {tutorialBlockStage1Enter && (
-                                    <div
-                                        className={`pointer-events-auto absolute inset-0 z-[35] bg-transparent ${usePremiumDesktop ? 'rounded-2xl' : 'rounded-lg'}`}
-                                        aria-hidden
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                        }}
-                                        onPointerDown={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                        }}
-                                    />
-                                )}
                                 {isLocked && (
                                     <div
                                         className={`absolute inset-0 z-10 flex items-center justify-center bg-gradient-to-b from-black/55 to-black/80 ${usePremiumDesktop ? 'rounded-2xl' : 'rounded-lg'}`}
@@ -420,17 +375,11 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                     <Button
                                         onClick={(e) => {
                                             e?.stopPropagation();
-                                            if (tutorialBlockStage1Enter) return;
                                             handleStageEnter(stage.id);
                                         }}
                                         colorScheme="none"
-                                        disabledWithoutDim={tutorialBlockStage1Enter}
-                                        className={`${premiumStageEnterClass(isMobile, tutorialBlockStage1Enter)}${
-                                            tutorialStage1Spotlight && !tutorialBlockStage1Enter
-                                                ? ' !brightness-125 !contrast-105 !ring-2 !ring-amber-200/95 !shadow-[0_0_32px_rgba(251,191,36,0.65),0_4px_22px_rgba(245,158,11,0.45)]'
-                                                : ''
-                                        }`}
-                                        disabled={!hasEnoughAP || tutorialBlockStage1Enter}
+                                        className={premiumStageEnterClass(isMobile)}
+                                        disabled={!hasEnoughAP}
                                         title={`입장 · 행동력 ${effectiveActionPointCost}`}
                                         style={
                                             tabShelf

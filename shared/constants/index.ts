@@ -9,7 +9,6 @@ export * from './rules.js';
 export * from './tournaments.js';
 export * from './ui.js';
 export * from './singlePlayerConstants.js';
-export * from './onboardingTutorial.js';
 export * from './towerConstants.js';
 export * from './guildConstants.js';
 export * from './adventureStrategyXp.js';

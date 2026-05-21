@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { UserWithStatus } from '../../types.js';
 import { SINGLE_PLAYER_MISSIONS } from '../../constants/singlePlayerConstants.js';
 import Button from '../Button.js';
@@ -8,10 +8,6 @@ import ClaimAllTrainingQuestRewardsModal from './ClaimAllTrainingQuestRewardsMod
 import TrainingQuestStartInfoModal from './TrainingQuestStartInfoModal.js';
 import { audioService } from '../../services/audioService.js';
 import { PREMIUM_QUEST_BTN } from './trainingQuestPremiumButtons.js';
-import {
-    getPhase8TrainingTutorialStep,
-    subscribePhase8TrainingTutorialStep,
-} from '../../utils/phase8TrainingTutorialStep.js';
 
 interface TrainingQuestPanelProps {
     currentUser: UserWithStatus;
@@ -46,16 +42,6 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
     } | null>(null);
     const [isClaimingAll, setIsClaimingAll] = useState(false);
     const [actionErrorMessage, setActionErrorMessage] = useState<string | null>(null);
-    const [phase8TutorialTick, setPhase8TutorialTick] = useState(0);
-    const onboardingPhase8 = (currentUser as { onboardingTutorialPhase?: number }).onboardingTutorialPhase ?? 0;
-    const phase8OnboardingStep = useMemo(
-        () => (onboardingPhase8 === 8 ? getPhase8TrainingTutorialStep() : -1),
-        [onboardingPhase8, phase8TutorialTick],
-    );
-
-    const bumpPhase8Tutorial = useCallback(() => setPhase8TutorialTick((t) => t + 1), []);
-
-    useEffect(() => subscribePhase8TrainingTutorialStep(bumpPhase8Tutorial), [bumpPhase8Tutorial]);
 
     // 실시간 타이머 업데이트 (1초마다)
     useEffect(() => {
@@ -69,10 +55,6 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
     useEffect(() => {
         setCurrentTime(Date.now());
     }, [currentUser]);
-
-    useEffect(() => {
-        bumpPhase8Tutorial();
-    }, [onboardingPhase8, bumpPhase8Tutorial]);
 
     useEffect(() => {
         if (!actionErrorMessage) return;
@@ -350,7 +332,6 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
     const embeddedQuestBtnTight = embeddedTabNarrow
         ? ' !text-[9px] !leading-tight !px-0.5 !py-0.5 [&_img]:!h-2.5 [&_img]:!w-2.5'
         : '';
-    const phase8BlockQuestClicks = phase8OnboardingStep >= 0 && phase8OnboardingStep <= 2;
     const isAdminUser = !!currentUser.isAdmin;
 
     return (
@@ -448,23 +429,17 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                             return (
                                 <div
                                     key={quest.id}
-                                    {...(quest.id === 'mission_attendance'
-                                        ? { 'data-onboarding-target': 'onboarding-sp-training-quest-1-card' }
-                                        : quest.id === 'mission_complete_game'
-                                          ? { 'data-onboarding-target': 'onboarding-sp-training-quest-2-card' }
-                                          : {})}
                                     className={
                                         inModal
                                             ? `relative flex min-h-0 w-full min-w-0 self-start flex-col overflow-hidden rounded-lg border-2 p-1 shadow-sm sm:p-1.5 ${
                                                   quest.isUnlocked
                                                       ? 'border-emerald-400/45 bg-gradient-to-b from-zinc-800/92 via-zinc-900 to-zinc-950 ring-1 ring-white/[0.06]'
                                                       : 'border-zinc-600/80 bg-gradient-to-b from-zinc-900/90 to-black/90'
-                                              } ${phase8BlockQuestClicks ? 'pointer-events-none' : ''}`
+                                              }`
                                             : `
                                         relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border-2
                                         ${useCompactQuestCard ? `h-full min-h-0 ${embeddedTabNarrow ? 'p-1' : 'p-1.5'}` : 'h-auto p-1 sm:p-1.5'}
                                         ${quest.isUnlocked ? 'border-primary bg-tertiary' : 'border-gray-600 bg-tertiary'}
-                                        ${phase8BlockQuestClicks ? 'pointer-events-none' : ''}
                                     `
                                     }
                                 >
@@ -572,16 +547,9 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                         ) : quest.isUnlocked && !quest.isStarted ? (
                                                             <div className="flex w-full shrink-0 gap-0.5">
                                                                 <Button
-                                                                    {...(quest.id === 'mission_attendance'
-                                                                        ? { 'data-onboarding-target': 'onboarding-sp-training-quest-1-start' }
-                                                                        : {})}
                                                                     onClick={() => handleOpenStartMissionModal(quest.id)}
                                                                     colorScheme="none"
-                                                                    className={`${PREMIUM_QUEST_BTN.start} !min-h-0 !shrink-0 !py-1.5 !text-[11px] sm:!text-xs ${
-                                                                        phase8OnboardingStep === 1 && quest.id === 'mission_attendance'
-                                                                            ? ' relative z-[70] !pointer-events-auto'
-                                                                            : ''
-                                                                    }`}
+                                                                    className={`${PREMIUM_QUEST_BTN.start} !min-h-0 !shrink-0 !py-1.5 !text-[11px] sm:!text-xs`}
                                                                 >
                                                                     시작하기
                                                                 </Button>
@@ -892,16 +860,9 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                 ) : !quest.isStarted ? (
                                                     <>
                                                         <Button
-                                                            {...(quest.id === 'mission_attendance'
-                                                                ? { 'data-onboarding-target': 'onboarding-sp-training-quest-1-start' }
-                                                                : {})}
                                                             onClick={() => handleOpenStartMissionModal(quest.id)}
                                                             colorScheme="none"
-                                                            className={`${PREMIUM_QUEST_BTN.start}${embeddedQuestBtnTight}${
-                                                                phase8OnboardingStep === 1 && quest.id === 'mission_attendance'
-                                                                    ? ' relative z-[70] !pointer-events-auto'
-                                                                    : ''
-                                                            }`}
+                                                            className={`${PREMIUM_QUEST_BTN.start}${embeddedQuestBtnTight}`}
                                                         >
                                                             시작하기
                                                         </Button>
@@ -1112,16 +1073,9 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                 ) : !quest.isStarted ? (
                                                     <>
                                                         <Button
-                                                            {...(quest.id === 'mission_attendance'
-                                                                ? { 'data-onboarding-target': 'onboarding-sp-training-quest-1-start' }
-                                                                : {})}
                                                             onClick={() => handleOpenStartMissionModal(quest.id)}
                                                             colorScheme="none"
-                                                            className={`${PREMIUM_QUEST_BTN.start}${
-                                                                phase8OnboardingStep === 1 && quest.id === 'mission_attendance'
-                                                                    ? ' relative z-[70] !pointer-events-auto'
-                                                                    : ''
-                                                            }`}
+                                                            className={PREMIUM_QUEST_BTN.start}
                                                         >
                                                             시작하기
                                                         </Button>

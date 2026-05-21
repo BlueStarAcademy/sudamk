@@ -1,6 +1,5 @@
 import React, { useMemo, useState, Suspense, lazy } from 'react';
 import type { PairRoomState } from '../types/api.js';
-import { clearOnboardingBagTutorialStep, getOnboardingBagTutorialStep } from '../utils/onboardingBagTutorialStep.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, NATIVE_MOBILE_MODAL_MAX_WIDTH_VW } from '../constants/ads.js';
@@ -157,21 +156,6 @@ const AppModalLayer: React.FC = () => {
 
     if (!currentUserWithStatus) return null;
 
-    const onInventoryCloseForTutorial = async () => {
-        const p = currentUserWithStatus.onboardingTutorialPhase;
-        const bagStep = getOnboardingBagTutorialStep();
-        if (p === 9 && bagStep === 4 && handlers?.handleAction) {
-            try {
-                await handlers.handleAction({ type: 'ADVANCE_ONBOARDING_TUTORIAL', payload: { phase: 10 } });
-            } finally {
-                clearOnboardingBagTutorialStep();
-                handlers.closeInventory();
-            }
-            return;
-        }
-        handlers.closeInventory();
-    };
-
     const respondIncomingPairInvite = async (inviteId: string, accept: boolean, inviteRoomId?: string) => {
         setPairInviteRespondBusy(true);
         try {
@@ -245,7 +229,7 @@ const AppModalLayer: React.FC = () => {
             )}
             {modals.isInventoryOpen && (
                 <Suspense fallback={ModalLoadingFallback()}>
-                    <InventoryModal currentUser={currentUserWithStatus} onClose={onInventoryCloseForTutorial} onAction={handlers.handleAction} onStartEnhance={handlers.openEnhancingItem} onOpenBlacksmithTab={handlers.openBlacksmithTabFromInventory} enhancementAnimationTarget={modals.enhancementAnimationTarget} onAnimationComplete={handlers.clearEnhancementAnimation} isTopmost={topmostModalId === 'inventory'} />
+                    <InventoryModal currentUser={currentUserWithStatus} onClose={handlers.closeInventory} onAction={handlers.handleAction} onStartEnhance={handlers.openEnhancingItem} onOpenBlacksmithTab={handlers.openBlacksmithTabFromInventory} enhancementAnimationTarget={modals.enhancementAnimationTarget} onAnimationComplete={handlers.clearEnhancementAnimation} isTopmost={topmostModalId === 'inventory'} />
                 </Suspense>
             )}
             {modals.isMailboxOpen && (

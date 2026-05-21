@@ -77,13 +77,6 @@ import {
     resolvePairAiOpponentPetSyntheticDisplayLevel,
 } from './shared/utils/strategicAiDifficulty.js';
 import {
-    isOnboardingTutorialActive,
-    ONBOARDING_INGAME_SP_STEP_EVENT,
-    ONBOARDING_INGAME_SP_INTRO1_DEMO_DONE_EVENT,
-    ONBOARDING_INTRO1_FORCED_CAPTURE_POINT,
-    shouldRestrictIntro1OnboardingFirstMove,
-} from './shared/constants/onboardingTutorial.js';
-import {
     PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY,
     POST_GAME_PAIR_ROOM_RESTORE_SESSION_KEY,
 } from './shared/constants/pairArena.js';
@@ -688,21 +681,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [settings.features.moveConfirmButtonBox]);
     const [isAnalysisActive, setIsAnalysisActive] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
-    const [spIngameOnboardingStep, setSpIngameOnboardingStep] = useState(-1);
-    const [intro1DemoMoveDone, setIntro1DemoMoveDone] = useState(false);
-
-    useEffect(() => {
-        const handler = (e: Event) => {
-            const d = (e as CustomEvent<number>).detail;
-            if (typeof d === 'number') setSpIngameOnboardingStep(d);
-        };
-        window.addEventListener(ONBOARDING_INGAME_SP_STEP_EVENT, handler as EventListener);
-        return () => window.removeEventListener(ONBOARDING_INGAME_SP_STEP_EVENT, handler as EventListener);
-    }, []);
-
-    useEffect(() => {
-        setIntro1DemoMoveDone(false);
-    }, [session.id]);
     const [resumeCountdown, setResumeCountdown] = useState(0);
     const resumeCountdownRef = useRef(0);
     resumeCountdownRef.current = resumeCountdown;
@@ -1105,46 +1083,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         isScoreBasedPresentation &&
         !scoringOverlayCompleted;
     const isSinglePlayer = sessionPolicy.kind === 'singleplayer';
-    const onboardingUserPhase = currentUserWithStatus.onboardingTutorialPhase ?? -1;
-    const isIntro1SpOnboardingUi =
-        isSinglePlayer &&
-        session.stageId === '입문-1' &&
-        gameStatus === 'playing' &&
-        isOnboardingTutorialActive(currentUserWithStatus) &&
-        onboardingUserPhase === 6;
-
-    /** 오버레이 이벤트 순서/USER_UPDATE 지연 시에도 스텝 0이 잡히도록 data-onboarding-target 동기화 */
-    useEffect(() => {
-        if (!isSinglePlayer || session.stageId !== '입문-1' || gameStatus !== 'playing') {
-            setSpIngameOnboardingStep(-1);
-            return;
-        }
-        if (!isOnboardingTutorialActive(currentUserWithStatus)) return;
-        if (onboardingUserPhase !== 6) return;
-        setSpIngameOnboardingStep((s) => (s < 0 ? 0 : s));
-    }, [
-        isSinglePlayer,
-        session.stageId,
-        gameStatus,
-        currentUserWithStatus,
-        onboardingUserPhase,
-    ]);
-
-    const restrictIntro1OnboardingMove = shouldRestrictIntro1OnboardingFirstMove({
-        stageId: session.stageId,
-        gameStatus,
-        userPhase: onboardingUserPhase,
-        ingameSubStep: spIngameOnboardingStep,
-        demoMoveDone: intro1DemoMoveDone,
-        moveHistoryLength: session.moveHistory?.length ?? 0,
-    });
-    const singlePlayerOnboardingBarHighlight =
-        isIntro1SpOnboardingUi && spIngameOnboardingStep === 0
-            ? ('user-panel' as const)
-            : isIntro1SpOnboardingUi && spIngameOnboardingStep === 1
-              ? ('scores-bar' as const)
-              : null;
-    const intro1OnboardingDemoPoint = restrictIntro1OnboardingMove ? ONBOARDING_INTRO1_FORCED_CAPTURE_POINT : null;
     const isTower = sessionPolicy.kind === 'tower';
     const isAdventureGame = sessionPolicy.kind === 'adventure';
     const isGuildWarGame = sessionPolicy.kind === 'guildwar';
@@ -3146,14 +3084,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     return;
                 }
 
-                if (restrictIntro1OnboardingMove && isSinglePlayer) {
-                    if (x !== ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.x || y !== ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.y) {
-                        flashBoardRuleMessage('튜토리얼: 표시된 자리에 두세요.');
-                        pveLocalStonePlacementLockRef.current = false;
-                        return;
-                    }
-                }
-
                 // 클라이언트에서 move 처리 (바둑 규칙 검증 적용)
                 let moveResult;
                 try {
@@ -3181,16 +3111,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     if (moveResult.reason === 'ko') showKoRuleFlash();
                     pveLocalStonePlacementLockRef.current = false;
                     return;
-                }
-
-                if (
-                    restrictIntro1OnboardingMove &&
-                    isSinglePlayer &&
-                    x === ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.x &&
-                    y === ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.y
-                ) {
-                    setIntro1DemoMoveDone(true);
-                    window.dispatchEvent(new CustomEvent(ONBOARDING_INGAME_SP_INTRO1_DEMO_DONE_EVENT));
                 }
 
                 // 게임 상태 업데이트 (handlers를 통해, 서버로 전송하지 않음)
@@ -3368,7 +3288,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         myPlayerEnum,
         applyOptimisticAiUserMove,
         applyOptimisticPairUserMove,
-        restrictIntro1OnboardingMove,
         flashBoardRuleMessage,
         runHiddenPlacementWithDelay,
         session.stageId,
@@ -3449,15 +3368,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
 
-                if (restrictIntro1OnboardingMove && isSinglePlayer) {
-                    if (x !== ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.x || y !== ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.y) {
-                        flashBoardRuleMessage('튜토리얼: 표시된 자리에 두세요.');
-                        pveLocalStonePlacementLockRef.current = false;
-                        setPendingMove(null);
-                        return;
-                    }
-                }
-
                 let moveResult;
                 try {
                     moveResult = processMoveClient(
@@ -3478,16 +3388,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     pveLocalStonePlacementLockRef.current = false;
                     setPendingMove(null);
                     return;
-                }
-
-                if (
-                    restrictIntro1OnboardingMove &&
-                    isSinglePlayer &&
-                    x === ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.x &&
-                    y === ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.y
-                ) {
-                    setIntro1DemoMoveDone(true);
-                    window.dispatchEvent(new CustomEvent(ONBOARDING_INGAME_SP_INTRO1_DEMO_DONE_EVENT));
                 }
 
                 actionType = isTower ? ('TOWER_CLIENT_MOVE' as any) : ('SINGLE_PLAYER_CLIENT_MOVE' as any);
@@ -3675,7 +3575,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.isAiGame,
         applyOptimisticAiUserMove,
         applyOptimisticPairUserMove,
-        restrictIntro1OnboardingMove,
         flashBoardRuleMessage,
         runHiddenPlacementWithDelay,
         session.stageId,
@@ -4970,7 +4869,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         clientTimes={clientTimes.clientTimes}
                                         isSinglePlayer={true}
                                         isMobile={isMobile}
-                                        singlePlayerOnboardingBarHighlight={singlePlayerOnboardingBarHighlight}
                                     />
                                 </div>
                             </div>
@@ -4994,9 +4892,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         isBoardLocked={isBoardLocked}
                                         isBoardRotated={isBoardRotated}
                                         onToggleBoardRotation={() => setIsBoardRotated((prev: boolean) => !prev)}
-                                        onboardingDemoAnchorPoint={intro1OnboardingDemoPoint}
-                                        onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
-                                        intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                         boardRuleFlashMessage={boardRuleFlashMessage}
@@ -5140,7 +5035,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         clientTimes={clientTimes.clientTimes}
                                         isSinglePlayer={true}
                                         isMobile={isMobile}
-                                        singlePlayerOnboardingBarHighlight={singlePlayerOnboardingBarHighlight}
                                     />
                                 </div>
                             </div>
@@ -5162,9 +5056,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         showBoardGlow={boardGlowForHiddenScanItem}
                                         resumeCountdown={resumeCountdown}
                                         isBoardLocked={isBoardLocked}
-                                        onboardingDemoAnchorPoint={intro1OnboardingDemoPoint}
-                                        onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
-                                        intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                         boardRuleFlashMessage={boardRuleFlashMessage}
@@ -5398,9 +5289,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         clientTimes={clientTimes.clientTimes}
                                         isMobile={isMobile}
                                         isSinglePlayer={isSinglePlayer}
-                                        singlePlayerOnboardingBarHighlight={
-                                            isSinglePlayer ? singlePlayerOnboardingBarHighlight : null
-                                        }
                                     />
                                 </div>
                             </div>
@@ -5437,9 +5325,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                         isBoardRotated={isBoardRotated}
                                                         onToggleBoardRotation={() => setIsBoardRotated((prev: boolean) => !prev)}
                                                         showBoardGlow={boardGlowForHiddenScanItem}
-                                                        onboardingDemoAnchorPoint={intro1OnboardingDemoPoint}
-                                                        onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
-                                                        intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                                         boardRuleFlashMessage={boardRuleFlashMessage}
@@ -5468,9 +5353,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                 isBoardRotated={isBoardRotated}
                                                 onToggleBoardRotation={() => setIsBoardRotated((prev: boolean) => !prev)}
                                                 showBoardGlow={boardGlowForHiddenScanItem}
-                                                onboardingDemoAnchorPoint={intro1OnboardingDemoPoint}
-                                                onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
-                                                intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                                 boardRuleFlashMessage={boardRuleFlashMessage}
                                                 blockScoringBoardAnalysis={blockScoringBoardAnalysis}
                                                 itemAimIntroBoardBlocked={itemAimIntroBoardBlocked}

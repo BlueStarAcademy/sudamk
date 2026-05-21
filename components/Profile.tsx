@@ -46,7 +46,6 @@ import {
 } from '../shared/constants/pairHatchery.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import { getAdventureCodexCompletionBreakdown } from '../utils/adventureCodexCompletion.js';
-import { isOnboardingTutorialActive, ONBOARDING_PHASE_COMPLETE } from '../shared/constants/onboardingTutorial.js';
 import TrainingQuestModal from './singleplayer/TrainingQuestModal.js';
 import { userHasFullTrainingQuestReward } from '../utils/trainingQuestRewardNotify.js';
 import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposition.js';
@@ -66,6 +65,8 @@ import PairPetDetailEmbedPanel from './pair/PairPetDetailEmbedPanel.js';
 import PairPetHomeEmptyDetailFrame from './pair/PairPetHomeEmptyDetailFrame.js';
 import HomeNativeMergedEquipmentAbilityPanel from './HomeNativeMergedEquipmentAbilityPanel.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
+import { useScreenGuide } from '../hooks/useScreenGuide.js';
+import ScreenGuideModal from './ScreenGuideModal.js';
 
 function isVipExpiresActive(exp?: number): boolean {
     return typeof exp === 'number' && Number.isFinite(exp) && exp > Date.now();
@@ -636,7 +637,6 @@ const Profile: React.FC<ProfileProps> = () => {
         arenaEntranceFromServer,
         singlePlayerStagesListRevision,
     } = useAppContext();
-    const beginOnboardingFirstHomeRef = useRef(false);
     const adventureCodexDonutGradId = useId().replace(/:/g, '');
     const { isNativeMobile } = useNativeMobileShell();
     const profileTab = (currentRoute.params?.tab as 'home' | 'ranking' | 'arena' | undefined) ?? 'home';
@@ -690,27 +690,13 @@ const Profile: React.FC<ProfileProps> = () => {
     const [showMannerRankModal, setShowMannerRankModal] = useState(false);
     const [isGuildCreateModalOpen, setIsGuildCreateModalOpen] = useState(false);
     const [isGuildJoinModalOpen, setIsGuildJoinModalOpen] = useState(false);
-    const [tutorialAdminBusy, setTutorialAdminBusy] = useState(false);
     const [adminModalPreviewMenuOpen, setAdminModalPreviewMenuOpen] = useState(false);
-    const tutorialPreviewActive = isOnboardingTutorialActive(currentUserWithStatus);
+    const homeScreenGuide = useScreenGuide('home');
 
     const meetsGuildLevelForFeatures = useMemo(
         () => (currentUserWithStatus ? userMeetsGuildFeatureLevelRequirement(currentUserWithStatus) : false),
         [currentUserWithStatus?.userLevel, currentUserWithStatus?.isAdmin],
     );
-
-    const handleAdminTutorialToggle = useCallback(async () => {
-        if (!isClientAdmin(currentUserWithStatus) || !handlers?.handleAction) return;
-        setTutorialAdminBusy(true);
-        try {
-            await handlers.handleAction({
-                type: 'ADVANCE_ONBOARDING_TUTORIAL',
-                payload: { phase: tutorialPreviewActive ? ONBOARDING_PHASE_COMPLETE : 0 },
-            });
-        } finally {
-            setTutorialAdminBusy(false);
-        }
-    }, [currentUserWithStatus, handlers, tutorialPreviewActive]);
 
     const [vipMenuOpen, setVipMenuOpen] = useState(false);
     const [vipTestBusy, setVipTestBusy] = useState(false);
@@ -772,20 +758,6 @@ const Profile: React.FC<ProfileProps> = () => {
     useEffect(() => {
         if (profileTab !== 'home') setAdminModalPreviewMenuOpen(false);
     }, [profileTab]);
-
-    useEffect(() => {
-        if (beginOnboardingFirstHomeRef.current) return;
-        if (!handlers?.handleAction || !currentUserWithStatus) return;
-        if (!isOnboardingTutorialActive(currentUserWithStatus)) return;
-        if (currentRoute.view !== 'profile' || profileTab !== 'home') return;
-        const pending = (currentUserWithStatus as User & { onboardingTutorialPendingFirstHome?: boolean })
-            .onboardingTutorialPendingFirstHome;
-        if (!pending) return;
-        beginOnboardingFirstHomeRef.current = true;
-        void handlers.handleAction({ type: 'BEGIN_ONBOARDING_ON_FIRST_HOME' }).catch(() => {
-            beginOnboardingFirstHomeRef.current = false;
-        });
-    }, [handlers, currentUserWithStatus, currentRoute.view, profileTab]);
 
     useEffect(() => {
         const calculateTime = () => {
@@ -2061,7 +2033,7 @@ const Profile: React.FC<ProfileProps> = () => {
                         <div className="flex min-h-0 w-full flex-1 rounded-md" />
                     </div>
                 ) : (
-                    <div className={mergedCardClass} data-onboarding-target="onboarding-sp-home-card">
+                    <div className={mergedCardClass}>
                         <div className={imagePaneClass}>
                             <div
                                 onClick={onSelectSinglePlayerLobby}
@@ -2110,7 +2082,7 @@ const Profile: React.FC<ProfileProps> = () => {
                 {isNativeMobile && profileTab !== 'home' ? (
                     <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.webp" layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={true} locked={!!getArenaEntryLockReason('tower')} lockReason={getArenaEntryLockReason('tower') ?? undefined} />
                 ) : (
-                    <div className={mergedCardClass} data-onboarding-target="onboarding-tower-card">
+                    <div className={mergedCardClass}>
                         <div className={imagePaneClass}>
                             <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.webp" layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={false} hideOverlayText={true} locked={!!getArenaEntryLockReason('tower')} lockReason={getArenaEntryLockReason('tower') ?? undefined} />
                         </div>
@@ -2132,7 +2104,6 @@ const Profile: React.FC<ProfileProps> = () => {
                         ? 'flex min-h-0 min-w-0 flex-col gap-1.5'
                         : 'col-span-2 grid h-full min-h-0 min-w-0 grid-cols-2 gap-2.5 lg:gap-3 [&>*]:min-h-0 [&>*]:min-w-0'
                 }
-                data-onboarding-target="onboarding-home-pvp-arenas"
             >
                 <div className={mergedCardClass}>
                     <div className={imagePaneClass}>
@@ -2231,7 +2202,7 @@ const Profile: React.FC<ProfileProps> = () => {
                         <div className="flex min-h-0 w-full flex-1 rounded-md" />
                     </div>
                 ) : (
-                    <div className={mergedCardClass} data-onboarding-target="onboarding-home-championship-card">
+                    <div className={mergedCardClass}>
                         <div className={imagePaneClass}>
                             <div onClick={getArenaEntryLockReason('championship') ? undefined : onSelectTournamentLobby} className={`group flex h-full min-h-0 w-full flex-col text-center transition-all transform text-on-panel relative overflow-hidden rounded-xl ${getArenaEntryLockReason('championship') ? 'cursor-not-allowed grayscale-[0.25] opacity-75' : 'cursor-pointer hover:-translate-y-1 hover:shadow-purple-500/30'}`}>
                                 <img src={TOURNAMENT_LOBBY_IMG} alt="챔피언십" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
@@ -2295,7 +2266,7 @@ const Profile: React.FC<ProfileProps> = () => {
                         lockReason={getArenaEntryLockReason('adventure') ?? undefined}
                     />
                 ) : (
-                    <div className={mergedCardClass} data-onboarding-target="onboarding-home-adventure-card">
+                    <div className={mergedCardClass}>
                         <div className={imagePaneClass}>
                             <PveCard
                                 title="모험"
@@ -2524,7 +2495,6 @@ const Profile: React.FC<ProfileProps> = () => {
     const renderProfileHomeLeftColumn = (gridClassName: string) => (
         <div className={gridClassName}>
             <div
-                data-onboarding-target="onboarding-home-profile"
                 className={`relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15 ${
                     homeLeftColumnMerge ? 'h-auto shrink-0' : 'h-full'
                 }`}
@@ -2534,21 +2504,6 @@ const Profile: React.FC<ProfileProps> = () => {
                 {profileTab === 'home' && adminVipCorner}
                 {profileTab === 'home' && isClientAdmin(currentUserWithStatus) && (
                     <div className="pointer-events-auto absolute right-1.5 top-1.5 z-[4] flex flex-col items-end gap-1 sm:right-2 sm:top-2 sm:flex-row sm:items-center sm:gap-1.5">
-                        <Button
-                            type="button"
-                            colorScheme="none"
-                            bare
-                            disabled={tutorialAdminBusy}
-                            onClick={() => void handleAdminTutorialToggle()}
-                            className="!rounded-md !border !border-violet-400/55 !bg-violet-950/95 !px-2.5 !py-1 !text-[10px] !font-bold uppercase tracking-wide !text-violet-100 shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:!px-3 sm:!py-1.5 sm:!text-xs"
-                            title={
-                                tutorialPreviewActive
-                                    ? '신규 튜토리얼 테스트 종료'
-                                    : '신규 튜토리얼을 0단계부터 테스트'
-                            }
-                        >
-                            {tutorialPreviewActive ? '튜토리얼 끝' : '튜토리얼'}
-                        </Button>
                         <div ref={adminModalPreviewMenuRef} className="relative">
                             <Button
                                 type="button"
@@ -2840,6 +2795,13 @@ const Profile: React.FC<ProfileProps> = () => {
                     open={trainingQuestModalOpen}
                     onClose={() => setTrainingQuestModalOpen(false)}
                     currentUser={currentUserWithStatus}
+                />
+            )}
+            {homeScreenGuide.isOpen && (
+                <ScreenGuideModal
+                    guideId="home"
+                    onClose={homeScreenGuide.close}
+                    onDismissForever={homeScreenGuide.dismissForever}
                 />
             )}
         </div>

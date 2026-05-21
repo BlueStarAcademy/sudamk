@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
-import { isOnboardingTutorialActive } from '../shared/constants/onboardingTutorial.js';
 import { calculateTotalStats } from '../services/statService.js';
 import {
     getBadukAbilitySnapshotFromStats,
@@ -43,8 +42,6 @@ type QuickBtn = {
     count?: number;
     /** 온보딩 안내용 점멸 */
     pulse?: boolean;
-    /** `data-onboarding-target` — 스포트라이트 */
-    onboardingTarget?: string;
 };
 
 const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
@@ -66,8 +63,6 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
         currentUserWithStatus,
     } = useAppContext();
 
-    const onboardingPhase = currentUserWithStatus?.onboardingTutorialPhase ?? 0;
-    const onboardingActive = isOnboardingTutorialActive(currentUserWithStatus);
     const badukSnap = useMemo(() => {
         if (!currentUserWithStatus) return null;
         return getBadukAbilitySnapshotFromStats(currentUserWithStatus, calculateTotalStats(currentUserWithStatus));
@@ -77,21 +72,6 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
         if (!badukSnap) return false;
         if (label === '퀘스트') return !isQuestQuickUnlocked(badukSnap);
         if (label === '대장간') return !isBlacksmithQuickUnlocked(badukSnap);
-        return false;
-    };
-    const tutorialQuickDisabled = (label: string) => {
-        if (progressionQuickDisabled(label)) return true;
-        if (!onboardingActive) return false;
-        if (onboardingPhase >= 10) return false;
-        if (label === '가방') return onboardingPhase < 9;
-        if (label === '대장간') return onboardingPhase < 10;
-        if (label === '퀘스트' || label === '거래소' || label === '상점') return true;
-        return false;
-    };
-    const tutorialQuickPulse = (label: string) => {
-        if (!onboardingActive) return false;
-        if (label === '가방' && onboardingPhase === 9) return true;
-        if (label === '대장간' && onboardingPhase === 10) return true;
         return false;
     };
 
@@ -106,7 +86,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 gameplay: true,
                 iconUrl: '/images/quickmenu/quest.webp',
                 handler: handlers.openQuests,
-                disabled: tutorialQuickDisabled('퀘스트'),
+                disabled: progressionQuickDisabled('퀘스트'),
                 notification: hasClaimableQuest,
             },
             {
@@ -114,7 +94,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 gameplay: true,
                 iconUrl: '/images/quickmenu/trade.webp',
                 handler: handlers.openExchange,
-                disabled: tutorialQuickDisabled('거래소'),
+                disabled: progressionQuickDisabled('거래소'),
                 notification: hasClaimableExchangeSettlement,
             },
             {
@@ -122,17 +102,15 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 gameplay: true,
                 iconUrl: '/images/quickmenu/enhance.webp',
                 handler: handlers.openBlacksmithModal,
-                disabled: tutorialQuickDisabled('대장간'),
+                disabled: progressionQuickDisabled('대장간'),
                 notification: false,
-                pulse: tutorialQuickPulse('대장간'),
-                onboardingTarget: 'onboarding-quick-forge',
             },
             {
                 label: '상점',
                 gameplay: true,
                 iconUrl: '/images/quickmenu/store.webp',
                 handler: () => handlers.openShop(),
-                disabled: tutorialQuickDisabled('상점'),
+                disabled: progressionQuickDisabled('상점'),
                 notification: false,
             },
             {
@@ -140,10 +118,8 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 gameplay: true,
                 iconUrl: '/images/quickmenu/bag.webp',
                 handler: handlers.openInventory,
-                disabled: tutorialQuickDisabled('가방'),
+                disabled: progressionQuickDisabled('가방'),
                 notification: false,
-                pulse: tutorialQuickPulse('가방'),
-                onboardingTarget: 'onboarding-quick-bag',
             },
             {
                 label: '펫',
@@ -200,8 +176,6 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
             hasClaimableExchangeSettlement,
             hasUnreadHomeBoardPosts,
             hasClaimablePairPetTrainingOrHatchery,
-            onboardingActive,
-            onboardingPhase,
             badukSnap,
             currentUserWithStatus?.isAdmin,
         ],
@@ -304,7 +278,6 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 }}
                 disabled={btn.disabled}
                 title={btn.label}
-                {...(btn.onboardingTarget ? { 'data-onboarding-target': btn.onboardingTarget } : {})}
                 className={`relative flex min-h-0 min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-md border px-0.5 transition-transform active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45 ${btn.pulse ? 'animate-pulse ring-2 ring-amber-300/60' : ''} ${topBar ? 'h-full min-h-0 py-1' : 'py-1'} ${shell}`}
             >
                 <div className={iconShell}>
@@ -442,7 +415,6 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 }}
                 disabled={btn.disabled}
                 title={btn.label}
-                {...(btn.onboardingTarget ? { 'data-onboarding-target': btn.onboardingTarget } : {})}
                 className={`${base} disabled:cursor-not-allowed disabled:opacity-45 ${btn.pulse ? 'animate-pulse ring-2 ring-amber-300/60' : ''}`}
             >
                 <div className="flex min-h-0 w-full flex-1 items-center justify-center">

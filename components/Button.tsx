@@ -20,8 +20,6 @@ interface ButtonProps {
   cooldownMs?: number;
   /** true면 기본 테두리·배경·기본 fontSize·텍스트 자동 축소를 쓰지 않고 className만 적용 (경기장 종료 패널 등) */
   bare?: boolean;
-  /** 온보딩 스포트라이트 타깃 측정용 */
-  'data-onboarding-target'?: string;
   tabIndex?: number;
   'aria-hidden'?: boolean | 'true' | 'false';
 }
@@ -39,7 +37,6 @@ const Button: React.FC<ButtonProps> = ({
   style,
   cooldownMs = 1000,
   bare = false,
-  'data-onboarding-target': dataOnboardingTarget,
   tabIndex,
   'aria-hidden': ariaHidden,
 }) => {
@@ -185,7 +182,6 @@ const Button: React.FC<ButtonProps> = ({
       className={mergedClassName}
       title={title}
       style={Object.keys(defaultStyle).length ? defaultStyle : undefined}
-      data-onboarding-target={dataOnboardingTarget}
       tabIndex={tabIndex}
       aria-hidden={ariaHidden}
     >

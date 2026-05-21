@@ -380,9 +380,6 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
     if ((summary.items && summary.items.length > 0) || pairPetInventoryTouched) {
         fieldsToUpdate.push('inventory');
     }
-    if (user.onboardingTutorialPhase != null) {
-        fieldsToUpdate.push('onboardingTutorialPhase');
-    }
     broadcastUserUpdate(user, fieldsToUpdate);
 };
 

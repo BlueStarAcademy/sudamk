@@ -60,23 +60,6 @@ export function getSelectiveUserUpdate(
         'SAVE_EXCHANGE_STATE': ['exchangeState', 'inventory'],
         'PURCHASE_EXCHANGE_LISTING': ['inventory', 'gold', 'diamonds'],
         'EXCHANGE_PURCHASE_APPLY_SELLER': ['inventory', 'exchangeState'],
-        'ADVANCE_ONBOARDING_TUTORIAL': ['onboardingTutorialPhase', 'onboardingSpResultTutorialStep'],
-        'BEGIN_ONBOARDING_ON_FIRST_HOME': ['onboardingTutorialPhase', 'onboardingTutorialPendingFirstHome'],
-        'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD': [
-            'onboardingTutorialPhase',
-            'onboardingCompletionRewardClaimed',
-            'gold',
-            'diamonds',
-        ],
-        'SKIP_ONBOARDING_TUTORIAL': ['onboardingTutorialPhase', 'onboardingTutorialPendingFirstHome', 'onboardingSpResultTutorialStep'],
-        'CLAIM_ONBOARDING_INTRO1_FAN': [
-            'inventory',
-            'onboardingTutorialPhase',
-            'onboardingIntro1FanPendingClaim',
-            'onboardingSpResultTutorialStep',
-        ],
-        'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL': ['onboardingSpResultTutorialStep'],
-        'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ': ['onboardingSpResultTutorialStep'],
         'ADMIN_SET_VIP_TEST_FLAGS': ['rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt', 'removeAdsPurchased'],
         'ADMIN_SET_DIAMOND_PACKAGE_TEST': [
             'activeDiamondPackageTier',
@@ -236,7 +219,7 @@ export function getUserDelta(oldUser: User | null, newUser: User): Partial<User>
         'spentStatPoints', 'equipmentPresets', 'mail', 'quests',
         'inventorySlots', 'blacksmithLevel', 'blacksmithXp',
         'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament',
-        'singlePlayerProgress', 'clearedSinglePlayerStages', 'onboardingTutorialPhase', 'onboardingTutorialPendingFirstHome', 'onboardingCompletionRewardClaimed', 'onboardingIntro1FanPendingClaim',
+        'singlePlayerProgress', 'clearedSinglePlayerStages',
         'rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt', 'vipShopAutoRenew',
     ];
     

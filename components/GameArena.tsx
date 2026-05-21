@@ -30,8 +30,6 @@ interface GameArenaProps extends GameProps {
     // 온라인 전략바둑 AI 대국용: 서버 응답 전 낙관적 표시용 임시 돌
     pendingMove?: { x: number; y: number; player: Player } | null;
     captureScoreFloatMinPoints?: number;
-    onboardingDemoAnchorPoint?: Point | null;
-    onboardingForcedFirstMovePoint?: Point | null;
     intro1TutorialHighlight?: Point | null;
     strategicPetHintBoardOverlay?: { x: number; y: number; message: string; showBubble: boolean } | null;
     strategicPetHintRewardAnimation?: { id: string; x: number; y: number; iconSrc: string; quantityLabel: string } | null;
@@ -52,8 +50,6 @@ const GameArena: React.FC<GameArenaProps> = (props) => {
         onToggleBoardRotation,
         pendingMove,
         captureScoreFloatMinPoints = 2,
-        onboardingDemoAnchorPoint = null,
-        onboardingForcedFirstMovePoint = null,
         intro1TutorialHighlight = null,
         ...restProps
     } = props;
@@ -65,8 +61,6 @@ const GameArena: React.FC<GameArenaProps> = (props) => {
         pendingMove,
         showBoardGlow,
         captureScoreFloatMinPoints,
-        onboardingDemoAnchorPoint,
-        onboardingForcedFirstMovePoint,
         intro1TutorialHighlight,
         blockScoringBoardAnalysis: props.blockScoringBoardAnalysis,
     };

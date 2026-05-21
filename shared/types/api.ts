@@ -495,13 +495,6 @@ export type ServerAction =
     | { type: 'CHANGE_USERNAME', payload: { newUsername: string; password: string } }
     | { type: 'CHANGE_PASSWORD', payload: { currentPassword: string; newPassword: string } }
     | { type: 'WITHDRAW_USER', payload: { password: string; confirmText: string } }
-    | { type: 'ADVANCE_ONBOARDING_TUTORIAL', payload: { phase: number } }
-    | { type: 'BEGIN_ONBOARDING_ON_FIRST_HOME' }
-    | { type: 'SKIP_ONBOARDING_TUTORIAL' }
-    | { type: 'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD' }
-    | { type: 'CLAIM_ONBOARDING_INTRO1_FAN', payload?: never }
-    | { type: 'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL', payload?: never }
-    | { type: 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ', payload?: never }
     /** 관리자 본인: VIP 헤더·혜택 UI 테스트용 (만료 시각을 강제로 켜거나 끔) */
     | {
           type: 'ADMIN_SET_VIP_TEST_FLAGS';

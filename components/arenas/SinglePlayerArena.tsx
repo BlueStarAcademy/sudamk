@@ -28,8 +28,6 @@ interface SinglePlayerArenaProps extends GameProps {
     // 착수 버튼 모드/AI 낙관 표시용 임시 돌 (예상착점)
     pendingMove?: { x: number; y: number; player: Player } | null;
     captureScoreFloatMinPoints?: number;
-    onboardingDemoAnchorPoint?: Point | null;
-    onboardingForcedFirstMovePoint?: Point | null;
     intro1TutorialHighlight?: Point | null;
     boardRuleFlashMessage?: string | null;
     blockScoringBoardAnalysis?: boolean;
@@ -150,8 +148,6 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         isBoardLocked = false,
         pendingMove = null,
         captureScoreFloatMinPoints = 2,
-        onboardingDemoAnchorPoint = null,
-        onboardingForcedFirstMovePoint = null,
         intro1TutorialHighlight = null,
         boardRuleFlashMessage = null,
         blockScoringBoardAnalysis = false,
@@ -556,8 +552,6 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     captureScoreFloatMinPoints={captureScoreFloatMinPoints}
                     adventureRegionalHeadStartCaptureBonus={adventureRegionalHeadStartCaptureBonus}
                     onBoardRuleFlash={props.onBoardRuleFlash}
-                    onboardingDemoAnchorPoint={onboardingDemoAnchorPoint}
-                    onboardingForcedFirstMovePoint={onboardingForcedFirstMovePoint}
                     highlightedPoints={intro1TutorialHighlight ? [intro1TutorialHighlight] : undefined}
                     highlightStyle="ring"
                     canPlaceMoreBaseStones={canPlaceMoreBaseStones}
