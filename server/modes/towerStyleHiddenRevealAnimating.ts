@@ -14,6 +14,8 @@ import {
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../../shared/utils/baseHiddenMoveIndex.js';
 import { applyPreserveDiscovererTurnIfPending } from './hiddenRevealPreserve.js';
 import { tryEndGameWhenCaptureTargetReached } from '../utils/captureTargets.js';
+import { getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
+import { primeKataServerBoardAfterHiddenReveal } from '../goAiBot.js';
 
 export type TowerStyleHiddenRevealPostTurnHook = (game: types.LiveGameSession, now: number) => Promise<void>;
 
@@ -22,19 +24,28 @@ function isAiControlledSeat(game: types.LiveGameSession, playerEnum: types.Playe
     return id === aiUserId || (id != null && String(id).startsWith('dungeon-bot-'));
 }
 
-/** 연출 종료 직후 DB/캐시/브로드캐스트 반영 + AI 세션 동기화(히든 후 봇 미착수·턴 고착 방지) */
+function isServerAiTurnForHiddenRevealResume(game: types.LiveGameSession): boolean {
+    const pairSeat = isPairClassicGame(game.settings, game.mode) ? getCurrentPairTurnSeat(game.settings) : null;
+    if (pairSeat && isPairAiSeat(pairSeat)) return true;
+    return (
+        game.currentPlayer !== types.Player.None && isAiControlledSeat(game, game.currentPlayer)
+    );
+}
+
+/** 연출 종료 직후 Kata 판 동기화 → DB/캐시/브로드캐스트 → AI 세션 동기화(히든 후 봇 미착수·턴 고착 방지) */
 async function persistAfterHiddenRevealTransition(game: types.LiveGameSession, now: number): Promise<void> {
-    if (isAiControlledSeat(game, game.currentPlayer)) {
+    if (isServerAiTurnForHiddenRevealResume(game)) {
         game.aiTurnStartTime = now;
     } else {
         game.aiTurnStartTime = undefined;
     }
+    await primeKataServerBoardAfterHiddenReveal(game);
     const { broadcastItemPhaseSnapshot } = await import('../utils/broadcastItemPhaseSnapshot.js');
     const { markItemPhaseStateChanged } = await import('./finalizeItemPhase.js');
     markItemPhaseStateChanged(game);
     await broadcastItemPhaseSnapshot(game);
     syncAiSession(game, aiUserId);
-    if (isAiControlledSeat(game, game.currentPlayer)) {
+    if (isServerAiTurnForHiddenRevealResume(game)) {
         const { aiProcessingQueue } = await import('../aiProcessingQueue.js');
         aiProcessingQueue.enqueue(game.id);
     }

@@ -238,6 +238,110 @@ function bumpKataHiddenRevealCacheTag(game: types.LiveGameSession): string {
     return `hr${n}`;
 }
 
+function resolveAiPlayerEnumForKataPrime(game: types.LiveGameSession): Player | null {
+    const pairSeat = isPairClassicGame(game.settings, game.mode) ? getCurrentPairTurnSeat(game.settings) : null;
+    if (pairSeat && isPairAiSeat(pairSeat)) {
+        return pairSeat.player;
+    }
+    const blackIsAi =
+        game.blackPlayerId === 'ai-player-01' ||
+        (game.blackPlayerId != null && String(game.blackPlayerId).startsWith('dungeon-bot-'));
+    const whiteIsAi =
+        game.whitePlayerId === 'ai-player-01' ||
+        (game.whitePlayerId != null && String(game.whitePlayerId).startsWith('dungeon-bot-'));
+    if (blackIsAi && !whiteIsAi) return Player.Black;
+    if (whiteIsAi && !blackIsAi) return Player.White;
+    if (game.isAiGame && (game.currentPlayer === Player.Black || game.currentPlayer === Player.White)) {
+        if (game.currentPlayer === Player.Black && blackIsAi) return Player.Black;
+        if (game.currentPlayer === Player.White && whiteIsAi) return Player.White;
+        return whiteIsAi ? Player.White : blackIsAi ? Player.Black : null;
+    }
+    return null;
+}
+
+async function resolveKataLevelForHiddenRevealPrime(game: types.LiveGameSession): Promise<number> {
+    const kataRuntimeSnap = getKataServerRuntimeSnapshot();
+    const profileRaw = Number((game.settings as any)?.goAiProfileLevel);
+    const goAiProfileLevel = Number.isFinite(profileRaw) && profileRaw >= 1 ? Math.floor(profileRaw) : 5;
+    if (game.isSinglePlayer) {
+        await ensureSinglePlayerKataServerLevelOnGame(game);
+    }
+    const configuredKataLevelRaw = Number((game.settings as any)?.kataServerLevel);
+    let configuredKataLevel = Number.isFinite(configuredKataLevelRaw) ? configuredKataLevelRaw : undefined;
+    if (configuredKataLevel === undefined) {
+        const gc = String((game as any).gameCategory ?? '');
+        if (gc === 'tower') {
+            const floorRaw = (game as any).towerFloor;
+            const floor = typeof floorRaw === 'number' ? floorRaw : parseInt(String(floorRaw ?? ''), 10);
+            if (Number.isFinite(floor) && floor >= 1) {
+                configuredKataLevel = towerKataLevelFromSnapshot(kataRuntimeSnap, floor);
+            }
+        } else if (gc === 'adventure') {
+            const lvRaw = (game as any).adventureMonsterLevel;
+            const lv = typeof lvRaw === 'number' ? lvRaw : parseInt(String(lvRaw ?? ''), 10);
+            if (Number.isFinite(lv) && lv >= 1) {
+                configuredKataLevel = adventureKataLevelFromSnapshot(kataRuntimeSnap, lv);
+            }
+        } else if (gc === 'guildwar') {
+            const boardId = String((game as any).guildWarBoardId ?? '');
+            if (boardId) {
+                configuredKataLevel = guildWarKataLevelFromSnapshot(kataRuntimeSnap, boardId);
+            }
+        }
+    }
+    return configuredKataLevel ?? strategicKataLevelFromSnapshot(kataRuntimeSnap, goAiProfileLevel);
+}
+
+/**
+ * 히든 돌 공개 연출 종료 직후: 현재 바둑판 전체를 KataServer `/move`에 보내 국면·캐시를 맞춘다.
+ * (연출 시작 시 bump만으로는 AI 턴이 멈추거나 잘못된 수를 고르는 경우가 있음)
+ */
+export async function primeKataServerBoardAfterHiddenReveal(game: types.LiveGameSession): Promise<void> {
+    if (!isKataServerAvailable()) return;
+    const aiPlayerEnum = resolveAiPlayerEnumForKataPrime(game);
+    if (aiPlayerEnum == null) return;
+
+    const isHiddenMode =
+        game.mode === types.GameMode.Hidden ||
+        (game.mode === types.GameMode.Mix && !!game.settings.mixedModes?.includes(types.GameMode.Hidden));
+    if (
+        isHiddenMode &&
+        shouldMaskUserHiddenFromAi(game) &&
+        getUserUnrevealedHiddenPoints(game, aiPlayerEnum).length === 0
+    ) {
+        (game as any).kataPveKataMovesFromBoardStateOnly = false;
+    }
+
+    const hiddenRevealTag = bumpKataHiddenRevealCacheTag(game);
+    const moveHistory = buildKataMoveHistoryBoardOnlyFromAiVisibleBoard(game, aiPlayerEnum);
+    const kataLevel = await resolveKataLevelForHiddenRevealPrime(game);
+    const guildWarKataRetries = String((game as any).gameCategory ?? '') === 'guildwar' ? 2 : 0;
+
+    try {
+        await generateKataServerMoveCandidateDetails({
+            boardSize: game.settings.boardSize || 19,
+            player: (aiPlayerEnum === Player.White ? 'white' : 'black') as 'white' | 'black',
+            moveHistory,
+            level: kataLevel,
+            komi: Number(game.finalKomi ?? game.settings.komi),
+            gameId: game.id,
+            kataSessionTag: composeKataSessionTagForGame(game, `hr-post-${hiddenRevealTag}`),
+            allowPass: false,
+            moveApiRetries: guildWarKataRetries,
+        });
+        if (process.env.NODE_ENV === 'development') {
+            console.log(
+                `[primeKataServerBoardAfterHiddenReveal] primed game=${game.id} kataMoves=${moveHistory.length} tag=hr-post-${hiddenRevealTag}`,
+            );
+        }
+    } catch (e: any) {
+        console.warn(
+            `[primeKataServerBoardAfterHiddenReveal] Kata prime failed game=${game.id}:`,
+            e?.message ?? e,
+        );
+    }
+}
+
 /**
  * KataServer `game_id` 헤더용 세션 태그. 재접속(F5)·끊김 후 재입장 시 resume 시퀀스로 캐시를 비우고,
  * 히든 전체 공개 시에는 기존처럼 hr 태그를 함께 붙인다.

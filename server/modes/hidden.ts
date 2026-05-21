@@ -122,6 +122,8 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                     const isPairAiTurnAfterReveal = !!(pairSeatAfterReveal && isPairAiSeat(pairSeatAfterReveal));
                     if (pendingAiAfterUserHiddenReveal && (game.isAiGame || isPairAiTurnAfterReveal)) {
                         game.aiTurnStartTime = now;
+                        const { primeKataServerBoardAfterHiddenReveal } = await import('../goAiBot.js');
+                        await primeKataServerBoardAfterHiddenReveal(game);
                         const { broadcastItemPhaseSnapshot } = await import('../utils/broadcastItemPhaseSnapshot.js');
                         await broadcastItemPhaseSnapshot(game);
                         const { aiUserId } = await import('../aiPlayer.js');
