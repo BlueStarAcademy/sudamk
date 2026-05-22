@@ -11,6 +11,7 @@ import {
     SPECIAL_STATS_DATA,
     MYTHIC_STATS_DATA,
     GRADE_LEVEL_REQUIREMENTS,
+    formatEquipLevelRequirement,
     isActionPointConsumable,
     PAIR_PET_CATALOG,
 } from '../../constants';
@@ -818,7 +819,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                             </span>
                             {isEquipmentDetail ? (
                                 <span className="rounded-full border border-emerald-300/25 bg-emerald-500/10 px-2 py-0.5 text-emerald-200/90">
-                                    착용 레벨 합 {GRADE_LEVEL_REQUIREMENTS[item.grade]}
+                                    {formatEquipLevelRequirement(GRADE_LEVEL_REQUIREMENTS[item.grade])}
                                 </span>
                             ) : null}
                         </div>

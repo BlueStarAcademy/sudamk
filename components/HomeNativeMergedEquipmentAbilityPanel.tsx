@@ -1,6 +1,6 @@
 import React from 'react';
 import { CoreStat, EquipmentSlot, InventoryItem, ItemGrade } from '../types.js';
-import { CORE_STATS_DATA, emptySlotImages, GRADE_LEVEL_REQUIREMENTS } from '../constants';
+import { CORE_STATS_DATA, emptySlotImages, GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement } from '../constants';
 import Button from './Button.js';
 import { BADUK_ABILITY_STAT_CAP, CORE_STAT_RADAR_ORDER } from './CoreStatsHexagonChart.js';
 
@@ -43,7 +43,7 @@ const EquipmentSlotDisplay: React.FC<{
 
     if (item) {
         const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
-        const titleText = `${item.name} (착용 레벨 합: ${requiredLevel}) - 클릭하여 상세보기`;
+        const titleText = `${item.name} (${formatEquipLevelRequirement(requiredLevel)}) - 클릭하여 상세보기`;
         const starInfo = getStarDisplayInfo(item.stars);
         const isTranscendent = item.grade === ItemGrade.Transcendent;
         return (

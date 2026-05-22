@@ -35,15 +35,19 @@ export const slotNames: Record<EquipmentSlot, string> = {
     stones: '돌',
 };
 
+/** 등급별 장비 착용에 필요한 유저 레벨(통합 레벨) */
 export const GRADE_LEVEL_REQUIREMENTS: Record<ItemGrade, number> = {
-    [ItemGrade.Normal]: 2,
-    [ItemGrade.Uncommon]: 3,
+    [ItemGrade.Normal]: 1,
+    [ItemGrade.Uncommon]: 2,
     [ItemGrade.Rare]: 5,
-    [ItemGrade.Epic]: 10,
-    [ItemGrade.Legendary]: 12,
-    [ItemGrade.Mythic]: 15,
+    [ItemGrade.Epic]: 8,
+    [ItemGrade.Legendary]: 10,
+    [ItemGrade.Mythic]: 12,
     [ItemGrade.Transcendent]: 15,
 };
+
+/** UI·툴팁용: `착용레벨5` 형식 */
+export const formatEquipLevelRequirement = (level: number): string => `착용레벨${level}`;
 
 export const EQUIPMENT_POOL: (Omit<InventoryItem, 'id' | 'createdAt' | 'isEquipped' | 'level' | 'options' | 'quantity' | 'stars' | 'enhancementFails'> & { stars: 0 })[] = [
     // --- Fans (부채) ---

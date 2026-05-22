@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { UserWithStatus, InventoryItem, ServerAction, ItemOption, CoreStat, SpecialStat, MythicStat, ItemGrade } from '../../types.js';
 import Button from '../Button.js';
-import { MAIN_STAT_DEFINITIONS, SUB_OPTION_POOLS, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, GRADE_SUB_OPTION_RULES, GRADE_LEVEL_REQUIREMENTS, MATERIAL_ITEMS, CORE_STATS_DATA, MAIN_ENHANCEMENT_STEP_MULTIPLIER, resolveCombatSubPoolDefinition } from '../../constants';
+import { MAIN_STAT_DEFINITIONS, SUB_OPTION_POOLS, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, GRADE_SUB_OPTION_RULES, GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement, MATERIAL_ITEMS, CORE_STATS_DATA, MAIN_ENHANCEMENT_STEP_MULTIPLIER, resolveCombatSubPoolDefinition } from '../../constants';
 import {
     resolveCombatSubValueRefinementRange,
     resolveSpecialSubValueRefinementRange,
@@ -171,7 +171,9 @@ const ItemDisplay: React.FC<{
                     <h3 className={`text-[12px] font-bold leading-snug whitespace-nowrap overflow-hidden text-ellipsis ${styles.color}`} title={item.name}>
                         {item.name}
                     </h3>
-                    <p className={`text-[11px] leading-snug ${canEquip ? 'text-gray-500' : 'text-red-500'}`}>(착용레벨: {requiredLevel})</p>
+                    <p className={`text-[11px] leading-snug ${canEquip ? 'text-gray-500' : 'text-red-500'}`}>
+                        ({formatEquipLevelRequirement(requiredLevel)})
+                    </p>
                     <p className={`text-[11px] font-semibold leading-snug ${(item as any).refinementCount > 0 ? 'text-amber-400' : 'text-red-400'}`}>
                         제련 가능: {(item as any).refinementCount > 0 ? `${(item as any).refinementCount}회` : '제련불가'}
                     </p>

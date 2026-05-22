@@ -3,7 +3,7 @@ import { UserWithStatus, InventoryItem, ServerAction, InventoryItemType, ItemGra
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import ResourceActionButton from './ui/ResourceActionButton.js';
-import { emptySlotImages, GRADE_LEVEL_REQUIREMENTS, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES, gradeBackgrounds, gradeStyles, BASE_SLOTS_PER_CATEGORY, EXPANSION_AMOUNT, MAX_EQUIPMENT_SLOTS, MAX_CONSUMABLE_SLOTS, MAX_MATERIAL_SLOTS, ENHANCEMENT_COSTS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, isActionPointConsumable, isConditionPotionConsumable, isTowerOnlyConsumable, isRefinementTicketMaterial, normalizeRefinementTicketInventoryName } from '../constants/items';
+import { emptySlotImages, GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES, gradeBackgrounds, gradeStyles, BASE_SLOTS_PER_CATEGORY, EXPANSION_AMOUNT, MAX_EQUIPMENT_SLOTS, MAX_CONSUMABLE_SLOTS, MAX_MATERIAL_SLOTS, ENHANCEMENT_COSTS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, isActionPointConsumable, isConditionPotionConsumable, isTowerOnlyConsumable, isRefinementTicketMaterial, normalizeRefinementTicketInventoryName } from '../constants/items';
 import { isPairArenaExclusiveBagItem, isPairPetMaterial } from '../shared/constants/petLobby.js';
 
 import { calculateUserEffects } from '../services/effectService.js';
@@ -750,7 +750,7 @@ const LocalItemDetailDisplay: React.FC<{
                             <span className={styles.color}>[{styles.name}]</span>
                             {showRequirement && (
                                 <span className={`${levelRequirementMet ? 'text-gray-300' : 'text-red-400'} whitespace-nowrap`}>
-                                    착용 레벨 {requiredLevel}
+                                    {formatEquipLevelRequirement(requiredLevel)}
                                 </span>
                             )}
                         </div>
@@ -799,10 +799,14 @@ const LocalItemDetailDisplay: React.FC<{
                                     </div>
                                 </div>
                                 <div className="rounded-md bg-black/25 px-1.5 py-1 text-[10px]">
-                                    <div className="text-stone-400">착용 레벨</div>
+                                    <div className="text-stone-400">착용레벨</div>
                                     <div className="mt-0.5 grid grid-cols-2 gap-1 tabular-nums">
-                                        <span>{requiredLevel}</span>
-                                        <span className="text-right">{compareSelected ? GRADE_LEVEL_REQUIREMENTS[compareSelected.grade] : '-'}</span>
+                                        <span>{formatEquipLevelRequirement(requiredLevel)}</span>
+                                        <span className="text-right">
+                                            {compareSelected
+                                                ? formatEquipLevelRequirement(GRADE_LEVEL_REQUIREMENTS[compareSelected.grade])
+                                                : '-'}
+                                        </span>
                                     </div>
                                 </div>
                                 <div className="rounded-md bg-black/25 px-1.5 py-1 text-[10px]">
@@ -938,7 +942,7 @@ const LocalItemDetailDisplay: React.FC<{
                         <span className={styles.color}>[{styles.name}]</span>
                         {showRequirement && (
                             <span className={`${levelRequirementMet ? 'text-gray-300' : 'text-red-400'} whitespace-nowrap`} style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * mobileTextScale))}px` }}>
-                                착용 레벨 {requiredLevel}
+                                {formatEquipLevelRequirement(requiredLevel)}
                             </span>
                         )}
                     </div>
@@ -1452,7 +1456,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
             const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
             const userLevelSum = currentUser.userLevel;
             if (userLevelSum < requiredLevel) {
-                alert(`착용 레벨 합이 부족합니다. (필요: ${requiredLevel}, 현재: ${userLevelSum})`);
+                alert(
+                    `착용레벨이 부족합니다. (필요: ${formatEquipLevelRequirement(requiredLevel)}, 현재: Lv.${userLevelSum})`,
+                );
                 return;
             }
             if (!item.isBound) {
@@ -2857,7 +2863,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                                         currentEquip,
                                                                         <div className="rounded-md bg-black/25 px-1.5 py-0.75 text-[11px] leading-[1.2]">
                                                                             <span className="block whitespace-nowrap text-cyan-200">
-                                                                                {`착용레벨 : ${currentReq}`}
+                                                                                {typeof currentReq === 'number' ? formatEquipLevelRequirement(currentReq) : currentReq}
                                                                             </span>
                                                                             <span className="mt-0.5 block whitespace-nowrap text-cyan-200">
                                                                                 {`제련 가능 : ${currentRefine}`}
@@ -2869,7 +2875,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                                         selectedEquip,
                                                                         <div className="rounded-md bg-black/25 px-1.5 py-0.75 text-[11px] leading-[1.2]">
                                                                             <span className="block whitespace-nowrap text-amber-200">
-                                                                                {`착용레벨 : ${selectedReq}`}
+                                                                                {formatEquipLevelRequirement(selectedReq)}
                                                                             </span>
                                                                             <span className="mt-0.5 block whitespace-nowrap text-amber-200">
                                                                                 {`제련 가능 : ${selectedRefine}`}

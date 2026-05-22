@@ -1,7 +1,7 @@
 import React from 'react';
 import { InventoryItem, ItemGrade } from '../types.js';
 import { useAppContext } from '../hooks/useAppContext.js';
-import { GRADE_LEVEL_REQUIREMENTS } from '../constants';
+import { GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement } from '../constants';
 import { isActionPointConsumable } from '../constants/items';
 import { MythicSubsPartitioned } from './MythicSubsPartitioned.js';
 import { formatSpecialSubLineForPanel } from '../shared/utils/specialStatMilestones.js';
@@ -397,7 +397,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                             </p>
                         )}
                         <p className={`${comfortableTypography ? 'text-[13px] leading-snug' : 'text-[12px] leading-snug'} ${canEquip ? 'text-gray-500' : 'text-red-500'}`}>
-                            (착용레벨: {requiredLevel})
+                            ({formatEquipLevelRequirement(requiredLevel)})
                         </p>
                         {item.type === 'equipment' && item.grade !== 'normal' && (
                             <p className={`${metaSemi} ${refinementCount > 0 ? 'text-amber-400' : 'text-red-400'}`}>

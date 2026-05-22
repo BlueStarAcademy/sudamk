@@ -16,6 +16,7 @@ import {
     SPECIAL_STATS_DATA,
     MYTHIC_STATS_DATA,
     GRADE_LEVEL_REQUIREMENTS,
+    formatEquipLevelRequirement,
     CORE_STATS_DATA,
     gradeBackgrounds,
     gradeStyles,
@@ -78,7 +79,7 @@ function buildEquipmentAdminTooltip(slot: EquipmentSlot, grade: ItemGrade, descr
     const lines: string[] = [];
     lines.push(description);
     lines.push('');
-    lines.push(`착용 요구: 전략·놀이 레벨 합 ${GRADE_LEVEL_REQUIREMENTS[grade]}`);
+    lines.push(`착용 요구: ${formatEquipLevelRequirement(GRADE_LEVEL_REQUIREMENTS[grade])}`);
     lines.push('');
     lines.push(`[주옵션] ${mainStatNames}: +${mainStatGradeDef.value}${mainStatDef.isPercentage ? '%' : ''} (획득 시 위 중 하나 랜덤)`);
     lines.push(`[부옵션] 랜덤 ${formatCount(rules.combatCount)}개 — 후보·범위:`);

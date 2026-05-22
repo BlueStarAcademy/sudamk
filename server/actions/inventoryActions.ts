@@ -38,6 +38,7 @@ import {
     CONSUMABLE_ITEMS,
     GRADE_SUB_OPTION_RULES,
     GRADE_LEVEL_REQUIREMENTS,
+    formatEquipLevelRequirement,
     ENHANCEMENT_FAIL_BONUS_RATES,
     BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES,
     BLACKSMITH_COMBINATION_XP_GAIN,
@@ -1083,7 +1084,9 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             const userLevelSum = user.userLevel;
 
             if (!itemToToggle.isEquipped && userLevelSum < requiredLevel) {
-                 return { error: `착용 레벨이 부족합니다. (필요: ${requiredLevel}, 현재: ${userLevelSum})` };
+                 return {
+                     error: `착용레벨이 부족합니다. (필요: ${formatEquipLevelRequirement(requiredLevel)}, 현재: Lv.${userLevelSum})`,
+                 };
             }
 
             if (itemToToggle.isEquipped) {

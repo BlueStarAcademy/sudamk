@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { UserWithStatus, InventoryItem, ServerAction, ItemGrade, ItemOption } from '../../types.js';
 import Button from '../Button.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
-import { ENHANCEMENT_SUCCESS_RATES, ENHANCEMENT_COSTS, MATERIAL_ITEMS, ENHANCEMENT_FAIL_BONUS_RATES, GRADE_LEVEL_REQUIREMENTS, calculateEnhancementGoldCost } from '../../constants';
+import { ENHANCEMENT_SUCCESS_RATES, ENHANCEMENT_COSTS, MATERIAL_ITEMS, ENHANCEMENT_FAIL_BONUS_RATES, GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement, calculateEnhancementGoldCost } from '../../constants';
 import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { MythicSubsPartitioned } from '../MythicSubsPartitioned.js';
@@ -105,7 +105,9 @@ const ItemDisplay: React.FC<{ item: InventoryItem; previousStars?: number; isAni
                     <h3 className={`text-sm font-bold leading-snug whitespace-nowrap overflow-hidden text-ellipsis ${styles.color}`} title={item.name}>
                         {item.name}
                     </h3>
-                    <p className={`text-[11px] leading-snug ${canEquip ? 'text-gray-500' : 'text-red-500'}`}>(착용레벨: {requiredLevel})</p>
+                    <p className={`text-[11px] leading-snug ${canEquip ? 'text-gray-500' : 'text-red-500'}`}>
+                        ({formatEquipLevelRequirement(requiredLevel)})
+                    </p>
                     {item.options?.main && (
                         <p
                             className="text-[11px] font-semibold leading-snug text-yellow-300 whitespace-nowrap overflow-hidden text-ellipsis"
@@ -346,7 +348,9 @@ const EnhancementView: React.FC<EnhancementViewProps> = ({
         if (!selectedItem) return '강화할 장비를 선택해주세요.';
         if (isEnhancing) return '강화 중...';
         if (selectedItem.stars >= 10) return '최대 강화';
-        if (levelRequirement > 0 && !meetsLevelRequirement) return `레벨 부족 (합 ${levelRequirement} 필요)`;
+        if (levelRequirement > 0 && !meetsLevelRequirement) {
+            return `레벨 부족 (${formatEquipLevelRequirement(levelRequirement)} 필요)`;
+        }
         if (!costs) return '강화 정보 없음';
         if (!hasEnoughGold) return `골드 부족 (필요: ${formatGoldAmountKoG(goldCost)})`;
         if (!canEnhance) return '재료 부족';
