@@ -26,6 +26,7 @@ import { getSelectiveUserUpdate } from './utils/userUpdateHelper.js';
 import * as mannerService from './mannerService.js';
 import { openEquipmentBox1, openGuildGradeBox, rollRandomEquipmentFromGradeWeights } from './shop.js';
 import * as effectService from './effectService.js';
+import { recordActionPointRestore } from '../shared/utils/actionPointRegen.js';
 import { randomUUID } from 'crypto';
 // FIX: Correctly import aiUser and getAiUser.
 import { aiUserId, getAiUser } from './aiPlayer.js';
@@ -844,20 +845,12 @@ const refundActionPointsForEarlyTermination = async (
     
     // 비매너 행동자가 아닌 사람에게만 환불
     if (badMannerPlayerId !== player1.id && !player1.isAdmin) {
-        player1.actionPoints.current = Math.min(
-            player1.actionPoints.max, 
-            player1.actionPoints.current + refundP1
-        );
-        player1.lastActionPointUpdate = Date.now();
+        recordActionPointRestore(player1, refundP1);
         await db.updateUser(player1);
     }
     
     if (badMannerPlayerId !== player2.id && !player2.isAdmin) {
-        player2.actionPoints.current = Math.min(
-            player2.actionPoints.max, 
-            player2.actionPoints.current + refundP2
-        );
-        player2.lastActionPointUpdate = Date.now();
+        recordActionPointRestore(player2, refundP2);
         await db.updateUser(player2);
     }
     
@@ -2617,21 +2610,13 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
             // 기권한 사람이 아닌 상대방에게 행동력 환불
             const { broadcastUserUpdate } = await import('./socket.js');
             if (resignedPlayerId === p1.id && p2.id !== aiUserId && !p2.isAdmin) {
-                p2.actionPoints.current = Math.min(
-                    p2.actionPoints.max,
-                    p2.actionPoints.current + refundNcP2
-                );
-                p2.lastActionPointUpdate = Date.now();
+                recordActionPointRestore(p2, refundNcP2);
                 await db.updateUser(p2);
-                broadcastUserUpdate(p2, ['actionPoints']);
+                broadcastUserUpdate(p2, ['actionPoints', 'lastActionPointUpdate']);
             } else if (resignedPlayerId === p2.id && p1.id !== aiUserId && !p1.isAdmin) {
-                p1.actionPoints.current = Math.min(
-                    p1.actionPoints.max,
-                    p1.actionPoints.current + refundNcP1
-                );
-                p1.lastActionPointUpdate = Date.now();
+                recordActionPointRestore(p1, refundNcP1);
                 await db.updateUser(p1);
-                broadcastUserUpdate(p1, ['actionPoints']);
+                broadcastUserUpdate(p1, ['actionPoints', 'lastActionPointUpdate']);
             }
         } else if (winReason === 'disconnect' && game.moveHistory.length < NO_CONTEST_MOVE_THRESHOLD) {
             // 초반 접속장애로 무효처리된 경우: 접속이 끊어진 유저는 행동력 소모 유지, 무효처리를 당한 유저는 행동력 환불
@@ -2641,46 +2626,30 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
             // 접속이 끊어진 유저가 아닌 상대방에게 행동력 환불
             const { broadcastUserUpdate } = await import('./socket.js');
             if (disconnectedPlayerId === p1.id && p2.id !== aiUserId && !p2.isAdmin) {
-                p2.actionPoints.current = Math.min(
-                    p2.actionPoints.max,
-                    p2.actionPoints.current + refundNcP2
-                );
-                p2.lastActionPointUpdate = Date.now();
+                recordActionPointRestore(p2, refundNcP2);
                 await db.updateUser(p2);
-                broadcastUserUpdate(p2, ['actionPoints']);
+                broadcastUserUpdate(p2, ['actionPoints', 'lastActionPointUpdate']);
             } else if (disconnectedPlayerId === p2.id && p1.id !== aiUserId && !p1.isAdmin) {
-                p1.actionPoints.current = Math.min(
-                    p1.actionPoints.max,
-                    p1.actionPoints.current + refundNcP1
-                );
-                p1.lastActionPointUpdate = Date.now();
+                recordActionPointRestore(p1, refundNcP1);
                 await db.updateUser(p1);
-                broadcastUserUpdate(p1, ['actionPoints']);
+                broadcastUserUpdate(p1, ['actionPoints', 'lastActionPointUpdate']);
             }
         } else {
             // 기권이 아닌 경우 (예: 1분 경과 후 무효처리): 양쪽 모두 행동력 환불
             if (p1.id !== aiUserId && !p1.isAdmin) {
-                p1.actionPoints.current = Math.min(
-                    p1.actionPoints.max,
-                    p1.actionPoints.current + refundNcP1
-                );
-                p1.lastActionPointUpdate = Date.now();
+                recordActionPointRestore(p1, refundNcP1);
                 await db.updateUser(p1);
             }
             if (p2.id !== aiUserId && !p2.isAdmin) {
-                p2.actionPoints.current = Math.min(
-                    p2.actionPoints.max,
-                    p2.actionPoints.current + refundNcP2
-                );
-                p2.lastActionPointUpdate = Date.now();
+                recordActionPointRestore(p2, refundNcP2);
                 await db.updateUser(p2);
             }
             const { broadcastUserUpdate } = await import('./socket.js');
             if (p1.id !== aiUserId && !p1.isAdmin) {
-                broadcastUserUpdate(p1, ['actionPoints']);
+                broadcastUserUpdate(p1, ['actionPoints', 'lastActionPointUpdate']);
             }
             if (p2.id !== aiUserId && !p2.isAdmin) {
-                broadcastUserUpdate(p2, ['actionPoints']);
+                broadcastUserUpdate(p2, ['actionPoints', 'lastActionPointUpdate']);
             }
         }
     }

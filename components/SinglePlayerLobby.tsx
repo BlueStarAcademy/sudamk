@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
 import ClassNavigationPanel from './singleplayer/ClassNavigationPanel.js';
 import StageGrid from './singleplayer/StageGrid.js';
-import SinglePlayerClassBarRewardsPanel from './singleplayer/SinglePlayerClassBarRewardsPanel.js';
 import TrainingQuestPanel from './singleplayer/TrainingQuestPanel.js';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
 import { SinglePlayerLevel, UserWithStatus } from '../types.js';
@@ -35,6 +34,7 @@ const DesktopSinglePlayerLobbyLayout: React.FC<{
                 <ClassNavigationPanel
                     selectedClass={selectedClass}
                     onClassSelect={onClassSelect}
+                    currentUser={currentUserWithStatus}
                     lobbyChrome={{
                         onBack: onBackToProfile,
                         screenTitle: SINGLE_PLAYER_LOBBY_TITLE,
@@ -107,10 +107,11 @@ const SinglePlayerLobby: React.FC = () => {
             )}
             {compactSpLobby ? (
                 <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden px-0.5 pb-0.5">
-                    <div className="min-h-0 max-h-[min(22dvh,200px)] shrink-0 overflow-hidden rounded-xl sm:max-h-[min(24dvh,220px)]">
+                    <div className="min-h-0 max-h-[min(30dvh,280px)] shrink-0 overflow-hidden rounded-xl sm:max-h-[min(32dvh,300px)]">
                         <ClassNavigationPanel
                             selectedClass={selectedClass}
                             onClassSelect={setOverrideClass}
+                            currentUser={currentUserWithStatus}
                             compact
                             lobbyMobileTop
                             lobbyChrome={{
@@ -118,13 +119,6 @@ const SinglePlayerLobby: React.FC = () => {
                                 screenTitle: SINGLE_PLAYER_LOBBY_TITLE,
                                 compactTitleBar: true,
                             }}
-                        />
-                    </div>
-                    <div className="shrink-0 px-0.5 pb-0.5">
-                        <SinglePlayerClassBarRewardsPanel
-                            selectedClass={selectedClass}
-                            currentUser={currentUserWithStatus}
-                            density="compact"
                         />
                     </div>
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-emerald-500/20 bg-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:rounded-xl">

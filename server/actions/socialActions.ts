@@ -28,7 +28,7 @@ import {
     STRATEGIC_ACTION_POINT_COST,
     PLAYFUL_ACTION_POINT_COST,
 } from '../../constants/index.js';
-import { applyPassiveActionPointRegenToUser } from '../effectService.js';
+import { applyPassiveActionPointRegenToUser, recordActionPointSpend } from '../effectService.js';
 import { getRankedGameSettings } from '../../constants/rankedGameSettings.js';
 import { clearAiSession } from '../aiSessionManager.js';
 import { isLingerEndedPvpRoomCandidate, maybeDeleteDetachedEndedPvpGame } from '../maybeDeleteDetachedEndedPvpGame.js';
@@ -1841,8 +1841,7 @@ async function assertAndConsumePairLobbyMatchActionPoints(
     for (const u of participants) {
         const cost = effectivePairRankedApCostForUser(u, baseCost, pricingRoom);
         if (!u.isAdmin && cost > 0) {
-            u.actionPoints.current -= cost;
-            u.lastActionPointUpdate = nowMs;
+            recordActionPointSpend(u, cost, nowMs);
         }
         const cached = volatileState.userCache?.get(u.id);
         if (cached) cached.user = u;
@@ -5529,12 +5528,10 @@ const tryMatchPlayersUnlocked = async (volatileState: VolatileState, lobbyType: 
         return;
     }
     if (!player1.isAdmin && rankedAp1 > 0) {
-        player1.actionPoints.current -= rankedAp1;
-        player1.lastActionPointUpdate = matchNowMs;
+        recordActionPointSpend(player1, rankedAp1, matchNowMs);
     }
     if (!player2.isAdmin && rankedAp2 > 0) {
-        player2.actionPoints.current -= rankedAp2;
-        player2.lastActionPointUpdate = matchNowMs;
+        recordActionPointSpend(player2, rankedAp2, matchNowMs);
     }
     await db.updateUser(player1);
     await db.updateUser(player2);

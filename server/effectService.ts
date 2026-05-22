@@ -20,6 +20,9 @@ import {
     DEFAULT_SPECIAL_OPTION_GEAR_BONUSES,
 } from '../shared/utils/specialOptionGearEffects.js';
 import { coerceSpecialStatType } from '../shared/utils/specialStatMilestones.js';
+import { recordActionPointSpend, recordActionPointRestore } from '../shared/utils/actionPointRegen.js';
+
+export { recordActionPointSpend, recordActionPointRestore };
 
 export interface MannerEffects {
     maxActionPoints: number;

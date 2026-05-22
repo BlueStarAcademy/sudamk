@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { LiveGameSession, UserWithStatus, ServerAction, Player, AnalysisResult, GameMode, GameSummary } from '../types.js';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import Button from './Button.js';
-import Avatar from './Avatar.js';
 import { getSinglePlayerStages, AVATAR_POOL, BORDER_POOL } from '../constants';
 import { getItemTemplateByName } from '../utils/itemTemplateLookup.js';
 import { ItemGrade } from '../types/enums.js';
@@ -16,7 +15,6 @@ import {
     PRE_GAME_MODAL_FOOTER_CLASS,
     PRE_GAME_MODAL_LAYER_CLASS,
 } from './game/PreGameDescriptionLayout.js';
-import { StrategyXpResultBar } from './game/StrategyXpResultBar.js';
 import { ResultModalXpRewardBadge, ResultModalPetGradeUpgradeNeededSlot } from './game/ResultModalXpRewardBadge.js';
 import {
     ResultModalGoldCurrencySlot,
@@ -25,12 +23,11 @@ import {
     RESULT_MODAL_REWARDS_ROW_MOBILE_SP_SLIM_CLASS,
 } from './game/ResultModalRewardSlot.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
-import PairPetLevelUpCoreDelta from './pair/PairPetLevelUpCoreDelta.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { getPairPetDefinition, getPairPetDisplayName } from '../shared/constants/petLobby.js';
 import { effectivePairPetGradeFromRow, pairPetShowsGradeUpgradeNeededInsteadOfXp } from '../shared/constants/pairPetGrade.js';
 import { RESULT_MODAL_SCORE_MOBILE_PX } from './game/resultModalScoreTypography.js';
-import SpResultRecordPetIdentityRow from './game/SpResultRecordPetIdentityRow.js';
+import SpResultRecordSideBySidePanel from './game/SpResultRecordSideBySidePanel.js';
 import { useGameResultModalLayout } from './game/useGameResultModalLayout.js';
 /** 게임 설명 모달과 동일한 패널 박스 */
 const SP_SUMMARY_PANEL_CLASS =
@@ -687,107 +684,29 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                 </div>
                                 }
                                 recordPanel={
-                                <div className={`flex flex-col gap-1.5 ${SP_SUMMARY_PANEL_CLASS} p-2`}>
+                                <div className={`flex flex-col gap-1 ${SP_SUMMARY_PANEL_CLASS} p-1.5`}>
                                     <h2
-                                        className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`}
+                                        className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-1 text-center`}
                                         style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px` }}
                                     >
                                         기록
                                     </h2>
-                                    <div className={`flex flex-shrink-0 items-center gap-1.5 ${SP_SUMMARY_INSET_CLASS} p-1.5`}>
-                                        <Avatar
-                                            userId={currentUser.id}
-                                            userName={currentUser.nickname}
-                                            avatarUrl={avatarUrl}
-                                            borderUrl={borderUrl}
-                                            size={24}
-                                        />
-                                        <div>
-                                            <p className="font-bold text-zinc-100" style={{ fontSize: `${11 * mobileTextScale}px` }}>
-                                                {currentUser.nickname}
-                                            </p>
-                                            <p className="text-amber-200/60" style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px` }}>
-                                                Lv.{currentUser.userLevel}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    {displaySummary?.xp && (
-                                        <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-1.5`}>
-                                            <StrategyXpResultBar
-                                                previousXpPercent={previousXpPercent}
-                                                finalXpPercent={xpPercent}
-                                                xpGain={xpChange}
-                                            />
-                                            <div
-                                                className="flex min-w-0 flex-nowrap items-center justify-between gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
-                                                style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px` }}
-                                            >
-                                                <span className="min-w-0 shrink font-mono whitespace-nowrap text-zinc-300/95">
-                                                    {clampedXp.toLocaleString()} / {xpRequirement.toLocaleString()} XP
-                                                </span>
-                                                {xpChange > 0 && (
-                                                    <span className="shrink-0 whitespace-nowrap font-semibold text-green-400">
-                                                        +{xpChange.toLocaleString()} XP
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                    {showPetGradeUpgradeInsteadOfXp && displaySummary?.pairPetLevel && displaySummary?.pairPetXp ? (
-                                        <div className={`space-y-1 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-1.5`}>
-                                            {petRecordRowIdentity ? (
-                                                <SpResultRecordPetIdentityRow
-                                                    imageSrc={petRecordRowIdentity.imageSrc}
-                                                    displayName={petRecordRowIdentity.displayName}
-                                                    level={displaySummary.pairPetLevel.final}
-                                                    isMobile={isMobile}
-                                                    mobileTextScale={mobileTextScale}
-                                                />
-                                            ) : null}
-                                            <p
-                                                className="text-center font-bold uppercase tracking-[0.12em] text-fuchsia-200/90"
-                                                style={{ fontSize: `${9 * mobileTextScale}px` }}
-                                            >
-                                                펫 등급강화 필요
-                                            </p>
-                                        </div>
-                                    ) : petXpBarPercents && displaySummary?.pairPetLevel ? (
-                                        <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-1.5`}>
-                                            {petRecordRowIdentity ? (
-                                                <SpResultRecordPetIdentityRow
-                                                    imageSrc={petRecordRowIdentity.imageSrc}
-                                                    displayName={petRecordRowIdentity.displayName}
-                                                    level={displaySummary.pairPetLevel.final}
-                                                    isMobile={isMobile}
-                                                    mobileTextScale={mobileTextScale}
-                                                />
-                                            ) : null}
-                                            <StrategyXpResultBar
-                                                previousXpPercent={petXpBarPercents.previous}
-                                                finalXpPercent={petXpBarPercents.final}
-                                                xpGain={petXpBarPercents.gain}
-                                            />
-                                            <div
-                                                className="flex min-w-0 flex-nowrap items-center justify-between gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
-                                                style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px` }}
-                                            >
-                                                <span className="min-w-0 shrink font-mono whitespace-nowrap text-zinc-300/95">
-                                                    {petXpBarPercents.petFinal.toLocaleString()} / {petXpBarPercents.petMax.toLocaleString()} 펫 XP
-                                                </span>
-                                                <span className="shrink-0 whitespace-nowrap font-semibold text-fuchsia-300">
-                                                    +{petXpBarPercents.gain.toLocaleString()} 펫 XP
-                                                </span>
-                                            </div>
-                                            {displaySummary.pairPetLevelUpCoreBonuses ? (
-                                                <PairPetLevelUpCoreDelta
-                                                    delta={displaySummary.pairPetLevelUpCoreBonuses}
-                                                    title="추가된 능력치"
-                                                    compact
-                                                    className="mt-1"
-                                                />
-                                            ) : null}
-                                        </div>
-                                    ) : null}
+                                    <SpResultRecordSideBySidePanel
+                                        currentUser={currentUser}
+                                        avatarUrl={avatarUrl}
+                                        borderUrl={borderUrl}
+                                        displaySummary={displaySummary}
+                                        previousXpPercent={previousXpPercent}
+                                        xpPercent={xpPercent}
+                                        xpChange={xpChange}
+                                        clampedXp={clampedXp}
+                                        xpRequirement={xpRequirement}
+                                        petRecordRowIdentity={petRecordRowIdentity}
+                                        petXpBarPercents={petXpBarPercents}
+                                        showPetGradeUpgradeInsteadOfXp={showPetGradeUpgradeInsteadOfXp}
+                                        isMobile={isMobile}
+                                        mobileTextScale={mobileTextScale}
+                                    />
                                 </div>
                                 }
                             />
@@ -844,99 +763,26 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                             </div>
                         </div>
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5 overflow-visible">
-                            <div className={`flex flex-col gap-1 ${SP_SUMMARY_PANEL_CLASS} overflow-visible p-2 sm:p-2.5`}>
-                                <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`}>기록</h2>
-                                <div className={`flex flex-shrink-0 items-center gap-1.5 ${SP_SUMMARY_INSET_CLASS} p-2`}>
-                                    <Avatar
-                                        userId={currentUser.id}
-                                        userName={currentUser.nickname}
-                                        avatarUrl={avatarUrl}
-                                        borderUrl={borderUrl}
-                                        size={32}
-                                    />
-                                    <div>
-                                        <p className="font-bold text-zinc-100" style={{ fontSize: '15px' }}>
-                                            {currentUser.nickname}
-                                        </p>
-                                        <p className="text-amber-200/60" style={{ fontSize: '13px' }}>
-                                            Lv.{currentUser.userLevel}
-                                        </p>
-                                    </div>
-                                </div>
-                                {displaySummary?.xp && (
-                                    <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-2`}>
-                                        <StrategyXpResultBar
-                                            previousXpPercent={previousXpPercent}
-                                            finalXpPercent={xpPercent}
-                                            xpGain={xpChange}
-                                        />
-                                        <div
-                                            className="flex min-w-0 flex-nowrap items-center justify-between gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
-                                            style={{ fontSize: '13px' }}
-                                        >
-                                            <span className="min-w-0 shrink font-mono whitespace-nowrap text-zinc-300/95">
-                                                {clampedXp.toLocaleString()} / {xpRequirement.toLocaleString()} XP
-                                            </span>
-                                            {xpChange > 0 && (
-                                                <span className="shrink-0 whitespace-nowrap font-semibold text-green-400">
-                                                    +{xpChange.toLocaleString()} XP
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                                {showPetGradeUpgradeInsteadOfXp && displaySummary?.pairPetLevel && displaySummary?.pairPetXp ? (
-                                    <div className={`space-y-1 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-2`}>
-                                        {petRecordRowIdentity ? (
-                                            <SpResultRecordPetIdentityRow
-                                                imageSrc={petRecordRowIdentity.imageSrc}
-                                                displayName={petRecordRowIdentity.displayName}
-                                                level={displaySummary.pairPetLevel.final}
-                                                isMobile={isMobile}
-                                                mobileTextScale={mobileTextScale}
-                                            />
-                                        ) : null}
-                                        <div className="text-center text-[10px] font-bold uppercase tracking-[0.12em] text-fuchsia-200/90 sm:text-xs">
-                                            펫 등급강화 필요
-                                        </div>
-                                    </div>
-                                ) : petXpBarPercents && displaySummary?.pairPetLevel ? (
-                                    <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-2`}>
-                                        {petRecordRowIdentity ? (
-                                            <SpResultRecordPetIdentityRow
-                                                imageSrc={petRecordRowIdentity.imageSrc}
-                                                displayName={petRecordRowIdentity.displayName}
-                                                level={displaySummary.pairPetLevel.final}
-                                                isMobile={isMobile}
-                                                mobileTextScale={mobileTextScale}
-                                            />
-                                        ) : null}
-                                        <StrategyXpResultBar
-                                            previousXpPercent={petXpBarPercents.previous}
-                                            finalXpPercent={petXpBarPercents.final}
-                                            xpGain={petXpBarPercents.gain}
-                                        />
-                                        <div
-                                            className="flex min-w-0 flex-nowrap items-center justify-between gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
-                                            style={{ fontSize: '13px' }}
-                                        >
-                                            <span className="min-w-0 shrink font-mono whitespace-nowrap text-zinc-300/95">
-                                                {petXpBarPercents.petFinal.toLocaleString()} / {petXpBarPercents.petMax.toLocaleString()} 펫 XP
-                                            </span>
-                                            <span className="shrink-0 whitespace-nowrap font-semibold text-fuchsia-300">
-                                                +{petXpBarPercents.gain.toLocaleString()} 펫 XP
-                                            </span>
-                                        </div>
-                                        {displaySummary.pairPetLevelUpCoreBonuses ? (
-                                            <PairPetLevelUpCoreDelta
-                                                delta={displaySummary.pairPetLevelUpCoreBonuses}
-                                                title="추가된 능력치"
-                                                compact
-                                                className="mt-1"
-                                            />
-                                        ) : null}
-                                    </div>
-                                ) : null}
+                            <div className={`flex flex-col gap-1 ${SP_SUMMARY_PANEL_CLASS} shrink-0 overflow-visible p-2 sm:p-2.5`}>
+                                <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-1 text-center`}>
+                                    기록
+                                </h2>
+                                <SpResultRecordSideBySidePanel
+                                    currentUser={currentUser}
+                                    avatarUrl={avatarUrl}
+                                    borderUrl={borderUrl}
+                                    displaySummary={displaySummary}
+                                    previousXpPercent={previousXpPercent}
+                                    xpPercent={xpPercent}
+                                    xpChange={xpChange}
+                                    clampedXp={clampedXp}
+                                    xpRequirement={xpRequirement}
+                                    petRecordRowIdentity={petRecordRowIdentity}
+                                    petXpBarPercents={petXpBarPercents}
+                                    showPetGradeUpgradeInsteadOfXp={showPetGradeUpgradeInsteadOfXp}
+                                    isMobile={isMobile}
+                                    mobileTextScale={mobileTextScale}
+                                />
                             </div>
                             {spRewardsSection}
                         </div>

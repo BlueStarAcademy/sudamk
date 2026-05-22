@@ -14,7 +14,7 @@ import {
     isInvalidStrategicInitialStonePlacement,
 } from '../strategicInitialBoard.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
-import { applyPassiveActionPointRegenToUser } from '../effectService.js';
+import { applyPassiveActionPointRegenToUser, recordActionPointSpend } from '../effectService.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
 import { updateQuestProgress } from '../questService.js';
 import {
@@ -403,8 +403,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             }
 
             if (effectiveActionPointCost > 0) {
-                user.actionPoints.current -= effectiveActionPointCost;
-                user.lastActionPointUpdate = now;
+                recordActionPointSpend(user, effectiveActionPointCost, now);
             }
             
             // 게임 모드: strategicRulePreset이 있으면 우선, 없으면 기존 필드 조합 추론

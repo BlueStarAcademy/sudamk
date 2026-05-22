@@ -14,7 +14,6 @@ import {
     resolveSinglePlayerMixedModes,
 } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 import SinglePlayerRewardsModal from './SinglePlayerRewardsModal.js';
-import SinglePlayerClassBarRewardsPanel from './SinglePlayerClassBarRewardsPanel.js';
 
 /** 싱글플레이 스테이지 입장: 앰버 메탈 + 글로우 (PC·모바일 공통) */
 const PREMIUM_STAGE_ENTER_CLASS =
@@ -175,10 +174,6 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                     보상표
                 </button>
             </div>
-
-            {usePremiumDesktop && (
-                <SinglePlayerClassBarRewardsPanel selectedClass={selectedClass} currentUser={currentUser} density="desktop" />
-            )}
 
             <SinglePlayerRewardsModal
                 open={rewardsModalOpen}

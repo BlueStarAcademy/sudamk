@@ -2493,15 +2493,20 @@ export const useApp = () => {
                 : null;
 
         const intervalId = setInterval(() => {
-            if (!currentUser.actionPoints || currentUser.lastActionPointUpdate === undefined) return;
-            
-            const effects = calculateUserEffects(currentUser, guildForAp);
+            const liveUser = currentUserRef.current;
+            if (!liveUser?.actionPoints || liveUser.lastActionPointUpdate === undefined) return;
+
+            const liveGuildForAp =
+                liveUser.guildId != null && liveUser.guildId !== ''
+                    ? guilds[liveUser.guildId] ?? null
+                    : null;
+            const effects = calculateUserEffects(liveUser, liveGuildForAp);
             const now = Date.now();
             const calculatedMaxAP = effects.maxActionPoints;
 
             // 현재 < 최대인데 last가 0이면(만땅에서 최대만 올라간 직후 등) 회복 타이머를 즉시 시작
-            if (currentUser.actionPoints.current < calculatedMaxAP) {
-                const lu = currentUser.lastActionPointUpdate;
+            if (liveUser.actionPoints.current < calculatedMaxAP) {
+                const lu = liveUser.lastActionPointUpdate;
                 if (lu === 0 || lu === undefined || lu === null) {
                     setCurrentUser(prev => {
                         if (!prev?.actionPoints) return prev;
@@ -2517,31 +2522,54 @@ export const useApp = () => {
                     return;
                 }
             }
-            
+
             // 행동력이 최대치가 아니고, lastActionPointUpdate가 유효한 경우에만 계산
-            if (currentUser.actionPoints.current < calculatedMaxAP && currentUser.lastActionPointUpdate !== 0) {
-                const lastUpdate = currentUser.lastActionPointUpdate;
+            if (liveUser.actionPoints.current < calculatedMaxAP && liveUser.lastActionPointUpdate !== 0) {
+                const lastUpdate = liveUser.lastActionPointUpdate;
                 if (typeof lastUpdate === 'number' && !isNaN(lastUpdate)) {
                     const elapsedMs = now - lastUpdate;
-                    const regenInterval = effects.actionPointRegenInterval > 0 ? effects.actionPointRegenInterval : ACTION_POINT_REGEN_INTERVAL_MS;
+                    const regenInterval =
+                        effects.actionPointRegenInterval > 0
+                            ? effects.actionPointRegenInterval
+                            : ACTION_POINT_REGEN_INTERVAL_MS;
                     const pointsToAdd = Math.floor(elapsedMs / regenInterval);
-                    
+
                     if (pointsToAdd > 0) {
-                        const newCurrent = Math.min(calculatedMaxAP, currentUser.actionPoints.current + pointsToAdd);
-                        // 다음 회복 시점을 반영: lastActionPointUpdate를 회복한 구간만큼 진행 (무한 1씩 회복 방지)
-                        const newLastUpdate = newCurrent >= calculatedMaxAP
-                            ? 0
-                            : lastUpdate + pointsToAdd * regenInterval;
                         setCurrentUser(prev => {
-                            if (!prev || !prev.actionPoints) return prev;
+                            if (!prev?.actionPoints) return prev;
+                            const g2 =
+                                prev.guildId != null && prev.guildId !== ''
+                                    ? guilds[prev.guildId] ?? null
+                                    : null;
+                            const e2 = calculateUserEffects(prev, g2);
+                            const maxAp = e2.maxActionPoints;
+                            const pLast = prev.lastActionPointUpdate;
+                            if (typeof pLast !== 'number' || Number.isNaN(pLast) || pLast === 0) return prev;
+                            const elapsed = now - pLast;
+                            const interval =
+                                e2.actionPointRegenInterval > 0
+                                    ? e2.actionPointRegenInterval
+                                    : ACTION_POINT_REGEN_INTERVAL_MS;
+                            const add = Math.floor(elapsed / interval);
+                            if (add <= 0) return prev;
+                            const newCurrent = Math.min(maxAp, prev.actionPoints.current + add);
+                            const newLastUpdate =
+                                newCurrent >= maxAp ? 0 : pLast + add * interval;
+                            if (
+                                newCurrent === prev.actionPoints.current &&
+                                newLastUpdate === prev.lastActionPointUpdate &&
+                                maxAp === prev.actionPoints.max
+                            ) {
+                                return prev;
+                            }
                             return {
                                 ...prev,
                                 actionPoints: {
                                     ...prev.actionPoints,
                                     current: newCurrent,
-                                    max: calculatedMaxAP
+                                    max: maxAp,
                                 },
-                                lastActionPointUpdate: newLastUpdate
+                                lastActionPointUpdate: newLastUpdate,
                             };
                         });
                         setActionPointUpdateTrigger(prev => prev + 1);

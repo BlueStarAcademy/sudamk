@@ -1,5 +1,7 @@
 import React from 'react';
-import { SinglePlayerLevel } from '../../types.js';
+import { SinglePlayerLevel, UserWithStatus } from '../../types.js';
+import { getSinglePlayerInGameBackgroundUrl } from '../../utils/singlePlayerPreGameDisplay.js';
+import SinglePlayerClassBarRewardsPanel from './SinglePlayerClassBarRewardsPanel.js';
 
 type ClassNavigationLobbyChrome = {
     onBack: () => void;
@@ -12,6 +14,7 @@ type ClassNavigationLobbyChrome = {
 interface ClassNavigationPanelProps {
     selectedClass: SinglePlayerLevel;
     onClassSelect: (level: SinglePlayerLevel) => void;
+    currentUser: UserWithStatus;
     /** 네이티브 모바일 한 화면용 */
     compact?: boolean;
     /** 싱글플레이 로비: 하단 탭이 있을 때 상단만 차지 — 이미지·제목 높이 축소 */
@@ -21,12 +24,12 @@ interface ClassNavigationPanelProps {
 }
 
 const CLASS_INFO = [
-    { level: SinglePlayerLevel.입문, name: '입문반', image: '/images/single/Academy1.webp' },
-    { level: SinglePlayerLevel.초급, name: '초급반', image: '/images/single/Academy2.webp' },
-    { level: SinglePlayerLevel.중급, name: '중급반', image: '/images/single/Academy3.webp' },
-    { level: SinglePlayerLevel.고급, name: '고급반', image: '/images/single/Academy4.webp' },
-    { level: SinglePlayerLevel.유단자, name: '유단자', image: '/images/single/Academy5.webp' },
-];
+    { level: SinglePlayerLevel.입문, name: '입문반' },
+    { level: SinglePlayerLevel.초급, name: '초급반' },
+    { level: SinglePlayerLevel.중급, name: '중급반' },
+    { level: SinglePlayerLevel.고급, name: '고급반' },
+    { level: SinglePlayerLevel.유단자, name: '유단자' },
+] as const;
 
 /** `SinglePlayerLobby` 타이틀 스트립과 동일 계열 */
 const lobbyTitleStripVisual =
@@ -38,6 +41,7 @@ const lobbyTitleH1Class =
 const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
     selectedClass,
     onClassSelect,
+    currentUser,
     compact = false,
     lobbyMobileTop = false,
     lobbyChrome,
@@ -153,14 +157,14 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                     <div
                         className={`relative h-full w-full overflow-hidden rounded-xl border-2 border-emerald-400/40 shadow-[0_0_28px_rgba(16,185,129,0.2),0_6px_20px_rgba(0,0,0,0.45)] ring-1 ring-amber-400/20 ${
                             topShelf
-                                ? 'max-h-[min(17dvh,148px)] min-h-[min(8dvh,72px)] sm:max-h-[min(19dvh,168px)]'
+                                ? 'max-h-[min(14dvh,120px)] min-h-[min(7dvh,64px)] sm:max-h-[min(16dvh,136px)]'
                                 : isMobile
                                   ? 'max-h-[min(58dvh,440px)] min-h-[min(32dvh,240px)]'
                                   : 'max-h-[500px]'
                         }`}
                     >
                         <img 
-                            src={currentClass.image} 
+                            src={getSinglePlayerInGameBackgroundUrl(currentClass.level)} 
                             alt={currentClass.name}
                             className="h-full w-full object-cover brightness-[1.02]"
                             onError={(e) => {
@@ -199,9 +203,19 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                             </div>
                         </div>
                     </div>
+
+                    <div
+                        className={`w-full shrink-0 ${topShelf ? 'mt-0.5' : isMobile ? 'mt-1' : 'mt-2'}`}
+                    >
+                        <SinglePlayerClassBarRewardsPanel
+                            selectedClass={selectedClass}
+                            currentUser={currentUser}
+                            density={isMobile ? 'compact' : 'desktop'}
+                        />
+                    </div>
                     
                     {/* 하단 클래스 선택 인디케이터 — 하단 클리핑 여유 */}
-                    <div className={`flex shrink-0 flex-wrap justify-center gap-0.5 ${topShelf ? 'mt-0.5 pb-0' : isMobile ? 'mt-1 pb-0.5' : 'mt-3 pb-1'}`}>
+                    <div className={`flex shrink-0 flex-wrap justify-center gap-0.5 ${topShelf ? 'mt-0.5 pb-0' : isMobile ? 'mt-1 pb-0.5' : 'mt-2 pb-1'}`}>
                         {CLASS_INFO.map((classInfo, index) => {
                             const isSelected = selectedClass === classInfo.level;
                             return (

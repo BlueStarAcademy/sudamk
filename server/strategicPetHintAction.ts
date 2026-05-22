@@ -206,10 +206,20 @@ function bonusSpeech(reward: BonusReward): string {
     return lines[randomInt(0, lines.length - 1)];
 }
 
+/** 이번 대국 입장 시 차감된 행동력(0이면 싱글/탑 재도전·무료 재플레이) */
+function readArenaStartActionPointCost(game: types.LiveGameSession): number | undefined {
+    const policy = resolveArenaSessionPolicy(game as any);
+    if (policy.kind === 'tower') return Number((game as any).towerStartActionPointCost ?? 0);
+    if (policy.kind === 'singleplayer') return Number((game as any).singlePlayerStartActionPointCost ?? 0);
+    return undefined;
+}
+
 function isStrategicPetHintBonusEligible(game: types.LiveGameSession): boolean {
     const policy = resolveArenaSessionPolicy(game as any);
     if (policy.isPairGame) return false;
-    if (policy.kind === 'tower' && Number((game as any).towerStartActionPointCost ?? 0) <= 0) return false;
+    if (policy.kind === 'tower' || policy.kind === 'singleplayer') {
+        return (readArenaStartActionPointCost(game) ?? 0) > 0;
+    }
     return true;
 }
 
@@ -292,13 +302,14 @@ export async function handleStrategicPetHintRequest(
 
     markHintPhaseUsed(game, user.id, phase);
     const petLevel = Math.max(1, Math.floor(Number(petRow.level ?? 1) || 1));
-    const bonusReward = takePresetBonusOrRoll(game, user.id, phase, petLevel);
+    const bonusEligible = isStrategicPetHintBonusEligible(game);
+    const bonusReward = bonusEligible ? takePresetBonusOrRoll(game, user.id, phase, petLevel) : undefined;
     setPendingHint(game, user.id, {
         x: pt.x,
         y: pt.y,
         phase,
         moveHistoryLength: game.moveHistory?.length ?? 0,
-        bonusReward,
+        ...(bonusReward ? { bonusReward } : {}),
     });
     const message = pickStrategicPetHintLine({
         phase,
@@ -314,7 +325,7 @@ export async function handleStrategicPetHintRequest(
                 y: pt.y,
                 message,
                 phase,
-                pendingReward: bonusReward,
+                ...(bonusReward ? { pendingReward: bonusReward } : {}),
             },
             gameId: game.id,
         },

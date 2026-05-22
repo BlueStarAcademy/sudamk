@@ -49,6 +49,7 @@ import { calculateTotalStats } from './statService.js';
 import { isSameDayKST, getKSTDate } from '../shared/utils/timeUtils.js';
 import { createDefaultBaseStats, createDefaultUser } from './initialData.ts';
 import { appendWelcomeSpecialEggMailToUser } from './welcomeSpecialEggMail.js';
+import { appendWelcomeStarterActionPointMailToUser } from './welcomeStarterActionPointMail.js';
 import { maybeResetStatAllocationAfterLevelStructureChange } from './statAllocationLevelStructureMigration.js';
 import { containsProfanity } from '../profanity.js';
 import {
@@ -3090,6 +3091,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             console.log('[/api/auth/register] Resetting and generating quests...');
             newUser = await resetAndGenerateQuests(newUser);
             appendWelcomeSpecialEggMailToUser(newUser);
+            appendWelcomeStarterActionPointMailToUser(newUser);
 
             console.log('[/api/auth/register] Creating user in database...');
             try {
@@ -3984,6 +3986,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
                 user = await resetAndGenerateQuests(user);
                 appendWelcomeSpecialEggMailToUser(user);
+                appendWelcomeStarterActionPointMailToUser(user);
                 await db.createUser(user);
 
                 // 카카오 ID로 인증 정보 생성 (비밀번호 없음)
@@ -4065,6 +4068,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
                 user = await resetAndGenerateQuests(user);
                 appendWelcomeSpecialEggMailToUser(user);
+                appendWelcomeStarterActionPointMailToUser(user);
                 await db.createUser(user);
 
                 // 구글 ID로 인증 정보 생성 (비밀번호 없음)

@@ -25,6 +25,7 @@ import { normalizeLegacyDivineMythicInventoryItem } from '../../shared/utils/inv
 import { nicknameContainsReservedStaffTerms } from '../../shared/utils/staffNicknameDisplay.js';
 import { hashPassword } from '../utils/passwordUtils.js';
 import { appendWelcomeSpecialEggMailToUser } from '../welcomeSpecialEggMail.js';
+import { appendWelcomeStarterActionPointMailToUser } from '../welcomeStarterActionPointMail.js';
 import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
 import {
     getEffectiveSinglePlayerStages,
@@ -400,6 +401,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             (newUser as { email?: string | null }).email = emailTrimmed ? emailTrimmed.toLowerCase() : null;
             newUser.staffNicknameDisplayEligibility = nicknameContainsReservedStaffTerms(nickname.trim());
             appendWelcomeSpecialEggMailToUser(newUser);
+            appendWelcomeStarterActionPointMailToUser(newUser);
 
             await db.createUser(newUser);
             const passwordHash = await hashPassword(trimmedPassword);

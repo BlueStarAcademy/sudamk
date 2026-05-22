@@ -353,8 +353,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                     return { error: `액션 포인트가 부족합니다. (필요: ${cost})` };
                 }
                 if (!user.isAdmin) {
-                    user.actionPoints.current -= cost;
-                    user.lastActionPointUpdate = Date.now();
+                    effectService.recordActionPointSpend(user, cost);
                     adventureApDeducted = true;
                     adventureApCostPaid = cost;
                 }
@@ -450,8 +449,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                     mapMonsterId?: string;
                 };
                 if (adventureApDeducted && !user.isAdmin && adventureApCostPaid > 0) {
-                    user.actionPoints.current += adventureApCostPaid;
-                    user.lastActionPointUpdate = Date.now();
+                    effectService.recordActionPointRestore(user, adventureApCostPaid);
                 }
                 console.error('[START_ADVENTURE_MONSTER_BATTLE] Error:', err?.message || err, err?.stack, {
                     codexId,

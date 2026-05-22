@@ -33,7 +33,7 @@ export interface SinglePlayerClassBarRewardsPanelProps {
 
 /**
  * 반(단계)별 스테이지 클리어 진행 막대 + 10·20 클리어 보상(수령).
- * PC `StageGrid` 상단과 모바일 로비(단계 이미지 하단)에서 공통 사용.
+ * `ClassNavigationPanel` 단계 이미지 하단에서 공통 사용.
  */
 const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPanelProps> = ({
     selectedClass,

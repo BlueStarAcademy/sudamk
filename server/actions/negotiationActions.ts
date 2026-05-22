@@ -6,7 +6,7 @@ import { initializeGame } from '../gameModes.js';
 import { aiUserId, getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
-import { applyPassiveActionPointRegenToUser } from '../effectService.js';
+import { applyPassiveActionPointRegenToUser, recordActionPointSpend, recordActionPointRestore } from '../effectService.js';
 import { maybeDeleteDetachedEndedPvpGame } from '../maybeDeleteDetachedEndedPvpGame.js';
 import { clampAiLobbyStrategicItemCaps } from '../../shared/utils/strategicAiLobbyItemCaps.js';
 import { isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
@@ -370,12 +370,10 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             }
 
             if (!challenger.isAdmin) {
-                challenger.actionPoints.current -= costChallenger;
-                challenger.lastActionPointUpdate = now;
+                recordActionPointSpend(challenger, costChallenger, now);
             }
             if (!opponent.isAdmin) {
-                opponent.actionPoints.current -= costOpponent;
-                opponent.lastActionPointUpdate = now;
+                recordActionPointSpend(opponent, costOpponent, now);
             }
 
             // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
@@ -531,8 +529,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                     return { error: `액션 포인트가 부족합니다. (필요: ${cost})` };
                 }
                 if (!user.isAdmin) {
-                    user.actionPoints.current -= cost;
-                    user.lastActionPointUpdate = now;
+                    recordActionPointSpend(user, cost, now);
                 }
 
                 const aiLobbyKey = SPECIAL_GAME_MODES.some((m) => m.mode === mode)
@@ -544,8 +541,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                     const aiGate = await requireArenaEntranceOpen(user.isAdmin, aiLobbyKey, user);
                     if (!aiGate.ok) {
                         if (!user.isAdmin) {
-                            user.actionPoints.current += cost;
-                            user.lastActionPointUpdate = now;
+                            recordActionPointRestore(user, cost);
                         }
                         return { error: aiGate.error };
                     }
@@ -617,8 +613,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                         payload.mode as GameMode,
                         refundSettings,
                     );
-                    user.actionPoints.current += refundAp;
-                    user.lastActionPointUpdate = now;
+                    recordActionPointRestore(user, refundAp);
                 }
                 console.error('[START_AI_GAME] Error:', err?.message || err, err?.stack);
                 return { error: err?.message || 'AI 게임 생성 중 오류가 발생했습니다.' };
