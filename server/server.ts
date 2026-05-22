@@ -2274,8 +2274,12 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                                     !(global as any).lastUpdateGamesTimeout ||
                                     Date.now() - (global as any).lastUpdateGamesTimeout > 30000;
                                 if (shouldLog) {
+                                    const g0 = gamesWithOnlinePlayers[0];
+                                    const ctx = g0?.id
+                                        ? `id=${g0.id} mode=${g0.mode} status=${g0.gameStatus} dispatching=${!!(g0 as any)._aiMoveDispatching}`
+                                        : '';
                                     console.warn(
-                                        `[MainLoop] updateGameStates timeout (${updateGamesTimeoutMs}ms) for ${gamesWithOnlinePlayers.length} games — merging gameCache`,
+                                        `[MainLoop] updateGameStates timeout (${updateGamesTimeoutMs}ms) for ${gamesWithOnlinePlayers.length} games — merging gameCache${ctx ? ` (${ctx})` : ''}`,
                                     );
                                     (global as any).lastUpdateGamesTimeout = Date.now();
                                 }

@@ -279,7 +279,19 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
         case 'hidden_final_reveal':
             if (game.revealAnimationEndTime && now >= game.revealAnimationEndTime) {
                 clearItemPhasePresentationFields(game, { clearRevealClock: true });
-                await getGameResult(game);
+                if (!(game as any)._getGameResultInFlight) {
+                    (game as any)._getGameResultInFlight = true;
+                    void getGameResult(game)
+                        .catch((err: any) => {
+                            console.error(
+                                `[updateHiddenState] getGameResult failed for game ${game.id}:`,
+                                err?.message ?? err,
+                            );
+                        })
+                        .finally(() => {
+                            (game as any)._getGameResultInFlight = false;
+                        });
+                }
                 changed = true;
             }
             break;

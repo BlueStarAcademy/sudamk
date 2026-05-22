@@ -28,6 +28,7 @@ import {
     PAIR_GO_GAME_MODES,
 } from '../shared/utils/pairGameTurn.js';
 import { PVP_DISCONNECT_REJOIN_GRACE_MS } from '../shared/utils/pvpDisconnectPolicy.js';
+import { aiProcessingQueue } from './aiProcessingQueue.js';
 import {
     getSpeedTimeBonusPointsDesired,
     getSpeedTimePressureConsumptionSnapshot,
@@ -1126,6 +1127,21 @@ export const resetGameForRematch = (game: LiveGameSession, negotiation: types.Ne
  * `updateGameStates` 타임아웃·배치 제한 등으로 조기 반환할 때는 반드시 캐시를 한 번 읽어
  * (예: 베이스 `CONFIRM_BASE_REVEAL` → `playing` 직후) stale 덮어쓰기를 막는다.
  */
+function formatUpdateGameStatesTimeoutContext(games: LiveGameSession[]): string {
+    const g = games[0];
+    if (!g?.id) return `games=${games.length}`;
+    return [
+        `games=${games.length}`,
+        `id=${g.id}`,
+        `mode=${g.mode}`,
+        `status=${g.gameStatus}`,
+        `aiGame=${!!g.isAiGame}`,
+        `dispatching=${!!(g as any)._aiMoveDispatching}`,
+        `aiQueue=${aiProcessingQueue.isProcessingGame(g.id)}`,
+        `scoringFlight=${!!(g as any)._getGameResultInFlight}`,
+    ].join(' ');
+}
+
 export async function mergeGamesWithLatestCache(
     snapshots: LiveGameSession[],
     lookupMs: number,
@@ -1276,7 +1292,7 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                         Date.now() - (global as any).lastUpdateGameStatesTimeoutLog > 30000;
                     if (shouldLog) {
                         console.warn(
-                            `[updateGameStates] Outer timeout (${OUTER_DEADLINE_MS}ms) — merging gameCache so HTTP-updated sessions are not overwritten`,
+                            `[updateGameStates] Outer timeout (${OUTER_DEADLINE_MS}ms) — merging gameCache (${formatUpdateGameStatesTimeoutContext(games)})`,
                         );
                         (global as any).lastUpdateGameStatesTimeoutLog = Date.now();
                     }
@@ -1444,6 +1460,14 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             game = cached;
         }
 
+        // AI 큐가 Kata/goAiBot 동기 연산 중이면 메인 루프 틱을 즉시 반환 (22~24s 타임아웃 연쇄 방지)
+        if (
+            aiProcessingQueue.isProcessingGame(game.id) ||
+            (game as any)._getGameResultInFlight
+        ) {
+            return game;
+        }
+
         try {
             // PVP 전용: AI/싱글/탑 등에서는 disconnectionState를 쓰지 않으며, 버그·구버전으로 남아 있어도 시간패로 끝내지 않는다.
             const isPvpDisconnectRecovery =
@@ -1583,8 +1607,17 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
 
             // 게임 상태 업데이트를 먼저 실행하여 애니메이션 완료 후 턴 전환을 처리
             // 중요: 게임 상태 업데이트를 먼저 실행해야 애니메이션 완료 후 턴 전환이 제대로 처리됨
-            // 타임아웃 추가: 게임 상태 업데이트가 너무 오래 걸리면 스킵
-            if (game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest' && game.gameStatus !== 'scoring') {
+            // AI 큐/makeAiMove가 Kata·goAiBot 동기 연산 중이면 겹치지 않게 스킵 (이벤트 루프 장시간 블로킹 → 22s 타임아웃 방지)
+            const skipStateMachineTick =
+                !!(game as any)._aiMoveDispatching ||
+                !!(game as any)._getGameResultInFlight ||
+                aiProcessingQueue.isProcessingGame(game.id);
+            if (
+                !skipStateMachineTick &&
+                game.gameStatus !== 'ended' &&
+                game.gameStatus !== 'no_contest' &&
+                game.gameStatus !== 'scoring'
+            ) {
                 const STATE_UPDATE_DEADLINE_MS = 600; // 게임 상태 업데이트 600ms 타임아웃 (800ms -> 600ms로 단축)
                 const stateUpdateTimeout = new Promise<void>((resolve) => setTimeout(resolve, STATE_UPDATE_DEADLINE_MS));
                 try {

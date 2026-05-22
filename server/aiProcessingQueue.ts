@@ -110,6 +110,11 @@ class AiProcessingQueue {
         this.processing.delete(gameId);
     }
 
+    /** 메인 루프가 동일 게임에서 Kata/goAiBot 동기 연산과 겹치지 않도록 할 때 사용 */
+    isProcessingGame(gameId: string): boolean {
+        return this.processing.has(gameId);
+    }
+
     /**
      * 큐 처리 시작
      */
@@ -257,8 +262,20 @@ class AiProcessingQueue {
             const beforeMoveCount = game.moveHistory?.length ?? 0;
             const pairClassic = isPairClassicGame(game.settings, game.mode);
 
-            // AI 수 처리
-            await makeAiMove(game);
+            // AI 수 처리 — makeAiMove(goAiBot/Kata)는 동기 구간이 길어 이벤트 루프를 막는다.
+            // processGame과 동일하게 setImmediate로 한 틱 미루어 updateGameStates 타임아웃이 동작하게 한다.
+            await new Promise<void>((resolve, reject) => {
+                setImmediate(() => {
+                    void (async () => {
+                        try {
+                            await makeAiMove(game);
+                            resolve();
+                        } catch (moveErr) {
+                            reject(moveErr);
+                        }
+                    })();
+                });
+            });
             const afterMoveCount = game.moveHistory?.length ?? beforeMoveCount;
             const stalledOnAiTurn =
                 afterMoveCount <= beforeMoveCount &&
