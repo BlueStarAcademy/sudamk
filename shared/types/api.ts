@@ -168,6 +168,8 @@ export interface VolatileState {
     ipLoginSlots?: Record<string, IpLoginSlot>;
     /** userId가 마지막으로 점유한 클라이언트 IP (ipLoginSlots와 동기) */
     connectionIpByUserId?: Record<string, string>;
+    /** 종료 PVP 대국 기보 저장용 스냅샷 (DB/GC 이후에도 SAVE_GAME_RECORD 가능) */
+    endedPvpGameRecordSnapshots?: Map<string, { game: LiveGameSession; savedAt: number }>;
 }
 
 /** 펫 페어 대기실: 장착 펫 표시용 스냅샷 */

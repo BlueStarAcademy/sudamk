@@ -1569,35 +1569,12 @@ input, textarea {
   }
 }
 
-@keyframes pet-hint-reward-float-animation-rotated {
-  0% {
-    transform: translateY(-8px) scale(0.5);
-    opacity: 0;
-  }
-  14% {
-    transform: translateY(4px) scale(1.1);
-    opacity: 1;
-  }
-  42% {
-    transform: translateY(18px) scale(1);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(48px) scale(0.86);
-    opacity: 0;
-  }
-}
-
 .pet-hint-reward-float {
   animation: pet-hint-reward-float-animation 1.45s cubic-bezier(0.16, 1, 0.3, 1) both;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.42)) drop-shadow(0 0 10px rgba(250, 204, 21, 0.55));
   pointer-events: none;
   transform-origin: 0 0;
   will-change: transform, opacity;
-}
-
-.pet-hint-reward-float--rotated {
-  animation-name: pet-hint-reward-float-animation-rotated;
 }
 
 .pet-hint-reward-quantity {

@@ -13,7 +13,7 @@ import {
   SCAN_COUNTS, MISSILE_BOARD_SIZES, MISSILE_COUNTS,
   ALKKAGI_STONE_COUNTS, ALKKAGI_ROUNDS, ALKKAGI_GAUGE_SPEEDS, ALKKAGI_ITEM_COUNTS,
   CURLING_STONE_COUNTS, CURLING_ROUNDS, CURLING_GAUGE_SPEEDS, CURLING_ITEM_COUNTS,
-  OMOK_BOARD_SIZES, HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getStrategicBoardSizesByMode, getScoringTurnLimitOptionsByBoardSize, getAiScoringTurnLimitByBoardSize
+  HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getScoringTurnLimitOptionsByBoardSize, getAiScoringTurnLimitByBoardSize
 } from '../../constants/gameSettings.js';
 import { profileStepFromKataServerLevel } from '../../shared/utils/strategicAiDifficulty.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
@@ -31,7 +31,11 @@ import {
     PAIR_LOBBY_DENSE_SETTING_VALUE_READONLY_CLASS,
 } from '../../shared/constants/pairLobbyDenseSettingFieldLayout.js';
 import { getRankedGameSettings } from '../../constants/rankedGameSettings.js';
-import { buildPairArenaDuoRankedLobbySettingRows } from '../../shared/utils/pairLobbyGameSettingRows.js';
+import {
+    buildPairArenaDuoRankedLobbySettingRows,
+    pairLobbyDraftBoardSizeOptions,
+    sanitizePairLobbyDraftModeSettings,
+} from '../../shared/utils/pairLobbyGameSettingRows.js';
 import { mixSubRuleDisplayName } from '../../shared/utils/mixSubRuleDisplayName.js';
 import { stableStringify } from '../../utils/appUtils.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
@@ -208,23 +212,7 @@ function writeAiLobbyPreferredSettingsJson(bucket: AiLobbyPreferredGameSettingsB
 }
 
 function getAiChallengeBoardSizes(mode: GameMode, lobbyType: 'strategic' | 'playful'): number[] {
-    if (lobbyType === 'strategic') {
-        const restrictedStrategicModes: GameMode[] = [
-            GameMode.Capture,
-            GameMode.Base,
-            GameMode.Hidden,
-            GameMode.Missile,
-            GameMode.Mix,
-        ];
-        if (restrictedStrategicModes.includes(mode)) {
-            return [9, 13];
-        }
-        return [9, 13, 19];
-    }
-
-    if (mode === GameMode.Omok || mode === GameMode.Ttamok) return [...OMOK_BOARD_SIZES];
-    if (mode === GameMode.Thief) return [9, 13, 19];
-    return [...getStrategicBoardSizesByMode(mode)];
+    return [...pairLobbyDraftBoardSizeOptions(mode, lobbyType)];
 }
 
 function modeIncludesCaptureRule(mode: GameMode, settings: Pick<GameSettings, 'mixedModes'>): boolean {
@@ -257,20 +245,7 @@ function mergeSeedIntoChallengeSettings(
     if (!newSettings.player1Color) {
         newSettings.player1Color = Player.Black;
     }
-    /** UI·보드 크기 보정 이펙트와 동일 목록 — `getStrategicBoardSizesByMode`만 쓰면 11줄 등이 남아 셀렉트와 충돌해 값이 번갈아 보임 */
-    const validBoardSizes = getAiChallengeBoardSizes(mode, lobbyType);
-    const rawBs = newSettings.boardSize as unknown;
-    const bsNum =
-        typeof rawBs === 'number' && Number.isFinite(rawBs)
-            ? rawBs
-            : typeof rawBs === 'string' && rawBs.trim() !== ''
-              ? Number.parseInt(rawBs, 10)
-              : NaN;
-    if (!Number.isFinite(bsNum) || !validBoardSizes.includes(bsNum)) {
-        newSettings.boardSize = validBoardSizes[0] as GameSettings['boardSize'];
-    } else {
-        newSettings.boardSize = bsNum as GameSettings['boardSize'];
-    }
+    newSettings = sanitizePairLobbyDraftModeSettings(mode, newSettings, lobbyType);
     if (mode === GameMode.Alkkagi) {
         const validSpeeds = ALKKAGI_GAUGE_SPEEDS.map(s => s.value);
         if (newSettings.alkkagiGaugeSpeed != null && !validSpeeds.includes(newSettings.alkkagiGaugeSpeed)) {
@@ -611,6 +586,16 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         }
     }, [pairDuoRankedLobbyReadOnly, embeddedParentDraftFingerprint, availableGameModes, selectedGameMode]);
 
+    /** 임베드 방 만들기: 부모 `createModalDraftGame.mode`와 자식 선택 모드가 어긋나면 설정·드롭다운이 롤링됨 */
+    useEffect(() => {
+        if (!embeddedPanel || !configureOnly || pairDuoRankedLobbyReadOnly) return;
+        const parentMode = embeddedSeedLiveRef.current?.mode;
+        if (!parentMode || !availableGameModes.some((a) => a.mode === parentMode)) return;
+        if (selectedGameMode !== parentMode) {
+            setSelectedGameMode(parentMode);
+        }
+    }, [embeddedPanel, configureOnly, pairDuoRankedLobbyReadOnly, embeddedParentDraftFingerprint, availableGameModes, selectedGameMode]);
+
     useEffect(() => {
         if (!pairDuoRankedLobbyReadOnly || !selectedGameMode) return;
         const base: GameSettings = { ...DEFAULT_GAME_SETTINGS, ...getRankedGameSettings(selectedGameMode) };
@@ -621,6 +606,8 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     useEffect(() => {
         if (!selectedGameMode) return;
         if (pairDuoRankedLobbyReadOnly) return;
+        /** 임베드: `resolveEmbeddedConfigureSeedSettings`·부모 푸시가 이미 판 크기를 정규화 — 여기서 다시 고치면 시드↔푸시 루프 */
+        if (embeddedPanel && configureOnly) return;
         const boardSizeOptions = getAiChallengeBoardSizes(selectedGameMode, lobbyType);
         const rawCur = settings.boardSize as unknown;
         const curNum =
@@ -635,7 +622,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         } else if (typeof rawCur === 'string') {
             handleSettingChange('boardSize', curNum as GameSettings['boardSize']);
         }
-    }, [selectedGameMode, settings.boardSize, lobbyType, pairDuoRankedLobbyReadOnly]);
+    }, [selectedGameMode, settings.boardSize, lobbyType, pairDuoRankedLobbyReadOnly, embeddedPanel, configureOnly]);
 
     useEffect(() => {
         if (pairDuoRankedLobbyReadOnly) return;

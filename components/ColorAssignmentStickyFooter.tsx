@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import RoundCountdownIndicator from './RoundCountdownIndicator.js';
 
@@ -29,6 +29,33 @@ export const ColorAssignmentStickyFooter: React.FC<Props> = ({
     countdownSeconds = 30,
     showCountdown = false,
 }) => {
+    const autoConfirmSentRef = useRef(false);
+
+    const effectiveDeadline = useMemo(() => {
+        if (!showCountdown) return undefined;
+        if (countdownDeadline != null && Number.isFinite(countdownDeadline)) return countdownDeadline;
+        return Date.now() + countdownSeconds * 1000;
+    }, [showCountdown, countdownDeadline, countdownSeconds]);
+
+    useEffect(() => {
+        autoConfirmSentRef.current = false;
+    }, [effectiveDeadline, hasConfirmed]);
+
+    useEffect(() => {
+        if (!showCountdown || effectiveDeadline == null || hasConfirmed || rouletteBlockingStart) return;
+
+        const tryAutoConfirm = () => {
+            if (Date.now() < effectiveDeadline) return;
+            if (autoConfirmSentRef.current) return;
+            autoConfirmSentRef.current = true;
+            onConfirm();
+        };
+
+        tryAutoConfirm();
+        const timerId = window.setInterval(tryAutoConfirm, 250);
+        return () => window.clearInterval(timerId);
+    }, [showCountdown, effectiveDeadline, hasConfirmed, rouletteBlockingStart, onConfirm]);
+
     const label = hasConfirmed ? '상대방 확인 대기 중…' : '시작하기';
 
     return (
@@ -36,9 +63,9 @@ export const ColorAssignmentStickyFooter: React.FC<Props> = ({
             className={`shrink-0 ${variant === 'sticky' ? SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS : ''} ${footerBarClass}`}
         >
             <div className="w-full max-w-[12.25rem]">
-                {showCountdown && countdownDeadline ? (
+                {showCountdown && effectiveDeadline != null ? (
                     <RoundCountdownIndicator
-                        deadline={countdownDeadline}
+                        deadline={effectiveDeadline}
                         durationSeconds={countdownSeconds}
                         label="자동 진행까지"
                         labelShort="자동 진행"

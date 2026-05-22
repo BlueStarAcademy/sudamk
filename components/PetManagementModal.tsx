@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import PairPetLobbyPanel from './pair/PairPetLobbyPanel.js';
+import PairPetModalScaledShell from './pair/PairPetModalScaledShell.js';
 import ScreenGuideModal from './ScreenGuideModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useScreenGuide } from '../hooks/useScreenGuide.js';
@@ -67,9 +68,7 @@ const PetManagementModal: React.FC<PetManagementModalProps> = ({ onClose, isTopm
             bodyNoScroll
             hideFooter
         >
-            <div
-                className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
-            >
+            <PairPetModalScaledShell className="flex h-full min-h-0 flex-1 flex-col">
                 <div className={`${waitingLobbyPcPanelShellClass('pair')} flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2`}>
                     <PairPetLobbyPanel
                         currentUser={currentUserWithStatus}
@@ -78,7 +77,7 @@ const PetManagementModal: React.FC<PetManagementModalProps> = ({ onClose, isTopm
                         applyPetAction={applyPetAction}
                     />
                 </div>
-            </div>
+            </PairPetModalScaledShell>
         </DraggableWindow>
         {petGuide.isOpen && (
             <ScreenGuideModal

@@ -1240,12 +1240,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             return session.boardState;
                         }
                     }
-                    // 미사일: moveHistory 길이는 그대로인데 서버 보드만 돌 위치가 바뀌므로, 저장된 구판이 애니 종료 직후 잔상을 남긴다.
+                    // 미사일: moveHistory 길이는 그대로인데 서버 보드만 돌 위치가 바뀐다(발사·애니·이전 턴 재사용).
+                    // PVP는 수순 길이가 같으면 아래에서 storage 보드를 쓰므로, 선택/연출 중에는 서버 보드를 우선한다.
                     if (
                         session.boardState &&
                         Array.isArray(session.boardState) &&
                         session.boardState.length > 0 &&
-                        (session.gameStatus === 'missile_animating' ||
+                        (session.gameStatus === 'missile_selecting' ||
+                            session.gameStatus === 'missile_animating' ||
                             (session.animation &&
                                 (session.animation.type === 'missile' || session.animation.type === 'hidden_missile')))
                     ) {

@@ -121,6 +121,7 @@ import {
     normalizePairListRoomKind,
     pairLobbyGameModeIconAndName,
     pairLobbyScheduledGameModeLabel,
+    sanitizePairLobbyDraftModeSettings,
     truncatePlayfulLobbySettingDisplayValue,
 } from '../shared/utils/pairLobbyGameSettingRows.js';
 import { replaceAppHash, stableStringify } from '../utils/appUtils.js';
@@ -702,6 +703,26 @@ function isValidStoredModeForLobbyChannel(mode: unknown, ch: PairWaitingLobbyCha
     return SPECIAL_GAME_MODES.some((m) => m.mode === mode);
 }
 
+function pairLobbyDraftLobbyType(ch: PairWaitingLobbyChannel): 'strategic' | 'playful' {
+    return ch === 'playful' ? 'playful' : 'strategic';
+}
+
+/** 전략·놀이·페어 채널 간 `settingsByMode`에 섞인 모드 키 제거 */
+function filterSettingsByModeForLobbyChannel(
+    settingsByMode: Partial<Record<GameMode, GameSettings>>,
+    ch: PairWaitingLobbyChannel,
+): Partial<Record<GameMode, GameSettings>> {
+    const lobbyType = pairLobbyDraftLobbyType(ch);
+    const filtered: Partial<Record<GameMode, GameSettings>> = {};
+    for (const gm of Object.keys(settingsByMode) as GameMode[]) {
+        if (!isValidStoredModeForLobbyChannel(gm, ch)) continue;
+        const raw = settingsByMode[gm];
+        if (!raw) continue;
+        filtered[gm] = sanitizePairLobbyDraftModeSettings(gm, raw, lobbyType);
+    }
+    return filtered;
+}
+
 function defaultCreateDraftGameForLobbyChannel(ch: PairWaitingLobbyChannel): { mode: GameMode; settings: GameSettings } {
     const firstPlayful = PLAYFUL_GAME_MODES[0]?.mode ?? GameMode.Standard;
     return {
@@ -844,8 +865,13 @@ function buildDraftBundleFromNormalizedSlot(
     );
     const settingsByMode: Partial<Record<GameMode, GameSettings>> = {};
     const sourceModes = modesWithData.length > 0 ? modesWithData : [defaults.mode];
+    const lobbyType = pairLobbyDraftLobbyType(lobbyChannel);
     for (const gm of sourceModes) {
-        const raw = { ...DEFAULT_GAME_SETTINGS, ...(slot.settingsByMode[gm] ?? {}) };
+        const raw = sanitizePairLobbyDraftModeSettings(
+            gm,
+            { ...DEFAULT_GAME_SETTINGS, ...(slot.settingsByMode[gm] ?? {}) },
+            lobbyType,
+        );
         settingsByMode[gm] = reconcilePairLobbyDraftOnOpen(lobbyChannel, roomKind, gm, raw);
     }
     let mode: GameMode = defaults.mode;
@@ -860,35 +886,58 @@ function buildDraftBundleFromNormalizedSlot(
     }
     if (!settingsByMode[mode]) {
         mode = defaults.mode;
-        const raw = { ...DEFAULT_GAME_SETTINGS, ...defaults.settings };
+        const raw = sanitizePairLobbyDraftModeSettings(
+            mode,
+            { ...DEFAULT_GAME_SETTINGS, ...defaults.settings },
+            lobbyType,
+        );
         settingsByMode[mode] = reconcilePairLobbyDraftOnOpen(lobbyChannel, roomKind, mode, raw);
     }
     return {
         mode,
         settings: settingsByMode[mode]!,
-        settingsByMode,
+        settingsByMode: filterSettingsByModeForLobbyChannel(settingsByMode, lobbyChannel),
     };
 }
 
-function bundleToPersistedSlot(bundle: PairCreateModalDraftBundle): PairLobbyMultiDraftSlot {
-    const settingsByMode = { ...bundle.settingsByMode, [bundle.mode]: bundle.settings };
-    return { settingsByMode, lastMode: bundle.mode };
+function bundleToPersistedSlot(
+    bundle: PairCreateModalDraftBundle,
+    ch: PairWaitingLobbyChannel,
+): PairLobbyMultiDraftSlot {
+    const lobbyType = pairLobbyDraftLobbyType(ch);
+    const merged: Partial<Record<GameMode, GameSettings>> = {
+        ...filterSettingsByModeForLobbyChannel(bundle.settingsByMode, ch),
+        [bundle.mode]: sanitizePairLobbyDraftModeSettings(bundle.mode, bundle.settings, lobbyType),
+    };
+    return { settingsByMode: merged, lastMode: bundle.mode };
 }
 
 function applyDraftBundleTransforms(
     bundle: PairCreateModalDraftBundle,
     transformDraft: (mode: GameMode, raw: GameSettings) => GameSettings,
+    ch: PairWaitingLobbyChannel,
 ): PairCreateModalDraftBundle {
+    const lobbyType = pairLobbyDraftLobbyType(ch);
     const settingsByMode: Partial<Record<GameMode, GameSettings>> = {};
     for (const gm of Object.keys(bundle.settingsByMode) as GameMode[]) {
+        if (!isValidStoredModeForLobbyChannel(gm, ch)) continue;
         const raw = bundle.settingsByMode[gm];
-        if (raw) settingsByMode[gm] = transformDraft(gm, raw);
+        if (raw) {
+            settingsByMode[gm] = transformDraft(
+                gm,
+                sanitizePairLobbyDraftModeSettings(gm, raw, lobbyType),
+            );
+        }
     }
     const mode = bundle.mode;
     const base = settingsByMode[mode] ?? bundle.settings;
-    const settings = transformDraft(mode, base);
+    const settings = transformDraft(mode, sanitizePairLobbyDraftModeSettings(mode, base, lobbyType));
     settingsByMode[mode] = settings;
-    return { mode, settings, settingsByMode };
+    return {
+        mode,
+        settings,
+        settingsByMode: filterSettingsByModeForLobbyChannel(settingsByMode, ch),
+    };
 }
 
 function pairLobbyPreferredBucketForEmbeddedRoomCreate(
@@ -1866,7 +1915,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         const prevDoc = loadPairLobbyCreatePrefsDoc(ch);
         savePairLobbyCreatePrefsDoc(
             ch,
-            upsertPairLobbyCreateDraft(prevDoc, roomKindForStore, bundleToPersistedSlot(createModalDraftGame)),
+            upsertPairLobbyCreateDraft(prevDoc, roomKindForStore, bundleToPersistedSlot(createModalDraftGame, ch)),
         );
     }, [pairLobbyRoomForm, createModalRoomKind, createModalDraftGame, hasEquippedPairPet, lobbyChannel]);
 
@@ -1926,7 +1975,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         const slotRawOc = doc?.draftsByRoomKind[rk];
         const normOc = normalizeRoomKindDraftSlot(slotRawOc, lobbyChannel);
         const baseBundleOc = normOc ? buildDraftBundleFromNormalizedSlot(normOc, lobbyChannel, rk) : defaultDraftBundleForLobbyChannel(lobbyChannel);
-        setCreateModalDraftGame(applyDraftBundleTransforms(baseBundleOc, transformPairDraftLobbySettings));
+        setCreateModalDraftGame(applyDraftBundleTransforms(baseBundleOc, transformPairDraftLobbySettings, lobbyChannel));
         setPairCreateRoomModalNonce((n) => n + 1);
         setPairLobbyRoomForm('create');
         if (isHandheld) setPairLobbyMobileTab('rooms');
@@ -2105,7 +2154,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                     upsertPairLobbyCreateDraft(
                         loadPairLobbyCreatePrefsDoc(chCreate),
                         roomKindForCreate,
-                        bundleToPersistedSlot(createModalDraftGame),
+                        bundleToPersistedSlot(createModalDraftGame, chCreate),
                     ),
                 );
                 const gameId = (result as any)?.gameId || (result as any)?.clientResponse?.gameId;
@@ -2142,7 +2191,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                     upsertPairLobbyCreateDraft(
                         loadPairLobbyCreatePrefsDoc(chEdit),
                         rkEdit,
-                        bundleToPersistedSlot(createModalDraftGame),
+                        bundleToPersistedSlot(createModalDraftGame, chEdit),
                     ),
                 );
                 setPairLobbyRoomForm('closed');
@@ -2678,7 +2727,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             const normSaved = normalizeRoomKindDraftSlot(savedRaw, lobbyChannel);
             if (normSaved) {
                 const built = buildDraftBundleFromNormalizedSlot(normSaved, lobbyChannel, createModalRoomKind);
-                return applyDraftBundleTransforms(built, transformPairDraftLobbySettings);
+                return applyDraftBundleTransforms(built, transformPairDraftLobbySettings, lobbyChannel);
             }
 
             const mode = d.mode;
@@ -2736,7 +2785,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         const slotRawFx = doc?.draftsByRoomKind[rk];
         const normFx = normalizeRoomKindDraftSlot(slotRawFx, lobbyChannel);
         const baseFx = normFx ? buildDraftBundleFromNormalizedSlot(normFx, lobbyChannel, rk) : defaultDraftBundleForLobbyChannel(lobbyChannel);
-        setCreateModalDraftGame(applyDraftBundleTransforms(baseFx, transformPairDraftLobbySettings));
+        setCreateModalDraftGame(applyDraftBundleTransforms(baseFx, transformPairDraftLobbySettings, lobbyChannel));
     }, [lobbyChannel, pairLobbyRoomForm, hasEquippedPairPet, transformPairDraftLobbySettings]);
 
     const pairDraftSettingsFingerprint = stableStringify(createModalDraftGame.settings);
@@ -2755,13 +2804,22 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             setCreateModalDraftGame((prev) => {
                 const lockedMode =
                     pairLobbyRoomForm === 'propose' && myRoom?.selectedGameMode != null ? myRoom.selectedGameMode : mode;
-                if (prev.mode === lockedMode && stableStringify(prev.settings) === stableStringify(settings)) return prev;
-                const settingsByMode = { ...prev.settingsByMode, [prev.mode]: prev.settings };
-                settingsByMode[lockedMode] = settings;
-                return { mode: lockedMode, settings, settingsByMode };
+                const lobbyType = pairLobbyDraftLobbyType(lobbyChannel);
+                const sanitized = sanitizePairLobbyDraftModeSettings(lockedMode, settings, lobbyType);
+                if (prev.mode === lockedMode && stableStringify(prev.settings) === stableStringify(sanitized)) return prev;
+                const settingsByMode = filterSettingsByModeForLobbyChannel(
+                    { ...prev.settingsByMode, [prev.mode]: prev.settings },
+                    lobbyChannel,
+                );
+                settingsByMode[lockedMode] = sanitized;
+                return {
+                    mode: lockedMode,
+                    settings: sanitized,
+                    settingsByMode: filterSettingsByModeForLobbyChannel(settingsByMode, lobbyChannel),
+                };
             });
         },
-        [pairLobbyRoomForm, myRoom?.selectedGameMode],
+        [pairLobbyRoomForm, myRoom?.selectedGameMode, lobbyChannel],
     );
 
     const sendPairRoomChat = async (payload: { text: string; scope: PairRoomChatScope }) => {

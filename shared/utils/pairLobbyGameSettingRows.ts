@@ -381,3 +381,65 @@ export function buildPairArenaDuoRankedLobbySettingRows(mode: GameMode): { label
         { lobbyChannelFallback: 'pair', rankedStrategicMatchPreset: true },
     );
 }
+
+/** 알까기·컬링·주사위: 고정 물리 판(19줄 기준) — 다른 모드의 `boardSize`가 섞이지 않게 */
+const PAIR_LOBBY_MODES_WITHOUT_GO_BOARD_SIZE: readonly GameMode[] = [
+    GameMode.Alkkagi,
+    GameMode.Curling,
+    GameMode.Dice,
+];
+
+export function pairLobbyDraftBoardSizeOptions(
+    mode: GameMode,
+    lobbyType: 'strategic' | 'playful',
+): readonly number[] {
+    if (PAIR_LOBBY_MODES_WITHOUT_GO_BOARD_SIZE.includes(mode)) return [19];
+    if (lobbyType === 'strategic') {
+        const restrictedStrategicModes: GameMode[] = [
+            GameMode.Capture,
+            GameMode.Base,
+            GameMode.Hidden,
+            GameMode.Missile,
+            GameMode.Mix,
+        ];
+        if (restrictedStrategicModes.includes(mode)) return [9, 13];
+        return [9, 13, 19];
+    }
+    if (mode === GameMode.Omok || mode === GameMode.Ttamok) return [19, 15];
+    if (mode === GameMode.Thief) return [9, 13, 19];
+    if (mode === GameMode.Capture) return [13, 11, 9, 7];
+    if (mode === GameMode.Hidden) return [19, 13, 11, 9, 7];
+    if (mode === GameMode.Missile) return [19, 13, 9];
+    if (mode === GameMode.Speed) return [7, 9, 11, 13, 19];
+    if (mode === GameMode.Standard) return [9, 13, 19];
+    return [19, 13, 9];
+}
+
+/** 방 만들기 초안: 모드·로비에 맞지 않는 판 크기·계가 턴 등 제거 */
+export function sanitizePairLobbyDraftModeSettings(
+    mode: GameMode,
+    settings: GameSettings,
+    lobbyType: 'strategic' | 'playful',
+): GameSettings {
+    let next: GameSettings = { ...DEFAULT_GAME_SETTINGS, ...settings };
+    if (PAIR_LOBBY_MODES_WITHOUT_GO_BOARD_SIZE.includes(mode)) {
+        next.boardSize = 19 as GameSettings['boardSize'];
+        delete (next as { scoringTurnLimit?: number }).scoringTurnLimit;
+        delete (next as { autoScoringTurns?: number }).autoScoringTurns;
+        return next;
+    }
+    const validBoardSizes = pairLobbyDraftBoardSizeOptions(mode, lobbyType);
+    const rawBs = next.boardSize as unknown;
+    const bsNum =
+        typeof rawBs === 'number' && Number.isFinite(rawBs)
+            ? rawBs
+            : typeof rawBs === 'string' && String(rawBs).trim() !== ''
+              ? Number.parseInt(String(rawBs), 10)
+              : NaN;
+    if (!Number.isFinite(bsNum) || !validBoardSizes.includes(bsNum)) {
+        next.boardSize = validBoardSizes[0] as GameSettings['boardSize'];
+    } else if (typeof rawBs === 'string') {
+        next.boardSize = bsNum as GameSettings['boardSize'];
+    }
+    return next;
+}

@@ -1,5 +1,20 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Player, Point } from '../types.js';
+import {
+    applyMoveToBoard,
+    applySgfMoveToBoard,
+    buildBoardFromMoves,
+    createEmptyBoard,
+    type SgfMoveLike,
+} from '../utils/sgfBoardLogic.js';
+
+export type SgfMove = SgfMoveLike;
+export { applyMoveToBoard, applySgfMoveToBoard, buildBoardFromMoves, createEmptyBoard } from '../utils/sgfBoardLogic.js';
+
+export interface SgfData {
+    boardSize: number;
+    moves: SgfMove[];
+}
 
 interface SgfViewerProps {
     timeElapsed?: number;
@@ -9,101 +24,86 @@ interface SgfViewerProps {
     isRotated?: boolean;
     /** 저장 기보 재생: 0=빈 판, N=앞에서부터 N수까지 표시. 지정 시 timeElapsed 비율 계산은 사용하지 않음 */
     replayMoveCount?: number;
+    /** 인게임 GoBoard와 동일한 viewBox 크기(기본 840) */
+    boardSizePx?: number;
+    /** 놓아보기: 교차점 클릭으로 돌 배치 */
+    interactive?: boolean;
+    onIntersectionClick?: (point: Point) => void;
+    /** 놓아보기로 추가한 수 (기보 수 위에 반투명 표시) */
+    reviewMoves?: SgfMove[];
 }
 
-interface SgfData {
-    boardSize: number;
-    moves: { player: Player; x: number; y: number }[];
-}
+const parseSgfCoord = (coords: string): Point => ({
+    x: coords.charCodeAt(0) - 'a'.charCodeAt(0),
+    y: coords.charCodeAt(1) - 'a'.charCodeAt(0),
+});
 
-const parseSgf = (sgfText: string): SgfData | null => {
+export const parseSgf = (sgfText: string): SgfData | null => {
     try {
         const boardSizeMatch = sgfText.match(/SZ\[(\d+)\]/);
         const boardSize = boardSizeMatch ? parseInt(boardSizeMatch[1], 10) : 19;
 
-        const moves: { player: Player; x: number; y: number }[] = [];
-        const moveRegex = /;([BW])\[([a-s]{2})\]/g;
+        const moves: SgfMove[] = [];
+        const nodeRegex = /;([BW])\[([a-s]{2})\]([^;]*)/g;
         let match;
-        
-        while ((match = moveRegex.exec(sgfText)) !== null) {
+
+        while ((match = nodeRegex.exec(sgfText)) !== null) {
             const player = match[1] === 'B' ? Player.Black : Player.White;
-            const coords = match[2];
-            const x = coords.charCodeAt(0) - 'a'.charCodeAt(0);
-            const y = coords.charCodeAt(1) - 'a'.charCodeAt(0);
-            moves.push({ player, x, y });
+            const { x, y } = parseSgfCoord(match[2]);
+            const tail = match[3] ?? '';
+            const removed: Point[] = [];
+            const aeRegex = /AE\[([a-s]{2})\]/g;
+            let aeMatch;
+            while ((aeMatch = aeRegex.exec(tail)) !== null) {
+                removed.push(parseSgfCoord(aeMatch[1]));
+            }
+            moves.push({ player, x, y, removed: removed.length > 0 ? removed : undefined });
         }
-        
+
         return { boardSize, moves };
     } catch (error) {
-        console.error("Failed to parse SGF:", error);
+        console.error('Failed to parse SGF:', error);
         return null;
     }
 };
 
-const getNeighbors = (x: number, y: number, boardSize: number) => {
-    const neighbors = [];
-    if (x > 0) neighbors.push({ x: x - 1, y });
-    if (x < boardSize - 1) neighbors.push({ x: x + 1, y });
-    if (y > 0) neighbors.push({ x, y: y - 1 });
-    if (y < boardSize - 1) neighbors.push({ x, y: y + 1 });
-    return neighbors;
-};
-
-const findGroup = (startX: number, startY: number, playerColor: Player, board: Player[][], boardSize: number) => {
-    if (startY < 0 || startY >= boardSize || startX < 0 || startX >= boardSize || board[startY]?.[startX] !== playerColor) return null;
-    
-    const q: Point[] = [{ x: startX, y: startY }];
-    const visitedStones = new Set([`${startX},${startY}`]);
-    let liberties = 0;
-    const stones: Point[] = [{ x: startX, y: startY }];
-
-    while (q.length > 0) {
-        const { x: cx, y: cy } = q.shift()!;
-        for (const n of getNeighbors(cx, cy, boardSize)) {
-            const key = `${n.x},${n.y}`;
-            const neighborContent = board[n.y][n.x];
-
-            if (neighborContent === Player.None) {
-                liberties++;
-            } else if (neighborContent === playerColor) {
-                if (!visitedStones.has(key)) {
-                    visitedStones.add(key);
-                    q.push(n);
-                    stones.push(n);
-                }
-            }
-        }
-    }
-    return { stones, liberties };
-};
-
-const SgfViewer: React.FC<SgfViewerProps> = ({ timeElapsed = 0, fileIndex, showLastMoveOnly, sgfContent, isRotated = false, replayMoveCount }) => {
+const SgfViewer: React.FC<SgfViewerProps> = ({
+    timeElapsed = 0,
+    fileIndex,
+    showLastMoveOnly,
+    sgfContent,
+    isRotated = false,
+    replayMoveCount,
+    boardSizePx = 840,
+    interactive = false,
+    onIntersectionClick,
+    reviewMoves = [],
+}) => {
     const [sgfData, setSgfData] = useState<SgfData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    
+    const svgRef = useRef<SVGSVGElement>(null);
+
     const totalDuration = 50;
 
     useEffect(() => {
         const fetchSgf = async () => {
             setLoading(true);
             setError(null);
-            
-            // sgfContent가 직접 제공된 경우
+
             if (sgfContent !== null && sgfContent !== undefined) {
                 try {
                     const parsed = parseSgf(sgfContent);
-                    if (!parsed) throw new Error("Failed to parse SGF data.");
+                    if (!parsed) throw new Error('Failed to parse SGF data.');
                     setSgfData(parsed);
-                } catch (err: any) {
-                    setError(err.message);
+                } catch (err: unknown) {
+                    setError(err instanceof Error ? err.message : 'Parse error');
                 } finally {
                     setLoading(false);
                 }
                 return;
             }
-            
-            // fileIndex를 사용하는 경우 (기존 로직)
+
             if (fileIndex === null || fileIndex === undefined) {
                 setSgfData({ boardSize: 19, moves: [] });
                 setLoading(false);
@@ -116,10 +116,10 @@ const SgfViewer: React.FC<SgfViewerProps> = ({ timeElapsed = 0, fileIndex, showL
                 if (!response.ok) throw new Error(`Failed to fetch SGF file: ${response.statusText}`);
                 const text = await response.text();
                 const parsed = parseSgf(text);
-                if (!parsed) throw new Error("Failed to parse SGF data.");
+                if (!parsed) throw new Error('Failed to parse SGF data.');
                 setSgfData(parsed);
-            } catch (err: any) {
-                setError(err.message);
+            } catch (err: unknown) {
+                setError(err instanceof Error ? err.message : 'Fetch error');
             } finally {
                 setLoading(false);
             }
@@ -134,123 +134,219 @@ const SgfViewer: React.FC<SgfViewerProps> = ({ timeElapsed = 0, fileIndex, showL
             const n = sgfData.moves.length;
             return Math.max(0, Math.min(replayMoveCount, n));
         }
-        // timeElapsed가 0이면 돌을 표시하지 않음 (경기 시작 전)
-        // timeElapsed가 1 이상이면 진행 상황에 따라 돌 표시
         if (timeElapsed <= 0) return 0;
-        // 진행률 계산: timeElapsed / totalDuration
-        // 최소 1개는 표시 (timeElapsed >= 1일 때)
         const progress = Math.max(0, Math.min(1, timeElapsed / totalDuration));
         const moveCount = Math.max(1, Math.floor(progress * sgfData.moves.length));
         return Math.min(moveCount, sgfData.moves.length);
     }, [timeElapsed, sgfData, totalDuration, showLastMoveOnly, replayMoveCount]);
-    
+
     const boardState = useMemo(() => {
         if (!sgfData) return [];
-        const { boardSize, moves } = sgfData;
-        const b = Array(boardSize).fill(null).map(() => Array(boardSize).fill(Player.None));
+        return buildBoardFromMoves(sgfData.boardSize, sgfData.moves, currentMoveIndex);
+    }, [currentMoveIndex, sgfData]);
 
-        for (let i = 0; i < currentMoveIndex; i++) {
-            const move = moves[i];
-            if (b[move.y] && b[move.y][move.x] !== undefined) {
-                b[move.y][move.x] = move.player;
-            }
-
-            const opponent = move.player === Player.Black ? Player.White : Player.Black;
-            const neighbors = getNeighbors(move.x, move.y, boardSize);
-
-            for (const n of neighbors) {
-                if (b[n.y][n.x] === opponent) {
-                    const group = findGroup(n.x, n.y, opponent, b, boardSize);
-                    if (group && group.liberties === 0) {
-                        for (const stone of group.stones) {
-                            b[stone.y][stone.x] = Player.None;
-                        }
-                    }
-                }
-            }
+    const displayBoard = useMemo(() => {
+        if (!sgfData || reviewMoves.length === 0) return boardState;
+        const b = boardState.map((row) => [...row]);
+        for (const move of reviewMoves) {
+            applySgfMoveToBoard(b, move, sgfData.boardSize);
         }
         return b;
-    }, [currentMoveIndex, sgfData]);
+    }, [boardState, reviewMoves, sgfData]);
 
     const starPoints = useMemo(() => {
         const boardSize = sgfData?.boardSize;
         if (!boardSize) return [];
-        if (boardSize === 19) return [{ x: 3, y: 3 }, { x: 9, y: 3 }, { x: 15, y: 3 }, { x: 3, y: 9 }, { x: 9, y: 9 }, { x: 15, y: 9 }, { x: 3, y: 15 }, { x: 9, y: 15 }, { x: 15, y: 15 }];
+        if (boardSize === 19)
+            return [
+                { x: 3, y: 3 },
+                { x: 9, y: 3 },
+                { x: 15, y: 3 },
+                { x: 3, y: 9 },
+                { x: 9, y: 9 },
+                { x: 15, y: 9 },
+                { x: 3, y: 15 },
+                { x: 9, y: 15 },
+                { x: 15, y: 15 },
+            ];
         if (boardSize === 13) return [{ x: 3, y: 3 }, { x: 9, y: 3 }, { x: 3, y: 9 }, { x: 9, y: 9 }, { x: 6, y: 6 }];
         if (boardSize === 11) return [{ x: 2, y: 2 }, { x: 8, y: 2 }, { x: 5, y: 5 }, { x: 2, y: 8 }, { x: 8, y: 8 }];
         if (boardSize === 9) return [{ x: 2, y: 2 }, { x: 6, y: 2 }, { x: 4, y: 4 }, { x: 2, y: 6 }, { x: 6, y: 6 }];
         return [];
     }, [sgfData]);
 
+    const screenToBoardPoint = useCallback(
+        (clientX: number, clientY: number): Point | null => {
+            const svg = svgRef.current;
+            const boardSize = sgfData?.boardSize;
+            if (!svg || !boardSize) return null;
 
-    if (loading) return <div className="flex items-center justify-center h-full text-gray-400">기보 로딩 중...</div>;
-    if (error) return <div className="flex items-center justify-center h-full text-red-400">오류: {error}</div>;
+            const rect = svg.getBoundingClientRect();
+            const W = rect.width;
+            const H = rect.height;
+            if (W <= 0 || H <= 0) return null;
+
+            const vb = boardSizePx;
+            const s = Math.min(W / vb, H / vb);
+            const ox = rect.left + (W - vb * s) / 2;
+            const oy = rect.top + (H - vb * s) / 2;
+            let rootX = (clientX - ox) / s;
+            let rootY = (clientY - oy) / s;
+
+            if (isRotated) {
+                const cx = vb / 2;
+                const cy = vb / 2;
+                rootX = 2 * cx - rootX;
+                rootY = 2 * cy - rootY;
+            }
+
+            const cellSize = boardSizePx / boardSize;
+            const padding = cellSize / 2;
+            const fx = (rootX - padding) / cellSize;
+            const fy = (rootY - padding) / cellSize;
+            const x = Math.max(0, Math.min(boardSize - 1, Math.round(fx)));
+            const y = Math.max(0, Math.min(boardSize - 1, Math.round(fy)));
+            return { x, y };
+        },
+        [sgfData, boardSizePx, isRotated],
+    );
+
+    const handleBoardPointer = useCallback(
+        (e: React.PointerEvent<SVGSVGElement>) => {
+            if (!interactive || !onIntersectionClick) return;
+            const pt = screenToBoardPoint(e.clientX, e.clientY);
+            if (pt) onIntersectionClick(pt);
+        },
+        [interactive, onIntersectionClick, screenToBoardPoint],
+    );
+
+    if (loading) return <div className="flex h-full items-center justify-center text-gray-400">기보 로딩 중...</div>;
+    if (error) return <div className="flex h-full items-center justify-center text-red-400">오류: {error}</div>;
     if (!sgfData) return null;
 
     const { boardSize, moves } = sgfData;
-    const boardSizePx = 300;
     const cellSize = boardSizePx / boardSize;
     const padding = cellSize / 2;
-    const stoneRadius = cellSize * 0.45;
+    const stoneRadius = cellSize * 0.47;
 
-    // 좌표 변환 함수 (회전 시 180도 회전)
-    const transformPoint = (p: Point): Point => {
-        if (!isRotated || !boardSize) return p;
-        return { x: boardSize - 1 - p.x, y: boardSize - 1 - p.y };
-    };
-    
-    const toSvgCoords = (p: Point) => {
-        const transformed = transformPoint(p);
-        return {
-            cx: padding + transformed.x * cellSize,
-            cy: padding + transformed.y * cellSize,
-        };
-    };
-    
+    const toSvgCoords = (p: Point) => ({
+        cx: padding + p.x * cellSize,
+        cy: padding + p.y * cellSize,
+    });
+
     const relevantMoves = moves.slice(0, currentMoveIndex);
-    
-    return (
-        <div className="w-full h-full bg-gray-900 rounded-lg overflow-hidden border-2 border-gray-700 relative">
-            <svg 
-                viewBox={`0 0 ${boardSizePx} ${boardSizePx}`} 
-                className="w-full h-full"
-                transform={isRotated ? `rotate(180 ${boardSizePx / 2} ${boardSizePx / 2})` : undefined}
-            >
-                <rect width={boardSizePx} height={boardSizePx} fill="#DDAA77" />
-                {Array.from({ length: boardSize }).map((_, i) => (
-                    <g key={i}>
-                        <line x1={padding + i * cellSize} y1={padding} x2={padding + i * cellSize} y2={boardSizePx - padding} stroke="#54432a" strokeWidth="0.5" />
-                        <line x1={padding} y1={padding + i * cellSize} x2={boardSizePx - padding} y2={padding + i * cellSize} stroke="#54432a" strokeWidth="0.5" />
-                    </g>
-                ))}
-                {starPoints.map((p, i) => <circle key={`star-${i}`} {...toSvgCoords(p)} r={boardSize > 9 ? 3 : 2} fill="#54432a" />)}
-                {boardState.map((row, y) => row.map((player, x) => {
-                    if (player === Player.None) return null;
-                    const { cx, cy } = toSvgCoords({ x, y });
-                    
-                    let moveIndex = -1;
-                    for (let i = relevantMoves.length - 1; i >= 0; i--) {
-                        if (relevantMoves[i].x === x && relevantMoves[i].y === y) {
-                            moveIndex = i;
-                            break;
-                        }
-                    }
-                    
-                    const isLastMove = moveIndex === currentMoveIndex - 1;
+    const reviewStoneSet = new Set(reviewMoves.map((m) => `${m.x},${m.y}`));
+    const replayStoneCount = currentMoveIndex;
 
-                    return (
-                        <g key={`${x}-${y}`}>
-                            <circle cx={cx} cy={cy} r={stoneRadius} fill={player === Player.Black ? 'black' : 'white'} />
-                            {showLastMoveOnly && moveIndex !== -1 && (
-                                <text x={cx} y={cy} textAnchor="middle" dy=".35em" fontSize={stoneRadius * 1.2} fontWeight="bold" fill={player === Player.Black ? 'white' : 'black'}>
-                                    {moveIndex + 1}
-                                </text>
-                            )}
-                             {isLastMove && <circle cx={cx} cy={cy} r={stoneRadius * 0.4} fill="rgba(239, 68, 68, 0.8)" className="animate-pulse" />}
+    return (
+        <div className="relative h-full w-full overflow-hidden rounded-lg border-2 border-[#54432a]/60 bg-[#1a1510]">
+            <svg
+                ref={svgRef}
+                viewBox={`0 0 ${boardSizePx} ${boardSizePx}`}
+                className={`h-full w-full ${interactive ? 'cursor-crosshair' : ''}`}
+                onPointerDown={handleBoardPointer}
+            >
+                <g transform={isRotated ? `rotate(180 ${boardSizePx / 2} ${boardSizePx / 2})` : undefined}>
+                    <rect width={boardSizePx} height={boardSizePx} fill="#e0b484" />
+                    {Array.from({ length: boardSize }).map((_, i) => (
+                        <g key={i}>
+                            <line
+                                x1={padding + i * cellSize}
+                                y1={padding}
+                                x2={padding + i * cellSize}
+                                y2={boardSizePx - padding}
+                                stroke="#54432a"
+                                strokeWidth="1.5"
+                            />
+                            <line
+                                x1={padding}
+                                y1={padding + i * cellSize}
+                                x2={boardSizePx - padding}
+                                y2={padding + i * cellSize}
+                                stroke="#54432a"
+                                strokeWidth="1.5"
+                            />
                         </g>
-                    );
-                }))}
+                    ))}
+                    {starPoints.map((p, i) => (
+                        <circle key={`star-${i}`} {...toSvgCoords(p)} r={boardSize > 9 ? 4 : 3} fill="#54432a" />
+                    ))}
+                    {displayBoard.map((row, y) =>
+                        row.map((player, x) => {
+                            if (player === Player.None) return null;
+                            const { cx, cy } = toSvgCoords({ x, y });
+
+                            let moveIndex = -1;
+                            for (let i = relevantMoves.length - 1; i >= 0; i--) {
+                                if (relevantMoves[i].x === x && relevantMoves[i].y === y) {
+                                    moveIndex = i;
+                                    break;
+                                }
+                            }
+
+                            const isReviewStone = reviewStoneSet.has(`${x},${y}`) && moveIndex === -1;
+                            const isLastReplayMove = moveIndex === currentMoveIndex - 1 && !isReviewStone;
+
+                            return (
+                                <g key={`${x}-${y}`}>
+                                    <circle
+                                        cx={cx}
+                                        cy={cy}
+                                        r={stoneRadius}
+                                        fill={player === Player.Black ? '#0a0a0a' : '#f5f5f4'}
+                                        stroke={isReviewStone ? '#38bdf8' : undefined}
+                                        strokeWidth={isReviewStone ? cellSize * 0.08 : 0}
+                                        opacity={isReviewStone ? 0.92 : 1}
+                                    />
+                                    {showLastMoveOnly && moveIndex !== -1 && (
+                                        <text
+                                            x={cx}
+                                            y={cy}
+                                            textAnchor="middle"
+                                            dy=".35em"
+                                            fontSize={stoneRadius * 1.1}
+                                            fontWeight="bold"
+                                            fill={player === Player.Black ? 'white' : 'black'}
+                                        >
+                                            {moveIndex + 1}
+                                        </text>
+                                    )}
+                                    {isLastReplayMove && (
+                                        <circle
+                                            cx={cx}
+                                            cy={cy}
+                                            r={stoneRadius * 0.35}
+                                            fill="rgba(239, 68, 68, 0.85)"
+                                            className="animate-pulse"
+                                        />
+                                    )}
+                                </g>
+                            );
+                        }),
+                    )}
+                    {interactive &&
+                        Array.from({ length: boardSize * boardSize }).map((_, idx) => {
+                            const x = idx % boardSize;
+                            const y = Math.floor(idx / boardSize);
+                            const { cx, cy } = toSvgCoords({ x, y });
+                            return (
+                                <circle
+                                    key={`hit-${x}-${y}`}
+                                    cx={cx}
+                                    cy={cy}
+                                    r={cellSize * 0.48}
+                                    fill="transparent"
+                                    className="pointer-events-auto"
+                                />
+                            );
+                        })}
+                </g>
             </svg>
+            {interactive && (
+                <div className="pointer-events-none absolute bottom-2 left-2 rounded-md bg-black/55 px-2 py-1 text-[10px] font-medium text-sky-200/95 sm:text-xs">
+                    놓아보기 · {replayStoneCount}수 기준
+                </div>
+            )}
         </div>
     );
 };

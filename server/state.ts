@@ -27,4 +27,5 @@ export const volatileState: VolatileState = {
     pendingMutualDisconnectByUser: {},
     ipLoginSlots: {},
     connectionIpByUserId: {},
+    endedPvpGameRecordSnapshots: new Map(),
 };

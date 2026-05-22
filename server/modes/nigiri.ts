@@ -1,5 +1,6 @@
 
 import * as types from '../../types/index.js';
+import { PRE_GAME_PVP_COUNTDOWN_MS } from '../../shared/constants/preGameCountdown.js';
 import { transitionToPlaying } from './shared.js';
 
 export const initializeNigiri = (game: types.LiveGameSession, now: number) => {
@@ -22,8 +23,8 @@ export const enterNigiriRevealWithAssignedColors = (game: types.LiveGameSession,
         result: null,
     };
     game.gameStatus = 'nigiri_reveal';
-    // 자동 카운트다운 없이 유저가 원할 때 시작 버튼으로 진행
-    game.revealEndTime = undefined;
+    /** PVP: 30초 내 미확인 시 자동 시작(클라 카운트다운·서버 tick). AI 대국은 수동 확인만 */
+    game.revealEndTime = game.isAiGame ? undefined : now + PRE_GAME_PVP_COUNTDOWN_MS;
     game.preGameConfirmations = {
         [game.player1.id]: false,
         [game.player2.id]: false,
@@ -35,7 +36,8 @@ export const enterNigiriRevealWithAssignedColors = (game: types.LiveGameSession,
 export const updateNigiriState = (game: types.LiveGameSession, now: number) => {
     if (game.gameStatus === 'nigiri_reveal') {
         const bothConfirmed = game.preGameConfirmations?.[game.player1.id] && game.preGameConfirmations?.[game.player2.id];
-        if (bothConfirmed) {
+        const deadlinePassed = !game.isAiGame && !!(game.revealEndTime && now > game.revealEndTime);
+        if (bothConfirmed || deadlinePassed) {
             if (game.nigiri) game.nigiri.processed = true;
             game.preGameConfirmations = {};
             game.revealEndTime = undefined;

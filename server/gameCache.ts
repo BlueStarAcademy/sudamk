@@ -218,6 +218,13 @@ export function removeGameFromCache(gameId: string): void {
     }
 }
 
+/** TTL 만료 후에도 캐시에 남아 있는 세션(기보 저장 등 복구용) */
+export function getStaleCachedGame(gameId: string): LiveGameSession | null {
+    const cache = volatileState.gameCache;
+    if (!cache) return null;
+    return cache.get(gameId)?.game ?? null;
+}
+
 /**
  * 캐시에서 모든 활성 게임 가져오기 (MainLoop 최적화용)
  */

@@ -2334,39 +2334,42 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                 transform={`translate(${cx}, ${cy})`}
                                 style={{ pointerEvents: 'none' }}
                             >
-                                <g
-                                    className={isRotated ? 'pet-hint-reward-float pet-hint-reward-float--rotated' : 'pet-hint-reward-float'}
-                                    style={animationDelay ? { animationDelay } : undefined}
-                                >
-                                    <circle
-                                        cx={0}
-                                        cy={-size * 0.1}
-                                        r={size * 0.46}
-                                        fill="rgba(255,255,255,0.72)"
-                                        stroke="#facc15"
-                                        strokeWidth={Math.max(1.4, cell_size * 0.035)}
-                                    />
-                                    {hasIcon ? (
-                                        <image
-                                            href={strategicPetHintRewardAnimation.iconSrc}
-                                            x={-size / 2}
-                                            y={-size * 0.6}
-                                            width={size}
-                                            height={size}
-                                            preserveAspectRatio="xMidYMid meet"
-                                        />
-                                    ) : null}
-                                    <text
-                                        x={0}
-                                        y={quantityY}
-                                        textAnchor="middle"
-                                        dominantBaseline="middle"
-                                        className="pet-hint-reward-quantity"
-                                        fontSize={quantityFont}
-                                        strokeWidth={Math.max(2.2, cell_size * 0.06)}
+                                {/* 보드 180° 회전 시에도 아이콘·수량·상승 연출이 화면 기준 정방향(아래→위)으로 보이도록 역회전 */}
+                                <g transform={isRotated ? 'rotate(180)' : undefined}>
+                                    <g
+                                        className="pet-hint-reward-float"
+                                        style={animationDelay ? { animationDelay } : undefined}
                                     >
-                                        {strategicPetHintRewardAnimation.quantityLabel}
-                                    </text>
+                                        <circle
+                                            cx={0}
+                                            cy={-size * 0.1}
+                                            r={size * 0.46}
+                                            fill="rgba(255,255,255,0.72)"
+                                            stroke="#facc15"
+                                            strokeWidth={Math.max(1.4, cell_size * 0.035)}
+                                        />
+                                        {hasIcon ? (
+                                            <image
+                                                href={strategicPetHintRewardAnimation.iconSrc}
+                                                x={-size / 2}
+                                                y={-size * 0.6}
+                                                width={size}
+                                                height={size}
+                                                preserveAspectRatio="xMidYMid meet"
+                                            />
+                                        ) : null}
+                                        <text
+                                            x={0}
+                                            y={quantityY}
+                                            textAnchor="middle"
+                                            dominantBaseline="middle"
+                                            className="pet-hint-reward-quantity"
+                                            fontSize={quantityFont}
+                                            strokeWidth={Math.max(2.2, cell_size * 0.06)}
+                                        >
+                                            {strategicPetHintRewardAnimation.quantityLabel}
+                                        </text>
+                                    </g>
                                 </g>
                             </g>
                         );

@@ -695,6 +695,14 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
     game.winReason = winReason;
     game.gameStatus = 'ended';
 
+    try {
+        const { stashEndedPvpGameRecordSnapshot } = await import('./gameRecordSnapshot.js');
+        const { volatileState } = await import('./state.js');
+        stashEndedPvpGameRecordSnapshot(volatileState, game);
+    } catch (stashErr) {
+        console.warn('[endGame] stashEndedPvpGameRecordSnapshot failed:', (stashErr as Error)?.message);
+    }
+
     if (game.pairTeamResignRequest) delete game.pairTeamResignRequest;
     if (game.pairTeamResignCooldownByTeam) delete game.pairTeamResignCooldownByTeam;
     

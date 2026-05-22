@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { User, GameRecord, ServerAction, Player } from '../types.js';
+import { User, GameRecord, ServerAction } from '../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants/gameModes.js';
 import DraggableWindow from './DraggableWindow.js';
+import { formatGameRecordResultLabel } from '../utils/gameRecordResultLabel.js';
 
 interface GameRecordListModalProps {
     currentUser: User;
@@ -44,20 +45,7 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
         return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
     };
 
-    const getResultText = (record: GameRecord) => {
-        const isDraw = record.gameResult.winner === Player.None;
-        if (isDraw) return { text: '무승부', chip: 'bg-slate-500/25 text-slate-200 ring-slate-400/30' };
-        const my = record.myColor;
-        if (my === Player.Black || my === Player.White) {
-            const iWon = record.gameResult.winner === my;
-            if (iWon) return { text: '승', chip: 'bg-emerald-500/20 text-emerald-200 ring-emerald-400/35' };
-            return { text: '패', chip: 'bg-rose-500/20 text-rose-200 ring-rose-400/35' };
-        }
-        if (record.gameResult.winner === Player.Black) {
-            return { text: '흑 승', chip: 'bg-sky-500/20 text-sky-200 ring-sky-400/35' };
-        }
-        return { text: '백 승', chip: 'bg-amber-500/20 text-amber-200 ring-amber-400/35' };
-    };
+    const getResultText = (record: GameRecord) => formatGameRecordResultLabel(record);
 
     const handleDelete = async (recordId: string, e: React.MouseEvent) => {
         e.stopPropagation();

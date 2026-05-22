@@ -7,6 +7,7 @@ import DraggableWindow, {
 import type { InventoryItem, ServerAction, User } from '../types.js';
 import { audioService } from '../services/audioService.js';
 import PairPetLobbyInfoPetViewer from './pair/PairPetLobbyInfoPetViewer.js';
+import PairPetModalScaledShell from './pair/PairPetModalScaledShell.js';
 import PairPetSoulConvertModal from './pair/PairPetSoulConvertModal.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { computeOptimisticPairPetSoulConvert } from '../shared/utils/pairPetSoulConvert.js';
@@ -174,12 +175,16 @@ const PairPetObtainedModal: React.FC<PairPetObtainedModalProps> = ({ currentUser
                 bodyScrollable
                 bodyPaddingClassName="flex min-h-0 w-full min-w-0 flex-1 flex-col !p-0 sm:!p-0"
             >
-                <div
+                <PairPetModalScaledShell
                     className={`flex min-h-0 w-full min-w-0 flex-col overflow-hidden ${mode === 'obtain' ? 'flex-1' : ''}`}
-                    style={{ maxHeight: PAIR_PET_DETAIL_VIEW_BODY_MAX_HEIGHT_CSS }}
                 >
-                    {petDetailBody}
-                </div>
+                    <div
+                        className="flex min-h-0 w-full min-w-0 flex-col overflow-hidden"
+                        style={{ maxHeight: PAIR_PET_DETAIL_VIEW_BODY_MAX_HEIGHT_CSS }}
+                    >
+                        {petDetailBody}
+                    </div>
+                </PairPetModalScaledShell>
                 {mode === 'obtain' ? (
                     <div className={`${ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS} shrink-0 border-t border-slate-700/50`}>
                         <button

@@ -652,6 +652,68 @@ describe('PVP Strategic mode', () => {
             expect(game.gameStatus).toBe('missile_selecting');
         });
 
+        it('white player can LAUNCH_MISSILE again on a later turn after first use', async () => {
+            const game = makePvpStrategicGame({
+                currentPlayer: Player.White,
+                missiles_p1: 2,
+                missiles_p2: 2,
+            });
+            game.boardState[4][4] = Player.White;
+            game.moveHistory = [{ player: Player.White, x: 4, y: 4 }];
+            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+
+            let res = await handleStrategicGameAction(volatileState, game, {
+                type: 'START_MISSILE_SELECTION',
+                payload: {},
+                userId: p2.id,
+            } as any, p2);
+            expect(res?.error).toBeUndefined();
+            expect(game.gameStatus).toBe('missile_selecting');
+
+            res = await handleStrategicGameAction(volatileState, game, {
+                type: 'LAUNCH_MISSILE',
+                payload: { from: { x: 4, y: 4 }, direction: 'up' },
+                userId: p2.id,
+            } as any, p2);
+            expect(res?.error).toBeUndefined();
+            expect(game.missiles_p2).toBe(1);
+
+            res = await handleStrategicGameAction(volatileState, game, {
+                type: 'MISSILE_ANIMATION_COMPLETE',
+                payload: {},
+                userId: p2.id,
+            } as any, p2);
+            expect(res?.error).toBeUndefined();
+            expect(game.gameStatus).toBe('playing');
+
+            game.boardState[4][4] = Player.None;
+            game.boardState[4][3] = Player.White;
+            game.boardState[5][5] = Player.Black;
+            game.moveHistory = [
+                { player: Player.White, x: 4, y: 3 },
+                { player: Player.Black, x: 5, y: 5 },
+            ];
+            game.currentPlayer = Player.White;
+            game.missileUsedThisTurn = false;
+
+            res = await handleStrategicGameAction(volatileState, game, {
+                type: 'START_MISSILE_SELECTION',
+                payload: {},
+                userId: p2.id,
+            } as any, p2);
+            expect(res?.error).toBeUndefined();
+            expect(game.gameStatus).toBe('missile_selecting');
+
+            res = await handleStrategicGameAction(volatileState, game, {
+                type: 'LAUNCH_MISSILE',
+                payload: { from: { x: 4, y: 3 }, direction: 'up' },
+                userId: p2.id,
+            } as any, p2);
+            expect(res?.error).toBeUndefined();
+            expect(game.missiles_p2).toBe(0);
+            expect(game.gameStatus).toBe('missile_animating');
+        });
+
         it('LAUNCH_MISSILE ignores suspiciously long client moveHistory (prevents scoringTurnLimit corruption)', async () => {
             const game = makePvpStrategicGame();
             game.moveHistory = [{ player: Player.Black, x: 4, y: 4 }];

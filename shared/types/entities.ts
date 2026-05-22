@@ -807,6 +807,10 @@ export type GameRecord = {
     winner: Player;
     blackScore: number;
     whiteScore: number;
+    /** 종료 사유 (구 기록에는 없을 수 있음) */
+    winReason?: WinReason;
+    /** 계가 승 시 집 차이(절대값). 구 기록은 점수에서 추정 가능 */
+    scoreMargin?: number;
     scoreDetails?: {
       black: {
         timeBonus: number;

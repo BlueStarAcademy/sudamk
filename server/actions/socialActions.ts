@@ -32,6 +32,10 @@ import { applyPassiveActionPointRegenToUser, recordActionPointSpend } from '../e
 import { getRankedGameSettings } from '../../constants/rankedGameSettings.js';
 import { clearAiSession } from '../aiSessionManager.js';
 import { isLingerEndedPvpRoomCandidate, maybeDeleteDetachedEndedPvpGame } from '../maybeDeleteDetachedEndedPvpGame.js';
+import {
+    applyLeaveWhenGameSessionMissing,
+    resolveGameSessionForLeave,
+} from '../gameRecordSnapshot.js';
 import { aiUserId, getAiUser } from '../aiPlayer.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 import { recordPairPetSoulConvertForAchievements, recordPairPetTrainingClaimForAchievements } from '../pairPetAchievementCounters.js';
@@ -2559,25 +2563,16 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             return {};
         }
         case 'LEAVE_GAME_ROOM': {
-            const { gameId } = payload;
-            const game = await db.getLiveGame(gameId);
-            if (!game) {
-                // 경기 종료 직후 GC/정리로 이미 삭제된 게임이어도
-                // 나가기 버튼은 성공 처리되어 클라이언트 대기실 리다이렉트가 진행되어야 한다.
-                const userStatus = volatileState.userStatuses[user.id];
-                if (userStatus) {
-                    userStatus.status = UserStatus.Online;
-                    delete userStatus.gameId;
-                    delete userStatus.spectatingGameId;
-                    delete userStatus.mode;
-                    delete userStatus.waitingLobby;
-                    delete userStatus.arenaChannel;
-                } else {
-                    volatileState.userStatuses[user.id] = { status: UserStatus.Online };
-                }
-                broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
-                return {};
+            const gameId = typeof payload?.gameId === 'string' ? payload.gameId : '';
+            if (!gameId) {
+                return applyLeaveWhenGameSessionMissing(volatileState, user.id, '');
             }
+
+            try {
+                const game = await resolveGameSessionForLeave(volatileState, gameId);
+                if (!game) {
+                    return applyLeaveWhenGameSessionMissing(volatileState, user.id, gameId);
+                }
 
             if (volatileState.userStatuses[user.id]) {
                 const restoredPairRoom = restoreEndedPairRoomShellsIfNeeded(volatileState, game);
@@ -2678,6 +2673,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                         await maybeDeleteDetachedEndedPvpGame(volatileState, gameId);
                     } else {
                         console.log(`[GC] Deleting game ${gameId} - both players left and no spectators`);
+                        const { stashEndedPvpGameRecordSnapshot } = await import('../gameRecordSnapshot.js');
+                        stashEndedPvpGameRecordSnapshot(volatileState, game);
                         clearAiSession(gameId);
                         await db.deleteGame(gameId);
                         if (volatileState.gameChats) delete volatileState.gameChats[gameId];
@@ -2687,6 +2684,10 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             }
             
             return {};
+            } catch (leaveErr: unknown) {
+                console.error('[LEAVE_GAME_ROOM] failed, applying graceful leave:', gameId, leaveErr);
+                return applyLeaveWhenGameSessionMissing(volatileState, user.id, gameId);
+            }
         }
         case 'LEAVE_AI_GAME': {
             const { gameId } = payload;

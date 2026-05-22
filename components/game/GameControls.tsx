@@ -2354,7 +2354,14 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                             setSavingGameRecord(true);
                                             try {
                                                 const out = await onAction({ type: 'SAVE_GAME_RECORD', payload: { gameId } });
-                                                if (out && typeof out === 'object' && 'error' in out && (out as { error?: string }).error) return;
+                                                const saveErr =
+                                                    out && typeof out === 'object' && 'error' in out
+                                                        ? (out as { error?: string }).error
+                                                        : undefined;
+                                                if (saveErr) {
+                                                    alert(saveErr);
+                                                    return;
+                                                }
                                                 setSavedOptimistic(true);
                                             } catch (e) {
                                                 console.error(e);
@@ -2430,7 +2437,14 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                         setSavingGameRecord(true);
                                         try {
                                             const out = await onAction({ type: 'SAVE_GAME_RECORD', payload: { gameId } });
-                                            if (out && typeof out === 'object' && 'error' in out && (out as { error?: string }).error) return;
+                                            const saveErr =
+                                                out && typeof out === 'object' && 'error' in out
+                                                    ? (out as { error?: string }).error
+                                                    : undefined;
+                                            if (saveErr) {
+                                                alert(saveErr);
+                                                return;
+                                            }
                                             setSavedOptimistic(true);
                                         } catch (e) {
                                             console.error(e);

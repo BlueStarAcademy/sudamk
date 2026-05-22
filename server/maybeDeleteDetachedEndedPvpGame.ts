@@ -1,6 +1,7 @@
 import * as db from './db.js';
 import { clearAiSession } from './aiSessionManager.js';
 import { broadcast } from './socket.js';
+import { stashEndedPvpGameRecordSnapshot } from './gameRecordSnapshot.js';
 import type { LiveGameSession, VolatileState } from '../types/index.js';
 
 function isLingerEndedPvpRoomCandidate(game: LiveGameSession): boolean {
@@ -27,6 +28,7 @@ export async function maybeDeleteDetachedEndedPvpGame(volatileState: VolatileSta
 
     if (p1Left && p2Left && !hasSpectators && !isRematchBeingNegotiated) {
         console.log(`[GC] Deleting ended PVP room ${gameId} — no players attached`);
+        stashEndedPvpGameRecordSnapshot(volatileState, game);
         clearAiSession(gameId);
         await db.deleteGame(gameId);
         if (volatileState.gameChats) delete volatileState.gameChats[gameId];

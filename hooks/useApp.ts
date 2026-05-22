@@ -5250,6 +5250,75 @@ export const useApp = () => {
                 revertPvpDicePlaceSnapshot();
                 rollbackTowerAddTurnOptimistic();
                 revertPveResignOptimistic();
+
+                const isBenignPostGameLeaveHttp400 =
+                    (action.type === 'LEAVE_GAME_ROOM' || action.type === 'LEAVE_AI_GAME') &&
+                    res.status === 400 &&
+                    typeof errorMessage === 'string' &&
+                    (/game not found/i.test(errorMessage) ||
+                        /게임을 찾을 수 없습니다/i.test(errorMessage) ||
+                        /게임 정보를 찾을 수 없습니다/i.test(errorMessage));
+
+                if (isBenignPostGameLeaveHttp400) {
+                    if (import.meta.env.DEV) {
+                        console.debug(
+                            `[handleAction] ${action.type} benign HTTP 400 (session already cleared on server) — local lobby redirect`,
+                            errorMessage,
+                        );
+                    }
+                    const gid = (action.payload as { gameId?: string })?.gameId;
+                    if (gid) {
+                        try {
+                            sessionStorage.removeItem(`gameState_${gid}`);
+                        } catch {
+                            /* ignore */
+                        }
+                        flushSync(() => {
+                            setTowerGames((current) => {
+                                if (!current[gid]) return current;
+                                const next = { ...current };
+                                delete next[gid];
+                                return next;
+                            });
+                            setSinglePlayerGames((current) => {
+                                if (!current[gid]) return current;
+                                const next = { ...current };
+                                delete next[gid];
+                                return next;
+                            });
+                            setLiveGames((current) => {
+                                if (!current[gid]) return current;
+                                const next = { ...current };
+                                delete next[gid];
+                                return next;
+                            });
+                            const uid = currentUserRef.current?.id;
+                            if (uid) {
+                                setOnlineUsers((prev) =>
+                                    prev.map((u) =>
+                                        u.id === uid
+                                            ? {
+                                                  ...u,
+                                                  status: UserStatus.Online,
+                                                  gameId: undefined,
+                                                  mode: undefined,
+                                                  waitingLobby: undefined,
+                                              }
+                                            : u,
+                                    ),
+                                );
+                            }
+                        });
+                    }
+                    const postRedirect =
+                        typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('postGameRedirect') : null;
+                    if (postRedirect) {
+                        sessionStorage.removeItem('postGameRedirect');
+                        replaceAppHash(postRedirect);
+                    }
+                    return {} as HandleActionResult;
+                }
+
                 // Return error object so components can handle it
                 return { error: errorMessage } as HandleActionResult;
             } else {

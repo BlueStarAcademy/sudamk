@@ -43,6 +43,7 @@ import { generateSgfFromGame } from '../../utils/sgfGenerator.js';
 import { maxExchangeListPrice } from '../../shared/constants/numericLimits.js';
 import { exchangeListingFeeFromPrice } from '../../shared/utils/gameIntegerField.js';
 import { isStrategicPvpForGameRecord, isGameStatusSaveableForRecord, isShortGameStrategicNoContest } from '../../utils/strategicPvpGameRecord.js';
+import { resolveGameSessionForRecordSave } from '../gameRecordSnapshot.js';
 import { randomUUID } from 'crypto';
 import * as effectService from '../effectService.js';
 import {
@@ -895,10 +896,12 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
         case 'SAVE_GAME_RECORD': {
             const { gameId } = payload as { gameId: string };
             
-            // 게임 조회
-            const game = await db.getLiveGame(gameId);
+            const game = await resolveGameSessionForRecordSave(volatileState, gameId);
             if (!game) {
-                return { error: '게임을 찾을 수 없습니다.' };
+                return {
+                    error:
+                        '게임 정보를 찾을 수 없습니다. 대국실을 나간 뒤에는 기보를 저장할 수 없습니다. 다음 대국 종료 후 결과 화면에서 바로 저장해 주세요.',
+                };
             }
             
             // 전략바둑 PVP만 (일반 로비는 gameCategory가 Normal일 수 있음 — truthy 체크 금지)
@@ -977,11 +980,23 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 };
             }
             
-            // SGF 생성
-            const sgfContent = generateSgfFromGame(game, user, opponentUser, analysisResult);
+            let sgfContent: string;
+            try {
+                sgfContent = generateSgfFromGame(game, user, opponentUser, analysisResult);
+            } catch (err: unknown) {
+                console.error('[SAVE_GAME_RECORD] generateSgfFromGame failed:', gameId, err);
+                return { error: '기보 파일을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.' };
+            }
             
             // 저장한 유저의 착색 (목록에서 내 기준 승/패 표시용)
             const playerColor = game.blackPlayerId === user.id ? types.Player.Black : types.Player.White;
+
+            const blackScore = game.finalScores?.black ?? 0;
+            const whiteScore = game.finalScores?.white ?? 0;
+            const scoreMargin =
+                game.winReason === 'score' && Number.isFinite(blackScore) && Number.isFinite(whiteScore)
+                    ? Math.round(Math.abs(blackScore - whiteScore) * 10) / 10
+                    : undefined;
             
             // 기보 저장
             const record: types.GameRecord = {
@@ -997,8 +1012,10 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 sgfContent: sgfContent,
                 gameResult: {
                     winner: game.winner ?? types.Player.None,
-                    blackScore: game.finalScores?.black ?? 0,
-                    whiteScore: game.finalScores?.white ?? 0,
+                    blackScore,
+                    whiteScore,
+                    winReason: game.winReason ?? undefined,
+                    scoreMargin,
                     scoreDetails: analysisResult?.scoreDetails
                 }
             };

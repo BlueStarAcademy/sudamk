@@ -504,10 +504,15 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         return handleSocialAction(volatileState, action, userData);
     }
 
+    // 나가기: 게임이 DB/GC에서 이미 없어도 소셜 핸들러가 상태만 정리해야 함 (모바일 기보 저장 전 이탈 400 방지)
+    if (type === 'LEAVE_GAME_ROOM' || type === 'LEAVE_AI_GAME') {
+        return handleSocialAction(volatileState, action, userData);
+    }
+
     // Game Actions (require gameId)
     // 도전의 탑은 클라이언트에서만 실행되므로 서버에서 착수 액션을 처리하지 않음
     // BUY_TOWER_ITEM은 payload에 gameId가 있어도 상점(handleShopAction)에서만 처리 (여기서 PVE 분기에 들어가면 빈 {}로 종료되어 구매가 실행되지 않음)
-    if (gameId && type !== 'LEAVE_AI_GAME' && type !== 'BUY_TOWER_ITEM') {
+    if (gameId && type !== 'BUY_TOWER_ITEM') {
         // 싱글플레이 시작 확인은 게임 캐시/DB 조회 전 전용 핸들러로 보낸다.
         // 서버 재시작 직후 오래된 클라이언트 확인 요청이 일반 게임 라우팅에서 noisy 400으로 반복되는 것을 막는다.
         if (type === 'CONFIRM_SINGLE_PLAYER_GAME_START') {
@@ -2052,9 +2057,6 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
     if (type.includes('SINGLE_PLAYER')) return handleSinglePlayerAction(volatileState, action, userData);
     if (type === 'MANNER_ACTION') return mannerService.handleMannerAction(volatileState, action, userData);
     // Guild actions are now handled above (before game actions)
-    // LEAVE_AI_GAME은 gameId를 가지지만 소셜 액션으로 처리해야 함
-    if (type === 'LEAVE_AI_GAME') return handleSocialAction(volatileState, action, userData);
-    
     // Social actions can be game-related (chat in game) or not (logout)
     const socialResult = await handleSocialAction(volatileState, action, userData);
     if (socialResult) return socialResult;
