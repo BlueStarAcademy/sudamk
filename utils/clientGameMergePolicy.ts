@@ -115,6 +115,36 @@ export function shouldClearItemPhaseAnimationOnPlayingMerge(
 /** @deprecated use shouldClearItemPhaseAnimationOnPlayingMerge */
 export const shouldClearMissileFlightAnimationOnPlayingMerge = shouldClearItemPhaseAnimationOnPlayingMerge;
 
+const STRATEGIC_ITEM_INVENTORY_KEYS = [
+    'hidden_stones_p1',
+    'hidden_stones_p2',
+    'scans_p1',
+    'scans_p2',
+    'missiles_p1',
+    'missiles_p2',
+] as const;
+
+/** PVP 등: 늦은 WS 패킷이 이미 소모된 아이템 잔여를 설정값으로 되돌리지 않도록 min 병합 */
+function mergeStrategicItemInventoryMonotonic(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined,
+): LiveGameSession {
+    if (!existing) return incoming;
+    const patch: Partial<LiveGameSession> = {};
+    let changed = false;
+    for (const key of STRATEGIC_ITEM_INVENTORY_KEYS) {
+        const inc = (incoming as Record<string, unknown>)[key];
+        const ext = (existing as Record<string, unknown>)[key];
+        if (typeof inc !== 'number' || typeof ext !== 'number') continue;
+        const next = Math.min(inc, ext);
+        if (next !== inc) {
+            (patch as Record<string, number>)[key] = next;
+            changed = true;
+        }
+    }
+    return changed ? ({ ...incoming, ...patch } as LiveGameSession) : incoming;
+}
+
 export function mergeGameUpdateByArena(
     incoming: LiveGameSession,
     existing: LiveGameSession | undefined,
@@ -123,6 +153,7 @@ export function mergeGameUpdateByArena(
     /** 들어온 패킷이 좌석 잠금을 비운 채 오면 기존 잠금을 살려 두어, 좌석 보호 근거를 잃지 않게 한다. */
     const incomingWithLock = preserveExistingBaseSeatLockAgainstSlimDrop(incoming, existing);
     let merged = existing ? ({ ...existing, ...incomingWithLock } as LiveGameSession) : incomingWithLock;
+    merged = mergeStrategicItemInventoryMonotonic(merged, existing);
     if (shouldClearItemPhaseAnimationOnPlayingMerge(existing, incoming)) {
         merged = { ...merged, animation: null } as LiveGameSession;
         if (

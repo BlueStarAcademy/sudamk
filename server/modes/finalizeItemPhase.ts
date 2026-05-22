@@ -92,6 +92,13 @@ function resolvePlayerEnumFromUserId(game: types.LiveGameSession, userId: string
     return game.currentPlayer;
 }
 
+/** 아이템 선택 페이즈 타임아웃·소비 주체 — 착수 직전 currentPlayer가 바뀌어도 진입 시 색을 유지 */
+function resolveItemPhaseActingPlayer(game: types.LiveGameSession): types.Player {
+    const stored = game.itemPhaseActingPlayer;
+    if (stored === types.Player.Black || stored === types.Player.White) return stored;
+    return game.currentPlayer;
+}
+
 function consumeHiddenSelectingTimeoutItem(
     game: types.LiveGameSession,
     timedOutPlayerEnum: types.Player,
@@ -221,7 +228,7 @@ export function finalizeHiddenSelectingItemPhase(
         return false;
     }
 
-    const timedOutPlayerEnum = game.currentPlayer;
+    const timedOutPlayerEnum = resolveItemPhaseActingPlayer(game);
     const timedOutPlayerId = timedOutPlayerEnum === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
 
     game.foulInfo = {
@@ -232,6 +239,7 @@ export function finalizeHiddenSelectingItemPhase(
     game.currentPlayer = timedOutPlayerEnum;
     consumeHiddenSelectingTimeoutItem(game, timedOutPlayerEnum, selectingStatus);
     resumePlayingTimerAfterItemPhase(game, now, timedOutPlayerEnum);
+    game.itemPhaseActingPlayer = undefined;
     markItemPhaseStateChanged(game);
     return true;
 }

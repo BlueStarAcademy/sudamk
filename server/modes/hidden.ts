@@ -54,12 +54,27 @@ const resolveEffectiveFischerIncrement = (game: types.LiveGameSession): number =
 export const initializeHidden = (game: types.LiveGameSession) => {
     const isHiddenMode = mixGoOrPureModeIncludes(game.mode, game.settings?.mixedModes, types.GameMode.Hidden);
     if (isHiddenMode) {
+        const hiddenCap = game.settings.hiddenStoneCount || 0;
         game.scans_p1 = (game.settings.scanCount || 0);
         game.scans_p2 = (game.settings.scanCount || 0);
+        game.hidden_stones_p1 = hiddenCap;
+        game.hidden_stones_p2 = hiddenCap;
         game.hidden_stones_used_p1 = 0;
         game.hidden_stones_used_p2 = 0;
     }
 };
+
+/** DB/캐시에 잔여 히든 수가 없을 때 설정·사용 횟수로 복원 (p1/p2=흑/백) */
+export function ensureStrategicHiddenInventory(game: types.LiveGameSession): void {
+    const cap = game.settings.hiddenStoneCount ?? 0;
+    if (cap <= 0) return;
+    if (game.hidden_stones_p1 == null) {
+        game.hidden_stones_p1 = Math.max(0, cap - (game.hidden_stones_used_p1 ?? 0));
+    }
+    if (game.hidden_stones_p2 == null) {
+        game.hidden_stones_p2 = Math.max(0, cap - (game.hidden_stones_used_p2 ?? 0));
+    }
+}
 
 export const updateHiddenState = async (game: types.LiveGameSession, now: number): Promise<boolean> => {
     const isStrategicAiGame = isStrategicAiGoSession(game);
@@ -329,6 +344,7 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
     switch(type) {
         case 'START_HIDDEN_PLACEMENT': {
             if (!canUseItem) return { error: "Not your turn to use an item." };
+            ensureStrategicHiddenInventory(game);
             if (game.gameStatus === 'hidden_placing') {
                 if (!game.itemUseDeadline) {
                     pauseGameTimer(game, now, 30000);
@@ -350,6 +366,7 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
         }
         case 'START_SCANNING': {
             if (!canUseItem) return { error: "Not your turn to use an item." };
+            ensureStrategicHiddenInventory(game);
             if (game.gameStatus === 'scanning') {
                 if (!game.itemUseDeadline) {
                     pauseGameTimer(game, now, 30000);

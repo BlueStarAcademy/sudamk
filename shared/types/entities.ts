@@ -1428,6 +1428,8 @@ export type LiveGameSession = {
   }[];
   hidden_stones_used_p1?: number;
   hidden_stones_used_p2?: number;
+  /** hidden_placing/scanning/missile_selecting 진입 시점의 색(흑/백). 타임아웃·소비 시 currentPlayer 스왑 레이스 방지 */
+  itemPhaseActingPlayer?: Player;
   pendingCapture?: { stones: Point[]; move: Move; hiddenContributors: Point[]; capturedHiddenStones?: Point[] } | null;
   permanentlyRevealedStones?: Point[];
   processingMove?: { playerId: string; x: number; y: number; timestamp: number } | null; // 동시성 제어를 위한 처리 중인 수

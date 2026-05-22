@@ -1569,10 +1569,11 @@ const processPlayerSummary = async (
         !isNoContest && !isAdventureGame && !isGuildWarMatch
             ? resolveLiveArenaPhaseGoldXpMultiplier(game)
             : null;
-    /** 휴먼 vs 휴먼 PVP에서 기권으로 끝난 경우: 골드·아이템·경험치·VIP 슬롯 등 대국 보상 없음(랭킹 레이팅·전적은 유지) */
-    const isPvpHumanResign =
+    /** 휴먼 vs 휴먼 PVP에서 기권한 쪽만 골드·아이템·경험치·VIP 슬롯 등 대국 보상 없음(승자는 정상 지급, 랭킹·전적은 유지) */
+    const isPvpHumanResignLoser =
         !isNoContest &&
         !isDraw &&
+        !isWinner &&
         winReason === 'resign' &&
         !isAiGame &&
         !isGuildWarMatch &&
@@ -1661,7 +1662,7 @@ const processPlayerSummary = async (
     const rewardVipStrategicPlayfulWinDouble =
         !isNoContest &&
         !isDraw &&
-        !isPvpHumanResign &&
+        !isPvpHumanResignLoser &&
         isWinner &&
         player.id !== aiUserId &&
         !isGuildWarMatch &&
@@ -1679,7 +1680,7 @@ const processPlayerSummary = async (
     if (!isNoContest && isPlayful) {
         xpGain = 0;
     }
-    if (isPvpHumanResign) {
+    if (isPvpHumanResignLoser) {
         xpGain = 0;
     }
     // --- END NEW LOGIC ---
@@ -2041,7 +2042,7 @@ const processPlayerSummary = async (
     const vipWinEligible =
         qualifiesVipPlayRewardSurface &&
         !isPlayfulResignLoser &&
-        !isPvpHumanResign &&
+        !isPvpHumanResignLoser &&
         isWinner &&
         !isDraw &&
         (!isAdventureGame || isAdventureWin);
@@ -2052,8 +2053,8 @@ const processPlayerSummary = async (
         rewards.items = [];
         delete rewards.adventureGoldUnderstandingBonus;
     }
-    // 놀이바둑에서 기권한 플레이어만 재화/아이템 없음(승자는 지급) — 휴먼 PVP 기권은 양쪽 모두 보상 없음
-    if (isPlayfulResignLoser || isPvpHumanResign) {
+    // 기권한 플레이어만 재화/아이템 없음(승자·기권 승리 상대는 정상 지급)
+    if (isPlayfulResignLoser || isPvpHumanResignLoser) {
         rewards.gold = 0;
         rewards.diamonds = 0;
         rewards.items = [];
@@ -2318,9 +2319,6 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         const seat = seats.find((s) => s.participantId === userId);
         const isWinner = !isDraw && !isNoContest && seat?.player === game.winner;
         const isResignLoser = resignLoserColor !== Player.None && seat?.player === resignLoserColor;
-        /** 페어 휴먼 대전(pvp)에서 기권 시 양측 보상 없음 */
-        const pvpPairResignNoRewards =
-            !isNoContest && !isDraw && game.winReason === 'resign' && game.settings.pairGame?.pairMode === 'pvp';
         /** 페어 AI전: 기권한 팀(색) 전원 보상 0 — blackPlayerId는 흑1만 가리켜 패자 색 판정이 어긋날 수 있음 */
         const pairAiResignLoserTeamId =
             isPairAiGame && !isNoContest && !isDraw && game.winReason === 'resign' && resignLoserColor !== Player.None
@@ -2328,13 +2326,12 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
                 : undefined;
         const isPairAiResignLoser =
             pairAiResignLoserTeamId != null && seat?.teamId === pairAiResignLoserTeamId;
-        const multiplier = pvpPairResignNoRewards
-            ? 0
-            : isNoContest || isDraw || isResignLoser || isPairAiResignLoser
-              ? 0
-              : isWinner
-                ? 1
-                : 0.5;
+        const multiplier =
+            isNoContest || isDraw || isResignLoser || isPairAiResignLoser
+                ? 0
+                : isWinner
+                  ? 1
+                  : 0.5;
 
         const initialStrategyLevel = user.userLevel;
         const initialStrategyXp = Math.max(0, Number(user.userXp) || 0);
@@ -2375,7 +2372,7 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
 
         /** 전략/놀이 정산과 동일: 승리·보상 VIP 활성 시 VIP 슬롯(골드/상자/전설) 1회 */
         const vipSlotWinEligible =
-            !isNoContest && !isDraw && !pvpPairResignNoRewards && !isResignLoser && isWinner && userId !== aiUserId;
+            !isNoContest && !isDraw && !isResignLoser && isWinner && userId !== aiUserId;
         let vipGoldBonus = 0;
         let vipGrant: InventoryItem | null = null;
         let vipGrantedDisplay: { name: string; quantity: number; image?: string } | undefined;

@@ -91,11 +91,13 @@ export function mixGoClearHiddenItemPhaseTimers(session: {
     pausedTurnTimeLeft?: number;
     turnDeadline?: number;
     turnStartTime?: number;
+    itemPhaseActingPlayer?: Player;
 }): void {
     session.itemUseDeadline = undefined;
     session.pausedTurnTimeLeft = undefined;
     session.turnDeadline = undefined;
     session.turnStartTime = undefined;
+    session.itemPhaseActingPlayer = undefined;
 }
 
 /**

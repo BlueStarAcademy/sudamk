@@ -91,6 +91,19 @@ export const applyPreserveDiscovererTurnIfPending = async (
         game.turnStartTime = undefined;
     }
     game.pausedTurnTimeLeft = undefined;
+    if (capAny.resumeHiddenItemPlacing) {
+        game.gameStatus = 'hidden_placing';
+        game.itemPhaseActingPlayer =
+            capAny.itemPhaseActingPlayer === types.Player.Black || capAny.itemPhaseActingPlayer === types.Player.White
+                ? capAny.itemPhaseActingPlayer
+                : myPlayerEnum;
+        if (capAny.pausedTurnTimeLeftBeforeReveal !== undefined) {
+            game.pausedTurnTimeLeft = capAny.pausedTurnTimeLeftBeforeReveal;
+        }
+        game.itemUseDeadline = now + 30000;
+        game.turnDeadline = undefined;
+        game.turnStartTime = undefined;
+    }
     if (game.isAiGame) {
         const { aiUserId } = await import('../aiPlayer.js');
         const curId = cur === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;

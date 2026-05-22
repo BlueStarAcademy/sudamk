@@ -122,6 +122,30 @@ describe('finalizeItemPhase(scan)', () => {
 });
 
 describe('finalizeItemPhase(hidden_selecting)', () => {
+    it('consumes white hidden stone on hidden_placing timeout using itemPhaseActingPlayer', () => {
+        const game = {
+            id: 'finalize-hidden-timeout-white',
+            mode: GameMode.Hidden,
+            gameStatus: 'hidden_placing',
+            currentPlayer: Player.Black,
+            itemPhaseActingPlayer: Player.White,
+            blackPlayerId: 'p1',
+            whitePlayerId: 'p2',
+            player1: { id: 'p1', nickname: '흑' } as any,
+            player2: { id: 'p2', nickname: '백' } as any,
+            settings: { hiddenStoneCount: 3, timeLimit: 0 },
+            hidden_stones_p2: 2,
+            hidden_stones_used_p2: 0,
+        } as LiveGameSession;
+        const changed = finalizeItemPhase(game, 'hidden_selecting', Date.now(), {
+            selectingStatus: 'hidden_placing',
+        });
+        expect(changed).toBe(true);
+        expect(game.hidden_stones_p2).toBe(1);
+        expect(game.hidden_stones_used_p2).toBe(1);
+        expect(game.currentPlayer).toBe(Player.White);
+    });
+
     it('consumes hidden stone on hidden_placing timeout', () => {
         const game = {
             id: 'finalize-hidden-timeout',

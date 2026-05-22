@@ -55,6 +55,7 @@ import { getRegionalCaptureOpponentTargetBonus } from '../../utils/adventureRegi
 import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 import {
     skipPendingCaptureForAdventureHiddenReveal,
+    isPvpRevealOnlyOpponentHiddenAttack,
     shouldPreserveDiscovererTurnAfterOpponentHiddenReveal,
     shouldPreserveDiscovererTurnWhenAiRevealsUserHiddenStone,
     treatAsPveLikeForHiddenOpponentReveal,
@@ -1251,18 +1252,8 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     player: myPlayerEnum,
                     ...(pairCurrentSeat ? { actorId: pairCurrentSeat.participantId, pairSeatId: pairCurrentSeat.seatId } : {}),
                 };
-                const treatAsPveLike = treatAsPveLikeForHiddenOpponentReveal(game);
-                const simResult = processMove(
-                    tempBoardState,
-                    moveAttempt,
-                    game.koInfo,
-                    game.moveHistory.length,
-                    {
-                        ignoreSuicide: false,
-                        isSinglePlayer: treatAsPveLike,
-                        opponentPlayer: treatAsPveLike ? opponentPlayerEnum : undefined,
-                    }
-                );
+                const resumeHiddenItemPlacing = game.gameStatus === 'hidden_placing';
+                const pvpRevealOnly = isPvpRevealOnlyOpponentHiddenAttack(game);
 
                 const revealSeed = [{ point: { x, y }, player: opponentPlayerEnum }];
                 const stonesToReveal = expandToAllUnrevealedHiddenStonesForPlayers(game, revealSeed);
@@ -1281,6 +1272,42 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                         game.permanentlyRevealedStones.push({ x: stone.point.x, y: stone.point.y });
                     }
                 }
+
+                if (pvpRevealOnly) {
+                    game.pendingCapture = {
+                        stones: [{ x, y }],
+                        move: moveAttempt,
+                        hiddenContributors: [{ x, y }],
+                        preserveDiscovererTurn: true,
+                        revealOnlyOpponentHidden: true,
+                        resumeHiddenItemPlacing,
+                        boardStateBeforeReveal: (game.boardState || []).map((row: types.Player[]) => [...row]),
+                        koInfoBeforeReveal: JSON.parse(JSON.stringify(game.koInfo ?? null)),
+                        passCountBeforeReveal: game.passCount ?? 0,
+                        pausedTurnTimeLeftBeforeReveal: game.pausedTurnTimeLeft,
+                        itemPhaseActingPlayer: game.itemPhaseActingPlayer ?? myPlayerEnum,
+                    } as any;
+                    game.justCaptured = [];
+                    if (game.turnDeadline) {
+                        game.pausedTurnTimeLeft = (game.turnDeadline - now) / 1000;
+                        game.turnDeadline = undefined;
+                        game.turnStartTime = undefined;
+                    }
+                    return {};
+                }
+
+                const treatAsPveLike = treatAsPveLikeForHiddenOpponentReveal(game);
+                const simResult = processMove(
+                    tempBoardState,
+                    moveAttempt,
+                    game.koInfo,
+                    game.moveHistory.length,
+                    {
+                        ignoreSuicide: false,
+                        isSinglePlayer: treatAsPveLike,
+                        opponentPlayer: treatAsPveLike ? opponentPlayerEnum : undefined,
+                    }
+                );
 
                 // 모든 히든 모드: 상대 히든 위 착수 시도는 전체 공개·문양 유지만 하고 수·턴은 바꾸지 않음.
                 const adventureHiddenRevealOnly = skipPendingCaptureForAdventureHiddenReveal(game);

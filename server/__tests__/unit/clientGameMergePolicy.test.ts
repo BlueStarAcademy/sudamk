@@ -108,6 +108,19 @@ describe('mergeGameUpdateByArena', () => {
         expect(merged.animation).toBeNull();
     });
 
+    it('keeps lower strategic item inventory counts when stale GAME_UPDATE has full settings', () => {
+        const existing = minimalSession({
+            mode: GameMode.Hidden,
+            hidden_stones_p2: 1,
+        } as Partial<LiveGameSession>);
+        const incoming = minimalSession({
+            mode: GameMode.Hidden,
+            hidden_stones_p2: 2,
+        } as Partial<LiveGameSession>);
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
+        expect((merged as { hidden_stones_p2?: number }).hidden_stones_p2).toBe(1);
+    });
+
     it('does not clear missile animation when incoming explicitly includes it', () => {
         const anim = {
             type: 'missile',

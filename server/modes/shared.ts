@@ -294,7 +294,10 @@ export const pauseGameTimer = (game: types.LiveGameSession, now: number, itemUse
     game.turnDeadline = undefined;
     game.turnStartTime = undefined;
     game.itemUseDeadline = now + itemUseDurationMs;
-    
+    if (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White) {
+        game.itemPhaseActingPlayer = game.currentPlayer;
+    }
+
     return pausedTimeLeft;
 };
 
@@ -345,7 +348,8 @@ export const resumeGameTimer = (game: types.LiveGameSession, now: number, player
     // 아이템 사용 관련 필드 정리
     game.itemUseDeadline = undefined;
     game.pausedTurnTimeLeft = undefined;
-    
+    game.itemPhaseActingPlayer = undefined;
+
     return true;
 };
 

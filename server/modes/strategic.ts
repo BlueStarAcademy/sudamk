@@ -8,7 +8,7 @@ import { getGameResult } from '../gameModes.js';
 import { initializeNigiri, updateNigiriState, handleNigiriAction } from './nigiri.js';
 import { initializeBase, updateBaseState, handleBaseAction } from './base.js';
 import { initializeCapture, updateCaptureState, handleCaptureAction } from './capture.js';
-import { initializeHidden, updateHiddenState, handleHiddenAction } from './hidden.js';
+import { initializeHidden, updateHiddenState, handleHiddenAction, ensureStrategicHiddenInventory } from './hidden.js';
 import { initializeMissile, updateMissileState, handleMissileAction } from './missile.js';
 import { handleSharedAction, transitionToPlaying, hasTimeControl, shouldEnforceTimeControl } from './shared.js';
 import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
@@ -27,6 +27,7 @@ import { broadcastPlayingSnapshotBeforeScoring } from '../utils/broadcastPlaying
 import { aiUserId } from '../aiPlayer.js';
 import {
     skipPendingCaptureForAdventureHiddenReveal,
+    isPvpRevealOnlyOpponentHiddenAttack,
     shouldPreserveDiscovererTurnAfterOpponentHiddenReveal,
     shouldPreserveDiscovererTurnWhenAiRevealsUserHiddenStone,
     treatAsPveLikeForHiddenOpponentReveal,
@@ -772,6 +773,42 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
 
                 const moveAttempt = { x, y, player: myPlayerEnum };
+                const resumeHiddenItemPlacing = game.gameStatus === 'hidden_placing';
+                const pvpRevealOnly = isPvpRevealOnlyOpponentHiddenAttack(game);
+
+                game.animation = {
+                    type: 'hidden_reveal',
+                    stones: [{ point: { x, y }, player: opponentPlayerEnum }],
+                    startTime: now,
+                    duration: 1500,
+                };
+                game.revealAnimationEndTime = now + 1500;
+                game.gameStatus = 'hidden_reveal_animating';
+                game.itemUseDeadline = undefined;
+
+                if (pvpRevealOnly) {
+                    game.pendingCapture = {
+                        stones: [{ x, y }],
+                        move: moveAttempt,
+                        hiddenContributors: [{ x, y }],
+                        preserveDiscovererTurn: true,
+                        revealOnlyOpponentHidden: true,
+                        resumeHiddenItemPlacing,
+                        boardStateBeforeReveal: (game.boardState || []).map((row: types.Player[]) => [...row]),
+                        koInfoBeforeReveal: JSON.parse(JSON.stringify(game.koInfo ?? null)),
+                        passCountBeforeReveal: game.passCount ?? 0,
+                        pausedTurnTimeLeftBeforeReveal: game.pausedTurnTimeLeft,
+                        itemPhaseActingPlayer: game.itemPhaseActingPlayer ?? myPlayerEnum,
+                    } as any;
+                    game.justCaptured = [];
+                    if (game.turnDeadline) {
+                        game.pausedTurnTimeLeft = (game.turnDeadline - now) / 1000;
+                        game.turnDeadline = undefined;
+                        game.turnStartTime = undefined;
+                    }
+                    return {};
+                }
+
                 const treatAsPveLike = treatAsPveLikeForHiddenOpponentReveal(game);
                 const result = processMove(
                     tempBoardState,
@@ -784,16 +821,6 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                         opponentPlayer: treatAsPveLike ? opponentPlayerEnum : undefined,
                     }
                 );
-
-                game.animation = {
-                    type: 'hidden_reveal',
-                    stones: [{ point: { x, y }, player: opponentPlayerEnum }],
-                    startTime: now,
-                    duration: 1500,
-                };
-                game.revealAnimationEndTime = now + 1500;
-                game.gameStatus = 'hidden_reveal_animating';
-                game.itemUseDeadline = undefined;
 
                 const adventureHiddenRevealOnly = skipPendingCaptureForAdventureHiddenReveal(game);
 
@@ -881,6 +908,11 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 // 히든 아이템 개수 확인 및 감소 — p1/p2는 흑/백 인벤 (handleHiddenAction·standard.ts와 동일, player1 좌석과 무관)
                 const myIsBlack = myPlayerEnum === types.Player.Black;
                 const hiddenKey = myIsBlack ? 'hidden_stones_p1' : 'hidden_stones_p2';
+                if (inHiddenItemPlacement) {
+                    // 타임아웃 루프와의 이중 소비 레이스 방지(백 등 후공 아이템 2회째 막힘)
+                    game.itemUseDeadline = undefined;
+                }
+                ensureStrategicHiddenInventory(game);
                 if ((game as any).gameCategory === 'tower' && hiddenKey === 'hidden_stones_p1' && game.player1?.id === user.id) {
                     const { syncTowerP1ConsumableSessionFromInventory } = await import('./towerPlayerHidden.js');
                     syncTowerP1ConsumableSessionFromInventory(game, user, 'hidden');
@@ -1198,27 +1230,23 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
             }
 
-            game.currentPlayer = opponentPlayerEnum;
-            game.missileUsedThisTurn = false;
-            
-            // 히든 아이템 사용 후 게임 상태 복원 (싱글플레이어)
-            // 턴 전환 후에 상태 복원 (currentPlayer 변경 후)
             const wasHiddenPlacing = game.gameStatus === 'hidden_placing';
-            if (game.isSinglePlayer && wasHiddenPlacing && isHidden) {
-                // 싱글플레이에서 히든 착점 시: 아이템 사용 시간 정리하고 바로 턴 전환
-                console.log(`[handleStandardAction] Single player hidden placement: restoring state and transitioning turn immediately, gameId=${game.id}`);
+            if (wasHiddenPlacing && isHidden) {
+                if (game.isSinglePlayer) {
+                    console.log(`[handleStandardAction] Single player hidden placement: restoring state and transitioning turn immediately, gameId=${game.id}`);
+                }
                 game.gameStatus = 'playing';
                 game.itemUseDeadline = undefined;
                 game.pausedTurnTimeLeft = undefined;
-            } else if (wasHiddenPlacing) {
-                game.gameStatus = 'playing';
-                game.itemUseDeadline = undefined;
-                game.pausedTurnTimeLeft = undefined;
+                game.itemPhaseActingPlayer = undefined;
             } else {
                 game.gameStatus = 'playing';
                 game.itemUseDeadline = undefined;
                 game.pausedTurnTimeLeft = undefined;
             }
+
+            game.currentPlayer = opponentPlayerEnum;
+            game.missileUsedThisTurn = false;
 
 
             if (shouldRunGoClockAccountingForSession(game)) {
