@@ -16,6 +16,23 @@ import {
     PET_MGMT_HATCHERY_BTN_CLASS,
     PET_MGMT_HATCHERY_BTN_STACK_CLASS,
     PET_MGMT_HATCHERY_CHAMBER_CLASS,
+    PET_MGMT_CAPTION,
+    PET_MGMT_SHOP_BTN_TEXT,
+    PET_MGMT_SHOP_GRID_CLASS,
+    PET_MGMT_SHOP_LIMIT_TEXT,
+    PET_MGMT_SHOP_SUBTAB_BTN,
+    PET_MGMT_SHOP_TITLE,
+    PET_MGMT_TR_EXP_LABEL,
+    PET_MGMT_TR_HINT_TEXT,
+    PET_MGMT_TR_ICON_BOX,
+    PET_MGMT_TR_ICON_IMG,
+    PET_MGMT_TR_REWARD_PANEL_CLASS,
+    PET_MGMT_TR_REWARD_ROW_CLASS,
+    PET_MGMT_TR_PET_IMG_CLASS,
+    PET_MGMT_TR_SLOT_CARD_CLASS,
+    PET_MGMT_TR_SLOT_COL,
+    PET_MGMT_TR_SLOT_DROP_CLASS,
+    PET_MGMT_TR_SOUL_COL,
     PET_MGMT_HATCHERY_EGG_IMG_CLASS,
     PET_MGMT_HATCHERY_ACTION_ROW_CLASS,
     PET_MGMT_HATCHERY_INFO_CLASS,
@@ -393,12 +410,12 @@ function PairPetShopSkuCard({
     const refinedDescription = formatPairShopDescription(sku.description);
 
     return (
-        <div className="group relative flex flex-col items-center overflow-hidden rounded-lg border border-indigo-400/35 bg-gradient-to-br from-[#1f2239]/95 via-[#0f172a]/95 to-[#060b12]/95 p-1.5 text-center shadow-[0_22px_55px_-30px_rgba(99,102,241,0.55)] transition-transform duration-300 hover:-translate-y-0.5 hover:shadow-[0_26px_60px_-32px_rgba(129,140,248,0.55)] sm:rounded-xl sm:p-2.5">
+        <div className="group relative flex w-full flex-col items-center overflow-hidden rounded-xl border border-indigo-400/35 bg-gradient-to-br from-[#1f2239]/95 via-[#0f172a]/95 to-[#060b12]/95 p-2.5 text-center shadow-[0_22px_55px_-30px_rgba(99,102,241,0.55)] transition-transform duration-300 hover:-translate-y-0.5 hover:shadow-[0_26px_60px_-32px_rgba(129,140,248,0.55)]">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent" />
             <div
                 role="button"
                 tabIndex={0}
-                className="relative mb-1 flex h-11 w-11 cursor-pointer items-center justify-center rounded-md bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_22px_-8px_rgba(129,140,248,0.55)] transition-transform hover:scale-[1.03] sm:mb-1.5 sm:h-16 sm:w-16 sm:rounded-lg"
+                className="relative mb-1.5 flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] transition-transform hover:scale-105"
                 onClick={onOpenDesc}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
@@ -409,37 +426,40 @@ function PairPetShopSkuCard({
                 onMouseEnter={onOpenDesc}
                 onMouseLeave={onCloseDesc}
             >
-                <img src={sku.image} alt="" className="h-full w-full object-contain p-1 drop-shadow-[0_6px_12px_rgba(30,64,175,0.35)]" loading="lazy" />
+                <img src={sku.image} alt="" className="h-full w-full object-contain p-1 drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" loading="lazy" />
                 {sku.quantity > 1 ? (
                     <span className="absolute right-0 top-0 rounded-bl bg-gray-900/90 px-1 text-xs font-bold text-cyan-300 shadow-md">×{sku.quantity}</span>
                 ) : null}
             </div>
             {descOpen ? (
-                <div className="absolute left-1/2 top-[3.35rem] z-40 w-[min(100%,14rem)] -translate-x-1/2 rounded-lg border border-indigo-400/50 bg-gray-900/95 p-2 shadow-xl sm:top-[4.5rem]">
-                    <p className="text-left text-xs leading-relaxed text-slate-200/90">{refinedDescription}</p>
+                <div className="absolute left-1/2 top-20 z-40 w-48 -translate-x-1/2 rounded-lg border border-indigo-400/50 bg-[#0b1220] p-2 shadow-xl">
+                    <p className={`text-left leading-relaxed text-slate-200/90 ${PET_MGMT_SEMI}`}>{refinedDescription}</p>
                 </div>
             ) : null}
-            <h3 className="line-clamp-2 min-h-[2rem] w-full px-0.5 text-center text-[0.65rem] font-semibold leading-tight tracking-tight text-white drop-shadow-[0_2px_10px_rgba(99,102,241,0.45)] sm:min-h-[2.25rem] sm:text-sm">
+            <h3
+                className={`line-clamp-2 min-h-[2.5rem] w-full min-w-0 break-keep px-0 text-center font-semibold leading-snug tracking-tight text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] ${PET_MGMT_SHOP_TITLE}`}
+                title={sku.label}
+            >
                 {sku.label}
             </h3>
-            <div className="mt-1 flex w-full flex-1 flex-col justify-end sm:mt-1.5">
+            <div className="mt-1.5 flex w-full shrink-0 flex-col items-stretch justify-center gap-1">
                 <Button
                     type="button"
                     onClick={() => onBuyClick(sku)}
                     disabled={isBusy || (!unlimitedDaily && remaining === 0)}
                     colorScheme="none"
                     bare
-                    className={`flex w-full min-h-[2.35rem] flex-col items-center justify-center gap-0 rounded-md border px-0.5 py-1 text-center text-[0.65rem] font-semibold leading-tight transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[3rem] sm:gap-0.5 sm:rounded-lg sm:px-1 sm:py-1.5 sm:text-xs ${
+                    className={`flex h-[2.95rem] min-h-[2.95rem] max-h-[2.95rem] w-full flex-col items-center justify-center gap-0.5 rounded-lg border px-1 py-1 text-center ${PET_MGMT_SHOP_BTN_TEXT} transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 disabled:cursor-not-allowed disabled:opacity-60 ${
                         isGold
                             ? 'border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_10px_28px_-16px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500'
                             : 'border-sky-400/50 bg-gradient-to-r from-sky-400/90 via-blue-500/90 to-indigo-500/90 text-white shadow-[0_10px_28px_-16px_rgba(56,189,248,0.75)] hover:from-sky-300 hover:to-indigo-500'
                     }`}
                 >
-                    <div className="flex min-w-0 items-center justify-center gap-0.5 font-semibold tracking-tight sm:gap-1">
+                    <div className="flex min-w-0 items-center justify-center gap-1 font-semibold tracking-tight">
                         {isGold ? (
-                            <img src="/images/icon/Gold.webp" alt="" className="h-3 w-3 shrink-0 drop-shadow-md sm:h-4 sm:w-4" />
+                            <img src="/images/icon/Gold.webp" alt="" className="h-4 w-4 shrink-0 drop-shadow-md" />
                         ) : (
-                            <img src="/images/icon/Zem.webp" alt="" className="h-3 w-3 shrink-0 drop-shadow-md sm:h-4 sm:w-4" />
+                            <img src="/images/icon/Zem.webp" alt="" className="h-4 w-4 shrink-0 drop-shadow-md" />
                         )}
                         <span className="tabular-nums">
                             {isGold ? formatGoldAmountKoG(priceAmount) : formatWalletDiamonds(priceAmount)}
@@ -447,7 +467,7 @@ function PairPetShopSkuCard({
                     </div>
                     {!unlimitedDaily ? (
                         <span
-                            className={`max-w-full px-0.5 text-center text-[0.6rem] leading-tight sm:text-xs ${isGold ? 'text-slate-800/95' : 'text-white/85'}`}
+                            className={`max-w-full px-0 text-center text-[9px] leading-tight tracking-tight ${isGold ? 'text-slate-800/95' : 'text-white/85'}`}
                         >
                             일일 한도 {remaining}/{sku.dailyLimit}
                         </span>
@@ -1223,7 +1243,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         className="flex min-w-0 flex-nowrap items-center gap-0.5 rounded border border-amber-400/30 bg-amber-950/35 px-0.5 py-0.5"
                         title={PAIR_WELCOME_EGG_MATERIAL_NAME}
                     >
-                        <img src={welcomeEggThumbSrc} alt="" className="h-6 w-6 shrink-0 object-contain" loading="lazy" />
+                        <img src={welcomeEggThumbSrc} alt="" className="h-7 w-7 shrink-0 object-contain" loading="lazy" />
                         <span className={`${PET_MGMT_SEMI} text-amber-100`}>(특)</span>
                         <span className={`ml-auto ${PET_MGMT_XBOLD} tabular-nums text-amber-50`}>{welcomeEggCount}</span>
                     </div>
@@ -1231,7 +1251,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         className="flex min-w-0 flex-nowrap items-center gap-0.5 rounded border border-fuchsia-400/28 bg-fuchsia-950/32 px-0.5 py-0.5"
                         title={PAIR_EGG_MATERIAL_NAME}
                     >
-                        <img src={eggThumbSrc} alt="" className="h-6 w-6 shrink-0 object-contain" loading="lazy" />
+                        <img src={eggThumbSrc} alt="" className="h-7 w-7 shrink-0 object-contain" loading="lazy" />
                         <span className={`${PET_MGMT_SEMI} text-fuchsia-100`}>일반</span>
                         <span className={`ml-auto ${PET_MGMT_XBOLD} tabular-nums text-fuchsia-50`}>{standardMysteryEggCount}</span>
                     </div>
@@ -1442,22 +1462,21 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         const trAmt = `text-center tabular-nums ${PET_MGMT_BOLD}`;
         const trSlotTitle = `${PET_MGMT_TITLE} text-violet-100`;
         const trMono = `tabular-nums font-mono ${PET_MGMT_BOLD}`;
-        const trIconBox = 'h-7 w-7';
-        const trIconImg = 'h-4 w-4';
-        const trSoulCol = 'w-[2.1rem] gap-0.5';
-        const trSlotCol = 'w-[5rem] shrink-0 min-w-[5rem]';
-        const trPetImgClass = 'h-[3.75rem] w-[3.75rem] shrink-0 rounded object-contain';
-        const trSlotDropClass =
-            'flex h-[4.75rem] w-full shrink-0 flex-col items-center justify-center rounded-lg border-2 border-dashed p-0.5';
+        const trIconBox = PET_MGMT_TR_ICON_BOX;
+        const trIconImg = PET_MGMT_TR_ICON_IMG;
+        const trSoulCol = PET_MGMT_TR_SOUL_COL;
+        const trSlotCol = PET_MGMT_TR_SLOT_COL;
+        const trPetImgClass = PET_MGMT_TR_PET_IMG_CLASS;
+        const trSlotDropClass = PET_MGMT_TR_SLOT_DROP_CLASS;
 
         return (
-            <div className="flex min-w-0 flex-col gap-2 pb-1">
+            <div className="flex h-full min-h-0 w-full flex-1 flex-col gap-2 pb-1">
                 {useTapTrainingFlow ? (
-                    <p className={`rounded border border-violet-500/25 bg-violet-950/30 px-1 py-0.5 text-center ${PET_MGMT_SEMI} text-violet-100/95`}>
+                    <p className={`rounded border border-violet-500/25 bg-violet-950/30 px-1.5 py-1 text-center ${PET_MGMT_TR_HINT_TEXT} text-violet-100/95`}>
                         빈 슬롯 터치 후 펫 선택
                     </p>
                 ) : (
-                    <p className={`rounded border border-white/10 bg-black/25 px-1 py-0.5 text-center ${PET_MGMT_SEMI} text-slate-400`}>
+                    <p className={`rounded border border-white/10 bg-black/25 px-1.5 py-1 text-center ${PET_MGMT_TR_HINT_TEXT} text-slate-400`}>
                         펫을 슬롯에 놓으면 수련 시작
                     </p>
                 )}
@@ -1483,22 +1502,20 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         const durationHhMmSs = `${padTime2(durationHh)}:${padTime2(durationMm)}:${padTime2(durationSs)}`;
 
                         const showSoulCandidates = def.soulDropChance > 0 && def.soulTable.length > 0;
-                        const rewardScrollRow =
-                            'flex min-w-0 max-w-full flex-wrap items-end justify-center gap-0.5 pb-px';
                         const goldDisplay =
                             def.goldMin === def.goldMax
                                 ? formatGoldAmountKoG(def.goldMin)
                                 : `${formatGoldAmountKoG(def.goldMin)}~${formatGoldAmountKoG(def.goldMax)}`;
                         const rewardPanel = (
                             <div
-                                className={`flex min-h-0 min-w-0 flex-1 flex-row flex-wrap items-center justify-center gap-0.5 self-stretch border-l pl-1 ${
-                                    isVipTrainingSlot ? 'border-amber-500/25' : 'border-white/10'
+                                className={`${PET_MGMT_TR_REWARD_PANEL_CLASS} ${
+                                    isVipTrainingSlot ? '!border-amber-500/25' : ''
                                 }`}
                             >
                                 <div className="flex min-w-0 shrink-0 flex-col items-center gap-0.5">
-                                    <span className={`${trLbl} text-amber-100/95`}>확정보상</span>
-                                    <div className="rounded-md border border-amber-400/30 bg-gradient-to-br from-amber-950/35 via-black/30 to-zinc-950/40 px-0.5 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                                        <div className={rewardScrollRow}>
+                                    <span className={`${trLbl} whitespace-nowrap text-amber-100/95`}>확정보상</span>
+                                    <div className="rounded-md border border-amber-400/30 bg-gradient-to-br from-amber-950/35 via-black/30 to-zinc-950/40 px-1 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                                        <div className={PET_MGMT_TR_REWARD_ROW_CLASS}>
                                             <div className="flex shrink-0 flex-col items-center gap-0.5">
                                                 <div
                                                     className={`flex items-center justify-center rounded-md border border-amber-400/35 bg-black/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${trIconBox}`}
@@ -1519,8 +1536,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                     className={`flex flex-col items-center justify-center rounded-md border border-violet-400/45 bg-violet-950/55 px-px shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${trIconBox}`}
                                                     title="펫 경험치"
                                                 >
-                                                    <span className="text-[9px] font-black leading-none text-violet-100">펫</span>
-                                                    <span className="mt-px text-[9px] font-black leading-none text-violet-100">EXP</span>
+                                                    <span className={`${PET_MGMT_TR_EXP_LABEL} text-violet-100`}>펫</span>
+                                                    <span className={`mt-px ${PET_MGMT_TR_EXP_LABEL} text-violet-100`}>EXP</span>
                                                 </div>
                                                 <span className={`${trAmt} text-violet-100`}>
                                                     {def.xpMin}~{def.xpMax}
@@ -1531,11 +1548,11 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 </div>
                                 {showSoulCandidates ? (
                                     <div className="flex min-w-0 shrink-0 flex-col items-center gap-0.5">
-                                        <span className={`${trLbl} max-w-[5.5rem] text-center leading-tight text-cyan-100/95`}>
+                                        <span className={`${trLbl} whitespace-nowrap text-center leading-tight text-cyan-100/95`}>
                                             {def.soulTable.length > 1 ? '확률(1종)' : '확률보상'}
                                         </span>
-                                        <div className="rounded-md border border-cyan-500/25 bg-black/30 px-0.5 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                                            <div className={rewardScrollRow}>
+                                        <div className="rounded-md border border-cyan-500/25 bg-black/30 px-1 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                                            <div className={PET_MGMT_TR_REWARD_ROW_CLASS}>
                                                 {def.soulTable.map((row, si) => {
                                                     const mat = MATERIAL_ITEMS[row.materialName as keyof typeof MATERIAL_ITEMS];
                                                     const src = mat?.image ?? '/images/pets/soulstone1.webp';
@@ -1564,7 +1581,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                                 <img
                                                                     src={src}
                                                                     alt=""
-                                                                    className="relative z-[1] h-[58%] w-[58%] object-contain drop-shadow-[0_1px_3px_rgba(0,0,0,0.65)]"
+                                                                    className="relative z-[1] h-[68%] w-[68%] object-contain drop-shadow-[0_1px_3px_rgba(0,0,0,0.65)]"
                                                                     loading="lazy"
                                                                 />
                                                             </div>
@@ -1582,7 +1599,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         return (
                             <div
                                 key={`train-slot-${i}`}
-                                className={`flex min-w-0 items-stretch gap-1.5 rounded-lg border p-2 text-[0.62rem] ${
+                                className={`${PET_MGMT_TR_SLOT_CARD_CLASS} ${
                                     rowClaimReady
                                         ? isVipTrainingSlot
                                             ? 'border-lime-400/75 bg-gradient-to-br from-lime-950/40 via-amber-950/35 to-emerald-950/30 shadow-[0_0_26px_rgba(163,230,53,0.28),inset_0_1px_0_rgba(217,249,157,0.12)] ring-2 ring-lime-400/55 ring-offset-2 ring-offset-zinc-950'
@@ -1603,7 +1620,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                         }`}
                                     >
                                         {isVipTrainingSlot ? (
-                                            <span className="shrink-0 rounded border border-amber-400/50 bg-amber-500/20 px-1 py-px text-[0.55rem] font-black uppercase tracking-wider text-amber-200">
+                                            <span className={`shrink-0 rounded border border-amber-400/50 bg-amber-500/20 px-1 py-px font-black uppercase tracking-wider text-amber-200 ${PET_MGMT_CAPTION}`}>
                                                 VIP
                                             </span>
                                         ) : null}
@@ -1670,18 +1687,18 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                     🔒
                                                 </span>
                                                 {isVipTrainingSlot ? (
-                                                    <p className="text-center text-[0.65rem] font-extrabold leading-tight text-amber-200/95">
+                                                    <p className={`text-center font-extrabold leading-tight text-amber-200/95 ${PET_MGMT_BOLD}`}>
                                                         기능VIP활성화
                                                     </p>
                                                 ) : (
-                                                    <p className="text-center text-[0.65rem] font-semibold leading-tight text-amber-200/95">
+                                                    <p className={`text-center font-semibold leading-tight text-amber-200/95 ${PET_MGMT_SEMI}`}>
                                                         페어 {reqW}승
                                                     </p>
                                                 )}
                                                 {minLv > 1 ? (
-                                                    <p className="text-center text-[0.62rem] leading-tight text-slate-500">펫 Lv.{minLv}+</p>
+                                                    <p className={`text-center leading-tight text-slate-500 ${PET_MGMT_CAPTION}`}>펫 Lv.{minLv}+</p>
                                                 ) : (
-                                                    <p className="text-center text-[0.62rem] leading-tight text-slate-500">조건 없음</p>
+                                                    <p className={`text-center leading-tight text-slate-500 ${PET_MGMT_CAPTION}`}>조건 없음</p>
                                                 )}
                                             </div>
                                         ) : session && petRow ? (
@@ -1709,7 +1726,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                             className="absolute inset-0 flex items-center justify-center rounded-md bg-gradient-to-b from-lime-600/88 via-emerald-800/82 to-zinc-950/90 px-0.5 outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] transition hover:from-lime-500/90 hover:via-emerald-700/85 focus-visible:ring-2 focus-visible:ring-lime-200/90 disabled:opacity-45"
                                                             aria-label="수련 보상 수령"
                                                         >
-                                                            <span className="text-center text-[0.62rem] font-black leading-tight tracking-tight text-lime-50 [text-shadow:0_1px_2px_rgba(0,0,0,0.85),0_0_12px_rgba(190,242,100,0.55)]">
+                                                            <span className={`text-center font-black leading-tight tracking-tight text-lime-50 [text-shadow:0_1px_2px_rgba(0,0,0,0.85),0_0_12px_rgba(190,242,100,0.55)] ${PET_MGMT_BOLD}`}>
                                                                 수련완료
                                                             </span>
                                                         </button>
@@ -1757,7 +1774,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             </div>
                                         ) : unlocked ? (
                                             <span
-                                                className={`px-1 text-center text-[0.65rem] font-semibold leading-tight ${
+                                                className={`px-1 text-center font-semibold leading-tight ${PET_MGMT_SEMI} ${
                                                     isVipTrainingSlot ? 'text-amber-200/95' : 'text-violet-200/90'
                                                 }`}
                                             >
@@ -1777,7 +1794,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                 e.stopPropagation();
                                                 if (!isBusy) setTrainingCancelConfirmSlotIndex(i);
                                             }}
-                                            className={`w-full shrink-0 rounded border px-1 py-1 text-[0.62rem] font-bold leading-tight transition ${
+                                            className={`w-full shrink-0 rounded border px-1 py-1 font-bold leading-tight transition ${PET_MGMT_BOLD} ${
                                                 isVipTrainingSlot
                                                     ? 'border-rose-400/45 bg-rose-950/35 text-rose-100 hover:border-rose-300/60'
                                                     : 'border-rose-500/40 bg-rose-950/25 text-rose-200/95 hover:border-rose-400/55'
@@ -1827,7 +1844,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         aiTab === 'info' ? (
             !selectedItem ? (
                 <div
-                    className={`flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-2 py-3 ${PET_MGMT_SEMI} text-slate-400`}
+                    className={`flex h-full min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-2 py-3 ${PET_MGMT_SEMI} text-slate-400`}
                 >
                     아래 인벤에서 펫 또는 영혼석을 선택하세요
                 </div>
@@ -1844,7 +1861,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     applyPetAction={applyPetAction}
                 />
             ) : isPairSoulStoneItem(selectedItem) ? (
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-1">
+                <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                     <PairPetLobbySoulStoneViewer
                         item={selectedItem}
                         isBusy={isBusy}
@@ -1873,7 +1890,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     const tabContent = (
         <>
             {aiTab === 'shop' && (
-                <div className="space-y-2 sm:space-y-2.5">
+                <div className="flex min-h-0 w-full flex-1 flex-col gap-2 overflow-hidden">
                     <div className="grid shrink-0 grid-cols-2 gap-1 rounded-lg border border-white/10 bg-black/40 p-1">
                         {(
                             [
@@ -1888,7 +1905,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                     setShopSkuTab(id);
                                     setShopDescSkuId(null);
                                 }}
-                                className={`rounded-md px-1.5 py-1.5 text-[0.65rem] font-extrabold sm:px-2 sm:py-2 sm:text-sm ${
+                                className={`${PET_MGMT_SHOP_SUBTAB_BTN} ${
                                     shopSkuTab === id
                                         ? 'bg-amber-500 text-amber-950 shadow-sm shadow-amber-900/40'
                                         : 'text-slate-300 hover:bg-white/10 hover:text-slate-100'
@@ -1898,7 +1915,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             </button>
                         ))}
                     </div>
-                    <div className="grid grid-cols-3 gap-1 sm:gap-2">
+                    <div className={`${PET_MGMT_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} min-h-0 flex-1`}>
+                        <div className={PET_MGMT_SHOP_GRID_CLASS}>
                         {shopSkusVisible.map((sku) => (
                             <PairPetShopSkuCard
                                 key={sku.id}
@@ -1911,6 +1929,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 onCloseDesc={() => setShopDescSkuId((cur) => (cur === sku.id ? null : cur))}
                             />
                         ))}
+                        </div>
                     </div>
                 </div>
             )}
@@ -1925,6 +1944,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     currentUserId={currentUserId}
                     isBusy={isBusy}
                     compact
+                    petManagementModal
                     detailButtonLabel="상세보기"
                     hideInlineBadukChip
                     showRepresentativeBadge={Boolean(equippedPetRow)}
@@ -1933,7 +1953,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                 />
             </div>
 
-            <div className="grid shrink-0 grid-cols-4 gap-0.5 rounded-lg border border-white/10 bg-black/30 p-0.5">
+            <div className="grid shrink-0 grid-cols-4 gap-1 rounded-lg border border-white/10 bg-black/30 p-1">
                 <button
                     type="button"
                     onClick={() => setAiTab('info')}
@@ -1982,15 +2002,19 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                 {showInvStrip ? (
                     <>
                         <div className={PET_MGMT_VIEWER_FRAME_CLASS}>
-                            <div className={`rounded-lg border border-white/10 bg-black/25 ${PET_MGMT_TAB_PANEL_CLASS}`}>
-                                {aiTab === 'info' ? infoDetailPanel : null}
+                            <div className={`flex h-full min-h-0 w-full flex-1 flex-col rounded-lg border border-white/10 bg-black/25 ${PET_MGMT_TAB_PANEL_CLASS}`}>
+                                {aiTab === 'info' ? (
+                                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                                        {infoDetailPanel}
+                                    </div>
+                                ) : null}
                                 {aiTab === 'training' ? (
-                                    <div className={`${PET_MGMT_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} px-0.5`}>
+                                    <div className={`${PET_MGMT_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} min-h-0 flex-1 px-0.5`}>
                                         {trainingTabContent}
                                     </div>
                                 ) : null}
                                 {aiTab === 'hatchery' ? (
-                                    <div className={`${PET_MGMT_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} px-0.5`}>
+                                    <div className={`${PET_MGMT_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} min-h-0 flex-1 px-0.5`}>
                                         {hatcheryTabContent}
                                     </div>
                                 ) : null}
@@ -2126,9 +2150,9 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     </>
                 ) : (
                     <div className={PET_MGMT_VIEWER_FRAME_CLASS}>
-                        <div className={`rounded-lg border border-white/10 bg-black/25 ${PET_MGMT_TAB_PANEL_CLASS}`}>
+                        <div className={`flex h-full min-h-0 w-full flex-1 flex-col rounded-lg border border-white/10 bg-black/25 ${PET_MGMT_TAB_PANEL_CLASS}`}>
                             {aiTab === 'shop' ? (
-                                <div className={`${PET_MGMT_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS}`}>
+                                <div className={`${PET_MGMT_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} min-h-0 flex-1`}>
                                     {tabContent}
                                 </div>
                             ) : null}

@@ -10,7 +10,7 @@ import {
 } from '../constants/petLobby.js';
 import { PAIR_TRAINING_SLOT_DEFS } from '../constants/pairTraining.js';
 import { pairPetSoulConvertMaterialNameForGrade } from './pairPetSoulConvert.js';
-import { PAIR_PET_GRADE_ORDER } from '../constants/pairPetGrade.js';
+import { PAIR_PET_GRADE_ORDER, pairPetSoulStoneTierGradeUpgradeUsage } from '../constants/pairPetGrade.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from './walletAmountDisplay.js';
 import { isActionPointConsumable, isConditionPotionConsumable } from '../../constants/items.js';
 
@@ -77,11 +77,10 @@ export function resolveBagItemAcquireLines(item: InventoryItem): string[] {
 
     if (isPairSoulStoneMaterialName(n)) {
         const tier = soulStoneTierFromTemplateId(item.templateId);
-        const fromG = PAIR_PET_GRADE_ORDER[tier - 1];
-        const toG = PAIR_PET_GRADE_ORDER[tier];
-        if (fromG && toG) {
+        const upgradeUsage = pairPetSoulStoneTierGradeUpgradeUsage(tier);
+        if (upgradeUsage) {
             lines.push(
-                `[펫 · 사용] ${gradeStyles[fromG]?.name ?? ''} 등급 펫을 ${gradeStyles[toG]?.name ?? ''} 등급으로 승급할 때 소모`
+                `[펫 · 사용] ${gradeStyles[upgradeUsage.from]?.name ?? ''}→${gradeStyles[upgradeUsage.to]?.name ?? ''} 등급 강화 (펫 Lv.${upgradeUsage.minLevel} 이상)`
             );
         }
         const train = soulTrainingRewardSlots(n);

@@ -22,7 +22,11 @@ import {
     PET_PANEL_LV,
     PET_PANEL_NAME,
     PET_PANEL_HERO_GRID_COLS,
+    PET_PANEL_HERO_HEADER_ROW,
+    PET_PANEL_HERO_META_COL,
+    PET_PANEL_PORTRAIT_IMG,
     PET_PANEL_PORTRAIT_MAX,
+    PET_PANEL_PORTRAIT_SHELL,
     PET_PANEL_REP_BADGE,
     PET_PANEL_ROOT_GAP,
     PET_PANEL_ROW_PAD,
@@ -235,7 +239,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
     const transcendentSlot = petGrade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : '';
 
     const imgShellClass = panelCompact
-        ? `relative aspect-square w-full overflow-hidden rounded-lg border border-white/20 bg-gradient-to-b from-zinc-800/95 to-black/90 shadow-inner ${PET_PANEL_PORTRAIT_MAX} ${transcendentSlot}`
+        ? `${PET_PANEL_PORTRAIT_SHELL} ${transcendentSlot}`
         : isPanelFit
         ? `relative aspect-square w-full overflow-hidden rounded-lg border border-white/20 bg-gradient-to-b from-zinc-800/95 to-black/90 shadow-inner max-w-[clamp(4.75rem,16vw,6.25rem)] ${transcendentSlot}`
         : heroEnlarged
@@ -319,7 +323,11 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
             >
                 {/* 상단: 이미지 + 기본 정보 */}
                 <div
-                    className={`relative z-[1] grid min-w-0 ${heroTopGridCols} items-stretch border-b border-white/10 bg-zinc-950/92 ${rowPad} ${heroTopGridGap}`}
+                    className={
+                        panelCompact
+                            ? PET_PANEL_HERO_HEADER_ROW
+                            : `relative z-[1] grid min-w-0 ${heroTopGridCols} items-stretch border-b border-white/10 bg-zinc-950/92 ${rowPad} ${heroTopGridGap}`
+                    }
                 >
                     <div className="flex min-w-0 flex-col items-center justify-center py-0.5">
                         <div className={imgShellClass}>
@@ -334,7 +342,11 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                             <img
                                 src={item.image}
                                 alt=""
-                                className={`relative z-[1] h-full w-full object-contain ${petImgPad} drop-shadow-[0_4px_12px_rgba(0,0,0,0.45)]`}
+                                className={
+                                    panelCompact
+                                        ? PET_PANEL_PORTRAIT_IMG
+                                        : `relative z-[1] h-full w-full object-contain ${petImgPad} drop-shadow-[0_4px_12px_rgba(0,0,0,0.45)]`
+                                }
                                 loading="lazy"
                             />
                             <span className="absolute left-0.5 top-0.5 z-[4] sm:left-1 sm:top-1">
@@ -342,7 +354,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                             </span>
                         </div>
                     </div>
-                    <div className={`flex min-w-0 flex-col justify-center text-left ${panelCompact ? 'gap-0.5' : 'gap-1 sm:gap-1.5'}`}>
+                    <div className={panelCompact ? PET_PANEL_HERO_META_COL : `flex min-w-0 flex-col justify-center text-left gap-1 sm:gap-1.5`}>
                         <div className={`flex items-center ${panelCompact ? 'min-w-0 flex-nowrap gap-0.5' : 'flex-wrap gap-x-1 gap-y-0.5'}`}>
                             <span className={`${badgeClass} ${gradeStyle.color} bg-black/45`}>{gradeKo}</span>
                             {showRepresentativeBadge ? <span className={repBadgeClass}>대표펫</span> : null}

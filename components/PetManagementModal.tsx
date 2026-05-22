@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import PairPetLobbyPanel from './pair/PairPetLobbyPanel.js';
-import PairPetModalScaledShell from './pair/PairPetModalScaledShell.js';
 import ScreenGuideModal from './ScreenGuideModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useScreenGuide } from '../hooks/useScreenGuide.js';
@@ -64,20 +63,21 @@ const PetManagementModal: React.FC<PetManagementModalProps> = ({ onClose, isTopm
             mobileViewportMaxHeightCss={PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS}
             mobileViewportDvhBottomGapPx={PAIR_PET_MODAL_MOBILE_BOTTOM_GAP_PX}
             mobileLockViewportHeight={isMobile}
-            bodyPaddingClassName={isMobile ? '!p-1.5' : '!p-2'}
+            bodyPaddingClassName="!p-0"
+            bodyScrollable
             bodyNoScroll
             hideFooter
         >
-            <PairPetModalScaledShell className="flex h-full min-h-0 flex-1 flex-col">
-                <div className={`${waitingLobbyPcPanelShellClass('pair')} flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2`}>
+            <div
+                className={`${waitingLobbyPcPanelShellClass('pair')} flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden p-1.5`}
+            >
                     <PairPetLobbyPanel
                         currentUser={currentUserWithStatus}
                         currentUserId={currentUserWithStatus.id}
                         isBusy={petModalBusy}
                         applyPetAction={applyPetAction}
                     />
-                </div>
-            </PairPetModalScaledShell>
+            </div>
         </DraggableWindow>
         {petGuide.isOpen && (
             <ScreenGuideModal

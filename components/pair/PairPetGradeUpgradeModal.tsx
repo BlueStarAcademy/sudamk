@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import DraggableWindow from '../DraggableWindow.js';
 import { PairPetDetailFitScale } from './PairPetDetailCardBody.js';
-import PairPetModalScaledShell from './PairPetModalScaledShell.js';
 import type { InventoryItem, User } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
 import {
@@ -145,8 +144,7 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
             bodyNoScroll
             bodyPaddingClassName="flex min-h-0 min-w-0 flex-1 flex-col !p-0"
         >
-            <PairPetModalScaledShell className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-1.5 pb-2 pt-1 sm:px-2">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-2 pb-2.5 pt-1.5">
                 <PairPetDetailFitScale itemId={mainItem.id} outerClassName="min-h-0 flex-1" stretchInnerHeightWhenUnscaled>
                 <div className="flex flex-col gap-2 sm:gap-3">
                 <div className="relative rounded-2xl border border-amber-500/20 bg-gradient-to-b from-zinc-900/95 via-violet-950/40 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(0,0,0,0.4)] ring-1 ring-amber-400/10">
@@ -294,8 +292,7 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                 </div>
                 </div>
                 </PairPetDetailFitScale>
-                </div>
-            </PairPetModalScaledShell>
+            </div>
             {gradeBlockHint ? (
                 <DraggableWindow
                     title="안내"

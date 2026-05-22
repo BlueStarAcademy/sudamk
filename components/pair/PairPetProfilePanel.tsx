@@ -37,6 +37,8 @@ export interface PairPetProfilePanelProps {
     detailButtonLabel?: string;
     /** 타인 프로필 등: 상세·인벤 이동 비활성(표시만) */
     readOnly?: boolean;
+    /** 펫 관리 모달 상단: compact여도 글자·아바타를 한 단계 키움 */
+    petManagementModal?: boolean;
 }
 
 const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
@@ -53,23 +55,28 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
     pairLobbyProminent = false,
     detailButtonLabel,
     readOnly = false,
+    petManagementModal = false,
 }) => {
     const lineFontMax =
         pairLobbyProminent && !compact
             ? 17
-            : homeColumn && compact
-              ? 9.75
-              : compact
-                ? 11.5
-                : PET_PROFILE_LINE_FONT_MAX;
+            : petManagementModal && compact
+              ? 14.5
+              : homeColumn && compact
+                ? 9.75
+                : compact
+                  ? 11.5
+                  : PET_PROFILE_LINE_FONT_MAX;
     const lineFontMin =
         pairLobbyProminent && !compact
             ? 8
-            : homeColumn && compact
-              ? 5.25
-              : compact
-                ? 6
-                : PET_PROFILE_LINE_FONT_MIN;
+            : petManagementModal && compact
+              ? 7.5
+              : homeColumn && compact
+                ? 5.25
+                : compact
+                  ? 6
+                  : PET_PROFILE_LINE_FONT_MIN;
     const equippedTid = currentUser.equippedPairPetTemplateId ?? null;
     const equippedDef = equippedTid ? getPairPetDefinition(equippedTid) : null;
     const equippedItem = useMemo(

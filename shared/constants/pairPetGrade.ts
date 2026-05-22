@@ -53,6 +53,17 @@ export function pairPetGradeUpgradeSoulStoneMaterialName(grade: ItemGrade): stri
     return PAIR_SOULSTONE_NAMES[i]!;
 }
 
+/** 영혼석 티어(`pair-soul-1` … `pair-soul-5`) → 등급 강화 사용처(출발·목표 등급, 필요 펫 최소 레벨) */
+export function pairPetSoulStoneTierGradeUpgradeUsage(
+    tier: number
+): { from: ItemGrade; to: ItemGrade; minLevel: number } | null {
+    const t = Math.min(5, Math.max(1, Math.floor(tier)));
+    const fromG = PAIR_PET_GRADE_ORDER[t - 1];
+    const toG = PAIR_PET_GRADE_ORDER[t];
+    if (!fromG || !toG) return null;
+    return { from: fromG, to: toG, minLevel: pairPetMinLevelForNextGrade(fromG) };
+}
+
 /** 등급별 기본 능력치(50)에 곱해지는 배율 — 등급 상승마다 ×1.1 누적 */
 export function pairPetStatMultiplierFromGrade(grade: ItemGrade): number {
     return Math.pow(1.1, pairPetGradeIndex(grade));
