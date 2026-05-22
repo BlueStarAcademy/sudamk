@@ -672,6 +672,8 @@ export type User = {
   isMbtiPublic?: boolean;
   /** 페어 경기장 파트너 초대 수신 거부(전략·놀이 집계 로비 유저 목록에서 설정) */
   blockArenaPartnerInvites?: boolean;
+  /** 화면별 첫 진입 도움말 「다시 보지 않기」 (계정·기기 간 동기화) */
+  dismissedScreenGuides?: string[];
   statResetCountToday?: number;
   lastStatResetDate?: string | null;
   singlePlayerProgress?: number;

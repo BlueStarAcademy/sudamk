@@ -11,11 +11,15 @@ export function readObtainedPetFromHatcheryActionResult(
     res: unknown,
     beforePetIds?: ReadonlySet<string>,
 ): InventoryItem | null {
-    const r = res as { clientResponse?: PairHatcheryClaimClientResponse; error?: string };
+    const r = res as PairHatcheryClaimClientResponse & {
+        clientResponse?: PairHatcheryClaimClientResponse;
+        error?: string;
+    };
     if (r.error) return null;
-    const obtained = r.clientResponse?.obtainedPet;
+    /** `/api/action` 성공 시 `{ success, ...clientResponse }` 평탄화 */
+    const obtained = r.obtainedPet ?? r.clientResponse?.obtainedPet;
     if (obtained?.id) return obtained;
-    const after = r.clientResponse?.updatedUser?.inventory;
+    const after = r.updatedUser?.inventory ?? r.clientResponse?.updatedUser?.inventory;
     if (!beforePetIds || !Array.isArray(after)) return null;
     for (const row of after) {
         if (isPairPetMaterial(row) && !beforePetIds.has(row.id)) return row;

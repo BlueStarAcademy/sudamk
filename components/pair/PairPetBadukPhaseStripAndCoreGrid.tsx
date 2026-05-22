@@ -66,7 +66,7 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
     const homePackStrip = Boolean(mobileHomeRepPet && modalStripComfort);
     const profileHomeStrip = Boolean(profileHomeColumn && !petManagementModal);
     const mgmtStrip = Boolean(petManagementModal);
-    const unifiedStrip = Boolean(panelCompactStrip || petManagementModal);
+    const unifiedStrip = Boolean(panelCompactStrip || petManagementModal || profileHomeColumn);
     const roomyPetStrip = Boolean(homePackStrip && enlargeHomeRepPhaseStrip);
 
     const stripTextMain = profileHomeStrip
@@ -266,9 +266,7 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
                 </div>
             ) : (
                 <div
-                    className={`flex min-w-0 flex-nowrap items-center overflow-x-auto rounded-xl border border-sky-500/30 bg-gradient-to-r from-sky-950/40 to-zinc-950/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] [scrollbar-width:thin] ${stripPad} ${
-                        isModal ? 'justify-start' : 'justify-center sm:justify-start'
-                    }`}
+                    className={`flex min-w-0 flex-nowrap items-center justify-center overflow-x-auto rounded-xl border border-sky-500/30 bg-gradient-to-r from-sky-950/40 to-zinc-950/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] [scrollbar-width:thin] ${stripPad}`}
                 >
                     <span className="inline-flex shrink-0 items-baseline gap-0.5 sm:gap-1">
                         <span

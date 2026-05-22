@@ -34,6 +34,7 @@ import {
 } from '../../shared/utils/adventureBattleBoard.js';
 import { aggregateSpecialOptionGearFromUser } from '../../shared/utils/specialOptionGearEffects.js';
 import { normalizePairPetLobbyInventorySort } from '../../shared/constants/petLobby.js';
+import { isScreenGuideId, normalizeDismissedScreenGuides } from '../../shared/constants/screenGuideDismiss.js';
 import { GameMode, UserStatus } from '../../types/enums.js';
 import { broadcast } from '../socket.js';
 import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
@@ -793,6 +794,21 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             });
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(user, ['blockArenaPartnerInvites']);
+            return { clientResponse: { updatedUser } };
+        }
+        case 'DISMISS_SCREEN_GUIDE': {
+            const { guideId } = payload as { guideId?: unknown };
+            if (!isScreenGuideId(guideId)) {
+                return { error: '유효하지 않은 도움말 화면입니다.' };
+            }
+            const prev = normalizeDismissedScreenGuides(user.dismissedScreenGuides);
+            if (!prev.includes(guideId)) {
+                user.dismissedScreenGuides = [...prev, guideId];
+            }
+            const updatedUser = getSelectiveUserUpdate(user, 'DISMISS_SCREEN_GUIDE');
+            db.updateUser(user).catch((err) => {
+                console.error(`[UserAction] Failed to save user ${user.id} after DISMISS_SCREEN_GUIDE:`, err);
+            });
             return { clientResponse: { updatedUser } };
         }
         case 'SAVE_PRESET': {

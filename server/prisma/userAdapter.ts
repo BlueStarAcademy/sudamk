@@ -23,6 +23,7 @@ import {
   pairPetLobbyInventorySlots,
 } from "../../shared/constants/petLobby.js";
 import { reconcileEquippedPairPetInventoryItem } from "../../shared/utils/pairEquippedPet.js";
+import { normalizeDismissedScreenGuides } from "../../shared/constants/screenGuideDismiss.js";
 import { reconcileExchangeListedInventoryFlags } from "../../shared/utils/exchangeInventorySync.js";
 import { normalizePairPetTrainingSlots } from "../../shared/constants/pairTraining.js";
 import {
@@ -450,6 +451,10 @@ const applyDefaults = (
     blockArenaPartnerInvites: !!(
       user.blockArenaPartnerInvites ??
       (status?.serializedUser as User | undefined)?.blockArenaPartnerInvites
+    ),
+    dismissedScreenGuides: normalizeDismissedScreenGuides(
+      user.dismissedScreenGuides ??
+        (status?.serializedUser as User | undefined)?.dismissedScreenGuides,
     ),
     statResetCountToday: user.statResetCountToday ?? 0,
     lastStatResetDate: user.lastStatResetDate ?? null,

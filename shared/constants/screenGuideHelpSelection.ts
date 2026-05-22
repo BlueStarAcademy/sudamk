@@ -1,4 +1,4 @@
-import type { ScreenGuideId } from '../../utils/screenGuideDismiss.js';
+import type { ScreenGuideId } from './screenGuideDismiss.js';
 
 export type ScreenGuideHelpConfig = {
     categoryId: string;

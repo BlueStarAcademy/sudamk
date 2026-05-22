@@ -318,6 +318,7 @@ export type ServerAction =
     | { type: 'UPDATE_REJECTION_SETTINGS', payload: { rejectedGameModes: GameMode[] } }
     | { type: 'UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT', payload: { sortMode: string } }
     | { type: 'SET_BLOCK_ARENA_PARTNER_INVITES', payload: { blocked: boolean } }
+    | { type: 'DISMISS_SCREEN_GUIDE', payload: { guideId: string } }
     | { type: 'ENTER_WAITING_ROOM', payload: { mode: GameMode | 'strategic' | 'playful' } }
     | { type: 'LEAVE_WAITING_ROOM', payload?: never }
     | { type: 'LEAVE_GAME_ROOM', payload: { gameId: string } }

@@ -170,7 +170,7 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
                         </div>
                     </div>
 
-                    <div className="flex min-h-0 flex-1 flex-col justify-between gap-1 overflow-hidden">
+                    <div className="flex min-h-0 flex-col gap-1 overflow-y-auto overflow-x-hidden [scrollbar-width:thin]">
                         <div className="shrink-0 rounded border border-cyan-500/18 bg-gradient-to-r from-slate-950/90 via-[#0c0a12] to-slate-950/90 px-1.5 py-0.5 ring-1 ring-inset ring-cyan-500/10">
                             <p className="mb-0.5 text-[0.58rem] font-semibold text-cyan-200">사용처</p>
                             <p className={soulMetaLineClass}>
@@ -191,7 +191,7 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
                             </p>
                         </div>
 
-                        <div className="min-h-0 shrink rounded border border-amber-500/20 bg-gradient-to-r from-[#1a1510]/92 via-[#0f0c0a] to-[#0a0908] px-1.5 py-0.5 ring-1 ring-inset ring-amber-500/12">
+                        <div className="shrink-0 rounded border border-amber-500/20 bg-gradient-to-r from-[#1a1510]/92 via-[#0f0c0a] to-[#0a0908] px-1.5 py-0.5 ring-1 ring-inset ring-amber-500/12">
                             <p className="mb-0.5 text-[0.58rem] font-semibold text-amber-200">획득처</p>
                             <div className="flex flex-col gap-0.5">
                                 <p className={soulMetaLineClass}>

@@ -57,6 +57,8 @@ import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
 import { shouldOpenResultModalByPolicy } from './utils/resultDisplayPolicy.js';
 import { consumeSkipGameHashLeaveInterceptOnce, replaceAppHash } from './utils/appUtils.js';
 import { getTowerInGameBackgroundUrl, getTowerSessionFloor } from './utils/towerPreGameDisplay.js';
+import { getSinglePlayerInGameBackgroundUrl } from './utils/singlePlayerPreGameDisplay.js';
+import { resolveLiveSessionSinglePlayerStageRow } from './shared/utils/liveSessionSinglePlayerStage.js';
 import { getAdventureMapWebpPath } from './constants/adventureConstants.js';
 import { TOWER_STAGES } from './constants/towerConstants.js';
 import { InGameModalLayoutProvider } from './contexts/InGameModalLayoutContext.js';
@@ -4678,6 +4680,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     // 도전의 탑 배경 이미지 설정 (층 구간별 WebP)
     const towerBackgroundImage = isTower ? getTowerInGameBackgroundUrl(getTowerSessionFloor(session)) : null;
+    // 싱글플레이 배경 (반별 WebP)
+    const singlePlayerBackgroundImage = isSinglePlayer
+        ? getSinglePlayerInGameBackgroundUrl(resolveLiveSessionSinglePlayerStageRow(session)?.level)
+        : null;
     
     // 디버깅: 게임 상태 확인
     useEffect(() => {
@@ -4835,14 +4841,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         return (
             <InGameModalLayoutProvider>
             <div
-                className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full text-stone-200 min-h-0 ${adventureBackgroundImage ? '' : 'bg-single-player-background'}`}
+                className="w-full flex flex-col p-1 lg:p-2 relative max-w-full text-stone-200 min-h-0"
                 style={{
                     height: '100%',
                     maxHeight: '100%',
                     paddingBottom: isMobileSafeArea ? 'env(safe-area-inset-bottom, 0px)' : '0px',
-                    ...(adventureBackgroundImage
+                    ...((adventureBackgroundImage || singlePlayerBackgroundImage)
                         ? {
-                              backgroundImage: `url(${adventureBackgroundImage})`,
+                              backgroundImage: `url(${adventureBackgroundImage || singlePlayerBackgroundImage})`,
                               backgroundSize: 'cover',
                               backgroundPosition: 'center',
                               backgroundRepeat: 'no-repeat',

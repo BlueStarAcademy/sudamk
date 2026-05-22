@@ -72,6 +72,7 @@ export function getSelectiveUserUpdate(
         'UPDATE_MBTI': ['mbti', 'isMbtiPublic', 'diamonds'],
         'UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT': ['pairPetLobbyInventorySort'],
         'SET_BLOCK_ARENA_PARTNER_INVITES': ['blockArenaPartnerInvites'],
+        'DISMISS_SCREEN_GUIDE': ['dismissedScreenGuides'],
         'MANNER_ACTION': ['mannerScore', 'mannerMasteryApplied', 'actionPoints'],
         'RESET_STAT_POINTS': ['spentStatPoints', 'gold', 'lastStatResetDate', 'statResetCountToday'],
         'RESET_PAIR_ARENA_SINGLE_STAT': ['diamonds', 'pairArenaStatsByMode'],

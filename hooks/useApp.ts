@@ -26,6 +26,7 @@ import {
     isOpponentInsufficientActionPointsError,
 } from '../constants.js';
 import { defaultSettings, SETTINGS_STORAGE_KEY } from './useAppSettings.js';
+import { syncDismissedScreenGuidesFromUser } from '../utils/screenGuideDismiss.js';
 import {
     useIsHandheldDevice,
     useViewportHeightBelow,
@@ -1803,6 +1804,10 @@ export const useApp = () => {
             setCurrentUser(mergedUser);
             setUpdateTrigger(prev => prev + 1);
         });
+
+        if (mergedUser.id) {
+            syncDismissedScreenGuidesFromUser(mergedUser.id, mergedUser.dismissedScreenGuides);
+        }
         
         if (mergedUser.id) {
             setUsersMap(prevMap => ({ ...prevMap, [mergedUser.id]: mergedUser }));

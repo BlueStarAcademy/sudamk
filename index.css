@@ -2151,7 +2151,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .bg-single-player-background {
-    background-image: url('/images/bg/singlebg.webp');
+    background-image: url('/images/bg/single1.webp');
     background-size: cover;
     background-position: center;
     background-color: rgb(var(--bg-tertiary));
