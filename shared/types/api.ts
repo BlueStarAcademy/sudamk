@@ -728,7 +728,7 @@ export type ServerAction =
     | { type: 'GUILD_REJECT_APPLICANT', payload: { guildId?: string; userId: string; applicantId?: string } }
     | { type: 'GUILD_CANCEL_APPLICATION', payload: { guildId: string } }
     | { type: 'GUILD_START_RESEARCH', payload: { guildId?: string; researchId: string } }
-    | { type: 'START_GUILD_BOSS_BATTLE', payload: { bossId?: string; result?: any; bossName?: string } }
+    | { type: 'START_GUILD_BOSS_BATTLE', payload: { bossId?: string; bossName?: string } }
     | { type: 'LOAD_EQUIPMENT_PRESET', payload: { presetName?: string; presetIndex?: number } }
     | { type: 'REFINE_EQUIPMENT', payload: { itemId: string; optionType: 'main' | 'combatSub' | 'specialSub' | 'mythicSub'; optionIndex: number; refinementType: 'type' | 'value' | 'mythic' | null } }
     ;

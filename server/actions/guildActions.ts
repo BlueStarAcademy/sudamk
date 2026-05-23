@@ -37,7 +37,9 @@ import {
     calculateGuildBossBattleRewards,
     getCurrentGuildBossStage,
     getScaledGuildBossMaxHp,
+    scaleGuildBossForStage,
 } from '../../utils/guildBossStageUtils.js';
+import { runGuildBossBattle } from '../../utils/guildBossSimulator.js';
 import { aggregateSpecialOptionGearFromUser } from '../../shared/utils/specialOptionGearEffects.js';
 import { broadcast } from '../socket.js';
 import { generateStrategicRandomBoard } from '../strategicInitialBoard.js';
@@ -3510,8 +3512,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
         }
         
         case 'START_GUILD_BOSS_BATTLE': {
-            const { bossId, result } = (payload ?? {}) as { bossId?: string; result?: GuildBossBattleResult };
-            if (!result) return { error: '전투 결과가 없습니다.' };
+            const { bossId } = (payload ?? {}) as { bossId?: string };
             if (!user.guildId) return { error: '길드에 가입되어 있지 않습니다.' };
             
             const guild = guilds[user.guildId];
@@ -3572,6 +3573,16 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
             const preBattleHpRaw = gbState.currentBossHp;
             const preBattleHp = typeof preBattleHpRaw === 'number' ? preBattleHpRaw : scaledBossMaxHp;
+
+            const scaledBossForBattle = scaleGuildBossForStage(bossTemplateForBattle, bossDifficultyStage);
+            const battleStartHp = preBattleHp <= 0 ? scaledBossMaxHp : preBattleHp;
+            const simResult = runGuildBossBattle(
+                freshUser,
+                guild,
+                { ...scaledBossForBattle, hp: battleStartHp },
+                bossDifficultyStage,
+            );
+            const result: GuildBossBattleResult = { ...simResult };
 
             const gearBoss = aggregateSpecialOptionGearFromUser(freshUser);
             const reportedDamage = Math.max(0, Math.floor(result.damageDealt || 0));

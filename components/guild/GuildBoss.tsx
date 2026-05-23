@@ -14,9 +14,15 @@ import GuildMissionsPanel from './GuildMissionsPanel.js';
 import GuildShopModal from './GuildShopModal.js';
 import { BOSS_SKILL_ICON_MAP } from '../../assets.js';
 import HelpModal from '../HelpModal.js';
-import { runGuildBossBattle } from '../../utils/guildBossSimulator.js';
+import {
+    clearPendingGuildBossBattle,
+    GUILD_BOSS_LOG_PLAYBACK_MS,
+    loadPendingGuildBossBattle,
+    savePendingGuildBossBattle,
+    type GuildBossBattleModalResult,
+    type GuildBossBattleSubmitContext,
+} from '../../utils/guildBossBattlePersistence.js';
 import { getCurrentGuildBossStage, scaleGuildBossForStage } from '../../utils/guildBossStageUtils.js';
-import { aggregateSpecialOptionGearFromUser } from '../../shared/utils/specialOptionGearEffects.js';
 import type { BattleLogEntry, GuildBossBattleResult } from '../../types/index.js';
 import { calculateTotalStats, calculateUserEffects } from '../../utils/statUtils.js';
 import { computeCoreStatFinalFromBonuses } from '../../shared/utils/coreStatComposition.js';
@@ -643,6 +649,19 @@ const GuildBoss: React.FC = () => {
 
     const [isSimulating, setIsSimulating] = useState(false);
     const simulationInFlight = useRef(false);
+    const handleActionRef = useRef(handlers.handleAction);
+    handleActionRef.current = handlers.handleAction;
+    const currentUserRef = useRef(currentUserWithStatus);
+    currentUserRef.current = currentUserWithStatus;
+    const myGuildRef = useRef<GuildType | null>(null);
+    const currentBattleDamageRef = useRef(0);
+    const userHpRef = useRef(0);
+    const simulatedBossHpRef = useRef(0);
+    const battleRecoveryAttemptedRef = useRef(false);
+    const battleStartedAtRef = useRef<number | null>(null);
+    const confirmedBattleResultRef = useRef<GuildBossBattleModalResult | null>(null);
+    const finishBattlePlaybackRef = useRef<(modalResult: GuildBossBattleModalResult) => void>(() => {});
+    const battleSubmitContextRef = useRef<GuildBossBattleSubmitContext | null>(null);
     const [simulationResult, setSimulationResult] = useState<GuildBossBattleResult | null>(null);
     const [logIndex, setLogIndex] = useState(0);
     const [battleLog, setBattleLog] = useState<BattleLogEntry[]>([]);
@@ -665,6 +684,7 @@ const GuildBoss: React.FC = () => {
         if (!currentUserWithStatus?.guildId || !guilds) return null;
         return (guilds as Record<string, GuildType>)[currentUserWithStatus.guildId];
     }, [currentUserWithStatus?.guildId, guilds]);
+    myGuildRef.current = myGuild;
 
     const currentBoss = useMemo(() => {
         if (!myGuild?.guildBossState) return GUILD_BOSSES[0];
@@ -691,6 +711,8 @@ const GuildBoss: React.FC = () => {
     const { guildBossState } = myGuild || {};
     const currentHp = guildBossState?.currentBossHp ?? scaledBoss.maxHp;
     const [simulatedBossHp, setSimulatedBossHp] = useState(currentHp);
+    userHpRef.current = userHp;
+    simulatedBossHpRef.current = simulatedBossHp;
 
     const userLogs = useMemo(() => battleLog.filter(e => e.isUserAction), [battleLog]);
     const bossLogs = useMemo(() => battleLog.filter(e => !e.isUserAction), [battleLog]);
@@ -746,7 +768,50 @@ const GuildBoss: React.FC = () => {
         };
     }, [bossDamageNumbers]);
 
-    const handleBattleStart = useCallback(() => {
+    const persistPendingBattle = useCallback((
+        result: GuildBossBattleResult,
+        snapshot: {
+            logIndex: number;
+            battleLog: BattleLogEntry[];
+            userHp: number;
+            currentBattleDamage: number;
+            simulatedBossHp: number;
+            confirmedBattleResult?: GuildBossBattleModalResult;
+        },
+    ) => {
+        const submitContext = battleSubmitContextRef.current;
+        const userSnapshot = currentUserRef.current;
+        if (!submitContext || !userSnapshot?.id) return;
+        savePendingGuildBossBattle({
+            userId: userSnapshot.id,
+            guildId: submitContext.guildId,
+            submitContext,
+            simulationResult: result,
+            logIndex: snapshot.logIndex,
+            battleLog: snapshot.battleLog,
+            userHp: snapshot.userHp,
+            currentBattleDamage: snapshot.currentBattleDamage,
+            simulatedBossHp: snapshot.simulatedBossHp,
+            startedAt: battleStartedAtRef.current ?? Date.now(),
+            confirmedBattleResult: snapshot.confirmedBattleResult ?? confirmedBattleResultRef.current ?? undefined,
+        });
+    }, []);
+
+    const finishBattlePlayback = useCallback((modalResult: GuildBossBattleModalResult) => {
+        setBattleResult(modalResult);
+        setShowResultModal(true);
+        clearPendingGuildBossBattle();
+        battleSubmitContextRef.current = null;
+        battleStartedAtRef.current = null;
+        confirmedBattleResultRef.current = null;
+        setIsSimulating(false);
+        setSimulationResult(null);
+        setActiveDebuffs({});
+        simulationInFlight.current = false;
+    }, []);
+    finishBattlePlaybackRef.current = finishBattlePlayback;
+
+    const handleBattleStart = useCallback(async () => {
         if (!currentUserWithStatus || !myGuild || simulationInFlight.current) return;
         
         const todayKST = getTodayKSTDateString();
@@ -755,112 +820,154 @@ const GuildBoss: React.FC = () => {
         if (attemptsLeft <= 0) return;
 
         simulationInFlight.current = true;
+        battleStartedAtRef.current = Date.now();
         setIsSimulating(true);
         setBattleLog([]);
         setLogIndex(0);
         setDamageNumbers([]);
         setBossDamageNumbers([]);
         setCurrentBattleDamage(0);
+        currentBattleDamageRef.current = 0;
         setActiveDebuffs({});
         const preGuildHp = myGuild.guildBossState?.currentBossHp;
         const battleStartHp =
             preGuildHp != null && preGuildHp > 0 ? preGuildHp : scaledBoss.maxHp;
         setSimulatedBossHp(battleStartHp);
+        simulatedBossHpRef.current = battleStartHp;
 
-        const result = runGuildBossBattle(
-            currentUserWithStatus,
-            myGuild,
-            { ...scaledBoss, hp: battleStartHp },
-            bossDifficultyStage
-        );
-        
-        setUserHp(result.maxUserHp);
-        setMaxUserHp(result.maxUserHp);
-        setSimulationResult(result);
-    }, [currentUserWithStatus, myGuild, scaledBoss, bossDifficultyStage]);
+        const rankUserId = currentUserWithStatus.isAdmin ? ADMIN_USER_ID : currentUserWithStatus.id;
+        const guildId = myGuild.id;
+        battleSubmitContextRef.current = {
+            rankUserId,
+            preBattleGuildHp: preGuildHp,
+            bossId: currentBoss.id,
+            bossName: currentBoss.name,
+            guildId,
+        };
+
+        const totalDamageLog = myGuild.guildBossState?.totalDamageLog || {};
+        const rankingBefore = Object.entries(totalDamageLog)
+            .map(([userId, damage]: [string, any]) => ({ userId, damage: typeof damage === 'number' ? damage : 0 }))
+            .sort((a, b) => b.damage - a.damage);
+        const prevRank = rankUserId ? rankingBefore.findIndex((r) => r.userId === rankUserId) + 1 : 0;
+        setPreviousRank(prevRank > 0 ? prevRank : null);
+
+        try {
+            const actionResult = await handleActionRef.current({
+                type: 'START_GUILD_BOSS_BATTLE',
+                payload: { bossId: currentBoss.id, bossName: currentBoss.name },
+            });
+
+            const errorMessage = (actionResult as { error?: string } | void)?.error;
+            if (errorMessage) {
+                throw new Error(errorMessage);
+            }
+
+            const serverResult =
+                (actionResult as any)?.guildBossBattleResult
+                ?? (actionResult as any)?.clientResponse?.guildBossBattleResult;
+            if (!serverResult?.battleLog?.length) {
+                throw new Error('서버 전투 기보를 받지 못했습니다.');
+            }
+
+            const guildsPayload = (actionResult as any)?.clientResponse?.guilds ?? (actionResult as any)?.guilds;
+            const updatedGuild =
+                (guildsPayload && guildId ? guildsPayload[guildId] : null) || myGuild;
+            const rankingAfter = Object.entries(updatedGuild?.guildBossState?.totalDamageLog || {})
+                .map(([userId, damage]: [string, any]) => ({ userId, damage: typeof damage === 'number' ? damage : 0 }))
+                .sort((a, b) => b.damage - a.damage);
+            const newRank = rankUserId ? rankingAfter.findIndex((r) => r.userId === rankUserId) + 1 : 0;
+
+            const modalResult: GuildBossBattleModalResult = {
+                ...serverResult,
+                bossName: currentBoss.name,
+                previousRank: prevRank > 0 ? prevRank : null,
+                currentRank: newRank > 0 ? newRank : null,
+            };
+            confirmedBattleResultRef.current = modalResult;
+
+            const replayBossStartHp =
+                typeof serverResult.bossHpBefore === 'number' ? serverResult.bossHpBefore : battleStartHp;
+            setUserHp(serverResult.maxUserHp);
+            userHpRef.current = serverResult.maxUserHp;
+            setMaxUserHp(serverResult.maxUserHp);
+            setSimulatedBossHp(replayBossStartHp);
+            simulatedBossHpRef.current = replayBossStartHp;
+            setSimulationResult(serverResult);
+            persistPendingBattle(serverResult, {
+                logIndex: 0,
+                battleLog: [],
+                userHp: serverResult.maxUserHp,
+                currentBattleDamage: 0,
+                simulatedBossHp: replayBossStartHp,
+                confirmedBattleResult: modalResult,
+            });
+        } catch (err) {
+            console.error('[GuildBoss] Failed to start battle:', err);
+            battleSubmitContextRef.current = null;
+            battleStartedAtRef.current = null;
+            confirmedBattleResultRef.current = null;
+            setIsSimulating(false);
+            simulationInFlight.current = false;
+        }
+    }, [currentUserWithStatus, myGuild, scaledBoss, currentBoss, persistPendingBattle]);
+
+    useEffect(() => {
+        if (battleRecoveryAttemptedRef.current || !currentUserWithStatus?.id || !myGuild?.id) return;
+        battleRecoveryAttemptedRef.current = true;
+
+        const pending = loadPendingGuildBossBattle(currentUserWithStatus.id, myGuild.id, currentBoss.id);
+        if (!pending) return;
+        if (!pending.confirmedBattleResult) {
+            clearPendingGuildBossBattle();
+            return;
+        }
+
+        simulationInFlight.current = true;
+        battleStartedAtRef.current = pending.startedAt;
+        battleSubmitContextRef.current = pending.submitContext;
+        confirmedBattleResultRef.current = pending.confirmedBattleResult ?? null;
+        currentBattleDamageRef.current = pending.currentBattleDamage;
+        userHpRef.current = pending.userHp;
+        simulatedBossHpRef.current = pending.simulatedBossHp;
+        setSimulationResult(pending.simulationResult);
+        setLogIndex(pending.logIndex);
+        setBattleLog(pending.battleLog);
+        setUserHp(pending.userHp);
+        setMaxUserHp(pending.simulationResult.maxUserHp);
+        setCurrentBattleDamage(pending.currentBattleDamage);
+        setSimulatedBossHp(pending.simulatedBossHp);
+        setIsSimulating(true);
+
+        const playbackFinished = pending.logIndex >= pending.simulationResult.battleLog.length;
+        if (playbackFinished && pending.confirmedBattleResult) {
+            finishBattlePlaybackRef.current(pending.confirmedBattleResult);
+        }
+    }, [currentUserWithStatus?.id, myGuild?.id, currentBoss.id]);
 
     useEffect(() => {
         if (!isSimulating || !simulationResult) return;
 
         if (logIndex >= simulationResult.battleLog.length) {
-            const timer = setTimeout(async () => {
-                // 서버 totalDamageLog 키는 관리자일 때 effectiveUserId(ADMIN_USER_ID)와 통일됨 — 클라 id와 불일치 시 순위 0으로 나오던 문제 방지
-                const rankUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : (currentUserWithStatus?.id ?? '');
-                // 현재 순위 계산 (보스전 전)
-                const currentRanking = Object.entries(myGuild?.guildBossState?.totalDamageLog || {})
-                    .map(([userId, damage]: [string, any]) => ({ userId, damage: typeof damage === 'number' ? damage : 0 }))
-                    .sort((a, b) => b.damage - a.damage);
-                const prevRank = rankUserId ? currentRanking.findIndex((r) => r.userId === rankUserId) + 1 : 0;
-                setPreviousRank(prevRank > 0 ? prevRank : null);
-
-                const preBattleGuildHp = myGuild?.guildBossState?.currentBossHp;
-                const preBattleNum =
-                    typeof preBattleGuildHp === 'number' ? preBattleGuildHp : simulationResult.bossMaxHp;
-                const clientBossHpAfter =
-                    preBattleNum <= 0 ? 0 : Math.max(0, preBattleNum - currentBattleDamage);
-                const gbGear = aggregateSpecialOptionGearFromUser(currentUserWithStatus);
-                const boostedDamage = Math.round(
-                    currentBattleDamage * (1 + (gbGear.guildBossDamagePercent || 0) / 100),
-                );
-                const finalResult = {
-                    ...simulationResult,
-                    damageDealt: boostedDamage,
-                    bossName: currentBoss.name,
-                    bossHpAfter: clientBossHpAfter,
-                    bossMaxHp: simulationResult.bossMaxHp,
-                    bossHpBefore: preBattleNum <= 0 ? simulationResult.bossMaxHp : preBattleNum,
-                };
-                const actionResult = await handlers.handleAction({ type: 'START_GUILD_BOSS_BATTLE', payload: { bossId: currentBoss.id, result: finalResult, bossName: currentBoss.name } });
-                
-                // 서버에서 반환된 업데이트된 결과 사용 (장비 정보 포함)
-                // API가 { success, ...clientResponse } 형태로 응답하므로 guildBossBattleResult는 최상위에 있음
-                const serverResult = (actionResult as any)?.guildBossBattleResult ?? (actionResult as any)?.clientResponse?.guildBossBattleResult;
-                const resultToUse = serverResult || finalResult;
-                
-                // 디버깅: 장비 정보 확인
-                if (resultToUse?.rewards?.equipment) {
-                    console.log('[GuildBoss] Equipment info in result:', {
-                        hasName: !!resultToUse.rewards.equipment.name,
-                        name: resultToUse.rewards.equipment.name,
-                        hasImage: !!resultToUse.rewards.equipment.image,
-                        hasSlot: !!resultToUse.rewards.equipment.slot,
-                        grade: resultToUse.rewards.equipment.grade,
-                        equipmentKeys: Object.keys(resultToUse.rewards.equipment)
-                    });
+            const timer = setTimeout(() => {
+                const modalResult = confirmedBattleResultRef.current;
+                if (modalResult) {
+                    finishBattlePlaybackRef.current(modalResult);
                 } else {
-                    console.warn('[GuildBoss] No equipment in result:', {
-                        hasRewards: !!resultToUse?.rewards,
-                        hasEquipment: !!resultToUse?.rewards?.equipment,
-                        rewardsKeys: resultToUse?.rewards ? Object.keys(resultToUse.rewards) : []
+                    finishBattlePlaybackRef.current({
+                        ...simulationResult,
+                        bossName: battleSubmitContextRef.current?.bossName ?? '',
                     });
                 }
-                
-                // 보스전 후 순위 계산 (응답의 guilds가 있으면 최신 로그 사용)
-                const guildsPayload = (actionResult as any)?.clientResponse?.guilds ?? (actionResult as any)?.guilds;
-                const updatedGuild =
-                    (guildsPayload && myGuild?.id ? guildsPayload[myGuild.id] : null) || myGuild;
-                const updatedRanking = Object.entries(updatedGuild?.guildBossState?.totalDamageLog || {})
-                    .map(([userId, damage]: [string, any]) => ({ userId, damage: typeof damage === 'number' ? damage : 0 }))
-                    .sort((a, b) => b.damage - a.damage);
-                const newRank = rankUserId ? updatedRanking.findIndex((r) => r.userId === rankUserId) + 1 : 0;
-
-                setBattleResult({
-                    ...resultToUse,
-                    bossName: currentBoss.name,
-                    previousRank: prevRank > 0 ? prevRank : null,
-                    currentRank: newRank > 0 ? newRank : null,
-                });
-                setShowResultModal(true);
-                setIsSimulating(false);
-                setSimulationResult(null);
-                setActiveDebuffs({});
-                simulationInFlight.current = false;
-            }, 1000);
+            }, GUILD_BOSS_LOG_PLAYBACK_MS);
             return () => clearTimeout(timer);
         }
 
         const processNextLogEntry = () => {
             const newEntry = simulationResult.battleLog[logIndex];
+            let nextUserHp = userHpRef.current;
+            let nextBossHp = simulatedBossHpRef.current;
+            let nextBattleDamage = currentBattleDamageRef.current;
             
             // At the start of a new turn, update debuffs
             if (logIndex > 0 && simulationResult.battleLog[logIndex-1].turn !== newEntry.turn) {
@@ -878,11 +985,13 @@ const GuildBoss: React.FC = () => {
             setBattleLog(prev => [...prev, newEntry]);
 
             if (newEntry.damageTaken !== undefined) {
-                setUserHp((hp: number) => Math.max(0, hp - (newEntry.damageTaken || 0)));
+                nextUserHp = Math.max(0, nextUserHp - (newEntry.damageTaken || 0));
+                setUserHp(nextUserHp);
                 setDamageNumbers(prev => [...prev.slice(-5), { id: Date.now() + Math.random(), text: `-${newEntry.damageTaken}`, color: 'text-red-400' }]);
             }
             if (newEntry.healingDone !== undefined) {
-                setUserHp((hp: number) => Math.min(maxUserHp, hp + (newEntry.healingDone || 0)));
+                nextUserHp = Math.min(maxUserHp, nextUserHp + (newEntry.healingDone || 0));
+                setUserHp(nextUserHp);
                 setDamageNumbers(prev => [...prev.slice(-5), { id: Date.now() + Math.random(), text: `+${newEntry.healingDone}`, color: 'text-green-400' }]);
             }
             
@@ -903,7 +1012,9 @@ const GuildBoss: React.FC = () => {
                 if (damageMatch && damageMatch[1]) {
                     const damageDealtInTurn = parseInt(damageMatch[1].replace(/,/g, ''), 10);
                     if (!isNaN(damageDealtInTurn)) {
-                        setCurrentBattleDamage(prev => prev + damageDealtInTurn);
+                        nextBattleDamage += damageDealtInTurn;
+                        currentBattleDamageRef.current = nextBattleDamage;
+                        setCurrentBattleDamage(nextBattleDamage);
                     }
                 }
             }
@@ -914,7 +1025,8 @@ const GuildBoss: React.FC = () => {
                 const value = parseInt(bossHpChangeMatch[2].replace(/,/g, ''), 10);
                 
                 if (sign === '-') {
-                    setSimulatedBossHp((prevHp: number) => Math.max(0, prevHp - value));
+                    nextBossHp = Math.max(0, nextBossHp - value);
+                    setSimulatedBossHp(nextBossHp);
                     setBossDamageNumbers(prev => [...prev.slice(-9), { 
                         id: Date.now() + Math.random(), 
                         text: `-${value.toLocaleString()}`, 
@@ -922,8 +1034,9 @@ const GuildBoss: React.FC = () => {
                         isHeal: false,
                         isCrit: newEntry.isCrit
                     }]);
-                } else { // sign is '+'
-                    setSimulatedBossHp((prevHp: number) => Math.min(simulationResult.bossMaxHp, prevHp + value));
+                } else {
+                    nextBossHp = Math.min(simulationResult.bossMaxHp, nextBossHp + value);
+                    setSimulatedBossHp(nextBossHp);
                     setBossDamageNumbers(prev => [...prev.slice(-9), { 
                         id: Date.now() + Math.random(), 
                         text: `+${value.toLocaleString()}`, 
@@ -934,13 +1047,23 @@ const GuildBoss: React.FC = () => {
                 }
             }
 
-            setLogIndex(prev => prev + 1);
+            userHpRef.current = nextUserHp;
+            simulatedBossHpRef.current = nextBossHp;
+            const nextLogIndex = logIndex + 1;
+            setLogIndex(nextLogIndex);
+            persistPendingBattle(simulationResult, {
+                logIndex: nextLogIndex,
+                battleLog: simulationResult.battleLog.slice(0, nextLogIndex),
+                userHp: nextUserHp,
+                currentBattleDamage: nextBattleDamage,
+                simulatedBossHp: nextBossHp,
+            });
         };
 
-        const timer = setTimeout(processNextLogEntry, 1000);
+        const timer = setTimeout(processNextLogEntry, GUILD_BOSS_LOG_PLAYBACK_MS);
         return () => clearTimeout(timer);
 
-    }, [isSimulating, simulationResult, logIndex, handlers, maxUserHp, currentBoss.name, currentBattleDamage, myGuild?.guildBossState?.currentBossHp, currentUserWithStatus?.id, currentUserWithStatus?.isAdmin, myGuild?.id]);
+    }, [isSimulating, simulationResult, logIndex, maxUserHp, persistPendingBattle]);
 
     const { fullDamageRanking, myRankData } = useMemo(() => {
         if (!myGuild?.guildBossState?.totalDamageLog) {
